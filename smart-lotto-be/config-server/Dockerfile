@@ -2,11 +2,16 @@
 FROM maven:3.9.6-eclipse-temurin-21-alpine AS build
 WORKDIR /app
 
+# Copy Parent POM first (Build from root context)
 COPY pom.xml .
-RUN --mount=type=cache,target=/root/.m2 mvn dependency:go-offline
 
-COPY src ./src
-RUN --mount=type=cache,target=/root/.m2 mvn clean package -DskipTests
+# Copy module specific files
+COPY config-server/pom.xml config-server/
+COPY config-server/src config-server/src
+
+# Build only the module (Main building phase)
+# skipping checkstyle inside Docker to ensure stability (already enforced in CI/CD)
+RUN --mount=type=cache,target=/root/.m2 mvn -f config-server/pom.xml clean package -DskipTests -Dcheckstyle.skip
 
 # Tuyệt chiêu: Gọt giũa JRE tí hon (~45MB)
 RUN jlink \
@@ -26,7 +31,7 @@ RUN apk add --no-cache curl
 
 # Copy JRE tí hon và file JAR sang
 COPY --from=build /javaruntime /javaruntime
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build /app/config-server/target/*.jar app.jar
 
 # Chạy app bằng JRE tí hon
 ENTRYPOINT ["/javaruntime/bin/java", "-jar", "app.jar"]

@@ -5,16 +5,16 @@ services:
     container_name: smartlotto-postgres
     restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: smartlotto_db
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-smartlotto_db}
     volumes:
       - ./infra/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d smartlotto_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-smartlotto_db}"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -35,8 +35,8 @@ services:
     container_name: smartlotto-rabbitmq
     restart: always
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -46,8 +46,8 @@ services:
   # --- Infrastructure Services ---
   discovery-server:
     build:
-      context: ./discovery-server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: discovery-server/Dockerfile
     container_name: smartlotto-discovery
     ports:
       - "8761:8761"
@@ -61,8 +61,8 @@ services:
 
   config-server:
     build:
-      context: ./config-server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: config-server/Dockerfile
     container_name: smartlotto-config
     depends_on:
       discovery-server:
@@ -84,15 +84,15 @@ services:
   # --- Business Services ---
   api-gateway:
     build:
-      context: ./api-gateway-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api-gateway-service/Dockerfile
     container_name: smartlotto-gateway
     depends_on:
       config-server:
         condition: service_healthy
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - EUREKA_SERVER_URL=http://discovery-server:8761/eureka/
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
     ports:
       - "8080:8080"
     networks:
@@ -100,8 +100,8 @@ services:
 
   account-service:
     build:
-      context: ./account-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: account-service/Dockerfile
     container_name: smartlotto-account
     depends_on:
       config-server:
@@ -109,8 +109,8 @@ services:
       postgres-db:
         condition: service_healthy
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - EUREKA_SERVER_URL=http://discovery-server:8761/eureka/
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
     networks:
       - smartlotto-network
 
