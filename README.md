@@ -132,13 +132,49 @@ Team tuân thủ **Conventional Commits** kết hợp với Jira Task ID ở đ�
 
 ---
 
-## 🎨 5. Giao diện (Visuals)
+## 🚢 5. Quy trình CI/CD & Chất lượng Code
+
+Dự án sử dụng **GitHub Actions** phối hợp với **Checkstyle** để đảm bảo mọi dòng code đều đạt chuẩn trước khi lên môi trường thật.
+
+#### 🔄 Luồng tự động hóa (Workflow):
+
+```mermaid
+graph LR
+    Push[Code Push / PR] --> Lint[Checkstyle Scan]
+    Lint --> Test[Unit Tests]
+    Test --> Build[Build JAR]
+    Build --> PR[Ready for Merge]
+```
+
+#### 🛠️ Các công đoạn chi tiết:
+
+1.  **Kiểm tra chất lượng (Code Linting):**
+    *   **Công cụ:** `checkstyle.xml` (Dựa trên Google Style nhưng đã tối ưu: 4 spaces, cho phép star imports).
+    *   **Thực thi:** `mvn checkstyle:check`.
+    *   **Quy tắc:** Mọi vi phạm sẽ làm build bị **FAIL**. Team cần fix hết lỗi style trên branch cá nhân trước khi PR được chấp nhận.
+
+2.  **Continuous Integration (CI):**
+    *   **Tự động hóa:** Chạy trên GitHub Actions khi có `pull_request` vào `develop` hoặc `main`.
+    *   **Các bước:** Checkout -> Setup JDK 21 -> Checkstyle -> Run Tests -> Build.
+
+#### 💡 Lệnh kiểm tra nhanh trên Local:
+```bash
+# Kiểm tra lỗi style
+mvn checkstyle:check
+
+# Chạy cả test và lint để đảm bảo PR "sạch"
+mvn clean verify
+```
+
+---
+
+## 🎨 6. Giao diện (Visuals)
 
 *Sẽ được cập nhật sớm: Ảnh chụp màn hình Web, Mobile và sơ đồ kiến trúc nâng cao.*
 
 ---
 
-## 🛠 6. Công nghệ và Công cụ (Tech Stack)
+## 🛠 7. Công nghệ và Công cụ (Tech Stack)
 
 ### Nền tảng (Tech Stack):
 - **Backend:** Java 21, Spring Boot 3.x, Spring Cloud.
@@ -149,7 +185,7 @@ Team tuân thủ **Conventional Commits** kết hợp với Jira Task ID ở đ�
 
 ---
 
-## 📞 7. Hỗ trợ & Liên hệ
+## 📞 8. Hỗ trợ & Liên hệ
 
 - Dự án được phát triển bởi đội ngũ SmartLotto.
 - Quản lý công việc qua: [Jira - SmartLotto](https://jira.atlassian.com) (Private link).
