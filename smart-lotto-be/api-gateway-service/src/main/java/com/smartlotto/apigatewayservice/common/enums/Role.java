@@ -1,18 +1,4 @@
 package com.smartlotto.apigatewayservice.common.enums;
 
-import lombok.Getter;
-
-@Getter
-public enum Role {
-    STUDENT("STUDENT"),
-    TUTOR("TUTOR"),
-    HOST("HOST"),
-    ADMIN("ADMIN"),
-    SUPER_ADMIN("SUPER_ADMIN");
-
-    private final String name;
-
-    Role(String name) {
-        this.name = name;
-    }
-}
+// NOTE: Role enum was removed because it was unused across the repository.
+// Reintroduce it alongside the code that consumes it when role-based logic is implemented.
