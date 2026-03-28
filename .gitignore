@@ -15,6 +15,16 @@ bin/
 mvnd/
 .mvnd/
 
+# Maven specific
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.properties
+
 # Node.js / ReactJS
 node_modules/
 dist/
@@ -51,6 +61,12 @@ android/app/src/main/res/raw/
 .flutter-plugins
 .flutter-plugins-dependencies
 
+# Eclipse
+.settings/
+.project
+.classpath
+.factorypath
+
 # macOS
 .DS_Store
 .AppleDouble
@@ -59,6 +75,11 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # AI / Assistant / Others
 .gemini/
