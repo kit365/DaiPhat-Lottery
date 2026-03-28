@@ -22,27 +22,22 @@ Dự án này nhằm mục tiêu hiện đại hóa các quy trình mua và qu�
 
 ## 🏗️ 2. Kiến trúc hệ thống (System Architecture)
 
-Hệ thống được phát triển theo mô hình Microservices kiến trúc hướng dịch vụ:
+Hệ thống được phát triển theo mô hình Microservices kiến trúc hướng dịch vụ với hạ tầng quản lý tập trung:
 
 ```mermaid
 graph TD
     Client[Web / Mobile Client] --> Gateway[API Gateway]
     Gateway --> Eureka[Service Registry - Eureka]
+    Gateway --> Config[Config Server - Spring Cloud]
     
     subgraph Microservices Layer
-        Gateway --> Auth[Auth Service]
-        Gateway --> Ticket[Ticket Service]
-        Gateway --> Draw[Draw Service]
-        Gateway --> Notify[Notify Service]
+        Gateway --> Account[Account Service]
+        Gateway --> Ticket[Ticket Service - TBD]
+        Gateway --> Draw[Draw Service - TBD]
     end
     
-    subgraph Infrastructure Layer
-        Auth --> AuthDB[(PostgreSQL)]
-        Ticket --> TicketDB[(PostgreSQL)]
-        Draw --> DrawDB[(PostgreSQL)]
-        Notify --> Redis[(Redis)]
-        Ticket --> RabbitMQ{RabbitMQ}
-        Draw --> RabbitMQ
+    subgraph Configuration Layer
+        Config --> ConfigDir["/config (Hierarchical YAML)"]
     end
 ```
 
@@ -50,148 +45,94 @@ graph TD
 
 ## 🚀 3. Backend Microservices Setup
 
-Phân hệ BE của SmartLotto được xây dựng trên nền tảng **Spring Boot (JDK 21)** và **Spring Cloud**.
+Phân hệ BE của SmartLotto được xây dựng trên nền tảng **Spring Boot (JDK 21)** và **Spring Cloud**, quản lý theo mô hình **Monorepo** với Parent POM tập trung.
+
+#### 📁 Cấu trúc thư mục Backend:
+- **`smart-lotto-be/`**: Thư mục gốc chứa toàn bộ các service.
+    - `pom.xml`: **Parent POM** quản lý version và Checkstyle chung.
+    - `config-server/`: Service quản lý cấu hình tập trung (Port 8888).
+    - `discovery-server/`: Eureka Server (Port 8761).
+    - `api-gateway-service/`: API Gateway (Port 8080).
+    - `config/`: Thư mục chứa các file cấu hình `.yml` phân cấp cho từng service.
 
 #### 📋 Yêu cầu hệ thống:
 *   **JDK 21** (Amazon Corretto hoặc Oracle OpenJDK).
 *   **Maven 3.9+** (Dùng để build services).
-*   **Docker & Docker Compose** (Dùng để chạy hạ tầng và container hóa).
-*   **PostgreSQL Client** (Tùy chọn, dùng để debug database).
+*   **Docker & Docker Compose** (Dùng để chạy hạ tầng).
 
-#### 🛠️ Bước 1: Khởi tạo hạ tầng (Infrastructure)
-Trước khi chạy code Java, bạn cần khởi chạy các dịch vụ phụ trợ (Postgres, Redis, RabbitMQ,...) thông qua Docker:
-
-```bash
-# Khởi chạy tất cả các dịch vụ nền ở chế độ background
-docker compose up -d
-
-# Kiểm tra trạng thái các container đang chạy
-docker compose ps
-
-# (Khi cần) Dừng hạ tầng
-docker compose stop
-
-# Dừng và xóa toàn bộ hạ tầng (Clear containers)
-docker compose down
-```
-
-#### 🏗️ Bước 2: Build các Microservices
-Sử dụng Maven để cài đặt các dependencies và build file JAR:
+#### 🛠️ Bước 1: Build & Cài đặt Backend
+Sử dụng Maven tại thư mục gốc `smart-lotto-be` để chuẩn bị môi trường:
 
 ```bash
-# Chạy ở root directory của dự án
+cd smart-lotto-be
+
+# Build toàn bộ dự án & cài đặt dependencies (Skip tests)
 mvn clean install -DskipTests
+
+# Kiểm tra chất lượng code (Checkstyle)
+mvn checkstyle:check
 ```
 
-#### 🏃 Bước 3: Thứ tự khởi chạy (Startup Order)
-Để hệ thống hoạt động ổn định, bạn **CẦN** khởi chạy theo thứ tự khuyến nghị:
+#### 🐳 Bước 2: Khởi chạy Hạ tầng (Docker Compose)
+Dùng Docker để bật nhanh các cột trụ hạ tầng phục vụ việc phát triển local:
 
-1.  **Service Registry (Eureka)**: Quản lý danh sách các dịch vụ.
-2.  **Config Server** (Nêu có): Cung cấp cấu hình tập trung.
-3.  **API Gateway**: Cửa ngõ duy nhất cho Client.
-4.  **Microservices Nghiệp vụ**: Các service như `auth-service`, `ticket-service`, `draw-service`, v.v.
-
-*Lệnh chạy mẫu cho 1 service:*
+**A. Chỉ chạy Hạ tầng (Để code tay trên IDE - Khuyên dùng):**
 ```bash
-cd services/auth-service
-mvn spring-boot:run
+# Mặc định sẽ chỉ bật Postgres, Redis, RabbitMQ
+docker compose up -d
 ```
 
-#### 💡 Một số lệnh hữu ích:
-*   `docker compose logs -f [service_name]`: Xem log thời gian thực của một service.
-*   `docker compose restart [service_name]`: Khởi động lại nhanh 1 service.
-*   `docker compose down -v`: Xóa sạch container và **xóa luôn cả dữ liệu (Volume)** của database (Reset trắng môi trường).
+**B. Triển khai Tổng lực (Full Stack - Dùng cho VPS/Test Prod):**
+```bash
+# Chạy cả Microservices + Hạ tầng bằng file Pro
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+#### 🏃 Bước 3: Thứ tự chạy các Service (Local Run trên IDE)
+Khi chạy trên IDE (IntelliJ/VS Code), bạn nên tuân thủ thứ tự:
+
+1.  **Discovery Server**: (Port 8761)
+2.  **Config Server**: (Port 8888)
+3.  **API Gateway**: (Port 8080)
+4.  **Các Microservices**: (Vd: `account-service` Port 8081)
 
 ---
 
 ## 💻 4. Quy trình phát triển (Development Workflow)
 
-Để đảm bảo tính nhất quán và quản lý task hiệu quả (Jira integration), team thực hiện theo quy chuẩn sau:
-
 #### 🌿 Quy tắc đặt tên nhánh (Branching Policy)
-*   🔥 **`main`**: Chỉ dành cho bản Release chính thức (Người quản lý dự án/Owner). Tuyên đối không commit trực tiếp.
-*   🛠️ **`develop`**: Nhánh chính để tích hợp các tính năng mới sau khi đã review.
-*   🌿 **`feature/SLT-XX-[topic]`**: Nhánh tính năng dựa trên Task ID của Jira.
-
-*Ví dụ:* `feature/SLT-34-infa-setup`
+*   🔥 **`main`**: Bản Release chính thức. Tuyệt đối không commit trực tiếp.
+*   🛠️ **`develop`**: Nhánh chính để tích hợp các tính năng mới.
+*   🌿 **`feature/SLT-XX-[topic]`**: Nhánh tính năng dựa trên Jira Task ID.
 
 #### 📝 Quy chuẩn Commit (Commit Messages)
-Team tuân thủ **Conventional Commits** kết hợp với Jira Task ID ở đầu:
-
-*Cú pháp:* `[TASK-ID] [type](scope): [description] #done`
-*Các type phổ biến:* `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`.
-
-*Ví dụ:*
-- `[SLT-73] feat(auth): implement login logic #done`
-- `[SLT-85] fix(draw): resolve null pointer in result calculation #done`
-
-#### 🔄 Quy trình Pull Request (PR)
-1.  Đẩy code lên remote branch tương ứng.
-2.  Tạo **Pull Request** từ branch tính năng vào nhánh **`develop`**.
-3.  Hệ thống automation sẽ tự động kiểm tra (Build, Test) và cập nhật trạng thái task trên Jira sau khi PR được merge thành công.
+Team tuân thủ **Conventional Commits**: `[TASK-ID] [type](scope): [description] #done`
 
 ---
 
 ## 🚢 5. Quy trình CI/CD & Chất lượng Code
 
-Dự án sử dụng **GitHub Actions** phối hợp với **Checkstyle** để đảm bảo mọi dòng code đều đạt chuẩn trước khi lên môi trường thật.
+Dự án áp dụng tiêu chuẩn chất lượng nghiêm ngặt thông qua **Checkstyle** và **GitHub Actions**.
 
-#### 🔄 Luồng tự động hóa (Workflow):
-
-```mermaid
-graph LR
-    Push[Code Push / PR] --> Lint[Checkstyle Scan]
-    Lint --> Test[Unit Tests]
-    Test --> Build[Build JAR]
-    Build --> PR[Ready for Merge]
-```
-
-#### 🛠️ Các công đoạn chi tiết:
-
-1.  **Kiểm tra chất lượng (Code Linting):**
-    *   **Công cụ:** `checkstyle.xml` (Dựa trên Google Style nhưng đã tối ưu: 4 spaces, cho phép star imports).
-    *   **Thực thi:** `mvn checkstyle:check`.
-    *   **Quy tắc:** Mọi vi phạm sẽ làm build bị **FAIL**. Team cần fix hết lỗi style trên branch cá nhân trước khi PR được chấp nhận.
-
-2.  **Continuous Integration (CI):**
-    *   **Tự động hóa:** Chạy trên GitHub Actions khi có `pull_request` vào `develop` hoặc `main`.
-    *   **Các bước:** Checkout -> Setup JDK 21 -> Checkstyle -> Run Tests -> Build.
-
-#### 💡 Lệnh kiểm tra nhanh trên Local:
-```bash
-# Kiểm tra lỗi style
-mvn checkstyle:check
-
-# Chạy cả test và lint để đảm bảo PR "sạch"
-mvn clean verify
-```
+#### 🛠️ Kiểm tra chất lượng (Code Linting):
+*   **Công cụ:** `checkstyle.xml` (Đã cấu hình: 4 spaces, cho phép star imports).
+*   **Thực thi:** `mvn checkstyle:check` (Chạy tại root `smart-lotto-be` sẽ quét toàn bộ service).
+*   **Quy tắc:** Mọi vi phạm style đều làm build bị lỗi ở bước CI.
 
 ---
 
-## 🎨 6. Giao diện (Visuals)
-
-*Sẽ được cập nhật sớm: Ảnh chụp màn hình Web, Mobile và sơ đồ kiến trúc nâng cao.*
-
----
-
-## 🛠 7. Công nghệ và Công cụ (Tech Stack)
+## 🛠 6. Công nghệ và Công cụ (Tech Stack)
 
 ### Nền tảng (Tech Stack):
 - **Backend:** Java 21, Spring Boot 3.x, Spring Cloud.
 - **Web Frontend:** ReactJS + TypeScript + Tailwind CSS.
 - **Mobile App:** Flutter.
-- **Database:** PostgreSQL.
-- **Cache & Message Broker:** Redis, RabbitMQ.
+- **Database:** Đang cân nhắc giữa SQL Server và PostgreSQL.
+- **Configuration:** Spring Cloud Config (FileSystem Native).
 
 ---
 
-## 📞 8. Hỗ trợ & Liên hệ
+## 📞 7. Hỗ trợ & Liên hệ
 
 - Dự án được phát triển bởi đội ngũ SmartLotto.
-- Quản lý công việc qua: [Jira - SmartLotto](https://jira.atlassian.com) (Private link).
-
----
-
-## 📜 Giấy phép
-
-Dự án này sử dụng giấy phép **MIT**. Xem tệp [LICENSE](LICENSE) để biết thêm chi tiết.
+- Quản lý công việc qua: [Jira - SmartLotto](https://jira.atlassian.com).
