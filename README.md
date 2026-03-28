@@ -4,125 +4,158 @@
 ![Cơ sở hạ tầng](https://img.shields.io/badge/CI%2FCD-Github%20Action-orange)
 ![Containerization](https://img.shields.io/badge/Docker-Managed-blue)
 
-**SmartLotto** là một hệ thống quản lý và tham gia xổ số trực tuyến thông minh, được thiết kế để mang lại trải nghiệm tiện lợi, minh bạch và an toàn cho người dùng trên đa nền tảng.
+**SmartLotto** là một hệ thống quản lý và tham gia xổ số trực tuyến thông minh, được thiết kế để mang lại trải nghiệm tiện lợi, minh bạch và an toàn cho người dùng trên đa nền tảng (Web, Mobile).
 
 ---
 
-## 📌 Tổng quan dự án
+## 📌 1. Tổng quan dự án
 
 Dự án này nhằm mục tiêu hiện đại hóa các quy trình mua và quản lý vé số truyền thống, tích hợp các công cụ phân tích thông minh và giao diện người dùng thân thiện.
 
 ### Các đặc điểm chính:
-- **Đa nền tảng:** Hỗ trợ trên Web và Mobile.
-- **Minh bạch:** Hệ thống backend mạnh mẽ đảm bảo tính công bằng.
+- **Đa nền tảng:** Hỗ trợ trên Web (ReactJS) và Mobile (Flutter).
+- **Kiến trúc Microservices:** Hệ thống backend mạnh mẽ, linh hoạt và dễ mở rộng.
 - **Tiện lợi:** Tích hợp thanh toán và quản lý vé tự động.
 - **Thông báo:** Cập nhật kết quả nhanh chóng qua ứng dụng di động.
 
 ---
 
-## 🎨 Giao diện (Visuals)
+## 🏗️ 2. Kiến trúc hệ thống (System Architecture)
 
-*Sẽ được cập nhật sớm: Ảnh chụp màn hình Web, Mobile và sơ đồ kiến trúc.*
+Hệ thống được phát triển theo mô hình Microservices kiến trúc hướng dịch vụ:
 
-> [!NOTE]
-> Dự án hiện đang trong giai đoạn phát triển ban đầu. Các tài liệu hình ảnh sẽ được bổ sung sau khi hoàn thiện frontend.
+```mermaid
+graph TD
+    Client[Web / Mobile Client] --> Gateway[API Gateway]
+    Gateway --> Eureka[Service Registry - Eureka]
+    
+    subgraph Microservices Layer
+        Gateway --> Auth[Auth Service]
+        Gateway --> Ticket[Ticket Service]
+        Gateway --> Draw[Draw Service]
+        Gateway --> Notify[Notify Service]
+    end
+    
+    subgraph Infrastructure Layer
+        Auth --> AuthDB[(PostgreSQL)]
+        Ticket --> TicketDB[(PostgreSQL)]
+        Draw --> DrawDB[(PostgreSQL)]
+        Notify --> Redis[(Redis)]
+        Ticket --> RabbitMQ{RabbitMQ}
+        Draw --> RabbitMQ
+    end
+```
 
 ---
 
-## 🛠 Công nghệ và Công cụ
+## 🚀 3. Backend Microservices Setup
+
+Phân hệ BE của SmartLotto được xây dựng trên nền tảng **Spring Boot (JDK 21)** và **Spring Cloud**.
+
+#### 📋 Yêu cầu hệ thống:
+*   **JDK 21** (Amazon Corretto hoặc Oracle OpenJDK).
+*   **Maven 3.9+** (Dùng để build services).
+*   **Docker & Docker Compose** (Dùng để chạy hạ tầng và container hóa).
+*   **PostgreSQL Client** (Tùy chọn, dùng để debug database).
+
+#### 🛠️ Bước 1: Khởi tạo hạ tầng (Infrastructure)
+Trước khi chạy code Java, bạn cần khởi chạy các dịch vụ phụ trợ (Postgres, Redis, RabbitMQ,...) thông qua Docker:
+
+```bash
+# Khởi chạy tất cả các dịch vụ nền ở chế độ background
+docker compose up -d
+
+# Kiểm tra trạng thái các container đang chạy
+docker compose ps
+
+# (Khi cần) Dừng hạ tầng
+docker compose stop
+
+# Dừng và xóa toàn bộ hạ tầng (Clear containers)
+docker compose down
+```
+
+#### 🏗️ Bước 2: Build các Microservices
+Sử dụng Maven để cài đặt các dependencies và build file JAR:
+
+```bash
+# Chạy ở root directory của dự án
+mvn clean install -DskipTests
+```
+
+#### 🏃 Bước 3: Thứ tự khởi chạy (Startup Order)
+Để hệ thống hoạt động ổn định, bạn **CẦN** khởi chạy theo thứ tự khuyến nghị:
+
+1.  **Service Registry (Eureka)**: Quản lý danh sách các dịch vụ.
+2.  **Config Server** (Nêu có): Cung cấp cấu hình tập trung.
+3.  **API Gateway**: Cửa ngõ duy nhất cho Client.
+4.  **Microservices Nghiệp vụ**: Các service như `auth-service`, `ticket-service`, `draw-service`, v.v.
+
+*Lệnh chạy mẫu cho 1 service:*
+```bash
+cd services/auth-service
+mvn spring-boot:run
+```
+
+#### 💡 Một số lệnh hữu ích:
+*   `docker compose logs -f [service_name]`: Xem log thời gian thực của một service.
+*   `docker compose restart [service_name]`: Khởi động lại nhanh 1 service.
+*   `docker compose down -v`: Xóa sạch container và **xóa luôn cả dữ liệu (Volume)** của database (Reset trắng môi trường).
+
+---
+
+## 💻 4. Quy trình phát triển (Development Workflow)
+
+Để đảm bảo tính nhất quán và quản lý task hiệu quả (Jira integration), team thực hiện theo quy chuẩn sau:
+
+#### 🌿 Quy tắc đặt tên nhánh (Branching Policy)
+*   🔥 **`main`**: Chỉ dành cho bản Release chính thức (Người quản lý dự án/Owner). Tuyên đối không commit trực tiếp.
+*   🛠️ **`develop`**: Nhánh chính để tích hợp các tính năng mới sau khi đã review.
+*   🌿 **`feature/SLT-XX-[topic]`**: Nhánh tính năng dựa trên Task ID của Jira.
+
+*Ví dụ:* `feature/SLT-34-infa-setup`
+
+#### 📝 Quy chuẩn Commit (Commit Messages)
+Team tuân thủ **Conventional Commits** kết hợp với Jira Task ID ở đầu:
+
+*Cú pháp:* `[TASK-ID] [type](scope): [description] #done`
+*Các type phổ biến:* `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`.
+
+*Ví dụ:*
+- `[SLT-73] feat(auth): implement login logic #done`
+- `[SLT-85] fix(draw): resolve null pointer in result calculation #done`
+
+#### 🔄 Quy trình Pull Request (PR)
+1.  Đẩy code lên remote branch tương ứng.
+2.  Tạo **Pull Request** từ branch tính năng vào nhánh **`develop`**.
+3.  Hệ thống automation sẽ tự động kiểm tra (Build, Test) và cập nhật trạng thái task trên Jira sau khi PR được merge thành công.
+
+---
+
+## 🎨 5. Giao diện (Visuals)
+
+*Sẽ được cập nhật sớm: Ảnh chụp màn hình Web, Mobile và sơ đồ kiến trúc nâng cao.*
+
+---
+
+## 🛠 6. Công nghệ và Công cụ (Tech Stack)
 
 ### Nền tảng (Tech Stack):
-- **Backend:** Spring Boot (Java)
-- **Web Frontend:** ReactJS + TypeScript
-- **Mobile App:** Flutter
-- **Database:** PostgreSQL / MySQL (Lựa chọn dự kiến)
-
-### Công cụ hỗ trợ (Tools):
-- **Quản lý công việc:** [Jira](https://jira.atlassian.com)
-- **CI/CD:** GitHub Actions
-- **Quản lý Image & Deployment:** Docker
-- **Source Control:** GitHub
+- **Backend:** Java 21, Spring Boot 3.x, Spring Cloud.
+- **Web Frontend:** ReactJS + TypeScript + Tailwind CSS.
+- **Mobile App:** Flutter.
+- **Database:** PostgreSQL.
+- **Cache & Message Broker:** Redis, RabbitMQ.
 
 ---
 
-## 🚀 Hướng dẫn cài đặt
-
-### Yêu cầu hệ thống:
-- JDK 17+
-- Node.js 18+
-- Flutter SDK (latest version)
-- Docker Desktop
-
-### Các bước cài đặt cơ bản:
-1. Clone repository:
-   ```bash
-   git clone https://github.com/kit365/SmartLotto.git
-   ```
-2. Cấu hình Backend: (Sẽ cập nhật chi tiết)
-3. Cấu hình Frontend: (Sẽ cập nhật chi tiết)
-4. Chạy với Docker:
-   ```bash
-   docker-compose up -d
-   ```
-
----
-
-## 💡 Cách dùng và Ví dụ
-
-*Nội dung đang được cập nhật cùng quá trình phát triển.*
-
----
-
-## 🤝 Đóng góp
-
-Chúng tôi luôn chào đón các đóng góp từ cộng đồng.
-- Vui lòng tạo `issue` trước khi thực hiện pull request.
-- Đảm bảo tuân thủ quy tắc viết code của dự án.
-
----
-
-## ❓ Giải quyết lỗi & FAQ (Troubleshooting)
-
-- **Lỗi 1:** Đang cập nhật...
-- **Câu hỏi:** Hệ thống có hỗ trợ thanh toán qua ví điện tử không?
-  - **Trả lời:** Có, chúng tôi đang tích hợp các cổng thanh toán hàng đầu.
-
----
-
-## 📦 Các phần phụ thuộc (Dependencies)
-
-- `Spring Web`, `Spring Data JPA`, `Spring Security`
-- `React Context API`, `Tailwind CSS`, `Axios`
-- `Flutter Provider`, `Dio`, `Shared Preferences`
-
----
-
-## 📞 Hỗ trợ & Liên hệ
+## 📞 7. Hỗ trợ & Liên hệ
 
 - Dự án được phát triển bởi đội ngũ SmartLotto.
-- Email: [contact@smartlotto.example] (Sẽ cập nhật)
+- Quản lý công việc qua: [Jira - SmartLotto](https://jira.atlassian.com) (Private link).
 
 ---
 
 ## 📜 Giấy phép
 
 Dự án này sử dụng giấy phép **MIT**. Xem tệp [LICENSE](LICENSE) để biết thêm chi tiết.
-
----
-
-## 📅 Lịch sử thay đổi (Changelog)
-
-- `v0.1.0`: Khởi tạo cấu trúc dự án và tài liệu README cơ bản.
-
----
-
-## ⚠️ Những lỗi đã biết
-
-- Chưa có (Hệ thống đang phát triển).
-
----
-
-## 🙏 Công nhận (Acknowledgments)
-
-- Cảm ơn toàn bộ thành viên trong nhóm đã tham gia đóng góp ý tưởng ban đầu.
-- Tài liệu tham khảo từ các dự án xổ số hiện đại trên thế giới.
