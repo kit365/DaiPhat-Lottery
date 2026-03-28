@@ -1,0 +1,75 @@
+# Java / Spring Boot
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/resources/gradle/wrapper/gradle-wrapper.jar
+!**/src/test/resources/gradle/wrapper/gradle-wrapper.jar
+.mvn/
+.gradle/
+build/
+bin/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+mvnd/
+.mvnd/
+
+# Node.js / ReactJS
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/App.framework
+ios/Flutter/App.podspec
+ios/Flutter/App.framework.zip
+ios/Flutter/App.framework.dSYM.zip
+android/key.properties
+android/app/src/main/res/raw/
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# AI / Assistant / Others
+.gemini/
+.antigravity/
+.agent/
+.agents/
+.copilot/
+.cursor/
+# Ignore any other AI assistant metadata
+assistant_logs/
+research_notes.md
+implementation_plan.md
+walkthrough.md
+task.md
