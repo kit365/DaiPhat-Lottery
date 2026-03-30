@@ -28,7 +28,7 @@
     <property name="optional" value="true"/>
   </module>
 
-  <module name="SuppressWithNearbyTextFilter">
+  <module name="com.puppycrawl.tools.checkstyle.filters.SuppressWithNearbyTextFilter">
     <property name="nearbyTextPattern"
               value="CHECKSTYLE.SUPPRESS\: (\w+) for ([+-]\d+) lines"/>
     <property name="checkPattern" value="$1"/>
@@ -87,7 +87,7 @@
                     INTERFACE_DEF, LAMBDA, LITERAL_CATCH,
                     LITERAL_DO, LITERAL_ELSE, LITERAL_FINALLY, LITERAL_FOR, LITERAL_IF,
                     LITERAL_SWITCH, LITERAL_SYNCHRONIZED, LITERAL_TRY, LITERAL_WHILE, METHOD_DEF,
-                    OBJBLOCK, STATIC_INIT, RECORD_DEF, COMPACT_CTOR_DEF, SWITCH_RULE"/>
+                    OBJBLOCK, STATIC_INIT, RECORD_DEF, COMPACT_CTOR_DEF"/>
     </module>
 
     <module name="LeftCurly">
@@ -116,7 +116,7 @@
 
     <module name="WhitespaceAfter">
       <property name="tokens"
-               value="COMMA, SEMI, TYPECAST, ELLIPSIS, LITERAL_YIELD, LITERAL_CASE, ANNOTATIONS"/>
+               value="COMMA, SEMI, TYPECAST, ELLIPSIS, LITERAL_YIELD, LITERAL_CASE"/>
     </module>
 
     <module name="WhitespaceAround">
@@ -163,7 +163,11 @@
       <property name="tokens" value="CLASS_DEF"/>
     </module>
 
-    <module name="GoogleNonConstantFieldName"/>
+    <module name="MemberName">
+      <property name="format" value="^[a-z][a-z0-9][a-zA-Z0-9]*$"/>
+      <message key="name.invalidPattern"
+               value="Member name ''{0}'' must match pattern ''{1}''."/>
+    </module>
     
     <module name="ParameterName">
       <property name="format" value="^[a-z]([a-z0-9][a-zA-Z0-9]*)?$"/>
@@ -222,7 +226,6 @@
                       RECORD_DEF, COMPACT_CTOR_DEF, PACKAGE_DEF"/>
     </module>
     
-    <module name="MissingOverrideOnRecordAccessor"/>
     <module name="NonEmptyAtclauseDescription"/>
     <module name="InvalidJavadocPosition"/>
     <module name="JavadocTagContinuationIndentation"/>

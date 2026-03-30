@@ -5,13 +5,30 @@ target/
 !**/src/test/resources/gradle/wrapper/gradle-wrapper.jar
 .mvn/
 .gradle/
-build/
-bin/
+build/# Mac
+.DS_Store
+
+# Compile
+target/
 *.class
+
+# Maven
+.mvn/
+.mvnd/
+mvnd.log
 *.jar
-*.war
-*.ear
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Logs
 *.log
+logs/
+
+# Optional: .env for local dev
+.env
 mvnd/
 .mvnd/
 

@@ -17,7 +17,7 @@ spring:
         - id: account-service
           uri: ${smartlotto.gateway.account-service-uri}
           predicates:
-            - Path=/api/v1/accounts/**, /api/v1/auth/**, /api/v1/points/**, /api/v1/rewards/**, /api/v1/banks/**, /api/v1/bank-information/**
+            - Path=/api/v1/accounts/**, /api/v1/auth/**, /api/v1/points/**, /api/v1/rewards/**, /api/v1/banks/**, /api/v1/bank-information/**, /api/v1/users/**
 
         # Account Service Swagger Docs
         - id: account-service-docs
@@ -27,19 +27,7 @@ spring:
           filters:
             - RewritePath=/v3/api-docs/account-service, /v3/api-docs
 
-      # Global CORS configuration
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOrigins: "*"
-            allowedMethods: "*"
-            allowedHeaders: "*"
-            allowCredentials: false
-
-      # Default filters applied to all routes
-      default-filters:
-        # Tránh lỗi Double CORS khi cả Gateway và Service con đều set header
-        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+      # CORS configuration has been moved to SecurityConfig.java
 
   security:
     oauth2:
