@@ -30,6 +30,28 @@ services:
     networks:
       - smartlotto-network
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: smartlotto-keycloak
+    restart: always
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres-db:5432/smartlotto_db
+      KC_DB_USERNAME: sa
+      KC_DB_PASSWORD: 12345
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    volumes:
+      - ./infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+    command: start-dev --import-realm
+    ports:
+      - "8180:8080"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    networks:
+      - smartlotto-network
+
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: smartlotto-rabbitmq
