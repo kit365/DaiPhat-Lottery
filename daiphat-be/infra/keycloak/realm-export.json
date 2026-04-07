@@ -24,10 +24,10 @@
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": true,
       "redirectUris": [
-        "*"
+        "http://localhost:8080/*"
       ],
       "webOrigins": [
-        "+"
+        "http://localhost:5173"
       ],
       "secret": "daiphat-secret",
       "attributes": {
