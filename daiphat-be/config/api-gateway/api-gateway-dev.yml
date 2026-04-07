@@ -1,0 +1,46 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/daiphat
+          jwk-set-uri: http://localhost:8180/realms/daiphat/protocol/openid-connect/certs
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    urls:
+      - name: Account Service
+        url: /v3/api-docs/account-service
+    oauth:
+      client-id: daiphat-client
+      client-secret: daiphat-secret
+      realm: daiphat
+      use-basic-authentication-with-access-code-grant: false
+      use-pkce-with-authorization-code-grant: false
+
+daiphat:
+  auth:
+    keycloak:
+      realm: daiphat
+      auth-server-url: http://localhost:8180
+      client-id: daiphat-client
+      client-secret: daiphat-secret
+  gateway:
+    account-service-uri: lb://account-service
+
+eureka:
+  client:
+    enabled: true
+    register-with-eureka: true
+    fetch-registry: true
+    registry-fetch-interval-seconds: 5
+    service-url:
+      defaultZone: http://localhost:8761/eureka/

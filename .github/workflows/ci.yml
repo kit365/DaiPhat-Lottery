@@ -1,4 +1,4 @@
-name: SmartLotto CI - Build & Test
+name: DaiPhat CI - Build & Test
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ jobs:
     
     defaults:
       run:
-        working-directory: smart-lotto-be
+        working-directory: daiphat-be
     
     steps:
     - name: 🔍 Checkout Code
