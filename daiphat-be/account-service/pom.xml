@@ -18,7 +18,7 @@
         <java.version>21</java.version>
         <!-- Defaults for flyway:repair / flyway:migrate; override with -Dflyway.url=... -->
         <flyway.url>jdbc:postgresql://localhost:5432/account_db</flyway.url>
-        <flyway.userModel>${POSTGRES_USER}</flyway.userModel>
+        <flyway.user>${POSTGRES_USER}</flyway.user>
         <flyway.password>${POSTGRES_PASSWORD}</flyway.password>
         <mapstruct.version>1.6.3</mapstruct.version>
     </properties>
@@ -234,7 +234,7 @@
                 <artifactId>flyway-maven-plugin</artifactId>
                 <configuration>
                     <url>${flyway.url}</url>
-                    <userModel>${flyway.userModel}</userModel>
+                    <user>${flyway.user}</user>
                     <password>${flyway.password}</password>
                     <locations>
                         <location>classpath:db/migration</location>
