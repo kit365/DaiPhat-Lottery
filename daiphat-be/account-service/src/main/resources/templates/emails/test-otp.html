@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/mail-layout :: layout(~{::content})}">
+<body>
+
+<div th:fragment="content">
+    
+    <!-- Tiêu đề và Mô tả lấy từ component chung -->
+    <div th:replace="~{fragments/components :: header-text(${title}, ${description})}"></div>
+
+    <!-- Mã số OTP lấy từ component chung -->
+    <div th:replace="~{fragments/components :: code-box(${code})}"></div>
+
+    <!-- Đoạn nhắc nhở cuối -->
+    <p style="font-family:Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:16px;line-height:1.6;text-align:left;color:#a1a1aa; padding-top: 10px;">
+        If you didn't request this email, there's nothing to worry about, you can safely ignore it.
+    </p>
+
+</div>
+
+</body>
+</html>

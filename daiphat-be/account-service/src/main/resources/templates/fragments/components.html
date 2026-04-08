@@ -1,0 +1,15 @@
+<!-- Khối mã xác nhận (Code Box) -->
+<div th:fragment="code-box(code)" style="background-color:#0F172A;border-radius:12px;padding:16px; margin: 4px 0; border: 1px solid #F59E0B;">
+  <div style="font-family:'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;font-size:16px;line-height:1;text-align:center;">
+    <h1 style="font-size: 28px; font-weight: 700; color: #F59E0B; margin: 0; letter-spacing: 4px; text-shadow: 0 0 8px rgba(245, 158, 11, 0.3);" th:text="${code}">CODE-HERE</h1>
+  </div>
+</div>
+
+<!-- Tiêu đề và Mô tả mặc định -->
+<div th:fragment="header-text(title, description)" style="font-family:'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;font-size:14px;line-height:1.5;text-align:left;color:#94A3B8;">
+  <h1 style="font-size: 20px; font-weight: 700; color: #F8FAFC; margin: 0 0 12px 0;" th:text="${title}">Title</h1>
+  <p style="margin: 0; font-weight: 400; color: #94A3B8;" th:text="${description}">Description</p>
+</div>
+
+</body>
+</html>

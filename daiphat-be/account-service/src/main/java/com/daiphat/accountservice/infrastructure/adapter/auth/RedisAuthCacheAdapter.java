@@ -14,6 +14,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class RedisAuthCacheAdapter implements AuthCachePort {
 
+    private static final String LOCK_VALUE = "LOCKED";
     private final RedisClient redisClient;
 
     //  Login/Token
@@ -110,7 +111,7 @@ public class RedisAuthCacheAdapter implements AuthCachePort {
     // Account Lock
     @Override
     public void lockAccount(String email, Duration duration) {
-        redisClient.set(AuthCacheKeyGenerator.accountLocked(email), "LOCKED", duration);
+        redisClient.set(AuthCacheKeyGenerator.accountLocked(email), LOCK_VALUE, duration);
     }
 
     @Override
@@ -121,5 +122,44 @@ public class RedisAuthCacheAdapter implements AuthCachePort {
     @Override
     public void unlockAccount(String email) {
         redisClient.delete(AuthCacheKeyGenerator.accountLocked(email));
+    }
+
+    // Resend Throttling
+    @Override
+    public void saveLastResendAt(String email, long timestamp, Duration duration) {
+        redisClient.set(AuthCacheKeyGenerator.resendLastAt(email), timestamp, duration);
+    }
+
+    @Override
+    public Optional<Long> getLastResendAt(String email) {
+        return redisClient.get(AuthCacheKeyGenerator.resendLastAt(email), Long.class);
+    }
+
+    @Override
+    public void incrementResendCount(String email) {
+        String key = AuthCacheKeyGenerator.resendAttemptCount(email);
+        int current = getResendCount(email);
+        redisClient.set(key, current + 1, Duration.ofHours(24));
+    }
+
+    @Override
+    public int getResendCount(String email) {
+        return redisClient.get(AuthCacheKeyGenerator.resendAttemptCount(email), Integer.class).orElse(0);
+    }
+
+    @Override
+    public void resetResendCount(String email) {
+        redisClient.delete(AuthCacheKeyGenerator.resendAttemptCount(email));
+        redisClient.delete(AuthCacheKeyGenerator.resendLastAt(email));
+    }
+
+    @Override
+    public boolean tryLock(String key, Duration ttl) {
+        return redisClient.setIfAbsent(key, LOCK_VALUE, ttl);
+    }
+
+    @Override
+    public void unlock(String key) {
+        redisClient.delete(key);
     }
 }

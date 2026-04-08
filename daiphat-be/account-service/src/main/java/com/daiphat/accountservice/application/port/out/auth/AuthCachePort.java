@@ -36,6 +36,17 @@ public interface AuthCachePort {
     Optional<String> getOtp(String email);
     void deleteOtp(String email);
     
+    // ✅ Resend Throttling
+    void saveLastResendAt(String email, long timestamp, Duration duration);
+    Optional<Long> getLastResendAt(String email);
+    void incrementResendCount(String email);
+    int getResendCount(String email);
+    void resetResendCount(String email);
+
+    // Locking forIdempotent tasks
+    boolean tryLock(String key, java.time.Duration ttl);
+    void unlock(String key);
+    
     // ✅ Account Lock
     void lockAccount(String email, Duration duration);
     boolean isAccountLocked(String email);
