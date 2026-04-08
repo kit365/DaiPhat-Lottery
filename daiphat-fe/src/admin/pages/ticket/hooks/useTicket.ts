@@ -1,0 +1,144 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+    getTickets,
+    getCreateTicketData,
+    createTicket,
+    getTicketById,
+    updateTicket,
+    deleteTicket,
+    restoreTicket,
+    forceDeleteTicket,
+    scanExpiredTickets
+} from '../../../api/ticket.api';
+import { ApiResponse } from '../../../config/type';
+
+// --- TICKETS ---
+export const useTicketList = (params?: any) => {
+    return useQuery({
+        queryKey: ['tickets', params],
+        queryFn: () => getTickets(params),
+    });
+};
+
+export const useCreateTicketData = () => {
+    return useQuery({
+        queryKey: ['ticket-create-data'],
+        queryFn: getCreateTicketData,
+        select: (res: ApiResponse<any>) => res.data,
+    });
+};
+
+export const useTicketDetail = (id?: string | number) => {
+    return useQuery({
+        queryKey: ['ticket', id],
+        queryFn: () => getTicketById(id!),
+        enabled: !!id,
+        select: (res: ApiResponse<any>) => res.data,
+    });
+};
+
+export const useCreateTicket = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: createTicket,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tickets'] });
+        },
+    });
+};
+
+export const useUpdateTicket = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, data }: { id: string | number; data: any }) => updateTicket(id, data),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['tickets'] });
+            queryClient.invalidateQueries({ queryKey: ['ticket', variables.id] });
+        },
+    });
+};
+
+export const useDeleteTicket = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: deleteTicket,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tickets'] });
+        },
+    });
+};
+
+export const useRestoreTicket = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: restoreTicket,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tickets'] });
+        },
+    });
+};
+
+export const useForceDeleteTicket = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: forceDeleteTicket,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tickets'] });
+        },
+    });
+};
+
+export const useScanExpiredTickets = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: scanExpiredTickets,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tickets'] });
+            queryClient.invalidateQueries({ queryKey: ['expired-tickets'] });
+            queryClient.invalidateQueries({ queryKey: ['ticket-expired-list'] });
+        },
+    });
+};
+
+
+// --- AGE RANGES (Placeholders - Lottery usually doesn't have age ranges, but keeping for compatibility) ---
+export const useTicketAgeRanges = () => {
+    return useQuery({
+        queryKey: ['ticket-age-ranges'],
+        queryFn: async () => ({ data: [] }),
+        select: (res: any) => res.data || [],
+    });
+};
+
+export const useTicketAgeRangeDetail = (id?: string | number) => {
+    return useQuery({
+        queryKey: ['ticket-age-range', id],
+        queryFn: async () => ({ data: null }),
+        enabled: !!id,
+        select: (res: any) => res.data,
+    });
+};
+
+export const useCreateTicketAgeRange = () => {
+    return useMutation({
+        mutationFn: async (data: any) => ({ success: true, data, message: "Success" }),
+    });
+};
+
+export const useUpdateTicketAgeRange = () => {
+    return useMutation({
+        mutationFn: async ({ id, data }: { id: string | number; data: any }) => ({ success: true, id, data, message: "Success" }),
+    });
+};
+
+export const useDeleteTicketAgeRange = () => {
+    return useMutation({
+        mutationFn: async (id: string | number) => ({ success: true, id, message: "Success" }),
+    });
+};
