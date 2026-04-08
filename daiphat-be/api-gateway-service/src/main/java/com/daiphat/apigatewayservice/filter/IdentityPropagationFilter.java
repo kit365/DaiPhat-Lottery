@@ -44,13 +44,15 @@ public class IdentityPropagationFilter implements GlobalFilter, Ordered {
 
                     log.debug("Propagating identity: USER={}, ROLES={}", username, roles);
 
-                    // Mutate request with internal headers
-                    ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-                            .header("X-Internal-User-Id", userId)
-                            .header("X-Internal-User-Name", username)
-                            .header("X-Internal-User-Email", email)
-                            .header("X-Internal-User-Roles", roles)
-                            .build();
+                    // Mutate request safely by only adding non-null headers
+                    ServerHttpRequest.Builder builder = exchange.getRequest().mutate();
+                    
+                    if (userId != null) builder.header("X-Internal-User-Id", userId);
+                    if (username != null) builder.header("X-Internal-User-Name", username);
+                    if (email != null) builder.header("X-Internal-User-Email", email);
+                    if (roles != null) builder.header("X-Internal-User-Roles", roles);
+
+                    ServerHttpRequest mutatedRequest = builder.build();
 
                     return chain.filter(exchange.mutate().request(mutatedRequest).build())
                             .thenReturn(true);

@@ -1,4 +1,4 @@
-
+#!/bin/bash
 set -e
 
 # Danh sách các database cần tạo
