@@ -9,7 +9,7 @@ spring:
         max-interval: 5000
         max-attempts: 5
       discovery:
-        enabled: true
+        enabled: false
         service-id: config-server
   config:
     import: "optional:configserver:http://localhost:8888"
