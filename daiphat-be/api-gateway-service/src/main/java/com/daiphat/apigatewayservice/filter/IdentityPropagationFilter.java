@@ -1,9 +1,11 @@
 package com.daiphat.apigatewayservice.filter;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
@@ -24,9 +26,25 @@ import java.util.stream.Collectors;
 @Slf4j
 public class IdentityPropagationFilter implements GlobalFilter, Ordered {
 
+    @Value("${DAIPHAT_GATEWAY_SECRET:}")
+    private String gatewaySecret;
+
     @Override
     @NonNull
     public Mono<Void> filter(@NonNull ServerWebExchange exchange, @NonNull GatewayFilterChain chain) {
+        ServerHttpRequest.Builder builder = exchange.getRequest().mutate();
+        
+        // Remove existing X-Internal-* and X-Gateway-Secret headers
+        HttpHeaders headers = exchange.getRequest().getHeaders();
+        for (String headerName : headers.keySet()) {
+            if (headerName.toLowerCase().startsWith("x-internal-") || headerName.equalsIgnoreCase("X-Gateway-Secret")) {
+                builder.headers(h -> h.remove(headerName));
+            }
+        }
+        
+        // Inject Gateway secret
+        builder.header("X-Gateway-Secret", gatewaySecret);
+        
         return ReactiveSecurityContextHolder.getContext()
                 .filter(context -> context.getAuthentication() instanceof JwtAuthenticationToken)
                 .map(SecurityContext::getAuthentication)
@@ -44,9 +62,6 @@ public class IdentityPropagationFilter implements GlobalFilter, Ordered {
 
                     log.debug("Propagating identity: USER={}, ROLES={}", username, roles);
 
-                    // Mutate request safely by only adding non-null headers
-                    ServerHttpRequest.Builder builder = exchange.getRequest().mutate();
-                    
                     if (userId != null) builder.header("X-Internal-User-Id", userId);
                     if (username != null) builder.header("X-Internal-User-Name", username);
                     if (email != null) builder.header("X-Internal-User-Email", email);
@@ -57,7 +72,10 @@ public class IdentityPropagationFilter implements GlobalFilter, Ordered {
                     return chain.filter(exchange.mutate().request(mutatedRequest).build())
                             .thenReturn(true);
                 })
-                .switchIfEmpty(Mono.defer(() -> chain.filter(exchange).thenReturn(false)))
+                .switchIfEmpty(Mono.defer(() -> {
+                     ServerHttpRequest mutatedRequest = builder.build();
+                     return chain.filter(exchange.mutate().request(mutatedRequest).build()).thenReturn(false);
+                }))
                 .then();
     }
 

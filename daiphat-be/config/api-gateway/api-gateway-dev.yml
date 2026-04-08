@@ -32,26 +32,7 @@ spring:
           filters:
             - RewritePath=/v3/api-docs/account-service, /v3/api-docs
 
-      globalcors:
-        add-to-simple-url-handler-mapping: true
-        cors-configurations:
-          '[/**]':
-            allowedOrigins: 
-              - "http://localhost:5173"
-              - "http://127.0.0.1:5173"
-              - "http://localhost:8080"
-              - "http://127.0.0.1:8080"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - OPTIONS
-            allowedHeaders: "*"
-            allowCredentials: true
-
       default-filters:
-        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
 
   security:
     oauth2:

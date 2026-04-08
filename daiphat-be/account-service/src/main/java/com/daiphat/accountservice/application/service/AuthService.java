@@ -301,7 +301,7 @@ public class AuthService implements AuthServicePort {
         identityManagementPort.resetPassword(user.getId(), request.getNewPassword());
 
         // 4. Cleanup
-        authCachePort.deleteResetToken(data.getEmail());
+        authCachePort.deleteResetToken(resetToken);
         log.info("Password successfully reset for user: {}", data.getEmail());
     }
 
@@ -314,8 +314,9 @@ public class AuthService implements AuthServicePort {
             userRepositoryPort.findByUsername(username).ifPresent(user -> {
                 if (!user.getId().equals(keycloakUuid)) {
                     log.info("Updating local user ID for {} to match Keycloak ID", username);
+                    UUID oldId = user.getId();
                     user.updateKeycloakId(keycloakUuid);
-                    userRepositoryPort.updateUserId(user.getId(), keycloakUuid);
+                    userRepositoryPort.updateUserId(oldId, keycloakUuid);
                 }
             });
         } catch (Exception e) {

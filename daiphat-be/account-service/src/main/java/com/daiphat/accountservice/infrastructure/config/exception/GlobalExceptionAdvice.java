@@ -19,10 +19,14 @@ public class GlobalExceptionAdvice {
         log.error("Domain exception occurred: {}", e.getMessage());
         ErrorCode errorCode = e.getErrorCode();
         
+        String message = (e.getMessage() != null && !e.getMessage().isBlank() && !e.getMessage().contains(errorCode.name())) 
+                         ? e.getMessage() 
+                         : errorCode.getMessage();
+
         ApiResponseDTO<Void> apiResponse = ApiResponseDTO.<Void>builder()
                 .isSuccess(false)
                 .code(errorCode.getCode())
-                .message(errorCode.getMessage())
+                .message(message)
                 .build();
                 
         return new ResponseEntity<>(apiResponse, errorCode.getStatus());
