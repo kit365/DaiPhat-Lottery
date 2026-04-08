@@ -1,10 +1,8 @@
 package com.daiphat.accountservice.infrastructure.persistence.cache.redis.client;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
-
 import java.time.Duration;
 import java.util.Optional;
 
@@ -23,9 +21,17 @@ public class RedisClient {
         redisTemplate.opsForValue().set(key, value, duration);
     }
 
+    public boolean setIfAbsent(String key, Object value, Duration duration) {
+        return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(key, value, duration));
+    }
+
     public <T> Optional<T> get(String key, Class<T> type) {
         Object value = redisTemplate.opsForValue().get(key);
         if (value == null) return Optional.empty();
+
+        if (type.isInstance(value)) {
+            return Optional.of(type.cast(value));
+        }
 
         return Optional.ofNullable(objectMapper.convertValue(value, type));
     }
@@ -48,10 +54,14 @@ public class RedisClient {
     public void hset(String key, String field, Object value) {
         redisTemplate.opsForHash().put(key, field, value);
     }
-
     public <T> Optional<T> hget(String key, String field, Class<T> type) {
         Object value = redisTemplate.opsForHash().get(key, field);
         if (value == null) return Optional.empty();
-        return Optional.of(objectMapper.convertValue(value, type));
+
+        if (type.isInstance(value)) {
+            return Optional.of(type.cast(value));
+        }
+
+        return Optional.ofNullable(objectMapper.convertValue(value, type));
     }
 }

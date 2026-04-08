@@ -38,8 +38,8 @@ public class SecurityConfig {
                         // Permit Swagger/Docs completely
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**").permitAll()
                         
-                        // Permit Auth endpoints
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        // Permit Auth and Test endpoints
+                        .requestMatchers("/api/v1/auth/**", "/api/v1/test/**").permitAll()
                         // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )

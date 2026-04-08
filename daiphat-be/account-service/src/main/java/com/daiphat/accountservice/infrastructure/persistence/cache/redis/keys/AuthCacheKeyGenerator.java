@@ -37,6 +37,18 @@ public class AuthCacheKeyGenerator {
         return FORGOT_PREFIX + ":code:" + email;
     }
 
+    public static String resendLastAt(String email) {
+        return FORGOT_PREFIX + ":resend:last-at:" + email;
+    }
+
+    public static String resendAttemptCount(String email) {
+        return FORGOT_PREFIX + ":resend:attempts:" + email;
+    }
+
+    public static String mailLock(String email) {
+        return LOCK_PREFIX + ":mail:" + email;
+    }
+
     // OTP Keys
     public static String otpCode(String email) {
         return OTP_PREFIX + ":" + email;

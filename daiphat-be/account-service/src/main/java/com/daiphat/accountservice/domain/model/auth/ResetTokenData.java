@@ -1,5 +1,6 @@
 package com.daiphat.accountservice.domain.model.auth;
 
+import com.daiphat.accountservice.domain.model.enums.PasswordResetStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,7 +18,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ResetTokenData implements Serializable {
     private String email;
-    private String status; // e.g., PENDING, VERIFIED
+    private PasswordResetStatus status; // e.g., PENDING, VERIFIED
     private LocalDateTime createdAt;
     private int attemptCount;
 }

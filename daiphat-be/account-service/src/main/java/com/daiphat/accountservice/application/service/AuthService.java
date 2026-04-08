@@ -1,13 +1,13 @@
 package com.daiphat.accountservice.application.service;
 
-import com.daiphat.accountservice.application.dto.request.LoginRequestDTO;
-import com.daiphat.accountservice.application.dto.request.LogoutRequestDTO;
-import com.daiphat.accountservice.application.dto.request.RefreshTokenRequestDTO;
-import com.daiphat.accountservice.application.dto.request.UserRegistrationRequestDTO;
+import com.daiphat.accountservice.application.dto.request.*;
 import com.daiphat.accountservice.application.dto.response.AuthResponseDTO;
+import com.daiphat.accountservice.application.dto.response.ForgotPasswordResponseDTO;
+import com.daiphat.accountservice.application.dto.response.VerifyOtpResponseDTO;
 import com.daiphat.accountservice.application.mapper.AuthApplicationMapper;
 import com.daiphat.accountservice.application.mapper.UserApplicationMapper;
 import com.daiphat.accountservice.application.port.in.AuthServicePort;
+import com.daiphat.accountservice.application.port.in.EmailServicePort;
 import com.daiphat.accountservice.application.port.out.auth.KeycloakPort;
 import com.daiphat.accountservice.application.port.out.auth.AuthCachePort;
 import com.daiphat.accountservice.application.port.out.IdentityManagementPort;
@@ -17,6 +17,8 @@ import com.daiphat.accountservice.domain.exception.ErrorCode;
 import com.daiphat.accountservice.domain.model.UserModel;
 import com.daiphat.accountservice.domain.model.RoleModel;
 import com.daiphat.accountservice.domain.model.auth.KeycloakAuthResult;
+import com.daiphat.accountservice.domain.model.auth.ResetTokenData;
+import com.daiphat.accountservice.domain.model.enums.PasswordResetStatus;
 import com.daiphat.accountservice.domain.exception.DomainException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +26,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -39,8 +44,9 @@ public class AuthService implements AuthServicePort {
     private final RoleRepositoryPort roleRepositoryPort;
     private final AuthApplicationMapper authApplicationMapper;
     private final UserApplicationMapper userApplicationMapper;
+    private final EmailServicePort emailServicePort;
 
-    @Value("${daiphat.auth.cache.remember-me-ttl:86400}")
+    @Value("${daiphat.auth.cache.remember-me-ttl:2592000}") // Default 30 days
     private long rememberMeTtl;
 
     @Value("${daiphat.auth.cache.mfa-session-ttl:900}")
@@ -75,11 +81,15 @@ public class AuthService implements AuthServicePort {
         authCachePort.saveRefreshToken(userId, result.getRefreshToken(), refreshDuration);
         log.info("Tokens cached successfully for user ID: {}", userId);
 
-        // Sync user
+        // 4. Sync user
         syncAndVerifyUser(userId, username);
 
-        // Map to DTO
-        return authApplicationMapper.toResponse(result);
+        // 5. Map to DTO and override expires based on our cache policy
+        AuthResponseDTO response = authApplicationMapper.toResponse(result);
+        response.setExpiresIn(tokenDuration.toSeconds());
+        response.setRefreshExpiresIn(refreshDuration.toSeconds());
+
+        return response;
     }
 
     @Override
@@ -166,6 +176,113 @@ public class AuthService implements AuthServicePort {
         }
     }
 
+    @Override
+    @Transactional
+    public ForgotPasswordResponseDTO forgotPassword(ForgotPasswordRequestDTO request) {
+        String email = request.getEmail();
+        log.info("Initiating forgot password for email: {}", email);
+
+        // 1. Check if user exists
+        if (!userRepositoryPort.existsByEmail(email)) {
+            throw new DomainException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        // 2. Handle Resend Throttling (Progressive Backoff)
+        long currentTime = System.currentTimeMillis();
+        long lastResendAt = authCachePort.getLastResendAt(email).orElse(0L);
+        int resendCount = authCachePort.getResendCount(email);
+        
+        long waitTimeSeconds = calculateWaitTime(resendCount);
+        long timeSinceLastResend = (currentTime - lastResendAt) / 1000;
+        
+        if (timeSinceLastResend < waitTimeSeconds) {
+            throw new DomainException(ErrorCode.TOO_MANY_REQUESTS, "Vui lòng đợi " + (waitTimeSeconds - timeSinceLastResend) + " giây để gửi lại.");
+        }
+
+        // 3. Generate and Save OTP
+        String otp = generateOtp();
+        authCachePort.saveOtp(email, otp, Duration.ofMinutes(5));
+        authCachePort.saveLastResendAt(email, currentTime, Duration.ofHours(24));
+        authCachePort.incrementResendCount(email);
+
+        // 4. Send "Pro Max" Email via EmailService
+        emailServicePort.sendForgotPasswordEmail(email, otp);
+
+        log.info("OTP sent for password reset. Email: {}", email);
+        
+        return ForgotPasswordResponseDTO.builder()
+                .email(email)
+                .expiresIn(300L) // 5 minutes
+                .retryAfter(calculateWaitTime(resendCount + 1))
+                .build();
+    }
+
+    @Override
+    public ForgotPasswordResponseDTO resendForgotPasswordOtp(ForgotPasswordRequestDTO request) {
+        log.info("Resending OTP for password reset. Email: {}", request.getEmail());
+        return forgotPassword(request);
+    }
+
+    @Override
+    public VerifyOtpResponseDTO verifyResetOtp(VerifyOtpRequestDTO request) {
+        String email = request.getEmail();
+        String otp = request.getOtp();
+        log.info("Verifying OTP for email: {}", email);
+
+        // 1. Check OTP
+        String cachedOtp = authCachePort.getOtp(email)
+                .orElseThrow(() -> new DomainException(ErrorCode.OTP_EXPIRED));
+
+        if (!cachedOtp.equals(otp)) {
+            authCachePort.incrementResetAttempt(email);
+            throw new DomainException(ErrorCode.OTP_INVALID);
+        }
+
+        // 2. Generate secure Reset Token (UUID style)
+        String resetToken = UUID.randomUUID().toString();
+        ResetTokenData data = ResetTokenData.builder()
+                .email(email)
+                .status(PasswordResetStatus.VERIFIED)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        // 3. Save session to Redis
+        authCachePort.saveResetTokenData(resetToken, data, Duration.ofMinutes(15));
+        authCachePort.deleteOtp(email);
+        authCachePort.resetResendCount(email);
+
+        log.info("OTP verified. Reset session created for {}", email);
+        return VerifyOtpResponseDTO.builder()
+                .resetToken(resetToken)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequestDTO request) {
+        String resetToken = request.getResetToken();
+        log.info("Processing password reset with token: {}", resetToken);
+
+        // 1. Verify Reset Session
+        ResetTokenData data = authCachePort.getResetTokenData(resetToken)
+                .orElseThrow(() -> new DomainException(ErrorCode.RESET_TOKEN_INVALID));
+
+        if (data.getStatus() != PasswordResetStatus.VERIFIED) {
+            throw new DomainException(ErrorCode.RESET_TOKEN_INVALID);
+        }
+
+        // 2. Find User to get Keycloak ID
+        UserModel user = userRepositoryPort.findByEmail(data.getEmail())
+                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
+
+        // 3. Update in Keycloak
+        identityManagementPort.resetPassword(user.getId(), request.getNewPassword());
+
+        // 4. Cleanup
+        authCachePort.deleteResetToken(data.getEmail());
+        log.info("Password successfully reset for user: {}", data.getEmail());
+    }
+
     @Transactional
     protected void syncAndVerifyUser(String keycloakId, String username) {
         try {
@@ -182,5 +299,14 @@ public class AuthService implements AuthServicePort {
         } catch (Exception e) {
             log.error("Failed to sync user with Keycloak: {}", e.getMessage());
         }
+    }
+
+    private String generateOtp() {
+        return String.format("%06d", new java.security.SecureRandom().nextInt(1000000));
+    }
+
+    private long calculateWaitTime(int resendCount) {
+        long[] backoffSeconds = {60, 120, 300, 600}; // 1m, 2m, 5m, 10m
+        return backoffSeconds[Math.min(resendCount, backoffSeconds.length - 1)];
     }
 }
