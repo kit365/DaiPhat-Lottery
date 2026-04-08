@@ -20,23 +20,21 @@ import com.daiphat.accountservice.domain.model.auth.KeycloakAuthResult;
 import com.daiphat.accountservice.domain.model.auth.ResetTokenData;
 import com.daiphat.accountservice.domain.model.enums.PasswordResetStatus;
 import com.daiphat.accountservice.domain.exception.DomainException;
-import lombok.RequiredArgsConstructor;
+import com.daiphat.accountservice.domain.model.enums.UserRole;
+import com.daiphat.accountservice.infrastructure.util.AuthUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class AuthService implements AuthServicePort {
-
     private final KeycloakPort keycloakPort;
     private final AuthCachePort authCachePort;
     private final UserRepositoryPort userRepositoryPort;
@@ -45,6 +43,28 @@ public class AuthService implements AuthServicePort {
     private final AuthApplicationMapper authApplicationMapper;
     private final UserApplicationMapper userApplicationMapper;
     private final EmailServicePort emailServicePort;
+    private final AuthService self;
+
+    public AuthService(
+            KeycloakPort keycloakPort,
+            AuthCachePort authCachePort,
+            UserRepositoryPort userRepositoryPort,
+            IdentityManagementPort identityManagementPort,
+            RoleRepositoryPort roleRepositoryPort,
+            AuthApplicationMapper authApplicationMapper,
+            UserApplicationMapper userApplicationMapper,
+            EmailServicePort emailServicePort,
+            @Lazy AuthService self) {
+        this.keycloakPort = keycloakPort;
+        this.authCachePort = authCachePort;
+        this.userRepositoryPort = userRepositoryPort;
+        this.identityManagementPort = identityManagementPort;
+        this.roleRepositoryPort = roleRepositoryPort;
+        this.authApplicationMapper = authApplicationMapper;
+        this.userApplicationMapper = userApplicationMapper;
+        this.emailServicePort = emailServicePort;
+        this.self = self;
+    }
 
     @Value("${daiphat.auth.cache.remember-me-ttl:2592000}") // Default 30 days
     private long rememberMeTtl;
@@ -82,7 +102,7 @@ public class AuthService implements AuthServicePort {
         log.info("Tokens cached successfully for user ID: {}", userId);
 
         // 4. Sync user
-        syncAndVerifyUser(userId, username);
+        self.syncAndVerifyUser(userId, username);
 
         // 5. Map to DTO and override expires based on our cache policy
         AuthResponseDTO response = authApplicationMapper.toResponse(result);
@@ -192,7 +212,7 @@ public class AuthService implements AuthServicePort {
         long lastResendAt = authCachePort.getLastResendAt(email).orElse(0L);
         int resendCount = authCachePort.getResendCount(email);
         
-        long waitTimeSeconds = calculateWaitTime(resendCount);
+        long waitTimeSeconds = AuthUtils.calculateWaitTime(resendCount);
         long timeSinceLastResend = (currentTime - lastResendAt) / 1000;
         
         if (timeSinceLastResend < waitTimeSeconds) {
@@ -200,7 +220,7 @@ public class AuthService implements AuthServicePort {
         }
 
         // 3. Generate and Save OTP
-        String otp = generateOtp();
+        String otp = AuthUtils.generateOtp();
         authCachePort.saveOtp(email, otp, Duration.ofMinutes(5));
         authCachePort.saveLastResendAt(email, currentTime, Duration.ofHours(24));
         authCachePort.incrementResendCount(email);
@@ -213,17 +233,19 @@ public class AuthService implements AuthServicePort {
         return ForgotPasswordResponseDTO.builder()
                 .email(email)
                 .expiresIn(300L) // 5 minutes
-                .retryAfter(calculateWaitTime(resendCount + 1))
+                .retryAfter(AuthUtils.calculateWaitTime(resendCount + 1))
                 .build();
     }
 
     @Override
+    @Transactional
     public ForgotPasswordResponseDTO resendForgotPasswordOtp(ForgotPasswordRequestDTO request) {
         log.info("Resending OTP for password reset. Email: {}", request.getEmail());
-        return forgotPassword(request);
+        return self.forgotPassword(request);
     }
 
     @Override
+    @Transactional
     public VerifyOtpResponseDTO verifyResetOtp(VerifyOtpRequestDTO request) {
         String email = request.getEmail();
         String otp = request.getOtp();
@@ -301,12 +323,4 @@ public class AuthService implements AuthServicePort {
         }
     }
 
-    private String generateOtp() {
-        return String.format("%06d", new java.security.SecureRandom().nextInt(1000000));
-    }
-
-    private long calculateWaitTime(int resendCount) {
-        long[] backoffSeconds = {60, 120, 300, 600}; // 1m, 2m, 5m, 10m
-        return backoffSeconds[Math.min(resendCount, backoffSeconds.length - 1)];
-    }
 }
