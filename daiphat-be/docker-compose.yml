@@ -1,0 +1,73 @@
+services:
+  # --- Infrastructure Layer (For Local Development) ---
+  postgres-db:
+    image: pgvector/pgvector:pg16
+    container_name: daiphat-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-12345}
+      POSTGRES_DB: ${POSTGRES_DB:-daiphat_account_db}
+    volumes:
+      - ./infra/postgres:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sa -d ${POSTGRES_DB:-daiphat_account_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - daiphat-network
+
+  redis:
+    image: redis:alpine
+    container_name: daiphat-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - daiphat-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: daiphat-keycloak
+    restart: always
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres-db:5432/${KEYCLOAK_DB_NAME:-daiphat_keycloak_db}
+      KC_DB_USERNAME: ${POSTGRES_USER:-sa}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-12345}
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    volumes:
+      - ./infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+    command: start-dev --import-realm
+    ports:
+      - "8180:8080"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    networks:
+      - daiphat-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: daiphat-rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - daiphat-network
+
+networks:
+  daiphat-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

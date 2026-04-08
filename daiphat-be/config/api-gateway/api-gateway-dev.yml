@@ -1,0 +1,67 @@
+server:
+  port: ${GATEWAY_PORT:8080}
+
+daiphat:
+  auth:
+    keycloak:
+      realm: ${KEYCLOAK_REALM:daiphat}
+      auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8180}
+      client-id: ${KEYCLOAK_CLIENT_ID:daiphat-client}
+      client-secret: ${KEYCLOAK_CLIENT_SECRET}
+  gateway:
+    account-service-uri: ${GATEWAY_ACCOUNT_SERVICE_URI:lb://account-service}
+
+spring:
+  application:
+    name: api-gateway
+  
+  cloud:
+    gateway:
+      routes:
+        # Business API Routes
+        - id: account-service
+          uri: ${daiphat.gateway.account-service-uri}
+          predicates:
+            - Path=/api/v1/accounts/**, /api/v1/auth/**, /api/v1/test/**, /api/v1/users/**
+        
+        # Swagger Aggregator Routes
+        - id: account-service-docs
+          uri: ${daiphat.gateway.account-service-uri}
+          predicates:
+            - Path=/v3/api-docs/account-service
+          filters:
+            - RewritePath=/v3/api-docs/account-service, /v3/api-docs
+
+      default-filters:
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/daiphat}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/daiphat/protocol/openid-connect/certs}
+
+# SpringDoc Aggregation (Hiển thị tài liệu từ các service)
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    urls:
+      - name: Account Service
+        url: /v3/api-docs/account-service
+    # RESTORED: Cấu hình OAuth cho Swagger UI Authorize
+    oauth:
+      client-id: ${KEYCLOAK_CLIENT_ID:daiphat-client}
+      client-secret: ${KEYCLOAK_CLIENT_SECRET}
+      realm: ${KEYCLOAK_REALM:daiphat}
+      use-basic-authentication-with-access-code-grant: false
+      use-pkce-with-authorization-code-grant: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true

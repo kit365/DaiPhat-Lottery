@@ -1,0 +1,18 @@
+# Cấu hình đặc thù cho môi trường PROD (Chạy Docker/VPS)
+daiphat:
+  gateway:
+    account-service-uri: lb://account-service
+
+eureka:
+  client:
+    enabled: true
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://discovery-server:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+spring:
+  cloud:
+    gateway:
+      # CORS moved to Java
+      routes:
