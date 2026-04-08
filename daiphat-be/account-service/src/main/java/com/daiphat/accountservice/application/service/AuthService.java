@@ -157,7 +157,7 @@ public class AuthService implements AuthServicePort {
             log.info("User created in Keycloak with ID: {}", keycloakId);
 
             // 4. Assign default role in domain model
-            RoleModel role = roleRepositoryPort.findByCode("USER")
+            RoleModel role = roleRepositoryPort.findByCode(UserRole.USER.getCode())
                     .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
             userModel.setRole(role);
 

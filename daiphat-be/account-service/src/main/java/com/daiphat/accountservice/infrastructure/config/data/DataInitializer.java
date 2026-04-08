@@ -3,6 +3,8 @@ package com.daiphat.accountservice.infrastructure.config.data;
 import com.daiphat.accountservice.application.port.out.IdentityManagementPort;
 import com.daiphat.accountservice.application.port.out.RoleRepositoryPort;
 import com.daiphat.accountservice.application.port.out.UserRepositoryPort;
+import com.daiphat.accountservice.domain.exception.DomainException;
+import com.daiphat.accountservice.domain.exception.ErrorCode;
 import com.daiphat.accountservice.domain.model.RoleModel;
 import com.daiphat.accountservice.domain.model.UserModel;
 import com.daiphat.accountservice.domain.model.enums.UserRole;
@@ -33,9 +35,9 @@ public class DataInitializer {
             List<UserModel> keycloakUsers = identityManagementPort.getAllUsers();
             
             RoleModel adminRole = roleRepositoryPort.findByCode(UserRole.ADMIN.getCode())
-                    .orElse(null);
+                    .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
             RoleModel userRole = roleRepositoryPort.findByCode(UserRole.USER.getCode())
-                    .orElse(null);
+                    .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
 
             for (UserModel kcUser : keycloakUsers) {
                 if (!userRepositoryPort.existsByUsername(kcUser.getUsername())) {
