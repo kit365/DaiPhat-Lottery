@@ -1,10 +1,10 @@
-# SmartLotto
+# DaiPhat
 
 ![Trạng thái dự án](https://img.shields.io/badge/Trạng%20thái-Đang%20phát%20triển-blue)
 ![Cơ sở hạ tầng](https://img.shields.io/badge/CI%2FCD-Github%20Action-orange)
 ![Containerization](https://img.shields.io/badge/Docker-Managed-blue)
 
-**SmartLotto** là một hệ thống quản lý và tham gia xổ số trực tuyến thông minh, được thiết kế để mang lại trải nghiệm tiện lợi, minh bạch và an toàn cho người dùng trên đa nền tảng (Web, Mobile).
+**DaiPhat** là một hệ thống quản lý và tham gia xổ số trực tuyến thông minh, được thiết kế để mang lại trải nghiệm tiện lợi, minh bạch và an toàn cho người dùng trên đa nền tảng (Web, Mobile).
 
 ---
 
@@ -45,10 +45,10 @@ graph TD
 
 ## 🚀 3. Backend Microservices Setup
 
-Phân hệ BE của SmartLotto được xây dựng trên nền tảng **Spring Boot (JDK 21)** và **Spring Cloud**, quản lý theo mô hình **Monorepo** với Parent POM tập trung.
+Phân hệ BE của DaiPhat được xây dựng trên nền tảng **Spring Boot (JDK 21)** và **Spring Cloud**, quản lý theo mô hình **Monorepo** với Parent POM tập trung.
 
 #### 📁 Cấu trúc thư mục Backend:
-- **`smart-lotto-be/`**: Thư mục gốc chứa toàn bộ các service.
+- **`daiphat-be/`**: Thư mục gốc chứa toàn bộ các service.
     - `pom.xml`: **Parent POM** quản lý version và Checkstyle chung.
     - `config-server/`: Service quản lý cấu hình tập trung (Port 8888).
     - `discovery-server/`: Eureka Server (Port 8761).
@@ -61,10 +61,10 @@ Phân hệ BE của SmartLotto được xây dựng trên nền tảng **Spring 
 *   **Docker & Docker Compose** (Dùng để chạy hạ tầng).
 
 #### 🛠️ Bước 1: Build & Cài đặt Backend
-Sử dụng Maven tại thư mục gốc `smart-lotto-be` để chuẩn bị môi trường:
+Sử dụng Maven tại thư mục gốc `daiphat-be` để chuẩn bị môi trường:
 
 ```bash
-cd smart-lotto-be
+cd daiphat-be
 
 # Build toàn bộ dự án & cài đặt dependencies (Skip tests)
 mvn clean install -DskipTests
@@ -116,7 +116,7 @@ Dự án áp dụng tiêu chuẩn chất lượng nghiêm ngặt thông qua **Ch
 
 #### 🛠️ Kiểm tra chất lượng (Code Linting):
 *   **Công cụ:** `checkstyle.xml` (Đã cấu hình: 4 spaces, cho phép star imports).
-*   **Thực thi:** `mvn checkstyle:check` (Chạy tại root `smart-lotto-be` sẽ quét toàn bộ service).
+*   **Thực thi:** `mvn checkstyle:check` (Chạy tại root `daiphat-be` sẽ quét toàn bộ service).
 *   **Quy tắc:** Mọi vi phạm style đều làm build bị lỗi ở bước CI.
 
 ---
@@ -134,5 +134,5 @@ Dự án áp dụng tiêu chuẩn chất lượng nghiêm ngặt thông qua **Ch
 
 ## 📞 7. Hỗ trợ & Liên hệ
 
-- Dự án được phát triển bởi đội ngũ SmartLotto.
-- Quản lý công việc qua: [Jira - SmartLotto](https://jira.atlassian.com).
+- Dự án được phát triển bởi đội ngũ DaiPhat.
+- Quản lý công việc qua: [Jira - DaiPhat](https://jira.atlassian.com).

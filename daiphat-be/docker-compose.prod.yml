@@ -1,0 +1,122 @@
+services:
+  # --- Infrastructure Layer ---
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: daiphat-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-daiphat_db}
+    volumes:
+      - ./infra/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-daiphat_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - daiphat-network
+
+  redis:
+    image: redis:alpine
+    container_name: daiphat-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - daiphat-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: daiphat-rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - daiphat-network
+
+  # --- Infrastructure Services ---
+  discovery-server:
+    build:
+      context: .
+      dockerfile: discovery-server/Dockerfile
+    container_name: daiphat-discovery
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - daiphat-network
+
+  config-server:
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    container_name: daiphat-config
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=native
+    volumes:
+      - ./config:/config
+    ports:
+      - "8888:8888"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - daiphat-network
+
+  # --- Business Services ---
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway-service/Dockerfile
+    container_name: daiphat-gateway
+    depends_on:
+      config-server:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+    ports:
+      - "8080:8080"
+    networks:
+      - daiphat-network
+
+  account-service:
+    build:
+      context: .
+      dockerfile: account-service/Dockerfile
+    container_name: daiphat-account
+    depends_on:
+      config-server:
+        condition: service_healthy
+      postgres-db:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - EUREKA_SERVER_URL=${EUREKA_SERVER_URL}
+    networks:
+      - daiphat-network
+
+networks:
+  daiphat-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
