@@ -41,15 +41,15 @@ public class InternalAuthenticationFilter extends OncePerRequestFilter {
                     .map(SimpleGrantedAuthority::new)
                     .collect(Collectors.toList());
 
-            // Create Authentication object (principal is the userId/UUID)
+            // Create Authentication object (principal is the username)
             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                    userId,
+                    username,
                     null,
                     authorities
             );
 
             SecurityContextHolder.getContext().setAuthentication(auth);
-            log.debug("Internal Authentication established for: {}", username);
+            log.debug("Internal Authentication established for: {} (ID: {})", username, userId != null ? userId : "N/A");
         }
 
         filterChain.doFilter(request, response);

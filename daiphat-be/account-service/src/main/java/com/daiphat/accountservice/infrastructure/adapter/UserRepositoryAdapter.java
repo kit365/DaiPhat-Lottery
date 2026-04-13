@@ -42,6 +42,11 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
+    public Optional<UUID> findIdByUsername(String username) {
+        return userRepository.findIdByUsername(username);
+    }
+
+    @Override
     public Optional<UserModel> findByEmail(String email) {
         return userRepository.findByEmail(email)
                 .map(userPersistenceMapper::toDomain);
@@ -67,6 +72,11 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     @Override
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
+    }
+    
+    @Override
+    public boolean existsByPhone(String phone) {
+        return userRepository.existsByPhone(phone);
     }
 
     @Override

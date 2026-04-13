@@ -1,0 +1,31 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!-- Wrap content in the Master Layout -->
+<div th:replace="~{emails/layout/main-layout :: layout('Xác thực Email', ~{::content}, ~{}, false)}">
+  
+  <th:block th:fragment="content">
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:28px;font-weight:bold;line-height:36px;text-align:center;color:#f1f5f9;">
+          Xác thực Email của bạn
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:16px;line-height:24px;text-align:center;color:#94a3b8;">
+          Cảm ơn bạn đã đăng ký DaiPhat Platform. Vui lòng nhấp vào nút bên dưới để xác thực địa chỉ email và kích hoạt tài khoản của bạn.
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:0px;padding:30px;word-break:break-word;">
+        <a th:href="${verifyLink}" class="btn-action">
+          Khám phá ngay & Kích hoạt tài khoản
+        </a>
+      </td>
+    </tr>
+  </th:block>
+
+</div>
+</html>

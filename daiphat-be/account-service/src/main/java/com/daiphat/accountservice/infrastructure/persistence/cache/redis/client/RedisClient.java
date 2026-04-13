@@ -64,4 +64,12 @@ public class RedisClient {
 
         return Optional.ofNullable(objectMapper.convertValue(value, type));
     }
+
+    public long increment(String key, long delta, Duration duration) {
+        Long result = redisTemplate.opsForValue().increment(key, delta);
+        if (duration != null && result != null && result == delta) {
+            redisTemplate.expire(key, duration);
+        }
+        return result != null ? result : 0;
+    }
 }

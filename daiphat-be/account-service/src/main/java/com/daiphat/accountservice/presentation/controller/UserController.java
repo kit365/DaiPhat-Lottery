@@ -1,6 +1,7 @@
 package com.daiphat.accountservice.presentation.controller;
 
 import com.daiphat.accountservice.application.dto.response.ApiResponseDTO;
+import com.daiphat.accountservice.application.dto.response.UserAuthMeResponseDTO;
 import com.daiphat.accountservice.application.dto.response.UserResponseDTO;
 import com.daiphat.accountservice.application.port.in.UserServicePort;
 import com.daiphat.accountservice.presentation.constants.ApiConstants;
@@ -22,10 +23,10 @@ public class UserController {
     private final UserServicePort userServicePort;
 
     @GetMapping("/me")
-    public ResponseEntity<ApiResponseDTO<UserResponseDTO>> getCurrentUser(@AuthenticationPrincipal String userId) {
-        log.info("REST request to get current user profile: {}", userId);
-        UserResponseDTO response = userServicePort.getById(UUID.fromString(userId));
-        return ResponseEntity.ok(ApiResponseDTO.<UserResponseDTO>builder()
+    public ResponseEntity<ApiResponseDTO<UserAuthMeResponseDTO>> getCurrentUser(@AuthenticationPrincipal String username) {
+        log.info("REST request to get current user profile for username: {}", username);
+        UserAuthMeResponseDTO response = userServicePort.getMyProfile(username);
+        return ResponseEntity.ok(ApiResponseDTO.<UserAuthMeResponseDTO>builder()
                 .data(response)
                 .build());
     }
