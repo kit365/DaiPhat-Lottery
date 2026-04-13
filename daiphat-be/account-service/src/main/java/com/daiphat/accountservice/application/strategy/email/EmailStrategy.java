@@ -11,6 +11,8 @@ public interface EmailStrategy {
 
     boolean checkRateLimit(String recipient);
 
+    long getRemainingWaitTime(String recipient);
+
     /**
      * Thực hiện xử lý logic nghiệp vụ và kích hoạt gửi mail.
      * @param recipient Người nhận.

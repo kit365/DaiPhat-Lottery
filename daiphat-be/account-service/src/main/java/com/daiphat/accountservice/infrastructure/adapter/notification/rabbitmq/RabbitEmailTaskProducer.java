@@ -25,15 +25,32 @@ public class RabbitEmailTaskProducer {
     public void sendEmailTask(EmailTaskDTO task) {
         log.info("Sending email task to RabbitMQ. Type: {}, To: {}", task.getType(), task.getTo());
         
-        try {
-            rabbitTemplate.convertAndSend(
-                    RabbitMQConfig.EMAIL_EXCHANGE, 
-                    RabbitMQConfig.EMAIL_ROUTING_KEY, 
-                    task
-            );
-            log.debug("Email task successfully sent to RabbitMQ for recipient: {}", task.getTo());
-        } catch (Exception e) {
-            log.error("Failed to send email task to RabbitMQ: {}", e.getMessage());
-        }
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EMAIL_EXCHANGE, 
+                RabbitMQConfig.EMAIL_ROUTING_KEY, 
+                task
+        );
+        log.debug("Email task successfully sent to RabbitMQ for recipient: {}", task.getTo());
+    }
+
+    /**
+     * Gửi task email vào hàng đợi retry với thời gian chờ.
+     * 
+     * @param task Thông tin email cần gửi lại.
+     * @param delaySeconds Số giây cần chờ trước khi xử lý lại.
+     */
+    public void sendDelayedEmailTask(EmailTaskDTO task, long delaySeconds) {
+        log.info("Enqueuing email task to retry queue. Type: {}, To: {}, Delay: {}s", 
+            task.getType(), task.getTo(), delaySeconds);
+        
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EMAIL_RETRY_EXCHANGE, 
+                RabbitMQConfig.EMAIL_RETRY_ROUTING_KEY, 
+                task,
+                message -> {
+                    message.getMessageProperties().setExpiration(String.valueOf(delaySeconds * 1000));
+                    return message;
+                }
+        );
     }
 }

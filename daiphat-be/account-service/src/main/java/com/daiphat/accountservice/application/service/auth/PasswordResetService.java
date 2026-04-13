@@ -64,8 +64,8 @@ public class PasswordResetService implements PasswordResetServicePort {
         }
 
         // 3. Tier B: Progressive Rate Limiting (0s -> 0s -> 60s -> 120s... Max 10m)
-        // Nấc hồi chiêu: Lần đầu (0s) và Lần Resend 1 (0s) đều miễn phí. Lần Resend 2 mới tính 60s.
-        if (!rateLimiterService.checkAndRecord(email, AuthAction.FORGOT_PASSWORD)) {
+        // Nấc hồi chiêu: CHỈ KIỂM TRA (Peek) để không làm tăng nấc phạt nếu chưa thực sự gửi mail.
+        if (!rateLimiterService.checkRateLimit(email, AuthAction.FORGOT_PASSWORD)) {
             long retryAfter = rateLimiterService.getRemainingWaitTime(email, AuthAction.FORGOT_PASSWORD);
             throw new DomainException(ErrorCode.TOO_MANY_REQUESTS, null, String.valueOf(retryAfter));
         }
@@ -149,7 +149,7 @@ public class PasswordResetService implements PasswordResetServicePort {
     @Transactional
     public void resetPassword(ResetPasswordRequestDTO request) {
         String resetToken = request.getResetToken();
-        log.info("Processing password reset with token: {}", resetToken);
+        log.info("Processing password reset with token: {}", AuthUtils.maskToken(resetToken));
 
         // 1. Verify Reset Session
         ResetTokenData data = passwordResetCachePort.getResetTokenData(resetToken)

@@ -41,24 +41,43 @@ public class DataInitializer {
                     .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
 
             for (UserModel kcUser : keycloakUsers) {
-                if (!userRepositoryPort.existsById(kcUser.getId())) {
-                    log.info("Synchronizing new user from Keycloak ID: {} (Username: {})", kcUser.getId(), kcUser.getUsername());
-                    
-                    // Assign role based on username (basic logic for init)
-                    if (kcUser.getUsername().equalsIgnoreCase("admin")) {
-                        kcUser.setRole(adminRole);
-                    } else {
-                        kcUser.setRole(userRole);
-                    }
-                    
-                    kcUser.setStatus(UserStatus.ACTIVE);
-                    kcUser.setEmailVerified(true);
-                    
-                    userRepositoryPort.save(kcUser);
-                    log.info("User {} synchronized successfully with ID: {}", kcUser.getUsername(), kcUser.getId());
-                } else {
+                // Progressive Sync & Self-Healing:
+                // 1. First, check if ID already exists (fast path)
+                if (userRepositoryPort.existsById(kcUser.getId())) {
                     log.debug("User with ID {} already exists in DB, skipping sync.", kcUser.getId());
+                    continue;
                 }
+
+                log.info("Synchronizing user from Keycloak: {} (ID: {})", kcUser.getUsername(), kcUser.getId());
+
+                // 2. Resilience check: If ID is missing but username or email exists, we must RECONCILE (Update ID)
+                // This prevents unique constraint violations from legacy or manually inserted data.
+                userRepositoryPort.findByUsername(kcUser.getUsername())
+                        .or(() -> userRepositoryPort.findByEmail(kcUser.getEmail()))
+                        .ifPresentOrElse(
+                            existingUser -> {
+                                log.warn("Sync Conflict: User {} exists with different ID (Local: {}, KC: {}). Reconciling...", 
+                                        kcUser.getUsername(), existingUser.getId(), kcUser.getId());
+                                userRepositoryPort.updateUserId(existingUser.getId(), kcUser.getId());
+                                log.info("Reconciliation SUCCESS: ID {} updated to {} for user {}", 
+                                        existingUser.getId(), kcUser.getId(), kcUser.getUsername());
+                            },
+                            () -> log.debug("No existing record found for {}. Proceeding with fresh insert.", kcUser.getUsername())
+                        );
+
+                // 3. Prepare and Save (Upsert pattern)
+                // Assign role based on username (basic logic for init)
+                if (kcUser.getUsername().equalsIgnoreCase("admin")) {
+                    kcUser.setRole(adminRole);
+                } else {
+                    kcUser.setRole(userRole);
+                }
+                
+                kcUser.setStatus(UserStatus.ACTIVE);
+                kcUser.setEmailVerified(true);
+                
+                userRepositoryPort.save(kcUser);
+                log.info("User {} synchronized successfully.", kcUser.getUsername());
             }
             
             log.info("Data synchronization completed.");

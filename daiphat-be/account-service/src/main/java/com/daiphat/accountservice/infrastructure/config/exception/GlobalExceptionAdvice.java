@@ -23,14 +23,24 @@ public class GlobalExceptionAdvice {
             errorCode.getCode(), e.getMessage(), 
             e.getInternalMessage() != null ? e.getInternalMessage() : "No additional detail");
 
+        Object safeData = isSafeData(e.getData()) ? e.getData() : null;
+
         ApiResponseDTO<Object> apiResponse = ApiResponseDTO.builder()
                 .isSuccess(false)
                 .code(errorCode.getCode())
-                .message(e.getMessage()) // Already guaranteed safe by DomainException
-                .data(e.getData())
+                .message(e.getMessage()) 
+                .data(safeData)
                 .build();
                 
         return new ResponseEntity<>(apiResponse, errorCode.getStatus());
+    }
+
+    private boolean isSafeData(Object data) {
+        if (data == null) return true;
+        return data instanceof String || 
+               data instanceof Number || 
+               data instanceof Boolean ||
+               data instanceof com.daiphat.accountservice.application.dto.response.SafeResponseData;
     }
 
     @ExceptionHandler(AuthenticationException.class)

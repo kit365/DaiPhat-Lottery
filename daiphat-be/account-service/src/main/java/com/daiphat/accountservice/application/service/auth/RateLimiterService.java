@@ -51,6 +51,16 @@ public class RateLimiterService implements RateLimiterPort {
     }
 
     @Override
+    public boolean checkRateLimit(String identifier, AuthAction action) {
+        var ctx = getContext(identifier, action);
+        if (ctx.isThrottled()) {
+            failThrottled(LOG_PREFIX_STANDARD + " [Peek]", ctx, ctx.remainingTime());
+            return false;
+        }
+        return true;
+    }
+
+    @Override
     public long getRemainingWaitTime(String identifier, AuthAction action) {
         return getContext(identifier, action).remainingTime();
     }

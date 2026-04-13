@@ -119,7 +119,7 @@ class EmailServiceTest {
         emailService.processAsyncEmail(task);
 
         ArgumentCaptor<EmailTaskDTO> taskCaptor = ArgumentCaptor.forClass(EmailTaskDTO.class);
-        verify(rabbitEmailTaskProducer).sendEmailTask(taskCaptor.capture());
+        verify(rabbitEmailTaskProducer).sendDelayedEmailTask(taskCaptor.capture(), anyLong());
 
         assertThat(taskCaptor.getValue().getAttempt()).isEqualTo(1);
     }
@@ -130,7 +130,7 @@ class EmailServiceTest {
         EmailTaskDTO task = EmailTaskDTO.builder()
                 .type(EmailType.WELCOME_VERIFY)
                 .to(RECIPIENT)
-                .attempt(3)
+                .attempt(2) // Lần chạy thứ 3 (max=3), khi fail sẽ trigger exhaustion logic
                 .maxRetries(3)
                 .parameters(Map.of())
                 .build();
@@ -138,9 +138,10 @@ class EmailServiceTest {
         doThrow(new RuntimeException("SMTP Permanent Fail"))
             .when(mockStrategy).process(anyString(), anyMap());
 
-        emailService.processAsyncEmail(task);
+        assertThatThrownBy(() -> emailService.processAsyncEmail(task))
+                .isInstanceOf(org.springframework.amqp.AmqpRejectAndDontRequeueException.class);
 
-        verify(rabbitEmailTaskProducer, never()).sendEmailTask(any());
+        verify(rabbitEmailTaskProducer, never()).sendDelayedEmailTask(any(), anyLong());
         assertThat(meterRegistry.find("email.task.exhausted").counter()).isNotNull();
     }
 }

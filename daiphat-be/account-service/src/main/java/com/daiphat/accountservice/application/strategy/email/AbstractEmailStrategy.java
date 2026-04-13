@@ -29,9 +29,12 @@ public abstract class AbstractEmailStrategy implements EmailStrategy {
 
     @Override
     public final boolean checkRateLimit(String recipient) {
-        // Rate limiting is now delegated to the Service Layer (e.g., PasswordResetService)
-        // to allow for finer-grained control (Anti-Spam vs Resend Interval).
-        return true;
+        return rateLimiterPort.checkAndRecord(recipient, getAction());
+    }
+
+    @Override
+    public final long getRemainingWaitTime(String recipient) {
+        return rateLimiterPort.getRemainingWaitTime(recipient, getAction());
     }
 
     @Override

@@ -45,4 +45,18 @@ public class DomainException extends RuntimeException {
         this.internalMessage = internalMessage; // Store for internal logging
         this.data = null;
     }
+
+    public DomainException(ErrorCode errorCode, Throwable cause) {
+        super(errorCode.getMessage(), cause);
+        this.errorCode = errorCode;
+        this.internalMessage = cause != null ? cause.getMessage() : null;
+        this.data = null;
+    }
+
+    public DomainException(ErrorCode errorCode, Object data, Throwable cause) {
+        super(errorCode.getMessage(), cause);
+        this.errorCode = errorCode;
+        this.data = data;
+        this.internalMessage = cause != null ? cause.getMessage() : null;
+    }
 }

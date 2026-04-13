@@ -19,6 +19,13 @@ public interface RateLimiterPort {
      * @return true nếu được phép thực hiện, false nếu bị giới hạn.
      */
     boolean checkAndRecordFixed(String identifier, AuthAction action, int maxAttempts, long windowSeconds);
+    
+    /**
+     * Kiểm tra xem hành động có bị giới hạn hay không (Peeking). 
+     * Khác với checkAndRecord, hàm này KHÔNG ghi nhận thêm một nỗ lực mới.
+     * @return true nếu được phép thực hiện, false nếu bị giới hạn.
+     */
+    boolean checkRateLimit(String identifier, AuthAction action);
 
     /**
      * Lấy thời gian chờ còn lại.
