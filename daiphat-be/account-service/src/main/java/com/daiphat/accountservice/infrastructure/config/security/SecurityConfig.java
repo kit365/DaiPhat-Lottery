@@ -12,6 +12,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.util.List;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -28,7 +30,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable) // Typically disabled for stateless API
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
                         // Permit Options requests
@@ -38,8 +40,8 @@ public class SecurityConfig {
                         // Permit Swagger/Docs completely
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**").permitAll()
                         
-                        // Permit Auth and Test endpoints
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        // Permit Auth, Error and Test endpoints
+                        .requestMatchers("/api/v1/auth/**", "/error").permitAll()
                         // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )

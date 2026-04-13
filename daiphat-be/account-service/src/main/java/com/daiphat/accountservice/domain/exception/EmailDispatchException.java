@@ -1,0 +1,17 @@
+package com.daiphat.accountservice.domain.exception;
+
+import lombok.Getter;
+
+/**
+ * Exception dùng cho các lỗi liên quan đến việc điều phối Email.
+ */
+@Getter
+public class EmailDispatchException extends DomainException {
+    public EmailDispatchException(ErrorCode errorCode, String message) {
+        super(errorCode, message);
+    }
+
+    public EmailDispatchException(ErrorCode errorCode, Throwable cause) {
+        super(errorCode, cause);
+    }
+}

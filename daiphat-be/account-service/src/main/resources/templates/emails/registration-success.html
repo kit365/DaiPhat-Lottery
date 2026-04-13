@@ -1,0 +1,38 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!-- Wrap content in the Master Layout -->
+<div th:replace="~{emails/layout/main-layout :: layout('Đăng ký thành công', ~{::content}, ~{}, false)}">
+  
+  <th:block th:fragment="content">
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:28px;font-weight:bold;line-height:36px;text-align:center;color:#f1f5f9;">
+          Xác minh tài khoản <span th:text="${username}" style="color:#34d399;">User</span>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:16px;line-height:24px;text-align:center;color:#94a3b8;">
+          Tài khoản của bạn đã được khởi tạo thành công ở trạng thái chờ xác thực. Vui lòng kiểm tra email và làm theo hướng dẫn để kích hoạt tài khoản.
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:0px;padding:30px;word-break:break-word;">
+        <a th:href="${verifyLink}" class="btn-action">
+          Kích hoạt tài khoản ngay
+        </a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;padding-top:20px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:14px;line-height:24px;text-align:center;color:#64748b;">
+          Nếu bạn cần hỗ trợ, đừng ngần ngại liên hệ với đội ngũ CSKH 24/7 của chúng tôi.
+        </div>
+      </td>
+    </tr>
+  </th:block>
+
+</div>
+</html>

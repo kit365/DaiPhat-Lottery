@@ -83,12 +83,17 @@
           "view-users",
           "query-users",
           "query-groups",
-          "view-realm"
+          "view-realm",
+          "impersonation"
         ]
       }
     }
   ],
   "accessTokenLifespan": 86400,
   "ssoSessionIdleTimeout": 86400,
-  "ssoSessionMaxLifespan": 86400
+  "ssoSessionMaxLifespan": 86400,
+  "sslRequired": "none",
+  "verifyEmail": false,
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true
 }

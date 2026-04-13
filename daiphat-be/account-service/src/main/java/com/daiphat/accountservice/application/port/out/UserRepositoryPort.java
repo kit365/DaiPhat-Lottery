@@ -10,11 +10,13 @@ public interface UserRepositoryPort {
     UserModel save(UserModel userModel);
     Optional<UserModel> findById(UUID id);
     Optional<UserModel> findByUsername(String username);
+    Optional<UUID> findIdByUsername(String username);
     Optional<UserModel> findByEmail(String email);
     List<UserModel> findAll();
     boolean existsById(UUID id);
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
+    boolean existsByPhone(String phone);
     void deleteById(UUID id);
     void updateUserId(UUID oldId, UUID newId);
 }

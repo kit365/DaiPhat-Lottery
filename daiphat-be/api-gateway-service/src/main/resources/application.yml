@@ -5,13 +5,20 @@ spring:
     config:
       fail-fast: false
       retry:
-        initial-interval: 1000
-        max-interval: 5000
-        max-attempts: 5
+        initial-interval: 3000
+        max-interval: 15000
+        max-attempts: 12
       discovery:
-        enabled: false
+        enabled: true
         service-id: config-server
   config:
-    import: "optional:configserver:http://localhost:8888"
+    import: "optional:configserver:"
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    fetch-registry: true
+    register-with-eureka: true

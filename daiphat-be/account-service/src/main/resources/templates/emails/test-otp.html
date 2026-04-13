@@ -1,16 +1,40 @@
-<div xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/mail-layout :: layout(~{::content})}">
-<div th:fragment="content">
-    
-    <!-- Tiêu đề và Mô tả lấy từ component chung -->
-    <div th:replace="~{fragments/components :: header-text(${title}, ${description})}"></div>
-
-    <!-- Mã số OTP lấy từ component chung -->
-    <div th:replace="~{fragments/components :: code-box(${code})}"></div>
-
-    <!-- Đoạn nhắc nhở cuối -->
-    <p style="font-family:Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:16px;line-height:1.6;text-align:left;color:#a1a1aa; padding-top: 10px;">
-        If you didn't request this email, there's nothing to worry about, you can safely ignore it.
-    </p>
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!-- Wrap content in the Master Layout -->
+<div th:replace="~{emails/layout/main-layout :: layout('Xác thực OTP', ~{::content}, ~{}, false)}">
+  
+  <th:block th:fragment="content">
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:24px;font-weight:bold;line-height:24px;text-align:center;color:#f1f5f9;" th:text="${title}">
+          Xác thực mã OTP
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:16px;line-height:24px;text-align:center;color:#94a3b8;" th:text="${description}">
+          Mã xác thực của bạn ở bên dưới - hãy nhập mã này để tiếp tục.
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:0px;padding:30px;word-break:break-word;">
+        <div class="code-box">
+          <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:42px;font-weight:bold;letter-spacing:5px;line-height:1;text-align:center;color:#34d399;" th:text="${code}">
+            DFY-X7U
+          </div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;padding-top:20px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:14px;line-height:24px;text-align:center;color:#64748b;">
+          Nếu bạn không thực hiện yêu cầu này, đừng lo lắng, bạn có thể an tâm bỏ qua email này.
+        </div>
+      </td>
+    </tr>
+  </th:block>
 
 </div>
-</div>
+</html>

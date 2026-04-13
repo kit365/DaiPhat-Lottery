@@ -11,7 +11,10 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ForgotPasswordRequestDTO {
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    public static final String MSG_EMAIL_REQUIRED = "Email không được để trống";
+    public static final String MSG_EMAIL_INVALID = "Email không hợp lệ";
+
+    @NotBlank(message = MSG_EMAIL_REQUIRED)
+    @Email(message = MSG_EMAIL_INVALID)
     String email;
 }

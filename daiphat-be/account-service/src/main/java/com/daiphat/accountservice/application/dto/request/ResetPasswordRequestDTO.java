@@ -1,6 +1,7 @@
 package com.daiphat.accountservice.application.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -11,10 +12,21 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ResetPasswordRequestDTO {
-    @NotBlank(message = "Reset token is required")
+    public static final String MSG_TOKEN_REQUIRED = "Reset token is required";
+    public static final String MSG_PASSWORD_REQUIRED = "Mật khẩu không được để trống";
+    public static final String MSG_PASSWORD_SIZE = "Mật khẩu phải từ 8 đến 32 ký tự";
+    public static final String MSG_PASSWORD_PATTERN = "Mật khẩu không đủ mạnh (Cần ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt).";
+    public static final String MSG_CONFIRM_PASSWORD_REQUIRED = "Xác nhận mật khẩu không được để trống";
+
+    @NotBlank(message = MSG_TOKEN_REQUIRED)
     String resetToken;
 
-    @NotBlank(message = "New password is required")
-    @Size(min = 6, message = "Password must be at least 6 characters")
+    @NotBlank(message = MSG_PASSWORD_REQUIRED)
+    @Size(min = 8, max = 32, message = MSG_PASSWORD_SIZE)
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,32}$", 
+             message = MSG_PASSWORD_PATTERN)
     String newPassword;
+
+    @NotBlank(message = MSG_CONFIRM_PASSWORD_REQUIRED)
+    String confirmPassword;
 }
