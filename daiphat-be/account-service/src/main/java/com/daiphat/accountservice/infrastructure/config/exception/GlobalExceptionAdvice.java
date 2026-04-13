@@ -15,25 +15,26 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionAdvice {
 
     @ExceptionHandler(DomainException.class)
-    public ResponseEntity<ApiResponseDTO<Void>> handleDomainException(DomainException e) {
-        log.error("Domain exception occurred: {}", e.getMessage());
+    public ResponseEntity<ApiResponseDTO<?>> handleDomainException(DomainException e) {
         ErrorCode errorCode = e.getErrorCode();
         
-        String message = (e.getMessage() != null && !e.getMessage().isBlank() && !e.getMessage().contains(errorCode.name())) 
-                         ? e.getMessage() 
-                         : errorCode.getMessage();
+        // Log consistent pattern: [CODE] [PUBLIC MESSAGE] - [INTERNAL DETAIL]
+        log.error("Domain exception: [{} - {}] - Detail: {}", 
+            errorCode.getCode(), e.getMessage(), 
+            e.getInternalMessage() != null ? e.getInternalMessage() : "No additional detail");
 
-        ApiResponseDTO<Void> apiResponse = ApiResponseDTO.<Void>builder()
+        ApiResponseDTO<Object> apiResponse = ApiResponseDTO.builder()
                 .isSuccess(false)
                 .code(errorCode.getCode())
-                .message(message)
+                .message(e.getMessage()) // Already guaranteed safe by DomainException
+                .data(e.getData())
                 .build();
                 
         return new ResponseEntity<>(apiResponse, errorCode.getStatus());
     }
 
     @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ApiResponseDTO<Void>> handleAuthenticationException(AuthenticationException e) {
+    public ResponseEntity<ApiResponseDTO<?>> handleAuthenticationException(AuthenticationException e) {
         log.error("Authentication exception occurred: {}", e.getMessage());
         ErrorCode errorCode = ErrorCode.UNAUTHORIZED;
         
@@ -47,7 +48,7 @@ public class GlobalExceptionAdvice {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponseDTO<Void>> handleValidationException(MethodArgumentNotValidException e) {
+    public ResponseEntity<ApiResponseDTO<?>> handleValidationException(MethodArgumentNotValidException e) {
         log.error("Validation error occurred");
         String errorMessage = "Dữ liệu không hợp lệ.";
         
@@ -65,7 +66,7 @@ public class GlobalExceptionAdvice {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponseDTO<Void>> handleAllExceptions(Exception e) {
+    public ResponseEntity<ApiResponseDTO<?>> handleAllExceptions(Exception e) {
         log.error("Unexpected error occurred: ", e);
         
         ApiResponseDTO<Void> apiResponse = ApiResponseDTO.<Void>builder()

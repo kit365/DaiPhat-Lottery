@@ -2,7 +2,6 @@ package com.daiphat.accountservice.infrastructure.adapter.auth;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.daiphat.accountservice.application.dto.request.LoginRequestDTO;
 import com.daiphat.accountservice.application.dto.response.AuthResponseDTO;
 import com.daiphat.accountservice.application.port.out.auth.KeycloakPort;
 import com.daiphat.accountservice.domain.exception.DomainException;
@@ -40,7 +39,7 @@ public class KeycloakAdapter implements KeycloakPort {
     private String issuerUri;
 
     @Override
-    public KeycloakAuthResult login(LoginRequestDTO request) {
+    public KeycloakAuthResult login(String username, String password) {
         String tokenUrl = UriComponentsBuilder.fromUriString(issuerUri)
                 .path("/protocol/openid-connect/token")
                 .toUriString();
@@ -49,8 +48,8 @@ public class KeycloakAdapter implements KeycloakPort {
         formData.add(OAuth2ParameterNames.GRANT_TYPE, "password");
         formData.add(OAuth2ParameterNames.CLIENT_ID, clientId);
         formData.add(OAuth2ParameterNames.CLIENT_SECRET, clientSecret);
-        formData.add(OAuth2ParameterNames.USERNAME, request.getUsername());
-        formData.add(OAuth2ParameterNames.PASSWORD, request.getPassword());
+        formData.add(OAuth2ParameterNames.USERNAME, username);
+        formData.add(OAuth2ParameterNames.PASSWORD, password);
         formData.add(OAuth2ParameterNames.SCOPE, "openid profile email");
 
         AuthResponseDTO response = restClient.post()
@@ -58,11 +57,13 @@ public class KeycloakAdapter implements KeycloakPort {
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(formData)
                 .retrieve()
-                .onStatus(HttpStatusCode::is4xxClientError, (req, resp) -> {
-                    String errorBody = objectMapper.readTree(resp.getBody()).toString();
-                    log.error("Login failed for user: {}. Status: {}. Details: {}", 
-                        request.getUsername(), resp.getStatusCode(), errorBody);
+                .onStatus(status -> status.value() == 400 || status.value() == 401, (req, resp) -> {
+                    log.warn("IdentityManagement: Invalid credentials for user: {}", username);
                     throw new DomainException(ErrorCode.INVALID_CREDENTIALS);
+                })
+                .onStatus(HttpStatusCode::isError, (req, resp) -> {
+                    log.error("IdentityManagement: Keycloak infrastructure error. Status: {}", resp.getStatusCode());
+                    throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
                 })
                 .body(AuthResponseDTO.class);
 
@@ -86,7 +87,7 @@ public class KeycloakAdapter implements KeycloakPort {
                 .body(formData)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (req, resp) -> {
-                    log.error("Logout failed at Keycloak. Status: {}", resp.getStatusCode());
+                    log.error("IdentityManagement: Logout failed at Keycloak. Status: {}", resp.getStatusCode());
                     throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
                 })
                 .toBodilessEntity();
@@ -109,9 +110,13 @@ public class KeycloakAdapter implements KeycloakPort {
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(formData)
                 .retrieve()
+                .onStatus(status -> status.value() == 400 || status.value() == 401, (req, resp) -> {
+                    log.warn("IdentityManagement: Token refresh failed - invalid or expired token.");
+                    throw new DomainException(ErrorCode.REFRESH_TOKEN_EXPIRED);
+                })
                 .onStatus(HttpStatusCode::isError, (req, resp) -> {
-                    log.error("Token refresh failed at Keycloak. Status: {}", resp.getStatusCode());
-                    throw new DomainException(ErrorCode.UNAUTHORIZED);
+                    log.error("IdentityManagement: Token refresh failed at Keycloak infrastructure. Status: {}", resp.getStatusCode());
+                    throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
                 })
                 .body(AuthResponseDTO.class);
 

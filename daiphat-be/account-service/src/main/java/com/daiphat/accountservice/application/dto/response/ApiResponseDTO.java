@@ -27,4 +27,3 @@ public class ApiResponseDTO<T> {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     T data;
 }
-

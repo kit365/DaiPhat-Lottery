@@ -1,10 +1,7 @@
 package com.daiphat.accountservice.application.mapper;
 
 import com.daiphat.accountservice.application.dto.request.UserRegistrationRequestDTO;
-import com.daiphat.accountservice.application.dto.response.RoleResponseDTO;
-import com.daiphat.accountservice.application.dto.response.UserAddressResponseDTO;
-import com.daiphat.accountservice.application.dto.response.UserImageResponseDTO;
-import com.daiphat.accountservice.application.dto.response.UserResponseDTO;
+import com.daiphat.accountservice.application.dto.response.*;
 import com.daiphat.accountservice.domain.model.RoleModel;
 import com.daiphat.accountservice.domain.model.UserAddressModel;
 import com.daiphat.accountservice.domain.model.UserImageModel;
@@ -19,9 +16,15 @@ import org.mapstruct.ReportingPolicy;
 public interface UserApplicationMapper {
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "phoneNumber", source = "phone")
     UserModel mapToUserModel(UserRegistrationRequestDTO request);
 
     UserResponseDTO mapToUserResponse(UserModel userModel);
+
+    @Mapping(target = "avatarUrl", expression = "java(extractAvatarUrl(userModel))")
+    UserAuthMeResponseDTO mapToAuthMeUserResponse(UserModel userModel);
+
+    AuthMeRoleResponseDTO mapToAuthMeRoleResponse(RoleModel role);
 
     RoleResponseDTO mapToRoleResponse(RoleModel role);
 
@@ -30,6 +33,15 @@ public interface UserApplicationMapper {
     @Mapping(target = "defaultAddress", source = "default")
     @Mapping(target = "address", expression = "java(concatenateAddress(userAddress))")
     UserAddressResponseDTO mapToUserAddressResponse(UserAddressModel userAddress);
+
+    default String extractAvatarUrl(UserModel userModel) {
+        if (userModel == null || userModel.getImages() == null) return null;
+        return userModel.getImages().stream()
+                .filter(UserImageModel::isCurrent)
+                .map(UserImageModel::getImageUrl)
+                .findFirst()
+                .orElse(null);
+    }
 
     default ContactInfo mapToContactInfo(UserAddressModel.ContactInfo contact) {
         if (contact == null) return null;

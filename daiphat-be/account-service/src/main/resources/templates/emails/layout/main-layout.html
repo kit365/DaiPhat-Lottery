@@ -1,0 +1,77 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:fragment="email-head (title, extraStyles)">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style type="text/css">
+      #outlook a { padding: 0; }
+      body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+      table, td { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+      img { border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
+      p { display: block; margin: 13px 0; }
+      @media only screen and (min-width:480px) {
+        .mj-column-per-100 { width: 100% !important; max-width: 100%; }
+      }
+      .btn-action {
+        background-color: #34d399 !important;
+        color: #0f172a !important;
+        padding: 14px 28px !important;
+        text-decoration: none !important;
+        border-radius: 8px !important;
+        font-weight: bold !important;
+        display: inline-block !important;
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        font-size: 16px;
+      }
+      .code-box {
+        background-color: #0f172a !important;
+        border: 1px dashed #34d399 !important;
+        border-radius: 8px !important;
+        padding: 30px !important;
+      }
+    </style>
+    <th:block th:replace="${extraStyles} ?: ~{}"></th:block>
+  </th:block>
+</head>
+
+<body style="background-color:#0f172a; margin: 0; padding: 0;">
+  <div th:fragment="layout (title, content, extraStyles, hasUnsubscribe)" style="background-color:#0f172a; padding-top: 40px; padding-bottom: 40px;">
+    <!-- Head is needed inside fragment for some renderers but title must be hidden -->
+    <th:block th:replace="~{::email-head(${title}, ${extraStyles})}"></th:block>
+
+    <!-- Logo Section (Using IMG tag as requested for easy future replacement) -->
+    <div style="margin:0px auto;max-width:600px; text-align: center; padding-bottom: 30px;">
+        <img alt="DaiPhat Platform Logo" 
+             src="https://img.logoipsum.com/296.svg" 
+             style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:200px;margin:0 auto;" 
+             width="200">
+    </div>
+
+    <!-- Main Card -->
+    <div style="background-color:#1e293b; margin:0px auto; max-width:600px; border-radius:12px; overflow: hidden; border: 1px solid #334155;">
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+        <tbody>
+          <tr>
+            <td style="padding:40px;">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+                <th:block th:replace="${content}"></th:block>
+              </table>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin:0px auto;max-width:600px; text-align: center; padding-top: 30px;">
+      <p style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-size:12px; color:#64748b; line-height: 20px;">
+        © 2026 DaiPhat Platform | 123 Dai Phat St <br/>
+        Trải nghiệm nền tảng số hóa an toàn và bảo mật
+        <span th:if="${hasUnsubscribe}"> | <a href="#" style="color: #38bdf8; text-decoration: none;">Hủy đăng ký</a></span>
+      </p>
+    </div>
+  </div>
+</body>
+</html>

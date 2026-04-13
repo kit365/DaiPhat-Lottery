@@ -1,4 +1,4 @@
-package com.daiphat.accountservice.infrastructure.persistence.cache.redis.keys;
+package com.daiphat.accountservice.application.port.out.auth.keys;
 
 public class AuthCacheKeyGenerator {
     private static final String AUTH_PREFIX = "auth";
@@ -6,6 +6,7 @@ public class AuthCacheKeyGenerator {
     private static final String FORGOT_PREFIX = AUTH_PREFIX + ":forgot";
     private static final String OTP_PREFIX = AUTH_PREFIX + ":otp";
     private static final String LOCK_PREFIX = AUTH_PREFIX + ":lock";
+    private static final String VERIFY_PREFIX = AUTH_PREFIX + ":verify";
 
     // Token Keys
     public static String accessToken(String userId) {
@@ -21,33 +22,22 @@ public class AuthCacheKeyGenerator {
     }
 
     // Forgot Password Keys
-    public static String resetToken(String email) {
-        return FORGOT_PREFIX + ":token:" + email;
-    }
-
     public static String resetTokenData(String resetToken) {
         return FORGOT_PREFIX + ":data:" + resetToken;
-    }
-
-    public static String resetAttemptCount(String email) {
-        return FORGOT_PREFIX + ":attempts:" + email;
-    }
-
-    public static String resetVerificationCode(String email) {
-        return FORGOT_PREFIX + ":code:" + email;
-    }
-
-    public static String resendLastAt(String email) {
-        return FORGOT_PREFIX + ":resend:last-at:" + email;
-    }
-
-    public static String resendAttemptCount(String email) {
-        return FORGOT_PREFIX + ":resend:attempts:" + email;
     }
 
     public static String mailLock(String email) {
         return LOCK_PREFIX + ":mail:" + email;
     }
+
+    public static String loginLock(String username) {
+        return LOCK_PREFIX + ":login:" + username;
+    }
+
+    public static String registerLock(String email) {
+        return LOCK_PREFIX + ":register:" + email;
+    }
+
 
     // OTP Keys
     public static String otpCode(String email) {
@@ -67,4 +57,25 @@ public class AuthCacheKeyGenerator {
         return LOCK_PREFIX + ":attempts:" + email;
     }
 
+    public static String accountLockLast(String username) {
+        return LOCK_PREFIX + ":last:" + username;
+    }
+
+    // Verify Email Keys
+    public static String verifyToken(String token) {
+        return VERIFY_PREFIX + ":token:" + token;
+    }
+
+    public static String verifyEmail(String email) {
+        return VERIFY_PREFIX + ":email:" + email;
+    }
+
+    // Rate Limit Keys
+    public static String rateLimitCount(String action, String identifier) {
+        return AUTH_PREFIX + ":rate:" + action + ":count:" + identifier;
+    }
+
+    public static String rateLimitLast(String action, String identifier) {
+        return AUTH_PREFIX + ":rate:" + action + ":last:" + identifier;
+    }
 }

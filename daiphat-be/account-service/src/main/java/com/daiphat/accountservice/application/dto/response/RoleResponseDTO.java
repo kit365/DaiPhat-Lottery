@@ -5,7 +5,7 @@ import java.util.UUID;
 
 @Builder
 public record RoleResponseDTO(
-    UUID id,
+    java.util.UUID id,
     String code,
     String name,
     String description

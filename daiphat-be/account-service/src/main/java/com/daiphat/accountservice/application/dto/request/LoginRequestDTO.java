@@ -10,10 +10,10 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class LoginRequestDTO {
-    @NotBlank(message = "Username is required")
+    @NotBlank(message = "Username không được để trống")
     String username;
     
-    @NotBlank(message = "Password is required")
+    @NotBlank(message = "Password không được để trống")
     String password;
 
     boolean rememberMe;

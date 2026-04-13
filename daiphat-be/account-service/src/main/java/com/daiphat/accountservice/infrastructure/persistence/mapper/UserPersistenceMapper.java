@@ -2,19 +2,18 @@ package com.daiphat.accountservice.infrastructure.persistence.mapper;
 
 import com.daiphat.accountservice.domain.model.UserModel;
 import com.daiphat.accountservice.infrastructure.persistence.entity.UserEntity;
-import org.mapstruct.AfterMapping;
-import org.mapstruct.Mapper;
-import org.mapstruct.MappingTarget;
-import org.mapstruct.ReportingPolicy;
+import org.mapstruct.*;
 
 @Mapper(componentModel = "spring",
         uses = {RolePersistenceMapper.class, UserImagePersistenceMapper.class, UserAddressPersistenceMapper.class},
         unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface UserPersistenceMapper {
 
-    UserModel toDomain(UserEntity entity);
-
+    @Mapping(target = "phone", source = "phoneNumber")
     UserEntity toEntity(UserModel domain);
+
+    @Mapping(target = "phoneNumber", source = "phone")
+    UserModel toDomain(UserEntity entity);
 
 
     @AfterMapping

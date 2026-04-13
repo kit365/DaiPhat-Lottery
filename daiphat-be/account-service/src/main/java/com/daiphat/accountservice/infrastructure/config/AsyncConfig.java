@@ -13,14 +13,16 @@ import java.util.concurrent.Executor;
 @Slf4j
 public class AsyncConfig {
 
+    public static final String MAIL_THREAD_PREFIX = "MailAsync-";
+
     @Bean(name = "mailExecutor")
     public Executor mailExecutor() {
-        log.info("Initializing Async Mail Executor...");
+        log.info("Initializing Async Mail Executor with prefix: {}", MAIL_THREAD_PREFIX);
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(5);        // Số luồng tối thiểu luôn chạy
-        executor.setMaxPoolSize(20);       // Số luồng tối đa khi tải cao
-        executor.setQueueCapacity(500);    // Hàng đợi chờ xử lý
-        executor.setThreadNamePrefix("MailAsync-");
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(20);
+        executor.setQueueCapacity(500);
+        executor.setThreadNamePrefix(MAIL_THREAD_PREFIX);
         executor.initialize();
         return executor;
     }

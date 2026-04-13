@@ -8,6 +8,7 @@ import com.daiphat.accountservice.domain.exception.ErrorCode;
 import com.daiphat.accountservice.domain.model.RoleModel;
 import com.daiphat.accountservice.domain.model.UserModel;
 import com.daiphat.accountservice.domain.model.enums.UserRole;
+import com.daiphat.accountservice.domain.model.enums.UserStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -40,8 +41,8 @@ public class DataInitializer {
                     .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
 
             for (UserModel kcUser : keycloakUsers) {
-                if (!userRepositoryPort.existsByUsername(kcUser.getUsername())) {
-                    log.info("Synchronizing user from Keycloak: {}", kcUser.getUsername());
+                if (!userRepositoryPort.existsById(kcUser.getId())) {
+                    log.info("Synchronizing new user from Keycloak ID: {} (Username: {})", kcUser.getId(), kcUser.getUsername());
                     
                     // Assign role based on username (basic logic for init)
                     if (kcUser.getUsername().equalsIgnoreCase("admin")) {
@@ -50,13 +51,13 @@ public class DataInitializer {
                         kcUser.setRole(userRole);
                     }
                     
-                    kcUser.setStatus("ACTIVE");
+                    kcUser.setStatus(UserStatus.ACTIVE);
                     kcUser.setEmailVerified(true);
                     
                     userRepositoryPort.save(kcUser);
                     log.info("User {} synchronized successfully with ID: {}", kcUser.getUsername(), kcUser.getId());
                 } else {
-                    log.debug("User {} already exists in DB, skipping sync.", kcUser.getUsername());
+                    log.debug("User with ID {} already exists in DB, skipping sync.", kcUser.getId());
                 }
             }
             
