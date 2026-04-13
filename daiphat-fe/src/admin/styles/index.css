@@ -1,0 +1,103 @@
+.sidebar-sub-item::before {
+    left: 0px;
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    transform: translateY(-6px);
+    background-color: #EDEFF2;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' viewBox='0 0 14 14'%3E%3Cpath d='M1 1v4a8 8 0 0 0 8 8h4' stroke='%23efefef' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") 50% 50% / 100% no-repeat;
+}
+
+/* Container scroll */
+.sidebar-scroll {
+    overflow-y: auto;
+}
+
+/* Chiều rộng thanh scroll */
+.sidebar-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+
+/* Track (nền) */
+.sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+    padding: 20px 0;
+    /* 👈 giảm chiều cao thanh kéo */
+}
+
+/* Thanh kéo */
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    background: #919EAB;
+    border-radius: 7px;
+}
+
+/* Header */
+
+.header__admin::before {
+    backdrop-filter: blur(6px);
+    background-color: rgba(255 255 255 / 80%);
+    opacity: 0;
+    content: "";
+    visibility: hidden;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), visibility 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.header__admin.scrolled::before {
+    opacity: 1;
+    visibility: visible;
+}
+
+.header__avatar::before {
+    width: 100%;
+    content: "";
+    height: 100%;
+    position: absolute;
+    padding: 1px;
+    inset: 0px;
+    margin: auto;
+    border-radius: inherit;
+    mask: linear-gradient(rgb(255, 255, 255) 0px, rgb(255, 255, 255) 0px) content-box xor, linear-gradient(rgb(255, 255, 255) 0px, rgb(255, 255, 255) 0px);
+}
+
+/* End Header */
+
+.sidebar-item-before::before {
+    left: 0px;
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background-color: #EDEFF2;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' viewBox='0 0 14 14'%3E%3Cpath d='M1 1v4a8 8 0 0 0 8 8h4' stroke='%23efefef' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") 50% 50% / 100% no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' viewBox='0 0 14 14'%3E%3Cpath d='M1 1v4a8 8 0 0 0 8 8h4' stroke='%23efefef' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") 50% 50% / 100% no-repeat;
+    transform: translateX(-12px, -4.8px);
+}
+
+.left-header-auth {
+    background-image: linear-gradient(0deg, #ffffffeb, #ffffffeb), url(https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/background/background-3-blur.webp);
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center center;
+}
+
+/* Global Autofill Fix */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px white inset !important;
+    -webkit-text-fill-color: #1C252E !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Fix SweetAlert2 Backdrop (Override MUI Sidebar z-index 1200) */
+.swal2-container {
+    z-index: 9999 !important;
+}
