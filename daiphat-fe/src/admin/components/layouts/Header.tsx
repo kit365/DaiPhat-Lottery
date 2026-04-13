@@ -15,7 +15,7 @@ import { useState } from "react";
 import { toast } from 'react-toastify';
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useNavigate } from "react-router-dom";
-import { logout as logoutApi } from "../../api/auth.api";
+import { authService } from "../../pages/authen/services/auth.service";
 import Cookies from "js-cookie";
 import { prefixAdmin } from "../../constants/routes";
 import { NotificationPopover } from "./NotificationPopover";
@@ -75,7 +75,7 @@ export const Header = () => {
 
     const handleLogout = async () => {
         try {
-            const res = await logoutApi();
+            const res = await authService.logout();
             if (res.code === 200) {
                 logoutStore();
                 Cookies.remove("tokenAdmin");

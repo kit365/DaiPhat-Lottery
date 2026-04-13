@@ -26,21 +26,18 @@ export const useAuthStore = create<AuthState>()(
     devtools(
         persist(
             (set) => ({
-                user: {
-                    id: "ADMIN001",
-                    fullName: "Admin Mockup",
-                    email: "admin@mockup.com",
-                    permissions: ["all"],
-                    roles: [{ name: "admin" }]
-                },
-                token: "mock-token-always-on",
+                user: null,
+                token: null,
                 isHydrated: false,
                 login: (user, token) => set({ user, token }),
-                logout: () => set({ user: null, token: null }),
+                logout: () => {
+                    set({ user: null, token: null });
+                },
                 set: (newState) => set(newState),
             }),
             {
-                name: "auth-storage-mock-life",
+                name: "auth-storage",
+                partialize: (state) => ({ token: state.token }),
                 onRehydrateStorage: () => (state) => {
                     if (state) {
                         state.set({ isHydrated: true });
