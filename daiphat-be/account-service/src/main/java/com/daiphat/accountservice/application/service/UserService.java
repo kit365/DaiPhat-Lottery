@@ -1,5 +1,6 @@
 package com.daiphat.accountservice.application.service;
 
+import com.daiphat.accountservice.application.dto.response.UserAuthMeResponseDTO;
 import com.daiphat.accountservice.application.dto.response.UserResponseDTO;
 import com.daiphat.accountservice.application.mapper.UserApplicationMapper;
 import com.daiphat.accountservice.application.port.in.UserServicePort;
@@ -45,6 +46,15 @@ public class UserService implements UserServicePort {
 
     @Override
     @Transactional(readOnly = true)
+    public UserAuthMeResponseDTO getMyProfile(String username) {
+        UserModel user = userRepositoryPort.findByUsername(username)
+                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
+
+        return userApplicationMapper.mapToAuthMeUserResponse(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<UserResponseDTO> getAll() {
         return userRepositoryPort.findAll().stream()
                 .map(userApplicationMapper::mapToUserResponse)
@@ -58,5 +68,32 @@ public class UserService implements UserServicePort {
             throw new DomainException(ErrorCode.USER_NOT_FOUND);
         }
         userRepositoryPort.deleteById(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserModel fetchActiveUserByUsername(String username) {
+        UserModel user = userRepositoryPort.findByUsername(username)
+                .orElseThrow(() -> new DomainException(ErrorCode.INVALID_CREDENTIALS));
+
+        user.validateLoginEligibility();
+        return user;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserModel fetchActiveUserById(UUID id) {
+        UserModel user = userRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
+
+        user.validateLoginEligibility();
+        return user;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UUID getIdByUsername(String username) {
+        return userRepositoryPort.findIdByUsername(username)
+                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
     }
 }

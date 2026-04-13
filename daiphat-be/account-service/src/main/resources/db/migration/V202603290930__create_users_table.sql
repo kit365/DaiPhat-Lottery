@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
     role_id UUID NOT NULL,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) UNIQUE,
+    phone VARCHAR(20) UNIQUE,
     first_name VARCHAR(50),
     last_name VARCHAR(50),
     zodiac VARCHAR(20),

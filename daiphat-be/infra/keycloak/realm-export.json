@@ -90,5 +90,9 @@
   ],
   "accessTokenLifespan": 86400,
   "ssoSessionIdleTimeout": 86400,
-  "ssoSessionMaxLifespan": 86400
+  "ssoSessionMaxLifespan": 86400,
+  "sslRequired": "external",
+  "verifyEmail": false,
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true
 }

@@ -30,6 +30,25 @@
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <lombok.version>1.18.30</lombok.version>
         <mapstruct.version>1.6.3</mapstruct.version>
+        
+        <!-- SonarQube & JaCoCo Properties -->
+        <sonar.projectKey>daiphat-backend</sonar.projectKey>
+        <sonar.projectName>DaiPhat-Backend</sonar.projectName>
+        <sonar.host.url>http://localhost:9000</sonar.host.url>
+        <sonar.inclusions>**/application/service/**</sonar.inclusions>
+        <sonar.coverage.jacoco.xmlReportPaths>${project.reporting.outputDirectory}/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.java.binaries>${project.build.directory}/classes</sonar.java.binaries>
+        <sonar.coverage.exclusions>
+            **/dto/**,
+            **/mapper/**,
+            **/model/**,
+            **/entity/**,
+            **/config/**,
+            **/exception/**,
+            **/*Application.java
+        </sonar.coverage.exclusions>
+        <jacoco.version>0.8.12</jacoco.version>
+        <jacoco.includes>com/daiphat/accountservice/application/service/**</jacoco.includes>
     </properties>
 
     <dependencyManagement>
@@ -76,6 +95,46 @@
                 </executions>
             </plugin>
             -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <configuration>
+                            <formats>
+                                <format>XML</format>
+                                <format>HTML</format>
+                            </formats>
+                        </configuration>
+                    </execution>
+                </executions>
+                <configuration>
+                    <includes>
+                        <include>${jacoco.includes}</include>
+                    </includes>
+                    <excludes>
+                        <exclude>**/dto/**</exclude>
+                        <exclude>**/mapper/**</exclude>
+                        <exclude>**/model/**</exclude>
+                        <exclude>**/entity/**</exclude>
+                        <exclude>**/config/**</exclude>
+                        <exclude>**/exception/**</exclude>
+                        <exclude>**/*Application.class</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
         </plugins>
 
         <pluginManagement>
@@ -91,6 +150,11 @@
                             </exclude>
                         </excludes>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonarsource.scanner.maven</groupId>
+                    <artifactId>sonar-maven-plugin</artifactId>
+                    <version>5.0.0.4389</version>
                 </plugin>
             </plugins>
         </pluginManagement>

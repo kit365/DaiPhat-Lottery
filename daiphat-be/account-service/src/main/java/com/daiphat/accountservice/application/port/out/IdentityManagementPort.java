@@ -1,42 +1,22 @@
 package com.daiphat.accountservice.application.port.out;
 
 import com.daiphat.accountservice.domain.model.UserModel;
+import com.daiphat.accountservice.domain.model.auth.KeycloakAuthResult;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface IdentityManagementPort {
-    /**
-     * Retrieves all users from the identity provider.
-     * @return A list of user models.
-     */
     List<UserModel> getAllUsers();
-
-    /**
-     * Creates a new user in the identity provider.
-     * @param user The user model containing username, email, etc.
-     * @param password The user's password.
-     * @return The unique identifier (sub) from the identity provider.
-     */
+    Optional<UserModel> getUserByUsername(String username);
     UUID createUser(UserModel user, String password);
-
-    /**
-     * Assigns a role to the user in the identity provider.
-     * @param userId The unique identifier of the user.
-     * @param roleCode The code of the role (e.g., ROLE_USER, ROLE_ADMIN).
-     */
     void assignRole(UUID userId, String roleCode);
-
-    /**
-     * Resets or sets the user's password in the identity provider.
-     * @param userId The unique identifier of the user.
-     * @param newPassword The new password.
-     */
     void resetPassword(UUID userId, String newPassword);
-
-    /**
-     * Deletes a user from the identity provider.
-     * @param userId The unique identifier of the user.
-     */
     void deleteUser(UUID userId);
+    void verifyEmail(UUID userId);
+    KeycloakAuthResult authenticate(String username, String password);
+    void logout(String refreshToken);
+    KeycloakAuthResult refreshToken(String refreshToken);
+    KeycloakAuthResult issueToken(String username);
 }
