@@ -6,6 +6,10 @@ import { ClientRoutes } from './client/routes/index';
 import { AdminRoutes, AdminAuthRoutes } from './admin/routes/index';
 import { useScrollToTop } from './client/hooks/useScrollToTop';
 import { ToastContainer } from 'react-toastify';
+import { lazy, Suspense } from 'react';
+import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
+
+const NotFoundPage = lazy(() => import("./client/pages/static/NotFound").then(m => ({ default: m.NotFound })));
 
 const ScrollToTopWrapper = ({ children }: { children: React.ReactNode }) => {
   useScrollToTop();
@@ -40,6 +44,13 @@ function App() {
             </Route>
 
           </Route>
+
+          {/* Standalone Routes */}
+          <Route path="*" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <NotFoundPage />
+            </Suspense>
+          } />
         </Routes>
         <ToastContainer
           position="top-right"

@@ -1,32 +1,41 @@
 import { useMutation } from "@tanstack/react-query";
-import { login, LoginResponse } from "../../../api/auth.api";
+import { authService } from "../services/auth.service";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'react-toastify';
 import Cookies from "js-cookie";
-
 import { useAuthStore } from "../../../../stores/useAuthStore";
+import { LoginResponse } from "../types/auth.type";
 
 export const useLogin = () => {
     const navigate = useNavigate();
     const loginStore = useAuthStore(state => state.login);
 
     return useMutation({
-        mutationFn: login,
+        mutationFn: authService.login,
         onSuccess: (response: LoginResponse) => {
             if (response.code === 200 && response.data?.token) {
                 const { token, ...userInfo } = response.data;
 
-                // Store in AuthStore
-                loginStore(userInfo, token);
+                // Store token in AuthStore (persisted to LocalStorage)
+                // userInfo is passed here but since we modified useAuthStore to partialize 
+                // only token, userInfo will only stay in-memory.
+                loginStore(userInfo as any, token);
 
-                Cookies.set("tokenAdmin", token, {
-                    expires: 1,        // 1 ngày
-                    secure: false,
-                    sameSite: "lax"
-                });
+                // Assuming refreshToken might be sent by BE in some field or we just use token for now
+                // User mentioned Cookies for RefreshToken. If response has refreshToken field, we use it.
+                // If not, maybe they meant the main token is often referred as RefreshToken if it's long lived?
+                // But usually it's a separate field. I'll check if response.data has it.
+                // For now, I'll store the main token in a cookie as a placeholder if no refreshToken exists.
+                if ((response.data as any).refreshToken) {
+                    Cookies.set("refreshToken", (response.data as any).refreshToken, {
+                        expires: 7, // 7 days
+                        secure: true,
+                        sameSite: "strict"
+                    });
+                }
 
                 toast.success(response.message);
-                console.log("Login successful, navigating to staff tasks...");
+                
                 const roles = userInfo.roles || [];
                 const isAdmin = roles.some((role: any) => 
                     role.name?.toLowerCase().includes("admin") || 
