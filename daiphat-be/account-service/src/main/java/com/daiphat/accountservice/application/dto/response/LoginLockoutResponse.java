@@ -9,6 +9,6 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LoginLockoutResponse {
+public class LoginLockoutResponse implements SafeResponseData {
     private long remainingSeconds;
 }

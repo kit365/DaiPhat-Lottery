@@ -34,13 +34,15 @@ public enum ErrorCode {
     PASSWORD_CONTAINS_EMAIL("AUTH_026", "Mật khẩu không được chứa thông tin Email/Username.", HttpStatus.BAD_REQUEST),
     OTP_MAX_ATTEMPTS_EXCEEDED("AUTH_027", "Vượt quá số lần xác thực OTP. Vui lòng yêu cầu mã mới.", HttpStatus.TOO_MANY_REQUESTS),
     PHONE_EXISTED("AUTH_028", "Số điện thoại đã được sử dụng", HttpStatus.BAD_REQUEST),
-    VERIFY_TOKEN_EXPIRED("AUTH_029", "Verification link has expired", HttpStatus.BAD_REQUEST),
+    VERIFY_TOKEN_EXPIRED("AUTH_029", "Link xác thực đã hết hạn", HttpStatus.BAD_REQUEST),
     
     // User Errors
-    USER_NOT_FOUND("USR_001", "Username không tồn tại", HttpStatus.NOT_FOUND),
+    USER_NOT_FOUND("USR_001", "Người dùng không tồn tại", HttpStatus.NOT_FOUND),
     USER_EXISTED("USR_002", "Người dùng đã tồn tại trong hệ thống.", HttpStatus.BAD_REQUEST),
     ROLE_NOT_FOUND("USR_003", "Hệ thống chưa cấu hình Role phù hợp.", HttpStatus.NOT_FOUND),
     USER_ID_MISMATCH("USR_004", "Phát hiện sai lệch ID người dùng. Vui lòng liên hệ quản trị viên.", HttpStatus.CONFLICT),
+    USERNAME_NOT_FOUND("USR_005", "Username không tồn tại", HttpStatus.NOT_FOUND),
+    EMAIL_NOT_FOUND("USR_006", "Email không tồn tại", HttpStatus.NOT_FOUND),
     
     // System Errors
     UNCATEGORIZED_EXCEPTION("SYS_001", "Lỗi chưa được phân loại.", HttpStatus.INTERNAL_SERVER_ERROR),

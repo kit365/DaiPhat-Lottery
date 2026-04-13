@@ -81,6 +81,8 @@ public abstract class AuthTestBase {
                 .thenReturn(true);
         lenient().when(rateLimiterService.checkAndRecord(anyString(), any(AuthAction.class)))
                 .thenReturn(true);
+        lenient().when(rateLimiterService.checkRateLimit(anyString(), any(AuthAction.class)))
+                .thenReturn(true);
  
         // Distributed Lock defaults
         lenient().when(lockManager.tryLock(anyString(), any())).thenReturn(true);

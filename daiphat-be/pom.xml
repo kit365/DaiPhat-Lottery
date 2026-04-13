@@ -35,7 +35,6 @@
         <sonar.projectKey>daiphat-backend</sonar.projectKey>
         <sonar.projectName>DaiPhat-Backend</sonar.projectName>
         <sonar.host.url>http://localhost:9000</sonar.host.url>
-        <sonar.token>squ_eccd1e4020b2992c9795c23b5dd6a82be95f16f9</sonar.token>
         <sonar.inclusions>**/application/service/**</sonar.inclusions>
         <sonar.coverage.jacoco.xmlReportPaths>${project.reporting.outputDirectory}/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <sonar.java.binaries>${project.build.directory}/classes</sonar.java.binaries>

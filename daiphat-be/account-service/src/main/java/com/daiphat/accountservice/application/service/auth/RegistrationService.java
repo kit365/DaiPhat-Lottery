@@ -18,6 +18,7 @@ import com.daiphat.accountservice.domain.exception.ErrorCode;
 import com.daiphat.accountservice.domain.model.UserModel;
 import com.daiphat.accountservice.domain.model.enums.EmailType;
 import com.daiphat.accountservice.domain.model.enums.UserStatus;
+import com.daiphat.accountservice.infrastructure.util.AuthUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -150,7 +151,7 @@ public class RegistrationService implements RegistrationServicePort {
 
     @Override
     public void verifyEmail(String token) {
-        log.info("Verifying email with token: {}", token);
+        log.info("Verifying email with token: {}", AuthUtils.maskToken(token));
  
         String email = verificationCachePort.getEmailByVerificationToken(token)
                 .orElseThrow(() -> new DomainException(ErrorCode.VERIFY_TOKEN_EXPIRED));

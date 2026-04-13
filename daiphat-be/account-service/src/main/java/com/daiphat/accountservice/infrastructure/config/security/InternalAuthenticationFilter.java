@@ -33,7 +33,7 @@ public class InternalAuthenticationFilter extends OncePerRequestFilter {
         String username = request.getHeader("X-Internal-User-Name");
         String rolesString = request.getHeader("X-Internal-User-Roles");
 
-        if (username != null && rolesString != null) {
+        if (userId != null && username != null && rolesString != null) {
             log.trace("Trusting Gateway identity: {}, ROLES: {}", username, rolesString);
 
             List<SimpleGrantedAuthority> authorities = Arrays.stream(rolesString.split(","))

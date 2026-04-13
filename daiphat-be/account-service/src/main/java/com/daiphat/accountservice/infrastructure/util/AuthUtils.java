@@ -22,7 +22,7 @@ public final class AuthUtils {
         if (backoffConfig == null || backoffConfig.length == 0) {
             return 60; // Default fallback
         }
-        // Use resendCount - 2 as index so that the 2nd resend (total 3rd click, count=2) uses backoffConfig[0]
+        // Use resendCount - 2 as index so that the 2nd resend (count=2) uses backoffConfig[0]
         long waitTime = backoffConfig[Math.min(resendCount - 2, backoffConfig.length - 1)];
         return Math.min(waitTime, maxWaitTimeSeconds);
     }
@@ -38,8 +38,9 @@ public final class AuthUtils {
         }
 
         // Tính toán bậc thang (step): 5 sai -> step 0, 10 sai -> step 1...
-        int lockStep = (currentFailures / threshold) - 1;
+        int lockStep = (currentFailures / threshold);
         
+        // Fix audit: ensure step maps correctly to the backoff lookup
         return calculateWaitTime(lockStep, backoffConfig, maxWaitSeconds);
     }
 
@@ -72,5 +73,11 @@ public final class AuthUtils {
     public static boolean isWithinLength(String text, int max) {
         if (text == null) return true;
         return text.length() <= max;
+    }
+
+    public static String maskToken(String token) {
+        if (token == null) return "null";
+        if (token.length() <= 8) return "****";
+        return token.substring(0, 4) + "...." + token.substring(token.length() - 4);
     }
 }

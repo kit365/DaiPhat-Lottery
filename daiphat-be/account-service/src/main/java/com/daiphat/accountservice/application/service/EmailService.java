@@ -56,7 +56,8 @@ public class EmailService implements EmailServicePort {
         // 1. Proactive Rate Limiting (Bọc thép tại Source - Interface driven)
         if (!strategy.checkRateLimit(recipient)) {
             meterRegistry.counter("email.rate_limit.triggered", "type", type.name()).increment();
-            throw new EmailRateLimitException(recipient, type, "Rate limit exceeded for " + type);
+            long waitTime = strategy.getRemainingWaitTime(recipient);
+            throw new EmailRateLimitException(recipient, type, waitTime);
         }
 
         try {
@@ -103,8 +104,8 @@ public class EmailService implements EmailServicePort {
         try {
             EmailStrategy strategy = strategyMap.get(type);
             if (strategy == null) {
-                log.error("Consumer Critical: No strategy found for type {}", type);
-                return;
+                meterRegistry.counter("email.dispatch.error", "type", type.name(), "reason", "no_strategy").increment();
+                throw new EmailDispatchException(ErrorCode.INTERNAL_SERVER_ERROR, "No strategy found for type " + type);
             }
 
             log.info("Executing async task {} (Attempt {}/{}) for {}", task.getId(), task.getAttempt() + 1, task.getMaxRetries(), task.getTo());
@@ -123,7 +124,7 @@ public class EmailService implements EmailServicePort {
         int currentAttempt = task.getAttempt();
         int maxRetries = task.getMaxRetries();
 
-        if (currentAttempt < maxRetries) {
+        if (currentAttempt < maxRetries - 1) {
             task.incrementAttempt();
             long backoff = calculateBackoff(currentAttempt);
             task.setScheduledTime(System.currentTimeMillis() + (backoff * 1000));
@@ -131,13 +132,15 @@ public class EmailService implements EmailServicePort {
             log.warn("Email task {} failed, retrying (Attempt {}/{}) in {}s. Error: {}", 
                     task.getId(), task.getAttempt(), maxRetries, backoff, e.getMessage());
             
-            // Re-queue task for retry
-            rabbitEmailTaskProducer.sendEmailTask(task);
+            // Re-queue task to retry queue with delay
+            rabbitEmailTaskProducer.sendDelayedEmailTask(task, backoff);
         } else {
-            log.error("CRITICAL: Email task {} failed after {} attempts. Moving to DLQ logic. Error: {}", 
+            log.error("CRITICAL: Email task {} failed after {} attempts. Triggering DLQ logic. Error: {}", 
                     task.getId(), maxRetries, e.getMessage());
             meterRegistry.counter("email.task.exhausted", "type", task.getType().name()).increment();
-
+            
+            // Throwing AmqpRejectAndDontRequeueException tells RabbitMQ not to retry and to move the message to DLX (if configured)
+            throw new org.springframework.amqp.AmqpRejectAndDontRequeueException("Email task retries exhausted: " + task.getId(), e);
         }
     }
 

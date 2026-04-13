@@ -18,11 +18,14 @@ import com.daiphat.accountservice.presentation.constants.ApiConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import java.security.Principal;
+import com.daiphat.accountservice.application.config.AuthProperties;
+import com.daiphat.accountservice.application.dto.response.PasswordPolicyResponseDTO;
+import com.daiphat.accountservice.infrastructure.util.AuthUtils;
 
 @RestController
 @RequestMapping(ApiConstants.AUTH)
@@ -31,15 +34,31 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private static final String FORGOT_PASSWORD = "/forgot-password";
+    private static final String DEFAULT_COOKIE_NAME = "refresh_token";
+
+    // Success Messages Consolidation
+    private final String MSG_POLICY_FETCHED = "Password policy retrieved successfully.";
+    private final String MSG_OTP_SENT = "Mã xác thực đã được gửi về Email của bạn.";
+    private final String MSG_OTP_RESENT = "Mã xác thực mới đã được gửi.";
+    private final String MSG_OTP_VERIFIED = "OTP verified successfully.";
+    private final String MSG_PW_RESET_SUCCESS = "Password has been reset successfully.";
+    private final String MSG_LOGIN_SUCCESS = "Login successful.";
+    private final String MSG_LOGOUT_SUCCESS = "Logged out successfully.";
+    private final String MSG_REGISTER_SUCCESS = "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản của bạn.";
+    private final String MSG_VERIFY_EMAIL_SUCCESS = "Xác thực Email thành công! Tài khoản của bạn đã được kích hoạt. Vui lòng đăng nhập để tiếp tục.";
+    private final String MSG_RESEND_VERIFY_SUCCESS = "Link xác thực mới đã được gửi về Email của bạn. Vui lòng kiểm tra lại!";
+    private final String MSG_REFRESH_TOKEN_SUCCESS = "Token refreshed successfully.";
+
     private final AuthServicePort authServicePort;
+    private final AuthProperties authProperties;
  
-    @org.springframework.web.bind.annotation.GetMapping("/password-policy")
-    public ResponseEntity<ApiResponseDTO<com.daiphat.accountservice.application.dto.response.PasswordPolicyResponseDTO>> getPasswordPolicy() {
+    @GetMapping("/password-policy")
+    public ResponseEntity<ApiResponseDTO<PasswordPolicyResponseDTO>> getPasswordPolicy() {
         log.info("REST request to get password policy");
         var response = authServicePort.getPasswordPolicy();
-        return ResponseEntity.ok(ApiResponseDTO.<com.daiphat.accountservice.application.dto.response.PasswordPolicyResponseDTO>builder()
+        return ResponseEntity.ok(ApiResponseDTO.<PasswordPolicyResponseDTO>builder()
                 .data(response)
-                .message("Password policy retrieved successfully.")
+                .message(MSG_POLICY_FETCHED)
                 .build());
     }
 
@@ -50,7 +69,7 @@ public class AuthController {
         ForgotPasswordResponseDTO response = authServicePort.forgotPassword(request);
         return ResponseEntity.ok(ApiResponseDTO.<ForgotPasswordResponseDTO>builder()
                 .data(response)
-                .message("Mã xác thực đã được gửi về Email của bạn.")
+                .message(MSG_OTP_SENT)
                 .build());
     }
 
@@ -61,7 +80,7 @@ public class AuthController {
         ForgotPasswordResponseDTO response = authServicePort.resendForgotPasswordOtp(request);
         return ResponseEntity.ok(ApiResponseDTO.<ForgotPasswordResponseDTO>builder()
                 .data(response)
-                .message("Mã xác thực mới đã được gửi.")
+                .message(MSG_OTP_RESENT)
                 .build());
     }
 
@@ -70,17 +89,17 @@ public class AuthController {
         VerifyOtpResponseDTO response = authServicePort.verifyResetOtp(request);
         return ResponseEntity.ok(ApiResponseDTO.<VerifyOtpResponseDTO>builder()
                 .data(response)
-                .message("OTP verified successfully.")
+                .message(MSG_OTP_VERIFIED)
                 .build());
     }
 
     @PostMapping(FORGOT_PASSWORD + "/reset")
     public ResponseEntity<ApiResponseDTO<Void>> resetPassword(
             @Valid @RequestBody ResetPasswordRequestDTO request) {
-        log.info("REST request to reset password");
+        log.info("REST request to reset password with token: {}", AuthUtils.maskToken(request.getResetToken()));
         authServicePort.resetPassword(request);
         return ResponseEntity.ok(ApiResponseDTO.<Void>builder()
-                .message("Password has been reset successfully.")
+                .message(MSG_PW_RESET_SUCCESS)
                 .build());
     }
 
@@ -89,29 +108,31 @@ public class AuthController {
         log.info("REST request to login for user: {}", request.getUsername());
         AuthResponseDTO response = authServicePort.login(request);
         
-        org.springframework.http.ResponseCookie cookie = org.springframework.http.ResponseCookie.from("refresh_token", response.getRefreshToken())
+        AuthProperties.Cookie cookieProps = authProperties.getCookie();
+        String cookiePath = cookieProps.getPath() != null ? cookieProps.getPath() : ApiConstants.AUTH;
+
+        ResponseCookie cookie = ResponseCookie.from(cookieProps.getName(), response.getRefreshToken())
                 .httpOnly(true)
-                .secure(false)
-                .path("/api/v1/auth")
-                .maxAge(response.getRefreshExpiresIn() != null ? response.getRefreshExpiresIn() : 86400) // Default 1 day if null
-                .sameSite("Lax")
+                .secure(cookieProps.isSecure())
+                .path(cookiePath)
+                .maxAge(response.getRefreshExpiresIn() != null ? response.getRefreshExpiresIn() : 86400)
+                .sameSite(cookieProps.getSameSite())
                 .build();
                 
-        response.setRefreshToken(null);
-
+        response.setRefreshToken(null); // Hardened: move out of JSON body to HttpOnly cookie only
         return ResponseEntity.ok()
-                .header(org.springframework.http.HttpHeaders.SET_COOKIE, cookie.toString())
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(ApiResponseDTO.<AuthResponseDTO>builder()
                         .data(response)
-                        .message("Login successful.")
+                        .message(MSG_LOGIN_SUCCESS)
                         .build());
     }
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponseDTO<Void>> logout(
-            @org.springframework.web.bind.annotation.CookieValue(name = "refresh_token", required = false) String cookieRefreshToken,
+            @CookieValue(name = "${daiphat.auth.cookie.name:" + DEFAULT_COOKIE_NAME + "}", required = false) String cookieRefreshToken,
             @RequestBody(required = false) LogoutRequestDTO request,
-            java.security.Principal principal) {
+            Principal principal) {
         
         log.info("REST request to logout");
         
@@ -127,21 +148,23 @@ public class AuthController {
             throw new DomainException(ErrorCode.UNAUTHORIZED);
         }
 
-        // Thực hiện logout thông qua service
         authServicePort.logout(new LogoutRequestDTO(refreshTokenToUse));
 
-        org.springframework.http.ResponseCookie cookie = org.springframework.http.ResponseCookie.from("refresh_token", "")
+        AuthProperties.Cookie cookieProps = authProperties.getCookie();
+        String cookiePath = cookieProps.getPath() != null ? cookieProps.getPath() : ApiConstants.AUTH;
+
+        ResponseCookie cookie = ResponseCookie.from(cookieProps.getName(), "")
                 .httpOnly(true)
-                .secure(false) // Local development
-                .path("/api/v1/auth")
-                .maxAge(0) // Expire immediately
-                .sameSite("Lax")
+                .secure(cookieProps.isSecure())
+                .path(cookiePath)
+                .maxAge(0)
+                .sameSite(cookieProps.getSameSite())
                 .build();
 
         return ResponseEntity.ok()
-                .header(org.springframework.http.HttpHeaders.SET_COOKIE, cookie.toString())
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(ApiResponseDTO.<Void>builder()
-                        .message("Logged out successfully.")
+                        .message(MSG_LOGOUT_SUCCESS)
                         .build());
     }
 
@@ -150,32 +173,31 @@ public class AuthController {
         log.info("REST request to register user: {}", request.username());
         authServicePort.register(request);
         return ResponseEntity.ok(ApiResponseDTO.<Void>builder()
-                .message("Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản của bạn.")
+                .message(MSG_REGISTER_SUCCESS)
                 .build());
     }
 
-    @org.springframework.web.bind.annotation.GetMapping("/verify-email")
-    public ResponseEntity<ApiResponseDTO<Void>> verifyEmail(@org.springframework.web.bind.annotation.RequestParam String token) {
-        log.info("REST request to verify email with token: {}", token);
+    @GetMapping("/verify-email")
+    public ResponseEntity<ApiResponseDTO<Void>> verifyEmail(@RequestParam String token) {
+        log.info("REST request to verify email with token: {}", AuthUtils.maskToken(token));
         authServicePort.verifyEmail(token);
-        
         return ResponseEntity.ok(ApiResponseDTO.<Void>builder()
-                .message("Xác thực Email thành công! Tài khoản của bạn đã được kích hoạt. Vui lòng đăng nhập để tiếp tục.")
+                .message(MSG_VERIFY_EMAIL_SUCCESS)
                 .build());
     }
 
     @PostMapping("/register/resend-verification")
-    public ResponseEntity<ApiResponseDTO<Void>> resendVerification(@org.springframework.web.bind.annotation.RequestParam String email) {
+    public ResponseEntity<ApiResponseDTO<Void>> resendVerification(@RequestParam String email) {
         log.info("REST request to resend verification email for: {}", email);
         authServicePort.resendVerificationEmail(email);
         return ResponseEntity.ok(ApiResponseDTO.<Void>builder()
-                .message("Link xác thực mới đã được gửi về Email của bạn. Vui lòng kiểm tra lại nhe sếp!")
+                .message(MSG_RESEND_VERIFY_SUCCESS)
                 .build());
     }
 
     @PostMapping("/refresh-token")
     public ResponseEntity<ApiResponseDTO<AuthResponseDTO>> refreshToken(
-            @org.springframework.web.bind.annotation.CookieValue(name = "refresh_token", required = false) String cookieRefreshToken,
+            @CookieValue(name = "${daiphat.auth.cookie.name:" + DEFAULT_COOKIE_NAME + "}", required = false) String cookieRefreshToken,
             @RequestBody(required = false) RefreshTokenRequestDTO request) {
                 
         log.info("REST request to refresh token");
@@ -194,21 +216,23 @@ public class AuthController {
         RefreshTokenRequestDTO activeRequest = new RefreshTokenRequestDTO(refreshTokenToUse);
         AuthResponseDTO response = authServicePort.refreshToken(activeRequest);
 
-        org.springframework.http.ResponseCookie cookie = org.springframework.http.ResponseCookie.from("refresh_token", response.getRefreshToken() != null ? response.getRefreshToken() : refreshTokenToUse)
-                .httpOnly(true)
-                .secure(false) // Local development
-                .path("/api/v1/auth")
-                .maxAge(response.getRefreshExpiresIn() != null ? response.getRefreshExpiresIn() : 86400)
-                .sameSite("Lax")
-                .build();
-                
-        response.setRefreshToken(null);
+        AuthProperties.Cookie cookieProps = authProperties.getCookie();
+        String cookiePath = cookieProps.getPath() != null ? cookieProps.getPath() : ApiConstants.AUTH;
 
+        ResponseCookie cookie = ResponseCookie.from(cookieProps.getName(), response.getRefreshToken() != null ? response.getRefreshToken() : refreshTokenToUse)
+                .httpOnly(true)
+                .secure(cookieProps.isSecure())
+                .path(cookiePath)
+                .maxAge(response.getRefreshExpiresIn() != null ? response.getRefreshExpiresIn() : 86400)
+                .sameSite(cookieProps.getSameSite())
+                .build();
+
+        response.setRefreshToken(null); // Hardened: move out of JSON body to HttpOnly cookie only
         return ResponseEntity.ok()
-                .header(org.springframework.http.HttpHeaders.SET_COOKIE, cookie.toString())
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(ApiResponseDTO.<AuthResponseDTO>builder()
                         .data(response)
-                        .message("Token refreshed successfully.")
+                        .message(MSG_REFRESH_TOKEN_SUCCESS)
                         .build());
     }
 }
