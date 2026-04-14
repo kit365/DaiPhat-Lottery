@@ -1,23 +1,16 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 
-interface User {
-    id?: string;
-    fullName: string;
-    email: string;
-    phone?: string;
-    avatar?: string;
-    permissions?: string[];
-    roles?: any[];
-    totalPoint?: number;
-    usedPoint?: number;
-}
+import { STORAGE_KEYS } from "../constants/storage.constants";
+
+import { User } from "../types/user.type";
 
 interface AuthState {
     user: User | null;
     token: string | null;
+    expiresAt: number | null;
     isHydrated: boolean;
-    login: (user: User, token: string) => void;
+    login: (user: User, token: string, expiresIn?: number) => void;
     logout: () => void;
     set: (newState: Partial<AuthState>) => void;
 }
@@ -26,21 +19,23 @@ export const useAuthStore = create<AuthState>()(
     devtools(
         persist(
             (set) => ({
-                user: {
-                    id: "ADMIN001",
-                    fullName: "Admin Mockup",
-                    email: "admin@mockup.com",
-                    permissions: ["all"],
-                    roles: [{ name: "admin" }]
-                },
-                token: "mock-token-always-on",
+                user: null,
+                token: null,
+                expiresAt: null,
                 isHydrated: false,
-                login: (user, token) => set({ user, token }),
-                logout: () => set({ user: null, token: null }),
+                login: (user, token, expiresIn) => set({ 
+                    user, 
+                    token, 
+                    expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null 
+                }),
+                logout: () => {
+                    set({ user: null, token: null, expiresAt: null });
+                },
                 set: (newState) => set(newState),
             }),
             {
-                name: "auth-storage-mock-life",
+                name: STORAGE_KEYS.AUTH,
+                partialize: (state) => ({ token: state.token, expiresAt: state.expiresAt }),
                 onRehydrateStorage: () => (state) => {
                     if (state) {
                         state.set({ isHydrated: true });

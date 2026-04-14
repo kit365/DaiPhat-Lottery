@@ -1,6 +1,6 @@
 import { apiApp } from "../../api/index";
 
-const API_ORDER = "/api/v1/client/order";
+const API_ORDER = "/client/order";
 
 export const createOrder = async (data: any) => {
     try {

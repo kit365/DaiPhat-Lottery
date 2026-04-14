@@ -1,7 +1,7 @@
 import { apiApp } from "../../api";
 import Cookies from "js-cookie";
 
-const BASE_URL = "/api/v1/admin/account-user";
+const BASE_URL = "/admin/account-user";
 
 const withAuth = () => {
     const token = Cookies.get("tokenAdmin");

@@ -40,6 +40,7 @@ const TransactionHistoryPage = lazy(() => import("../pages/dashboard/Transaction
 const StaticPage = lazy(() => import("../pages/static/StaticPage").then(m => ({ default: m.StaticPage })));
 const FaqPage = lazy(() => import("../pages/static/FaqPage").then(m => ({ default: m.FaqPage })));
 const ContactPage = lazy(() => import("../pages/static/ContactPage").then(m => ({ default: m.ContactPage })));
+const NotFoundPage = lazy(() => import("../pages/static/NotFound").then(m => ({ default: m.NotFound })));
 
 export const ClientRoutes: RouteObject[] = [
     { path: "/", element: <HomePage /> },

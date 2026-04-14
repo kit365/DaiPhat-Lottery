@@ -19,4 +19,5 @@ public interface IdentityManagementPort {
     void logout(String refreshToken);
     KeycloakAuthResult refreshToken(String refreshToken);
     KeycloakAuthResult issueToken(String username);
+    UUID getUserIdFromToken(String token);
 }

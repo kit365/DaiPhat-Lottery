@@ -20,6 +20,7 @@ const BlogCreatePage = lazy(() => import("../pages/blog/BlogCreatePage").then(m 
 const BlogDetailPage = lazy(() => import("../pages/blog/BlogDetailPage").then(m => ({ default: m.BlogDetailPage })));
 const BlogEditPage = lazy(() => import("../pages/blog/BlogEditPage").then(m => ({ default: m.BlogEditPage })));
 const LoginPage = lazy(() => import("../pages/authen/LoginPage").then(m => ({ default: m.LoginPage })));
+const ForgotPasswordPage = lazy(() => import("../pages/authen/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 const DashboardPage = lazy(() => import("../pages/dashboard/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const SystemPage = lazy(() => import("../pages/dashboard/SystemPage").then(m => ({ default: m.SystemPage })));
 const EcommercePage = lazy(() => import("../pages/dashboard/EcommercePage")); // Default export
@@ -158,4 +159,5 @@ export const AdminRoutes = [
 
 export const AdminAuthRoutes = [
     { path: "auth/login", element: <LoginPage /> },
+    { path: "auth/forgot-password", element: <ForgotPasswordPage /> },
 ];

@@ -34,6 +34,8 @@ export const useAvailableCages = (
 ) => {
   return useQuery({
     queryKey: ["boarding-cages", checkInDate, checkOutDate, type, size],
+    enabled: false,
+    retry: false,
     queryFn: async () => {
       const response = await getAvailableCages({
         checkInDate,
@@ -43,7 +45,6 @@ export const useAvailableCages = (
       });
       return response.data;
     },
-    enabled: !!checkInDate && !!checkOutDate,
     select: (data) => {
       if (Array.isArray(data)) return data;
       if (Array.isArray((data as any)?.data)) return (data as any).data;
@@ -55,24 +56,26 @@ export const useAvailableCages = (
 export const useBoardingCageDetail = (id?: string) => {
   return useQuery({
     queryKey: ["boarding-cage-detail", id],
+    enabled: false,
+    retry: false,
     queryFn: async () => {
       if (!id) return null;
       const response = await getBoardingCageDetail(id);
       return response.data;
     },
-    enabled: !!id,
   });
 };
 
 export const useBoardingCageReviews = (id?: string) => {
   return useQuery({
     queryKey: ["boarding-cage-reviews", id],
+    enabled: false,
+    retry: false,
     queryFn: async () => {
       if (!id) return { reviews: [], total: 0, averageRating: 0 };
       const response = await getBoardingCageReviews(id);
       return response.data;
     },
-    enabled: !!id,
   });
 };
 
@@ -92,6 +95,8 @@ export const useCreateBoardingCageReview = (id?: string) => {
 export const useFoodTemplates = (petType: string = "all") => {
   return useQuery({
     queryKey: ["food-templates", petType],
+    enabled: false,
+    retry: false,
     queryFn: async () => {
       const res = await getFoodTemplates(petType);
       return res.data?.data || [];
@@ -102,15 +107,20 @@ export const useFoodTemplates = (petType: string = "all") => {
 export const useExerciseTemplates = (petType: string = "all") => {
   return useQuery({
     queryKey: ["exercise-templates", petType],
+    enabled: false,
+    retry: false,
     queryFn: async () => {
       const res = await getExerciseTemplates(petType);
       return res.data?.data || [];
     },
   });
 };
+
 export const useBoardingConfig = () => {
   return useQuery({
     queryKey: ["boarding-config"],
+    enabled: false,
+    retry: false,
     queryFn: async () => {
       const res = await getBoardingConfig();
       return res.data;

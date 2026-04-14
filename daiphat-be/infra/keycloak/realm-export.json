@@ -4,12 +4,20 @@
   "roles": {
     "realm": [
       {
-        "name": "ROLE_USER",
-        "description": "Standard User Role"
+        "name": "ROLE_MEMBER",
+        "description": "Standard Member Role"
       },
       {
         "name": "ROLE_ADMIN",
         "description": "Administrator Role"
+      },
+      {
+        "name": "ROLE_STAFF_SHIPPER",
+        "description": "Staff Shipper Role"
+      },
+      {
+        "name": "ROLE_STAFF_MANAGER",
+        "description": "Staff Manager Role"
       }
     ]
   },
@@ -53,7 +61,7 @@
       ],
       "realmRoles": [
         "ROLE_ADMIN",
-        "ROLE_USER"
+        "ROLE_MEMBER"
       ]
     },
     {
@@ -70,7 +78,41 @@
         }
       ],
       "realmRoles": [
-        "ROLE_USER"
+        "ROLE_MEMBER"
+      ]
+    },
+    {
+      "username": "shipper123",
+      "enabled": true,
+      "email": "shipper@daiphat.com",
+      "firstName": "Super",
+      "lastName": "Shipper",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "shipper",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ROLE_STAFF_SHIPPER"
+      ]
+    },
+    {
+      "username": "manager123",
+      "enabled": true,
+      "email": "manager@daiphat.com",
+      "firstName": "Super",
+      "lastName": "Manager",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "manager",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ROLE_STAFF_MANAGER"
       ]
     },
     {

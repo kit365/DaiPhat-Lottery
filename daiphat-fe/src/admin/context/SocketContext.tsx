@@ -13,7 +13,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     useEffect(() => {
         // Disabled for Static Mockup
         /*
-        const newSocket = io('http://localhost:3000', {
+        const newSocket = io('http://localhost:8080', {
             withCredentials: true
         });
         setSocket(newSocket);

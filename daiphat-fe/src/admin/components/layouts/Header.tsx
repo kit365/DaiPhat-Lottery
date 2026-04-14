@@ -10,15 +10,18 @@ import Popover from "@mui/material/Popover";
 import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
+import Stack from "@mui/material/Stack";
+import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { toast } from 'react-toastify';
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useNavigate } from "react-router-dom";
-import { logout as logoutApi } from "../../api/auth.api";
-import Cookies from "js-cookie";
-import { prefixAdmin } from "../../constants/routes";
+import { authService } from "../../pages/authen/services/auth.service";
+import { ROUTES, prefixAdmin } from "../../constants/routes";
 import { NotificationPopover } from "./NotificationPopover";
+import { STORAGE_KEYS } from "../../../constants/storage.constants";
+import Cookies from "js-cookie";
 
 interface Props {
     window?: () => Window;
@@ -75,16 +78,18 @@ export const Header = () => {
 
     const handleLogout = async () => {
         try {
-            const res = await logoutApi();
-            if (res.code === 200) {
-                logoutStore();
-                Cookies.remove("tokenAdmin");
-                toast.success("Đăng xuất thành công!");
-                navigate("/admin/auth/login");
-            }
+            // Clear local state immediately for better UX
+            logoutStore();
+            Cookies.remove(STORAGE_KEYS.TOKEN_ADMIN, { path: '/' });
+            Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
+            toast.success("Đăng xuất thành công!");
+            navigate(ROUTES.ADMIN.AUTH.LOGIN);
+
+            // Attempt server-side logout (browser sends HttpOnly cookie automatically)
+            await authService.logout();
         } catch (error) {
-            console.error("Logout error:", error);
-            toast.error("Có lỗi xảy ra khi đăng xuất!");
+            console.error("Logout error (non-blocking):", error);
+            // We don't block the UI here since local state is already cleared
         }
     };
 
@@ -260,9 +265,33 @@ export const Header = () => {
                                 borderRadius: '50%',
                             }}
                         >
-                            <div className={`relative rounded-full p-[3px] w-[2.5rem] h-[2.5rem] header__avatar ${openUser ? 'active' : ''}`}>
-                                <Avatar className="w-full h-full" src={user?.avatar || "https://pub-c5e31b5cdafb419fb247a8ac2e78df7a.r2.dev/public/assets/images/mock/avatar/avatar-25.webp"} />
-                            </div>
+                            <Box 
+                                className={`relative rounded-full p-[2px] w-[2.5rem] h-[2.5rem] ${openUser ? 'active' : ''}`}
+                                sx={{
+                                    border: '2px solid transparent',
+                                    transition: 'all 0.2s',
+                                    ...(openUser && {
+                                        borderColor: 'var(--palette-primary-main)',
+                                        transform: 'scale(1.05)'
+                                    })
+                                }}
+                            >
+                                <Avatar 
+                                    className="w-full h-full" 
+                                    src={user?.avatar} 
+                                    sx={{ 
+                                        bgcolor: 'var(--palette-primary-main)',
+                                        fontSize: '0.875rem',
+                                        fontWeight: 800
+                                    }}
+                                >
+                                    {user?.fullName || user?.firstName || user?.lastName ? (
+                                        `${user?.lastName?.charAt(0) || ''}${user?.firstName?.charAt(0) || user?.fullName?.charAt(0) || ''}`.toUpperCase()
+                                    ) : (
+                                        <Icon icon="solar:user-bold" width={20} />
+                                    )}
+                                </Avatar>
+                            </Box>
                         </Button>
 
                         <Popover
@@ -279,40 +308,78 @@ export const Header = () => {
                             }}
                             slotProps={{
                                 paper: {
-                                    className: 'background-popup',
                                     sx: {
                                         p: 0,
-                                        mt: 1,
+                                        mt: 1.5,
                                         ml: 0.75,
-                                        width: 200,
-                                        '& .MuiMenuItem-root': {
-                                            typography: 'body2',
-                                            borderRadius: 0.75,
-                                        },
+                                        width: 220,
+                                        borderRadius: '12px',
+                                        overflow: 'inherit',
+                                        backdropFilter: 'blur(20px)',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                        boxShadow: '0 0 2px 0 rgba(145, 158, 171, 0.24), -20px 20px 40px -4px rgba(145, 158, 171, 0.24)',
+                                        border: '1px solid rgba(145, 158, 171, 0.12)',
+                                        '&:before': {
+                                            top: -7,
+                                            right: 17,
+                                            width: 14,
+                                            height: 14,
+                                            content: '""',
+                                            position: 'absolute',
+                                            borderRadius: '0 0 2px 0',
+                                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                            transform: 'rotate(-135deg)',
+                                            borderLeft: '1px solid rgba(145, 158, 171, 0.12)',
+                                            borderTop: '1px solid rgba(145, 158, 171, 0.12)',
+                                        }
                                     },
                                 }
                             }}
                         >
-                            <Box sx={{ py: 1.5, px: 2 }}>
-                                <Typography variant="subtitle2" noWrap sx={{ color: '#1C252E', fontWeight: 600 }}>
-                                    {user?.fullName || "Admin"}
+                            <Box sx={{ py: 2, px: 2.5 }}>
+                                <Typography variant="subtitle2" noWrap sx={{ color: 'var(--palette-text-primary)', fontWeight: 700, fontSize: '0.875rem' }}>
+                                    {user?.fullName || user?.firstName ? `${user?.lastName || ''} ${user?.firstName || user?.fullName}` : "---"}
                                 </Typography>
-                                <Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>
-                                    {user?.email || ""}
+                                <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.75rem', mt: 0.5 }} noWrap>
+                                    {user?.email || "---"}
                                 </Typography>
                             </Box>
 
-                            <Divider sx={{ borderStyle: 'dashed' }} />
+                            <Divider sx={{ borderStyle: 'dashed', borderColor: 'var(--palette-divider)' }} />
 
-                            <MenuItem onClick={() => { navigate(`/${prefixAdmin}/profile`); handleCloseUser(); }} sx={{ m: 1 }}>
-                                Hồ sơ
-                            </MenuItem>
+                            <Stack sx={{ p: 1 }}>
+                                <MenuItem 
+                                    onClick={() => { navigate(ROUTES.ADMIN.PROFILE); handleCloseUser(); }}
+                                    sx={{ 
+                                        borderRadius: '8px',
+                                        typography: 'body2',
+                                        fontWeight: 500,
+                                        color: 'var(--palette-text-primary)',
+                                        '&:hover': { bgcolor: 'var(--palette-action-hover)' }
+                                    }}
+                                >
+                                    <Icon icon="solar:user-bold-duotone" width={20} style={{ marginRight: '12px', color: 'var(--palette-text-secondary)' }} />
+                                    Hồ sơ cá nhân
+                                </MenuItem>
+                            </Stack>
 
-                            <Divider sx={{ borderStyle: 'dashed' }} />
+                            <Divider sx={{ borderStyle: 'dashed', borderColor: 'var(--palette-divider)' }} />
 
-                            <MenuItem onClick={handleLogout} sx={{ m: 1, color: 'error.main', fontWeight: 600 }}>
-                                Đăng xuất
-                            </MenuItem>
+                            <Box sx={{ p: 1 }}>
+                                <MenuItem 
+                                    onClick={handleLogout} 
+                                    sx={{ 
+                                        borderRadius: '8px',
+                                        typography: 'body2',
+                                        fontWeight: 700,
+                                        color: 'var(--palette-error-main)',
+                                        '&:hover': { bgcolor: 'var(--palette-error-lighter)' }
+                                    }}
+                                >
+                                    <Icon icon="solar:logout-3-bold-duotone" width={20} style={{ marginRight: '12px' }} />
+                                    Đăng xuất
+                                </MenuItem>
+                            </Box>
                         </Popover>
                     </Box>
                 </Container>

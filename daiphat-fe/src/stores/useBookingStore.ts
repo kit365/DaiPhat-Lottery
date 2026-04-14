@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import { STORAGE_KEYS } from "../constants/storage.constants";
 
 export interface BookingPet {
     _id: string;
@@ -91,7 +92,7 @@ export const useBookingStore = create<BookingState>()(
                     },
                 }),
                 {
-                    name: "booking-storage",
+                    name: STORAGE_KEYS.BOOKING,
                 }
             )
         ),

@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { apiApp } from "../../../../api";
 
-const BASE_URL = "/api/v1/admin/ticketServiceOrder-config";
+const BASE_URL = "/admin/ticketServiceOrder-config";
 
 export const useTicketServiceOrderConfig = () => {
     return useQuery({

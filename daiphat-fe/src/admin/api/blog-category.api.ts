@@ -3,7 +3,7 @@ import Cookies from 'js-cookie';
 import { CategoryNode } from '../components/ui/CategoryTreeSelect';
 import { ApiResponse } from '../config/type';
 
-const BASE_URL = '/api/v1/admin/article/category';
+const BASE_URL = '/admin/article/category';
 
 /** Header auth dùng chung cho blog-categories */
 const withAuth = () => {

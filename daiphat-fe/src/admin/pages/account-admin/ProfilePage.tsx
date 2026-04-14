@@ -5,14 +5,18 @@ import {
     Card,
     Stack,
     Typography,
-    Tabs,
-    Tab,
+    Avatar,
     CircularProgress,
     TextField,
-    MenuItem,
     Chip,
     InputAdornment,
-    IconButton
+    IconButton,
+    List,
+    ListItemButton,
+    ListItemIcon,
+    ListItemText,
+    Button,
+    Divider
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { Icon } from "@iconify/react";
@@ -31,20 +35,87 @@ import { LoadingButton } from "../../components/ui/LoadingButton";
 import dayjs from "dayjs";
 import * as zod from "zod";
 import { useAuthStore } from "../../../stores/useAuthStore";
+import { authService } from "../authen/services/auth.service";
+import { PasswordRequirement, PasswordPolicy } from "../authen/types/auth.type";
 
 const passwordSchema = zod.object({
-    password: zod.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
-    confirmPassword: zod.string().min(6, "Mật khẩu xác nhận phải có ít nhất 6 ký tự"),
+    password: zod.string().min(1, "Vui lòng nhập mật khẩu mới"),
+    confirmPassword: zod.string().min(1, "Vui lòng xác nhận mật khẩu mới"),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Mật khẩu xác nhận không khớp",
     path: ["confirmPassword"],
 });
 
+// Component con hiển thị Checklist yêu cầu mật khẩu
+const PasswordRequirementList = ({ password, policy }: { password: string; policy: PasswordPolicy }) => {
+    const { requirements, minLength, maxLength } = policy;
+    const pwd = password || "";
+
+    // Lọc bỏ các requirement từ BE nếu nó trùng lặp với logic minLength/maxLength
+    const filteredRequirements = requirements.filter(req =>
+        !req.description.toLowerCase().includes(`${minLength} ký tự`) &&
+        (!maxLength || !req.description.toLowerCase().includes(`${maxLength} ký tự`))
+    );
+
+    const items = [
+        {
+            id: 'min-length',
+            description: `Ít nhất ${minLength} ký tự`,
+            isMet: pwd.length >= minLength
+        },
+        ...filteredRequirements.map(req => ({
+            id: req.id,
+            description: req.description,
+            isMet: new RegExp(req.regex).test(pwd)
+        }))
+    ];
+
+    if (maxLength) {
+        items.push({
+            id: 'max-length',
+            description: `Tối đa ${maxLength} ký tự`,
+            isMet: pwd.length <= maxLength && pwd.length > 0
+        });
+    }
+
+    return (
+        <Stack spacing={1.5} sx={{ mt: 2, p: 2.5, bgcolor: 'var(--palette-background-neutral)', borderRadius: '16px', border: '1px solid var(--palette-divider)' }}>
+            <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 800, textTransform: 'uppercase', mb: 1, display: 'block', letterSpacing: 1 }}>
+                Yêu cầu mật khẩu
+            </Typography>
+            {items.map((item) => (
+                <Stack key={item.id} direction="row" spacing={1.5} alignItems="center">
+                    <Icon
+                        icon={item.isMet ? "solar:check-circle-bold" : "solar:reorder-circle-bold"}
+                        color={item.isMet ? "var(--palette-success-main)" : "var(--palette-text-disabled)"}
+                        width={20}
+                    />
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            color: item.isMet ? 'var(--palette-text-primary)' : 'var(--palette-text-secondary)',
+                            fontWeight: item.isMet ? 700 : 500,
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        {item.description}
+                    </Typography>
+                </Stack>
+            ))}
+        </Stack>
+    );
+};
+
 export const ProfilePage = () => {
     const { user } = useAuthStore();
     const id = (user as any)?._id || user?.id;
     const navigate = useNavigate();
-    const [currentTab, setCurrentTab] = useState("general");
+
+    // States
+    const [activeTab, setActiveTab] = useState<"general" | "security" | "history">("general");
+    const [isEditing, setIsEditing] = useState(false);
+    const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | null>(null);
+
     const { data: account, isLoading: isAccountLoading } = useAccountDetail(id);
     const { mutate: update, isPending: isUpdating } = useUpdateAccount();
     const { mutate: changePassword, isPending: isChangingPassword } = useChangeAccountPassword();
@@ -57,6 +128,18 @@ export const ProfilePage = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+    useEffect(() => {
+        const fetchPolicy = async () => {
+            try {
+                const res = await authService.getPasswordPolicy();
+                if (res.data) setPasswordPolicy(res.data);
+            } catch (err) {
+                console.error("Failed to fetch password policy", err);
+            }
+        };
+        fetchPolicy();
+    }, []);
+
     const {
         control,
         handleSubmit,
@@ -66,7 +149,8 @@ export const ProfilePage = () => {
     } = useForm<any>({
         resolver: zodResolver(accountAdminSchema),
         defaultValues: {
-            fullName: "",
+            firstName: "",
+            lastName: "",
             email: "",
             phone: "",
             roles: [],
@@ -83,42 +167,53 @@ export const ProfilePage = () => {
         },
     });
 
+    const currentPassword = passwordForm.watch("password");
     const avatar = watch("avatar");
+
+    // Kiểm tra xem mật khẩu có thỏa mãn mọi yêu cầu không
+    const checkAllMet = () => {
+        if (!passwordPolicy) return false;
+        const pwd = currentPassword || "";
+        const { minLength, maxLength, requirements } = passwordPolicy;
+
+        const isMinMet = pwd.length >= minLength;
+        const isMaxMet = !maxLength || (pwd.length <= maxLength && pwd.length > 0);
+
+        // Chỉ kiểm tra những requirements KHÔNG bị filter ở UI
+        const filteredReqs = requirements.filter(req =>
+            !req.description.toLowerCase().includes(`${minLength} ký tự`) &&
+            (!maxLength || !req.description.toLowerCase().includes(`${maxLength} ký tự`))
+        );
+
+        const isReqsMet = filteredReqs.every(req => new RegExp(req.regex).test(pwd));
+
+        return isMinMet && isMaxMet && isReqsMet;
+    };
+
+    const allRequirementsMet = checkAllMet();
+    const isPasswordValid = allRequirementsMet;
 
     useEffect(() => {
         if (account) {
             reset({
-                fullName: account.fullName,
+                firstName: account.firstName || "",
+                lastName: account.lastName || "",
                 email: account.email,
                 phone: account.phone || "",
                 roles: account.roles?.map((r: any) => typeof r === 'string' ? r : r._id) || [],
                 status: account.status,
-                avatar: account.avatar || "",
+                avatar: account.avatarUrl || account.avatar || "",
             });
         }
     }, [account, reset]);
 
-    const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
-        setCurrentTab(newValue);
-    };
-
     const handleOpenFile = () => {
-        fileInputRef.current?.click();
+        if (isEditing) fileInputRef.current?.click();
     };
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-        const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
-        if (!allowedTypes.includes(file.type)) {
-            toast.error("Định dạng file không hợp lệ. Vui lòng chọn *.jpeg, *.jpg, *.png, hoặc *.gif");
-            return;
-        }
-        const maxSize = 3 * 1024 * 1024;
-        if (file.size > maxSize) {
-            toast.error("Dung lượng file quá lớn. Tối đa là 3 Mb");
-            return;
-        }
         try {
             setIsUploading(true);
             const [url] = await uploadImagesToCloudinary([file]);
@@ -135,6 +230,7 @@ export const ProfilePage = () => {
         update({ id: id!, data }, {
             onSuccess: () => {
                 toast.success("Cập nhật thông tin thành công!");
+                setIsEditing(false);
             },
             onError: (error: any) => {
                 toast.error(error.response?.data?.message || "Cập nhật thất bại");
@@ -142,7 +238,13 @@ export const ProfilePage = () => {
         });
     };
 
+    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
     const onPasswordSubmit = (data: any) => {
+        if (!isPasswordValid) {
+            toast.error("Mật khẩu chưa thỏa mãn các yêu cầu bảo mật!");
+            return;
+        }
         changePassword({ id: id!, data: { password: data.password } }, {
             onSuccess: () => {
                 toast.success("Đổi mật khẩu thành công!");
@@ -156,400 +258,524 @@ export const ProfilePage = () => {
 
     if (isAccountLoading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
                 <CircularProgress />
             </Box>
         );
     }
 
+
     return (
-        <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
-            <Box sx={{ mb: 3 }}>
-                <Title title="Tài khoản" />
+        <Box sx={{ maxWidth: '1200px', mx: 'auto', pb: 10 }}>
+            {/* Header Area */}
+            <Box sx={{ mb: 4 }}>
+                <Title title="Quản lý hồ sơ" />
                 <Breadcrumb
                     items={[
-                        { label: "Dashboard", to: "/" },
-                        { label: "Người dùng", to: "#" },
-                        { label: "Tài khoản" }
+                        { label: "Trang chủ", to: "/" },
+                        { label: "Admin", to: "#" },
+                        { label: "Hồ sơ cá nhân" }
                     ]}
                 />
             </Box>
 
-            <Tabs
-                value={currentTab}
-                onChange={handleTabChange}
-                sx={{
-                    mb: 4,
-                    '& .MuiTabs-indicator': { bgcolor: 'var(--palette-text-primary)' },
-                    '& .MuiTab-root': {
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        fontSize: '0.875rem',
-                        color: 'var(--palette-text-secondary)',
-                        minWidth: 0,
-                        mr: 4,
-                        p: 0,
-                        '&.Mui-selected': { color: 'var(--palette-text-primary)' }
-                    }
-                }}
-            >
-                <Tab
-                    disableRipple
-                    value="general"
-                    label={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Icon icon="solar:user-id-bold" width={20} />
-                            <span>Tổng quan</span>
-                        </Stack>
-                    }
-                />
-                <Tab
-                    disableRipple
-                    value="history"
-                    label={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Icon icon="solar:history-bold" width={20} />
-                            <span>Lịch sử việc làm</span>
-                        </Stack>
-                    }
-                />
-                <Tab
-                    disableRipple
-                    value="security"
-                    label={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Icon icon="solar:key-bold" width={20} />
-                            <span>Bảo mật</span>
-                        </Stack>
-                    }
-                />
-            </Tabs>
+            {/* Profile Header Card */}
+            <Card sx={{
+                p: { xs: 2.5, md: 3 },
+                mb: 4,
+                borderRadius: "16px",
+                boxShadow: "var(--customShadows-card)",
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                textAlign: { xs: 'center', sm: 'left' },
+                gap: 3,
+                justifyContent: 'space-between',
+                border: '1px solid var(--palette-divider)'
+            }}>
+                <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={3}
+                    alignItems="center"
+                    sx={{ width: { xs: '100%', sm: 'auto' } }}
+                >
+                    <Box sx={{ position: 'relative' }}>
+                        <Avatar
+                            src={avatar}
+                            onClick={handleOpenFile}
+                            sx={{
+                                width: 88,
+                                height: 88,
+                                borderRadius: '50%',
+                                cursor: isEditing ? 'pointer' : 'default',
+                                bgcolor: 'var(--palette-primary-main)',
+                                border: '2px solid var(--palette-background-paper)',
+                                boxShadow: '0 0 0 1px var(--palette-divider)',
+                                transition: 'all 0.3s',
+                                fontSize: '2rem',
+                                fontWeight: 800,
+                                color: 'white'
+                            }}
+                        >
+                            {account?.firstName || account?.lastName ? (
+                                `${account?.lastName?.charAt(0) || ''}${account?.firstName?.charAt(0) || ''}`.toUpperCase()
+                            ) : (
+                                <Icon icon="solar:user-bold" width={32} />
+                            )}
+                        </Avatar>
+                        {isEditing && (
+                            <Box sx={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                bgcolor: 'rgba(0,0,0,0.5)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                transition: 'opacity 0.2s',
+                                borderRadius: '50%',
+                                '&:hover': { opacity: 0.9 }
+                            }}>
+                                <Icon icon="solar:camera-bold-duotone" width={28} />
+                            </Box>
+                        )}
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            className="hidden"
+                            accept="image/*"
+                        />
+                        {isUploading && (
+                            <CircularProgress size={24} sx={{ position: 'absolute', top: 32, left: 32, zIndex: 10 }} />
+                        )}
+                    </Box>
 
-            {currentTab === "general" && (
-                <form onSubmit={handleSubmit(onSubmit)}>
-                    <Grid container spacing={3}>
-                        <Grid size={{ xs: 12, md: 4 }}>
-                            <Card sx={{ p: '80px 24px', textAlign: 'center', borderRadius: "var(--shape-borderRadius-lg)", position: 'relative', boxShadow: "var(--customShadows-card)" }}>
-                                <Box sx={{ position: 'absolute', top: 24, right: 24 }}>
-                                    <Chip
-                                        label={account?.status === 'active' ? 'Hoạt động' : 'Tạm dừng'}
-                                        sx={{
-                                            bgcolor: account?.status === 'active' ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255, 171, 0, 0.16)',
-                                            color: account?.status === 'active' ? 'rgb(17, 141, 87)' : 'rgb(183, 110, 0)',
-                                            borderRadius: "var(--shape-borderRadius-sm)",
-                                            fontWeight: 700,
-                                            fontSize: '0.75rem',
-                                            height: '24px'
-                                        }}
-                                    />
-                                </Box>
+                    <Box>
+                        <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--palette-text-primary)', textTransform: 'capitalize' }}>
+                            {account?.lastName} {account?.firstName}
+                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                            <Icon icon="solar:shield-check-bold" color="var(--palette-primary-main)" width={16} />
+                            <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}>
+                                {roles.find((r: any) => account?.roles?.includes(r._id))?.name || account?.role?.name || "---"}
+                            </Typography>
+                        </Stack>
+                    </Box>
+                </Stack>
 
-                                <div
-                                    onClick={handleOpenFile}
-                                    className="w-[144px] h-[144px] m-auto cursor-pointer rounded-full p-[8px] border border-dashed border-[var(--palette-text-disabled)33] hover:opacity-75 transition-opacity"
+                {activeTab === "general" && (
+                    <Button
+                        variant="contained"
+                        fullWidth={false}
+                        onClick={() => setIsEditing(!isEditing)}
+                        sx={{
+                            borderRadius: "12px",
+                            px: { xs: 2, sm: 2.5 },
+                            height: { xs: 40, sm: 42 },
+                            width: { xs: '100%', sm: 'auto' },
+                            bgcolor: isEditing ? 'var(--palette-error-main)' : 'var(--palette-primary-main)',
+                            color: 'white',
+                            boxShadow: isEditing ? 'none' : 'var(--customShadows-primary)',
+                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                                bgcolor: isEditing ? 'var(--palette-error-dark)' : 'var(--palette-primary-dark)',
+                                transform: { xs: 'none', sm: 'translateY(-2px)' },
+                                boxShadow: isEditing ? 'none' : 'var(--customShadows-z12)',
+                            },
+                        }}
+                    >
+                        <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center">
+                            <Icon
+                                icon={isEditing ? "solar:close-circle-bold" : "solar:pen-bold"}
+                                width={20}
+                                height={20}
+                                style={{ color: 'white' }}
+                            />
+                            <Typography variant="subtitle2" sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>
+                                {isEditing ? "Hủy bỏ" : "Chỉnh sửa"}
+                            </Typography>
+                        </Stack>
+                    </Button>
+                )}
+            </Card>
+
+            <Grid container spacing={4}>
+                {/* Sidebar Navigation - Optimized for Responsive */}
+                <Grid size={{ xs: 12, md: 3 }}>
+                    <Card sx={{
+                        borderRadius: "16px",
+                        boxShadow: "none",
+                        border: '1px solid var(--palette-divider)',
+                        bgcolor: 'var(--palette-background-neutral)',
+                        overflow: 'hidden'
+                    }}>
+                        <List
+                            component="nav"
+                            sx={{
+                                p: 1,
+                                display: { xs: 'flex', md: 'block' },
+                                overflowX: { xs: 'auto', md: 'visible' },
+                                whiteSpace: 'nowrap',
+                                '&::-webkit-scrollbar': { display: 'none' }, // Ẩn scrollbar cho đẹp
+                                msOverflowStyle: 'none',
+                                scrollbarWidth: 'none',
+                            }}
+                        >
+                            {[
+                                { id: "general", label: "Hồ sơ", icon: "solar:user-id-bold" },
+                                { id: "security", label: "Bảo mật", icon: "solar:lock-password-bold" },
+                                { id: "history", label: "Lịch sử", icon: "solar:history-bold" }
+                            ].map((tab) => (
+                                <ListItemButton
+                                    key={tab.id}
+                                    selected={activeTab === tab.id}
+                                    onClick={() => { setActiveTab(tab.id as any); setIsEditing(false); }}
+                                    sx={{
+                                        borderRadius: "12px",
+                                        mb: { xs: 0, md: 1 },
+                                        mr: { xs: 1, md: 0 },
+                                        py: { xs: 1.2, md: 1.8 },
+                                        px: { xs: 2, md: 2.5 },
+                                        minWidth: { xs: 'auto', md: '100%' },
+                                        flexShrink: 0,
+                                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        position: 'relative',
+                                        '&.Mui-selected': {
+                                            bgcolor: 'rgba(0, 167, 111, 0.12)',
+                                            color: 'var(--palette-primary-main)',
+                                            '&::before': {
+                                                content: '""',
+                                                position: 'absolute',
+                                                left: { xs: '20%', md: 0 },
+                                                bottom: { xs: 0, md: 'auto' },
+                                                top: { xs: 'auto', md: '15%' },
+                                                height: { xs: '3px', md: '70%' },
+                                                width: { xs: '60%', md: '4px' },
+                                                bgcolor: 'var(--palette-primary-main)',
+                                                borderRadius: '4px',
+                                                boxShadow: '0 0 8px rgba(0, 167, 111, 0.4)'
+                                            },
+                                            '& .MuiListItemIcon-root': {
+                                                color: 'var(--palette-primary-main)',
+                                                transform: 'scale(1.1)'
+                                            },
+                                        },
+                                    }}
                                 >
-                                    <div className="w-full h-full rounded-full relative overflow-hidden bg-[var(--palette-text-disabled)14]">
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            onChange={handleFileChange}
-                                            className="hidden"
-                                            accept="image/*"
-                                        />
-                                        {avatar ? (
-                                            <img
-                                                src={avatar}
-                                                alt="avatar"
-                                                className="w-full h-full object-cover"
+                                    <ListItemIcon sx={{ minWidth: { xs: 32, md: 40 }, transition: 'transform 0.2s' }}>
+                                        <Icon icon={tab.icon} width={24} />
+                                    </ListItemIcon>
+                                    <ListItemText primary={tab.label} primaryTypographyProps={{ variant: 'body2', fontWeight: 800, letterSpacing: 0.2 }} />
+                                </ListItemButton>
+                            ))}
+                        </List>
+                    </Card>
+                </Grid>
+
+                {/* Main Content Area */}
+                <Grid size={{ xs: 12, md: 9 }}>
+                    {activeTab === "general" && (
+                        <Card sx={{ p: { xs: 2.5, sm: 4, md: 5 }, borderRadius: "16px", boxShadow: "var(--customShadows-card)", border: '1px solid var(--palette-divider)' }}>
+                            <Typography variant="h6" sx={{ mb: { xs: 3, md: 4 }, fontWeight: 800 }}>Thông tin cá nhân</Typography>
+
+                            <form onSubmit={handleSubmit(onSubmit)}>
+                                <Grid container spacing={4}>
+                                    <Grid size={{ xs: 12, md: 6 }}>
+                                        {isEditing ? (
+                                            <Controller
+                                                name="lastName"
+                                                control={control}
+                                                render={({ field, fieldState }) => (
+                                                    <TextField
+                                                        {...field}
+                                                        label="Họ"
+                                                        fullWidth
+                                                        error={!!fieldState.error}
+                                                        helperText={fieldState.error?.message}
+                                                    />
+                                                )}
                                             />
                                         ) : (
-                                            <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center text-[var(--palette-text-disabled)] flex-col gap-[8px]">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true" role="img" className="w-[2rem] h-[2rem]" id="_r_fh_" width="1rem" height="1rem" viewBox="0 0 24 24"><g fill="currentColor" fillRule="evenodd" clipRule="evenodd"><path d="M12 10.25a.75.75 0 0 1 .75.75v1.25H14a.75.75 0 0 1 0 1.5h-1.25V15a.75.75 0 0 1-1.5 0v-1.25H10a.75.75 0 0 1 0-1.5h1.25V11a.75.75 0 0 1 .75-.75"></path><path d="M9.778 21h4.444c3.121 0 4.682 0 5.803-.735a4.4 4.4 0 0 0 1.226-1.204c.749-1.1.749-2.633.749-5.697s0-4.597-.749-5.697a4.4 4.4 0 0 0-1.226-1.204c-.72-.473-1.622-.642-3.003-.702c-.659 0-1.226-.49-1.355-1.125A2.064 2.064 0 0 0 13.634 3h-3.268c-.988 0-1.839.685-2.033 1.636c-.129.635-.696 1.125-1.355 1.125c-1.38.06-2.282.23-3.003.702A4.4 4.4 0 0 0 2.75 7.667C2 8.767 2 10.299 2 13.364s0 4.596.749 5.697c.324.476.74.885 1.226 1.204C5.096 21 6.657 21 9.778 21M16 13a4 4 0 1 1-8 0a4 4 0 0 1 8 0m2-3.75a.75.75 0 0 0 0 1.5h1a.75.75 0 0 0 0-1.5z"></path></g></svg>
-                                                <span className="text-[0.75rem]">{isUploading ? "Đang tải..." : "Tải ảnh lên"}</span>
-                                            </div>
+                                            <Stack spacing={1.2}>
+                                                <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5 }}>Họ</Typography>
+                                                <Typography variant="h6" sx={{ fontWeight: 700, textTransform: 'capitalize', color: 'var(--palette-text-primary)' }}>{account?.lastName}</Typography>
+                                            </Stack>
                                         )}
+                                    </Grid>
 
-                                        {avatar && (
-                                            <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center text-white flex-col gap-[8px] bg-black/40 opacity-0 hover:opacity-100 transition-opacity duration-200">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" aria-hidden="true" role="img" className="w-[2rem] h-[2rem]" id="_r_fh_" width="1rem" height="1rem" viewBox="0 0 24 24"><g fill="currentColor" fillRule="evenodd" clipRule="evenodd"><path d="M12 10.25a.75.75 0 0 1 .75.75v1.25H14a.75.75 0 0 1 0 1.5h-1.25V15a.75.75 0 0 1-1.5 0v-1.25H10a.75.75 0 0 1 0-1.5h1.25V11a.75.75 0 0 1 .75-.75"></path><path d="M9.778 21h4.444c3.121 0 4.682 0 5.803-.735a4.4 4.4 0 0 0 1.226-1.204c.749-1.1.749-2.633.749-5.697s0-4.597-.749-5.697a4.4 4.4 0 0 0-1.226-1.204c-.72-.473-1.622-.642-3.003-.702c-.659 0-1.226-.49-1.355-1.125A2.064 2.064 0 0 0 13.634 3h-3.268c-.988 0-1.839.685-2.033 1.636c-.129.635-.696 1.125-1.355 1.125c-1.38.06-2.282.23-3.003.702A4.4 4.4 0 0 0 2.75 7.667C2 8.767 2 10.299 2 13.364s0 4.596.749 5.697c.324.476.74.885 1.226 1.204C5.096 21 6.657 21 9.778 21M16 13a4 4 0 1 1-8 0a4 4 0 0 1 8 0m2-3.75a.75.75 0 0 0 0 1.5h1a.75.75 0 0 0 0-1.5z"></path></g></svg>
-                                                <span className="text-[0.75rem]">Thay đổi ảnh</span>
-                                            </div>
+                                    <Grid size={{ xs: 12, md: 6 }}>
+                                        {isEditing ? (
+                                            <Controller
+                                                name="firstName"
+                                                control={control}
+                                                render={({ field, fieldState }) => (
+                                                    <TextField
+                                                        {...field}
+                                                        label="Tên"
+                                                        fullWidth
+                                                        error={!!fieldState.error}
+                                                        helperText={fieldState.error?.message}
+                                                    />
+                                                )}
+                                            />
+                                        ) : (
+                                            <Stack spacing={1.2}>
+                                                <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5 }}>Tên</Typography>
+                                                <Typography variant="h6" sx={{ fontWeight: 700, textTransform: 'capitalize', color: 'var(--palette-text-primary)' }}>{account?.firstName}</Typography>
+                                            </Stack>
                                         )}
-                                    </div>
-                                </div>
+                                    </Grid>
 
-                                <Typography variant="body2" sx={{ mt: 3, color: 'var(--palette-text-disabled)', fontSize: '0.75rem' }}>
-                                    Allowed *.jpeg, *.jpg, *.png, *.gif <br /> max size of 3 Mb
+                                    <Grid size={{ xs: 12, md: 6 }}>
+                                        <Stack spacing={1.2}>
+                                            <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5 }}>Địa chỉ Email</Typography>
+                                            <Typography variant="body1" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>{account?.email}</Typography>
+                                        </Stack>
+                                    </Grid>
+
+                                    <Grid size={{ xs: 12, md: 6 }}>
+                                        {isEditing ? (
+                                            <Controller
+                                                name="phone"
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <TextField
+                                                        {...field}
+                                                        label="Số điện thoại"
+                                                        fullWidth
+                                                    />
+                                                )}
+                                            />
+                                        ) : (
+                                            <Stack spacing={1.2}>
+                                                <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5 }}>Số điện thoại</Typography>
+                                                <Typography variant="body1" sx={{ fontWeight: 700, color: account?.phone ? 'var(--palette-text-primary)' : 'var(--palette-text-disabled)' }}>
+                                                    {account?.phone || "---"}
+                                                </Typography>
+                                            </Stack>
+                                        )}
+                                    </Grid>
+
+                                </Grid>
+
+                                {isEditing && (
+                                    <Stack direction="row" justifyContent="flex-end" spacing={2} sx={{ mt: 6 }}>
+                                        <Button
+                                            variant="outlined"
+                                            color="inherit"
+                                            onClick={() => setIsEditing(false)}
+                                            sx={{ borderRadius: "10px", px: 3 }}
+                                        >
+                                            Hủy
+                                        </Button>
+                                        <LoadingButton
+                                            type="submit"
+                                            loading={isUpdating}
+                                            label="Lưu thay đổi"
+                                            loadingLabel="Đang lưu..."
+                                            sx={{ borderRadius: "10px", px: 4 }}
+                                        />
+                                    </Stack>
+                                )}
+                            </form>
+                        </Card>
+                    )}
+
+                    {activeTab === "security" && (
+                        <Card sx={{ p: { xs: 3, md: 5 }, borderRadius: "16px", boxShadow: "var(--customShadows-card)", border: '1px solid var(--palette-divider)' }}>
+                            <Box sx={{ mb: 4 }}>
+                                <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>Bảo mật tài khoản</Typography>
+                                <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', lineHeight: 1.6 }}>
+                                    Cập nhật mật khẩu thường xuyên để tăng cường tính bảo mật cho quản trị viên.
                                 </Typography>
-                            </Card>
-                        </Grid>
+                            </Box>
 
-                        <Grid size={{ xs: 12, md: 8 }}>
-                            <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
+                            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}>
+                                <Stack spacing={4}>
                                     <Controller
-                                        name="fullName"
-                                        control={control}
+                                        name="password"
+                                        control={passwordForm.control}
                                         render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                label="Họ và tên"
-                                                fullWidth
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message}
-                                            />
+                                            <Box>
+                                                <TextField
+                                                    {...field}
+                                                    type={showPassword ? "text" : "password"}
+                                                    label="Mật khẩu mới"
+                                                    fullWidth
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                    onFocus={() => setIsPasswordFocused(true)}
+                                                    onBlur={() => setIsPasswordFocused(false)}
+                                                    InputProps={{
+                                                        endAdornment: (
+                                                            <InputAdornment position="end">
+                                                                <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                                                                    <Icon icon={showPassword ? "solar:eye-bold-duotone" : "solar:eye-closed-bold-duotone"} />
+                                                                </IconButton>
+                                                            </InputAdornment>
+                                                        ),
+                                                    }}
+                                                />
+                                                {passwordPolicy && (isPasswordFocused || currentPassword) && !allRequirementsMet && (
+                                                    <PasswordRequirementList
+                                                        password={currentPassword || ""}
+                                                        policy={passwordPolicy}
+                                                    />
+                                                )}
+                                            </Box>
                                         )}
                                     />
 
                                     <Controller
-                                        name="email"
-                                        control={control}
+                                        name="confirmPassword"
+                                        control={passwordForm.control}
                                         render={({ field, fieldState }) => (
                                             <TextField
                                                 {...field}
-                                                label="Địa chỉ Email"
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                label="Xác nhận mật khẩu mới"
                                                 fullWidth
                                                 error={!!fieldState.error}
                                                 helperText={fieldState.error?.message}
-                                                disabled
+                                                InputProps={{
+                                                    endAdornment: (
+                                                        <InputAdornment position="end">
+                                                            <IconButton onClick={() => setShowConfirmPassword(!showConfirmPassword)} edge="end">
+                                                                <Icon icon={showConfirmPassword ? "solar:eye-bold-duotone" : "solar:eye-closed-bold-duotone"} />
+                                                            </IconButton>
+                                                        </InputAdornment>
+                                                    ),
+                                                }}
                                             />
                                         )}
                                     />
 
-                                    <Controller
-                                        name="phone"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <TextField
-                                                {...field}
-                                                label="Số điện thoại"
-                                                fullWidth
-                                            />
-                                        )}
-                                    />
+                                    <Stack direction="row" justifyContent="flex-end">
+                                        <LoadingButton
+                                            type="submit"
+                                            disabled={!isPasswordValid}
+                                            loading={isChangingPassword}
+                                            label="Cập nhật mật khẩu"
+                                            loadingLabel="Đang xử lý..."
+                                            sx={{
+                                                borderRadius: "10px",
+                                                px: 4,
+                                                bgcolor: 'var(--palette-grey-800)',
+                                                color: 'common.white',
+                                                '&:hover': { bgcolor: 'var(--palette-grey-900)' },
+                                                '&.Mui-disabled': { bgcolor: 'var(--palette-action-disabledBackground)' }
+                                            }}
+                                        />
+                                    </Stack>
+                                </Stack>
+                            </form>
+                        </Card>
+                    )}
 
-                                    <Controller
-                                        name="roles"
-                                        control={control}
-                                        render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                label="Vai trò"
-                                                select
-                                                fullWidth
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message}
-                                                disabled
-                                                SelectProps={{
-                                                    multiple: true,
-                                                    value: field.value || [],
-                                                    renderValue: (selected: any) => {
-                                                        const selectedArray = Array.isArray(selected) ? selected : [selected];
-                                                        return roles
-                                                            .filter((r: any) => selectedArray.includes(r._id))
-                                                            .map((r: any) => r.name)
-                                                            .join(', ');
-                                                    }
+                    {activeTab === "history" && (
+                        <Card sx={{ borderRadius: "16px", boxShadow: "var(--customShadows-card)", border: '1px solid var(--palette-divider)', overflow: 'hidden' }}>
+                            <Box sx={{ p: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <Typography variant="h6" sx={{ fontWeight: 800 }}>Lịch sử công việc</Typography>
+                                <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', fontWeight: 700 }}>
+                                    {ticketServiceOrders.length} ĐƠN GẦN NHẤT
+                                </Typography>
+                            </Box>
+
+                            <Divider />
+
+                            {isTicketServiceOrdersLoading ? (
+                                <Box sx={{ p: 10, textAlign: 'center' }}>
+                                    <CircularProgress size={40} />
+                                </Box>
+                            ) : ticketServiceOrders.length === 0 ? (
+                                <Box sx={{ p: 10, textAlign: 'center', color: 'var(--palette-text-disabled)' }}>
+                                    <Icon icon="solar:document-text-bold-duotone" width={80} style={{ opacity: 0.15 }} />
+                                    <Typography variant="body1" sx={{ mt: 2, fontWeight: 600 }}>Sạch bóng dữ liệu việc làm.</Typography>
+                                </Box>
+                            ) : (
+                                <Box sx={{ overflowX: 'auto', p: 1, mt: 1 }}>
+                                    <Box sx={{ minWidth: 900 }}>
+                                        {ticketServiceOrders.map((ticketServiceOrder: any) => (
+                                            <Box
+                                                key={ticketServiceOrder._id}
+                                                onClick={() => navigate(`/${prefixAdmin}/ticketServiceOrder/detail/${ticketServiceOrder._id}`)}
+                                                sx={{
+                                                    display: 'grid',
+                                                    gridTemplateColumns: '140px 1fr 200px 160px 160px',
+                                                    p: 2.5,
+                                                    mx: 1,
+                                                    mb: 1,
+                                                    borderRadius: '12px',
+                                                    border: '1px solid transparent',
+                                                    cursor: 'pointer',
+                                                    '&:hover': {
+                                                        bgcolor: 'var(--palette-background-neutral)',
+                                                        borderColor: 'var(--palette-divider)',
+                                                        boxShadow: '0 4px 12px 0 rgba(145, 158, 171, 0.08)'
+                                                    },
+                                                    alignItems: 'center',
+                                                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
                                                 }}
                                             >
-                                                {roles.map((role: any) => (
-                                                    <MenuItem key={role._id} value={role._id} sx={{ fontSize: '0.875rem' }}>
-                                                        {role.name}
-                                                    </MenuItem>
-                                                ))}
-                                            </TextField>
-                                        )}
-                                    />
-
-                                    <Controller
-                                        name="status"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <TextField
-                                                {...field}
-                                                label="Trạng thái"
-                                                select
-                                                fullWidth
-                                                disabled
-                                            >
-                                                <MenuItem value="active" sx={{ fontSize: '0.875rem' }}>Hoạt động</MenuItem>
-                                                <MenuItem value="inactive" sx={{ fontSize: '0.875rem' }}>Tạm dừng</MenuItem>
-                                            </TextField>
-                                        )}
-                                    />
-                                </Box>
-
-                                <Stack direction="row" justifyContent="flex-end" sx={{ mt: 3 }}>
-                                    <LoadingButton
-                                        type="submit"
-                                        loading={isUpdating}
-                                        label="Lưu thay đổi"
-                                        loadingLabel="Đang lưu..."
-                                    />
-                                </Stack>
-                            </Card>
-                        </Grid>
-                    </Grid>
-                </form>
-            )}
-
-            {currentTab === "history" && (
-                <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", overflow: 'hidden' }}>
-                    <Box sx={{ p: 3, borderBottom: '1px solid var(--palette-background-neutral)' }}>
-                        <Typography variant="h6">Lịch sử việc làm</Typography>
-                    </Box>
-                    {isTicketServiceOrdersLoading ? (
-                        <Box sx={{ p: 5, textAlign: 'center' }}>
-                            <CircularProgress size={32} />
-                        </Box>
-                    ) : ticketServiceOrders.length === 0 ? (
-                        <Box sx={{ p: 5, textAlign: 'center', color: 'var(--palette-text-disabled)' }}>
-                            Chưa có dữ liệu việc làm.
-                        </Box>
-                    ) : (
-                        <Box sx={{ overflowX: 'auto' }}>
-                            <Box sx={{ minWidth: 800 }}>
-                                <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr 150px 150px 150px', p: 2, bgcolor: 'var(--palette-background-neutral)', fontWeight: 600 }}>
-                                    <Box>Mã đơn</Box>
-                                    <Box>Dịch vụ / Khách hàng</Box>
-                                    <Box>Thời gian</Box>
-                                    <Box textAlign="right">Tổng tiền</Box>
-                                    <Box textAlign="center">Trạng thái</Box>
-                                </Box>
-                                {ticketServiceOrders.map((ticketServiceOrder: any) => (
-                                    <Box
-                                        key={ticketServiceOrder._id}
-                                        onClick={() => navigate(`/${prefixAdmin}/ticketServiceOrder/detail/${ticketServiceOrder._id}`)}
-                                        sx={{
-                                            display: 'grid',
-                                            gridTemplateColumns: '150px 1fr 150px 150px 150px',
-                                            p: 2,
-                                            borderBottom: '1px dashed var(--palette-background-neutral)',
-                                            cursor: 'pointer',
-                                            '&:hover': { bgcolor: 'var(--palette-action-hover)' },
-                                            alignItems: 'center'
-                                        }}
-                                    >
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-primary-main)' }}>
-                                            #{ticketServiceOrder.code}
-                                        </Typography>
-                                        <Box>
-                                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{ticketServiceOrder.ticketServiceId?.name || "Dịch vụ"}</Typography>
-                                            <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)' }}>
-                                                Khách: {ticketServiceOrder.userId?.fullName || "N/A"}
-                                            </Typography>
-                                        </Box>
-                                        <Box>
-                                            <Typography variant="body2">{dayjs(ticketServiceOrder.start).format("DD/MM/YYYY")}</Typography>
-                                            <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)' }}>
-                                                {dayjs(ticketServiceOrder.start).format("HH:mm")} - {dayjs(ticketServiceOrder.end).format("HH:mm")}
-                                            </Typography>
-                                        </Box>
-                                        <Typography variant="subtitle2" textAlign="right">
-                                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(ticketServiceOrder.total || 0)}
-                                        </Typography>
-                                        <Box textAlign="center">
-                                            {(() => {
-                                                const statusMap: any = {
-                                                    pending: { label: "Chờ xác nhận", color: "var(--palette-warning-dark)", bg: "var(--palette-warning-lighter)" },
-                                                    confirmed: { label: "Đã xác nhận", color: "var(--palette-info-dark)", bg: "var(--palette-info-lighter)" },
-                                                    delayed: { label: "Trễ hẹn", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
-                                                    "in-progress": { label: "Đang thực hiện", color: "var(--palette-primary-dark)", bg: "var(--palette-primary-lighter)" },
-                                                    completed: { label: "Hoàn thành", color: "var(--palette-success-dark)", bg: "var(--palette-success-lighter)" },
-                                                    cancelled: { label: "Đã hủy", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" }
-                                                };
-                                                const status = statusMap[ticketServiceOrder.ticketServiceOrderStatus] || { label: ticketServiceOrder.ticketServiceOrderStatus, color: 'var(--palette-text-disabled)', bg: "var(--palette-background-neutral)" };
-                                                return (
-                                                    <Chip
-                                                        label={status.label}
-                                                        size="small"
-                                                        sx={{
-                                                            borderRadius: "var(--shape-borderRadius-sm)",
-                                                            fontWeight: 700,
-                                                            fontSize: '0.6875rem',
-                                                            color: status.color,
-                                                            bgcolor: status.bg,
-                                                            height: '24px',
-                                                            '& .MuiChip-label': { px: '8px' }
-                                                        }}
-                                                    />
-                                                );
-                                            })()}
-                                        </Box>
+                                                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'var(--palette-primary-main)' }}>
+                                                    #{ticketServiceOrder.code}
+                                                </Typography>
+                                                <Box>
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{ticketServiceOrder.ticketServiceId?.name}</Typography>
+                                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
+                                                        Khách: {ticketServiceOrder.userId?.fullName}
+                                                    </Typography>
+                                                </Box>
+                                                <Box>
+                                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{dayjs(ticketServiceOrder.start).format("DD MMM, YYYY")}</Typography>
+                                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.7rem' }}>
+                                                        {dayjs(ticketServiceOrder.start).format("HH:mm")} - {dayjs(ticketServiceOrder.end).format("HH:mm")}
+                                                    </Typography>
+                                                </Box>
+                                                <Typography variant="subtitle1" textAlign="right" sx={{ fontWeight: 800 }}>
+                                                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(ticketServiceOrder.total || 0)}
+                                                </Typography>
+                                                <Box textAlign="center">
+                                                    {(() => {
+                                                        const statusMap: any = {
+                                                            pending: { label: "Chờ duyệt", color: "var(--palette-warning-dark)", bg: "var(--palette-warning-lighter)" },
+                                                            confirmed: { label: "Xác nhận", color: "var(--palette-info-dark)", bg: "var(--palette-info-lighter)" },
+                                                            delayed: { label: "Trễ hẹn", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
+                                                            "in-progress": { label: "Đang làm", color: "var(--palette-primary-dark)", bg: "var(--palette-primary-lighter)" },
+                                                            completed: { label: "Hoàn tất", color: "var(--palette-success-dark)", bg: "var(--palette-success-lighter)" },
+                                                            cancelled: { label: "Đã hủy", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" }
+                                                        };
+                                                        const status = statusMap[ticketServiceOrder.ticketServiceOrderStatus] || { label: ticketServiceOrder.ticketServiceOrderStatus, color: 'var(--palette-text-secondary)', bg: "var(--palette-background-neutral)" };
+                                                        return (
+                                                            <Chip
+                                                                label={status.label}
+                                                                size="small"
+                                                                sx={{
+                                                                    borderRadius: "8px",
+                                                                    fontWeight: 800,
+                                                                    fontSize: '0.65rem',
+                                                                    color: status.color,
+                                                                    bgcolor: status.bg,
+                                                                    height: '24px',
+                                                                    textTransform: 'uppercase'
+                                                                }}
+                                                            />
+                                                        );
+                                                    })()}
+                                                </Box>
+                                            </Box>
+                                        ))}
                                     </Box>
-                                ))}
-                            </Box>
-                        </Box>
+                                </Box>
+                            )}
+                        </Card>
                     )}
-                </Card>
-            )}
-
-            {currentTab === "security" && (
-                <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                    <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}>
-                        <Stack spacing={3} alignItems="flex-end">
-                            <Controller
-                                name="password"
-                                control={passwordForm.control}
-                                render={({ field, fieldState }) => (
-                                    <TextField
-                                        {...field}
-                                        type={showPassword ? "text" : "password"}
-                                        label="Mật khẩu mới"
-                                        fullWidth
-                                        error={!!fieldState.error}
-                                        helperText={fieldState.error?.message}
-                                        InputProps={{
-                                            endAdornment: (
-                                                <InputAdornment position="end">
-                                                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                                                        <Icon icon={showPassword ? "solar:eye-bold" : "solar:eye-closed-bold"} />
-                                                    </IconButton>
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
-                                )}
-                            />
-
-                            <Controller
-                                name="confirmPassword"
-                                control={passwordForm.control}
-                                render={({ field, fieldState }) => (
-                                    <TextField
-                                        {...field}
-                                        type={showConfirmPassword ? "text" : "password"}
-                                        label="Xác nhận mật khẩu mới"
-                                        fullWidth
-                                        error={!!fieldState.error}
-                                        helperText={fieldState.error?.message}
-                                        InputProps={{
-                                            endAdornment: (
-                                                <InputAdornment position="end">
-                                                    <IconButton onClick={() => setShowConfirmPassword(!showConfirmPassword)} edge="end">
-                                                        <Icon icon={showConfirmPassword ? "solar:eye-bold" : "solar:eye-closed-bold"} />
-                                                    </IconButton>
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
-                                )}
-                            />
-
-                            <LoadingButton
-                                type="submit"
-                                loading={isChangingPassword}
-                                label="Lưu thay đổi"
-                                sx={{
-                                    bgcolor: 'var(--palette-grey-800)',
-                                    color: 'common.white',
-                                    '&:hover': { bgcolor: 'var(--palette-grey-900)' }
-                                }}
-                            />
-                        </Stack>
-                    </form>
-                </Card>
-            )}
+                </Grid>
+            </Grid>
         </Box>
     );
 };

@@ -7,5 +7,5 @@ import com.daiphat.accountservice.application.dto.response.AuthResponseDTO;
 public interface LoginServicePort {
     AuthResponseDTO login(LoginRequestDTO request);
     AuthResponseDTO refreshToken(RefreshTokenRequestDTO request);
-    void logout(String username, String refreshToken);
+    void logout(String refreshToken);
 }

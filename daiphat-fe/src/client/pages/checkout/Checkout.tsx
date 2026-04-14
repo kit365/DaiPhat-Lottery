@@ -486,9 +486,9 @@ export const CheckoutPage = () => {
             if (response.code === "success") {
                 clearCart();
                 if (paymentMethod === "zalopay") {
-                    window.location.href = `http://localhost:3000/api/v1/client/order/payment-zalopay?orderCode=${response.orderCode}&phone=${response.phone}`;
+                    window.location.href = `${import.meta.env.VITE_BACKEND_URL}/client/order/payment-zalopay?orderCode=${response.orderCode}&phone=${response.phone}`;
                 } else if (paymentMethod === "vnpay") {
-                    window.location.href = `http://localhost:3000/api/v1/client/order/payment-vnpay?orderCode=${response.orderCode}&phone=${response.phone}`;
+                    window.location.href = `${import.meta.env.VITE_BACKEND_URL}/client/order/payment-vnpay?orderCode=${response.orderCode}&phone=${response.phone}`;
                 } else {
                     navigate(`/order/success?orderCode=${response.orderCode}&phone=${response.phone}`);
                 }

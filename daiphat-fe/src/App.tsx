@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import './App.css'
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from './client/layouts/Layout';
@@ -5,7 +6,11 @@ import { LayoutAdmin } from './admin/layouts/LayoutAdmin';
 import { ClientRoutes } from './client/routes/index';
 import { AdminRoutes, AdminAuthRoutes } from './admin/routes/index';
 import { useScrollToTop } from './client/hooks/useScrollToTop';
-import { ToastContainer } from 'react-toastify';
+import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
+import { AuthGuard } from './admin/components/auth/AuthGuard';
+import { GuestGuard } from './admin/components/auth/GuestGuard';
+
+const NotFoundPage = lazy(() => import("./client/pages/static/NotFound").then(m => ({ default: m.NotFound })));
 
 const ScrollToTopWrapper = ({ children }: { children: React.ReactNode }) => {
   useScrollToTop();
@@ -31,24 +36,27 @@ function App() {
           {/* Admin Routes */}
           <Route path='/admin'>
             {AdminAuthRoutes.map(({ path, element }) => (
-              <Route key={path} path={path} element={element} />
+              <Route 
+                key={path} 
+                path={path} 
+                element={<GuestGuard>{element}</GuestGuard>} 
+              />
             ))}
-            <Route element={<LayoutAdmin />}>
+            <Route element={<AuthGuard><LayoutAdmin /></AuthGuard>}>
               {AdminRoutes.map(({ path, element, index }: any) => (
                 <Route key={path || "index"} path={path} index={index} element={element} />
               ))}
             </Route>
 
           </Route>
+
+          {/* Standalone Routes */}
+          <Route path="*" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <NotFoundPage />
+            </Suspense>
+          } />
         </Routes>
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          pauseOnHover
-        />
       </ScrollToTopWrapper>
     </BrowserRouter>
   )

@@ -1,6 +1,6 @@
 import { apiApp } from "../../api";
 
-const BASE_URL = "/api/v1/client/booking/services";
+const BASE_URL = "/client/booking/services";
 
 export const getServices = async (params?: any) => {
     const response = await apiApp.get(BASE_URL, { params });

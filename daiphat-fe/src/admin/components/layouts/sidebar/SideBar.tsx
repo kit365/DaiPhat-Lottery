@@ -5,6 +5,7 @@ import { menuManagementData, menuOverviewData } from "../../../constants/sideBar
 import { IconButton } from "@mui/material";
 import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
+import { ROUTES } from "../../../constants/routes";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 
 export const SideBar = () => {
@@ -38,7 +39,7 @@ export const SideBar = () => {
                 ? "pl-[28px] pt-[20px] pb-[8px]"
                 : "py-[20px] flex justify-center"
             }>
-                <Link to="/" className="inline-block w-[40px] h-[40px]">
+                <Link to={ROUTES.ADMIN.DASHBOARD.ROOT} className="inline-block w-[40px] h-[40px]">
                     <LogoAdmin />
                 </Link>
             </div>

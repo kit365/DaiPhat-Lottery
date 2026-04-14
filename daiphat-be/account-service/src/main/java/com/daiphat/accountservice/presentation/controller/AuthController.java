@@ -37,17 +37,17 @@ public class AuthController {
     private static final String DEFAULT_COOKIE_NAME = "refresh_token";
 
     // Success Messages Consolidation
-    private final String MSG_POLICY_FETCHED = "Password policy retrieved successfully.";
+    private final String MSG_POLICY_FETCHED = "Lấy quy tắc mật khẩu thành công.";
     private final String MSG_OTP_SENT = "Mã xác thực đã được gửi về Email của bạn.";
     private final String MSG_OTP_RESENT = "Mã xác thực mới đã được gửi.";
-    private final String MSG_OTP_VERIFIED = "OTP verified successfully.";
-    private final String MSG_PW_RESET_SUCCESS = "Password has been reset successfully.";
-    private final String MSG_LOGIN_SUCCESS = "Login successful.";
-    private final String MSG_LOGOUT_SUCCESS = "Logged out successfully.";
+    private final String MSG_OTP_VERIFIED = "Xác thực mã OTP thành công.";
+    private final String MSG_PW_RESET_SUCCESS = "Mật khẩu của bạn đã được đặt lại thành công.";
+    private final String MSG_LOGIN_SUCCESS = "Đăng nhập thành công.";
+    private final String MSG_LOGOUT_SUCCESS = "Đăng xuất thành công.";
     private final String MSG_REGISTER_SUCCESS = "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản của bạn.";
     private final String MSG_VERIFY_EMAIL_SUCCESS = "Xác thực Email thành công! Tài khoản của bạn đã được kích hoạt. Vui lòng đăng nhập để tiếp tục.";
     private final String MSG_RESEND_VERIFY_SUCCESS = "Link xác thực mới đã được gửi về Email của bạn. Vui lòng kiểm tra lại!";
-    private final String MSG_REFRESH_TOKEN_SUCCESS = "Token refreshed successfully.";
+    private final String MSG_REFRESH_TOKEN_SUCCESS = "Làm mới mã định danh thành công.";
 
     private final AuthServicePort authServicePort;
     private final AuthProperties authProperties;
@@ -131,17 +131,11 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<ApiResponseDTO<Void>> logout(
             @CookieValue(name = "${daiphat.auth.cookie.name:" + DEFAULT_COOKIE_NAME + "}", required = false) String cookieRefreshToken,
-            @RequestBody(required = false) LogoutRequestDTO request,
             Principal principal) {
         
         log.info("REST request to logout");
         
-        String refreshTokenToUse = null;
-        if (request != null && request.getRefreshToken() != null && !request.getRefreshToken().isBlank()) {
-            refreshTokenToUse = request.getRefreshToken();
-        } else if (cookieRefreshToken != null && !cookieRefreshToken.isBlank()) {
-            refreshTokenToUse = cookieRefreshToken;
-        }
+        String refreshTokenToUse = cookieRefreshToken;
 
         if (principal == null && (refreshTokenToUse == null || refreshTokenToUse.isBlank())) {
             log.warn("Logout attempt without active session or refresh token.");
@@ -197,17 +191,11 @@ public class AuthController {
 
     @PostMapping("/refresh-token")
     public ResponseEntity<ApiResponseDTO<AuthResponseDTO>> refreshToken(
-            @CookieValue(name = "${daiphat.auth.cookie.name:" + DEFAULT_COOKIE_NAME + "}", required = false) String cookieRefreshToken,
-            @RequestBody(required = false) RefreshTokenRequestDTO request) {
+            @CookieValue(name = "${daiphat.auth.cookie.name:" + DEFAULT_COOKIE_NAME + "}", required = false) String cookieRefreshToken) {
                 
         log.info("REST request to refresh token");
         
-        String refreshTokenToUse = null;
-        if (cookieRefreshToken != null && !cookieRefreshToken.isBlank()) {
-            refreshTokenToUse = cookieRefreshToken;
-        } else if (request != null && request.getRefreshToken() != null) {
-            refreshTokenToUse = request.getRefreshToken();
-        }
+        String refreshTokenToUse = cookieRefreshToken;
         
         if (refreshTokenToUse == null || refreshTokenToUse.isBlank()) {
             throw new DomainException(ErrorCode.UNAUTHORIZED);

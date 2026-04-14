@@ -10,8 +10,8 @@ export const useCreateBooking = () => {
 export const useTimeSlots = (date: string, serviceId: string) => {
     return useQuery({
         queryKey: ["time-slots", date, serviceId],
-        queryFn: () => getTimeSlots(date, serviceId),
-        enabled: !!date && !!serviceId,
+        enabled: false, retry: false, queryFn: () => getTimeSlots(date, serviceId),
+         
         select: (data) => data.data.data // Assuming structure { code, message, data: [...] }
     });
 };

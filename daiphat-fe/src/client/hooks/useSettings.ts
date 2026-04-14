@@ -7,6 +7,8 @@ export const useSettingGeneral = () => {
         queryFn: async () => {
             const res = await getGeneralSettings();
             return res.data;
-        }
+        },
+        enabled: true,
+        retry: 1
     });
 };

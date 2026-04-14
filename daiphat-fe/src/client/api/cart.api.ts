@@ -1,6 +1,6 @@
 import { apiApp } from "../../api/index";
 
-const API_CART = "/api/v1/client/cart";
+const API_CART = "/client/cart";
 
 export const getCartDetails = async (cartItems: any[], userAddress?: any) => {
     try {
