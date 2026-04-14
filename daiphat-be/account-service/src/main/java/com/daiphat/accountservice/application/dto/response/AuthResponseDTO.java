@@ -1,6 +1,7 @@
 package com.daiphat.accountservice.application.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -16,6 +17,7 @@ public class AuthResponseDTO {
     @JsonProperty("expires_in")
     Long expiresIn;
     
+    @JsonIgnore
     @JsonProperty("refresh_token")
     String refreshToken;
     

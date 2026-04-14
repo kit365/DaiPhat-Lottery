@@ -22,7 +22,7 @@ spring:
         - id: account-service
           uri: ${daiphat.gateway.account-service-uri}
           predicates:
-            - Path=/api/v1/accounts/**, /api/v1/auth/**, /api/v1/test/**, /api/v1/users/**
+            - Path=/api/v1/accounts/**, /api/v1/auth/**, /api/v1/test/**, /api/v1/users/**, /api/v1/roles/**, /api/v1/permissions/**
         
         # Swagger Aggregator Routes
         - id: account-service-docs

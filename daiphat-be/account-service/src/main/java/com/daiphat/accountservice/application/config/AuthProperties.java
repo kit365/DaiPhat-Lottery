@@ -14,6 +14,7 @@ public class AuthProperties {
     private Email email = new Email();
     private PasswordPolicy passwordPolicy = new PasswordPolicy();
     private Cookie cookie = new Cookie();
+    private Keycloak keycloak = new Keycloak();
  
     @Data
     public static class Cookie {
@@ -65,5 +66,13 @@ public class AuthProperties {
     @Data
     public static class Token {
         private Duration rememberMeTtl = Duration.ofDays(30);
+    }
+
+    @Data
+    public static class Keycloak {
+        private String authServerUrl;
+        private String realm;
+        private String clientId;
+        private String clientSecret;
     }
 }

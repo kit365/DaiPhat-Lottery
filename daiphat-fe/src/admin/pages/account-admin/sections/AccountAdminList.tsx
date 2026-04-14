@@ -71,7 +71,7 @@ export const AccountAdminList = () => {
     const pagination = res?.data?.pagination || { totalRecords: 0 };
 
     const roleOptions = Array.isArray(roles) ? roles.map((role: any) => ({
-        value: role._id,
+        value: role.id || role._id,
         label: role.name
     })) : [];
 
@@ -187,7 +187,7 @@ export const AccountAdminList = () => {
             <Box sx={dataGridContainerStyles}>
                 <DataGrid
                     rows={accounts}
-                    getRowId={(row) => row._id}
+                    getRowId={(row) => row.id || row._id}
                     loading={isLoading}
                     columns={columns}
                     density="comfortable"

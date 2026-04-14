@@ -1,5 +1,6 @@
 package com.daiphat.accountservice.infrastructure.config.security;
 
+import com.daiphat.accountservice.application.port.out.RoleRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,10 +20,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final InternalAuthenticationEntryPoint internalAuthenticationEntryPoint;
+    private final RoleRepositoryPort roleRepositoryPort;
 
     @Bean
     public InternalAuthenticationFilter internalAuthenticationFilter() {
-        return new InternalAuthenticationFilter();
+        return new InternalAuthenticationFilter(roleRepositoryPort);
     }
 
     @Bean
