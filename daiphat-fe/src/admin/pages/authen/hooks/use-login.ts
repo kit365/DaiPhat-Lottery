@@ -7,14 +7,18 @@ import { ROUTES } from "../../../constants/routes";
 import { USER_ROLES } from "../../../../constants/role.constants";
 import { LoginResponse } from "../types/auth.type";
 import { User } from "../../../../types/user.type";
+import { LoginFormValues } from "../../../schemas/login.schema";
 
 export const useLogin = () => {
     const navigate = useNavigate();
     const loginStore = useAuthStore(state => state.login);
 
+    // Khởi tạo mutation xử lý luồng đăng nhập admin
     const mutation = useMutation({
-        mutationFn: authService.login,
+        // Gọi service login với dữ liệu từ form, mặc định tắt rememberMe để bảo mật vùng admin
+        mutationFn: (data: LoginFormValues) => authService.login({ ...data, rememberMe: false } as any),
         onSuccess: (response: LoginResponse) => {
+            // Log log phản hồi từ server để debug luồng phân quyền
             console.log("Login Response:", response);
             const isSuccess = response.isSuccess || response.success || response.code === "SUCCESS";
             

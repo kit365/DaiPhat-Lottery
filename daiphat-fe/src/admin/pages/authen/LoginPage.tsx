@@ -144,7 +144,7 @@ export const LoginPage = () => {
                                         render={({ field, fieldState }) => (
                                             <TextField
                                                 {...field}
-                                                label="Tên đăng nhập"
+                                                label="Tên đăng nhập hoặc Email"
                                                 fullWidth
                                                 disabled={isPending}
                                                 error={!!fieldState.error}

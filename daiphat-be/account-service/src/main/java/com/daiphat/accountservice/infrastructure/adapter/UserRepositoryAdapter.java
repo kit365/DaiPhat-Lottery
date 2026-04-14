@@ -36,14 +36,14 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
-    public Optional<UserModel> findByUsername(String username) {
-        return userRepository.findByUsername(username)
+    public Optional<UserModel> findByUsername(String usernameOrEmail) {
+        return userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
                 .map(userPersistenceMapper::toDomain);
     }
 
     @Override
-    public Optional<UUID> findIdByUsername(String username) {
-        return userRepository.findIdByUsername(username);
+    public Optional<UUID> findIdByUsername(String usernameOrEmail) {
+        return userRepository.findIdByUsernameOrEmail(usernameOrEmail);
     }
 
     @Override
