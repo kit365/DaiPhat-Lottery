@@ -5,13 +5,22 @@ import { Link, useLocation } from "react-router-dom";
 import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { useAuthStore } from "../../../../stores/useAuthStore";
+import { USER_ROLES } from "../../../../constants/role.constants";
 
 export const NavItem = memo(({ item }: { item: any }) => {
     const { t } = useTranslation();
     const { pathname } = useLocation();
     const { isOpen } = useSidebar();
     const { user } = useAuthStore();
-    const filteredChildren = item.children || [];
+
+    const isAdmin = user?.roles?.some(role => role.code === USER_ROLES.ADMIN);
+    const isStaff = user?.roles?.some(role => role.code.includes('STAFF'));
+
+    const filteredChildren = (item.children || []).filter((child: any) => {
+        if (child.hidden) return false;
+        if (isStaff && child.hideIfStaff) return false;
+        return isAdmin || !child.permission || user?.permissions?.includes(child.permission);
+    });
 
 
 
