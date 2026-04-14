@@ -79,18 +79,9 @@ class AuthServiceTest extends AuthTestBase {
                 .refreshToken(DEFAULT_REFRESH_TOKEN)
                 .build();
 
-        Authentication authentication = mock(Authentication.class);
-        SecurityContext securityContext = mock(SecurityContext.class);
-        when(authentication.getName()).thenReturn(DEFAULT_USERNAME);
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        SecurityContextHolder.setContext(securityContext);
- 
-        try {
-            authService.logout(request);
-            verify(loginService).logout(DEFAULT_USERNAME, DEFAULT_REFRESH_TOKEN);
-        } finally {
-            SecurityContextHolder.clearContext();
-        }
+        authService.logout(request);
+
+        verify(loginService).logout(DEFAULT_REFRESH_TOKEN);
     }
  
     @Test

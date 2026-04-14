@@ -58,7 +58,7 @@ class LoginServiceTest extends AuthTestBase {
  
         when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
-        when(authApplicationMapper.toResponse(keycloakResult)).thenReturn(AuthResponseDTO.builder().accessToken(DEFAULT_TOKEN).expiresIn(3600L).build());
+        when(authApplicationMapper.toResponse(eq(keycloakResult), eq(user))).thenReturn(AuthResponseDTO.builder().accessToken(DEFAULT_TOKEN).expiresIn(3600L).build());
  
         AuthResponseDTO response = loginService.login(request);
  
@@ -129,7 +129,7 @@ class LoginServiceTest extends AuthTestBase {
  
         when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
-        when(authApplicationMapper.toResponse(keycloakResult)).thenReturn(AuthResponseDTO.builder().build());
+        when(authApplicationMapper.toResponse(eq(keycloakResult), eq(user))).thenReturn(AuthResponseDTO.builder().build());
  
         loginService.login(request);
  
@@ -233,7 +233,7 @@ class LoginServiceTest extends AuthTestBase {
  
         when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
-        when(authApplicationMapper.toResponse(any())).thenReturn(AuthResponseDTO.builder().build());
+        when(authApplicationMapper.toResponse(any(), any())).thenReturn(AuthResponseDTO.builder().build());
  
         loginService.login(request);
  
@@ -276,7 +276,7 @@ class LoginServiceTest extends AuthTestBase {
  
         when(userService.fetchActiveUserByUsername(legitUser)).thenReturn(user);
         when(identityManagementPort.authenticate(legitUser, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
-        when(authApplicationMapper.toResponse(any())).thenReturn(AuthResponseDTO.builder().build());
+        when(authApplicationMapper.toResponse(any(), any())).thenReturn(AuthResponseDTO.builder().build());
  
         loginService.login(request);
  
@@ -297,7 +297,7 @@ class LoginServiceTest extends AuthTestBase {
  
         when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
-        when(authApplicationMapper.toResponse(any())).thenReturn(AuthResponseDTO.builder().expiresIn(rememberMeTtl.toSeconds()).build());
+        when(authApplicationMapper.toResponse(any(), any())).thenReturn(AuthResponseDTO.builder().expiresIn(rememberMeTtl.toSeconds()).build());
         when(authProperties.getToken().getRememberMeTtl()).thenReturn(rememberMeTtl);
  
         AuthResponseDTO response = loginService.login(request);
@@ -318,7 +318,7 @@ class LoginServiceTest extends AuthTestBase {
  
         when(userService.fetchActiveUserById(user.getId())).thenReturn(user);
         when(identityManagementPort.refreshToken(DEFAULT_REFRESH_TOKEN)).thenReturn(keycloakResult);
-        when(authApplicationMapper.toResponse(keycloakResult)).thenReturn(AuthResponseDTO.builder().accessToken(NEW_ACCESS_TOKEN).build());
+        when(authApplicationMapper.toResponse(eq(keycloakResult), eq(user))).thenReturn(AuthResponseDTO.builder().accessToken(NEW_ACCESS_TOKEN).build());
  
         AuthResponseDTO response = loginService.refreshToken(request);
  
@@ -398,9 +398,9 @@ class LoginServiceTest extends AuthTestBase {
     @DisplayName(TC_LOGOUT_PREFIX + "001: Người dùng đăng xuất thành công và phiên bị hủy")
     void tc_logout_001_success() {
         UserModel user = buildActiveUser();
-        when(userService.getIdByUsername(DEFAULT_USERNAME)).thenReturn(user.getId());
+        when(identityManagementPort.getUserIdFromToken(DEFAULT_REFRESH_TOKEN)).thenReturn(user.getId());
  
-        loginService.logout(DEFAULT_USERNAME, DEFAULT_REFRESH_TOKEN);
+        loginService.logout(DEFAULT_REFRESH_TOKEN);
  
         verify(tokenCachePort).revokeToken(user.getId().toString());
         verify(identityManagementPort).logout(DEFAULT_REFRESH_TOKEN);
@@ -410,28 +410,25 @@ class LoginServiceTest extends AuthTestBase {
     @DisplayName(TC_LOGOUT_PREFIX + "002: Đăng xuất xử lý token không hợp lệ/hết hạn nhẹ nhàng (Fail-safe)")
     void tc_logout_002_fail_safe() {
         UserModel user = buildActiveUser();
-        when(userService.getIdByUsername(DEFAULT_USERNAME)).thenReturn(user.getId());
+        when(identityManagementPort.getUserIdFromToken(DEFAULT_REFRESH_TOKEN)).thenReturn(user.getId());
  
         doThrow(new DomainException(ErrorCode.INTERNAL_SERVER_ERROR))
                 .when(identityManagementPort).logout(anyString());
  
-        loginService.logout(DEFAULT_USERNAME, DEFAULT_REFRESH_TOKEN);
+        loginService.logout(DEFAULT_REFRESH_TOKEN);
  
         verify(tokenCachePort).revokeToken(user.getId().toString());
         verify(identityManagementPort).logout(DEFAULT_REFRESH_TOKEN);
     }
  
     @Test
-    @DisplayName(TC_LOGOUT_PREFIX + "003: Đăng xuất khi Refresh Token bị null (Local only)")
+    @DisplayName(TC_LOGOUT_PREFIX + "003: Đăng xuất khi Refresh Token bị null (Dừng xử lý)")
     void tc_logout_003_null_token() {
-        UserModel user = buildActiveUser();
-        when(userService.getIdByUsername(DEFAULT_USERNAME)).thenReturn(user.getId());
+        loginService.logout(null);
  
-        loginService.logout(DEFAULT_USERNAME, null);
- 
-        verify(tokenCachePort).revokeToken(user.getId().toString());
+        verify(tokenCachePort, never()).revokeToken(anyString());
         verify(identityManagementPort, never()).logout(anyString());
-        log.info("🎯 TC-LOGOUT-003: Null Refresh Token handled safely.");
+        log.info("🎯 TC-LOGOUT-003: Null Refresh Token handled safely (Short-circuit).");
     }
  
     private UserModel buildActiveUser() {

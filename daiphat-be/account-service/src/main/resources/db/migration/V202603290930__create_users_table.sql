@@ -18,7 +18,9 @@ CREATE TABLE IF NOT EXISTS roles (
 -- Seed Initial Roles using auto-generated IDs
 INSERT INTO roles (code, name, description) VALUES 
 ('ROLE_ADMIN', 'Administrator', 'Full system access'),
-('ROLE_USER', 'Standard User', 'Service consumer access')
+('ROLE_MEMBER', 'Standard Member', 'Service consumer access'),
+('ROLE_STAFF_SHIPPER', 'Staff Shipper', 'Shipping and delivery management'),
+('ROLE_STAFF_MANAGER', 'Staff Manager', 'General management and lottery operations')
 ON CONFLICT (code) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS users (

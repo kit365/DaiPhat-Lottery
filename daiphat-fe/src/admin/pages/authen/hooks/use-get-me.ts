@@ -1,24 +1,41 @@
 import { useQuery } from "@tanstack/react-query";
-import { authService } from "../services/auth.service";
+import { userService } from "../services/user.service";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { useEffect } from "react";
 
 export const useGetMe = () => {
-    const { token, set, logout } = useAuthStore();
-
+    const { token, user, set, logout } = useAuthStore();
+    
     const query = useQuery({
         queryKey: ["admin-me", token],
-        queryFn: authService.getMe,
-        enabled: !!token,
+        queryFn: userService.getMe,
+        // CHỈ GỌI API NẾU ĐÃ CÓ TOKEN NHƯNG CHƯA CÓ USER (VD: F5 TẢI LẠI TRANG)
+        enabled: !!token && !user,
         retry: 1,
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: 1000 * 60 * 10, // 10 minutes (RAM Cache)
+        gcTime: 1000 * 60 * 60,    // 1 hour
     });
 
     useEffect(() => {
         if (query.data) {
-            if (query.data.code === 200 && query.data.data) {
-                set({ user: query.data.data });
-            } else if (query.data.code === 401) {
+            const isSuccess = query.data.isSuccess || query.data.code === "SUCCESS";
+            if (isSuccess && query.data.data) {
+                const userData = query.data.data;
+                // Map fields from BE DTO to FE interface
+                const mappedUser = {
+                    ...userData,
+                    fullName: `${userData.firstName} ${userData.lastName}`,
+                    avatar: userData.avatarUrl || userData.avatar,
+                    roles: userData.role ? [userData.role] : userData.roles || [],
+                };
+                
+                // CHỈ UPDATE NẾU DỮ LIỆU THỰC SỰ KHÁC BIỆT
+                const currentUser = useAuthStore.getState().user;
+                if (JSON.stringify(currentUser) !== JSON.stringify(mappedUser)) {
+                    console.log("[useGetMe] User data changed, updating store...");
+                    set({ user: mappedUser });
+                }
+            } else if (!isSuccess && query.data.code === "UNAUTHORIZED") {
                 logout();
             }
         }

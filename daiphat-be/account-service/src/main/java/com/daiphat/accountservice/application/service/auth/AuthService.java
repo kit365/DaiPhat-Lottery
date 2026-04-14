@@ -37,10 +37,7 @@ public class AuthService implements AuthServicePort {
 
     @Override
     public void logout(LogoutRequestDTO request) {
-        String username = SecurityContextHolder.getContext().getAuthentication() != null 
-                ? SecurityContextHolder.getContext().getAuthentication().getName() 
-                : null;
-        loginService.logout(username, request.getRefreshToken());
+        loginService.logout(request.getRefreshToken());
     }
 
     @Override

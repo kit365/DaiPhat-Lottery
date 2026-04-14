@@ -1,5 +1,6 @@
 package com.daiphat.accountservice.infrastructure.config.security;
 
+import com.daiphat.accountservice.domain.model.enums.UserRole;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,6 +42,26 @@ public class InternalAuthenticationFilter extends OncePerRequestFilter {
                     .map(SimpleGrantedAuthority::new)
                     .collect(Collectors.toList());
 
+            // DP-32 Middleware: Reject MEMBER roles for admin-protected services
+            boolean isRestrictedRole = authorities.stream()
+                    .anyMatch(a -> a.getAuthority().equals(UserRole.MEMBER.getCode()));
+
+            String path = request.getRequestURI();
+            boolean isPublicPath = path.contains("/api/v1/auth/") || 
+                                 path.contains("/error") || 
+                                 path.contains("/actuator") || 
+                                 path.contains("/api-docs") || 
+                                 path.contains("/swagger-ui");
+
+            if (isRestrictedRole && !isPublicPath) {
+                log.warn("Blocked restricted role access to {}: {} (Role: {})", path, username, rolesString);
+                // We don't throw exception here to avoid breaking the filter chain abruptly, 
+                // but we don't set the Authentication, leading to 401/403 in SecurityConfig
+                // OR we can throw if we want immediate 403
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied for this role");
+                return;
+            }
+
             // Create Authentication object (principal is the username)
             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                     username,
@@ -49,7 +70,7 @@ public class InternalAuthenticationFilter extends OncePerRequestFilter {
             );
 
             SecurityContextHolder.getContext().setAuthentication(auth);
-            log.debug("Internal Authentication established for: {} (ID: {})", username, userId != null ? userId : "N/A");
+            log.debug("Internal Authentication established for: {} (ID: {})", username, userId);
         }
 
         filterChain.doFilter(request, response);
