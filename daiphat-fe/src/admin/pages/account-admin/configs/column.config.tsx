@@ -130,7 +130,7 @@ export const getColumnsConfig = (
                         <GridActionsCellItem
                             icon={<VisibilityIcon sx={{ fontSize: '1.25rem' }} />}
                             label="Chi tiết"
-                            onClick={() => onView(params.row._id)}
+                            onClick={() => onView(params.row.id || params.row._id)}
                             showInMenu
                             {...({
                                 sx: {
@@ -144,7 +144,7 @@ export const getColumnsConfig = (
                         <GridActionsCellItem
                             icon={<EditIcon sx={{ fontSize: '1.25rem' }} />}
                             label="Chỉnh sửa"
-                            onClick={() => onEdit(params.row._id)}
+                            onClick={() => onEdit(params.row.id || params.row._id)}
                             showInMenu
                             {...({
                                 sx: {
@@ -158,7 +158,7 @@ export const getColumnsConfig = (
                         <GridActionsCellItem
                             icon={<DeleteIcon sx={{ fontSize: '1.25rem', color: 'var(--palette-error-main)' }} />}
                             label="Xóa"
-                            onClick={() => onDelete(params.row._id)}
+                            onClick={() => onDelete(params.row.id || params.row._id)}
                             showInMenu
                             {...({
                                 sx: {

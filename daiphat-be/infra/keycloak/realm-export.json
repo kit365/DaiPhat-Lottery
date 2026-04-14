@@ -47,6 +47,7 @@
   ],
   "users": [
     {
+      "id": "0e44453a-1c44-445c-aedf-49d5eecf8a5d",
       "username": "admin",
       "enabled": true,
       "email": "admin@daiphat.com",
@@ -65,6 +66,7 @@
       ]
     },
     {
+      "id": "400fb13d-1ee8-40b3-920c-6ff52a0dd4ad",
       "username": "user",
       "enabled": true,
       "email": "user@daiphat.com",
@@ -82,7 +84,8 @@
       ]
     },
     {
-      "username": "shipper123",
+      "id": "6e44453a-1c44-445c-aedf-49d5eecf8a5d",
+      "username": "shipper",
       "enabled": true,
       "email": "shipper@daiphat.com",
       "firstName": "Super",
@@ -99,7 +102,8 @@
       ]
     },
     {
-      "username": "manager123",
+      "id": "7e44453a-1c44-445c-aedf-49d5eecf8a5d",
+      "username": "manager",
       "enabled": true,
       "email": "manager@daiphat.com",
       "firstName": "Super",

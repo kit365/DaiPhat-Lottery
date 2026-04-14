@@ -17,13 +17,15 @@ import RateReviewIcon from "@mui/icons-material/RateReview";
 import ChatIcon from "@mui/icons-material/Chat";
 
 
+import { PERMISSIONS } from "./permission.constants";
+
 export const menuOverviewData = [
     {
         id: "system",
         Icon: SettingsIcon,
         label: "Hệ thống",
         path: ROUTES.ADMIN.DASHBOARD.SYSTEM,
-        permission: "dashboard_view"
+        permission: PERMISSIONS.DASHBOARD.SYSTEM
     },
     {
         id: "analytics",
@@ -31,24 +33,24 @@ export const menuOverviewData = [
         label: "Phân tích",
         tKey: "admin.sidebar.analytics",
         path: ROUTES.ADMIN.DASHBOARD.ANALYTICS,
-        permission: "dashboard_view"
+        permission: PERMISSIONS.DASHBOARD.ANALYTICS
     },
     {
         id: "ecommerce",
         Icon: ShoppingCartIcon,
         label: "Bán hàng",
         path: ROUTES.ADMIN.DASHBOARD.ECOMMERCE,
-        permission: "dashboard_view"
+        permission: PERMISSIONS.DASHBOARD.ECOMMERCE
     },
     {
         id: "statistics",
         Icon: AssessmentIcon,
         label: "Thống kê chi tiết",
-        permission: "dashboard_view",
+        permission: PERMISSIONS.STATISTICS.REVENUE,
         children: [
-            { id: "gen-stats", label: "Doanh thu thuần", path: ROUTES.ADMIN.DASHBOARD.STATISTICS.GENERAL, permission: "dashboard_view" },
-            { id: "order-stats", label: "Đơn hàng", path: ROUTES.ADMIN.DASHBOARD.STATISTICS.ORDERS, permission: "dashboard_view" },
-            { id: "ticketService-stats", label: "Dịch vụ", path: ROUTES.ADMIN.DASHBOARD.STATISTICS.TICKET_SERVICES, permission: "dashboard_view" },
+            { id: "gen-stats", label: "Doanh thu thuần", path: ROUTES.ADMIN.DASHBOARD.STATISTICS.GENERAL, permission: PERMISSIONS.STATISTICS.REVENUE },
+            { id: "order-stats", label: "Đơn hàng", path: ROUTES.ADMIN.DASHBOARD.STATISTICS.ORDERS, permission: PERMISSIONS.STATISTICS.ORDER },
+            { id: "ticketService-stats", label: "Dịch vụ", path: ROUTES.ADMIN.DASHBOARD.STATISTICS.TICKET_SERVICES, permission: PERMISSIONS.STATISTICS.SERVICE },
         ]
     },
 ];
@@ -56,76 +58,25 @@ export const menuOverviewData = [
 
 export const menuManagementData = [
     {
-        id: "tickets",
-        label: "Vé số",
-        tKey: "admin.sidebar.tickets",
-        Icon: ExtensionIcon,
-        permission: "ticket_view",
-        children: [
-            { id: "list", label: "Kho vé số", tKey: "admin.sidebar.list", path: ROUTES.ADMIN.TICKETS.LIST, permission: "ticket_view" },
-            { id: "provider", label: "Nhà đài", tKey: "admin.sidebar.provider", path: ROUTES.ADMIN.TICKETS.PROVIDER, permission: "provider_view" },
-            { id: "category", label: "Loại hình xổ số", tKey: "admin.sidebar.category", path: ROUTES.ADMIN.TICKETS.CATEGORY, permission: "ticket_category_view" },
-            { id: "attribute", label: "Thông số vé", tKey: "admin.sidebar.attribute", path: ROUTES.ADMIN.TICKETS.ATTRIBUTE, permission: "ticket_attribute_view" },
-            { id: "expired", label: "Vé hết hạn quay", path: ROUTES.ADMIN.TICKETS.EXPIRED, permission: "ticket_view" },
-        ]
-    },
-    {
-        id: "ticketServices",
-        label: "Tiện ích / Tra vé",
-        Icon: ConfirmationNumberIcon,
-        permission: "ticketService_view",
-        children: [
-            { id: "list", label: "Danh sách tiện ích", path: ROUTES.ADMIN.TICKET_SERVICES.LIST, permission: "ticketService_view" },
-            { id: "create", label: "Tạo tiện ích mới", path: ROUTES.ADMIN.TICKET_SERVICES.CREATE, permission: "ticketService_create" },
-            { id: "category", label: "Danh mục tiện ích", path: ROUTES.ADMIN.TICKET_SERVICES.CATEGORIES, permission: "ticketService_category_view" },
-        ]
-    },
-    {
         id: "blogs",
         label: "Bài viết",
         tKey: "admin.sidebar.blogs",
         Icon: ArticleIcon,
-        permission: "blog_view",
+        permission: PERMISSIONS.ARTICLE.VIEW,
         children: [
-            { id: "list", label: "Danh sách bài viết", tKey: "admin.sidebar.blog_list", path: ROUTES.ADMIN.BLOGS.LIST, permission: "blog_view" },
-            { id: "category", label: "Danh mục bài viết", tKey: "admin.sidebar.blog_category", path: ROUTES.ADMIN.BLOGS.CATEGORIES, permission: "blog_category_view" },
+            { id: "list", label: "Danh sách bài viết", tKey: "admin.sidebar.blog_list", path: ROUTES.ADMIN.BLOGS.LIST, permission: PERMISSIONS.ARTICLE.VIEW },
+            { id: "category", label: "Danh mục bài viết", tKey: "admin.sidebar.blog_category", path: ROUTES.ADMIN.BLOGS.CATEGORIES, permission: PERMISSIONS.ARTICLE.VIEW },
         ]
-    },
-    {
-        id: "orders",
-        label: "Đơn mua hộ",
-        Icon: ArticleIcon,
-        path: ROUTES.ADMIN.ORDERS.LIST,
-        permission: "ticket_view",
-    },
-    {
-        id: "ticketServiceOrders",
-        label: "Đơn hàng / Mua hộ",
-        tKey: "admin.sidebar.ticketServiceOrders",
-        Icon: ScheduleSendIcon,
-        permission: "ticketServiceOrder_view",
-        children: [
-            { id: "list", label: "Danh sách đơn hàng", tKey: "admin.sidebar.ticketServiceOrder_list", path: ROUTES.ADMIN.TICKET_SERVICE_ORDERS.LIST, permission: "ticketServiceOrder_view" },
-            { id: "create", label: "Tạo đơn mua hộ", path: ROUTES.ADMIN.TICKET_SERVICE_ORDERS.CREATE, permission: "ticketServiceOrder_create" },
-            { id: "config", label: "Cấu hình vé số", path: ROUTES.ADMIN.TICKET_SERVICE_ORDERS.CONFIG, permission: "ticketServiceOrder_view" },
-        ]
-    },
-    {
-        id: "reviews",
-        label: "Đánh giá",
-        Icon: RateReviewIcon,
-        path: ROUTES.ADMIN.REVIEWS,
-        permission: "ticket_view"
     },
     {
         id: "roles",
         label: "Nhóm quyền",
         tKey: "admin.sidebar.roles",
         Icon: SecurityIcon,
-        permission: "role_view",
+        permission: PERMISSIONS.ROLE.VIEW,
         children: [
-            { id: "list", label: "Danh sách", tKey: "admin.sidebar.role_list", path: ROUTES.ADMIN.ROLES.LIST, permission: "role_view" },
-            { id: "create", label: "Tạo mới", tKey: "admin.sidebar.role_create", path: ROUTES.ADMIN.ROLES.CREATE, permission: "role_create" },
+            { id: "list", label: "Danh sách", tKey: "admin.sidebar.role_list", path: ROUTES.ADMIN.ROLES.LIST, permission: PERMISSIONS.ROLE.VIEW },
+            { id: "create", label: "Tạo mới", tKey: "admin.sidebar.role_create", path: ROUTES.ADMIN.ROLES.CREATE, permission: PERMISSIONS.ROLE.CREATE },
         ]
     },
     {
@@ -133,11 +84,10 @@ export const menuManagementData = [
         label: "Tài khoản quản trị",
         tKey: "admin.sidebar.accounts",
         Icon: PeopleIcon,
-        permission: "account_admin_view",
-        hideIfStaff: true,
+        permission: PERMISSIONS.ACCOUNT.VIEW,
         children: [
-            { id: "list", label: "Danh sách", tKey: "admin.sidebar.account_list", path: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST, permission: "account_admin_view" },
-            { id: "create", label: "Tạo mới", tKey: "admin.sidebar.account_create", path: ROUTES.ADMIN.ACCOUNTS.ADMIN.CREATE, permission: "account_admin_create" },
+            { id: "account-list", label: "Danh sách", tKey: "admin.sidebar.account_list", path: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST, permission: PERMISSIONS.ACCOUNT.VIEW },
+            { id: "account-create", label: "Tạo mới", tKey: "admin.sidebar.account_create", path: ROUTES.ADMIN.ACCOUNTS.ADMIN.CREATE, permission: PERMISSIONS.ACCOUNT.CREATE },
         ]
     },
     {
@@ -145,12 +95,65 @@ export const menuManagementData = [
         label: "Thành viên",
         tKey: "admin.sidebar.members",
         Icon: PeopleIcon,
-        permission: "account_user_view",
-        hideIfStaff: true,
+        permission: PERMISSIONS.USER.VIEW,
         children: [
-            { id: "member-list", label: "Danh sách", tKey: "admin.sidebar.member_list", path: ROUTES.ADMIN.ACCOUNTS.MEMBER.LIST, permission: "account_user_view" },
-            { id: "member-create", label: "Tạo mới", tKey: "admin.sidebar.member_create", path: ROUTES.ADMIN.ACCOUNTS.MEMBER.CREATE, permission: "account_user_create" },
+            { id: "member-list", label: "Danh sách", tKey: "admin.sidebar.member_list", path: ROUTES.ADMIN.ACCOUNTS.MEMBER.LIST, permission: PERMISSIONS.USER.VIEW },
+            { id: "member-create", label: "Tạo mới", tKey: "admin.sidebar.member_create", path: ROUTES.ADMIN.ACCOUNTS.MEMBER.CREATE, permission: PERMISSIONS.USER.CREATE },
         ]
+    },
+];
+
+export const menuDevelopmentData = [
+    {
+        id: "tickets",
+        label: "Vé số",
+        tKey: "admin.sidebar.tickets",
+        Icon: ExtensionIcon,
+        permission: PERMISSIONS.TICKET.VIEW,
+        children: [
+            { id: "list", label: "Kho vé số", tKey: "admin.sidebar.list", path: ROUTES.ADMIN.TICKETS.LIST, permission: PERMISSIONS.TICKET.VIEW },
+            { id: "provider", label: "Nhà đài", tKey: "admin.sidebar.provider", path: ROUTES.ADMIN.TICKETS.PROVIDER, permission: PERMISSIONS.PROVIDER.VIEW },
+            { id: "category", label: "Loại hình xổ số", tKey: "admin.sidebar.category", path: ROUTES.ADMIN.TICKETS.CATEGORY, permission: PERMISSIONS.TICKET.VIEW },
+            { id: "attribute", label: "Thông số vé", tKey: "admin.sidebar.attribute", path: ROUTES.ADMIN.TICKETS.ATTRIBUTE, permission: PERMISSIONS.TICKET.VIEW },
+            { id: "expired", label: "Vé hết hạn quay", path: ROUTES.ADMIN.TICKETS.EXPIRED, permission: PERMISSIONS.TICKET.VIEW },
+        ]
+    },
+    {
+        id: "ticketServices",
+        label: "Tiện ích / Tra vé",
+        Icon: ConfirmationNumberIcon,
+        permission: PERMISSIONS.TICKET_SERVICE.VIEW,
+        children: [
+            { id: "list", label: "Danh sách tiện ích", path: ROUTES.ADMIN.TICKET_SERVICES.LIST, permission: PERMISSIONS.TICKET_SERVICE.VIEW },
+            { id: "create", label: "Tạo tiện ích mới", path: ROUTES.ADMIN.TICKET_SERVICES.CREATE, permission: PERMISSIONS.TICKET_SERVICE.CREATE },
+            { id: "category", label: "Danh mục tiện ích", path: ROUTES.ADMIN.TICKET_SERVICES.CATEGORIES, permission: PERMISSIONS.TICKET_SERVICE.VIEW },
+        ]
+    },
+    {
+        id: "orders",
+        label: "Đơn mua hộ",
+        Icon: ArticleIcon,
+        path: ROUTES.ADMIN.ORDERS.LIST,
+        permission: PERMISSIONS.TICKET.VIEW,
+    },
+    {
+        id: "ticketServiceOrders",
+        label: "Đơn hàng / Mua hộ",
+        tKey: "admin.sidebar.ticketServiceOrders",
+        Icon: ScheduleSendIcon,
+        permission: PERMISSIONS.TICKET_SERVICE_ORDER.VIEW,
+        children: [
+            { id: "list", label: "Danh sách đơn hàng", tKey: "admin.sidebar.ticketServiceOrder_list", path: ROUTES.ADMIN.TICKET_SERVICE_ORDERS.LIST, permission: PERMISSIONS.TICKET_SERVICE_ORDER.VIEW },
+            { id: "create", label: "Tạo đơn mua hộ", path: ROUTES.ADMIN.TICKET_SERVICE_ORDERS.CREATE, permission: PERMISSIONS.TICKET_SERVICE_ORDER.VIEW },
+            { id: "config", label: "Cấu hình vé số", path: ROUTES.ADMIN.TICKET_SERVICE_ORDERS.CONFIG, permission: PERMISSIONS.TICKET_SERVICE_ORDER.VIEW },
+        ]
+    },
+    {
+        id: "reviews",
+        label: "Đánh giá",
+        Icon: RateReviewIcon,
+        path: ROUTES.ADMIN.REVIEWS,
+        permission: PERMISSIONS.TICKET.VIEW
     },
     {
         id: "chat",
@@ -158,17 +161,17 @@ export const menuManagementData = [
         tKey: "admin.sidebar.chat",
         Icon: ChatIcon,
         path: ROUTES.ADMIN.CHAT,
-        permission: "dashboard_view"
+        permission: PERMISSIONS.CHAT.VIEW
     },
     {
         id: "coupons",
         label: "Mã giảm giá",
         tKey: "admin.sidebar.coupons",
         Icon: DiscountIcon,
-        permission: "coupon_view",
+        permission: PERMISSIONS.COUPON.VIEW,
         children: [
-            { id: "list", label: "Danh sách mã giảm giá", tKey: "admin.sidebar.coupon_list", path: ROUTES.ADMIN.COUPONS.LIST, permission: "coupon_view" },
-            { id: "create", label: "Tạo mã giảm giá", tKey: "admin.sidebar.coupon_create", path: ROUTES.ADMIN.COUPONS.CREATE, permission: "coupon_create" },
+            { id: "list", label: "Danh sách mã giảm giá", tKey: "admin.sidebar.coupon_list", path: ROUTES.ADMIN.COUPONS.LIST, permission: PERMISSIONS.COUPON.VIEW },
+            { id: "create", label: "Tạo mã giảm giá", tKey: "admin.sidebar.coupon_create", path: ROUTES.ADMIN.COUPONS.CREATE, permission: PERMISSIONS.COUPON.CREATE },
         ]
     },
     {
@@ -177,7 +180,7 @@ export const menuManagementData = [
         tKey: "admin.sidebar.calendar",
         Icon: CalendarMonthIcon,
         path: ROUTES.ADMIN.CALENDAR,
-        permission: "calendar_view"
+        permission: PERMISSIONS.CALENDAR.VIEW
     },
     {
         id: "settings",
@@ -185,14 +188,14 @@ export const menuManagementData = [
         tKey: "admin.sidebar.settings",
         Icon: SettingsIcon,
         path: ROUTES.ADMIN.DASHBOARD.SETTINGS.ROOT,
-        permission: "settings_view",
+        permission: PERMISSIONS.SETTINGS.VIEW,
         children: [
             { id: "settings-general", label: "Cài đặt chung", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.GENERAL },
             { id: "settings-shipping", label: "Vận chuyển", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SHIPPING },
             { id: "settings-payment", label: "Thanh toán", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.PAYMENT },
             { id: "settings-social", label: "Mạng xã hội", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SOCIAL },
             { id: "settings-app-password", label: "Mật khẩu ứng dụng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.APP_PASSWORD },
-            { id: "settings-ticketSubtype", label: "Tỉnh thành quay thưởng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.TICKET_SUBTYPE, permission: "ticketSubtype_view" },
+            { id: "settings-ticketSubtype", label: "Tỉnh thành quay thưởng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.TICKET_SUBTYPE, permission: PERMISSIONS.SETTINGS.VIEW },
         ]
     }
 ];

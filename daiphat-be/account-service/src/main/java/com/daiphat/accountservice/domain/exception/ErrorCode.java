@@ -51,7 +51,8 @@ public enum ErrorCode {
     INVALID_KEY("SYS_004", "Mã lỗi không hợp lệ.", HttpStatus.BAD_REQUEST),
     SYNC_FAILED("SYS_005", "Đồng bộ dữ liệu thất bại.", HttpStatus.INTERNAL_SERVER_ERROR),
     INVALID_INPUT("SYS_006", "Dữ liệu nhập vào không hợp lệ.", HttpStatus.BAD_REQUEST),
-    PASSWORD_CONFIRM_MISMATCH("AUTH_030", "Xác nhận mật khẩu không khớp", HttpStatus.BAD_REQUEST);
+    PASSWORD_CONFIRM_MISMATCH("AUTH_030", "Xác nhận mật khẩu không khớp", HttpStatus.BAD_REQUEST),
+    ACCESS_DENIED("AUTH_031", "Bạn không có quyền truy cập tài nguyên này.", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final String message;

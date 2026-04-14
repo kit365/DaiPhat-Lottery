@@ -17,7 +17,7 @@ spring:
         - id: account-service
           uri: ${daiphat.gateway.account-service-uri}
           predicates:
-            - Path=/api/v1/accounts/**, /api/v1/auth/**, /api/v1/points/**, /api/v1/rewards/**, /api/v1/banks/**, /api/v1/bank-information/**, /api/v1/users/**
+            - Path=/api/v1/accounts/**, /api/v1/auth/**, /api/v1/points/**, /api/v1/rewards/**, /api/v1/banks/**, /api/v1/bank-information/**, /api/v1/users/**, /api/v1/roles/**, /api/v1/permissions/**
 
         # Account Service Swagger Docs
         - id: account-service-docs

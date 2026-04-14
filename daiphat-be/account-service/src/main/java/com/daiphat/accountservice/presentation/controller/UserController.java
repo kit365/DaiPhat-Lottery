@@ -8,6 +8,7 @@ import com.daiphat.accountservice.presentation.constants.ApiConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
@@ -32,6 +33,7 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('user:view') or hasAuthority('account:view')")
     public ResponseEntity<ApiResponseDTO<UserResponseDTO>> getById(@PathVariable UUID id) {
         log.info("REST request to get user by id: {}", id);
         return ResponseEntity.ok(ApiResponseDTO.<UserResponseDTO>builder()
@@ -40,6 +42,7 @@ public class UserController {
     }
 
     @GetMapping("/username/{username}")
+    @PreAuthorize("hasAuthority('user:view') or hasAuthority('account:view')")
     public ResponseEntity<ApiResponseDTO<UserResponseDTO>> getByUsername(@PathVariable String username) {
         log.info("REST request to get user by username: {}", username);
         return ResponseEntity.ok(ApiResponseDTO.<UserResponseDTO>builder()
@@ -48,6 +51,7 @@ public class UserController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('user:view') or hasAuthority('account:view')")
     public ResponseEntity<ApiResponseDTO<List<UserResponseDTO>>> getAll() {
         log.info("REST request to get all users");
         return ResponseEntity.ok(ApiResponseDTO.<List<UserResponseDTO>>builder()
@@ -56,6 +60,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('user:delete') or hasAuthority('account:delete')")
     public ResponseEntity<ApiResponseDTO<Void>> delete(@PathVariable UUID id) {
         log.info("REST request to delete user by id: {}", id);
         userServicePort.delete(id);

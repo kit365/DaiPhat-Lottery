@@ -13,6 +13,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { PERMISSIONS_GROUPED } from "../../constants/roles";
 import { useTicketServices } from "../ticket-service/hooks/useTicketService";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
+import { PermissionMatrix } from "./sections/PermissionMatrix";
 import { SwitchButton } from "../../components/ui/SwitchButton";
 import Accordion from '@mui/material/Accordion';
 import AccordionSummary from '@mui/material/AccordionSummary';
@@ -260,91 +261,21 @@ export const RoleEditPage = () => {
                             onToggle={toggle(setExpandedPermissions)}
                         >
                             <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
-                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: "32px" }}>
-                                    <Box>
-                                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, mb: 2 }}>{t("admin.role.permission_list")}</Typography>
-                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                            {PERMISSIONS_GROUPED.map((group) => {
-                                                const groupIds = group.permissions.map(p => p.id);
-                                                const isAllChecked = groupIds.every(id => currentPermissions.includes(id));
-                                                const isSomeChecked = groupIds.some(id => currentPermissions.includes(id)) && !isAllChecked;
-
-                                                return (
-                                                    <Accordion
-                                                        key={group.module}
-                                                        disableGutters
-                                                        sx={{
-                                                            boxShadow: 'none',
-                                                            '&:before': { display: 'none' },
-                                                            border: '1px solid var(--palette-text-disabled)3d',
-                                                            borderRadius: '8px !important',
-                                                            overflow: 'hidden'
-                                                        }}
-                                                    >
-                                                        <AccordionSummary
-                                                            expandIcon={<ExpandMoreIcon fontSize="small" />}
-                                                            sx={{
-                                                                bgcolor: 'var(--palette-background-neutral)',
-                                                                minHeight: '48px !important',
-                                                                '& .MuiAccordionSummary-content': { m: '0 !important', alignItems: 'center' }
-                                                            }}
-                                                        >
-                                                            <Checkbox
-                                                                size="small"
-                                                                checked={isAllChecked}
-                                                                indeterminate={isSomeChecked}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                                onChange={(e) => handleSelectGroup(groupIds, e.target.checked)}
-                                                                sx={{ mr: 1, p: 0.5 }}
-                                                            />
-                                                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 700 }}>
-                                                                {group.module}
-                                                            </Typography>
-                                                        </AccordionSummary>
-                                                        <AccordionDetails sx={{ p: 2, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1 }}>
-                                                            <Controller
-                                                                name="permissions"
-                                                                control={control}
-                                                                render={({ field }) => (
-                                                                    <>
-                                                                        {group.permissions.map((perm) => (
-                                                                            <FormControlLabel
-                                                                                key={perm.id}
-                                                                                control={
-                                                                                    <Checkbox
-                                                                                        size="small"
-                                                                                        checked={field.value.indexOf(perm.id) > -1}
-                                                                                        onChange={(e) => {
-                                                                                            const newValue = e.target.checked
-                                                                                                ? [...field.value, perm.id]
-                                                                                                : field.value.filter((id: string) => id !== perm.id);
-                                                                                            field.onChange(newValue);
-                                                                                        }}
-                                                                                    />
-                                                                                }
-                                                                                label={<Typography sx={{ fontSize: '0.8125rem' }}>{perm.name}</Typography>}
-                                                                                sx={{ ml: 0 }}
-                                                                            />
-                                                                        ))}
-                                                                    </>
-                                                                )}
-                                                            />
-                                                        </AccordionDetails>
-                                                    </Accordion>
-                                                );
-                                            })}
-                                        </Box>
-                                    </Box>
-
-                                    <Box>
-                                        <Box sx={{ mb: 3 }}>
-                                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, mb: 1 }}>Loại nhóm quyền</Typography>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                                    <Box sx={{ p: 2, bgcolor: 'var(--palette-background-neutral)', borderRadius: 2, border: '1px solid var(--palette-divider)' }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: isStaff ? 3 : 0 }}>
+                                            <Box>
+                                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'text.primary' }}>{t("admin.role.type")}</Typography>
+                                                <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary', mt: 0.5 }}>
+                                                    Bật tùy chọn này để đánh dấu đây là Nhóm quyền của hệ thống Nhân sự / Kỹ thuật viên (cho phép gán Kỹ năng chuyên môn).
+                                                </Typography>
+                                            </Box>
                                             <Controller
                                                 name="isStaff"
                                                 control={control}
                                                 render={({ field }) => (
                                                     <FormControlLabel
-                                                        sx={{ ml: 0 }}
+                                                        sx={{ m: 0 }}
                                                         control={
                                                             <Switch
                                                                 {...field}
@@ -361,15 +292,15 @@ export const RoleEditPage = () => {
                                                                 }}
                                                             />
                                                         }
-                                                        label={<Typography sx={{ fontSize: '0.875rem' }}>Nhân viên kỹ thuật</Typography>}
+                                                        label={<Typography sx={{ fontSize: '0.875rem', fontWeight: 600, ml: 1 }}>{t("admin.role.is_staff")}</Typography>}
                                                     />
                                                 )}
                                             />
                                         </Box>
 
                                         {isStaff && (
-                                            <Box>
-                                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, mb: 1 }}>Kỹ năng chuyên môn</Typography>
+                                            <Box sx={{ borderTop: '1px dashed var(--palette-divider)', pt: 3 }}>
+                                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, mb: 1.5 }}>{t("admin.role.skills")}</Typography>
                                                 <Controller
                                                     name="serviceIds"
                                                     control={control}
@@ -378,44 +309,50 @@ export const RoleEditPage = () => {
                                                             <Select
                                                                 {...field}
                                                                 multiple
-                                                                renderValue={(selected: any) => (
-                                                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                                        {selected.map((serviceId: string) => {
-                                                                            const service = services.find((s: any) => s._id === serviceId);
-                                                                            return (
-                                                                                <Chip
-                                                                                    key={serviceId}
-                                                                                    label={service?.name || `ID: ${serviceId}`}
-                                                                                    size="small"
-                                                                                    onDelete={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        const newValue = field.value.filter((id: string) => id !== serviceId);
-                                                                                        field.onChange(newValue);
-                                                                                    }}
-                                                                                    onMouseDown={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                    }}
-                                                                                    sx={{
-                                                                                        height: 24,
-                                                                                        fontSize: '0.75rem',
-                                                                                        bgcolor: 'rgba(0, 167, 111, 0.16)',
-                                                                                        color: 'rgb(0, 120, 103)',
-                                                                                        borderRadius: "var(--shape-borderRadius-sm)",
-                                                                                        fontWeight: 700,
-                                                                                        '& .MuiChip-deleteIcon': {
+                                                                displayEmpty
+                                                                renderValue={(selected: any) => {
+                                                                    if (selected.length === 0) {
+                                                                        return <Typography color="text.disabled" sx={{ fontSize: '0.875rem' }}>Chọn kỹ năng chuyên môn hỗ trợ...</Typography>;
+                                                                    }
+                                                                    return (
+                                                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                                                            {selected.map((serviceId: string) => {
+                                                                                const service = services.find((s: any) => s._id === serviceId);
+                                                                                return (
+                                                                                    <Chip
+                                                                                        key={serviceId}
+                                                                                        label={service?.name || `ID: ${serviceId}`}
+                                                                                        size="small"
+                                                                                        onDelete={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            const newValue = field.value.filter((id: string) => id !== serviceId);
+                                                                                            field.onChange(newValue);
+                                                                                        }}
+                                                                                        onMouseDown={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                        }}
+                                                                                        sx={{
+                                                                                            height: 24,
+                                                                                            fontSize: '0.75rem',
+                                                                                            bgcolor: 'rgba(0, 167, 111, 0.16)',
                                                                                             color: 'rgb(0, 120, 103)',
-                                                                                            fontSize: 16,
-                                                                                            '&:hover': {
-                                                                                                color: 'rgb(183, 29, 24)',
+                                                                                            borderRadius: "var(--shape-borderRadius-sm)",
+                                                                                            fontWeight: 700,
+                                                                                            '& .MuiChip-deleteIcon': {
+                                                                                                color: 'rgb(0, 120, 103)',
+                                                                                                fontSize: 16,
+                                                                                                '&:hover': {
+                                                                                                    color: 'rgb(183, 29, 24)',
+                                                                                                }
                                                                                             }
-                                                                                        }
-                                                                                    }}
-                                                                                />
-                                                                            );
-                                                                        })}
-                                                                    </Box>
-                                                                )}
-                                                                sx={{ fontSize: '0.875rem' }}
+                                                                                        }}
+                                                                                    />
+                                                                                );
+                                                                            })}
+                                                                        </Box>
+                                                                    );
+                                                                }}
+                                                                sx={{ fontSize: '0.875rem', bgcolor: 'background.paper' }}
                                                             >
                                                                 {services.map((service: any) => (
                                                                     <MenuItem key={service._id} value={service._id} sx={{ fontSize: '0.875rem' }}>
@@ -429,6 +366,13 @@ export const RoleEditPage = () => {
                                                 />
                                             </Box>
                                         )}
+                                    </Box>
+
+                                    <Box>
+                                        <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, mb: 3 }}>
+                                            {t("admin.role.permission_list")}
+                                        </Typography>
+                                        <PermissionMatrix control={control} name="permissions" />
                                     </Box>
                                 </Box>
                             </Stack>

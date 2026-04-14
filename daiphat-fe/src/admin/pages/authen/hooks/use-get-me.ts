@@ -9,9 +9,14 @@ export const useGetMe = () => {
     const query = useQuery({
         queryKey: ["admin-me", token],
         queryFn: userService.getMe,
-        // CHỈ GỌI API NẾU ĐÃ CÓ TOKEN NHƯNG CHƯA CÓ USER (VD: F5 TẢI LẠI TRANG)
-        enabled: !!token && !user,
-        retry: 1,
+        // LUÔN GỌI API NẾU ĐÃ CÓ TOKEN ĐỂ CẬP NHẬT QUYỀN MỚI NHẤT
+        enabled: !!token,
+        retry: (failureCount, error: any) => {
+            // Nếu là lỗi 500 hoặc mất kết nối thì đừng retry nữa cho mệt máy
+            if (error?.response?.status >= 500 || !error?.response) return false;
+            return failureCount < 1;
+        },
+        refetchOnWindowFocus: false, // Tắt tự động refetch khi focus lại tab (tránh spam khi backend tèo)
         staleTime: 1000 * 60 * 10, // 10 minutes (RAM Cache)
         gcTime: 1000 * 60 * 60,    // 1 hour
     });

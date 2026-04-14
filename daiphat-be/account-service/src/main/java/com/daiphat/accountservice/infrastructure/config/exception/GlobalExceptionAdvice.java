@@ -5,6 +5,8 @@ import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -41,6 +43,20 @@ public class GlobalExceptionAdvice {
                data instanceof Number || 
                data instanceof Boolean ||
                data instanceof com.daiphat.accountservice.application.dto.response.SafeResponseData;
+    }
+
+    @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
+    public ResponseEntity<ApiResponseDTO<?>> handleAccessDeniedException(Exception e) {
+        log.error("Access denied: {}", e.getMessage());
+        ErrorCode errorCode = ErrorCode.ACCESS_DENIED;
+
+        ApiResponseDTO<Void> apiResponse = ApiResponseDTO.<Void>builder()
+                .isSuccess(false)
+                .code(errorCode.getCode())
+                .message(errorCode.getMessage())
+                .build();
+
+        return new ResponseEntity<>(apiResponse, errorCode.getStatus());
     }
 
     @ExceptionHandler(AuthenticationException.class)
