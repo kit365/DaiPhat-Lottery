@@ -1,65 +1,15 @@
-import { apiApp } from "../../api/index";
+import { apiApp } from "../../api";
+import { ClientAuthResponse, LoginPayload, RegisterPayload } from "../types/auth.types";
 
-const API_AUTH = "/client/auth";
+const AUTH_ENDPOINT = "/auth";
 
-export const login = async (data: any) => {
-    try {
-        const response = await apiApp.post(`${API_AUTH}/login`, data);
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
-};
-
-export const register = async (data: any) => {
-    try {
-        const response = await apiApp.post(`${API_AUTH}/register`, data);
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
-};
-
-export const logout = async () => {
-    try {
-        const response = await apiApp.post(`${API_AUTH}/logout`);
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
-};
-
-export const forgotPassword = async (data: any) => {
-    try {
-        const response = await apiApp.post(`${API_AUTH}/forgot-password`, data);
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
-};
-
-export const verifyOTP = async (data: any) => {
-    try {
-        const response = await apiApp.post(`${API_AUTH}/otp-password`, data);
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
-};
-
-export const resetPassword = async (data: any) => {
-    try {
-        const response = await apiApp.post(`${API_AUTH}/reset-password`, data);
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
-};
-export const getMe = async () => {
-    try {
-        const response = await apiApp.get(`${API_AUTH}/me`);
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
+export const clientAuthApi = {
+  login: async (payload: LoginPayload): Promise<ClientAuthResponse> => {
+    const response = await apiApp.post<ClientAuthResponse>(`${AUTH_ENDPOINT}/login`, payload);
+    return response.data;
+  },
+  register: async (payload: RegisterPayload): Promise<ClientAuthResponse> => {
+    const response = await apiApp.post<ClientAuthResponse>(`${AUTH_ENDPOINT}/register`, payload);
+    return response.data;
+  },
 };
