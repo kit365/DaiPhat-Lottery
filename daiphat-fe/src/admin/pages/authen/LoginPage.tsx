@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Box, Button, Container, TextField, ThemeProvider, Typography, InputAdornment, IconButton, Paper } from "@mui/material"
+import { Box, Button, Container, TextField, ThemeProvider, Typography, InputAdornment, IconButton, Paper, useMediaQuery, useTheme, CircularProgress } from "@mui/material"
 import { Link } from "react-router-dom"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -8,7 +8,6 @@ import { SettingsIcon, EyeIcon, NoEyeIcon } from "../../assets/icons"
 import { adminTheme } from "../../config/theme"
 import { loginSchema, LoginFormValues } from "../../schemas/login.schema"
 import { useLogin } from "./hooks/use-login"
-import { ToastContainer } from "react-toastify"
 import { motion, AnimatePresence } from "framer-motion"
 
 const GoogleIcon = () => (
@@ -21,6 +20,9 @@ const GoogleIcon = () => (
 )
 
 export const LoginPage = () => {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
     const [showPassword, setShowPassword] = useState(false);
     const handleTogglePasswordVisibility = () => {
         setShowPassword(prev => !prev)
@@ -32,7 +34,7 @@ export const LoginPage = () => {
     } = useForm<LoginFormValues>({
         resolver: zodResolver(loginSchema),
         defaultValues: {
-            usernameOrEmail: "",
+            username: "",
             password: ""
         },
     })
@@ -45,7 +47,6 @@ export const LoginPage = () => {
 
     return (
         <>
-            <ToastContainer />
             <ThemeProvider theme={adminTheme}>
                 <div className="min-h-screen flex items-center justify-center bg-[#F4F6F8] relative overflow-hidden">
                     {/* Decorative Background Elements */}
@@ -109,69 +110,51 @@ export const LoginPage = () => {
                         <Paper
                             elevation={0}
                             sx={{
-                                padding: "40px",
-                                borderRadius: "24px",
+                                padding: { xs: "24px", sm: "40px" },
+                                borderRadius: { xs: "16px", sm: "24px" },
                                 backgroundColor: "#FFFFFF",
                                 boxShadow: "0 0 2px 0 rgba(145, 158, 171, 0.2), 0 12px 24px -4px rgba(145, 158, 171, 0.12)",
                                 display: "flex",
                                 flexDirection: "column",
-                                gap: "32px"
+                                gap: { xs: "24px", sm: "32px" }
                             }}
                         >
                             <Box sx={{ textAlign: "center" }}>
-                                <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: "var(--palette-text-primary)" }}>
+                                <Typography variant="h4" sx={{ 
+                                    fontWeight: 700, 
+                                    mb: 1, 
+                                    color: "var(--palette-text-primary)", 
+                                    fontSize: { xs: "1.75rem", sm: "2rem" } 
+                                }}>
                                     Đăng nhập
                                 </Typography>
-                                <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)" }}>
+                                <Typography variant="body2" sx={{ 
+                                    color: "var(--palette-text-secondary)", 
+                                    fontSize: { xs: "0.875rem", sm: "1rem" } 
+                                }}>
                                     Nhập chi tiết của bạn bên dưới.
                                 </Typography>
                             </Box>
 
-                            <motion.div
-                                whileHover={{ scale: 1.02, boxShadow: "0 8px 16px rgba(0,0,0,0.05)" }}
-                                whileTap={{ scale: 0.98 }}
-                            >
-                                <Button
-                                    fullWidth
-                                    variant="outlined"
-                                    startIcon={<GoogleIcon />}
-                                    sx={{
-                                        py: "12px",
-                                        borderRadius: "12px",
-                                        borderColor: "#DFE3E8",
-                                        color: "var(--palette-text-primary)",
-                                        textTransform: "none",
-                                        fontWeight: 600,
-                                        fontSize: "0.875rem",
-                                        backgroundColor: "#FFFFFF",
-                                        "&:hover": {
-                                            borderColor: "#1C252E",
-                                            backgroundColor: "rgba(28, 37, 46, 0.04)"
-                                        }
-                                    }}
-                                >
-                                    Đăng nhập bằng Google
-                                </Button>
-                            </motion.div>
-
-                            <DividerWithText text="HOẶC" />
-
                             <form onSubmit={handleSubmit(onSubmit)}>
                                 <Box sx={{ display: "flex", flexDirection: "column", gap: "24px" }}>
                                     <Controller
-                                        name="usernameOrEmail"
+                                        name="username"
                                         control={control}
                                         render={({ field, fieldState }) => (
                                             <TextField
                                                 {...field}
-                                                label="Email hoặc tên đăng nhập"
+                                                label="Tên đăng nhập"
                                                 fullWidth
                                                 disabled={isPending}
                                                 error={!!fieldState.error}
                                                 helperText={fieldState.error?.message}
                                                 slotProps={{
                                                     input: {
-                                                        sx: { borderRadius: "12px" }
+                                                        sx: { borderRadius: "12px", fontSize: "1rem" }
+                                                    },
+                                                    inputLabel: {
+                                                        sx: { fontSize: "1rem" }
                                                     }
                                                 }}
                                             />
@@ -193,7 +176,7 @@ export const LoginPage = () => {
                                                     helperText={fieldState.error?.message}
                                                     slotProps={{
                                                         input: {
-                                                            sx: { borderRadius: "12px" },
+                                                            sx: { borderRadius: "12px", fontSize: "1rem" },
                                                             endAdornment: (
                                                                 <InputAdornment position="end">
                                                                     <IconButton
@@ -205,19 +188,22 @@ export const LoginPage = () => {
                                                                     </IconButton>
                                                                 </InputAdornment>
                                                             )
+                                                        },
+                                                        inputLabel: {
+                                                            sx: { fontSize: "1rem" }
                                                         }
                                                     }}
                                                 />
                                             )}
                                         />
                                         <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
-                                             <Link to='/admin/auth/forgot-password' style={{ fontSize: "0.8125rem", color: "var(--palette-text-primary)", fontWeight: 600, textDecoration: "none" }} className="hover:underline">
+                                             <Link to='/admin/auth/forgot-password' style={{ fontSize: "0.875rem", color: "var(--palette-text-primary)", fontWeight: 600, textDecoration: "none" }} className="hover:underline">
                                                 Quên mật khẩu?
-                                            </Link>
+                                             </Link>
                                         </Box>
                                     </Box>
 
-                                    <Button
+                                     <Button
                                         type="submit"
                                         variant="contained"
                                         disabled={isPending}
@@ -228,18 +214,58 @@ export const LoginPage = () => {
                                             backgroundColor: "var(--palette-text-primary)",
                                             color: "#FFFFFF",
                                             textTransform: "none",
-                                            fontSize: "0.9375rem",
+                                            fontSize: "1rem",
                                             fontWeight: 700,
                                             boxShadow: "0 8px 16px 0 rgba(28, 37, 46, 0.24)",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "12px",
                                             "&:hover": {
                                                 backgroundColor: "#454F5B",
                                             }
                                         }}
                                     >
-                                        {isPending ? "Đang xử lý..." : "Đăng nhập"}
+                                        {isPending ? (
+                                            <>
+                                                <CircularProgress size={20} color="inherit" thickness={5} />
+                                                <span>Đang xử lý...</span>
+                                            </>
+                                        ) : (
+                                            "Đăng nhập"
+                                        )}
                                     </Button>
                                 </Box>
                             </form>
+
+                            <DividerWithText text="HOẶC" />
+
+                            <motion.div
+                                whileHover={{ scale: 1.02, boxShadow: "0 8px 16px rgba(0,0,0,0.05)" }}
+                                whileTap={{ scale: 0.98 }}
+                            >
+                                 <Button
+                                    fullWidth
+                                    variant="outlined"
+                                    startIcon={<GoogleIcon />}
+                                    sx={{
+                                        py: "12px",
+                                        borderRadius: "12px",
+                                        borderColor: "#DFE3E8",
+                                        color: "var(--palette-text-primary)",
+                                        textTransform: "none",
+                                        fontWeight: 600,
+                                        fontSize: "1rem",
+                                        backgroundColor: "#FFFFFF",
+                                        "&:hover": {
+                                            borderColor: "#1C252E",
+                                            backgroundColor: "rgba(28, 37, 46, 0.04)"
+                                        }
+                                    }}
+                                >
+                                    Đăng nhập bằng Google
+                                </Button>
+                            </motion.div>
                         </Paper>
                     </motion.div>
                 </div>

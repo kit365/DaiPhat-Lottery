@@ -71,7 +71,7 @@ export const LoginPage = () => {
     };
 
     const handleSocialLogin = (provider: 'google' | 'facebook') => {
-        window.location.href = `http://localhost:3000/api/v1/client/auth/${provider}`;
+        window.location.href = `http://localhost:8080/client/auth/${provider}`;
     };
 
     return (
