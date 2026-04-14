@@ -1,6 +1,6 @@
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
-import { toast } from "react-toastify";
+
 import { SideBar } from "../components/layouts/sidebar/SideBar";
 import { Header } from "../components/layouts/Header";
 import { adminTheme } from "../config/theme";
@@ -12,7 +12,7 @@ import { useGetMe } from "../pages/authen/hooks/use-get-me";
 import { SocketProvider } from "../context/SocketContext";
 import { OverrunAlerter } from "../components/OverrunAlerter";
 
-import { Suspense, useEffect } from "react";
+import { Suspense } from "react";
 import LoadingScreen from "../components/ui/LoadingScreen";
 
 import { ROUTES } from "../constants/routes";
@@ -20,7 +20,7 @@ import { ROUTES } from "../constants/routes";
 const LayoutAdminContent = () => {
     useGetMe();
     const location = useLocation();
-    const navigate = useNavigate();
+
     const { isOpen } = useSidebar();
 
     const isBlogDetail = location.pathname.startsWith(ROUTES.ADMIN.BLOGS.DETAIL);

@@ -1,5 +1,13 @@
 import { User } from "../../../../types/user.type";
 
+export interface AuthApiResponse<T> {
+    code: string;
+    isSuccess: boolean;
+    success?: boolean;
+    message: string;
+    data?: T;
+}
+
 export interface LoginResponse {
     code: string;
     isSuccess: boolean;
@@ -15,12 +23,7 @@ export interface LoginResponse {
     };
 }
 
-export interface GetMeResponse {
-    code: string;
-    isSuccess: boolean;
-    message: string;
-    data?: User;
-}
+export interface GetMeResponse extends AuthApiResponse<User> {}
 
 export interface PasswordRequirement {
     id: string;
@@ -34,9 +37,29 @@ export interface PasswordPolicy {
     maxLength: number;
 }
 
-export interface PasswordPolicyResponse {
-    code: string;
-    isSuccess: boolean;
-    message: string;
-    data: PasswordPolicy;
+export interface PasswordPolicyResponse extends AuthApiResponse<PasswordPolicy> {}
+
+export interface ForgotPasswordRequest {
+    email: string;
+}
+
+export interface ForgotPasswordResponse extends AuthApiResponse<{
+    email: string;
+    expiresIn: number;
+    retryAfter: number;
+}> {}
+
+export interface VerifyOtpRequest {
+    email: string;
+    otp: string;
+}
+
+export interface VerifyOtpResponse extends AuthApiResponse<{
+    resetToken: string;
+}> {}
+
+export interface ResetPasswordRequest {
+    resetToken: string;
+    newPassword: string;
+    confirmPassword: string;
 }
