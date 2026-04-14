@@ -131,17 +131,11 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<ApiResponseDTO<Void>> logout(
             @CookieValue(name = "${daiphat.auth.cookie.name:" + DEFAULT_COOKIE_NAME + "}", required = false) String cookieRefreshToken,
-            @RequestBody(required = false) LogoutRequestDTO request,
             Principal principal) {
         
         log.info("REST request to logout");
         
-        String refreshTokenToUse = null;
-        if (request != null && request.getRefreshToken() != null && !request.getRefreshToken().isBlank()) {
-            refreshTokenToUse = request.getRefreshToken();
-        } else if (cookieRefreshToken != null && !cookieRefreshToken.isBlank()) {
-            refreshTokenToUse = cookieRefreshToken;
-        }
+        String refreshTokenToUse = cookieRefreshToken;
 
         if (principal == null && (refreshTokenToUse == null || refreshTokenToUse.isBlank())) {
             log.warn("Logout attempt without active session or refresh token.");
@@ -197,17 +191,11 @@ public class AuthController {
 
     @PostMapping("/refresh-token")
     public ResponseEntity<ApiResponseDTO<AuthResponseDTO>> refreshToken(
-            @CookieValue(name = "${daiphat.auth.cookie.name:" + DEFAULT_COOKIE_NAME + "}", required = false) String cookieRefreshToken,
-            @RequestBody(required = false) RefreshTokenRequestDTO request) {
+            @CookieValue(name = "${daiphat.auth.cookie.name:" + DEFAULT_COOKIE_NAME + "}", required = false) String cookieRefreshToken) {
                 
         log.info("REST request to refresh token");
         
-        String refreshTokenToUse = null;
-        if (cookieRefreshToken != null && !cookieRefreshToken.isBlank()) {
-            refreshTokenToUse = cookieRefreshToken;
-        } else if (request != null && request.getRefreshToken() != null) {
-            refreshTokenToUse = request.getRefreshToken();
-        }
+        String refreshTokenToUse = cookieRefreshToken;
         
         if (refreshTokenToUse == null || refreshTokenToUse.isBlank()) {
             throw new DomainException(ErrorCode.UNAUTHORIZED);

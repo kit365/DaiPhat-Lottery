@@ -20,6 +20,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Base64;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -121,6 +122,22 @@ public class KeycloakAdapter implements KeycloakPort {
                 .body(AuthResponseDTO.class);
 
         return decodeResult(response);
+    }
+
+    @Override
+    public UUID getUserIdFromToken(String token) {
+        try {
+            String[] chunks = token.split("\\.");
+            if (chunks.length < 2) {
+                throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
+            }
+            String payload = new String(Base64.getUrlDecoder().decode(chunks[1]));
+            JsonNode payloadNode = objectMapper.readTree(payload);
+            return UUID.fromString(payloadNode.get("sub").asText());
+        } catch (Exception e) {
+            log.error("Failed to extract userId from token in KeycloakAdapter: {}", e.getMessage());
+            throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
     }
 
     private KeycloakAuthResult decodeResult(AuthResponseDTO response) {

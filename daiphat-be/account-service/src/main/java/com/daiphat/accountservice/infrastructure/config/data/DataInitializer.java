@@ -37,7 +37,7 @@ public class DataInitializer {
             
             RoleModel adminRole = roleRepositoryPort.findByCode(UserRole.ADMIN.getCode())
                     .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
-            RoleModel userRole = roleRepositoryPort.findByCode(UserRole.USER.getCode())
+            RoleModel userRole = roleRepositoryPort.findByCode(UserRole.MEMBER.getCode())
                     .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
 
             for (UserModel kcUser : keycloakUsers) {
