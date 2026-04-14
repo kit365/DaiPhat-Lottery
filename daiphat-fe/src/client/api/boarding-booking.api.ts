@@ -18,15 +18,15 @@ export interface CreateBoardingBookingPayload {
 }
 
 export const createBoardingBooking = (data: CreateBoardingBookingPayload) => {
-  return apiApp.post("/api/v1/client/boarding/boarding-bookings", data);
+  return apiApp.post("/client/boarding/boarding-bookings", data);
 };
 
 export const payBoardingBooking = (id: string, gateway: "zalopay" | "vnpay") => {
-  return apiApp.post(`/api/v1/client/boarding/boarding-bookings/${id}/pay`, { gateway });
+  return apiApp.post(`/client/boarding/boarding-bookings/${id}/pay`, { gateway });
 };
 export const cancelBoardingBooking = (id: string, reason?: string) => {
-  return apiApp.patch(`/api/v1/client/boarding/boarding-bookings/${id}/cancel`, { reason });
+  return apiApp.patch(`/client/boarding/boarding-bookings/${id}/cancel`, { reason });
 };
 export const getBoardingConfig = () => {
-  return apiApp.get("/api/v1/client/boarding/config");
+  return apiApp.get("/client/boarding/config");
 };

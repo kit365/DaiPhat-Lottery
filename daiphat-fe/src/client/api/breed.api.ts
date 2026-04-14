@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/api/v1/client/breed";
+const API_URL = "http://localhost:8080/client/breed";
 
 export const getBreeds = async (type?: string, unique: boolean = false) => {
     const response = await axios.get(API_URL, {

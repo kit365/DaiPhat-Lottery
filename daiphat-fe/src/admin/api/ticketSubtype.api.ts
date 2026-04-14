@@ -1,6 +1,6 @@
-import axios from "axios";
+import { apiApp } from "../../api";
 
-const API_URL = "http://localhost:3000/api/v1/admin/ticketSubtype";
+const API_TICKET_SUBTYPE = "/admin/ticketSubtype";
 
 export const getTicketSubtypes = async (params?: any) => {
     const list = [
@@ -23,25 +23,17 @@ export const getTicketSubtypes = async (params?: any) => {
     };
 };
 
-
-
 export const createTicketSubtype = async (data: { name: string, type: string }) => {
-    const response = await axios.post(`${API_URL}/create`, data, {
-        withCredentials: true
-    });
+    const response = await apiApp.post(`${API_TICKET_SUBTYPE}/create`, data);
     return response.data;
 };
 
 export const updateTicketSubtype = async (id: string, data: any) => {
-    const response = await axios.patch(`${API_URL}/${id}`, data, {
-        withCredentials: true
-    });
+    const response = await apiApp.patch(`${API_TICKET_SUBTYPE}/${id}`, data);
     return response.data;
 };
 
 export const deleteTicketSubtype = async (id: string) => {
-    const response = await axios.delete(`${API_URL}/${id}`, {
-        withCredentials: true
-    });
+    const response = await apiApp.delete(`${API_TICKET_SUBTYPE}/${id}`);
     return response.data;
 };

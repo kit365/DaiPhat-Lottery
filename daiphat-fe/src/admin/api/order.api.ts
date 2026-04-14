@@ -1,7 +1,7 @@
 import { apiApp } from '../../api';
 import Cookies from 'js-cookie';
 
-const BASE_URL = '/api/v1/admin/order';
+const BASE_URL = '/admin/order';
 
 const withAuth = () => {
     const token = Cookies.get("tokenAdmin");
@@ -56,7 +56,7 @@ export const updateOrder = async (id: string, data: any) => {
 };
 
 export const exportInvoicePdf = async (orderCode: string, phone: string) => {
-    const response = await apiApp.get(`/api/v1/client/order/export-pdf`, {
+    const response = await apiApp.get(`/client/order/export-pdf`, {
         ...withAuth(),
         params: { orderCode, phone },
         responseType: 'blob'

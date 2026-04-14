@@ -224,19 +224,18 @@ export const MainHeader = () => {
                                 <User stroke="2" className="w-[25px] h-[25px]" />
                             </Link>
                         )}
-                        <Link to="/contact">
-                            <Button
-                                content="Liên hệ"
-                                background="bg-client-secondary"
-                                hoverBackground="group-hover:bg-client-primary"
-                                svgColor="text-client-secondary"
-                                hoverSvgColor="group-hover:text-client-primary"
-                                textColor="text-white"
-                                hoverTextColor="text-white"
-                                iconColor="before:bg-white after:bg-white"
-                                hoverIconColor="hover:before:bg-white hover:after:bg-white"
-                            />
-                        </Link>
+                        <Button
+                            url="/contact"
+                            content="Liên hệ"
+                            background="bg-client-secondary"
+                            hoverBackground="group-hover:bg-client-primary"
+                            svgColor="text-client-secondary"
+                            hoverSvgColor="group-hover:text-client-primary"
+                            textColor="text-white"
+                            hoverTextColor="text-white"
+                            iconColor="before:bg-white after:bg-white"
+                            hoverIconColor="hover:before:bg-white hover:after:bg-white"
+                        />
                     </div>
                 </div>
             </div>

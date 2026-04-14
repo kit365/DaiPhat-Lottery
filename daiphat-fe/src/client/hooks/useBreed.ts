@@ -4,7 +4,7 @@ import { getBreeds, createBreed } from "../api/breed.api";
 export const useClientBreeds = (type?: string, unique: boolean = false) => {
     return useQuery({
         queryKey: ["client-breeds", type, unique],
-        queryFn: () => getBreeds(type, unique),
+        enabled: false, retry: false, queryFn: () => getBreeds(type, unique),
         select: (res) => res.data || [],
     });
 };

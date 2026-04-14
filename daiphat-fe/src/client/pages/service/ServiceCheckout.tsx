@@ -168,10 +168,10 @@ export const ServiceCheckoutPage = () => {
 
             if (gateway === "zalopay") {
                 resetBooking();
-                window.location.href = `${import.meta.env.VITE_BACKEND_URL || "http://localhost:3000"}/api/v1/client/order/payment-zalopay?${isBooking ? "bookingCode" : "orderCode"}=${bookingCode}&phone=${phone}`;
+                window.location.href = `${import.meta.env.VITE_BACKEND_URL || "http://localhost:8080"}/client/order/payment-zalopay?${isBooking ? "bookingCode" : "orderCode"}=${bookingCode}&phone=${phone}`;
             } else if (gateway === "vnpay") {
                 resetBooking();
-                window.location.href = `${import.meta.env.VITE_BACKEND_URL || "http://localhost:3000"}/api/v1/client/order/payment-vnpay?${isBooking ? "bookingCode" : "orderCode"}=${bookingCode}&phone=${phone}`;
+                window.location.href = `${import.meta.env.VITE_BACKEND_URL || "http://localhost:8080"}/client/order/payment-vnpay?${isBooking ? "bookingCode" : "orderCode"}=${bookingCode}&phone=${phone}`;
             } else {
                 toast.success("Đặt lịch thành công! DaiPhat đang đợi bé ạ.");
                 resetBooking(); // Xóa dữ liệu store sau khi đã đặt lịch thành công

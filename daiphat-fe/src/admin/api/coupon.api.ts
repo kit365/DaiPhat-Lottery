@@ -2,7 +2,7 @@ import { apiApp } from '../../api';
 import Cookies from 'js-cookie';
 import { ApiResponse } from '../config/type';
 
-const BASE_URL = '/api/v1/admin/coupon';
+const BASE_URL = '/admin/coupon';
 
 /** Header auth dùng chung */
 const withAuth = () => {

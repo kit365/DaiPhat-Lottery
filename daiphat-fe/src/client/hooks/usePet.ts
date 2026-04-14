@@ -4,7 +4,7 @@ import { createMyPet, getMyPets, PetPayload, updateMyPet } from "../api/pet.api"
 export const useMyPets = (enabled = true) => {
     return useQuery({
         queryKey: ["my-pets"],
-        queryFn: async () => {
+        enabled: false, retry: false, queryFn: async () => {
             const response = await getMyPets();
             return response.data || [];
         },

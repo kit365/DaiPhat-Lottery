@@ -1,6 +1,6 @@
 import { apiApp } from '../../api';
 
-const BASE_URL = `/api/v1/client/product`;
+const BASE_URL = `/client/product`;
 
 /** Lấy danh sách sản phẩm */
 export const getProducts = async (params: any = {}) => {

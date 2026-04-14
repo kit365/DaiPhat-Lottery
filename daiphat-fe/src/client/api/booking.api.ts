@@ -1,6 +1,6 @@
 import { apiApp } from "../../api/index";
 
-const API_BOOKING = "/api/v1/client/booking";
+const API_BOOKING = "/client/booking";
 
 export const getAvailableTimeSlots = async (date: string, serviceId?: string, count: number = 1, petIds: string[] = []) => {
     try {

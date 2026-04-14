@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { toast } from "react-toastify";
+import { STORAGE_KEYS } from "../constants/storage.constants";
 
 export interface CartVariant {
     attrId: string;
@@ -222,7 +223,7 @@ export const useCartStore = create<CartState>()(
                     set: set
                 }),
                 {
-                    name: "cart-storage",
+                    name: STORAGE_KEYS.CART,
                     onRehydrateStorage: () => (state) => {
                         if (state) {
                             state.set({ isHydrated: true });
@@ -244,7 +245,7 @@ if (import.meta.env.DEV) {
 // Đồng bộ cache giữa các tab
 if (typeof window !== 'undefined') {
     window.addEventListener('storage', (event) => {
-        if (event.key === 'cart-storage') {
+        if (event.key === STORAGE_KEYS.CART) {
             useCartStore.persist.rehydrate();
         }
     });
