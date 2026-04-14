@@ -27,4 +27,6 @@ public class AuthResponseDTO {
     
     @JsonProperty("scope")
     String scope;
+
+    UserAuthMeResponseDTO user;
 }

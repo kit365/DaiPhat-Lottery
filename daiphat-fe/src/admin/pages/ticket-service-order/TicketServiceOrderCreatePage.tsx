@@ -513,9 +513,9 @@ export const TicketServiceOrderCreatePage = () => {
                 const ticketServiceOrder = res.data;
                 const phone = ticketServiceOrder.userId?.phone || "";
                 if (formData.paymentMethod === "zalopay" && formData.paymentStatus === "unpaid") {
-                    window.location.href = `http://localhost:3000/api/v1/client/order/payment-zalopay?ticketServiceOrderCode=${ticketServiceOrder.code}&phone=${phone}`;
+                    window.location.href = `${import.meta.env.VITE_BACKEND_URL}/client/order/payment-zalopay?ticketServiceOrderCode=${ticketServiceOrder.code}&phone=${phone}`;
                 } else if (formData.paymentMethod === "vnpay" && formData.paymentStatus === "unpaid") {
-                    window.location.href = `http://localhost:3000/api/v1/client/order/payment-vnpay?ticketServiceOrderCode=${ticketServiceOrder.code}&phone=${phone}`;
+                    window.location.href = `${import.meta.env.VITE_BACKEND_URL}/client/order/payment-vnpay?ticketServiceOrderCode=${ticketServiceOrder.code}&phone=${phone}`;
                 } else {
                     navigate(`/${prefixAdmin}/ticketServiceOrder/list`);
                 }

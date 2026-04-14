@@ -160,7 +160,7 @@ public class AuthAdminAdapter implements IdentityManagementPort {
             UUID keycloakUuid = UUID.fromString(userId);
             
             resetPassword(keycloakUuid, password);
-            assignRole(keycloakUuid, UserRole.USER.getCode());
+            assignRole(keycloakUuid, UserRole.MEMBER.getCode());
             
             return keycloakUuid;
 
@@ -273,6 +273,11 @@ public class AuthAdminAdapter implements IdentityManagementPort {
     public KeycloakAuthResult refreshToken(String refreshToken) {
         log.info("IdentityManagement: Attempting token refresh");
         return keycloakPort.refreshToken(refreshToken);
+    }
+
+    @Override
+    public UUID getUserIdFromToken(String token) {
+        return keycloakPort.getUserIdFromToken(token);
     }
 
     @Override

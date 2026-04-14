@@ -2,7 +2,7 @@ import { apiApp } from '../../api';
 import Cookies from 'js-cookie';
 import { mockTicketServiceOrders } from '../data/ticketServiceOrders';
 
-const BASE_URL = '/api/v1/admin/ticketServiceOrder/ticketServiceOrders';
+const BASE_URL = '/admin/ticketServiceOrder/ticketServiceOrders';
 
 const withAuth = () => {
     const token = Cookies.get("tokenAdmin");

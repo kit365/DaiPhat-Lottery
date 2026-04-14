@@ -8,7 +8,7 @@ export interface AvailableCagesParams {
 }
 
 export const getAvailableCages = (params: AvailableCagesParams) => {
-  return apiApp.get("/api/v1/client/cage/boarding-cages/available", {
+  return apiApp.get("/client/cage/boarding-cages/available", {
     params
   });
 };

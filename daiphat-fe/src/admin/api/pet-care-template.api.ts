@@ -22,7 +22,7 @@ export interface ExerciseTemplate {
     isActive: boolean;
 }
 
-const BASE = "/api/v1/admin/userTicket-care-template";
+const BASE = "/admin/userTicket-care-template";
 
 const withAuth = () => {
     const token = Cookies.get("tokenAdmin");

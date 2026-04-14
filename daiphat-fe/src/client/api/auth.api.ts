@@ -1,6 +1,6 @@
 import { apiApp } from "../../api/index";
 
-const API_AUTH = "/api/v1/client/auth";
+const API_AUTH = "/client/auth";
 
 export const login = async (data: any) => {
     try {

@@ -109,7 +109,7 @@ public class LoginService implements LoginServicePort {
         // Reset rate limit (Burst counter) khi đăng nhập thành công
         rateLimiterService.resetRateLimit(user.getUsername(), AuthAction.LOGIN);
 
-        return buildAuthResponse(result, rememberMe);
+        return buildAuthResponse(result, user, rememberMe);
     }
 
     @Transactional
@@ -140,31 +140,36 @@ public class LoginService implements LoginServicePort {
         // Cập nhật Cache và hoàn tất quy trình
         processTokenSecurityAndCaching(userId, result, false);
 
-        return buildAuthResponse(result, false);
+        return buildAuthResponse(result, user, false);
     }
 
     @Transactional
     @Override
-    public void logout(String username, String refreshToken) {
-        // 1. Invalidate local session (Only if username is available)
-        if (username != null && !username.isBlank()) {
-            String userId = userService.getIdByUsername(username).toString();
+    public void logout(String refreshToken) {
+        log.info("REST request to logout");
 
-            tokenCachePort.revokeToken(userId);
-            log.info("Local session revoked in Redis for user: {} (ID: {})", username, userId);
-        } else {
-            log.info("Logout called without username (Expired session). Proceeding to revoke IDP session only.");
+        if (refreshToken == null || refreshToken.isBlank()) {
+            log.warn("Logout attempt without refresh token. Proceeding with clear state only.");
+            return;
         }
 
-        // 2. Invalidate IDP session (If token is available)
-        if (refreshToken != null && !refreshToken.isBlank()) {
-            try {
-                identityManagementPort.logout(refreshToken);
-                log.info("Successfully requested IDP logout for provided token.");
-            } catch (Exception e) {
-                log.warn("Security: IDP logout failed or token already invalid. Reason: {}. Continuing...", 
-                    e.getMessage());
-            }
+        // 1. Invalidate local session by extracting userId from token
+        try {
+            UUID userId = identityManagementPort.getUserIdFromToken(refreshToken);
+            tokenCachePort.revokeToken(userId.toString());
+            log.info("Local session revoked in Redis for user ID: {}", userId);
+        } catch (Exception e) {
+            log.warn("Security: Could not extract userId from token for local revocation. Reason: {}. Proceeding to IDP logout.", 
+                e.getMessage());
+        }
+
+        // 2. Invalidate IDP session
+        try {
+            identityManagementPort.logout(refreshToken);
+            log.info("Successfully requested IDP logout for provided token.");
+        } catch (Exception e) {
+            log.warn("Security: IDP logout failed or token already invalid. Reason: {}. Continuing...", 
+                e.getMessage());
         }
     }
 
@@ -191,8 +196,8 @@ public class LoginService implements LoginServicePort {
         log.info("Tokens cached successfully for user ID: {}", userId);
     }
 
-    private AuthResponseDTO buildAuthResponse(KeycloakAuthResult result, boolean isRememberMe) {
-        AuthResponseDTO response = authApplicationMapper.toResponse(result);
+    private AuthResponseDTO buildAuthResponse(KeycloakAuthResult result, UserModel userModel, boolean isRememberMe) {
+        AuthResponseDTO response = authApplicationMapper.toResponse(result, userModel);
         response.setExpiresIn(isRememberMe 
                 ? authProperties.getToken().getRememberMeTtl().toSeconds() 
                 : result.getExpiresIn());
@@ -201,5 +206,4 @@ public class LoginService implements LoginServicePort {
                 : result.getRefreshExpiresIn());
         return response;
     }
-
 }

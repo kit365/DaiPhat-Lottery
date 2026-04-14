@@ -25,7 +25,7 @@ public class RoleDataInitializer implements CommandLineRunner {
     public void run(String... args) {
         log.info("Initializing default roles if they do not exist...");
         
-        initializeRole(UserRole.USER.getCode(), "User Role", "Default role for end users");
+        initializeRole(UserRole.MEMBER.getCode(), "User Role", "Default role for end users");
         initializeRole(UserRole.ADMIN.getCode(), "Admin Role", "Role for system administrators");
         
         log.info("Role initialization completed.");

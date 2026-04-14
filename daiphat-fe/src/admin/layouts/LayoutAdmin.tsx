@@ -1,6 +1,6 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
-import { ToastContainer } from "react-toastify";
+
 import { SideBar } from "../components/layouts/sidebar/SideBar";
 import { Header } from "../components/layouts/Header";
 import { adminTheme } from "../config/theme";
@@ -15,19 +15,28 @@ import { OverrunAlerter } from "../components/OverrunAlerter";
 import { Suspense } from "react";
 import LoadingScreen from "../components/ui/LoadingScreen";
 
+import { ROUTES } from "../constants/routes";
+
 const LayoutAdminContent = () => {
     useGetMe();
     const location = useLocation();
+
     const { isOpen } = useSidebar();
 
-    const isBlogDetail = location.pathname.startsWith("/admin/blog/detail/");
-    const fullWidthRoutes = ["/admin/dashboard", "/admin/dashboard/system", "/admin/dashboard/analytics", "/admin/dashboard/ecommerce"];
-    const isFullWidthPage = fullWidthRoutes.includes(location.pathname) || isBlogDetail;
+    const isBlogDetail = location.pathname.startsWith(ROUTES.ADMIN.BLOGS.DETAIL);
+    const fullWidthRoutes = [
+        ROUTES.ADMIN.DASHBOARD.ROOT,
+        ROUTES.ADMIN.DASHBOARD.SYSTEM,
+        ROUTES.ADMIN.DASHBOARD.ANALYTICS,
+        ROUTES.ADMIN.DASHBOARD.ECOMMERCE
+    ];
+    const isFullWidthPage = fullWidthRoutes.some(route => route === location.pathname) || isBlogDetail;
+
+    // Route state Toast listener removed. Using direct toast in use-login now.
 
     return (
         <div className="flex">
             <OverrunAlerter />
-            <ToastContainer />
             <SideBar />
 
             <div className={`flex-1 transition-[padding-left] duration-[120ms] ease-linear ${isOpen ? 'pl-[300px]' : 'pl-[88px]'}`}>

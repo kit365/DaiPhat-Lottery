@@ -26,7 +26,7 @@ import {
 import { useStaffTasks, useUpdateTicketServiceOrderStatus } from "../../pages/ticket-service-order/hooks/useTicketServiceOrderManagement";
 import { confirmAction } from "../../utils/swal";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { prefixAdmin } from "../../constants/routes";
+import { ROUTES, prefixAdmin } from "../../constants/routes";
 import { toast } from "react-toastify";
 import { Card, Avatar } from "@mui/material"; // Removed duplicate Tooltip here
 import dayjs from "dayjs";
@@ -83,7 +83,7 @@ export const NotificationPopover = () => {
         }
         // Ưu tiên navigate theo ticketServiceOrderId trong metadata
         if (item.metadata?.ticketServiceOrderId) {
-            navigate(`/${prefixAdmin}/ticketServiceOrder/edit/${item.metadata.ticketServiceOrderId}`);
+            navigate(`${ROUTES.ADMIN.TICKET_SERVICE_ORDER.EDIT}${item.metadata.ticketServiceOrderId}`);
             handleClose();
         } else if (item.link) {
             navigate(item.link);
@@ -242,7 +242,7 @@ export const NotificationPopover = () => {
                                                         color: 'var(--palette-info-dark)',
                                                         '&:hover': { bgcolor: 'var(--palette-info-light)' }
                                                     }}
-                                                    onClick={(e) => { e.stopPropagation(); navigate(`/${prefixAdmin}/ticketServiceOrder/detail/${task._id}`); handleClose(); }}
+                                                    onClick={(e) => { e.stopPropagation(); navigate(`${ROUTES.ADMIN.TICKET_SERVICE_ORDER.DETAIL}${task._id}`); handleClose(); }}
                                                 >
                                                     <Icon icon="solar:eye-bold" width={18} />
                                                 </IconButton>
@@ -507,7 +507,7 @@ export const NotificationPopover = () => {
                         size="large"
                         color="inherit"
                         onClick={() => {
-                            navigate('/admin/notifications');
+                            navigate(ROUTES.ADMIN.NOTIFICATIONS);
                             handleClose();
                         }}
                         sx={{

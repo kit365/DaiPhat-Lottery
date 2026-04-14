@@ -3,7 +3,7 @@ import Cookies from 'js-cookie';
 import { ApiResponse } from '../config/type';
 import { prefixAdmin } from '../constants/routes';
 
-const BASE_URL = `/api/v1/${prefixAdmin}/ticket`;
+const BASE_URL = `/${prefixAdmin}/ticket`;
 
 /** Header auth dùng chung */
 const withAuth = () => {

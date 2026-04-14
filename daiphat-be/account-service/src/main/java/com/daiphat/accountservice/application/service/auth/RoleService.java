@@ -19,8 +19,8 @@ public class RoleService implements RoleServicePort {
 
     @Override
     public RoleModel getDefaultRole() {
-        log.debug("Fetching default user role with code: {}", UserRole.USER.getCode());
-        return roleRepositoryPort.findByCode(UserRole.USER.getCode())
+        log.debug("Fetching default user role with code: {}", UserRole.MEMBER.getCode());
+        return roleRepositoryPort.findByCode(UserRole.MEMBER.getCode())
                 .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
     }
 }

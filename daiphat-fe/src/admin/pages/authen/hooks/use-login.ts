@@ -1,62 +1,83 @@
 import { useMutation } from "@tanstack/react-query";
-import { login, LoginResponse } from "../../../api/auth.api";
+import { authService } from "../services/auth.service";
 import { useNavigate } from "react-router-dom";
-import { toast } from 'react-toastify';
-import Cookies from "js-cookie";
-
 import { useAuthStore } from "../../../../stores/useAuthStore";
+import { toast } from "react-toastify";
+import { ROUTES } from "../../../constants/routes";
+import { USER_ROLES } from "../../../../constants/role.constants";
+import { LoginResponse } from "../types/auth.type";
+import { User } from "../../../../types/user.type";
+import { LoginFormValues } from "../../../schemas/login.schema";
 
 export const useLogin = () => {
     const navigate = useNavigate();
     const loginStore = useAuthStore(state => state.login);
 
-    return useMutation({
-        mutationFn: login,
+    // Khởi tạo mutation xử lý luồng đăng nhập admin
+    const mutation = useMutation({
+        // Gọi service login với dữ liệu từ form, mặc định tắt rememberMe để bảo mật vùng admin
+        mutationFn: (data: LoginFormValues) => authService.login({ ...data, rememberMe: false } as any),
         onSuccess: (response: LoginResponse) => {
-            if (response.code === 200 && response.data?.token) {
-                const { token, ...userInfo } = response.data;
+            // Log log phản hồi từ server để debug luồng phân quyền
+            console.log("Login Response:", response);
+            const isSuccess = response.isSuccess || response.success || response.code === "SUCCESS";
+            
+            if (isSuccess && response.data?.access_token) {
+                const { access_token, user: userInfo } = response.data;
 
-                // Store in AuthStore
-                loginStore(userInfo, token);
+                if (userInfo) {
+                    const mappedUser = {
+                        ...userInfo,
+                        fullName: `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim(),
+                        avatar: (userInfo as any).avatarUrl || (userInfo as any).avatar || (userInfo as any).images?.[0]?.url,
+                        roles: userInfo.roles ? userInfo.roles : (userInfo.role ? [userInfo.role] : []),
+                    };
 
-                Cookies.set("tokenAdmin", token, {
-                    expires: 1,        // 1 ngày
-                    secure: false,
-                    sameSite: "lax"
-                });
+                    const r = mappedUser.roles?.[0];
+                    const rawRole = typeof r === 'string' ? r : (r?.code || r?.name || "");
+                    const normalizedRole = rawRole.toUpperCase().startsWith("ROLE_") 
+                        ? rawRole.toUpperCase() 
+                        : `ROLE_${rawRole.toUpperCase()}`;
+                    
+                    console.log("[Login Debug] Role Info:", { original: r, rawRole, normalizedRole });
 
-                toast.success(response.message);
-                console.log("Login successful, navigating to staff tasks...");
-                const roles = userInfo.roles || [];
-                const isAdmin = roles.some((role: any) => 
-                    role.name?.toLowerCase().includes("admin") || 
-                    role.name?.toLowerCase().includes("quản trị viên") ||
-                    role.name?.toLowerCase().includes("quản trị")
-                );
-                const isStaff = roles.some((role: any) => 
-                    role.isStaff || 
-                    role.name?.toLowerCase().includes("nhân viên") || 
-                    role.name?.toLowerCase().includes("staff")
-                );
+                    const isAdmin = normalizedRole === USER_ROLES.ADMIN;
+                    const isManager = normalizedRole === USER_ROLES.STAFF_MANAGER;
+                    const isShipper = normalizedRole === USER_ROLES.STAFF_SHIPPER;
 
-                if (isAdmin) {
-                    navigate("/admin/dashboard/system");
-                } else if (isStaff) {
-                    navigate("/admin/staff/tasks");
+                    if (isAdmin || isManager || isShipper) {
+                        loginStore(mappedUser as User, access_token, response.data.expires_in);
+
+                        if (isAdmin) {
+                            toast.success("Đăng nhập thành công! Chào mừng Quản trị viên.");
+                            navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
+                        } else if (isManager) {
+                            toast.success("Đăng nhập thành công! Chào mừng Quản lý.");
+                            navigate(ROUTES.ADMIN.MANAGEMENT.ROOT);
+                        } else {
+                            toast.success("Đăng nhập thành công! Chào mừng Shipper.");
+                            navigate(ROUTES.ADMIN.SHIPPING.ROOT);
+                        }
+                    } else {
+                        console.log("❌ Không vô được điều kiện, role là:", normalizedRole);
+                        toast.error("Tài khoản của bạn không có quyền truy cập vùng Quản trị!");
+                    }
                 } else {
-                    navigate("/admin/dashboard/system"); // Default fallback
+                    toast.error("Không tìm thấy thông tin người dùng trong phản hồi!");
                 }
             } else {
-                toast.error(response.message || "Đăng nhập thất bại!");
+                if (response.message) toast.error(response.message);
             }
         },
         onError: (error: any) => {
-            const errorMessage = error?.response?.data?.message || "Đăng nhập thất bại!";
-            toast.error(errorMessage);
+            console.error("Login mutation error:", error);
+            const serverMessage = error.response?.data?.message || error.response?.data?.error_description;
+            toast.error(serverMessage || "Có lỗi xảy ra trong quá trình đăng nhập.");
         }
     });
+
+    return {
+        ...mutation,
+        isPending: mutation.isPending
+    };
 };
-
-
-
-

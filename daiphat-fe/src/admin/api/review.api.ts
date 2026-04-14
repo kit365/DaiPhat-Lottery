@@ -28,11 +28,11 @@ export const getReviews = async (params: any) => {
 
 
 export const changeReviewStatus = async (id: string, status: string) => {
-    const response = await apiApp.patch(`/api/v1/admin/review/change-status/${id}`, { status });
+    const response = await apiApp.patch(`/admin/review/change-status/${id}`, { status });
     return response.data;
 };
 
 export const deleteReview = async (id: string) => {
-    const response = await apiApp.delete(`/api/v1/admin/review/delete/${id}`);
+    const response = await apiApp.delete(`/admin/review/delete/${id}`);
     return response.data;
 };

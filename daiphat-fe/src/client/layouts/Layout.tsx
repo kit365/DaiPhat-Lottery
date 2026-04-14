@@ -5,6 +5,7 @@ import "../styles/index.css";
 import { useEffect } from "react";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { getMe } from "../api/auth.api";
+import Cookies from "js-cookie";
 
 import { Suspense } from "react";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
@@ -19,7 +20,8 @@ export const Layout = () => {
         }
 
         const fetchMe = async () => {
-            if (isHydrated && !user) {
+            const token = Cookies.get("accessToken");
+            if (isHydrated && !user && token) {
                 try {
                     const response = await getMe();
                     if (response.success && response.user) {
@@ -27,7 +29,8 @@ export const Layout = () => {
                         login(response.user, "");
                     }
                 } catch (error) {
-                    // Cookie might be expired or missing, ignore
+                    // Cookie might be expired or invalid, clear store if needed
+                    console.log("Session expired or invalid token");
                 }
             }
         };

@@ -2,7 +2,7 @@ import { apiApp } from '../../api';
 import Cookies from 'js-cookie';
 import { ApiResponse } from '../config/type';
 
-const BASE_URL = '/api/v1/admin/ticketService';
+const BASE_URL = '/admin/ticketService';
 
 const withAuth = () => {
     const token = Cookies.get("tokenAdmin");

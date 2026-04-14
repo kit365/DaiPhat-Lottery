@@ -5,6 +5,8 @@ import com.daiphat.accountservice.application.dto.request.ForgotPasswordRequestD
 import com.daiphat.accountservice.application.dto.request.ResetPasswordRequestDTO;
 import com.daiphat.accountservice.application.dto.request.VerifyOtpRequestDTO;
 import com.daiphat.accountservice.application.dto.response.ForgotPasswordResponseDTO;
+import com.daiphat.accountservice.application.dto.response.PasswordPolicyResponseDTO;
+import com.daiphat.accountservice.application.dto.response.PasswordRequirementDTO;
 import com.daiphat.accountservice.application.dto.response.VerifyOtpResponseDTO;
 import com.daiphat.accountservice.application.port.in.EmailServicePort;
 import com.daiphat.accountservice.application.port.in.auth.PasswordResetServicePort;
@@ -44,6 +46,18 @@ public class PasswordResetService implements PasswordResetServicePort {
     private final RateLimiterPort rateLimiterService;
     private final IdentityManagementPort identityManagementPort;
     private final LoginAttemptPort loginAttemptService;
+    
+    // Password Requirement Constants
+    private static final String REQ_MIN_LENGTH = "min_length";
+    private static final String REQ_UPPERCASE = "uppercase";
+    private static final String REQ_LOWERCASE = "lowercase";
+    private static final String REQ_DIGIT = "digit";
+    private static final String REQ_SPECIAL = "special";
+
+    private static final String REGEX_UPPERCASE = "^(?=.*[A-Z]).*$";
+    private static final String REGEX_LOWERCASE = "^(?=.*[a-z]).*$";
+    private static final String REGEX_DIGIT = "^(?=.*\\d).*$";
+    private static final String REGEX_SPECIAL = "^(?=.*[@$!%*?&]).*$";
 
     private static final String PARAM_OTP = "otp";
 
@@ -175,23 +189,26 @@ public class PasswordResetService implements PasswordResetServicePort {
         // 4. Update in Keycloak
         identityManagementPort.resetPassword(user.getId(), request.getNewPassword());
 
-        // 5. Cleanup
+        // 5. Unlock account and reset login attempts
+        loginAttemptService.recordSuccessfulAttempt(data.getEmail());
+
+        // 6. Cleanup
         passwordResetCachePort.deleteResetTokenData(resetToken);
-        log.info("Password successfully reset for user: {}", data.getEmail());
+        log.info("Password successfully reset and account unlocked for user: {}", data.getEmail());
     }
 
     @Override
-    public com.daiphat.accountservice.application.dto.response.PasswordPolicyResponseDTO getPasswordPolicy() {
+    public PasswordPolicyResponseDTO getPasswordPolicy() {
         var policy = authProperties.getPasswordPolicy();
         var requirements = java.util.Arrays.asList(
-                new com.daiphat.accountservice.application.dto.response.PasswordRequirementDTO("min_length", "Ít nhất " + policy.getMinLength() + " ký tự", null),
-                new com.daiphat.accountservice.application.dto.response.PasswordRequirementDTO("uppercase", "Ít nhất 1 chữ hoa", "^(?=.*[A-Z]).*$"),
-                new com.daiphat.accountservice.application.dto.response.PasswordRequirementDTO("lowercase", "Ít nhất 1 chữ thường", "^(?=.*[a-z]).*$"),
-                new com.daiphat.accountservice.application.dto.response.PasswordRequirementDTO("digit", "Ít nhất 1 chữ số", "^(?=.*\\d).*$"),
-                new com.daiphat.accountservice.application.dto.response.PasswordRequirementDTO("special", "Ít nhất 1 ký tự đặc biệt (@$!%*?&)", "^(?=.*[@$!%*?&]).*$")
+                new PasswordRequirementDTO(REQ_MIN_LENGTH, "Ít nhất " + policy.getMinLength() + " ký tự", null),
+                new PasswordRequirementDTO(REQ_UPPERCASE, "Ít nhất 1 chữ hoa", REGEX_UPPERCASE),
+                new PasswordRequirementDTO(REQ_LOWERCASE, "Ít nhất 1 chữ thường", REGEX_LOWERCASE),
+                new PasswordRequirementDTO(REQ_DIGIT, "Ít nhất 1 chữ số", REGEX_DIGIT),
+                new PasswordRequirementDTO(REQ_SPECIAL, "Ít nhất 1 ký tự đặc biệt (@$!%*?&)", REGEX_SPECIAL)
         );
 
-        return com.daiphat.accountservice.application.dto.response.PasswordPolicyResponseDTO.builder()
+        return PasswordPolicyResponseDTO.builder()
                 .requirements(requirements)
                 .minLength(policy.getMinLength())
                 .maxLength(policy.getMaxLength())

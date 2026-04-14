@@ -1,6 +1,6 @@
 import { apiApp } from '../../api';
 
-const BASE_URL = '/api/v1/client/setting';
+const BASE_URL = '/client/setting';
 
 
 /** Lấy thông tin trang tĩnh theo key */
