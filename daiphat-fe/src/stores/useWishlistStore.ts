@@ -3,6 +3,7 @@ import { persist, devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { toast } from "react-toastify";
 import { CartVariant } from "./useCartStore";
+import { STORAGE_KEYS } from "../constants/storage.constants";
 
 export interface WishlistItem {
     productId: string;
@@ -112,7 +113,7 @@ export const useWishlistStore = create<WishlistState>()(
                     set: set,
                 }),
                 {
-                    name: "wishlist-storage",
+                    name: STORAGE_KEYS.WISHLIST,
                     onRehydrateStorage: () => (state) => {
                         if (state) {
                             state.set({ isHydrated: true });

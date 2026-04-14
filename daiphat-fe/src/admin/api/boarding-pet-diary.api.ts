@@ -11,9 +11,9 @@ const withAuth = () => {
 };
 
 export const getBoardingUserTicketDiaries = async (params: { ticketServiceOrderId?: string; userTicketId?: string; date?: string }) => {
-    return apiApp.get('/api/v1/admin/boarding-userTicket-diary', { ...withAuth(), params });
+    return apiApp.get('/admin/boarding-userTicket-diary', { ...withAuth(), params });
 };
 
 export const upsertBoardingUserTicketDiary = async (payload: any) => {
-    return apiApp.post('/api/v1/admin/boarding-userTicket-diary/upsert', payload, withAuth());
+    return apiApp.post('/admin/boarding-userTicket-diary/upsert', payload, withAuth());
 };

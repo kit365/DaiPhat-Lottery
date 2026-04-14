@@ -1,6 +1,6 @@
 import { apiApp } from "../../api/index";
 
-const API_DASHBOARD = "/api/v1/client/dashboard";
+const API_DASHBOARD = "/client/dashboard";
 
 export const editProfile = async (data: any) => {
     try {
@@ -103,7 +103,7 @@ export const getOrderDetail = async (id: string) => {
 
 export const getBoardingBookingList = async () => {
     try {
-        const response = await apiApp.get("/api/v1/client/boarding/boarding-bookings");
+        const response = await apiApp.get("/client/boarding/boarding-bookings");
         return response.data;
     } catch (error) {
         throw error;
@@ -112,7 +112,7 @@ export const getBoardingBookingList = async () => {
 
 export const getBoardingBookingDetail = async (id: string) => {
     try {
-        const response = await apiApp.get(`/api/v1/client/boarding/boarding-bookings/${id}`);
+        const response = await apiApp.get(`/client/boarding/boarding-bookings/${id}`);
         return response.data;
     } catch (error) {
         throw error;
@@ -120,7 +120,7 @@ export const getBoardingBookingDetail = async (id: string) => {
 };
 export const checkBoardingPaymentStatus = async (id: string) => {
     try {
-        const response = await apiApp.get(`/api/v1/client/boarding/boarding-bookings/${id}/check-payment`);
+        const response = await apiApp.get(`/client/boarding/boarding-bookings/${id}/check-payment`);
         return response.data;
     } catch (error) {
         throw error;

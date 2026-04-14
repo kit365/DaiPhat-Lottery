@@ -3,7 +3,7 @@ import Cookies from 'js-cookie';
 import { CategoryNode } from '../components/ui/CategoryTreeSelect';
 import { ApiResponse } from '../config/type';
 
-const BASE_URL = '/api/v1/admin/ticketService/categories';
+const BASE_URL = '/admin/ticketService/categories';
 
 const withAuth = () => {
     const token = Cookies.get("tokenAdmin");

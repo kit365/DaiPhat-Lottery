@@ -2,7 +2,7 @@ import { apiApp } from '../../api';
 import Cookies from 'js-cookie';
 import { mockEcommerceStats, mockAnalyticsStats, mockSystemStats } from '../data/dashboard';
 
-const BASE_URL = '/api/v1/admin/dashboard';
+const BASE_URL = '/admin/dashboard';
 
 const withAuth = () => {
     const token = Cookies.get("tokenAdmin");

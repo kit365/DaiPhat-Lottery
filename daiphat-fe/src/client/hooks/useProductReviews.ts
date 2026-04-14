@@ -6,8 +6,8 @@ export const useProductReviews = (productId: string) => {
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['product-reviews', productId],
-        queryFn: () => getReviewsByProduct(productId),
-        enabled: !!productId,
+        enabled: false, retry: false, queryFn: () => getReviewsByProduct(productId),
+         
     });
 
     const createMutation = useMutation({

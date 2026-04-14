@@ -221,7 +221,7 @@ export const TicketServiceOrderDetailPage = () => {
         if (!ticketServiceOrder) return;
         const loadToast = toast.loading("Đang tạo file PDF...");
         try {
-            const response = await apiApp.get(`/api/v1/client/ticketServiceOrder/export-pdf`, {
+            const response = await apiApp.get(`/client/ticketServiceOrder/export-pdf`, {
                 params: {
                     ticketServiceOrderCode: ticketServiceOrder.code,
                     phone: ticketServiceOrder.userId?.phone || ticketServiceOrder.customerPhone
