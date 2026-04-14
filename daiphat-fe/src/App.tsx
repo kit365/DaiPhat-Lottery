@@ -1,65 +1,19 @@
-import { lazy, Suspense } from 'react';
-import './App.css'
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import { Layout } from './client/layouts/Layout';
-import { LayoutAdmin } from './admin/layouts/LayoutAdmin';
-import { ClientRoutes } from './client/routes/index';
-import { AdminRoutes, AdminAuthRoutes } from './admin/routes/index';
-import { useScrollToTop } from './client/hooks/useScrollToTop';
-import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
-import { AuthGuard } from './admin/components/auth/AuthGuard';
-import { GuestGuard } from './admin/components/auth/GuestGuard';
-
-const NotFoundPage = lazy(() => import("./client/pages/static/NotFound").then(m => ({ default: m.NotFound })));
-
-const ScrollToTopWrapper = ({ children }: { children: React.ReactNode }) => {
-  useScrollToTop();
-  return <>{children}</>;
-};
+import "./App.css";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Login } from "./client/pages/login";
+import { Register } from "./client/pages/register";
 
 function App() {
   return (
     <BrowserRouter>
-      <ScrollToTopWrapper>
-        <Routes>
-          {/* Client Routes */}
-          <Route element={<Layout />}>
-            {ClientRoutes.map((route) => (
-              <Route key={route.path} path={route.path} element={route.element}>
-                {route.children && route.children.map((child) => (
-                  <Route key={child.path} path={child.path} element={child.element} />
-                ))}
-              </Route>
-            ))}
-          </Route>
-
-          {/* Admin Routes */}
-          <Route path='/admin'>
-            {AdminAuthRoutes.map(({ path, element }) => (
-              <Route 
-                key={path} 
-                path={path} 
-                element={<GuestGuard>{element}</GuestGuard>} 
-              />
-            ))}
-            <Route element={<AuthGuard><LayoutAdmin /></AuthGuard>}>
-              {AdminRoutes.map(({ path, element, index }: any) => (
-                <Route key={path || "index"} path={path} index={index} element={element} />
-              ))}
-            </Route>
-
-          </Route>
-
-          {/* Standalone Routes */}
-          <Route path="*" element={
-            <Suspense fallback={<LoadingSpinner />}>
-              <NotFoundPage />
-            </Suspense>
-          } />
-        </Routes>
-      </ScrollToTopWrapper>
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
+export default App;

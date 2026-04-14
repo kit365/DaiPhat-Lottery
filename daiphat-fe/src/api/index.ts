@@ -1,7 +1,7 @@
 import axios, { AxiosError } from "axios"
 import { useAuthStore } from "../stores/useAuthStore"
 import { API_PREFIX, API_VERSION } from "./api.constants"
-import { AppToast } from "../client/utils/toast.util"
+import { toast } from "react-toastify"
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
 const API_ROOT = `${BASE_URL}${API_PREFIX}${API_VERSION}`
@@ -40,22 +40,22 @@ apiApp.interceptors.response.use(
                 case 401:
                     authStore.logout();
                     if (window.location.pathname.includes('/auth/login')) {
-                        AppToast.error(message);
+                        toast.error(message);
                     } else {
-                        AppToast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+                        toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
                     }
                     if (window.location.pathname.startsWith('/admin') && !window.location.pathname.includes('/auth/login')) {
                         window.location.href = '/admin/auth/login';
                     }
                     break;
                 case 403:
-                    AppToast.error("Bạn không có quyền thực hiện hành động này!");
+                    toast.error("Bạn không có quyền thực hiện hành động này!");
                     break;
                 case 404:
-                    AppToast.error("Không tìm thấy tài nguyên yêu cầu!");
+                    toast.error("Không tìm thấy tài nguyên yêu cầu!");
                     break;
                 case 500:
-                    AppToast.error("Lỗi hệ thống! Vui lòng thử lại sau.");
+                    toast.error("Lỗi hệ thống! Vui lòng thử lại sau.");
                     break;
                 default:
                     // Với các lỗi khác (như 400), để cho Component tự quyết định có hiện toast hay không
@@ -63,7 +63,7 @@ apiApp.interceptors.response.use(
                     console.warn(`[API Error] ${status}: ${message}`);
             }
         } else {
-            AppToast.error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng!");
+            toast.error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng!");
         }
 
         return Promise.reject(error);
