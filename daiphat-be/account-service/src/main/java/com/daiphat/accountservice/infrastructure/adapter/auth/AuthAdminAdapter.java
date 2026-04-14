@@ -1,5 +1,7 @@
 package com.daiphat.accountservice.infrastructure.adapter.auth;
-import com.fasterxml.jackson.databind.JsonNode;
+
+import com.daiphat.accountservice.application.config.AuthProperties;
+import com.daiphat.accountservice.application.dto.identity.*;
 import com.daiphat.accountservice.application.port.out.IdentityManagementPort;
 import com.daiphat.accountservice.application.port.out.auth.KeycloakPort;
 import com.daiphat.accountservice.domain.exception.DomainException;
@@ -8,146 +10,142 @@ import com.daiphat.accountservice.domain.model.UserModel;
 import com.daiphat.accountservice.domain.model.auth.KeycloakAuthResult;
 import com.daiphat.accountservice.domain.model.enums.UserRole;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.time.Instant;
 import java.util.*;
 
+import static com.daiphat.accountservice.infrastructure.adapter.auth.KeycloakConstants.*;
+
 /**
- * Dùng Client Credentials (Admin)
- * Chuyên trách: Tạo User, Gán Role, Reset mật khẩu trên Identity Provider (Keycloak).
+ * Keycloak Admin Adapter - Chuyên trách cấu hình và quản lý User/Role trên Identity Provider.
+ * Đã refactor triệt để: Dùng DTO, hằng số tập trung, UriComponentsBuilder và loại bỏ JsonNode manual.
  */
 @Component
 @Slf4j
 public class AuthAdminAdapter implements IdentityManagementPort {
 
-    private final String realm;
-    private final String clientId;
-    private final String clientSecret;
+    // API Paths
+    private static final String PATH_TOKEN = "/realms/{realm}/protocol/openid-connect/token";
+    private static final String PATH_ADMIN_REALM = "/admin/realms/{realm}";
+    private static final String PATH_USERS = "/users";
+    private static final String PATH_ROLES = "/roles";
+    private static final String PATH_RESET_PASSWORD = "/reset-password";
+    private static final String PATH_ROLE_MAPPINGS_REALM = "/role-mappings/realm";
+
+    private final AuthProperties authProperties;
     private final RestClient restClient;
     private final KeycloakPort keycloakPort;
 
-    public AuthAdminAdapter(
-            @Value("${daiphat.auth.keycloak.auth-server-url}") String authServerUrl,
-            @Value("${daiphat.auth.keycloak.realm}") String realm,
-            @Value("${daiphat.auth.keycloak.client-id}") String clientId,
-            @Value("${daiphat.auth.keycloak.client-secret}") String clientSecret,
-            RestClient.Builder restClientBuilder,
-            KeycloakPort keycloakPort) {
-        this.realm = realm;
-        this.clientId = clientId;
-        this.clientSecret = clientSecret;
-        this.restClient = restClientBuilder.baseUrl(authServerUrl).build();
+    // Token Cache
+    private String cachedAdminToken;
+    private Instant tokenExpiry;
+
+    public AuthAdminAdapter(AuthProperties authProperties, RestClient.Builder restClientBuilder, KeycloakPort keycloakPort) {
+        this.authProperties = authProperties;
         this.keycloakPort = keycloakPort;
-    }
-
-    private String getAdminBaseUrl() {
-        return String.format("/admin/realms/%s", realm);
-    }
-
-    private String getRealmBaseUrl() {
-        return String.format("/realms/%s", realm);
+        this.restClient = restClientBuilder.baseUrl(authProperties.getKeycloak().getAuthServerUrl()).build();
     }
 
     private String getAdminToken() {
-        String tokenUrl = getRealmBaseUrl() + "/protocol/openid-connect/token";
+        if (cachedAdminToken != null && tokenExpiry != null && Instant.now().isBefore(tokenExpiry)) {
+            return cachedAdminToken;
+        }
+
+        log.info("Fetching new Admin Access Token from Keycloak...");
+        AuthProperties.Keycloak k = authProperties.getKeycloak();
         
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
-        formData.add(OAuth2ParameterNames.GRANT_TYPE, "client_credentials");
-        formData.add(OAuth2ParameterNames.CLIENT_ID, clientId);
-        formData.add(OAuth2ParameterNames.CLIENT_SECRET, clientSecret);
+        formData.add(PARAM_GRANT_TYPE, GRANT_TYPE_CLIENT_CREDENTIALS);
+        formData.add(PARAM_CLIENT_ID, k.getClientId());
+        formData.add(PARAM_CLIENT_SECRET, k.getClientSecret());
 
-        JsonNode response = restClient.post()
-                .uri(tokenUrl)
+        KeycloakTokenResponseDTO response = restClient.post()
+                .uri(PATH_TOKEN, k.getRealm())
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(formData)
                 .retrieve()
-                .body(JsonNode.class);
+                .body(KeycloakTokenResponseDTO.class);
 
-        if (response == null || !response.has("access_token")) {
+        if (response == null || response.getAccessToken() == null) {
+            log.error("CRITICAL: Identity Provider failed to return Admin token for realm: {}", k.getRealm());
             throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
 
-        return response.get("access_token").asText();
+        this.cachedAdminToken = response.getAccessToken();
+        long expiresIn = response.getExpiresIn() != null ? response.getExpiresIn() : 60;
+        this.tokenExpiry = Instant.now().plusSeconds(expiresIn - 10);
+        
+        return cachedAdminToken;
+    }
+
+    private RestClient.RequestBodySpec adminRequest(HttpMethod method, String... pathParts) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromPath(PATH_ADMIN_REALM);
+        for (String part : pathParts) {
+            builder.path(part);
+        }
+        
+        String uri = builder.buildAndExpand(authProperties.getKeycloak().getRealm()).toUriString();
+        
+        return restClient.method(method)
+                .uri(uri)
+                .header(HttpHeaders.AUTHORIZATION, BEARER_PREFIX + getAdminToken());
+    }
+
+    private UserModel toDomainModel(KeycloakUserDTO dto) {
+        return UserModel.builder()
+                .id(UUID.fromString(dto.getId()))
+                .username(dto.getUsername())
+                .email(dto.getEmail())
+                .firstName(dto.getFirstName())
+                .lastName(dto.getLastName())
+                .build();
     }
 
     @Override
     public List<UserModel> getAllUsers() {
-        String adminToken = getAdminToken();
-        String getUsersUrl = getAdminBaseUrl() + "/users";
-
-        JsonNode response = restClient.get()
-                .uri(getUsersUrl)
-                .header("Authorization", "Bearer " + adminToken)
+        KeycloakUserDTO[] dtos = adminRequest(HttpMethod.GET, PATH_USERS)
                 .retrieve()
-                .body(JsonNode.class);
+                .body(KeycloakUserDTO[].class);
 
-        if (response == null || !response.isArray()) {
-            return Collections.emptyList();
-        }
-
-        List<UserModel> users = new ArrayList<>();
-        for (JsonNode userNode : response) {
-            UserModel user = UserModel.builder()
-                    .id(UUID.fromString(userNode.get("id").asText()))
-                    .username(userNode.get("username").asText())
-                    .email(userNode.has("email") ? userNode.get("email").asText() : null)
-                    .firstName(userNode.has("firstName") ? userNode.get("firstName").asText() : null)
-                    .lastName(userNode.has("lastName") ? userNode.get("lastName").asText() : null)
-                    .build();
-            users.add(user);
-        }
-
-        return users;
+        if (dtos == null) return Collections.emptyList();
+        
+        return Arrays.stream(dtos)
+                .map(this::toDomainModel)
+                .toList();
     }
 
     @Override
     public Optional<UserModel> getUserByUsername(String username) {
-        String adminToken = getAdminToken();
-        String getUsersUrl = getAdminBaseUrl() + "/users?username=" + username + "&exact=true";
+        String uri = UriComponentsBuilder.fromPath(PATH_USERS)
+                .queryParam("username", username)
+                .queryParam("exact", true)
+                .toUriString();
 
-        JsonNode response = restClient.get()
-                .uri(getUsersUrl)
-                .header("Authorization", "Bearer " + adminToken)
+        KeycloakUserDTO[] dtos = adminRequest(HttpMethod.GET, uri)
                 .retrieve()
-                .body(JsonNode.class);
+                .body(KeycloakUserDTO[].class);
 
-        if (response == null || !response.isArray() || response.isEmpty()) {
-            return Optional.empty();
-        }
-
-        JsonNode userNode = response.get(0);
-        return Optional.of(UserModel.builder()
-                .id(UUID.fromString(userNode.get("id").asText()))
-                .username(userNode.get("username").asText())
-                .email(userNode.has("email") ? userNode.get("email").asText() : null)
-                .firstName(userNode.has("firstName") ? userNode.get("firstName").asText() : null)
-                .lastName(userNode.has("lastName") ? userNode.get("lastName").asText() : null)
-                .build());
+        if (dtos == null || dtos.length == 0) return Optional.empty();
+        
+        return Optional.of(toDomainModel(dtos[0]));
     }
 
     @Override
     public UUID createUser(UserModel user, String password) {
-        String adminToken = getAdminToken();
-        String createUserUrl = getAdminBaseUrl() + "/users";
+        KeycloakUserDTO payload = KeycloakUserDTO.fromModel(user);
 
-        Map<String, Object> userPayload = new HashMap<>();
-        userPayload.put("username", user.getUsername());
-        userPayload.put("email", user.getEmail());
-        userPayload.put("firstName", user.getFirstName());
-        userPayload.put("lastName", user.getLastName());
-        userPayload.put("enabled", true);
-
-        ResponseEntity<Void> response = restClient.post()
-                .uri(createUserUrl)
-                .header("Authorization", "Bearer " + adminToken)
+        ResponseEntity<Void> response = adminRequest(HttpMethod.POST, PATH_USERS)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(userPayload)
+                .body(payload)
                 .retrieve()
                 .onStatus(status -> status.value() == 409, (req, res) -> {
                     throw new DomainException(ErrorCode.USER_EXISTED);
@@ -163,66 +161,44 @@ public class AuthAdminAdapter implements IdentityManagementPort {
             assignRole(keycloakUuid, UserRole.MEMBER.getCode());
             
             return keycloakUuid;
-
-        } else {
-            log.error("Failed to create user in Keycloak. Status: {}", response.getStatusCode());
-            throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR, "Identity provider error during user creation");
         }
+        
+        log.error("Failed to create user in Keycloak. Status: {}", response.getStatusCode());
+        throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
     }
 
     @Override
     public void assignRole(UUID userId, String roleCode) {
-        String adminToken = getAdminToken();
-        
-        String getRoleUrl = getAdminBaseUrl() + "/roles/" + roleCode;
-        JsonNode roleNode = restClient.get()
-                .uri(getRoleUrl)
-                .header("Authorization", "Bearer " + adminToken)
+        KeycloakRoleDTO role = adminRequest(HttpMethod.GET, PATH_ROLES + "/" + roleCode)
                 .retrieve()
-                .body(JsonNode.class);
+                .body(KeycloakRoleDTO.class);
 
-        if (roleNode == null) {
+        if (role == null) {
             log.error("Role {} not found in Keycloak", roleCode);
             return;
         }
 
-        String assignRoleUrl = getAdminBaseUrl() + "/users/" + userId + "/role-mappings/realm";
-        restClient.post()
-                .uri(assignRoleUrl)
-                .header("Authorization", "Bearer " + adminToken)
+        adminRequest(HttpMethod.POST, PATH_USERS + "/" + userId + PATH_ROLE_MAPPINGS_REALM)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Collections.singletonList(roleNode))
+                .body(Collections.singletonList(role))
                 .retrieve()
                 .toBodilessEntity();
     }
 
     @Override
     public void resetPassword(UUID userId, String newPassword) {
-        String adminToken = getAdminToken();
-        String resetPasswordUrl = getAdminBaseUrl() + "/users/" + userId + "/reset-password";
+        KeycloakCredentialDTO payload = KeycloakCredentialDTO.password(newPassword, false);
 
-        Map<String, Object> passwordPayload = new HashMap<>();
-        passwordPayload.put("type", "password");
-        passwordPayload.put("value", newPassword);
-        passwordPayload.put("temporary", false);
-
-        restClient.put()
-                .uri(resetPasswordUrl)
-                .header("Authorization", "Bearer " + adminToken)
+        adminRequest(HttpMethod.PUT, PATH_USERS + "/" + userId + PATH_RESET_PASSWORD)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(passwordPayload)
+                .body(payload)
                 .retrieve()
                 .toBodilessEntity();
     }
 
     @Override
     public void deleteUser(UUID userId) {
-        String adminToken = getAdminToken();
-        String deleteUserUrl = getAdminBaseUrl() + "/users/" + userId;
-
-        restClient.delete()
-                .uri(deleteUserUrl)
-                .header("Authorization", "Bearer " + adminToken)
+        adminRequest(HttpMethod.DELETE, PATH_USERS + "/" + userId)
                 .retrieve()
                 .toBodilessEntity();
         
@@ -231,15 +207,11 @@ public class AuthAdminAdapter implements IdentityManagementPort {
 
     @Override
     public void verifyEmail(UUID userId) {
-        String adminToken = getAdminToken();
-        String url = getAdminBaseUrl() + "/users/" + userId;
+        KeycloakUserDTO payload = KeycloakUserDTO.builder()
+                .emailVerified(true)
+                .build();
 
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("emailVerified", true);
-
-        restClient.put()
-                .uri(url)
-                .header("Authorization", "Bearer " + adminToken)
+        adminRequest(HttpMethod.PUT, PATH_USERS + "/" + userId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(payload)
                 .retrieve()
@@ -251,12 +223,10 @@ public class AuthAdminAdapter implements IdentityManagementPort {
     @Override
     public KeycloakAuthResult authenticate(String username, String password) {
         log.info("IdentityManagement: Attempting authentication for user: {}", username);
-        
         KeycloakAuthResult result = keycloakPort.login(username, password);
 
-        // Validate result - If null, it means an infrastructure/IDP failure occurred
         if (result == null || result.getAccessToken() == null) {
-            log.error("IdentityManagement: Authentication failed - Identity Provider returned an empty response for user: {}", username);
+            log.error("IdentityManagement: Authentication failed for user: {}", username);
             throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
 
@@ -283,40 +253,33 @@ public class AuthAdminAdapter implements IdentityManagementPort {
     @Override
     public KeycloakAuthResult issueToken(String username) {
         log.info("IdentityManagement: Issuing administrative token for user: {}", username);
-        
-        String tokenUrl = getRealmBaseUrl() + "/protocol/openid-connect/token";
+        AuthProperties.Keycloak k = authProperties.getKeycloak();
         
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
-        // Using Token Exchange (RFC 8693)
-        formData.add(OAuth2ParameterNames.GRANT_TYPE, "urn:ietf:params:oauth:grant-type:token-exchange");
-        formData.add(OAuth2ParameterNames.CLIENT_ID, clientId);
-        formData.add(OAuth2ParameterNames.CLIENT_SECRET, clientSecret);
-        formData.add("requested_subject", username);
-        formData.add("requested_token_type", "urn:ietf:params:oauth:token-type:access_token");
+        formData.add(PARAM_GRANT_TYPE, GRANT_TYPE_TOKEN_EXCHANGE);
+        formData.add(PARAM_CLIENT_ID, k.getClientId());
+        formData.add(PARAM_CLIENT_SECRET, k.getClientSecret());
+        formData.add(PARAM_REQUESTED_SUBJECT, username);
+        formData.add(PARAM_REQUESTED_TOKEN_TYPE, TOKEN_TYPE_ACCESS_TOKEN);
 
-        try {
-            JsonNode response = restClient.post()
-                    .uri(tokenUrl)
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(formData)
-                    .retrieve()
-                    .body(JsonNode.class);
+        KeycloakTokenResponseDTO response = restClient.post()
+                .uri(PATH_TOKEN, k.getRealm())
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(formData)
+                .retrieve()
+                .body(KeycloakTokenResponseDTO.class);
 
-            if (response == null || !response.has("access_token")) {
-                log.error("IdentityManagement: Token exchange failed for user {}. Response: {}", username, response);
-                throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR, "Could not issue auto-login token");
-            }
-
-            return KeycloakAuthResult.builder()
-                    .accessToken(response.get("access_token").asText())
-                    .refreshToken(response.has("refresh_token") ? response.get("refresh_token").asText() : null)
-                    .expiresIn(response.has("expires_in") ? response.get("expires_in").asLong() : 3600L)
-                    .refreshExpiresIn(response.has("refresh_expires_in") ? response.get("refresh_expires_in").asLong() : 0L)
-                    .tokenType(response.has("token_type") ? response.get("token_type").asText() : "Bearer")
-                    .build();
-        } catch (Exception e) {
-            log.error("IdentityManagement: Error during token exchange for user {}: {}", username, e.getMessage());
-            throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR, "Identity provider error during auto-login");
+        if (response == null || response.getAccessToken() == null) {
+            log.error("IdentityManagement: Token exchange failed for user {}.", username);
+            throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
+
+        return KeycloakAuthResult.builder()
+                .accessToken(response.getAccessToken())
+                .refreshToken(response.getRefreshToken())
+                .expiresIn(response.getExpiresIn() != null ? response.getExpiresIn() : 3600L)
+                .refreshExpiresIn(response.getRefreshExpiresIn() != null ? response.getRefreshExpiresIn() : 0L)
+                .tokenType(response.getTokenType() != null ? response.getTokenType() : "Bearer")
+                .build();
     }
 }
