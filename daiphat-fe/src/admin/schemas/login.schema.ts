@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-    usernameOrEmail: z
+    username: z
         .string()
-        .min(1, "Vui lòng nhập tên đăng nhập hoặc email"),
+        .min(1, "Vui lòng nhập tên đăng nhập"),
 
     password: z
         .string()

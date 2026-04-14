@@ -1,71 +1,79 @@
 import { useMutation } from "@tanstack/react-query";
 import { authService } from "../services/auth.service";
 import { useNavigate } from "react-router-dom";
-import { toast } from 'react-toastify';
-import Cookies from "js-cookie";
 import { useAuthStore } from "../../../../stores/useAuthStore";
+import { toast } from "react-toastify";
+import { ROUTES } from "../../../constants/routes";
+import { USER_ROLES } from "../../../../constants/role.constants";
 import { LoginResponse } from "../types/auth.type";
+import { User } from "../../../../types/user.type";
 
 export const useLogin = () => {
     const navigate = useNavigate();
     const loginStore = useAuthStore(state => state.login);
 
-    return useMutation({
+    const mutation = useMutation({
         mutationFn: authService.login,
         onSuccess: (response: LoginResponse) => {
-            if (response.code === 200 && response.data?.token) {
-                const { token, ...userInfo } = response.data;
+            console.log("Login Response:", response);
+            const isSuccess = response.isSuccess || response.success || response.code === "SUCCESS";
+            
+            if (isSuccess && response.data?.access_token) {
+                const { access_token, user: userInfo } = response.data;
 
-                // Store token in AuthStore (persisted to LocalStorage)
-                // userInfo is passed here but since we modified useAuthStore to partialize 
-                // only token, userInfo will only stay in-memory.
-                loginStore(userInfo as any, token);
+                if (userInfo) {
+                    const mappedUser = {
+                        ...userInfo,
+                        fullName: `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim(),
+                        avatar: (userInfo as any).avatarUrl || (userInfo as any).avatar || (userInfo as any).images?.[0]?.url,
+                        roles: userInfo.roles ? userInfo.roles : (userInfo.role ? [userInfo.role] : []),
+                    };
 
-                // Assuming refreshToken might be sent by BE in some field or we just use token for now
-                // User mentioned Cookies for RefreshToken. If response has refreshToken field, we use it.
-                // If not, maybe they meant the main token is often referred as RefreshToken if it's long lived?
-                // But usually it's a separate field. I'll check if response.data has it.
-                // For now, I'll store the main token in a cookie as a placeholder if no refreshToken exists.
-                if ((response.data as any).refreshToken) {
-                    Cookies.set("refreshToken", (response.data as any).refreshToken, {
-                        expires: 7, // 7 days
-                        secure: true,
-                        sameSite: "strict"
-                    });
-                }
+                    const r = mappedUser.roles?.[0];
+                    const rawRole = typeof r === 'string' ? r : (r?.code || r?.name || "");
+                    const normalizedRole = rawRole.toUpperCase().startsWith("ROLE_") 
+                        ? rawRole.toUpperCase() 
+                        : `ROLE_${rawRole.toUpperCase()}`;
+                    
+                    console.log("[Login Debug] Role Info:", { original: r, rawRole, normalizedRole });
 
-                toast.success(response.message);
-                
-                const roles = userInfo.roles || [];
-                const isAdmin = roles.some((role: any) => 
-                    role.name?.toLowerCase().includes("admin") || 
-                    role.name?.toLowerCase().includes("quản trị viên") ||
-                    role.name?.toLowerCase().includes("quản trị")
-                );
-                const isStaff = roles.some((role: any) => 
-                    role.isStaff || 
-                    role.name?.toLowerCase().includes("nhân viên") || 
-                    role.name?.toLowerCase().includes("staff")
-                );
+                    const isAdmin = normalizedRole === USER_ROLES.ADMIN;
+                    const isManager = normalizedRole === USER_ROLES.STAFF_MANAGER;
+                    const isShipper = normalizedRole === USER_ROLES.STAFF_SHIPPER;
 
-                if (isAdmin) {
-                    navigate("/admin/dashboard/system");
-                } else if (isStaff) {
-                    navigate("/admin/staff/tasks");
+                    if (isAdmin || isManager || isShipper) {
+                        loginStore(mappedUser as User, access_token, response.data.expires_in);
+
+                        if (isAdmin) {
+                            toast.success("Đăng nhập thành công! Chào mừng Quản trị viên.");
+                            navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
+                        } else if (isManager) {
+                            toast.success("Đăng nhập thành công! Chào mừng Quản lý.");
+                            navigate(ROUTES.ADMIN.MANAGEMENT.ROOT);
+                        } else {
+                            toast.success("Đăng nhập thành công! Chào mừng Shipper.");
+                            navigate(ROUTES.ADMIN.SHIPPING.ROOT);
+                        }
+                    } else {
+                        console.log("❌ Không vô được điều kiện, role là:", normalizedRole);
+                        toast.error("Tài khoản của bạn không có quyền truy cập vùng Quản trị!");
+                    }
                 } else {
-                    navigate("/admin/dashboard/system"); // Default fallback
+                    toast.error("Không tìm thấy thông tin người dùng trong phản hồi!");
                 }
             } else {
-                toast.error(response.message || "Đăng nhập thất bại!");
+                if (response.message) toast.error(response.message);
             }
         },
         onError: (error: any) => {
-            const errorMessage = error?.response?.data?.message || "Đăng nhập thất bại!";
-            toast.error(errorMessage);
+            console.error("Login mutation error:", error);
+            const serverMessage = error.response?.data?.message || error.response?.data?.error_description;
+            toast.error(serverMessage || "Có lỗi xảy ra trong quá trình đăng nhập.");
         }
     });
+
+    return {
+        ...mutation,
+        isPending: mutation.isPending
+    };
 };
-
-
-
-

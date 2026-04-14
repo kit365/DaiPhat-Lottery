@@ -1,28 +1,42 @@
-export interface User {
-    id: string;
-    fullName: string;
-    email: string;
-    avatar?: string;
-    permissions?: string[];
-    roles?: any[];
-}
+import { User } from "../../../../types/user.type";
 
 export interface LoginResponse {
-    code: number;
+    code: string;
+    isSuccess: boolean;
+    success: boolean;
     message: string;
     data?: {
-        id: string;
-        fullName: string;
-        email: string;
-        token: string;
-        avatar?: string;
-        permissions: string[];
-        roles?: any[];
+        access_token: string;
+        expires_in?: number;
+        // refresh_token được BE set vào HttpOnly Cookie, không có trong JSON body
+        token_type?: string;
+        scope?: string;
+        user: User;
     };
 }
 
 export interface GetMeResponse {
-    code: number;
+    code: string;
+    isSuccess: boolean;
     message: string;
     data?: User;
+}
+
+export interface PasswordRequirement {
+    id: string;
+    description: string;
+    regex: string;
+}
+
+export interface PasswordPolicy {
+    requirements: PasswordRequirement[];
+    minLength: number;
+    maxLength: number;
+}
+
+export interface PasswordPolicyResponse {
+    code: string;
+    isSuccess: boolean;
+    message: string;
+    data: PasswordPolicy;
 }
