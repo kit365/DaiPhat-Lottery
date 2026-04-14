@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { LogoAdmin } from "../../../../assets/admin/logo";
 import { NavGroup } from "./NavGroup";
-import { menuManagementData, menuOverviewData } from "../../../constants/sideBar";
+import { menuManagementData, menuOverviewData, menuDevelopmentData } from "../../../constants/sideBar";
 import { IconButton } from "@mui/material";
 import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
@@ -50,6 +50,7 @@ export const SideBar = () => {
                         <ul>
                             <NavGroup title={"admin.overview"} data={menuOverviewData} />
                             <NavGroup title={"admin.management"} data={menuManagementData} />
+                            <NavGroup title={"admin.development"} data={menuDevelopmentData} />
                         </ul>
                     </nav>
                 </div>
