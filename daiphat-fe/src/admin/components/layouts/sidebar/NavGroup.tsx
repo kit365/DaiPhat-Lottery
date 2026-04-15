@@ -5,6 +5,7 @@ import { ArrowIcon } from "../../../assets/icons";
 import { NavItem } from "./NavItem";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { useAuthStore } from "../../../../stores/useAuthStore";
+import { USER_ROLES } from "../../../../constants/role.constants";
 interface Props {
     title: string;
     data: any[];
@@ -13,7 +14,25 @@ interface Props {
 export const NavGroup = memo(({ title, data }: Props) => {
     const { t } = useTranslation();
     const { isOpen } = useSidebar();
-    const filteredData = data;
+    const { user } = useAuthStore();
+
+    const isAdmin = user?.roles?.some(role => role.code === USER_ROLES.ADMIN);
+    const isStaff = user?.roles?.some(role => role.code.includes('STAFF'));
+
+    const filteredData = data.filter(item => {
+        // 1. Check Staff hide flag
+        if (isStaff && item.hideIfStaff) return false;
+
+        // 2. Check Item Permission
+        const hasItemAccess = isAdmin || !item.permission || user?.permissions?.includes(item.permission);
+
+        // 3. Check Children Permissions (if any)
+        const hasAccessibleChildren = item.children?.some((child: any) =>
+            isAdmin || !child.permission || user?.permissions?.includes(child.permission)
+        );
+
+        return hasItemAccess || hasAccessibleChildren;
+    });
 
     const [openGroup, setOpenGroup] = useState(true);
 
