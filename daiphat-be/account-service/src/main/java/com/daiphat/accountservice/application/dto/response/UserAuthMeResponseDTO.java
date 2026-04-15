@@ -1,9 +1,8 @@
 package com.daiphat.accountservice.application.dto.response;
 
-import lombok.Builder;
+import java.util.Set;
 import java.util.UUID;
 
-@Builder
 public record UserAuthMeResponseDTO(
     UUID id,
     String username,
@@ -11,5 +10,6 @@ public record UserAuthMeResponseDTO(
     String firstName,
     String lastName,
     AuthMeRoleResponseDTO role,
+    Set<String> permissions,
     String avatarUrl
 ) {}

@@ -30,6 +30,7 @@
         },
         "overview": "Tổng quan",
         "management": "Quản lý",
+        "development": "Phát triển",
         "sidebar": {
             "analytics": "Phân tích",
             "tickets": "Vé số",
@@ -58,6 +59,9 @@
             "users": "Khách hàng",
             "user_list": "Danh sách",
             "user_create": "Tạo mới",
+            "members": "Thành viên",
+            "member_list": "Danh sách thành viên",
+            "member_create": "Thêm thành viên",
             "list": "Danh sách",
             "create": "Tạo mới",
             "brand": "Thương hiệu",
