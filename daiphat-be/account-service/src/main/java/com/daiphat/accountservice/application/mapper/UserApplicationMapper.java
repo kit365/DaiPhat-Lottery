@@ -2,6 +2,7 @@ package com.daiphat.accountservice.application.mapper;
 
 import com.daiphat.accountservice.application.dto.request.UserRegistrationRequestDTO;
 import com.daiphat.accountservice.application.dto.response.*;
+import com.daiphat.accountservice.domain.model.PermissionModel;
 import com.daiphat.accountservice.domain.model.RoleModel;
 import com.daiphat.accountservice.domain.model.UserAddressModel;
 import com.daiphat.accountservice.domain.model.UserImageModel;
@@ -12,7 +13,15 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
+import java.util.Collections;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Mapper(
+    componentModel = "spring", 
+    unmappedTargetPolicy = ReportingPolicy.IGNORE,
+    imports = {Collections.class, Set.class, Collectors.class, PermissionModel.class}
+)
 public interface UserApplicationMapper {
 
     @Mapping(target = "id", ignore = true)
@@ -22,10 +31,21 @@ public interface UserApplicationMapper {
     UserResponseDTO mapToUserResponse(UserModel userModel);
 
     @Mapping(target = "avatarUrl", expression = "java(extractAvatarUrl(userModel))")
+    @Mapping(target = "permissions", expression = "java(mapPermissions(userModel.getRole()))")
     UserAuthMeResponseDTO mapToAuthMeUserResponse(UserModel userModel);
+
+    default Set<String> mapPermissions(RoleModel role) {
+        if (role == null || role.getPermissions() == null) {
+            return Collections.emptySet();
+        }
+        return role.getPermissions().stream()
+                .map(PermissionModel::getCode)
+                .collect(Collectors.toSet());
+    }
 
     AuthMeRoleResponseDTO mapToAuthMeRoleResponse(RoleModel role);
 
+    @Mapping(target = "permissions", expression = "java(mapPermissions(role))")
     RoleResponseDTO mapToRoleResponse(RoleModel role);
 
     UserImageResponseDTO mapToUserImageResponse(UserImageModel userImage);
