@@ -4,6 +4,7 @@ import { Navigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ROUTES } from "../../constants/routes";
 import { useGetMe } from "../../pages/authen/hooks/use-get-me";
+import { USER_ROLES } from "../../../constants/role.constants";
 
 interface Props {
     permission?: string;
@@ -12,29 +13,53 @@ interface Props {
 }
 
 export const PermissionGuard = ({ children, permission, fallback }: Props) => {
-    const { user, logout, token } = useAuthStore();
-    const { isLoading } = useGetMe();
+    const { user, logout, token, isHydrated } = useAuthStore();
+    const { isLoading, isFetching } = useGetMe();
 
-    // Chờ quá trình fetch HOÀN TOÀN TẮT (với điều kiện CÓ TOKEN, CHƯA CÓ USER)
-    const isFetchingUser = isLoading && !!token && !user;
+    // 1. Nếu CHƯA HYDRATE xong thì tuyệt đối không được làm gì, cứ đứng đợi
+    const isReady = isHydrated;
+    
+    // 2. Nếu đã Hydrate (có token) nhưng đang đợi fetch thông tin user mới
+    // Phải chờ cả isLoading (lần đầu) và isFetching (mọi lần reload) để đảm bảo có data mới nhất
+    const isFetchingUser = isReady && !!token && (isLoading || isFetching);
 
-    // Tạm thời cho qua theo chỉ đạo của sếp: "tạm chưa phân theo permission là đc"
-    const hasPermission = true;
+    const isAdmin = user?.roles?.some(role => role.code === USER_ROLES.ADMIN);
+    const isStaff = user?.roles?.some(role => role.code.includes('STAFF'));
+    const isOnlyMember = !isAdmin && !isStaff;
+
+    const hasPermission = isAdmin || !permission || user?.permissions?.includes(permission);
 
     useEffect(() => {
-        if (!isFetchingUser && !hasPermission) {
-            toast.error("Bạn không có quyền thực hiện hành động này!", {
-                toastId: "permission-denied"
-            });
-            logout();
-        }
-    }, [hasPermission, isFetchingUser, permission, logout]);
+        // CHỈ xử lý khi hệ thống đã Hydrate xong, KHÔNG đang fetch dở, và QUAN TRỌNG: Đã có thông tin User
+        if (isReady && !isFetchingUser && user) {
+            
+            if (!hasPermission) {
+                toast.warning("Bạn không có quyền thực hiện hành động này!", {
+                    toastId: "permission-denied"
+                });
 
-    if (isFetchingUser) {
-        return fallback || <div>Đang kiểm tra quyền truy cập...</div>;
+                // Nếu là Member (người lạ) thì sút văng ra ngoài (Logout)
+                if (isOnlyMember) {
+                    logout();
+                }
+            }
+        }
+    }, [hasPermission, isFetchingUser, isReady, token, user, logout, isOnlyMember]);
+
+    // Trạng thái chờ: Đang hydrate hoặc đang fetch thông tin user
+    if (!isReady || isFetchingUser) {
+        return fallback || (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                Đang kiểm tra quyền truy cập...
+            </div>
+        );
     }
 
     if (!hasPermission) {
+        // Nếu là Staff/Admin mà chỉ thiếu quyền con -> Đẩy về Dashboard chứ ko sút Logout
+        if (!isOnlyMember && user) {
+            return <Navigate to={ROUTES.ADMIN.DASHBOARD.ROOT} replace />;
+        }
         return <Navigate to={ROUTES.ADMIN.AUTH.LOGIN} replace />;
     }
 

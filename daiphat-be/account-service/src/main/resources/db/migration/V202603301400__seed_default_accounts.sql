@@ -13,12 +13,12 @@ ON CONFLICT (username) DO NOTHING;
 
 -- Seed Staff Shipper (ID: 6e44453a-1c44-445c-aedf-49d5eecf8a5d)
 INSERT INTO users (id, role_id, username, email, first_name, last_name, status, is_email_verified)
-SELECT '6e44453a-1c44-445c-aedf-49d5eecf8a5d', id, 'shipper123', 'shipper@daiphat.com', 'Super', 'Shipper', 'ACTIVE', TRUE
+SELECT '6e44453a-1c44-445c-aedf-49d5eecf8a5d', id, 'shipper', 'shipper@daiphat.com', 'Super', 'Shipper', 'ACTIVE', TRUE
 FROM roles WHERE code = 'ROLE_STAFF_SHIPPER'
 ON CONFLICT (username) DO NOTHING;
 
 -- Seed Staff Manager (ID: 7e44453a-1c44-445c-aedf-49d5eecf8a5d)
 INSERT INTO users (id, role_id, username, email, first_name, last_name, status, is_email_verified)
-SELECT '7e44453a-1c44-445c-aedf-49d5eecf8a5d', id, 'manager123', 'manager@daiphat.com', 'Super', 'Manager', 'ACTIVE', TRUE
+SELECT '7e44453a-1c44-445c-aedf-49d5eecf8a5d', id, 'manager', 'manager@daiphat.com', 'Super', 'Manager', 'ACTIVE', TRUE
 FROM roles WHERE code = 'ROLE_STAFF_MANAGER'
 ON CONFLICT (username) DO NOTHING;
