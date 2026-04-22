@@ -7,7 +7,8 @@ import { adminTheme } from "../config/theme";
 import '../styles/index.css';
 import { useSidebar } from "../context/sidebar/useSidebar";
 import { SidebarProvider } from "../context/sidebar/SidebarProvider";
-import { useGetMe } from "../pages/authen/hooks/use-get-me";
+import { useAuth } from "../pages/authen/hooks/useAuth";
+import { useAuthStore } from "../../stores/useAuthStore";
 
 import { SocketProvider } from "../context/SocketContext";
 import { OverrunAlerter } from "../components/OverrunAlerter";
@@ -18,10 +19,18 @@ import LoadingScreen from "../components/ui/LoadingScreen";
 import { ROUTES } from "../constants/routes";
 
 const LayoutAdminContent = () => {
-    useGetMe();
+    const { user, isLoading } = useAuth();
     const location = useLocation();
-
     const { isOpen } = useSidebar();
+
+    // [THE VAULT DOOR] - Chặn đứng mọi nỗ lực xem Dashboard khi chưa setup xong
+    if (isLoading && !user) {
+        return <LoadingScreen />;
+    }
+
+    if (user && (!user.hasPassword || !user.agreedToTerms)) {
+        return <LoadingScreen />;
+    }
 
     const isBlogDetail = location.pathname.startsWith(ROUTES.ADMIN.BLOGS.DETAIL);
     const fullWidthRoutes = [

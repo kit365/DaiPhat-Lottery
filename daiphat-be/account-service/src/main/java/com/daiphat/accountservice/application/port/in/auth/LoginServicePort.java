@@ -1,11 +1,11 @@
 package com.daiphat.accountservice.application.port.in.auth;
 
-import com.daiphat.accountservice.application.dto.request.LoginRequestDTO;
-import com.daiphat.accountservice.application.dto.request.RefreshTokenRequestDTO;
-import com.daiphat.accountservice.application.dto.response.AuthResponseDTO;
+import com.daiphat.accountservice.application.dto.request.auth.LoginRequest;
+import com.daiphat.accountservice.application.dto.request.auth.RefreshTokenRequest;
+import com.daiphat.accountservice.application.dto.response.auth.AuthResponse;
 
 public interface LoginServicePort {
-    AuthResponseDTO login(LoginRequestDTO request);
-    AuthResponseDTO refreshToken(RefreshTokenRequestDTO request);
+    AuthResponse login(LoginRequest request);
+    AuthResponse refreshToken(RefreshTokenRequest request);
     void logout(String refreshToken);
 }

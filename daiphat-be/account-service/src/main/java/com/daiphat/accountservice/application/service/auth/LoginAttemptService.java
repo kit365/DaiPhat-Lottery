@@ -7,10 +7,10 @@ import com.daiphat.accountservice.application.port.out.auth.keys.AuthAction;
 import com.daiphat.accountservice.application.port.out.auth.cache.AccountLockCachePort;
 import com.daiphat.accountservice.application.port.out.auth.DistributedLockPort;
 import com.daiphat.accountservice.application.port.out.auth.keys.AuthCacheKeyGenerator;
-import com.daiphat.accountservice.application.port.out.UserRepositoryPort;
-import com.daiphat.accountservice.application.port.in.UserServicePort;
+import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
+import com.daiphat.accountservice.application.port.in.user.UserServicePort;
 import com.daiphat.accountservice.application.config.AuthProperties;
-import com.daiphat.accountservice.application.dto.response.LoginLockoutResponse;
+import com.daiphat.accountservice.application.dto.response.auth.LoginLockoutResponse;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
 import com.daiphat.accountservice.domain.model.enums.UserStatus;
 import com.daiphat.accountservice.domain.model.UserModel;
@@ -166,12 +166,16 @@ public class LoginAttemptService implements LoginAttemptPort {
         if (lastLockTriggerFailure > 0 && lastAttemptAtOpt.isPresent()) {
             long lastAttemptAt = lastAttemptAtOpt.get();
             long maxWait = authProperties.getLockout().getMaxDuration().toSeconds();
-            long waitTime = AuthUtils.calculateLockoutTime(lastLockTriggerFailure, threshold, authProperties.getLockout().getBackoffSeconds(), maxWait);
+            long waitTime = AuthUtils.calculateLockoutTime(lastLockTriggerFailure, threshold, 
+                    authProperties.getLockout().getBackoffSeconds(), maxWait);
             
             if (waitTime > 0) {
                 long elapsed = (System.currentTimeMillis() - lastAttemptAt) / 1000;
                 long remaining = waitTime - elapsed;
-                if (remaining > 0) return remaining;
+                if (remaining > 0) {
+                    return remaining;
+                }
+
             }
         }
 

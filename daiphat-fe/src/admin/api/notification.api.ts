@@ -4,7 +4,7 @@ import Cookies from 'js-cookie';
 const BASE_URL = '/admin/notifications';
 
 const withAuth = () => {
-    const token = Cookies.get("tokenAdmin");
+    const token = Cookies.get(STORAGE_KEYS.TOKEN);
     return {
         headers: {
             Authorization: `Bearer ${token}`,

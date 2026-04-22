@@ -6,7 +6,7 @@ const BASE_URL = '/admin/article';
 
 /** Header auth dùng chung */
 const withAuth = () => {
-    const token = Cookies.get("tokenAdmin");
+    const token = Cookies.get(STORAGE_KEYS.TOKEN);
 
     return {
         headers: {

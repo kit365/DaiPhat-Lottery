@@ -1,6 +1,6 @@
 package com.daiphat.accountservice.infrastructure.config.security;
 
-import com.daiphat.accountservice.application.port.out.RoleRepositoryPort;
+import com.daiphat.accountservice.application.port.out.auth.RoleRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,7 +38,8 @@ public class SecurityConfig {
                         // Permit Actuator completely
                         .requestMatchers("/actuator/**").permitAll()
                         // Permit Swagger/Docs completely
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**",
+                                "/swagger-ui.html", "/webjars/**").permitAll()
                         
                         // Permit Auth, Error and Test endpoints
                         .requestMatchers("/api/v1/auth/**", "/error").permitAll()

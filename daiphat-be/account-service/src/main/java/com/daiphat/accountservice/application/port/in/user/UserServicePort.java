@@ -1,0 +1,23 @@
+package com.daiphat.accountservice.application.port.in.user;
+
+import com.daiphat.accountservice.application.dto.request.user.ProfileSetupRequest;
+import com.daiphat.accountservice.application.dto.response.user.UserResponse;
+import com.daiphat.accountservice.domain.model.UserModel;
+
+import java.util.List;
+import java.util.UUID;
+
+public interface UserServicePort {
+    UserResponse getById(UUID id);
+    UserResponse getByUsername(String username);
+    UserResponse getMyProfile(String username);
+    List<UserResponse> getAll();
+    void delete(UUID id);
+
+    // Internal Use
+    UserModel fetchActiveUserByUsername(String username);
+    UserModel fetchActiveUserById(UUID id);
+    UUID getIdByUsername(String username);
+
+    void setupFirstTimeProfile(String username, ProfileSetupRequest request);
+}

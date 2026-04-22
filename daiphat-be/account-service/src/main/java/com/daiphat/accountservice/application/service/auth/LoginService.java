@@ -1,13 +1,13 @@
 package com.daiphat.accountservice.application.service.auth;
 
 import com.daiphat.accountservice.application.config.AuthProperties;
-import com.daiphat.accountservice.application.dto.request.LoginRequestDTO;
-import com.daiphat.accountservice.application.dto.request.RefreshTokenRequestDTO;
-import com.daiphat.accountservice.application.dto.response.AuthResponseDTO;
+import com.daiphat.accountservice.application.dto.request.auth.LoginRequest;
+import com.daiphat.accountservice.application.dto.request.auth.RefreshTokenRequest;
+import com.daiphat.accountservice.application.dto.response.auth.AuthResponse;
 import com.daiphat.accountservice.application.mapper.AuthApplicationMapper;
 import com.daiphat.accountservice.application.port.in.auth.LoginServicePort;
-import com.daiphat.accountservice.application.port.in.UserServicePort;
-import com.daiphat.accountservice.application.port.out.IdentityManagementPort;
+import com.daiphat.accountservice.application.port.in.user.UserServicePort;
+import com.daiphat.accountservice.application.port.out.auth.IdentityManagementPort;
 import com.daiphat.accountservice.application.port.out.auth.LoginAttemptPort;
 import com.daiphat.accountservice.application.port.out.auth.RateLimiterPort;
 import com.daiphat.accountservice.application.port.out.auth.keys.AuthAction;
@@ -38,7 +38,7 @@ public class LoginService implements LoginServicePort {
 
     @Transactional
     @Override
-    public AuthResponseDTO login(LoginRequestDTO request) {
+    public AuthResponse login(LoginRequest request) {
         validateRequest(request);
         checkRateLimits(request.getUsername());
 
@@ -65,7 +65,8 @@ public class LoginService implements LoginServicePort {
                 spamConfig.getMaxAttempts(),
                 spamConfig.getWindowSeconds()
         )) {
-            long retryAfter = rateLimiterService.getRemainingWaitTimeFixed(username, AuthAction.LOGIN, spamConfig.getWindowSeconds());
+            long retryAfter = rateLimiterService.getRemainingWaitTimeFixed(
+                    username, AuthAction.LOGIN, spamConfig.getWindowSeconds());
             throw new DomainException(ErrorCode.TOO_MANY_REQUESTS, null, String.valueOf(retryAfter));
         }
     }
@@ -83,6 +84,8 @@ public class LoginService implements LoginServicePort {
             log.warn("Authentication failed for user: {} - Error: {}", username, e.getMessage());
             throw new DomainException(ErrorCode.INVALID_CREDENTIALS);
         }
+
+
     }
 
     private void verifyIdpIdentity(UserModel user, String idpUserId) {
@@ -101,7 +104,7 @@ public class LoginService implements LoginServicePort {
         }
     }
 
-    private AuthResponseDTO handleSuccess(UserModel user, KeycloakAuthResult result, boolean rememberMe) {
+    private AuthResponse handleSuccess(UserModel user, KeycloakAuthResult result, boolean rememberMe) {
         String userId = user.getId().toString();
 
         processTokenSecurityAndCaching(userId, result, rememberMe);
@@ -114,7 +117,7 @@ public class LoginService implements LoginServicePort {
 
     @Transactional
     @Override
-    public AuthResponseDTO refreshToken(RefreshTokenRequestDTO request) {
+    public AuthResponse refreshToken(RefreshTokenRequest request) {
         log.info("Refreshing token via internal login service");
         
         KeycloakAuthResult result = identityManagementPort.refreshToken(request.getRefreshToken());
@@ -130,7 +133,8 @@ public class LoginService implements LoginServicePort {
         try {
             keycloakUuid = UUID.fromString(userId);
         } catch (IllegalArgumentException | NullPointerException e) {
-            log.error("CRITICAL SECURITY: Malformed UUID from IDP during Refresh - Raw ID: '{}'", userId);
+            log.error("CRITICAL SECURITY: Malformed UUID from IDP during Refresh - Raw ID: '{}'", 
+                    userId);
             throw new DomainException(ErrorCode.REFRESH_TOKEN_EXPIRED); // Treat as invalid session
         }
 
@@ -159,8 +163,8 @@ public class LoginService implements LoginServicePort {
             tokenCachePort.revokeToken(userId.toString());
             log.info("Local session revoked in Redis for user ID: {}", userId);
         } catch (Exception e) {
-            log.warn("Security: Could not extract userId from token for local revocation. Reason: {}. Proceeding to IDP logout.", 
-                e.getMessage());
+            log.warn("Security: Could not extract userId from token for local revocation. "
+                    + "Reason: {}. Proceeding to IDP logout.", e.getMessage());
         }
 
         // 2. Invalidate IDP session
@@ -168,12 +172,12 @@ public class LoginService implements LoginServicePort {
             identityManagementPort.logout(refreshToken);
             log.info("Successfully requested IDP logout for provided token.");
         } catch (Exception e) {
-            log.warn("Security: IDP logout failed or token already invalid. Reason: {}. Continuing...", 
-                e.getMessage());
+            log.warn("Security: IDP logout failed or token already invalid. "
+                    + "Reason: {}. Continuing...", e.getMessage());
         }
     }
 
-    private void validateRequest(LoginRequestDTO request) {
+    private void validateRequest(LoginRequest request) {
         if (request.getUsername() == null || request.getUsername().isBlank()) {
             throw new DomainException(ErrorCode.USERNAME_REQUIRED);
         }
@@ -196,8 +200,8 @@ public class LoginService implements LoginServicePort {
         log.info("Tokens cached successfully for user ID: {}", userId);
     }
 
-    private AuthResponseDTO buildAuthResponse(KeycloakAuthResult result, UserModel userModel, boolean isRememberMe) {
-        AuthResponseDTO response = authApplicationMapper.toResponse(result, userModel);
+    private AuthResponse buildAuthResponse(KeycloakAuthResult result, UserModel userModel, boolean isRememberMe) {
+        AuthResponse response = authApplicationMapper.toResponse(result, userModel);
         response.setExpiresIn(isRememberMe 
                 ? authProperties.getToken().getRememberMeTtl().toSeconds() 
                 : result.getExpiresIn());

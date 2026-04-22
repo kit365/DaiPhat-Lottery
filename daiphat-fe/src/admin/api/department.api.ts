@@ -1,10 +1,11 @@
 import Cookies from "js-cookie";
+import { STORAGE_KEYS } from "../../constants/storage.constants";
 import { apiApp } from "../../api/index";
 
 const BASE_URL = "/admin/departments";
 
 const withAuth = () => {
-    const token = Cookies.get("tokenAdmin");
+    const token = Cookies.get(STORAGE_KEYS.TOKEN);
     return {
         headers: {
             Authorization: `Bearer ${token}`,

@@ -1,5 +1,7 @@
 package com.daiphat.accountservice.domain.valueobject;
 
+import com.daiphat.accountservice.application.dto.response.base.Views;
+import com.fasterxml.jackson.annotation.JsonView;
 import lombok.*;
 
 /**
@@ -11,7 +13,10 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Coordinates {
+    @JsonView(Views.Public.class)
     private Double longitude;
+    
+    @JsonView(Views.Public.class)
     private Double latitude;
     
     public boolean hasCoordinates() {

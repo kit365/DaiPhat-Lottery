@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 public class SecurityExpressionUtils {
 
     /**
-     * Check quyền theo Resource và Action (Convention: resource:action)
+     * Check quyền theo Resource và Action (Convention: resource:action).
      */
     public boolean has(String resource, String action) {
         // Spring Security sẽ tự động check authority trong context
@@ -20,21 +20,21 @@ public class SecurityExpressionUtils {
     }
 
     /**
-     * Helper cho module ROLE
+     * Helper cho module ROLE.
      */
     public String role(String action) {
         return PermissionConstants.ROLE + action;
     }
 
     /**
-     * Helper cho module ARTICLE
+     * Helper cho module ARTICLE.
      */
     public String article(String action) {
         return PermissionConstants.ARTICLE + action;
     }
     
     /**
-     * Helper cho module USER
+     * Helper cho module USER.
      */
     public String user(String action) {
         return PermissionConstants.USER + action;

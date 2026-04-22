@@ -32,6 +32,7 @@ export const useAccountDetail = (id?: string) => {
         queryFn: () => getAccountById(id!),
         enabled: !!id,
         select: (res: any) => res.data,
+        retry: false, // Don't spam 403 on profile if forbidden
     });
 };
 

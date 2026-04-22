@@ -64,6 +64,10 @@ public class UserEntity extends BaseEntity {
     @Builder.Default
     private boolean agreedToTerms = false;
 
+    @Column(name = "has_password", nullable = false)
+    @Builder.Default
+    private boolean hasPassword = false;
+
     // Rate Limit & Account Locking
     @Column(name = "failed_login_attempts", nullable = false)
     @Builder.Default

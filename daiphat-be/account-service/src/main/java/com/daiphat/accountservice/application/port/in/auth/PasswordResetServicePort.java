@@ -1,10 +1,11 @@
 package com.daiphat.accountservice.application.port.in.auth;
 
-import com.daiphat.accountservice.application.dto.request.ForgotPasswordRequestDTO;
-import com.daiphat.accountservice.application.dto.request.ResetPasswordRequestDTO;
-import com.daiphat.accountservice.application.dto.request.VerifyOtpRequestDTO;
-import com.daiphat.accountservice.application.dto.response.ForgotPasswordResponseDTO;
-import com.daiphat.accountservice.application.dto.response.VerifyOtpResponseDTO;
+import com.daiphat.accountservice.application.dto.request.auth.ForgotPasswordRequest;
+import com.daiphat.accountservice.application.dto.request.auth.ResetPasswordRequest;
+import com.daiphat.accountservice.application.dto.request.auth.VerifyOtpRequest;
+import com.daiphat.accountservice.application.dto.response.auth.ForgotPasswordResponse;
+import com.daiphat.accountservice.application.dto.response.auth.PasswordPolicyResponse;
+import com.daiphat.accountservice.application.dto.response.auth.VerifyOtpResponse;
 
 /**
  * Port chuyên trách khâu Quên/Đổi mật khẩu.
@@ -13,25 +14,25 @@ public interface PasswordResetServicePort {
     /**
      * Yêu cầu quên mật khẩu (Gửi OTP).
      */
-    ForgotPasswordResponseDTO forgotPassword(ForgotPasswordRequestDTO request);
+    ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request);
 
     /**
      * Gửi lại mã OTP.
      */
-    ForgotPasswordResponseDTO resendForgotPasswordOtp(ForgotPasswordRequestDTO request);
+    ForgotPasswordResponse resendForgotPasswordOtp(ForgotPasswordRequest request);
 
     /**
      * Xác thực mã OTP để tạo Reset Session.
      */
-    VerifyOtpResponseDTO verifyResetOtp(VerifyOtpRequestDTO request);
+    VerifyOtpResponse verifyResetOtp(VerifyOtpRequest request);
 
     /**
      * Thực hiện đổi mật khẩu mới bằng Reset Token.
      */
-    void resetPassword(ResetPasswordRequestDTO request);
+    void resetPassword(ResetPasswordRequest request);
 
     /**
      * Lấy chính sách mật khẩu hiện tại của hệ thống.
      */
-    com.daiphat.accountservice.application.dto.response.PasswordPolicyResponseDTO getPasswordPolicy();
+    PasswordPolicyResponse getPasswordPolicy();
 }

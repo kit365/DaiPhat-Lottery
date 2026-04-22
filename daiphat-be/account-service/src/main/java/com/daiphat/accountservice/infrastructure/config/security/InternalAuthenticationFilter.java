@@ -1,7 +1,6 @@
 package com.daiphat.accountservice.infrastructure.config.security;
 
-import com.daiphat.accountservice.application.port.out.RoleRepositoryPort;
-import com.daiphat.accountservice.domain.model.enums.UserRole;
+import com.daiphat.accountservice.application.port.out.auth.RoleRepositoryPort;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,11 +14,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.UUID;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Filter that trusts internal identification headers propagated by the API Gateway.
@@ -40,61 +39,59 @@ public class InternalAuthenticationFilter extends OncePerRequestFilter {
 
         String userId = request.getHeader("X-Internal-User-Id");
         String username = request.getHeader("X-Internal-User-Name");
+        String email = request.getHeader("X-Internal-User-Email");
+        String firstNameRaw = request.getHeader("X-Internal-User-First-Name");
+        String lastNameRaw = request.getHeader("X-Internal-User-Last-Name");
+        String avatarRaw = request.getHeader("X-Internal-User-Avatar");
         String rolesString = request.getHeader("X-Internal-User-Roles");
 
-        if (userId != null && username != null && rolesString != null) {
-            log.trace("Trusting Gateway identity: {}, ROLES: {}", username, rolesString);
+        String firstName = decode(firstNameRaw);
+        String lastName = decode(lastNameRaw);
+        String avatarUrl = decode(avatarRaw);
+        
+        log.info("--- BACKEND IDENTITY ---");
+        log.info("User: {} ({}), Email: {}, Name: {} {}, Avatar: {}", 
+                username, userId, email, firstName, lastName, avatarUrl != null ? "PRESENT" : "NONE");
+        log.info("------------------------");
 
-            List<String> roleCodes = Arrays.stream(rolesString.split(","))
-                    .filter(role -> !role.isEmpty())
-                    .toList();
+        if (userId != null && username != null) {
+            List<String> roleCodes = (rolesString == null || rolesString.isBlank()) 
+                    ? new ArrayList<>() 
+                    : Arrays.stream(rolesString.split(",")).filter(r -> !r.isEmpty()).toList();
 
             List<SimpleGrantedAuthority> authorities = new ArrayList<>(roleCodes.stream()
                     .map(SimpleGrantedAuthority::new)
                     .toList());
 
-            // Augment with permissions from DB (Distributed RBAC hardening)
-            try {
-                Set<String> permissionCodes = roleRepositoryPort.findPermissionCodesByRoleCodes(roleCodes);
-                authorities.addAll(permissionCodes.stream()
-                        .map(SimpleGrantedAuthority::new)
-                        .toList());
-                log.trace("Augmented authorities for {}: {}", username, authorities);
-            } catch (Exception e) {
-                log.error("Failed to augment permissions for {}: {}", username, e.getMessage());
-            }
-
-            // DP-32 Middleware: Reject ONLY-MEMBER access for admin-protected services
-            boolean hasMemberRole = authorities.stream()
-                    .anyMatch(a -> a.getAuthority().equals(UserRole.MEMBER.getCode()));
-            boolean hasPrivilegedRole = authorities.stream()
-                    .anyMatch(a -> !a.getAuthority().equals(UserRole.MEMBER.getCode()));
-
-            String path = request.getRequestURI();
-            boolean isPublicPath = path.contains("/api/v1/auth/") ||
-                    path.contains("/api/v1/users/me") ||
-                    path.contains("/error") ||
-                    path.contains("/actuator") ||
-                    path.contains("/api-docs") ||
-                    path.contains("/swagger-ui");
-
-            if (hasMemberRole && !hasPrivilegedRole && !isPublicPath) {
-                log.warn("Blocked restricted role access to {}: {} (Role: {})", path, username, rolesString);
-                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied for this role");
-                return;
-            }
-
-            // Create Authentication object (principal is the username)
-            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+            // Create Authentication object (principal is the SecurityUser)
+            SecurityUser principal = new SecurityUser(
+                    UUID.fromString(userId),
                     username,
+                    email,
+                    firstName,
+                    lastName,
+                    avatarUrl
+            );
+
+            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                    principal,
                     null,
                     authorities);
 
             SecurityContextHolder.getContext().setAuthentication(auth);
-            log.debug("Internal Authentication established for: {} (ID: {}) with {} authorities", 
-                    username, userId, authorities.size());
+            log.debug("Internal context established: {} with {} authorities", username, authorities.size());
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String decode(String value) {
+        if (value == null) return null;
+        try {
+            return java.net.URLDecoder.decode(value, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            log.warn("Failed to decode value: {}", value);
+            return value;
+        }
     }
 }

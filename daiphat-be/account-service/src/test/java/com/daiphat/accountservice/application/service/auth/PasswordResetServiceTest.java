@@ -1,13 +1,13 @@
 package com.daiphat.accountservice.application.service.auth;
  
-import com.daiphat.accountservice.application.dto.request.ForgotPasswordRequestDTO;
-import com.daiphat.accountservice.application.dto.request.ResetPasswordRequestDTO;
-import com.daiphat.accountservice.application.dto.request.VerifyOtpRequestDTO;
-import com.daiphat.accountservice.application.dto.response.ForgotPasswordResponseDTO;
-import com.daiphat.accountservice.application.dto.response.VerifyOtpResponseDTO;
-import com.daiphat.accountservice.application.port.in.EmailServicePort;
+import com.daiphat.accountservice.application.dto.request.auth.ForgotPasswordRequest;
+import com.daiphat.accountservice.application.dto.request.auth.ResetPasswordRequest;
+import com.daiphat.accountservice.application.dto.request.auth.VerifyOtpRequest;
+import com.daiphat.accountservice.application.dto.response.auth.ForgotPasswordResponse;
+import com.daiphat.accountservice.application.dto.response.auth.VerifyOtpResponse;
+import com.daiphat.accountservice.application.port.in.mail.EmailServicePort;
 import com.daiphat.accountservice.application.port.in.auth.PasswordResetServicePort;
-import com.daiphat.accountservice.application.port.out.UserRepositoryPort;
+import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
 import com.daiphat.accountservice.application.port.out.auth.cache.OtpCachePort;
 import com.daiphat.accountservice.application.port.out.auth.cache.PasswordResetCachePort;
 import com.daiphat.accountservice.domain.exception.DomainException;
@@ -24,27 +24,28 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.transaction.support.TransactionTemplate;
  
+import org.springframework.transaction.TransactionStatus;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
- 
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
- 
+
 @DisplayName("TC-FGT-DP-27")
 class PasswordResetServiceTest extends AuthTestBase {
- 
+
     private PasswordResetServicePort passwordResetService;
     private Validator validator;
- 
+
     @Mock private UserRepositoryPort userRepositoryPort;
     @Mock private PasswordResetCachePort passwordResetCachePort;
     @Mock private OtpCachePort otpCachePort;
     @Mock private EmailServicePort emailServicePort;
     @Mock private TransactionTemplate transactionTemplate;
- 
+
     @BeforeEach
     @Override
     protected void setUp() {
@@ -52,7 +53,7 @@ class PasswordResetServiceTest extends AuthTestBase {
         try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
             validator = factory.getValidator();
         }
- 
+
         passwordResetService = new PasswordResetService(
                 userRepositoryPort,
                 passwordResetCachePort,
@@ -63,10 +64,10 @@ class PasswordResetServiceTest extends AuthTestBase {
                 identityManagementPort,
                 loginAttemptService
         );
- 
+
         // Mock TransactionTemplate behavior (lenient because not all tests use it)
         lenient().doAnswer(invocation -> {
-            Consumer<org.springframework.transaction.TransactionStatus> callback = invocation.getArgument(0);
+            Consumer<TransactionStatus> callback = invocation.getArgument(0);
             callback.accept(null);
             return null;
         }).when(transactionTemplate).executeWithoutResult(any());
@@ -76,11 +77,11 @@ class PasswordResetServiceTest extends AuthTestBase {
     @DisplayName(TC_FGT_PREFIX + "001: Gửi yêu cầu reset password thành công")
     void forgotPassword_Success() {
         // GIVEN
-        ForgotPasswordRequestDTO request = ForgotPasswordRequestDTO.builder().email(DEFAULT_EMAIL).build();
+        ForgotPasswordRequest request = ForgotPasswordRequest.builder().email(DEFAULT_EMAIL).build();
         when(userRepositoryPort.existsByEmail(DEFAULT_EMAIL)).thenReturn(true);
  
         // WHEN
-        ForgotPasswordResponseDTO response = passwordResetService.forgotPassword(request);
+        ForgotPasswordResponse response = passwordResetService.forgotPassword(request);
  
         // THEN
         assertNotNull(response);
@@ -93,7 +94,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     @DisplayName(TC_FGT_PREFIX + "002: Gửi yêu cầu reset - Email không tồn tại")
     void forgotPassword_Fail_EmailNotFound() {
         // GIVEN
-        ForgotPasswordRequestDTO request = ForgotPasswordRequestDTO.builder().email(NOT_FOUND_USERNAME).build();
+        ForgotPasswordRequest request = ForgotPasswordRequest.builder().email(NOT_FOUND_USERNAME).build();
         when(userRepositoryPort.existsByEmail(NOT_FOUND_USERNAME)).thenReturn(false);
  
         // WHEN
@@ -107,23 +108,23 @@ class PasswordResetServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_FGT_PREFIX + "003: Gửi yêu cầu reset - Field Email trống")
     void validation_Fail_EmailEmpty() {
-        ForgotPasswordRequestDTO request = ForgotPasswordRequestDTO.builder().email("").build();
+        ForgotPasswordRequest request = ForgotPasswordRequest.builder().email("").build();
  
-        Set<ConstraintViolation<ForgotPasswordRequestDTO>> violations = validator.validate(request);
+        Set<ConstraintViolation<ForgotPasswordRequest>> violations = validator.validate(request);
         assertFalse(violations.isEmpty());
-        assertTrue(violations.stream().anyMatch(v -> v.getMessage().equals(ForgotPasswordRequestDTO.MSG_EMAIL_REQUIRED)));
+        assertTrue(violations.stream().anyMatch(v -> v.getMessage().equals(ForgotPasswordRequest.MSG_EMAIL_REQUIRED)));
     }
  
     @Test
     @DisplayName(TC_FGT_PREFIX + "004: Xác minh OTP thành công")
     void verifyResetOtp_Success() {
         // GIVEN
-        VerifyOtpRequestDTO request = VerifyOtpRequestDTO.builder().email(DEFAULT_EMAIL).otp(DEFAULT_OTP).build();
+        VerifyOtpRequest request = VerifyOtpRequest.builder().email(DEFAULT_EMAIL).otp(DEFAULT_OTP).build();
         when(otpCachePort.getOtpAttemptCount(DEFAULT_EMAIL)).thenReturn(0);
         when(otpCachePort.getOtp(DEFAULT_EMAIL)).thenReturn(Optional.of(DEFAULT_OTP));
  
         // WHEN
-        VerifyOtpResponseDTO response = passwordResetService.verifyResetOtp(request);
+        VerifyOtpResponse response = passwordResetService.verifyResetOtp(request);
  
         // THEN
         assertNotNull(response.getResetToken());
@@ -136,7 +137,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     @DisplayName(TC_FGT_PREFIX + "005: Xác minh OTP - OTP không hợp lệ")
     void verifyResetOtp_Fail_InvalidOtp() {
         // GIVEN
-        VerifyOtpRequestDTO request = VerifyOtpRequestDTO.builder().email(DEFAULT_EMAIL).otp(WRONG_OTP).build();
+        VerifyOtpRequest request = VerifyOtpRequest.builder().email(DEFAULT_EMAIL).otp(WRONG_OTP).build();
         when(otpCachePort.getOtpAttemptCount(DEFAULT_EMAIL)).thenReturn(1);
         when(otpCachePort.getOtp(DEFAULT_EMAIL)).thenReturn(Optional.of(DEFAULT_OTP));
  
@@ -152,7 +153,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     @DisplayName(TC_FGT_PREFIX + "006: Xác minh OTP - OTP hết hạn")
     void verifyResetOtp_Fail_OtpExpired() {
         // GIVEN
-        VerifyOtpRequestDTO request = VerifyOtpRequestDTO.builder().email(DEFAULT_EMAIL).otp(DEFAULT_OTP).build();
+        VerifyOtpRequest request = VerifyOtpRequest.builder().email(DEFAULT_EMAIL).otp(DEFAULT_OTP).build();
         when(otpCachePort.getOtpAttemptCount(DEFAULT_EMAIL)).thenReturn(0);
         when(otpCachePort.getOtp(DEFAULT_EMAIL)).thenReturn(Optional.empty());
  
@@ -168,7 +169,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     void resetPassword_Success() {
         // GIVEN
         String resetToken = UUID.randomUUID().toString();
-        ResetPasswordRequestDTO request = ResetPasswordRequestDTO.builder()
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
                 .resetToken(resetToken)
                 .newPassword(DEFAULT_PASSWORD)
                 .confirmPassword(DEFAULT_PASSWORD)
@@ -197,15 +198,15 @@ class PasswordResetServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_FGT_PREFIX + "008: Đổi mật khẩu - Mật khẩu mới trống")
     void validation_Fail_PasswordEmpty() {
-        ResetPasswordRequestDTO request = ResetPasswordRequestDTO.builder()
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
                 .resetToken("token")
                 .newPassword("")
                 .confirmPassword("")
                 .build();
  
-        Set<ConstraintViolation<ResetPasswordRequestDTO>> violations = validator.validate(request);
+        Set<ConstraintViolation<ResetPasswordRequest>> violations = validator.validate(request);
         assertFalse(violations.isEmpty());
-        assertTrue(violations.stream().anyMatch(v -> v.getMessage().equals(ResetPasswordRequestDTO.MSG_PASSWORD_REQUIRED)));
+        assertTrue(violations.stream().anyMatch(v -> v.getMessage().equals(ResetPasswordRequest.MSG_PASSWORD_REQUIRED)));
     }
  
     @Test
@@ -213,7 +214,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     void resetPassword_Fail_PasswordMismatch() {
         // GIVEN
         String resetToken = "valid-token";
-        ResetPasswordRequestDTO request = ResetPasswordRequestDTO.builder()
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
                 .resetToken(resetToken)
                 .newPassword(DEFAULT_PASSWORD)
                 .confirmPassword("Mismatch123!")
@@ -239,7 +240,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     @DisplayName(TC_FGT_PREFIX + "010: Tái sử dụng OTP đã xác minh")
     void verifyResetOtp_Fail_OtpAlreadyDeleted() {
         // GIVEN
-        VerifyOtpRequestDTO request = VerifyOtpRequestDTO.builder().email(DEFAULT_EMAIL).otp(DEFAULT_OTP).build();
+        VerifyOtpRequest request = VerifyOtpRequest.builder().email(DEFAULT_EMAIL).otp(DEFAULT_OTP).build();
         when(otpCachePort.getOtpAttemptCount(DEFAULT_EMAIL)).thenReturn(0);
         when(otpCachePort.getOtp(DEFAULT_EMAIL)).thenReturn(Optional.empty()); // Deleted or expired
  
@@ -253,13 +254,13 @@ class PasswordResetServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_FGT_PREFIX + "011: Token format sai (OTP format)")
     void validation_Fail_OtpFormatInvalid() {
-        VerifyOtpRequestDTO request = VerifyOtpRequestDTO.builder()
+        VerifyOtpRequest request = VerifyOtpRequest.builder()
                 .email(DEFAULT_EMAIL)
                 .otp(MALFORMED_OTP)
                 .build();
  
-        Set<ConstraintViolation<VerifyOtpRequestDTO>> violations = validator.validate(request);
+        Set<ConstraintViolation<VerifyOtpRequest>> violations = validator.validate(request);
         assertFalse(violations.isEmpty());
-        assertTrue(violations.stream().anyMatch(v -> v.getMessage().equals(VerifyOtpRequestDTO.MSG_OTP_FORMAT)));
+        assertTrue(violations.stream().anyMatch(v -> v.getMessage().equals(VerifyOtpRequest.MSG_OTP_FORMAT)));
     }
 }

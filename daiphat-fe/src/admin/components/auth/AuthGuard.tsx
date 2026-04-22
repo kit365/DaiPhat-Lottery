@@ -1,5 +1,5 @@
 import { ReactNode, useEffect } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, Outlet } from "react-router-dom";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { USER_ROLES } from "../../../constants/role.constants";
 import { toast } from "react-toastify";
@@ -50,5 +50,20 @@ export const AuthGuard = ({ children }: Props) => {
         return <Navigate to={ROUTES.ADMIN.AUTH.LOGIN} replace />;
     }
 
-    return <>{children}</>;
+    // DP-32 Setup Enforcement: Force redirect to setup-profile if not completed
+    const isSetupComplete = user?.hasPassword && user?.agreedToTerms;
+    const isSetupPath = location.pathname.includes(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
+
+    // FIX: Only redirect if we HAVE user info but it's incomplete. 
+    // Prevents loops when user is null (e.g., during refresh or BE failure).
+    if (user && !isSetupComplete && !isSetupPath) {
+        return <Navigate to={ROUTES.ADMIN.AUTH.SETUP_PROFILE} state={{ from: location }} replace />;
+    }
+
+    // DP-32 Setup Protection: Prevent re-entry if already complete
+    if (user && isSetupComplete && isSetupPath) {
+        return <Navigate to={ROUTES.ADMIN.DASHBOARD.ROOT} replace />;
+    }
+
+    return <>{children || <Outlet />}</>;
 };

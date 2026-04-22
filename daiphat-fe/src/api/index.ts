@@ -23,19 +23,6 @@ apiApp.interceptors.request.use((config) => {
     return config;
 });
 
-// Biến để debounce Toast (tránh spam khi backend tèo)
-let lastToastTime = 0;
-const TOAST_DEBOUNCE_MS = 2000;
-
-const showToastOnce = (msg: string, type: 'error' | 'success') => {
-    const now = Date.now();
-    if (now - lastToastTime > TOAST_DEBOUNCE_MS) {
-        if (type === 'error') AppToast.error(msg);
-        else AppToast.success(msg);
-        lastToastTime = now;
-    }
-}
-
 // Response Interceptor: Handle Global Errors & 401
 apiApp.interceptors.response.use(
     (response) => {
@@ -55,26 +42,32 @@ apiApp.interceptors.response.use(
                     if (window.location.pathname.includes('/auth/login')) {
                         AppToast.error(message);
                     } else {
-                        showToastOnce("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!", 'error');
+                        AppToast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
                     }
                     if (window.location.pathname.startsWith('/admin') && !window.location.pathname.includes('/auth/login')) {
                         window.location.href = '/admin/auth/login';
                     }
                     break;
                 case 403:
-                    AppToast.error("Bạn không có quyền thực hiện hành động này!");
+                    AppToast.error(message);
+                    break;
+                case 400:
+                case 422:
+                case 429:
+                    AppToast.error(message);
                     break;
                 case 404:
                     AppToast.error("Không tìm thấy tài nguyên yêu cầu!");
                     break;
                 case 500:
-                    showToastOnce("Lỗi hệ thống! Vui lòng thử lại sau.", 'error');
+                    AppToast.error("Lỗi hệ thống! Vui lòng thử lại sau.");
                     break;
                 default:
+                    AppToast.error(message);
                     console.warn(`[API Error] ${status}: ${message}`);
             }
         } else {
-            showToastOnce("Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng!", 'error');
+            AppToast.error("Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng!");
         }
 
         return Promise.reject(error);

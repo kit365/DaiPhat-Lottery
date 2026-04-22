@@ -103,6 +103,7 @@ Desktop.ini
 .antigravity/
 .agent/
 .agents/
+.stitch/
 .copilot/
 .cursor/
 # Ignore any other AI assistant metadata
