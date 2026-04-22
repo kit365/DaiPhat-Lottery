@@ -24,27 +24,28 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.transaction.support.TransactionTemplate;
  
+import org.springframework.transaction.TransactionStatus;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
- 
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
- 
+
 @DisplayName("TC-FGT-DP-27")
 class PasswordResetServiceTest extends AuthTestBase {
- 
+
     private PasswordResetServicePort passwordResetService;
     private Validator validator;
- 
+
     @Mock private UserRepositoryPort userRepositoryPort;
     @Mock private PasswordResetCachePort passwordResetCachePort;
     @Mock private OtpCachePort otpCachePort;
     @Mock private EmailServicePort emailServicePort;
     @Mock private TransactionTemplate transactionTemplate;
- 
+
     @BeforeEach
     @Override
     protected void setUp() {
@@ -52,7 +53,7 @@ class PasswordResetServiceTest extends AuthTestBase {
         try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
             validator = factory.getValidator();
         }
- 
+
         passwordResetService = new PasswordResetService(
                 userRepositoryPort,
                 passwordResetCachePort,
@@ -63,10 +64,10 @@ class PasswordResetServiceTest extends AuthTestBase {
                 identityManagementPort,
                 loginAttemptService
         );
- 
+
         // Mock TransactionTemplate behavior (lenient because not all tests use it)
         lenient().doAnswer(invocation -> {
-            Consumer<org.springframework.transaction.TransactionStatus> callback = invocation.getArgument(0);
+            Consumer<TransactionStatus> callback = invocation.getArgument(0);
             callback.accept(null);
             return null;
         }).when(transactionTemplate).executeWithoutResult(any());

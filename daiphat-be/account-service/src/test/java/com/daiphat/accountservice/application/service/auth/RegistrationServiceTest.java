@@ -21,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.TransactionStatus;
 
 import java.util.Set;
 import java.util.UUID;
@@ -85,16 +86,16 @@ class RegistrationServiceTest extends AuthTestBase {
         // GIVEN
         UserRegistrationRequest request = createValidRequest();
         UserModel mockUser = mock(UserModel.class);
-        
+
         when(userRepositoryPort.existsByUsername(request.username())).thenReturn(false);
         when(userRepositoryPort.existsByEmail(request.email())).thenReturn(false);
         when(userRepositoryPort.existsByPhone(request.phone())).thenReturn(false);
         when(userApplicationMapper.mapToUserModel(request)).thenReturn(mockUser);
         when(identityManagementPort.createUser(any(), anyString())).thenReturn(UUID.randomUUID());
-        
+
         // Mock transaction execution
         doAnswer(invocation -> {
-            Consumer<org.springframework.transaction.TransactionStatus> callback = invocation.getArgument(0);
+            Consumer<TransactionStatus> callback = invocation.getArgument(0);
             callback.accept(null);
             return null;
         }).when(transactionTemplate).executeWithoutResult(any());
@@ -171,7 +172,7 @@ class RegistrationServiceTest extends AuthTestBase {
 
         // Mock transaction execution
         doAnswer(invocation -> {
-            Consumer<org.springframework.transaction.TransactionStatus> callback = invocation.getArgument(0);
+            Consumer<TransactionStatus> callback = invocation.getArgument(0);
             callback.accept(null);
             return null;
         }).when(transactionTemplate).executeWithoutResult(any());
