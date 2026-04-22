@@ -45,39 +45,53 @@ public final class AuthUtils {
     }
 
     public static boolean isValidEmail(String email) {
-        if (email == null) return false;
+        if (email == null) {
+            return false;
+        }
         String emailRegex = "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$";
         return email.matches(emailRegex);
     }
 
     public static boolean isValidPhone(String phone) {
-        if (phone == null) return false;
+        if (phone == null) {
+            return false;
+        }
         String phoneRegex = "^[0-9]{10,11}$";
         return phone.matches(phoneRegex);
     }
 
     public static boolean isValidUsername(String username) {
-        if (username == null) return false;
+        if (username == null) {
+            return false;
+        }
         // 3-20 chars, alphanumeric or underscores
         String usernameRegex = "^[a-zA-Z0-9_]{3,20}$";
         return username.matches(usernameRegex);
     }
 
     public static boolean isValidPassword(String password) {
-        if (password == null) return false;
+        if (password == null) {
+            return false;
+        }
         // Min 8, max 32, at least 1 upper, 1 lower, 1 digit, 1 special
         String passwordRegex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,32}$";
         return password.matches(passwordRegex);
     }
 
     public static boolean isWithinLength(String text, int max) {
-        if (text == null) return true;
+        if (text == null) {
+            return true;
+        }
         return text.length() <= max;
     }
 
     public static String maskToken(String token) {
-        if (token == null) return "null";
-        if (token.length() <= 8) return "****";
+        if (token == null) {
+            return "null";
+        }
+        if (token.length() <= 8) {
+            return "****";
+        }
         return token.substring(0, 4) + "...." + token.substring(token.length() - 4);
     }
 }

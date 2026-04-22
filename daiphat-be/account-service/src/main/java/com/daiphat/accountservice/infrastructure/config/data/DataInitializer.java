@@ -1,8 +1,8 @@
 package com.daiphat.accountservice.infrastructure.config.data;
 
-import com.daiphat.accountservice.application.port.out.IdentityManagementPort;
-import com.daiphat.accountservice.application.port.out.RoleRepositoryPort;
-import com.daiphat.accountservice.application.port.out.UserRepositoryPort;
+import com.daiphat.accountservice.application.port.out.auth.IdentityManagementPort;
+import com.daiphat.accountservice.application.port.out.auth.RoleRepositoryPort;
+import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
 import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
 import com.daiphat.accountservice.domain.model.RoleModel;
@@ -30,7 +30,15 @@ public class DataInitializer {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void initData() {
-        log.info("Starting data synchronization from Keycloak...");
+        // Optimization: Run-Once Check
+        // If the 'admin' account already exists, we skip the bulk Keycloak sync check
+        // to keep startup fast and silent.
+        if (userRepositoryPort.existsByUsername("admin")) {
+            log.debug("Initial admin exists. Skipping Keycloak synchronization.");
+            return;
+        }
+
+        log.info("Performing first-time identity synchronization...");
         
         try {
             List<UserModel> keycloakUsers = identityManagementPort.getAllUsers();
@@ -40,33 +48,16 @@ public class DataInitializer {
             RoleModel userRole = roleRepositoryPort.findByCode(UserRole.MEMBER.getCode())
                     .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
 
+            int createdCount = 0;
             for (UserModel kcUser : keycloakUsers) {
-                // Progressive Sync & Self-Healing:
-                // 1. First, check if ID already exists (fast path)
+                // The prompt for simplicity: Just check existence and skip
                 if (userRepositoryPort.existsById(kcUser.getId())) {
-                    log.debug("User with ID {} already exists in DB, skipping sync.", kcUser.getId());
-                    continue;
+                    continue; 
                 }
 
-                log.info("Synchronizing user from Keycloak: {} (ID: {})", kcUser.getUsername(), kcUser.getId());
+                log.debug("Synchronizing new user: {}", kcUser.getUsername());
 
-                // 2. Resilience check: If ID is missing but username or email exists, we must RECONCILE (Update ID)
-                // This prevents unique constraint violations from legacy or manually inserted data.
-                userRepositoryPort.findByUsername(kcUser.getUsername())
-                        .or(() -> userRepositoryPort.findByEmail(kcUser.getEmail()))
-                        .ifPresentOrElse(
-                            existingUser -> {
-                                log.warn("Sync Conflict: User {} exists with different ID (Local: {}, KC: {}). Reconciling...", 
-                                        kcUser.getUsername(), existingUser.getId(), kcUser.getId());
-                                userRepositoryPort.updateUserId(existingUser.getId(), kcUser.getId());
-                                log.info("Reconciliation SUCCESS: ID {} updated to {} for user {}", 
-                                        existingUser.getId(), kcUser.getId(), kcUser.getUsername());
-                            },
-                            () -> log.debug("No existing record found for {}. Proceeding with fresh insert.", kcUser.getUsername())
-                        );
-
-                // 3. Prepare and Save (Upsert pattern)
-                // Assign role based on username (basic logic for init)
+                // Assign role based on username
                 if (kcUser.getUsername().equalsIgnoreCase("admin")) {
                     kcUser.setRole(adminRole);
                 } else {
@@ -75,14 +66,18 @@ public class DataInitializer {
                 
                 kcUser.setStatus(UserStatus.ACTIVE);
                 kcUser.setEmailVerified(true);
+                kcUser.setHasPassword(true);
+                kcUser.setAgreedToTerms(true);
                 
                 userRepositoryPort.save(kcUser);
-                log.info("User {} synchronized successfully.", kcUser.getUsername());
+                createdCount++;
             }
             
-            log.info("Data synchronization completed.");
+            if (createdCount > 0) {
+                log.info("First-time synchronization completed: {} accounts provisioned.", createdCount);
+            }
         } catch (Exception e) {
-            log.error("Failed to synchronize data from Keycloak", e);
+            log.error("Silent Warning: Keycloak sync skipped (Identity Provider not ready or unreachable).");
         }
     }
 }

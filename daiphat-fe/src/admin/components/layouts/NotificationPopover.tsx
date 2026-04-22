@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import {
     Box,
     Badge,
@@ -37,7 +38,7 @@ import { useNavigate } from "react-router-dom";
 dayjs.extend(relativeTime);
 dayjs.locale('vi');
 
-export const NotificationPopover = () => {
+export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, layoutId }: any) => {
     const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
     const [tab, setTab] = useState("all");
@@ -103,26 +104,46 @@ export const NotificationPopover = () => {
         }, "success");
     };
 
+    const navMotionProps = {
+        whileHover: { 
+            scale: 1.15, 
+            y: -8,
+            filter: 'brightness(1.15) drop-shadow(0 12px 24px rgba(0,0,0,0.15))',
+        },
+        transition: { type: "spring", stiffness: 400, damping: 17 }
+    };
+
     return (
         <>
-            <IconButton
-                onClick={handleOpen}
-                sx={{
-                    width: 40,
-                    height: 40,
-                    color: isOpen ? 'primary.main' : 'var(--palette-action-active)',
-                    bgcolor: isOpen ? 'rgba(145, 158, 171, 0.08)' : 'transparent',
-                    transition: 'all 0.15s ease-in-out',
-                    '&:hover': {
-                        bgcolor: 'rgba(145, 158, 171, 0.08)',
-                        transform: 'scale(1.04)'
-                    }
-                }}
+            <Box
+                onMouseEnter={onMouseEnter}
+                onMouseLeave={onMouseLeave}
+                sx={{ position: 'relative', display: 'inline-block' }}
             >
-                <Badge badgeContent={unreadNotifications.length} color="error">
-                    <Icon icon="solar:bell-bing-bold-duotone" width={24} />
-                </Badge>
-            </IconButton>
+                <motion.div {...navMotionProps} style={{ display: 'inline-block', position: 'relative', zIndex: 1 }}>
+                    <IconButton
+                        onClick={handleOpen}
+                        sx={{
+                            width: 40,
+                            height: 40,
+                            color: isOpen ? 'primary.main' : 'var(--palette-action-active)',
+                            bgcolor: isOpen ? 'rgba(145, 158, 171, 0.08)' : 'transparent',
+                            transition: 'all 0.15s ease-in-out',
+                        }}
+                    >
+                        <Badge badgeContent={unreadNotifications.length} color="error">
+                            <Icon icon="solar:bell-bing-bold-duotone" width={24} />
+                        </Badge>
+                    </IconButton>
+                </motion.div>
+                {isHovered && (
+                    <motion.div
+                        layoutId={layoutId}
+                        className="absolute inset-0 bg-[#919eab14] rounded-full z-0"
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    />
+                )}
+            </Box>
 
             <Drawer
                 anchor="right"
@@ -275,20 +296,23 @@ export const NotificationPopover = () => {
                     <Tab
                         disableRipple
                         label={
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                                <Typography variant="subtitle2" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>Tất cả</Typography>
-                                <Box sx={{
-                                    bgcolor: tab === 'all' ? '#212B36' : 'rgba(145, 158, 171, 0.16)',
-                                    color: tab === 'all' ? 'white' : '#637381',
-                                    px: 0.8,
-                                    py: 0.2,
-                                    borderRadius: '6px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700
-                                }}>
-                                    {activeNotifications.length}
-                                </Box>
-                            </Stack>
+                            <Box sx={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'center', zIndex: 1 }}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                    <Typography variant="subtitle2" sx={{ fontSize: '0.875rem', fontWeight: tab === 'all' ? 700 : 600 }}>Tất cả</Typography>
+                                    <Box sx={{
+                                        bgcolor: tab === 'all' ? '#212B36' : 'rgba(145, 158, 171, 0.16)',
+                                        color: tab === 'all' ? 'white' : '#637381',
+                                        px: 0.8,
+                                        py: 0.2,
+                                        borderRadius: '6px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        transition: 'all 0.2s'
+                                    }}>
+                                        {activeNotifications.length}
+                                    </Box>
+                                </Stack>
+                            </Box>
                         }
                         value="all"
                         sx={{
@@ -301,34 +325,42 @@ export const NotificationPopover = () => {
                             fontSize: '0.875rem',
                             fontWeight: 500,
                             lineHeight: 1.57143,
-                            color: 'var(--palette-text-secondary)',
+                            color: tab === 'all' ? 'var(--palette-text-primary)' : 'var(--palette-text-secondary)',
                             flex: '1 1 0px',
                             opacity: 1,
-                            '&.Mui-selected': {
-                                bgcolor: 'var(--palette-common-white)',
-                                color: 'var(--palette-text-primary)',
-                                fontWeight: 600,
-                                boxShadow: 'var(--customShadows-z1)'
-                            }
+                            position: 'relative',
+                            overflow: 'hidden',
+                            '&.Mui-selected': { color: 'var(--palette-text-primary)' }
                         }}
+                        icon={tab === 'all' ? (
+                            <motion.div
+                                layoutId="notif-tab-pill"
+                                className="absolute inset-0 bg-white shadow-sm z-0"
+                                style={{ borderRadius: '8px' }}
+                                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                            />
+                        ) : undefined}
                     />
                     <Tab
                         disableRipple
                         label={
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                                <Typography variant="subtitle2" sx={{ fontSize: '0.875rem', fontWeight: 600, whiteSpace: 'nowrap' }}>Chưa đọc</Typography>
-                                <Box sx={{
-                                    bgcolor: tab === 'unread' ? '#00B8D9' : 'rgba(0, 184, 217, 0.16)',
-                                    color: tab === 'unread' ? 'white' : '#006C9C',
-                                    px: 0.8,
-                                    py: 0.2,
-                                    borderRadius: '6px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700
-                                }}>
-                                    {unreadNotifications.length}
-                                </Box>
-                            </Stack>
+                            <Box sx={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'center', zIndex: 1 }}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                    <Typography variant="subtitle2" sx={{ fontSize: '0.875rem', fontWeight: tab === 'unread' ? 700 : 600, whiteSpace: 'nowrap' }}>Chưa đọc</Typography>
+                                    <Box sx={{
+                                        bgcolor: tab === 'unread' ? '#00B8D9' : 'rgba(0, 184, 217, 0.16)',
+                                        color: tab === 'unread' ? 'white' : '#006C9C',
+                                        px: 0.8,
+                                        py: 0.2,
+                                        borderRadius: '6px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        transition: 'all 0.2s'
+                                    }}>
+                                        {unreadNotifications.length}
+                                    </Box>
+                                </Stack>
+                            </Box>
                         }
                         value="unread"
                         sx={{
@@ -341,34 +373,42 @@ export const NotificationPopover = () => {
                             fontSize: '0.875rem',
                             fontWeight: 500,
                             lineHeight: 1.57143,
-                            color: 'var(--palette-text-secondary)',
+                            color: tab === 'unread' ? 'var(--palette-text-primary)' : 'var(--palette-text-secondary)',
                             flex: '1 1 0px',
                             opacity: 1,
-                            '&.Mui-selected': {
-                                bgcolor: 'var(--palette-common-white)',
-                                color: 'var(--palette-text-primary)',
-                                fontWeight: 600,
-                                boxShadow: 'var(--customShadows-z1)'
-                            }
+                            position: 'relative',
+                            overflow: 'hidden',
+                            '&.Mui-selected': { color: 'var(--palette-text-primary)' }
                         }}
+                        icon={tab === 'unread' ? (
+                            <motion.div
+                                layoutId="notif-tab-pill"
+                                className="absolute inset-0 bg-white shadow-sm z-0"
+                                style={{ borderRadius: '8px' }}
+                                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                            />
+                        ) : undefined}
                     />
                     <Tab
                         disableRipple
                         label={
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                                <Typography variant="subtitle2" sx={{ fontSize: '0.875rem', fontWeight: 600 }}>Lưu trữ</Typography>
-                                <Box sx={{
-                                    bgcolor: tab === 'archived' ? '#22C55E' : 'rgba(34, 197, 94, 0.16)',
-                                    color: tab === 'archived' ? 'white' : '#118D57',
-                                    px: 0.8,
-                                    py: 0.2,
-                                    borderRadius: '6px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700
-                                }}>
-                                    {archivedNotifications.length}
-                                </Box>
-                            </Stack>
+                            <Box sx={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'center', zIndex: 1 }}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                    <Typography variant="subtitle2" sx={{ fontSize: '0.875rem', fontWeight: tab === 'archived' ? 700 : 600 }}>Lưu trữ</Typography>
+                                    <Box sx={{
+                                        bgcolor: tab === 'archived' ? '#22C55E' : 'rgba(34, 197, 94, 0.16)',
+                                        color: tab === 'archived' ? 'white' : '#118D57',
+                                        px: 0.8,
+                                        py: 0.2,
+                                        borderRadius: '6px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        transition: 'all 0.2s'
+                                    }}>
+                                        {archivedNotifications.length}
+                                    </Box>
+                                </Stack>
+                            </Box>
                         }
                         value="archived"
                         sx={{
@@ -381,16 +421,21 @@ export const NotificationPopover = () => {
                             fontSize: '0.875rem',
                             fontWeight: 500,
                             lineHeight: 1.57143,
-                            color: 'var(--palette-text-secondary)',
+                            color: tab === 'archived' ? 'var(--palette-text-primary)' : 'var(--palette-text-secondary)',
                             flex: '1 1 0px',
                             opacity: 1,
-                            '&.Mui-selected': {
-                                bgcolor: 'var(--palette-common-white)',
-                                color: 'var(--palette-text-primary)',
-                                fontWeight: 600,
-                                boxShadow: 'var(--customShadows-z1)'
-                            }
+                            position: 'relative',
+                            overflow: 'hidden',
+                            '&.Mui-selected': { color: 'var(--palette-text-primary)' }
                         }}
+                        icon={tab === 'archived' ? (
+                            <motion.div
+                                layoutId="notif-tab-pill"
+                                className="absolute inset-0 bg-white shadow-sm z-0"
+                                style={{ borderRadius: '8px' }}
+                                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                            />
+                        ) : undefined}
                     />
                 </Tabs>
 
@@ -464,6 +509,7 @@ export const NotificationPopover = () => {
                                     </ListItemAvatar>
                                     <ListItemText
                                         sx={{ m: 0 }}
+                                        secondaryTypographyProps={{ component: 'div' }}
                                         primary={
                                             <Box sx={{
                                                 fontFamily: '"Public Sans Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',

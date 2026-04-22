@@ -1,8 +1,8 @@
 package com.daiphat.accountservice.application.service.auth;
  
-import com.daiphat.accountservice.application.dto.request.LoginRequestDTO;
-import com.daiphat.accountservice.application.dto.request.RefreshTokenRequestDTO;
-import com.daiphat.accountservice.application.dto.response.AuthResponseDTO;
+import com.daiphat.accountservice.application.dto.request.auth.LoginRequest;
+import com.daiphat.accountservice.application.dto.request.auth.RefreshTokenRequest;
+import com.daiphat.accountservice.application.dto.response.auth.AuthResponse;
 import com.daiphat.accountservice.application.mapper.AuthApplicationMapper;
 import com.daiphat.accountservice.application.port.in.auth.LoginServicePort;
 import com.daiphat.accountservice.application.port.out.auth.cache.TokenCachePort;
@@ -50,7 +50,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "001: Logic Đăng nhập thành công")
     void tc_login_001_success() {
-        LoginRequestDTO request = LoginRequestDTO.builder()
+        LoginRequest request = LoginRequest.builder()
                 .username(DEFAULT_USERNAME).password(DEFAULT_PASSWORD).build();
  
         UserModel user = buildActiveUser();
@@ -58,9 +58,9 @@ class LoginServiceTest extends AuthTestBase {
  
         when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
-        when(authApplicationMapper.toResponse(eq(keycloakResult), eq(user))).thenReturn(AuthResponseDTO.builder().accessToken(DEFAULT_TOKEN).expiresIn(3600L).build());
+        when(authApplicationMapper.toResponse(eq(keycloakResult), eq(user))).thenReturn(AuthResponse.builder().accessToken(DEFAULT_TOKEN).expiresIn(3600L).build());
  
-        AuthResponseDTO response = loginService.login(request);
+        AuthResponse response = loginService.login(request);
  
         assertThat(response.getAccessToken()).isEqualTo(DEFAULT_TOKEN);
         assertThat(response.getExpiresIn()).isEqualTo(3600);
@@ -71,7 +71,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "002: Logic chặn Username không tồn tại (INVALID_CREDENTIALS)")
     void tc_login_002_user_not_found() {
-        LoginRequestDTO request = LoginRequestDTO.builder()
+        LoginRequest request = LoginRequest.builder()
                 .username(NOT_FOUND_USERNAME).password(DEFAULT_PASSWORD).build();
  
         when(userService.fetchActiveUserByUsername(NOT_FOUND_USERNAME)).thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS));
@@ -86,7 +86,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "003: Logic chặn Password sai (INVALID_CREDENTIALS)")
     void tc_login_003_wrong_password() {
-        LoginRequestDTO request = LoginRequestDTO.builder()
+        LoginRequest request = LoginRequest.builder()
                 .username(DEFAULT_USERNAME).password(WRONG_PASSWORD).build();
  
         UserModel user = buildActiveUser();
@@ -104,7 +104,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "004: Logic Validation Username bắt buộc")
     void tc_login_004_empty_username() {
-        LoginRequestDTO request = LoginRequestDTO.builder().username("").password(DEFAULT_PASSWORD).build();
+        LoginRequest request = LoginRequest.builder().username("").password(DEFAULT_PASSWORD).build();
         assertThatThrownBy(() -> loginService.login(request))
                 .isInstanceOf(DomainException.class)
                 .matches(e -> ((DomainException) e).getErrorCode() == ErrorCode.USERNAME_REQUIRED);
@@ -113,7 +113,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "005: Logic Validation Password bắt buộc")
     void tc_login_005_empty_password() {
-        LoginRequestDTO request = LoginRequestDTO.builder().username(DEFAULT_USERNAME).password(" ").build();
+        LoginRequest request = LoginRequest.builder().username(DEFAULT_USERNAME).password(" ").build();
         assertThatThrownBy(() -> loginService.login(request))
                 .isInstanceOf(DomainException.class)
                 .matches(e -> ((DomainException) e).getErrorCode() == ErrorCode.PASSWORD_REQUIRED);
@@ -122,14 +122,14 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "006: Logic Token Storage (Redis)")
     void tc_login_006_redis_logic() {
-        LoginRequestDTO request = LoginRequestDTO.builder()
+        LoginRequest request = LoginRequest.builder()
                 .username(DEFAULT_USERNAME).password(DEFAULT_PASSWORD).build();
         UserModel user = buildActiveUser();
         KeycloakAuthResult keycloakResult = buildAuthResult(user.getId());
  
         when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
-        when(authApplicationMapper.toResponse(eq(keycloakResult), eq(user))).thenReturn(AuthResponseDTO.builder().build());
+        when(authApplicationMapper.toResponse(eq(keycloakResult), eq(user))).thenReturn(AuthResponse.builder().build());
  
         loginService.login(request);
  
@@ -140,7 +140,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "007: Logic Refresh Token hết hạn")
     void tc_login_007_refresh_expired() {
-        RefreshTokenRequestDTO request = RefreshTokenRequestDTO.builder().refreshToken(DEFAULT_REFRESH_TOKEN).build();
+        RefreshTokenRequest request = RefreshTokenRequest.builder().refreshToken(DEFAULT_REFRESH_TOKEN).build();
         when(identityManagementPort.refreshToken(DEFAULT_REFRESH_TOKEN)).thenReturn(null);
  
         assertThatThrownBy(() -> loginService.refreshToken(request))
@@ -152,7 +152,7 @@ class LoginServiceTest extends AuthTestBase {
     @DisplayName(TC_LOGIN_PREFIX + "008: Xử lý an toàn Username có ký tự đặc biệt")
     void tc_login_008_special_chars() {
         String specialUser = "tuankiet!@#";
-        LoginRequestDTO request = LoginRequestDTO.builder().username(specialUser).password(DEFAULT_PASSWORD).build();
+        LoginRequest request = LoginRequest.builder().username(specialUser).password(DEFAULT_PASSWORD).build();
  
         when(userService.fetchActiveUserByUsername(specialUser)).thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS));
  
@@ -163,7 +163,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "009: Logic chặn tài khoản chưa kích hoạt (PENDING)")
     void tc_login_009_pending_account() {
-        LoginRequestDTO request = LoginRequestDTO.builder()
+        LoginRequest request = LoginRequest.builder()
                 .username(DEFAULT_USERNAME).password(DEFAULT_PASSWORD).build();
         UserModel user = buildActiveUser();
         user.setStatus(UserStatus.PENDING);
@@ -178,7 +178,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "010: Ghi nhận lỗi đăng nhập tại LoginAttemptService")
     void tc_login_010_recording_failed_attempt() {
-        LoginRequestDTO request = LoginRequestDTO.builder()
+        LoginRequest request = LoginRequest.builder()
                 .username(DEFAULT_USERNAME).password(WRONG_PASSWORD).build();
         UserModel user = buildActiveUser();
  
@@ -196,7 +196,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "011: Logic kích hoạt Lockout")
     void tc_login_011_lockout_activation() {
-        LoginRequestDTO request = LoginRequestDTO.builder()
+        LoginRequest request = LoginRequest.builder()
                 .username(DEFAULT_USERNAME).password(DEFAULT_PASSWORD).build();
  
         when(loginAttemptService.executeSecurely(eq(DEFAULT_USERNAME), any()))
@@ -210,7 +210,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "012: Chặn truy cập sớm khi đang bị khóa")
     void tc_login_012_early_blocked() {
-        LoginRequestDTO request = LoginRequestDTO.builder()
+        LoginRequest request = LoginRequest.builder()
                 .username(DEFAULT_USERNAME).password(DEFAULT_PASSWORD).build();
  
         when(loginAttemptService.executeSecurely(eq(DEFAULT_USERNAME), any()))
@@ -226,14 +226,14 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "013: Reset bộ đếm khi login thành công")
     void tc_login_013_reset_counter() {
-        LoginRequestDTO request = LoginRequestDTO.builder()
+        LoginRequest request = LoginRequest.builder()
                 .username(DEFAULT_USERNAME).password(DEFAULT_PASSWORD).build();
         UserModel user = buildActiveUser();
         KeycloakAuthResult keycloakResult = buildAuthResult(user.getId());
  
         when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
-        when(authApplicationMapper.toResponse(any(), any())).thenReturn(AuthResponseDTO.builder().build());
+        when(authApplicationMapper.toResponse(any(), any())).thenReturn(AuthResponse.builder().build());
  
         loginService.login(request);
  
@@ -246,7 +246,7 @@ class LoginServiceTest extends AuthTestBase {
     @DisplayName(TC_LOGIN_PREFIX + "014: Chặn Spam nút \"Đăng nhập\" (Burst Rate Limit)")
     void tc_014_burst_rate_limit() {
         String attacker = "attacker_01";
-        LoginRequestDTO request = LoginRequestDTO.builder().username(attacker).password(DEFAULT_PASSWORD).build();
+        LoginRequest request = LoginRequest.builder().username(attacker).password(DEFAULT_PASSWORD).build();
  
         lenient().when(userService.fetchActiveUserByUsername(attacker)).thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS));
  
@@ -269,14 +269,14 @@ class LoginServiceTest extends AuthTestBase {
     @DisplayName(TC_LOGIN_PREFIX + "015: Reset Rate Limit khi Login thành công")
     void tc_015_reset_rate_limit_on_success() {
         String legitUser = "legit_02";
-        LoginRequestDTO request = LoginRequestDTO.builder().username(legitUser).password(DEFAULT_PASSWORD).build();
+        LoginRequest request = LoginRequest.builder().username(legitUser).password(DEFAULT_PASSWORD).build();
         UserModel user = buildActiveUser();
         user.setUsername(legitUser);
         KeycloakAuthResult keycloakResult = buildAuthResult(user.getId());
  
         when(userService.fetchActiveUserByUsername(legitUser)).thenReturn(user);
         when(identityManagementPort.authenticate(legitUser, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
-        when(authApplicationMapper.toResponse(any(), any())).thenReturn(AuthResponseDTO.builder().build());
+        when(authApplicationMapper.toResponse(any(), any())).thenReturn(AuthResponse.builder().build());
  
         loginService.login(request);
  
@@ -287,7 +287,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "016: Đăng nhập với 'Nhớ mật khẩu' được bật (TTL 30 ngày)")
     void tc_login_016_remember_me() {
-        LoginRequestDTO request = LoginRequestDTO.builder()
+        LoginRequest request = LoginRequest.builder()
                 .username(DEFAULT_USERNAME).password(DEFAULT_PASSWORD)
                 .rememberMe(true).build();
  
@@ -297,10 +297,10 @@ class LoginServiceTest extends AuthTestBase {
  
         when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
-        when(authApplicationMapper.toResponse(any(), any())).thenReturn(AuthResponseDTO.builder().expiresIn(rememberMeTtl.toSeconds()).build());
+        when(authApplicationMapper.toResponse(any(), any())).thenReturn(AuthResponse.builder().expiresIn(rememberMeTtl.toSeconds()).build());
         when(authProperties.getToken().getRememberMeTtl()).thenReturn(rememberMeTtl);
  
-        AuthResponseDTO response = loginService.login(request);
+        AuthResponse response = loginService.login(request);
  
         verify(tokenCachePort).saveToken(eq(user.getId().toString()), any(), eq(rememberMeTtl));
         verify(tokenCachePort).saveRefreshToken(eq(user.getId().toString()), any(), eq(rememberMeTtl));
@@ -311,16 +311,16 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "017: Làm mới token thành công khi access token hết hạn")
     void tc_login_017_refresh_success() {
-        RefreshTokenRequestDTO request = RefreshTokenRequestDTO.builder().refreshToken(DEFAULT_REFRESH_TOKEN).build();
+        RefreshTokenRequest request = RefreshTokenRequest.builder().refreshToken(DEFAULT_REFRESH_TOKEN).build();
         UserModel user = buildActiveUser();
         KeycloakAuthResult keycloakResult = buildAuthResult(user.getId());
         keycloakResult.setAccessToken(NEW_ACCESS_TOKEN);
  
         when(userService.fetchActiveUserById(user.getId())).thenReturn(user);
         when(identityManagementPort.refreshToken(DEFAULT_REFRESH_TOKEN)).thenReturn(keycloakResult);
-        when(authApplicationMapper.toResponse(eq(keycloakResult), eq(user))).thenReturn(AuthResponseDTO.builder().accessToken(NEW_ACCESS_TOKEN).build());
+        when(authApplicationMapper.toResponse(eq(keycloakResult), eq(user))).thenReturn(AuthResponse.builder().accessToken(NEW_ACCESS_TOKEN).build());
  
-        AuthResponseDTO response = loginService.refreshToken(request);
+        AuthResponse response = loginService.refreshToken(request);
  
         assertThat(response.getAccessToken()).isEqualTo(NEW_ACCESS_TOKEN);
         verify(tokenCachePort).saveToken(anyString(), eq(NEW_ACCESS_TOKEN), any());
@@ -329,7 +329,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "018: Refresh Token hết hạn - yêu cầu đăng nhập lại")
     void tc_login_018_refresh_expired() {
-        RefreshTokenRequestDTO request = RefreshTokenRequestDTO.builder().refreshToken(DEFAULT_REFRESH_TOKEN).build();
+        RefreshTokenRequest request = RefreshTokenRequest.builder().refreshToken(DEFAULT_REFRESH_TOKEN).build();
         when(identityManagementPort.refreshToken(DEFAULT_REFRESH_TOKEN)).thenReturn(null);
  
         assertThatThrownBy(() -> loginService.refreshToken(request))
@@ -340,7 +340,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "019: Phát hiện không khớp User ID (CRITICAL SECURITY)")
     void tc_login_019_id_mismatch() {
-        LoginRequestDTO request = LoginRequestDTO.builder()
+        LoginRequest request = LoginRequest.builder()
                 .username(DEFAULT_USERNAME).password(DEFAULT_PASSWORD).build();
  
         UserModel user = buildActiveUser();
@@ -359,7 +359,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "020: Phát hiện Malformed UUID từ IDP (CRITICAL SECURITY)")
     void tc_login_020_malformed_uuid() {
-        LoginRequestDTO request = LoginRequestDTO.builder()
+        LoginRequest request = LoginRequest.builder()
                 .username(DEFAULT_USERNAME).password(DEFAULT_PASSWORD).build();
  
         UserModel user = buildActiveUser();
@@ -379,7 +379,7 @@ class LoginServiceTest extends AuthTestBase {
     @Test
     @DisplayName(TC_LOGIN_PREFIX + "021: Phát hiện Malformed UUID từ IDP trong luồng Refresh")
     void tc_refresh_021_malformed_uuid() {
-        RefreshTokenRequestDTO request = RefreshTokenRequestDTO.builder().refreshToken(DEFAULT_REFRESH_TOKEN).build();
+        RefreshTokenRequest request = RefreshTokenRequest.builder().refreshToken(DEFAULT_REFRESH_TOKEN).build();
  
         KeycloakAuthResult keycloakResult = buildAuthResult(UUID.randomUUID());
         keycloakResult.setKeycloakUserId(MALFORMED_UUID);

@@ -3,25 +3,18 @@ import { User } from "../../../../types/user.type";
 export interface AuthApiResponse<T> {
     code: string;
     isSuccess: boolean;
-    success?: boolean;
+    success?: boolean; // Optional, mapping to backend field if exists
     message: string;
     data?: T;
 }
 
-export interface LoginResponse {
-    code: string;
-    isSuccess: boolean;
-    success: boolean;
-    message: string;
-    data?: {
-        access_token: string;
-        expires_in?: number;
-        // refresh_token được BE set vào HttpOnly Cookie, không có trong JSON body
-        token_type?: string;
-        scope?: string;
-        user: User;
-    };
-}
+export interface LoginResponse extends AuthApiResponse<{
+    access_token: string;
+    expires_in?: number;
+    token_type?: string;
+    scope?: string;
+    user: User;
+}> {}
 
 export interface GetMeResponse extends AuthApiResponse<User> {}
 
@@ -63,3 +56,8 @@ export interface ResetPasswordRequest {
     newPassword: string;
     confirmPassword: string;
 }
+
+export interface RegisterResponse extends AuthApiResponse<User> {}
+export interface LogoutResponse extends AuthApiResponse<void> {}
+export interface VerifyEmailResponse extends AuthApiResponse<any> {}
+export interface SetupProfileResponse extends AuthApiResponse<User | any> {}

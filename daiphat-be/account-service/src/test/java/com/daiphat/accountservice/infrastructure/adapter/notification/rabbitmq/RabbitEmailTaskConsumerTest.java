@@ -1,7 +1,7 @@
 package com.daiphat.accountservice.infrastructure.adapter.notification.rabbitmq;
 
-import com.daiphat.accountservice.application.dto.event.EmailTaskDTO;
-import com.daiphat.accountservice.application.port.in.EmailServicePort;
+import com.daiphat.accountservice.application.dto.event.EmailTask;
+import com.daiphat.accountservice.application.port.in.mail.EmailServicePort;
 import com.daiphat.accountservice.domain.model.enums.EmailType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,14 +25,14 @@ class RabbitEmailTaskConsumerTest {
     @Test
     @DisplayName("CONSUMER: Chuyển tiếp exception để RabbitMQ kích hoạt DLQ")
     void consumeEmailTask_RethrowsExceptionForDLQ() {
-        EmailTaskDTO task = EmailTaskDTO.builder()
+        EmailTask task = EmailTask.builder()
                 .id("test-id")
                 .type(EmailType.WELCOME_VERIFY)
                 .build();
 
         // Giả lập EmailService ném exception (sau khi đã xử lý retry logic bên trong)
         doThrow(new RuntimeException("Task exhausted and failed"))
-                .when(emailService).processAsyncEmail(any(EmailTaskDTO.class));
+                .when(emailService).processAsyncEmail(any(EmailTask.class));
 
         // Verify: Consumer phải ném ngược lại exception ra ngoài
         assertThatThrownBy(() -> consumer.consumeEmailTask(task))

@@ -1,6 +1,6 @@
 package com.daiphat.accountservice.infrastructure.adapter;
 
-import com.daiphat.accountservice.application.port.out.UserRepositoryPort;
+import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
 import com.daiphat.accountservice.domain.model.UserModel;
 import com.daiphat.accountservice.infrastructure.persistence.entity.UserEntity;
 import com.daiphat.accountservice.infrastructure.persistence.mapper.UserPersistenceMapper;
@@ -19,7 +19,6 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
 
     private final UserRepository userRepository;
     private final UserPersistenceMapper userPersistenceMapper;
-
 
     @Override
     public UserModel save(UserModel userModel) {

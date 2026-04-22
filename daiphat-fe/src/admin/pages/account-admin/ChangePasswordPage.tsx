@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { useChangeAccountPassword, useAccountDetail } from "./hooks/useAccountAdmin";
@@ -15,16 +16,23 @@ import {
     Card,
     CircularProgress
 } from "@mui/material";
+import { useForgotPassword } from "../authen/hooks/use-forgot-password";
+import { PasswordRequirementList } from "../../components/auth/PasswordRequirementList";
 
 export const ChangePasswordPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { data: account, isLoading } = useAccountDetail(id);
     const { mutate: changePassword, isPending } = useChangeAccountPassword();
+    const { usePasswordPolicy } = useForgotPassword();
+    const { data: passwordPolicy } = usePasswordPolicy();
+
+    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
     const {
         control,
         handleSubmit,
+        watch,
     } = useForm<ChangePasswordFormValues>({
         resolver: zodResolver(changePasswordSchema),
         defaultValues: {
@@ -33,7 +41,34 @@ export const ChangePasswordPage = () => {
         },
     });
 
+    const passwordValue = watch("password", "");
+
+    const checkAllMet = () => {
+        if (!passwordPolicy) return true;
+        const pwd = passwordValue || "";
+        const { minLength, maxLength, requirements } = passwordPolicy;
+
+        const isMinMet = pwd.length >= minLength;
+        const isMaxMet = !maxLength || (pwd.length <= maxLength && pwd.length > 0);
+
+        const filteredReqs = requirements.filter(req =>
+            !req.description.toLowerCase().includes(`${minLength} ký tự`) &&
+            (!maxLength || !req.description.toLowerCase().includes(`${maxLength} ký tự`))
+        );
+
+        const isReqsMet = filteredReqs.every(req => new RegExp(req.regex).test(pwd));
+
+        return isMinMet && isMaxMet && isReqsMet;
+    };
+
+    const isPasswordValid = checkAllMet();
+
     const onSubmit = (data: ChangePasswordFormValues) => {
+        if (!isPasswordValid) {
+            toast.warning("Mật khẩu chưa đạt yêu cầu bảo mật");
+            return;
+        }
+
         changePassword({ id: id!, data }, {
             onSuccess: () => {
                 toast.success("Đổi mật khẩu thành công!");
@@ -74,21 +109,31 @@ export const ChangePasswordPage = () => {
 
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                        <Controller
-                            name="password"
-                            control={control}
-                            render={({ field, fieldState }) => (
-                                <TextField
-                                    {...field}
-                                    label="Mật khẩu mới"
-                                    type="password"
-                                    fullWidth
-                                    error={!!fieldState.error}
-                                    helperText={fieldState.error?.message}
-                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: "var(--shape-borderRadius)", fontSize: '0.875rem' } }}
+                        <Box>
+                            <Controller
+                                name="password"
+                                control={control}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        {...field}
+                                        label="Mật khẩu mới"
+                                        type="password"
+                                        fullWidth
+                                        error={!!fieldState.error}
+                                        helperText={fieldState.error?.message}
+                                        onFocus={() => setIsPasswordFocused(true)}
+                                        onBlur={() => setIsPasswordFocused(false)}
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: "var(--shape-borderRadius)", fontSize: '0.875rem' } }}
+                                    />
+                                )}
+                            />
+                            {passwordPolicy && (isPasswordFocused || passwordValue) && !isPasswordValid && (
+                                <PasswordRequirementList
+                                    password={passwordValue}
+                                    policy={passwordPolicy}
                                 />
                             )}
-                        />
+                        </Box>
 
                         <Controller
                             name="confirmPassword"
@@ -128,7 +173,7 @@ export const ChangePasswordPage = () => {
                             <Button
                                 type="submit"
                                 variant="contained"
-                                disabled={isPending}
+                                disabled={isPending || !isPasswordValid}
                                 sx={{
                                     bgcolor: 'var(--palette-text-primary)',
                                     color: "var(--palette-common-white)",
@@ -138,7 +183,12 @@ export const ChangePasswordPage = () => {
                                     fontSize: '0.875rem',
                                     textTransform: 'none',
                                     boxShadow: 'none',
-                                    '&:hover': { bgcolor: "var(--palette-grey-700)", boxShadow: 'none' }
+                                    '&:hover': { bgcolor: "var(--palette-grey-700)", boxShadow: 'none' },
+                                    "&.Mui-disabled": {
+                                        backgroundColor: "rgba(145, 158, 171, 0.24)",
+                                        color: "rgba(145, 158, 171, 0.8)",
+                                        boxShadow: "none"
+                                    }
                                 }}
                             >
                                 {isPending ? "Đang xử lý..." : "Cập nhật mật khẩu"}
@@ -150,7 +200,3 @@ export const ChangePasswordPage = () => {
         </Box>
     );
 };
-
-
-
-

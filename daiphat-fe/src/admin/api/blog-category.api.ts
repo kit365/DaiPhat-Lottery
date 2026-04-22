@@ -7,7 +7,7 @@ const BASE_URL = '/admin/article/category';
 
 /** Header auth dùng chung cho blog-categories */
 const withAuth = () => {
-    const token = Cookies.get("tokenAdmin");
+    const token = Cookies.get(STORAGE_KEYS.TOKEN);
 
     return {
         headers: {

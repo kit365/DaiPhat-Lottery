@@ -83,25 +83,31 @@ const PasswordRequirementList = ({ password, policy }: { password: string; polic
             <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 800, textTransform: 'uppercase', mb: 1, display: 'block', letterSpacing: 1 }}>
                 Yêu cầu mật khẩu
             </Typography>
-            {items.map((item) => (
-                <Stack key={item.id} direction="row" spacing={1.5} alignItems="center">
-                    <Icon
-                        icon={item.isMet ? "solar:check-circle-bold" : "solar:reorder-circle-bold"}
-                        color={item.isMet ? "var(--palette-success-main)" : "var(--palette-text-disabled)"}
-                        width={20}
-                    />
-                    <Typography
-                        variant="body2"
-                        sx={{
-                            color: item.isMet ? 'var(--palette-text-primary)' : 'var(--palette-text-secondary)',
-                            fontWeight: item.isMet ? 700 : 500,
-                            transition: 'all 0.2s'
-                        }}
-                    >
-                        {item.description}
-                    </Typography>
-                </Stack>
-            ))}
+            {items.map((item) => {
+                // Chỉ hiện "Không chứa khoảng trắng" nếu người dùng thực sự nhập sai (có space)
+                const isNoSpaceRequirement = item.description.toLowerCase().includes("khoảng trắng");
+                if (isNoSpaceRequirement && item.isMet) return null;
+
+                return (
+                    <Stack key={item.id} direction="row" spacing={1.5} alignItems="center">
+                        <Icon
+                            icon={item.isMet ? "solar:check-circle-bold" : "solar:reorder-circle-bold"}
+                            color={item.isMet ? "var(--palette-success-main)" : "var(--palette-text-disabled)"}
+                            width={20}
+                        />
+                        <Typography
+                            variant="body2"
+                            sx={{
+                                color: item.isMet ? 'var(--palette-text-primary)' : 'var(--palette-text-secondary)',
+                                fontWeight: item.isMet ? 700 : 500,
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            {item.description}
+                        </Typography>
+                    </Stack>
+                );
+            })}
         </Stack>
     );
 };
@@ -116,10 +122,13 @@ export const ProfilePage = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | null>(null);
 
-    const { data: account, isLoading: isAccountLoading } = useAccountDetail(id);
+    // Use user from store as source of truth for self profile
+    const account = user;
+
     const { mutate: update, isPending: isUpdating } = useUpdateAccount();
     const { mutate: changePassword, isPending: isChangingPassword } = useChangeAccountPassword();
-    const { data: roles = [] } = useRoles();
+    
+    // History can stay as it is specific to the profile view, but we make it optional
     const { data: ticketServiceOrdersData, isLoading: isTicketServiceOrdersLoading } = useTicketServiceOrders({ staffId: id });
     const ticketServiceOrders = (ticketServiceOrdersData?.data as any)?.recordList || [];
 
@@ -256,13 +265,7 @@ export const ProfilePage = () => {
         });
     };
 
-    if (isAccountLoading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-                <CircularProgress />
-            </Box>
-        );
-    }
+    // No more global loading spinner as store data is instant
 
 
     return (
@@ -361,7 +364,7 @@ export const ProfilePage = () => {
                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
                             <Icon icon="solar:shield-check-bold" color="var(--palette-primary-main)" width={16} />
                             <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}>
-                                {roles.find((r: any) => account?.roles?.includes(r._id))?.name || account?.role?.name || "---"}
+                                {(account as any)?.role?.name || "Member"}
                             </Typography>
                         </Stack>
                     </Box>

@@ -5,7 +5,7 @@ import { ApiResponse } from '../config/type';
 const BASE_URL = '/admin/ticketService';
 
 const withAuth = () => {
-    const token = Cookies.get("tokenAdmin");
+    const token = Cookies.get(STORAGE_KEYS.TOKEN);
     return {
         headers: {
             Authorization: `Bearer ${token}`,

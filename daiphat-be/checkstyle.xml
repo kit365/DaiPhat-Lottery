@@ -101,7 +101,7 @@
       <property name="id" value="RightCurlySame"/>
       <property name="tokens"
                 value="LITERAL_TRY, LITERAL_CATCH, LITERAL_IF, LITERAL_ELSE,
-                    LITERAL_DO"/>
+                    LITERAL_DO, LITERAL_FINALLY"/>
     </module>
 
     <module name="RightCurly">
@@ -110,8 +110,7 @@
       <property name="tokens"
                value="CLASS_DEF, METHOD_DEF, CTOR_DEF, LITERAL_FOR, LITERAL_WHILE, STATIC_INIT,
                     INSTANCE_INIT, ANNOTATION_DEF, ENUM_DEF, INTERFACE_DEF, RECORD_DEF,
-                    COMPACT_CTOR_DEF, LITERAL_SWITCH, LITERAL_CASE, LITERAL_FINALLY,
-                    LITERAL_CATCH"/>
+                    COMPACT_CTOR_DEF, LITERAL_SWITCH, LITERAL_CASE"/>
     </module>
 
     <module name="WhitespaceAfter">
@@ -184,12 +183,20 @@
     <module name="NoFinalizer"/>
     <module name="GenericWhitespace"/>
     
+    <module name="UnusedImports"/>
+    <module name="RedundantImport"/>
+    
+    <module name="RegexpSinglelineJava">
+      <property name="format" value="^(?!import|package).*\bcom\.daiphat\."/>
+      <property name="message" value="Sếp bảo không được dùng Fully Qualified Name sếp nhé! Hãy dùng Import."/>
+    </module>
+    
     <module name="Indentation">
       <property name="basicOffset" value="4"/>
-      <property name="braceAdjustment" value="4"/>
+      <property name="braceAdjustment" value="0"/>
       <property name="caseIndent" value="4"/>
-      <property name="throwsIndent" value="8"/>
-      <property name="lineWrappingIndentation" value="8"/>
+      <property name="throwsIndent" value="4"/>
+      <property name="lineWrappingIndentation" value="4"/>
       <property name="arrayInitIndent" value="4"/>
     </module>
 
@@ -198,11 +205,6 @@
     <module name="ConstructorsDeclarationGrouping"/>
     <module name="VariableDeclarationUsageDistance"/>
     
-    <module name="CustomImportOrder">
-      <property name="sortImportsInGroupAlphabetically" value="true"/>
-      <property name="separateLineBetweenGroups" value="true"/>
-      <property name="customImportOrderRules" value="STATIC###THIRD_PARTY_PACKAGE"/>
-    </module>
     
     <module name="MethodParamPad"/>
     

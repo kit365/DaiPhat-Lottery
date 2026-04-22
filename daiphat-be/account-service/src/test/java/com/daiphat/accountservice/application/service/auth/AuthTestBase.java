@@ -1,8 +1,8 @@
 package com.daiphat.accountservice.application.service.auth;
 import com.daiphat.accountservice.application.config.AuthProperties;
-import com.daiphat.accountservice.application.port.in.UserServicePort;
-import com.daiphat.accountservice.application.port.out.UserRepositoryPort;
-import com.daiphat.accountservice.application.port.out.IdentityManagementPort;
+import com.daiphat.accountservice.application.port.in.user.UserServicePort;
+import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
+import com.daiphat.accountservice.application.port.out.auth.IdentityManagementPort;
 import com.daiphat.accountservice.application.port.out.auth.DistributedLockPort;
 import com.daiphat.accountservice.application.port.out.auth.LoginAttemptPort;
 import com.daiphat.accountservice.application.port.out.auth.RateLimiterPort;
@@ -55,7 +55,12 @@ public abstract class AuthTestBase {
         AuthProperties.Lockout.Spam spamProps = mock(AuthProperties.Lockout.Spam.class);
         AuthProperties.Cache cacheConfig = mock(AuthProperties.Cache.class);
         AuthProperties.PasswordPolicy policyConfig = mock(AuthProperties.PasswordPolicy.class);
+        AuthProperties.VerificationPaths verificationPaths = mock(AuthProperties.VerificationPaths.class);
  
+        lenient().when(authProperties.getVerificationPaths()).thenReturn(verificationPaths);
+        lenient().when(verificationPaths.getClientPath()).thenReturn("/verify-email?token=");
+        lenient().when(verificationPaths.getAdminPath()).thenReturn("/admin/verify-email?token=");
+        
         lenient().when(authProperties.getToken()).thenReturn(tokenProps);
         lenient().when(tokenProps.getRememberMeTtl()).thenReturn(Duration.ofDays(30));
  

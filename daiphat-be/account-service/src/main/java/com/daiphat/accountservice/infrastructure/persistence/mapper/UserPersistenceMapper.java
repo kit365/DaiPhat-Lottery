@@ -10,11 +10,14 @@ import org.mapstruct.*;
 public interface UserPersistenceMapper {
 
     @Mapping(target = "phone", source = "phoneNumber")
+    @Mapping(target = "firstName", source = "firstName")
+    @Mapping(target = "lastName", source = "lastName")
+    @Mapping(target = "hasPassword", source = "hasPassword")
+    @Mapping(target = "agreedToTerms", source = "agreedToTerms")
     UserEntity toEntity(UserModel domain);
 
     @Mapping(target = "phoneNumber", source = "phone")
     UserModel toDomain(UserEntity entity);
-
 
     @AfterMapping
     default void linkRelationships(@MappingTarget UserEntity entity) {
