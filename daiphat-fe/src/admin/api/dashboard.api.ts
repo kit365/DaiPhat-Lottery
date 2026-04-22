@@ -5,7 +5,7 @@ import { mockEcommerceStats, mockAnalyticsStats, mockSystemStats } from '../data
 const BASE_URL = '/admin/dashboard';
 
 const withAuth = () => {
-    const token = Cookies.get("tokenAdmin");
+    const token = Cookies.get(STORAGE_KEYS.TOKEN);
     return {
         headers: {
             Authorization: `Bearer ${token}`,

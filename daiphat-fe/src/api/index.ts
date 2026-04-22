@@ -49,7 +49,12 @@ apiApp.interceptors.response.use(
                     }
                     break;
                 case 403:
-                    AppToast.error("Bạn không có quyền thực hiện hành động này!");
+                    AppToast.error(message);
+                    break;
+                case 400:
+                case 422:
+                case 429:
+                    AppToast.error(message);
                     break;
                 case 404:
                     AppToast.error("Không tìm thấy tài nguyên yêu cầu!");
@@ -58,8 +63,7 @@ apiApp.interceptors.response.use(
                     AppToast.error("Lỗi hệ thống! Vui lòng thử lại sau.");
                     break;
                 default:
-                    // Với các lỗi khác (nhu 400), để cho Component tự quyết định có hiện toast hay không
-                    // tránh việc nổ toast kép
+                    AppToast.error(message);
                     console.warn(`[API Error] ${status}: ${message}`);
             }
         } else {

@@ -1,7 +1,7 @@
 package com.daiphat.accountservice.application.service;
 
 import com.daiphat.accountservice.application.config.AuthProperties;
-import com.daiphat.accountservice.application.dto.event.EmailTaskDTO;
+import com.daiphat.accountservice.application.dto.event.EmailTask;
 import com.daiphat.accountservice.domain.exception.EmailRateLimitException;
 import com.daiphat.accountservice.domain.model.enums.EmailType;
 import com.daiphat.accountservice.infrastructure.adapter.notification.rabbitmq.RabbitEmailTaskProducer;
@@ -65,7 +65,7 @@ class EmailServiceTest {
 
         emailService.sendEmail(EmailType.WELCOME_VERIFY, RECIPIENT, Map.of("key", "val"));
 
-        verify(rabbitEmailTaskProducer).sendEmailTask(any(EmailTaskDTO.class));
+        verify(rabbitEmailTaskProducer).sendEmailTask(any(EmailTask.class));
         // Kiểm tra metric đã được ghi nhận đúng tên: email.task.produced
         assertThat(meterRegistry.find("email.task.produced").counter()).isNotNull();
     }
@@ -85,7 +85,7 @@ class EmailServiceTest {
     @Test
     @DisplayName("CONSUMER: Xử lý thành công - Không retry")
     void processAsyncEmail_Success() {
-        EmailTaskDTO task = EmailTaskDTO.builder()
+        EmailTask task = EmailTask.builder()
                 .type(EmailType.WELCOME_VERIFY)
                 .to(RECIPIENT)
                 .attempt(0)
@@ -105,7 +105,7 @@ class EmailServiceTest {
     @Test
     @DisplayName("CONSUMER: Xử lý thất bại - Thực hiện Retry")
     void processAsyncEmail_Fail_TriggerRetry() {
-        EmailTaskDTO task = EmailTaskDTO.builder()
+        EmailTask task = EmailTask.builder()
                 .type(EmailType.WELCOME_VERIFY)
                 .to(RECIPIENT)
                 .attempt(0)
@@ -118,7 +118,7 @@ class EmailServiceTest {
 
         emailService.processAsyncEmail(task);
 
-        ArgumentCaptor<EmailTaskDTO> taskCaptor = ArgumentCaptor.forClass(EmailTaskDTO.class);
+        ArgumentCaptor<EmailTask> taskCaptor = ArgumentCaptor.forClass(EmailTask.class);
         verify(rabbitEmailTaskProducer).sendDelayedEmailTask(taskCaptor.capture(), anyLong());
 
         assertThat(taskCaptor.getValue().getAttempt()).isEqualTo(1);
@@ -127,7 +127,7 @@ class EmailServiceTest {
     @Test
     @DisplayName("CONSUMER: Xử lý thất bại quá số lần - Ngừng")
     void processAsyncEmail_Fail_MaxRetriesExhausted() {
-        EmailTaskDTO task = EmailTaskDTO.builder()
+        EmailTask task = EmailTask.builder()
                 .type(EmailType.WELCOME_VERIFY)
                 .to(RECIPIENT)
                 .attempt(2) // Lần chạy thứ 3 (max=3), khi fail sẽ trigger exhaustion logic

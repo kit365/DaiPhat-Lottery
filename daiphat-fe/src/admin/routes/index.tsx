@@ -22,6 +22,10 @@ const BlogDetailPage = lazy(() => import("../pages/blog/BlogDetailPage").then(m 
 const BlogEditPage = lazy(() => import("../pages/blog/BlogEditPage").then(m => ({ default: m.BlogEditPage })));
 const LoginPage = lazy(() => import("../pages/authen/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("../pages/authen/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
+const OAuthCallbackPage = lazy(() => import("../pages/authen/OAuthCallbackPage").then(m => ({ default: m.OAuthCallbackPage })));
+const ProfileSetupPage = lazy(() => import("../pages/authen/ProfileSetupPage").then(m => ({ default: m.ProfileSetupPage })));
+
+export { LoginPage, ForgotPasswordPage, OAuthCallbackPage, ProfileSetupPage };
 const DashboardPage = lazy(() => import("../pages/dashboard/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const SystemPage = lazy(() => import("../pages/dashboard/SystemPage").then(m => ({ default: m.SystemPage })));
 const EcommercePage = lazy(() => import("../pages/dashboard/EcommercePage")); // Default export
@@ -157,4 +161,9 @@ export const AdminRoutes = [
 export const AdminAuthRoutes = [
     { path: "auth/login", element: <LoginPage /> },
     { path: "auth/forgot-password", element: <ForgotPasswordPage /> },
+];
+
+export const CommonRoutes = [
+    { path: "setup-profile", element: <ProfileSetupPage /> },
+    { path: "auth/callback", element: <OAuthCallbackPage /> },
 ];

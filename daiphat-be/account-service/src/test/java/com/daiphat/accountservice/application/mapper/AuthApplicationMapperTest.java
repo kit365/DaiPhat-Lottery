@@ -1,6 +1,6 @@
 package com.daiphat.accountservice.application.mapper;
 
-import com.daiphat.accountservice.application.dto.response.AuthResponseDTO;
+import com.daiphat.accountservice.application.dto.response.auth.AuthResponse;
 import com.daiphat.accountservice.domain.model.UserModel;
 import com.daiphat.accountservice.domain.model.auth.KeycloakAuthResult;
 import org.junit.jupiter.api.DisplayName;
@@ -14,7 +14,7 @@ class AuthApplicationMapperTest {
     private final AuthApplicationMapper mapper = Mappers.getMapper(AuthApplicationMapper.class);
 
     @Test
-    @DisplayName("Should map KeycloakAuthResult to AuthResponseDTO correctly")
+    @DisplayName("Should map KeycloakAuthResult to AuthResponse correctly")
     void toResponse_ShouldMapCorrectly() {
         // 1. Arrange
         KeycloakAuthResult domain = KeycloakAuthResult.builder()
@@ -33,7 +33,7 @@ class AuthApplicationMapperTest {
                 .build();
 
         // 2. Act
-        AuthResponseDTO response = mapper.toResponse(domain, userModel);
+        AuthResponse response = mapper.toResponse(domain, userModel);
 
         // 3. Assert
         assertThat(response).isNotNull();

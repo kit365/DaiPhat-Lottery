@@ -1,9 +1,9 @@
 import { ReactNode, useEffect } from "react";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ROUTES } from "../../constants/routes";
-import { useGetMe } from "../../pages/authen/hooks/use-get-me";
+import { useAuth } from "../../pages/authen/hooks/useAuth";
 import { USER_ROLES } from "../../../constants/role.constants";
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
 
 export const PermissionGuard = ({ children, permission, fallback }: Props) => {
     const { user, logout, token, isHydrated } = useAuthStore();
-    const { isLoading, isFetching } = useGetMe();
+    const { isUserLoading: isLoading, isFetching } = useAuth();
 
     // 1. Nếu CHƯA HYDRATE xong thì tuyệt đối không được làm gì, cứ đứng đợi
     const isReady = isHydrated;
@@ -63,5 +63,5 @@ export const PermissionGuard = ({ children, permission, fallback }: Props) => {
         return <Navigate to={ROUTES.ADMIN.AUTH.LOGIN} replace />;
     }
 
-    return <>{children}</>;
+    return <>{children || <Outlet />}</>;
 };

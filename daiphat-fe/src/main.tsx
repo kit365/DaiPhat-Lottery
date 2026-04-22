@@ -33,6 +33,7 @@ createRoot(document.getElementById('root')!).render(
           newestOnTop
           closeOnClick
           pauseOnHover
+          style={{ zIndex: 99999 }}
         />
       </QueryClientProvider>
     </LocalizationProvider>

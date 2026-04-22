@@ -1,6 +1,6 @@
 package com.daiphat.accountservice.application.mapper;
 
-import com.daiphat.accountservice.application.dto.request.UserRegistrationRequestDTO;
+import com.daiphat.accountservice.application.dto.request.user.UserRegistrationRequest;
 import com.daiphat.accountservice.domain.model.UserModel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,10 +13,10 @@ class UserApplicationMapperTest {
     private final UserApplicationMapper mapper = Mappers.getMapper(UserApplicationMapper.class);
 
     @Test
-    @DisplayName("Should map UserRegistrationRequestDTO to UserModel correctly")
+    @DisplayName("Should map UserRegistrationRequest to UserModel correctly")
     void mapToUserModel_ShouldMapCorrectly() {
         // 1. Arrange
-        UserRegistrationRequestDTO request = UserRegistrationRequestDTO.builder()
+        UserRegistrationRequest request = UserRegistrationRequest.builder()
                 .lastName("Nguyễn")
                 .firstName("Tuấn Kiệt")
                 .username("tuankiet")

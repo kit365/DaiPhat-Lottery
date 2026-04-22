@@ -9,8 +9,8 @@ public final class PermissionConstants {
     // --- RESOURCES ---
     public static final String DASHBOARD = "dashboard";
     public static final String STATISTICS = "stats";
-    public static final String USER = "user";
-    public static final String ACCOUNT = "account";
+    public static final String USER = "member";
+    public static final String ACCOUNT = "admin";
     public static final String ROLE = "role";
     public static final String ARTICLE = "article";
     public static final String TICKET = "ticket";

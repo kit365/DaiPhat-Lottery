@@ -1,11 +1,11 @@
 package com.daiphat.accountservice.application.service.auth;
 
-import com.daiphat.accountservice.application.dto.request.PermissionItemDTO;
-import com.daiphat.accountservice.application.dto.request.PermissionRegistrationRequestDTO;
-import com.daiphat.accountservice.application.dto.response.RoleResponseDTO;
+import com.daiphat.accountservice.application.dto.request.permission.PermissionItem;
+import com.daiphat.accountservice.application.dto.request.permission.PermissionRegistrationRequest;
+import com.daiphat.accountservice.application.dto.response.auth.RoleResponse;
 import com.daiphat.accountservice.application.mapper.RoleApplicationMapper;
-import com.daiphat.accountservice.application.port.in.RoleServicePort;
-import com.daiphat.accountservice.application.port.out.RoleRepositoryPort;
+import com.daiphat.accountservice.application.port.in.auth.RoleServicePort;
+import com.daiphat.accountservice.application.port.out.auth.RoleRepositoryPort;
 import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
 import com.daiphat.accountservice.domain.model.PermissionModel;
@@ -34,18 +34,25 @@ public class RoleService implements RoleServicePort {
     }
 
     @Override
-    public List<RoleResponseDTO> getAllRoles() {
+    public RoleModel getRoleByCode(String code) {
+        return roleRepositoryPort.findByCode(code)
+                .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
+    }
+
+    @Override
+    public List<RoleResponse> getAllRoles() {
         return roleRepositoryPort.findAll().stream()
                 .filter(role -> !role.getCode().equals(RoleConstants.ADMIN)
                         && !role.getCode().equals(RoleConstants.ROLE_MEMBER))
-                .sorted(java.util.Comparator.comparing(RoleModel::getName, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .sorted(java.util.Comparator.comparing(RoleModel::getName, 
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
                 .map(roleApplicationMapper::toResponse)
                 .toList();
     }
 
     @Override
     @Transactional
-    public RoleResponseDTO updatePermissions(UUID roleId, Set<String> permissionCodes) {
+    public RoleResponse updatePermissions(UUID roleId, Set<String> permissionCodes) {
         RoleModel role = roleRepositoryPort.findAll().stream()
                 .filter(r -> r.getId().equals(roleId))
                 .findFirst()
@@ -61,9 +68,10 @@ public class RoleService implements RoleServicePort {
 
     @Override
     @Transactional
-    public void registerPermissions(PermissionRegistrationRequestDTO request) {
-        if (request == null || request.getPermissions() == null)
+    public void registerPermissions(PermissionRegistrationRequest request) {
+        if (request == null || request.getPermissions() == null) {
             return;
+        }
         roleRepositoryPort.upsertPermissions(request.getPermissions());
     }
 
@@ -80,13 +88,13 @@ public class RoleService implements RoleServicePort {
     }
 
     @Override
-    public List<PermissionItemDTO> getAllPermissions() {
+    public List<PermissionItem> getAllPermissions() {
         return roleRepositoryPort.findAllPermissions().stream()
                 .filter(p -> !p.getCode().startsWith(PermissionConstants.ROLE))
                 .sorted(java.util.Comparator.comparing(
-                        com.daiphat.accountservice.domain.model.PermissionModel::getPosition,
+                        PermissionModel::getPosition,
                         java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
-                .map(p -> PermissionItemDTO.builder()
+                .map(p -> PermissionItem.builder()
                         .code(p.getCode())
                         .name(p.getName())
                         .description(p.getDescription())

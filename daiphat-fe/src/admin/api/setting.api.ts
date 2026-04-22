@@ -6,7 +6,7 @@ import { prefixAdmin } from '../constants/routes';
 const BASE_URL = `/${prefixAdmin}/setting`;
 
 const withAuth = () => {
-    const token = Cookies.get("tokenAdmin");
+    const token = Cookies.get(STORAGE_KEYS.TOKEN);
     return {
         headers: {
             Authorization: `Bearer ${token}`,

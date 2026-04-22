@@ -1,8 +1,8 @@
 package com.daiphat.accountservice.application.service;
 
 import com.daiphat.accountservice.application.config.AuthProperties;
-import com.daiphat.accountservice.application.dto.event.EmailTaskDTO;
-import com.daiphat.accountservice.application.port.in.EmailServicePort;
+import com.daiphat.accountservice.application.dto.event.EmailTask;
+import com.daiphat.accountservice.application.port.in.mail.EmailServicePort;
 import com.daiphat.accountservice.domain.exception.EmailDispatchException;
 import com.daiphat.accountservice.domain.exception.EmailRateLimitException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
@@ -63,7 +63,7 @@ public class EmailService implements EmailServicePort {
         try {
             log.info("Producing async email task [{}] to RabbitMQ for: {}", type, recipient);
             
-            EmailTaskDTO task = EmailTaskDTO.builder()
+            EmailTask task = EmailTask.builder()
                     .id(UUID.randomUUID().toString())
                     .type(type)
                     .to(recipient)
@@ -97,7 +97,7 @@ public class EmailService implements EmailServicePort {
 
     // chính thức gửi
     @Override
-    public void processAsyncEmail(EmailTaskDTO task) {
+    public void processAsyncEmail(EmailTask task) {
         Timer.Sample sample = Timer.start(meterRegistry);
         EmailType type = task.getType();
         
@@ -108,7 +108,8 @@ public class EmailService implements EmailServicePort {
                 throw new EmailDispatchException(ErrorCode.INTERNAL_SERVER_ERROR, "No strategy found for type " + type);
             }
 
-            log.info("Executing async task {} (Attempt {}/{}) for {}", task.getId(), task.getAttempt() + 1, task.getMaxRetries(), task.getTo());
+            log.info("Executing async task {} (Attempt {}/{}) for {}", 
+                    task.getId(), task.getAttempt() + 1, task.getMaxRetries(), task.getTo());
             strategy.process(task.getTo(), task.getParameters());
             
             sample.stop(meterRegistry.timer("email.task.processing", "type", type.name(), "status", "success"));
@@ -120,7 +121,7 @@ public class EmailService implements EmailServicePort {
         }
     }
 
-    private void handleProcessingFailure(EmailTaskDTO task, Exception e) {
+    private void handleProcessingFailure(EmailTask task, Exception e) {
         int currentAttempt = task.getAttempt();
         int maxRetries = task.getMaxRetries();
 
@@ -135,12 +136,13 @@ public class EmailService implements EmailServicePort {
             // Re-queue task to retry queue with delay
             rabbitEmailTaskProducer.sendDelayedEmailTask(task, backoff);
         } else {
-            log.error("CRITICAL: Email task {} failed after {} attempts. Triggering DLQ logic. Error: {}", 
+            log.error("CRITICAL: Email task {} failed after {} attempts. "
+                            + "Triggering DLQ logic. Error: {}", 
                     task.getId(), maxRetries, e.getMessage());
             meterRegistry.counter("email.task.exhausted", "type", task.getType().name()).increment();
             
-            // Throwing AmqpRejectAndDontRequeueException tells RabbitMQ not to retry and to move the message to DLX (if configured)
-            throw new org.springframework.amqp.AmqpRejectAndDontRequeueException("Email task retries exhausted: " + task.getId(), e);
+            throw new org.springframework.amqp.AmqpRejectAndDontRequeueException(
+                    "Email task retries exhausted: " + task.getId(), e);
         }
     }
 

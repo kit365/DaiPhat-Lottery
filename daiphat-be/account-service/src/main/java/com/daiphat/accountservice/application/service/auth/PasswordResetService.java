@@ -1,17 +1,17 @@
 package com.daiphat.accountservice.application.service.auth;
 
 import com.daiphat.accountservice.application.config.AuthProperties;
-import com.daiphat.accountservice.application.dto.request.ForgotPasswordRequestDTO;
-import com.daiphat.accountservice.application.dto.request.ResetPasswordRequestDTO;
-import com.daiphat.accountservice.application.dto.request.VerifyOtpRequestDTO;
-import com.daiphat.accountservice.application.dto.response.ForgotPasswordResponseDTO;
-import com.daiphat.accountservice.application.dto.response.PasswordPolicyResponseDTO;
-import com.daiphat.accountservice.application.dto.response.PasswordRequirementDTO;
-import com.daiphat.accountservice.application.dto.response.VerifyOtpResponseDTO;
-import com.daiphat.accountservice.application.port.in.EmailServicePort;
+import com.daiphat.accountservice.application.dto.request.auth.ForgotPasswordRequest;
+import com.daiphat.accountservice.application.dto.request.auth.ResetPasswordRequest;
+import com.daiphat.accountservice.application.dto.request.auth.VerifyOtpRequest;
+import com.daiphat.accountservice.application.dto.response.auth.ForgotPasswordResponse;
+import com.daiphat.accountservice.application.dto.response.auth.PasswordPolicyResponse;
+import com.daiphat.accountservice.application.dto.response.auth.PasswordRequirementResponse;
+import com.daiphat.accountservice.application.dto.response.auth.VerifyOtpResponse;
+import com.daiphat.accountservice.application.port.in.mail.EmailServicePort;
 import com.daiphat.accountservice.application.port.in.auth.PasswordResetServicePort;
-import com.daiphat.accountservice.application.port.out.IdentityManagementPort;
-import com.daiphat.accountservice.application.port.out.UserRepositoryPort;
+import com.daiphat.accountservice.application.port.out.auth.IdentityManagementPort;
+import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
 import com.daiphat.accountservice.application.port.out.auth.cache.OtpCachePort;
 import com.daiphat.accountservice.application.port.out.auth.cache.PasswordResetCachePort;
 import com.daiphat.accountservice.application.port.out.auth.keys.AuthAction;
@@ -53,17 +53,19 @@ public class PasswordResetService implements PasswordResetServicePort {
     private static final String REQ_LOWERCASE = "lowercase";
     private static final String REQ_DIGIT = "digit";
     private static final String REQ_SPECIAL = "special";
+    private static final String REQ_NO_SPACE = "no_space";
 
     private static final String REGEX_UPPERCASE = "^(?=.*[A-Z]).*$";
     private static final String REGEX_LOWERCASE = "^(?=.*[a-z]).*$";
     private static final String REGEX_DIGIT = "^(?=.*\\d).*$";
     private static final String REGEX_SPECIAL = "^(?=.*[@$!%*?&]).*$";
+    private static final String REGEX_NO_SPACE = "^\\S*$";
 
     private static final String PARAM_OTP = "otp";
 
     @Override
     @Transactional
-    public ForgotPasswordResponseDTO forgotPassword(ForgotPasswordRequestDTO request) {
+    public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
         String email = request.getEmail();
         log.info("Initiating forgot password for email: {}", email);
 
@@ -88,7 +90,7 @@ public class PasswordResetService implements PasswordResetServicePort {
         return this.forgotPasswordInternal(email);
     }
 
-    private ForgotPasswordResponseDTO forgotPasswordInternal(String email) {
+    private ForgotPasswordResponse forgotPasswordInternal(String email) {
         // 1. Generate and Save OTP
         String otp = AuthUtils.generateOtp();
         otpCachePort.saveOtp(email, otp, authProperties.getCache().getOtpTtl());
@@ -103,7 +105,7 @@ public class PasswordResetService implements PasswordResetServicePort {
 
         log.info("OTP sent for password reset. Email: {}", email);
 
-        return ForgotPasswordResponseDTO.builder()
+        return ForgotPasswordResponse.builder()
                 .email(email)
                 .expiresIn(authProperties.getCache().getOtpTtl().toSeconds())
                 .retryAfter(rateLimiterService.getRemainingWaitTime(email, AuthAction.FORGOT_PASSWORD))
@@ -112,14 +114,14 @@ public class PasswordResetService implements PasswordResetServicePort {
 
     @Override
     @Transactional
-    public ForgotPasswordResponseDTO resendForgotPasswordOtp(ForgotPasswordRequestDTO request) {
+    public ForgotPasswordResponse resendForgotPasswordOtp(ForgotPasswordRequest request) {
         log.info("Alias request: Resending OTP for password reset. Email: {}", request.getEmail());
         return this.forgotPassword(request);
     }
 
     @Override
     @Transactional
-    public VerifyOtpResponseDTO verifyResetOtp(VerifyOtpRequestDTO request) {
+    public VerifyOtpResponse verifyResetOtp(VerifyOtpRequest request) {
         String email = request.getEmail();
         String otp = request.getOtp();
         log.info("Verifying OTP for email: {}", email);
@@ -154,14 +156,14 @@ public class PasswordResetService implements PasswordResetServicePort {
         rateLimiterService.resetRateLimit(email, AuthAction.FORGOT_PASSWORD);
 
         log.info("OTP verified. Reset session created for {}", email);
-        return VerifyOtpResponseDTO.builder()
+        return VerifyOtpResponse.builder()
                 .resetToken(resetToken)
                 .build();
     }
 
     @Override
     @Transactional
-    public void resetPassword(ResetPasswordRequestDTO request) {
+    public void resetPassword(ResetPasswordRequest request) {
         String resetToken = request.getResetToken();
         log.info("Processing password reset with token: {}", AuthUtils.maskToken(resetToken));
 
@@ -198,17 +200,31 @@ public class PasswordResetService implements PasswordResetServicePort {
     }
 
     @Override
-    public PasswordPolicyResponseDTO getPasswordPolicy() {
+    public PasswordPolicyResponse getPasswordPolicy() {
         var policy = authProperties.getPasswordPolicy();
-        var requirements = java.util.Arrays.asList(
-                new PasswordRequirementDTO(REQ_MIN_LENGTH, "Ít nhất " + policy.getMinLength() + " ký tự", null),
-                new PasswordRequirementDTO(REQ_UPPERCASE, "Ít nhất 1 chữ hoa", REGEX_UPPERCASE),
-                new PasswordRequirementDTO(REQ_LOWERCASE, "Ít nhất 1 chữ thường", REGEX_LOWERCASE),
-                new PasswordRequirementDTO(REQ_DIGIT, "Ít nhất 1 chữ số", REGEX_DIGIT),
-                new PasswordRequirementDTO(REQ_SPECIAL, "Ít nhất 1 ký tự đặc biệt (@$!%*?&)", REGEX_SPECIAL)
-        );
+        java.util.List<PasswordRequirementResponse> requirements = new java.util.ArrayList<>();
 
-        return PasswordPolicyResponseDTO.builder()
+        // 1. Min Length is always mandatory
+        requirements.add(new PasswordRequirementResponse(REQ_MIN_LENGTH, "Ít nhất " + policy.getMinLength() + " ký tự", null));
+
+        // 2. Conditionals based on AuthProperties
+        if (policy.isNoSpace()) {
+            requirements.add(new PasswordRequirementResponse(REQ_NO_SPACE, "Không chứa khoảng trắng", REGEX_NO_SPACE));
+        }
+        if (policy.isRequireUppercase()) {
+            requirements.add(new PasswordRequirementResponse(REQ_UPPERCASE, "Ít nhất 1 chữ hoa", REGEX_UPPERCASE));
+        }
+        if (policy.isRequireLowercase()) {
+            requirements.add(new PasswordRequirementResponse(REQ_LOWERCASE, "Ít nhất 1 chữ thường", REGEX_LOWERCASE));
+        }
+        if (policy.isRequireDigit()) {
+            requirements.add(new PasswordRequirementResponse(REQ_DIGIT, "Ít nhất 1 chữ số", REGEX_DIGIT));
+        }
+        if (policy.isRequireSpecial()) {
+            requirements.add(new PasswordRequirementResponse(REQ_SPECIAL, "Ít nhất 1 ký tự đặc biệt (@$!%*?&)", REGEX_SPECIAL));
+        }
+
+        return PasswordPolicyResponse.builder()
                 .requirements(requirements)
                 .minLength(policy.getMinLength())
                 .maxLength(policy.getMaxLength())

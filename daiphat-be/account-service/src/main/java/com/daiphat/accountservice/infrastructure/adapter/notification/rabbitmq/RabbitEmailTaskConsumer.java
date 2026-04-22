@@ -1,7 +1,7 @@
 package com.daiphat.accountservice.infrastructure.adapter.notification.rabbitmq;
 
-import com.daiphat.accountservice.application.dto.event.EmailTaskDTO;
-import com.daiphat.accountservice.application.port.in.EmailServicePort;
+import com.daiphat.accountservice.application.dto.event.EmailTask;
+import com.daiphat.accountservice.application.port.in.mail.EmailServicePort;
 import com.daiphat.accountservice.infrastructure.config.RabbitMQConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +24,9 @@ public class RabbitEmailTaskConsumer {
      * @param task DTO chứa thông tin email cần gửi.
      */
     @RabbitListener(queues = RabbitMQConfig.EMAIL_QUEUE)
-    public void consumeEmailTask(EmailTaskDTO task) {
-        log.info("Received email task {} from RabbitMQ. Type: {}, Attempt: {}", task.getId(), task.getType(), task.getAttempt());
+    public void consumeEmailTask(EmailTask task) {
+        log.info("Received email task {} from RabbitMQ. Type: {}, Attempt: {}", 
+                task.getId(), task.getType(), task.getAttempt());
         
         try {
             // Điều phối xử lý async (Render + Send) qua EmailService

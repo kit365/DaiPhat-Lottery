@@ -24,7 +24,9 @@ public interface UserAddressPersistenceMapper {
     UserAddressEntity toEntity(UserAddressModel domain);
 
     default UserAddressModel.ContactInfo mapToContact(UserAddressEntity entity) {
-        if (entity == null) return null;
+        if (entity == null) {
+            return null;
+        }
         return UserAddressModel.ContactInfo.builder()
                 .fullName(entity.getFullName())
                 .phone(entity.getPhone())
@@ -32,7 +34,9 @@ public interface UserAddressPersistenceMapper {
     }
 
     default UserAddressModel.Coordinates mapToLocation(UserAddressEntity entity) {
-        if (entity == null) return null;
+        if (entity == null) {
+            return null;
+        }
         return UserAddressModel.Coordinates.builder()
                 .longitude(entity.getLongitude())
                 .latitude(entity.getLatitude())
@@ -40,15 +44,23 @@ public interface UserAddressPersistenceMapper {
     }
 
     default String concatenateAddress(UserAddressModel domain) {
-        if (domain == null) return null;
+        if (domain == null) {
+            return null;
+        }
         StringBuilder addressBuilder = new StringBuilder();
-        if (domain.getAddressLine1() != null) addressBuilder.append(domain.getAddressLine1());
+        if (domain.getAddressLine1() != null) {
+            addressBuilder.append(domain.getAddressLine1());
+        }
         if (domain.getAddressLine2() != null && !domain.getAddressLine2().isEmpty()) {
-            if (!addressBuilder.isEmpty()) addressBuilder.append(", ");
+            if (!addressBuilder.isEmpty()) {
+                addressBuilder.append(", ");
+            }
             addressBuilder.append(domain.getAddressLine2());
         }
         if (domain.getCity() != null) {
-            if (!addressBuilder.isEmpty()) addressBuilder.append(", ");
+            if (!addressBuilder.isEmpty()) {
+                addressBuilder.append(", ");
+            }
             addressBuilder.append(domain.getCity());
         }
         return addressBuilder.toString();

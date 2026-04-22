@@ -25,7 +25,9 @@ public class InternalHeaderVerificationFilter extends OncePerRequestFilter {
         String requestPath = request.getRequestURI();
 
         // Bypass for actuator and swagger/api-docs
-        if (requestPath.startsWith("/actuator") || requestPath.startsWith("/swagger-ui") || requestPath.startsWith("/v3/api-docs")) {
+        if (requestPath.startsWith("/actuator") 
+                || requestPath.startsWith("/swagger-ui") 
+                || requestPath.startsWith("/v3/api-docs")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -33,7 +35,8 @@ public class InternalHeaderVerificationFilter extends OncePerRequestFilter {
         // We check if gatewaySecret is configured. If not, we might fail or ignore.
         // Given we enforce it:
         String secretHeader = request.getHeader("X-Gateway-Secret");
-        if (gatewaySecret != null && !gatewaySecret.isEmpty() && (secretHeader == null || !secretHeader.equals(gatewaySecret))) {
+        if (gatewaySecret != null && !gatewaySecret.isEmpty() 
+                && (secretHeader == null || !secretHeader.equals(gatewaySecret))) {
             log.warn("Blocked request with invalid or missing Gateway Secret to path: {}", requestPath);
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.getWriter().write("Forbidden: Invalid Gateway Secret");
