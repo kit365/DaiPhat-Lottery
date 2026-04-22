@@ -16,9 +16,16 @@ public class AuditorAwareImpl implements AuditorAware<String> {
     @NonNull
     public Optional<String> getCurrentAuditor() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
+        if (authentication == null || !authentication.isAuthenticated() 
+                || authentication instanceof AnonymousAuthenticationToken) {
             return Optional.of("SYSTEM");
         }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof com.daiphat.accountservice.infrastructure.config.security.SecurityUser securityUser) {
+            return Optional.ofNullable(securityUser.username());
+        }
+
         return Optional.ofNullable(authentication.getName());
     }
 }

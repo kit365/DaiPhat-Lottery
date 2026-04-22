@@ -22,7 +22,6 @@ public class UserModel {
     private String lastName;
     private String username;
     private String email;
-    private String password;
     private String phoneNumber;
     private RoleModel role;
     private UserStatus status;
@@ -30,6 +29,8 @@ public class UserModel {
     // Security & Compliance flags
     private boolean emailVerified;
     private boolean twoFactorEnabled;
+    private boolean hasPassword;
+    private boolean agreedToTerms;
 
     // Rate Limit & Account Locking
     @Builder.Default

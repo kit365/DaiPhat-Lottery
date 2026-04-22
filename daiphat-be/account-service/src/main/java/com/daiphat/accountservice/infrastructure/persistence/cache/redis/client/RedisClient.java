@@ -1,4 +1,5 @@
 package com.daiphat.accountservice.infrastructure.persistence.cache.redis.client;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -27,7 +28,9 @@ public class RedisClient {
 
     public <T> Optional<T> get(String key, Class<T> type) {
         Object value = redisTemplate.opsForValue().get(key);
-        if (value == null) return Optional.empty();
+        if (value == null) {
+            return Optional.empty();
+        }
 
         if (type.isInstance(value)) {
             return Optional.of(type.cast(value));
@@ -40,23 +43,23 @@ public class RedisClient {
         redisTemplate.delete(key);
     }
 
-
     public boolean exists(String key) {
         return redisTemplate.hasKey(key);
     }
-
 
     public void expire(String key, Duration duration) {
         redisTemplate.expire(key, duration);
     }
 
-
     public void hset(String key, String field, Object value) {
         redisTemplate.opsForHash().put(key, field, value);
     }
+
     public <T> Optional<T> hget(String key, String field, Class<T> type) {
         Object value = redisTemplate.opsForHash().get(key, field);
-        if (value == null) return Optional.empty();
+        if (value == null) {
+            return Optional.empty();
+        }
 
         if (type.isInstance(value)) {
             return Optional.of(type.cast(value));

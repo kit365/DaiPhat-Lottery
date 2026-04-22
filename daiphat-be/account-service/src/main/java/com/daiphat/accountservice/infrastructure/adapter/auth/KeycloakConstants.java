@@ -4,7 +4,8 @@ package com.daiphat.accountservice.infrastructure.adapter.auth;
  * Các hằng số đặc thù cho Keycloak Identity Provider và OAuth2 Token Exchange.
  */
 public final class KeycloakConstants {
-    private KeycloakConstants() {}
+    private KeycloakConstants() {
+    }
 
     // OAuth2 Grant Types
     public static final String GRANT_TYPE_CLIENT_CREDENTIALS = "client_credentials";

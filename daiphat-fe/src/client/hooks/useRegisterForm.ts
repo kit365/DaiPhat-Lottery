@@ -1,16 +1,20 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { registerSchema, RegisterFormValues } from "../types/auth.schema";
-import { useClientRegister } from "./useClientAuth";
+import { useClientRegister } from "./useAuth";
 
 export const useRegisterForm = () => {
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      fullName: "",
+      username: "",
+      firstName: "",
+      lastName: "",
       email: "",
+      phone: "",
       password: "",
       confirmPassword: "",
+      agreedToTerms: false,
     },
   });
 

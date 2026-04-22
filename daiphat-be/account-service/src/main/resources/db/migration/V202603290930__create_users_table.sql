@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_email_verified BOOLEAN DEFAULT FALSE,
     is_two_factor_enabled BOOLEAN DEFAULT FALSE,
     agreed_to_terms BOOLEAN DEFAULT FALSE,
+    has_password BOOLEAN DEFAULT FALSE,
     
     -- Rate Limit & Account Locking
     failed_login_attempts INT DEFAULT 0,

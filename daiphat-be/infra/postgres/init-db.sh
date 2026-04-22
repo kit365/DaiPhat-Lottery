@@ -18,7 +18,7 @@ for db in "${databases[@]}"; do
     if [ "$DB_EXISTS" != "1" ]; then
         echo "Database $db does not exist. Creating..."
         psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "postgres" <<-EOSQL
-            CREATE DATABASE "$db";
+            CREATE DATABASE "$db" ENCODING 'UTF8';
 EOSQL
     else
         echo "Database $db already exists. Skipping creation."

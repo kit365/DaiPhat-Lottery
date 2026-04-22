@@ -52,23 +52,53 @@ public class IdentityPropagationFilter implements GlobalFilter, Ordered {
                 .flatMap(auth -> {
                     Jwt jwt = auth.getToken();
                     
-                    // Extract claims
-                    String userId = jwt.getSubject();
-                    String username = jwt.getClaimAsString("preferred_username");
+                    // Extract claims with fallbacks
                     String email = jwt.getClaimAsString("email");
+                    String username = jwt.getClaimAsString("preferred_username");
+                    if (username == null || username.isBlank()) {
+                        username = email;
+                    }
+
+                    String firstName = jwt.getClaimAsString("given_name");
+                    String lastName = jwt.getClaimAsString("family_name");
+                    String avatarUrl = jwt.getClaimAsString("picture");
+
                     String roles = auth.getAuthorities().stream()
                             .map(org.springframework.security.core.GrantedAuthority::getAuthority)
                             .collect(Collectors.joining(","));
+                    if (roles == null) roles = "";
 
-                    log.debug("Propagating identity: USER={}, ROLES={}", username, roles);
+                    // DEBUG: Log all claims for troubleshooting
+                    log.info("--- OAUTH IDENTITY DEBUG ---");
+                    log.info("Subject (Sub): {}", jwt.getSubject());
+                    log.info("Claims: {}", jwt.getClaims());
+                    log.info("Propagating: User={}, Email={}, Roles={}", username, email, roles);
+                    log.info("----------------------------");
 
-                    if (userId != null) builder.header("X-Internal-User-Id", userId);
-                    if (username != null) builder.header("X-Internal-User-Name", username);
-                    if (email != null) builder.header("X-Internal-User-Email", email);
-                    if (roles != null) builder.header("X-Internal-User-Roles", roles);
+                    // Map identity to X-Internal headers with URL encoding for safety (Vietnamese chars/special chars)
+                    try {
+                        if (jwt.getSubject() != null) builder.header("X-Internal-User-Id", jwt.getSubject());
+                        if (username != null) builder.header("X-Internal-User-Name", username);
+                        if (email != null) builder.header("X-Internal-User-Email", email);
+                        
+                        if (firstName != null) {
+                            builder.header("X-Internal-User-First-Name", 
+                                    java.net.URLEncoder.encode(firstName, java.nio.charset.StandardCharsets.UTF_8));
+                        }
+                        if (lastName != null) {
+                            builder.header("X-Internal-User-Last-Name", 
+                                    java.net.URLEncoder.encode(lastName, java.nio.charset.StandardCharsets.UTF_8));
+                        }
+                        if (avatarUrl != null) {
+                            builder.header("X-Internal-User-Avatar", 
+                                    java.net.URLEncoder.encode(avatarUrl, java.nio.charset.StandardCharsets.UTF_8));
+                        }
+                        builder.header("X-Internal-User-Roles", roles);
+                    } catch (Exception e) {
+                        log.error("Failed to encode identity headers", e);
+                    }
 
                     ServerHttpRequest mutatedRequest = builder.build();
-
                     return chain.filter(exchange.mutate().request(mutatedRequest).build())
                             .thenReturn(true);
                 })

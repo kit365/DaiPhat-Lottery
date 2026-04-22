@@ -7,6 +7,8 @@ export const ROUTES = {
             LOGIN: `/${prefixAdmin}/auth/login`,
             REGISTER: `/${prefixAdmin}/auth/register`,
             FORGOT_PASSWORD: `/${prefixAdmin}/auth/forgot-password`,
+            CALLBACK: `/${prefixAdmin}/auth/callback`,
+            SETUP_PROFILE: `/${prefixAdmin}/setup-profile`,
         },
         DASHBOARD: {
             ROOT: `/${prefixAdmin}/dashboard`,
@@ -88,6 +90,6 @@ export const ROUTES = {
     },
     PUBLIC: {
         HOME: "/",
-        LOGIN: "/auth/login",
+        SETUP_PROFILE: "/setup-profile",
     }
 } as const;

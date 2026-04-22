@@ -1,144 +1,235 @@
-{
-  "realm": "daiphat",
-  "enabled": true,
-  "roles": {
-    "realm": [
-      {
-        "name": "ROLE_MEMBER",
-        "description": "Standard Member Role"
-      },
-      {
-        "name": "ROLE_ADMIN",
-        "description": "Administrator Role"
-      },
-      {
-        "name": "ROLE_STAFF_SHIPPER",
-        "description": "Staff Shipper Role"
-      },
-      {
-        "name": "ROLE_STAFF_MANAGER",
-        "description": "Staff Manager Role"
-      }
-    ]
+[
+  {
+    "realm": "master",
+    "enabled": true,
+    "sslRequired": "none"
   },
-  "clients": [
-    {
-      "clientId": "daiphat-client",
-      "enabled": true,
-      "publicClient": false,
-      "bearerOnly": false,
-      "standardFlowEnabled": true,
-      "implicitFlowEnabled": true,
-      "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": true,
-      "redirectUris": [
-        "http://localhost:5173/*",
-        "http://localhost:8080/*"
-      ],
-      "webOrigins": [
-        "http://localhost:5173",
-        "http://localhost:8080"
-      ],
-      "secret": "daiphat-secret",
-      "attributes": {
-        "access.token.lifespan": "86400"
+  {
+    "realm": "daiphat",
+    "enabled": true,
+    "roles": {
+      "realm": [
+        {
+          "name": "ROLE_MEMBER",
+          "description": "Standard Member Role"
+        },
+        {
+          "name": "ROLE_ADMIN",
+          "description": "Administrator Role"
+        },
+        {
+          "name": "ROLE_STAFF_SHIPPER",
+          "description": "Staff Shipper Role"
+        },
+        {
+          "name": "ROLE_STAFF_MANAGER",
+          "description": "Staff Manager Role"
+        }
+      ]
+    },
+    "clients": [
+      {
+        "clientId": "daiphat-client",
+        "enabled": true,
+        "publicClient": true,
+        "bearerOnly": false,
+        "standardFlowEnabled": true,
+        "implicitFlowEnabled": true,
+        "directAccessGrantsEnabled": true,
+        "serviceAccountsEnabled": false,
+        "redirectUris": [
+          "http://localhost:5173/*",
+          "http://localhost:8080/*"
+        ],
+        "webOrigins": [
+          "http://localhost:5173",
+          "http://localhost:8080"
+        ],
+        "attributes": {
+          "access.token.lifespan": "86400",
+          "pkce.code.challenge.method": "S256",
+          "pkce.code.challenge.method.enforce": "true"
+        }
+      },
+      {
+        "clientId": "daiphat-be",
+        "enabled": true,
+        "publicClient": false,
+        "bearerOnly": false,
+        "standardFlowEnabled": false,
+        "implicitFlowEnabled": false,
+        "directAccessGrantsEnabled": false,
+        "serviceAccountsEnabled": true,
+        "secret": "daiphat-be-secret",
+        "attributes": {
+          "access.token.lifespan": "86400"
+        }
       }
-    }
-  ],
-  "users": [
-    {
-      "id": "0e44453a-1c44-445c-aedf-49d5eecf8a5d",
-      "username": "admin",
-      "enabled": true,
-      "email": "admin@daiphat.com",
-      "firstName": "Super",
-      "lastName": "Admin",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "admin",
-          "temporary": false
+    ],
+    "users": [
+      {
+        "id": "0e44453a-1c44-445c-aedf-49d5eecf8a5d",
+        "username": "${ADMIN_USERNAME}",
+        "enabled": true,
+        "email": "${ADMIN_EMAIL}",
+        "firstName": "${ADMIN_FIRST_NAME}",
+        "lastName": "${ADMIN_LAST_NAME}",
+        "credentials": [
+          {
+            "type": "password",
+            "value": "${KEYCLOAK_ADMIN_PASSWORD}",
+            "temporary": false
+          }
+        ],
+        "realmRoles": [
+          "ROLE_ADMIN",
+          "ROLE_MEMBER"
+        ]
+      },
+      {
+        "id": "400fb13d-1ee8-40b3-920c-6ff52a0dd4ad",
+        "username": "${USER_USERNAME}",
+        "enabled": true,
+        "email": "${USER_EMAIL}",
+        "firstName": "${USER_FIRST_NAME}",
+        "lastName": "${USER_LAST_NAME}",
+        "credentials": [
+          {
+            "type": "password",
+            "value": "${KEYCLOAK_USER_PASSWORD}",
+            "temporary": false
+          }
+        ],
+        "realmRoles": [
+          "ROLE_MEMBER"
+        ]
+      },
+      {
+        "id": "6e44453a-1c44-445c-aedf-49d5eecf8a5d",
+        "username": "${SHIPPER_USERNAME}",
+        "enabled": true,
+        "email": "${SHIPPER_EMAIL}",
+        "firstName": "${SHIPPER_FIRST_NAME}",
+        "lastName": "${SHIPPER_LAST_NAME}",
+        "credentials": [
+          {
+            "type": "password",
+            "value": "${KEYCLOAK_SHIPPER_PASSWORD}",
+            "temporary": false
+          }
+        ],
+        "realmRoles": [
+          "ROLE_STAFF_SHIPPER"
+        ]
+      },
+      {
+        "id": "7e44453a-1c44-445c-aedf-49d5eecf8a5d",
+        "username": "${MANAGER_USERNAME}",
+        "enabled": true,
+        "email": "${MANAGER_EMAIL}",
+        "firstName": "${MANAGER_FIRST_NAME}",
+        "lastName": "${MANAGER_LAST_NAME}",
+        "credentials": [
+          {
+            "type": "password",
+            "value": "${KEYCLOAK_MANAGER_PASSWORD}",
+            "temporary": false
+          }
+        ],
+        "realmRoles": [
+          "ROLE_STAFF_MANAGER"
+        ]
+      },
+      {
+        "username": "service-account-daiphat-be",
+        "enabled": true,
+        "serviceAccountClientId": "daiphat-be",
+        "clientRoles": {
+          "realm-management": [
+            "manage-users",
+            "view-users",
+            "query-users",
+            "query-groups",
+            "view-realm"
+          ]
         }
-      ],
-      "realmRoles": [
-        "ROLE_ADMIN",
-        "ROLE_MEMBER"
-      ]
-    },
-    {
-      "id": "400fb13d-1ee8-40b3-920c-6ff52a0dd4ad",
-      "username": "user",
-      "enabled": true,
-      "email": "user@daiphat.com",
-      "firstName": "John",
-      "lastName": "Doe",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "user",
-          "temporary": false
+      }
+    ],
+    "accessTokenLifespan": 86400,
+    "ssoSessionIdleTimeout": 86400,
+    "ssoSessionMaxLifespan": 86400,
+    "sslRequired": "none",
+    "verifyEmail": false,
+    "registrationEmailAsUsername": true,
+    "loginWithEmailAllowed": true,
+    "identityProviders": [
+      {
+        "alias": "google",
+        "displayName": "Google",
+        "providerId": "google",
+        "enabled": true,
+        "trustEmail": true,
+        "storeToken": false,
+        "addReadTokenRoleOnCreate": false,
+        "authenticateByDefault":false,
+        "linkOnly": false,
+        "firstBrokerLoginFlowAlias": "daiphat-first-broker-login",
+        "config": {
+          "clientId": "${GOOGLE_CLIENT_ID}",
+          "clientSecret": "${GOOGLE_CLIENT_SECRET}",
+          "defaultScope": "openid email profile",
+          "syncMode": "IMPORT",
+          "useJwksUrl": "true"
         }
-      ],
-      "realmRoles": [
-        "ROLE_MEMBER"
-      ]
-    },
-    {
-      "id": "6e44453a-1c44-445c-aedf-49d5eecf8a5d",
-      "username": "shipper",
-      "enabled": true,
-      "email": "shipper@daiphat.com",
-      "firstName": "Super",
-      "lastName": "Shipper",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "shipper",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "ROLE_STAFF_SHIPPER"
-      ]
-    },
-    {
-      "id": "7e44453a-1c44-445c-aedf-49d5eecf8a5d",
-      "username": "manager",
-      "enabled": true,
-      "email": "manager@daiphat.com",
-      "firstName": "Super",
-      "lastName": "Manager",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "manager",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "ROLE_STAFF_MANAGER"
-      ]
-    },
-    {
-      "username": "service-account-daiphat-client",
-      "enabled": true,
-      "serviceAccountClientId": "daiphat-client",
-      "clientRoles": {
-        "realm-management": [
-          "manage-users",
-          "view-users",
-          "query-users",
-          "query-groups",
-          "view-realm"
+      }
+    ],
+    "authenticationFlows": [
+      {
+        "alias": "daiphat-first-broker-login",
+        "description": "Custom seamless login flow for DaiPhat.",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "builtIn": false,
+        "authenticationExecutions": [
+          {
+            "authenticator": "idp-review-profile",
+            "requirement": "DISABLED",
+            "priority": 10,
+            "userSetupAllowed": false,
+            "autheticatorFlow": false
+          },
+          {
+            "authenticator": "idp-create-user-if-unique",
+            "requirement": "REQUIRED",
+            "priority": 20,
+            "userSetupAllowed": false,
+            "autheticatorFlow": false
+          }
+        ]
+      },
+      {
+        "alias": "first broker login",
+        "description": "Actions taken after first broker login with identity provider.",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          {
+            "authenticator": "idp-review-profile",
+            "requirement": "DISABLED",
+            "priority": 10,
+            "userSetupAllowed": false,
+            "autheticatorFlow": false
+          },
+          {
+            "authenticator": "idp-create-user-if-unique",
+            "requirement": "REQUIRED",
+            "priority": 20,
+            "userSetupAllowed": false,
+            "autheticatorFlow": false
+          }
         ]
       }
-    }
-  ],
-  "accessTokenLifespan": 86400,
-  "ssoSessionIdleTimeout": 86400,
-  "ssoSessionMaxLifespan": 86400,
-  "sslRequired": "external",
-  "verifyEmail": false,
-  "registrationEmailAsUsername": true,
-  "loginWithEmailAllowed": true
-}
+    ]
+  }
+]

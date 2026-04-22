@@ -2,7 +2,8 @@ package com.daiphat.accountservice.infrastructure.adapter.auth;
 
 import com.daiphat.accountservice.application.config.AuthProperties;
 import com.daiphat.accountservice.application.dto.identity.*;
-import com.daiphat.accountservice.application.port.out.IdentityManagementPort;
+import com.daiphat.accountservice.application.dto.response.auth.KeycloakTokenResponse;
+import com.daiphat.accountservice.application.port.out.auth.IdentityManagementPort;
 import com.daiphat.accountservice.application.port.out.auth.KeycloakPort;
 import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
@@ -10,6 +11,8 @@ import com.daiphat.accountservice.domain.model.UserModel;
 import com.daiphat.accountservice.domain.model.auth.KeycloakAuthResult;
 import com.daiphat.accountservice.domain.model.enums.UserRole;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -19,6 +22,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
+import com.daiphat.accountservice.application.port.out.auth.RoleRepositoryPort;
+import com.daiphat.accountservice.domain.model.RoleModel;
 
 import java.time.Instant;
 import java.util.*;
@@ -33,7 +38,7 @@ import static com.daiphat.accountservice.infrastructure.adapter.auth.KeycloakCon
 @Slf4j
 public class AuthAdminAdapter implements IdentityManagementPort {
 
-    // API Paths
+    // API Paths (Standard root paths for Port 8180)
     private static final String PATH_TOKEN = "/realms/{realm}/protocol/openid-connect/token";
     private static final String PATH_ADMIN_REALM = "/admin/realms/{realm}";
     private static final String PATH_USERS = "/users";
@@ -41,18 +46,35 @@ public class AuthAdminAdapter implements IdentityManagementPort {
     private static final String PATH_RESET_PASSWORD = "/reset-password";
     private static final String PATH_ROLE_MAPPINGS_REALM = "/role-mappings/realm";
 
+    // Roles that should NEVER be deleted from Keycloak
+    private static final Set<String> PROTECTED_ROLES = Set.of(
+        "admin", "uma_authorization", "offline_access", 
+        "default-roles-daiphat", "view-realm", "manage-users",
+        "query-users", "view-users", "query-groups"
+    );
+
     private final AuthProperties authProperties;
     private final RestClient restClient;
     private final KeycloakPort keycloakPort;
+    private final RoleRepositoryPort roleRepositoryPort;
 
     // Token Cache
     private String cachedAdminToken;
     private Instant tokenExpiry;
 
-    public AuthAdminAdapter(AuthProperties authProperties, RestClient.Builder restClientBuilder, KeycloakPort keycloakPort) {
+    public AuthAdminAdapter(AuthProperties authProperties, RestClient.Builder restClientBuilder, 
+            KeycloakPort keycloakPort, RoleRepositoryPort roleRepositoryPort) {
         this.authProperties = authProperties;
         this.keycloakPort = keycloakPort;
-        this.restClient = restClientBuilder.baseUrl(authProperties.getKeycloak().getAuthServerUrl()).build();
+        this.roleRepositoryPort = roleRepositoryPort;
+        
+        // Ensure base URL ends with a slash for proper relative path joining
+        String baseUrl = authProperties.getKeycloak().getAuthServerUrl();
+        if (baseUrl != null && !baseUrl.endsWith("/")) {
+            baseUrl += "/";
+        }
+        
+        this.restClient = restClientBuilder.baseUrl(baseUrl).build();
     }
 
     private String getAdminToken() {
@@ -65,18 +87,19 @@ public class AuthAdminAdapter implements IdentityManagementPort {
         
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add(PARAM_GRANT_TYPE, GRANT_TYPE_CLIENT_CREDENTIALS);
-        formData.add(PARAM_CLIENT_ID, k.getClientId());
-        formData.add(PARAM_CLIENT_SECRET, k.getClientSecret());
+        formData.add(PARAM_CLIENT_ID, k.getAdminClientId());
+        formData.add(PARAM_CLIENT_SECRET, k.getAdminClientSecret());
 
-        KeycloakTokenResponseDTO response = restClient.post()
+        KeycloakTokenResponse response = restClient.post()
                 .uri(PATH_TOKEN, k.getRealm())
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(formData)
                 .retrieve()
-                .body(KeycloakTokenResponseDTO.class);
+                .body(KeycloakTokenResponse.class);
 
         if (response == null || response.getAccessToken() == null) {
-            log.error("CRITICAL: Identity Provider failed to return Admin token for realm: {}", k.getRealm());
+            log.error("CRITICAL: Identity Provider failed to return Admin token for realm: {}", 
+                    k.getRealm());
             throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
 
@@ -116,7 +139,9 @@ public class AuthAdminAdapter implements IdentityManagementPort {
                 .retrieve()
                 .body(KeycloakUserDTO[].class);
 
-        if (dtos == null) return Collections.emptyList();
+        if (dtos == null) {
+            return Collections.emptyList();
+        }
         
         return Arrays.stream(dtos)
                 .map(this::toDomainModel)
@@ -134,7 +159,9 @@ public class AuthAdminAdapter implements IdentityManagementPort {
                 .retrieve()
                 .body(KeycloakUserDTO[].class);
 
-        if (dtos == null || dtos.length == 0) return Optional.empty();
+        if (dtos == null || dtos.length == 0) {
+            return Optional.empty();
+        }
         
         return Optional.of(toDomainModel(dtos[0]));
     }
@@ -153,7 +180,8 @@ public class AuthAdminAdapter implements IdentityManagementPort {
                 .toEntity(Void.class);
 
         if (response.getStatusCode().is2xxSuccessful() || response.getStatusCode().value() == 201) {
-            String location = Objects.requireNonNull(response.getHeaders().getLocation()).toString();
+            String location = Objects.requireNonNull(response.getHeaders().getLocation())
+                    .toString();
             String userId = location.substring(location.lastIndexOf("/") + 1);
             UUID keycloakUuid = UUID.fromString(userId);
             
@@ -262,12 +290,12 @@ public class AuthAdminAdapter implements IdentityManagementPort {
         formData.add(PARAM_REQUESTED_SUBJECT, username);
         formData.add(PARAM_REQUESTED_TOKEN_TYPE, TOKEN_TYPE_ACCESS_TOKEN);
 
-        KeycloakTokenResponseDTO response = restClient.post()
+        KeycloakTokenResponse response = restClient.post()
                 .uri(PATH_TOKEN, k.getRealm())
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(formData)
                 .retrieve()
-                .body(KeycloakTokenResponseDTO.class);
+                .body(KeycloakTokenResponse.class);
 
         if (response == null || response.getAccessToken() == null) {
             log.error("IdentityManagement: Token exchange failed for user {}.", username);
@@ -278,8 +306,93 @@ public class AuthAdminAdapter implements IdentityManagementPort {
                 .accessToken(response.getAccessToken())
                 .refreshToken(response.getRefreshToken())
                 .expiresIn(response.getExpiresIn() != null ? response.getExpiresIn() : 3600L)
-                .refreshExpiresIn(response.getRefreshExpiresIn() != null ? response.getRefreshExpiresIn() : 0L)
+                .refreshExpiresIn(response.getRefreshExpiresIn() != null 
+                        ? response.getRefreshExpiresIn() : 0L)
                 .tokenType(response.getTokenType() != null ? response.getTokenType() : "Bearer")
                 .build();
+    }
+
+    @Override
+    public List<KeycloakRoleDTO> getAllRoles() {
+        KeycloakRoleDTO[] roles = adminRequest(HttpMethod.GET, PATH_ROLES)
+                .retrieve()
+                .body(KeycloakRoleDTO[].class);
+        return roles != null ? Arrays.asList(roles) : Collections.emptyList();
+    }
+
+    @Override
+    public void createRole(String name, String description) {
+        KeycloakRoleDTO payload = KeycloakRoleDTO.builder()
+                .name(name)
+                .description(description)
+                .build();
+
+        adminRequest(HttpMethod.POST, PATH_ROLES)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .toBodilessEntity();
+        
+        log.info("Keycloak: Successfully created role: {}", name);
+    }
+
+    @Override
+    public void deleteRole(String name) {
+        if (PROTECTED_ROLES.contains(name)) {
+            log.warn("Keycloak: Skipping deletion of protected role: {}", name);
+            return;
+        }
+
+        adminRequest(HttpMethod.DELETE, PATH_ROLES + "/" + name)
+                .retrieve()
+                .toBodilessEntity();
+        
+        log.info("Keycloak: Successfully deleted obsolete role: {}", name);
+    }
+
+    /**
+     * Symmetric Role Synchronization on System Startup.
+     * Ensures Keycloak realm roles perfectly match the roles in our system DB.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void syncRolesWithKeycloak() {
+        log.info("--- STARTING SYMMETRIC ROLE SYNC WITH KEYCLOAK ---");
+        try {
+            // 1. Fetch source of truth (DB)
+            List<RoleModel> systemRoles = roleRepositoryPort.findAll();
+            Set<String> systemRoleCodes = new HashSet<>(systemRoles.stream()
+                    .map(RoleModel::getCode)
+                    .toList());
+
+            // 2. Fetch current state (Keycloak)
+            List<KeycloakRoleDTO> keycloakRoles = getAllRoles();
+            Set<String> keycloakRoleCodes = new HashSet<>(keycloakRoles.stream()
+                    .map(KeycloakRoleDTO::getName)
+                    .toList());
+
+            log.info("Role Sync: DB roles: {}, Keycloak roles: {}", 
+                    systemRoleCodes.size(), keycloakRoleCodes.size());
+
+            // 3. Add Missing Roles (DB -> Keycloak)
+            systemRoles.stream()
+                    .filter(role -> !keycloakRoleCodes.contains(role.getCode()))
+                    .forEach(role -> {
+                        log.info("Role Sync: Found missing role in DB: {}. Creating in Keycloak...", role.getCode());
+                        createRole(role.getCode(), role.getDescription());
+                    });
+
+            // 4. Delete Obsolete Roles (Keycloak -> Trash)
+            keycloakRoleCodes.stream()
+                    .filter(roleCode -> !systemRoleCodes.contains(roleCode))
+                    .filter(roleCode -> !PROTECTED_ROLES.contains(roleCode))
+                    .forEach(roleCode -> {
+                        log.info("Role Sync: Found obsolete role in Keycloak: {}. Deleting...", roleCode);
+                        deleteRole(roleCode);
+                    });
+
+            log.info("--- ROLE SYNC COMPLETED SUCCESSFULLY ---");
+        } catch (Exception e) {
+            log.error("CRITICAL: Role synchronization failed: {}", e.getMessage(), e);
+        }
     }
 }

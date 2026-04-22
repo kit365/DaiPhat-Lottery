@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { 
     Box, Button, Container, TextField, Typography, IconButton, Paper, 
-    InputAdornment, LinearProgress, CircularProgress,
-    Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
-    Stack
+    InputAdornment, CircularProgress,
+    Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText
 } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogoAdmin } from "../../../assets/admin/logo";
-import { EyeIcon, NoEyeIcon, ChevronLeftIcon } from "../../assets/icons";
+import { EyeIcon, NoEyeIcon } from "../../assets/icons";
 import {
     EmailOutlined as MailIcon,
     VpnKeyOutlined as ShieldIcon,
@@ -17,7 +16,7 @@ import {
 } from "@mui/icons-material";
 import { AppToast as toast } from "../../../client/utils/toast.util";
 import { useForgotPassword } from "./hooks/use-forgot-password";
-import { Icon } from "@iconify/react";
+import { PasswordRequirementList } from "../../components/auth/PasswordRequirementList";
 
 const STEPS = {
     EMAIL: "EMAIL",
@@ -548,70 +547,5 @@ const OtpInput = ({ value, onChange, disabled }: { value: string; onChange: (val
                 />
             ))}
         </Box>
-    );
-};
-
-// Component con hiển thị Checklist yêu cầu mật khẩu
-const PasswordRequirementList = ({ password, policy }: { password: string; policy: PasswordPolicy }) => {
-    const { requirements, minLength, maxLength } = policy;
-    const pwd = password || "";
-
-    const filteredRequirements = requirements.filter(req =>
-        !req.description.toLowerCase().includes(`${minLength} ký tự`) &&
-        (!maxLength || !req.description.toLowerCase().includes(`${maxLength} ký tự`))
-    );
-
-    const items = [
-        {
-            id: 'min-length',
-            description: `Ít nhất ${minLength} ký tự`,
-            isMet: pwd.length >= minLength
-        },
-        ...filteredRequirements.map(req => ({
-            id: req.id,
-            description: req.description,
-            isMet: new RegExp(req.regex).test(pwd)
-        }))
-    ];
-
-    if (maxLength) {
-        items.push({
-            id: 'max-length',
-            description: `Tối đa ${maxLength} ký tự`,
-            isMet: pwd.length <= maxLength && pwd.length > 0
-        });
-    }
-
-    return (
-        <Stack spacing={1.2} sx={{ 
-            mt: 2, 
-            p: 2, 
-            bgcolor: 'rgba(0, 0, 0, 0.02)', 
-            borderRadius: '12px', 
-            border: '1px solid rgba(0, 0, 0, 0.05)' 
-        }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 800, textTransform: 'uppercase', mb: 0.5, display: 'block', letterSpacing: 0.5 }}>
-                Yêu cầu bảo mật
-            </Typography>
-            {items.map((item) => (
-                <Stack key={item.id} direction="row" spacing={1} alignItems="center">
-                    <Icon
-                        icon={item.isMet ? "solar:check-circle-bold" : "solar:reorder-circle-bold"}
-                        color={item.isMet ? "var(--palette-success-main, #22c55e)" : "rgba(0, 0, 0, 0.2)"}
-                        width={16}
-                    />
-                    <Typography
-                        variant="caption"
-                        sx={{
-                            color: item.isMet ? 'text.primary' : 'text.secondary',
-                            fontWeight: item.isMet ? 600 : 400,
-                            transition: 'all 0.2s'
-                        }}
-                    >
-                        {item.description}
-                    </Typography>
-                </Stack>
-            ))}
-        </Stack>
     );
 };

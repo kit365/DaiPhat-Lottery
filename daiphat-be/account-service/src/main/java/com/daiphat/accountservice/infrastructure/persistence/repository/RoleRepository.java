@@ -14,8 +14,12 @@ import java.util.UUID;
 @Repository
 public interface RoleRepository extends JpaRepository<RoleEntity, UUID> {
     
+    @Query("SELECT r FROM RoleEntity r LEFT JOIN FETCH r.permissions")
+    List<RoleEntity> findAll();
+
+    @Query("SELECT r FROM RoleEntity r LEFT JOIN FETCH r.permissions WHERE r.code = :code")
+    Optional<RoleEntity> findByCode(@Param("code") String code);
+
     @Query("SELECT r FROM RoleEntity r LEFT JOIN FETCH r.permissions WHERE r.code IN :codes")
     List<RoleEntity> findAllByCodeIn(@Param("codes") Collection<String> codes);
-    
-    Optional<RoleEntity> findByCode(String code);
 }

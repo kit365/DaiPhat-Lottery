@@ -1,8 +1,8 @@
 package com.daiphat.accountservice.infrastructure.adapter.auth;
 
+import com.daiphat.accountservice.application.dto.response.auth.AuthResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.daiphat.accountservice.application.dto.response.AuthResponseDTO;
 import com.daiphat.accountservice.application.port.out.auth.KeycloakPort;
 import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
@@ -53,7 +53,7 @@ public class KeycloakAdapter implements KeycloakPort {
         formData.add(OAuth2ParameterNames.PASSWORD, password);
         formData.add(OAuth2ParameterNames.SCOPE, "openid profile email");
 
-        AuthResponseDTO response = restClient.post()
+        AuthResponse response = restClient.post()
                 .uri(tokenUrl)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(formData)
@@ -66,21 +66,21 @@ public class KeycloakAdapter implements KeycloakPort {
                     log.error("IdentityManagement: Keycloak infrastructure error. Status: {}", resp.getStatusCode());
                     throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
                 })
-                .body(AuthResponseDTO.class);
+                .body(AuthResponse.class);
 
         return decodeResult(response);
     }
 
     @Override
     public void logout(String refreshToken) {
-        String logoutUrl = UriComponentsBuilder.fromUriString(issuerUri)
-                .path("/protocol/openid-connect/logout")
-                .toUriString();
-
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add(OAuth2ParameterNames.CLIENT_ID, clientId);
         formData.add(OAuth2ParameterNames.CLIENT_SECRET, clientSecret);
         formData.add(OAuth2ParameterNames.REFRESH_TOKEN, refreshToken);
+
+        String logoutUrl = UriComponentsBuilder.fromUriString(issuerUri)
+                .path("/protocol/openid-connect/logout")
+                .toUriString();
 
         restClient.post()
                 .uri(logoutUrl)
@@ -106,7 +106,7 @@ public class KeycloakAdapter implements KeycloakPort {
         formData.add(OAuth2ParameterNames.CLIENT_SECRET, clientSecret);
         formData.add(OAuth2ParameterNames.REFRESH_TOKEN, refreshToken);
 
-        AuthResponseDTO response = restClient.post()
+        AuthResponse response = restClient.post()
                 .uri(tokenUrl)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(formData)
@@ -116,10 +116,11 @@ public class KeycloakAdapter implements KeycloakPort {
                     throw new DomainException(ErrorCode.REFRESH_TOKEN_EXPIRED);
                 })
                 .onStatus(HttpStatusCode::isError, (req, resp) -> {
-                    log.error("IdentityManagement: Token refresh failed at Keycloak infrastructure. Status: {}", resp.getStatusCode());
+                    log.error("IdentityManagement: Token refresh failed at Keycloak infrastructure. Status: {}", 
+                            resp.getStatusCode());
                     throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
                 })
-                .body(AuthResponseDTO.class);
+                .body(AuthResponse.class);
 
         return decodeResult(response);
     }
@@ -140,7 +141,7 @@ public class KeycloakAdapter implements KeycloakPort {
         }
     }
 
-    private KeycloakAuthResult decodeResult(AuthResponseDTO response) {
+    private KeycloakAuthResult decodeResult(AuthResponse response) {
         try {
             String[] chunks = response.getAccessToken().split("\\.");
             String payload = new String(Base64.getUrlDecoder().decode(chunks[1]));

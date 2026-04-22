@@ -1,12 +1,13 @@
 package com.daiphat.accountservice.application.service.auth;
+
 import com.daiphat.accountservice.application.config.AuthProperties;
-import com.daiphat.accountservice.application.dto.request.UserRegistrationRequestDTO;
+import com.daiphat.accountservice.application.dto.request.user.UserRegistrationRequest;
 import com.daiphat.accountservice.application.mapper.UserApplicationMapper;
-import com.daiphat.accountservice.application.port.in.EmailServicePort;
+import com.daiphat.accountservice.application.port.in.mail.EmailServicePort;
 import com.daiphat.accountservice.application.port.in.auth.RegistrationServicePort;
-import com.daiphat.accountservice.application.port.out.IdentityManagementPort;
-import com.daiphat.accountservice.application.port.in.RoleServicePort;
-import com.daiphat.accountservice.application.port.out.UserRepositoryPort;
+import com.daiphat.accountservice.application.port.out.auth.IdentityManagementPort;
+import com.daiphat.accountservice.application.port.in.auth.RoleServicePort;
+import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
 import com.daiphat.accountservice.application.port.out.auth.cache.VerificationCachePort;
 import com.daiphat.accountservice.application.port.out.auth.DistributedLockPort;
 import com.daiphat.accountservice.application.port.out.auth.keys.AuthCacheKeyGenerator;
@@ -15,6 +16,7 @@ import com.daiphat.accountservice.application.port.out.auth.LoginAttemptPort;
 import com.daiphat.accountservice.application.port.out.auth.RateLimiterPort;
 import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
+import com.daiphat.accountservice.domain.model.Phone;
 import com.daiphat.accountservice.domain.model.UserModel;
 import com.daiphat.accountservice.domain.model.enums.EmailType;
 import com.daiphat.accountservice.domain.model.enums.UserStatus;
@@ -45,10 +47,9 @@ public class RegistrationService implements RegistrationServicePort {
 
     private static final String PARAM_USERNAME = "username";
     private static final String PARAM_TOKEN = "token";
-    private static final String VERIFY_EMAIL_PATH = "/verify-email?token=";
 
     @Override
-    public void register(UserRegistrationRequestDTO request) {
+    public void register(UserRegistrationRequest request) {
         log.info("Registering user: {} with email: {}", request.username(), request.email());
 
         applyDualTierRateLimits(request.email());
@@ -62,7 +63,8 @@ public class RegistrationService implements RegistrationServicePort {
         UUID keycloakId = null;
         String verificationToken = UUID.randomUUID().toString();
         try {
-            validateUserUniqueness(request.username(), request.email(), request.phone());
+            Phone phone = Phone.of(request.phone());
+            validateUserUniqueness(request.username(), request.email(), phone.getValue());
 
             UserModel userModel = userApplicationMapper.mapToUserModel(request);
             userModel.initializeRegistration();
@@ -71,10 +73,11 @@ public class RegistrationService implements RegistrationServicePort {
             
             persistRegistration(userModel, verificationToken, request.username(), request.email());
 
-            sendVerificationEmail(request.username(), request.email(), verificationToken);
+            sendVerificationEmail(request.username(), request.email(), verificationToken, false);
 
         } catch (Exception e) {
-            log.error("Critical: Failed to complete registration for user: {}. Initiating rollback. Error: {}", 
+            log.error("Critical: Failed to complete registration for user: {}. "
+                    + "Initiating rollback. Error: {}", 
                 request.username(), e.getMessage());
             handleRegistrationFailure(request.username(), keycloakId, verificationToken, e);
             throw e;
@@ -84,15 +87,9 @@ public class RegistrationService implements RegistrationServicePort {
     }
 
     private void applyDualTierRateLimits(String email) {
-        // (Anti-Spam Button)
+        // (Anti-Spam Button) - Keep only 3s fixed window
         if (!rateLimiterPort.checkAndRecordFixed(email, AuthAction.REGISTER_SPAM, 1, 3)) {
             long retryAfter = rateLimiterPort.getRemainingWaitTimeFixed(email, AuthAction.REGISTER_SPAM, 3);
-            throw new DomainException(ErrorCode.TOO_MANY_REQUESTS, null, String.valueOf(retryAfter));
-        }
-
-        // Progressive Rate Limiting
-        if (!rateLimiterPort.checkAndRecord(email, AuthAction.REGISTER)) {
-            long retryAfter = rateLimiterPort.getRemainingWaitTime(email, AuthAction.REGISTER);
             throw new DomainException(ErrorCode.TOO_MANY_REQUESTS, null, String.valueOf(retryAfter));
         }
     }
@@ -114,7 +111,8 @@ public class RegistrationService implements RegistrationServicePort {
     private UUID handleIdentitySelfHealing(UserModel userModel, String password) {
         log.warn("Self-Healing: User {} already exists in Keycloak. Repairing sync...", userModel.getUsername());
         UserModel existingIdpUser = identityManagementPort.getUserByUsername(userModel.getUsername())
-                .orElseThrow(() -> new DomainException(ErrorCode.INTERNAL_SERVER_ERROR, "IdP error: Reported 409 but lookup failed."));
+                .orElseThrow(() -> new DomainException(ErrorCode.INTERNAL_SERVER_ERROR, 
+                        "IdP error: Reported 409 but lookup failed."));
         
         UUID keycloakId = existingIdpUser.getId();
         userModel.updateKeycloakId(keycloakId);
@@ -127,6 +125,7 @@ public class RegistrationService implements RegistrationServicePort {
     private void persistRegistration(UserModel userModel, String verificationToken, String username, String email) {
         transactionTemplate.executeWithoutResult(status -> {
             userModel.setRole(roleService.getDefaultRole());
+            userModel.setHasPassword(true);
             userRepositoryPort.save(userModel);
             
             verificationCachePort.saveVerificationToken(verificationToken, email, 
@@ -137,9 +136,13 @@ public class RegistrationService implements RegistrationServicePort {
         });
     }
 
-    private void sendVerificationEmail(String username, String email, String verificationToken) {
+    private void sendVerificationEmail(String username, String email, String verificationToken, boolean isForAdmin) {
+        String path = isForAdmin 
+                ? authProperties.getVerificationPaths().getAdminPath() 
+                : authProperties.getVerificationPaths().getClientPath();
+                
         String verifyLink = String.format("%s%s%s", 
-                authProperties.getFrontendUrl(), VERIFY_EMAIL_PATH, verificationToken);
+                authProperties.getFrontendUrl(), path, verificationToken);
         
         emailServicePort.sendAsync(EmailType.WELCOME_VERIFY, email, 
                 Map.of(
@@ -215,7 +218,7 @@ public class RegistrationService implements RegistrationServicePort {
         verificationCachePort.saveVerificationToken(newToken, email, 
                 authProperties.getCache().getVerificationTokenTtl());
 
-        sendVerificationEmail(user.getUsername(), email, newToken);
+        sendVerificationEmail(user.getUsername(), email, newToken, false);
         log.info("New verification email dispatched for: {}", email);
     }
 
@@ -231,7 +234,8 @@ public class RegistrationService implements RegistrationServicePort {
         }
     }
 
-    private void handleRegistrationFailure(String username, UUID keycloakId, String verificationToken, Exception originalException) {
+    private void handleRegistrationFailure(String username, UUID keycloakId, 
+            String verificationToken, Exception originalException) {
         log.warn("CRITICAL: Initiating registration rollback for user: {}. Reason: {}", 
             username, originalException.getMessage());
         
@@ -262,7 +266,8 @@ public class RegistrationService implements RegistrationServicePort {
         }
 
         if (compensationFailed) {
-            log.error("CRITICAL CONSISTENCY ALERT: Registration compensation failed for {}. Manual intervention required.", username);
+            log.error("CRITICAL CONSISTENCY ALERT: Registration compensation failed for {}. "
+                    + "Manual intervention required.", username);
         }
 
         // Bubble up the original exception (which now potentially has suppressed compensation errors)

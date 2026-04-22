@@ -2,7 +2,6 @@ package com.daiphat.accountservice.domain.model.auth;
 
 import lombok.*;
 
-
 @Data
 @Builder
 @NoArgsConstructor

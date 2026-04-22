@@ -7,7 +7,8 @@ import java.time.Duration;
 @Data
 @ConfigurationProperties(prefix = "daiphat.auth")
 public class AuthProperties {
-    private String frontendUrl = "http://localhost:3000"; 
+    private String frontendUrl = "http://localhost:3000";
+    private VerificationPaths verificationPaths = new VerificationPaths();
     private Lockout lockout = new Lockout();
     private Cache cache = new Cache();
     private Token token = new Token();
@@ -15,6 +16,12 @@ public class AuthProperties {
     private PasswordPolicy passwordPolicy = new PasswordPolicy();
     private Cookie cookie = new Cookie();
     private Keycloak keycloak = new Keycloak();
+
+    @Data
+    public static class VerificationPaths {
+        private String clientPath = "/verify-email?token=";
+        private String adminPath = "/admin/verify-email?token=";
+    }
  
     @Data
     public static class Cookie {
@@ -27,8 +34,13 @@ public class AuthProperties {
     @Data
     public static class PasswordPolicy {
         private int minLength = 8;
-        private int maxLength = 32;
-        private String pattern = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,32}$";
+        private int maxLength = 128;
+        private boolean requireUppercase = true;
+        private boolean requireLowercase = true;
+        private boolean requireDigit = true;
+        private boolean requireSpecial = true;
+        private boolean noSpace = true;
+        private String pattern = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,128}$";
     }
 
     @Data
@@ -74,5 +86,7 @@ public class AuthProperties {
         private String realm;
         private String clientId;
         private String clientSecret;
+        private String adminClientId;
+        private String adminClientSecret;
     }
 }

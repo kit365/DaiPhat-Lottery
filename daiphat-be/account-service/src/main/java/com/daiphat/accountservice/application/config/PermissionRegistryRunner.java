@@ -1,8 +1,8 @@
 package com.daiphat.accountservice.application.config;
 
-import com.daiphat.accountservice.application.dto.request.PermissionItemDTO;
-import com.daiphat.accountservice.application.dto.request.PermissionRegistrationRequestDTO;
-import com.daiphat.accountservice.application.port.in.RoleServicePort;
+import com.daiphat.accountservice.application.dto.request.permission.PermissionItem;
+import com.daiphat.accountservice.application.dto.request.permission.PermissionRegistrationRequest;
+import com.daiphat.accountservice.application.port.in.auth.RoleServicePort;
 import com.daiphat.accountservice.domain.model.enums.AppPermission;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,8 +32,8 @@ public class PermissionRegistryRunner {
     public void registerPermissions() {
         log.info("System: Starting automatic permission registration for [{}]...", serviceName);
 
-        List<PermissionItemDTO> items = Arrays.stream(AppPermission.values())
-                .map(p -> PermissionItemDTO.builder()
+        List<PermissionItem> items = Arrays.stream(AppPermission.values())
+                .map(p -> PermissionItem.builder()
                         .code(p.getCode())
                         .name(p.getName())
                         .description(p.getDescription())
@@ -42,7 +42,7 @@ public class PermissionRegistryRunner {
                         .build())
                 .toList();
 
-        PermissionRegistrationRequestDTO request = PermissionRegistrationRequestDTO.builder()
+        PermissionRegistrationRequest request = PermissionRegistrationRequest.builder()
                 .permissions(items)
                 .build();
 

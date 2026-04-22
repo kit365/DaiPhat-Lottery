@@ -1,5 +1,8 @@
 import { useState } from "react"
-import { Box, Button, Container, TextField, ThemeProvider, Typography, InputAdornment, IconButton, Paper, useMediaQuery, useTheme, CircularProgress } from "@mui/material"
+import {
+    Box, Button, TextField, ThemeProvider, Typography, InputAdornment,
+    IconButton, Paper, useMediaQuery, useTheme, CircularProgress
+} from "@mui/material"
 import { Link } from "react-router-dom"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -7,8 +10,11 @@ import { LogoAdmin } from "../../../assets/admin/logo"
 import { SettingsIcon, EyeIcon, NoEyeIcon } from "../../assets/icons"
 import { adminTheme } from "../../config/theme"
 import { loginSchema, LoginFormValues } from "../../schemas/login.schema"
-import { useLogin } from "./hooks/use-login"
+import { useAuth } from "./hooks/useAuth"
 import { motion, AnimatePresence } from "framer-motion"
+import { ROUTES } from "../../constants/routes"
+import { generateCodeVerifier, generateCodeChallenge } from "../../utils/pkce"
+import { STORAGE_KEYS } from "../../../constants/storage.constants"
 
 const GoogleIcon = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -39,7 +45,32 @@ export const LoginPage = () => {
         },
     })
 
-    const { mutate: loginMutate, isPending } = useLogin()
+    const { login: loginMutate, isLoading: isPending } = useAuth()
+
+    const handleGoogleLogin = async () => {
+        const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL
+        const realm = import.meta.env.VITE_KEYCLOAK_REALM
+        const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID
+        const redirectUri = encodeURIComponent(`${window.location.origin}${ROUTES.ADMIN.AUTH.CALLBACK}`)
+
+        // PKCE Flow
+        const codeVerifier = generateCodeVerifier()
+        const codeChallenge = await generateCodeChallenge(codeVerifier)
+        
+        // Store verifier for callback
+        sessionStorage.setItem(STORAGE_KEYS.PKCE_VERIFIER, codeVerifier)
+
+        const googleAuthUrl = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/auth` +
+            `?client_id=${clientId}` +
+            `&redirect_uri=${redirectUri}` +
+            `&response_type=code` +
+            `&scope=openid` +
+            `&kc_idp_hint=google` +
+            `&code_challenge=${codeChallenge}` +
+            `&code_challenge_method=S256`
+
+        window.location.href = googleAuthUrl
+    }
 
     const onSubmit = (data: LoginFormValues) => {
         loginMutate(data)
@@ -63,9 +94,7 @@ export const LoginPage = () => {
                         <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] rounded-full bg-[#1C252E] opacity-[0.03] blur-[100px]" />
                     </Box>
 
-                    <Container
-                        disableGutters
-                        maxWidth={false}
+                    <Box
                         sx={{
                             height: "72px",
                             px: "calc(3 * var(--spacing))",
@@ -75,6 +104,7 @@ export const LoginPage = () => {
                             position: "fixed",
                             top: "0",
                             left: "0",
+                            right: "0",
                             zIndex: "1101",
                             background: "transparent"
                         }}>
@@ -99,7 +129,7 @@ export const LoginPage = () => {
                                 }}
                             />
                         </Button>
-                    </Container>
+                    </Box>
 
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -197,7 +227,7 @@ export const LoginPage = () => {
                                             )}
                                         />
                                         <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
-                                             <Link to='/admin/auth/forgot-password' style={{ fontSize: "0.875rem", color: "var(--palette-text-primary)", fontWeight: 600, textDecoration: "none" }} className="hover:underline">
+                                             <Link to={ROUTES.ADMIN.AUTH.FORGOT_PASSWORD} style={{ fontSize: "0.875rem", color: "var(--palette-text-primary)", fontWeight: 600, textDecoration: "none" }} className="hover:underline">
                                                 Quên mật khẩu?
                                              </Link>
                                         </Box>
@@ -248,6 +278,7 @@ export const LoginPage = () => {
                                     fullWidth
                                     variant="outlined"
                                     startIcon={<GoogleIcon />}
+                                    onClick={handleGoogleLogin}
                                     sx={{
                                         py: "12px",
                                         borderRadius: "12px",

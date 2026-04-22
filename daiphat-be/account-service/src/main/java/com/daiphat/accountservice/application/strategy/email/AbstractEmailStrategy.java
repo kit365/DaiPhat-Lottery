@@ -1,6 +1,6 @@
 package com.daiphat.accountservice.application.strategy.email;
 
-import com.daiphat.accountservice.application.port.out.MailPort;
+import com.daiphat.accountservice.application.port.out.mail.MailPort;
 import com.daiphat.accountservice.application.port.out.auth.RateLimiterPort;
 import com.daiphat.accountservice.application.port.out.auth.keys.AuthAction;
 import lombok.RequiredArgsConstructor;

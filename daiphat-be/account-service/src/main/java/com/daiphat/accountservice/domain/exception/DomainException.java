@@ -22,18 +22,6 @@ public class DomainException extends RuntimeException {
         this.internalMessage = null;
     }
 
-    private static String formatMessage(String message, Object... args) {
-        if (args == null || args.length == 0 || message == null || !message.contains("%")) {
-            return message;
-        }
-        try {
-            return String.format(message, args);
-        } catch (Exception e) {
-            // Fallback to raw message if formatting fails (prevents crash)
-            return message;
-        }
-    }
-
     /**
      * Constructor for errors with internal technical details.
      * The provided message is treated as internal-only (for logging), 
@@ -58,5 +46,17 @@ public class DomainException extends RuntimeException {
         this.errorCode = errorCode;
         this.data = data;
         this.internalMessage = cause != null ? cause.getMessage() : null;
+    }
+
+    private static String formatMessage(String message, Object... args) {
+        if (args == null || args.length == 0 || message == null || !message.contains("%")) {
+            return message;
+        }
+        try {
+            return String.format(message, args);
+        } catch (Exception e) {
+            // Fallback to raw message if formatting fails (prevents crash)
+            return message;
+        }
     }
 }

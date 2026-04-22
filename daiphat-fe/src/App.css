@@ -1,4 +1,4 @@
-:root {
+.admin-theme {
     /* Primary */
     --palette-primary-lighter: #C8FAD6;
     --palette-primary-light: #5BE49B;
@@ -200,7 +200,7 @@
     --font-button: 700 0.875rem / 1.7142857142857142 "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-body {
+.admin-theme {
     margin: 0;
     font-family: "Public Sans", "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;

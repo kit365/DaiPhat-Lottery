@@ -11,16 +11,32 @@ const config: Config = {
       colors: {
         client: {
           primary: "#FF6262",
-          secondary: "#102937",
+          "primary-strong": "#E33F3F",
+          "primary-soft": "#FFF0F0",
+          gold: "#FFB800",
+          "gold-soft": "#FFF5CC",
+          navy: "#102937",
+          "navy-soft": "#EAF0F3",
+          ink: "#17191F",
           text: "#505050",
+          muted: "#78818A",
+          surface: "#FFFFFF",
         },
         admin: {
           hoverIcon: "rgba(99, 115, 129, 0.08)"
         }
       },
       fontFamily: {
-        secondary: ["Merriweather", "serif"],
+        "client-main": ["Public Sans", "Barlow", "sans-serif"],
+        "client-display": ["Barlow", "sans-serif"],
+        secondary: ["Barlow", "serif"],
         third: ["Pacifico", "cursive"]
+      },
+      borderRadius: {
+        "client-sm": "8px",
+        "client-md": "8px",
+        "client-lg": "8px",
+        "client-xl": "24px",
       },
       screens: {
         "2xl": { max: "1540px" },

@@ -1,7 +1,7 @@
 package com.daiphat.accountservice.infrastructure.adapter.auth;
 
-import com.daiphat.accountservice.application.dto.request.PermissionItemDTO;
-import com.daiphat.accountservice.application.port.out.RoleRepositoryPort;
+import com.daiphat.accountservice.application.dto.request.permission.PermissionItem;
+import com.daiphat.accountservice.application.port.out.auth.RoleRepositoryPort;
 import com.daiphat.accountservice.domain.model.PermissionModel;
 import com.daiphat.accountservice.domain.model.RoleModel;
 import com.daiphat.accountservice.domain.exception.DomainException;
@@ -27,19 +27,23 @@ public class RoleRepositoryAdapter implements RoleRepositoryPort {
     private final RolePersistenceMapper rolePersistenceMapper;
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<RoleModel> findByCode(String code) {
         return roleRepository.findByCode(code)
                 .map(rolePersistenceMapper::toDomain);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<RoleModel> findAll() {
         return roleRepository.findAll().stream()
                 .map(rolePersistenceMapper::toDomain)
                 .toList();
     }
 
+
     @Override
+    @Transactional(readOnly = true)
     public Set<String> findPermissionCodesByRoleCodes(Collection<String> roleCodes) {
         return roleRepository.findAllByCodeIn(roleCodes).stream()
                 .flatMap(role -> role.getPermissions().stream())
@@ -48,6 +52,7 @@ public class RoleRepositoryAdapter implements RoleRepositoryPort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PermissionModel> findAllPermissions() {
         return permissionRepository.findAll().stream()
                 .map(rolePersistenceMapper::toPermissionModel)
@@ -74,8 +79,8 @@ public class RoleRepositoryAdapter implements RoleRepositoryPort {
 
     @Override
     @Transactional
-    public void upsertPermissions(List<PermissionItemDTO> items) {
-        Set<String> codes = items.stream().map(PermissionItemDTO::getCode).collect(Collectors.toSet());
+    public void upsertPermissions(List<PermissionItem> items) {
+        Set<String> codes = items.stream().map(PermissionItem::getCode).collect(Collectors.toSet());
         
         // 1. Dọn dẹp rác: Xóa những quyền không còn trong danh sách đăng ký
         List<PermissionEntity> allExisting = permissionRepository.findAll();
@@ -112,7 +117,9 @@ public class RoleRepositoryAdapter implements RoleRepositoryPort {
     @Override
     @Transactional
     public void updatePermissionPositions(Map<String, Integer> positionMap) {
-        if (positionMap == null || positionMap.isEmpty()) return;
+        if (positionMap == null || positionMap.isEmpty()) {
+            return;
+        }
         
         List<PermissionEntity> all = permissionRepository.findAll();
         all.forEach(p -> {
@@ -127,7 +134,8 @@ public class RoleRepositoryAdapter implements RoleRepositoryPort {
     @Transactional
     public void assignAllPermissionsToRole(String roleCode) {
         RoleEntity role = roleRepository.findByCode(roleCode)
-                .orElseThrow(() -> new DomainException(ErrorCode.INTERNAL_SERVER_ERROR, "Target initializing role not found: " + roleCode));
+                .orElseThrow(() -> new DomainException(ErrorCode.INTERNAL_SERVER_ERROR, 
+                        "Target initializing role not found: " + roleCode));
 
         Set<PermissionEntity> allPermissions = new HashSet<>(permissionRepository.findAll());
         role.setPermissions(allPermissions);
@@ -138,7 +146,8 @@ public class RoleRepositoryAdapter implements RoleRepositoryPort {
     @Transactional
     public void assignPermissionsToRole(String roleCode, Set<String> permissionCodes) {
         RoleEntity role = roleRepository.findByCode(roleCode)
-                .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND, "Role not found for sync: " + roleCode));
+                .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND, 
+                        "Role not found for sync: " + roleCode));
 
         List<PermissionEntity> permissions = permissionRepository.findAllByCodeIn(permissionCodes);
         role.setPermissions(new HashSet<>(permissions));

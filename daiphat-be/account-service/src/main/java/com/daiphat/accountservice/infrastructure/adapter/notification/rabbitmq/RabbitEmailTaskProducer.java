@@ -1,6 +1,6 @@
 package com.daiphat.accountservice.infrastructure.adapter.notification.rabbitmq;
 
-import com.daiphat.accountservice.application.dto.event.EmailTaskDTO;
+import com.daiphat.accountservice.application.dto.event.EmailTask;
 import com.daiphat.accountservice.infrastructure.config.RabbitMQConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +22,7 @@ public class RabbitEmailTaskProducer {
      * 
      * @param task Thông tin email cần gửi.
      */
-    public void sendEmailTask(EmailTaskDTO task) {
+    public void sendEmailTask(EmailTask task) {
         log.info("Sending email task to RabbitMQ. Type: {}, To: {}", task.getType(), task.getTo());
         
         rabbitTemplate.convertAndSend(
@@ -39,7 +39,7 @@ public class RabbitEmailTaskProducer {
      * @param task Thông tin email cần gửi lại.
      * @param delaySeconds Số giây cần chờ trước khi xử lý lại.
      */
-    public void sendDelayedEmailTask(EmailTaskDTO task, long delaySeconds) {
+    public void sendDelayedEmailTask(EmailTask task, long delaySeconds) {
         log.info("Enqueuing email task to retry queue. Type: {}, To: {}, Delay: {}s", 
             task.getType(), task.getTo(), delaySeconds);
         
