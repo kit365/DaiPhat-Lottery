@@ -8,6 +8,7 @@ import com.daiphat.accountservice.application.dto.response.auth.AuthResponse;
 import com.daiphat.accountservice.application.dto.response.auth.PasswordPolicyResponse;
 import com.daiphat.accountservice.application.dto.response.auth.PasswordRequirementResponse;
 import com.daiphat.accountservice.application.port.in.auth.LoginServicePort;
+import com.daiphat.accountservice.application.port.in.auth.OAuthProvisioningPort;
 import com.daiphat.accountservice.application.port.in.auth.PasswordResetServicePort;
 import com.daiphat.accountservice.application.port.in.auth.RegistrationServicePort;
 import com.daiphat.accountservice.domain.exception.DomainException;
@@ -31,6 +32,7 @@ class AuthServiceTest extends AuthTestBase {
     @Mock private LoginServicePort loginService;
     @Mock private RegistrationServicePort registrationService;
     @Mock private PasswordResetServicePort passwordResetService;
+    @Mock private OAuthProvisioningPort oAuthProvisioningPort;
  
     @InjectMocks
     private AuthService authService;

@@ -6,10 +6,7 @@ import com.daiphat.accountservice.application.dto.response.auth.AuthResponse;
 import com.daiphat.accountservice.application.dto.response.auth.ForgotPasswordResponse;
 import com.daiphat.accountservice.application.dto.response.auth.PasswordPolicyResponse;
 import com.daiphat.accountservice.application.dto.response.auth.VerifyOtpResponse;
-import com.daiphat.accountservice.application.port.in.auth.AuthServicePort;
-import com.daiphat.accountservice.application.port.in.auth.LoginServicePort;
-import com.daiphat.accountservice.application.port.in.auth.PasswordResetServicePort;
-import com.daiphat.accountservice.application.port.in.auth.RegistrationServicePort;
+import com.daiphat.accountservice.application.port.in.auth.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,6 +20,7 @@ public class AuthService implements AuthServicePort {
     private final LoginServicePort loginService;
     private final RegistrationServicePort registrationService;
     private final PasswordResetServicePort passwordResetService;
+    private final OAuthProvisioningPort oAuthProvisioningPort;
  
     @Override
     public PasswordPolicyResponse getPasswordPolicy() {
