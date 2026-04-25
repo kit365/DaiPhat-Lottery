@@ -4,7 +4,7 @@
   "title": "Lottery Landing Page Header & Hero",
   "visibility": "PRIVATE",
   "createTime": "2026-04-19T10:58:03.213928Z",
-  "updateTime": "2026-04-21T08:19:46.735313Z",
+  "updateTime": "2026-04-25T04:32:36Z",
   "projectType": "TEXT_TO_UI_PRO",
   "origin": "STITCH",
   "deviceType": "DESKTOP",
@@ -16,39 +16,25 @@
     "saturation": 2
   },
   "screens": {
-    "header_hero": {
-      "id": "3500d6b255494e8f907cb97c8324eef4",
-      "sourceScreen": "projects/2193382925605899047/screens/3500d6b255494e8f907cb97c8324eef4",
-      "x": 674,
-      "y": 700,
-      "width": 1376,
-      "height": 768
-    },
     "home": {
-      "id": "98cd34d2fc9444b8910337debce76d62",
-      "sourceScreen": "projects/2193382925605899047/screens/98cd34d2fc9444b8910337debce76d62",
+      "id": "73ede6520ff34c57a62b35be5b9e64a4",
+      "sourceScreen": "projects/2193382925605899047/screens/73ede6520ff34c57a62b35be5b9e64a4",
       "x": 0,
       "y": 0,
-      "width": 780,
-      "height": 4756
+      "width": 2560,
+      "height": 4904,
+      "deviceType": "DESKTOP",
+      "title": "Trang Chủ - Ultimate Image-Aligned Matrix"
     },
     "results": {
-      "id": "2745017b82c94756ba264e7838544504",
-      "sourceScreen": "projects/2193382925605899047/screens/2745017b82c94756ba264e7838544504",
-      "x": 800,
-      "y": 0,
-      "width": 780,
-      "height": 4052
-    },
-    "home-pro": {
-      "id": "4bbb1413a997411c91a3016ce309c05b",
-      "sourceScreen": "projects/2193382925605899047/screens/4bbb1413a997411c91a3016ce309c05b",
-      "x": 1600,
+      "id": "606c00d06bd04ea79675803e610877af",
+      "sourceScreen": "projects/2193382925605899047/screens/606c00d06bd04ea79675803e610877af",
+      "x": 2600,
       "y": 0,
       "width": 2560,
-      "height": 6534,
-      "designSystem": "Oracle Imperial",
-      "note": "Premium dark-mode homepage — The Grand Oracle concept"
+      "height": 2870,
+      "deviceType": "DESKTOP",
+      "title": "Kết Quả Xổ Số - Desktop"
     }
   },
   "metadata": {

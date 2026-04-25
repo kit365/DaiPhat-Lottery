@@ -10,11 +10,11 @@ const config: Config = {
     extend: {
       colors: {
         client: {
-          primary: "#FF6262",
-          "primary-strong": "#E33F3F",
-          "primary-soft": "#FFF0F0",
-          gold: "#FFB800",
-          "gold-soft": "#FFF5CC",
+          primary: "#A60F14",
+          "primary-strong": "#8B0D11",
+          "primary-soft": "#FFF5F5",
+          gold: "#FFD700",
+          "gold-soft": "#FFF9E6",
           navy: "#102937",
           "navy-soft": "#EAF0F3",
           ink: "#17191F",
@@ -27,9 +27,9 @@ const config: Config = {
         }
       },
       fontFamily: {
-        "client-main": ["Public Sans", "Barlow", "sans-serif"],
+        "client-main": ["Public Sans", "sans-serif"],
         "client-display": ["Barlow", "sans-serif"],
-        secondary: ["Barlow", "serif"],
+        secondary: ["Barlow", "sans-serif"],
         third: ["Pacifico", "cursive"]
       },
       borderRadius: {
