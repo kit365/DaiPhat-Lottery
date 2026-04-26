@@ -15,7 +15,7 @@ RUN --mount=type=cache,target=/root/.m2 mvn -f api-gateway-service/pom.xml clean
 
 # Tuyệt chiêu: Gọt giũa JRE tí hon (~45MB)
 RUN jlink \
-    --add-modules java.base,java.sql,java.naming,java.desktop,java.management,java.security.jgss,java.instrument \
+    --add-modules java.base,java.sql,java.naming,java.desktop,java.management,java.security.jgss,java.instrument,jdk.unsupported,jdk.crypto.ec \
     --strip-debug \
     --no-man-pages \
     --no-header-files \

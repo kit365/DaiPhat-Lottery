@@ -1,37 +1,12 @@
-# --- Stage 1: Build stage (Maven + BuildKit Cache) ---
-FROM maven:3.9.6-eclipse-temurin-21-alpine AS build
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
 WORKDIR /app
+COPY . .
+# Chiêu cuối: Dùng Cache Mount để không bao giờ phải tải lại thư viện Maven
+RUN --mount=type=cache,target=/root/.m2 mvn clean package -pl discovery-server -am -DskipTests
 
-# Copy Parent POM first (Build from root context)
-COPY pom.xml .
-
-# Copy module specific files
-COPY discovery-server/pom.xml discovery-server/
-COPY discovery-server/src discovery-server/src
-
-# Build only the module (Main building phase)
-# skipping checkstyle inside Docker to ensure stability (already enforced in CI/CD)
-RUN --mount=type=cache,target=/root/.m2 mvn -f discovery-server/pom.xml clean package -DskipTests -Dcheckstyle.skip
-
-# Tuyệt chiêu: Gọt giũa JRE tí hon (~45MB)
-RUN jlink \
-    --add-modules java.base,java.sql,java.naming,java.desktop,java.management,java.security.jgss,java.instrument \
-    --strip-debug \
-    --no-man-pages \
-    --no-header-files \
-    --compress=2 \
-    --output /javaruntime
-
-# --- Stage 2: Runtime stage (Siêu mỏng) ---
-FROM alpine:latest
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-
-# Thêm curl để phục vụ Healthcheck từ Docker Compose
-RUN apk add --no-cache curl
-
-# Copy JRE tí hon và file JAR sang
-COPY --from=build /javaruntime /javaruntime
-COPY --from=build /app/discovery-server/target/*.jar app.jar
-
-# Chạy app bằng JRE tí hon
-ENTRYPOINT ["/javaruntime/bin/java", "-jar", "app.jar"]
+COPY --from=builder /app/discovery-server/target/*.jar app.jar
+RUN apk add --no-cache wget
+EXPOSE 8761
+ENTRYPOINT ["java", "-jar", "app.jar"]

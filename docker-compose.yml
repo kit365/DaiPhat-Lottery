@@ -1,0 +1,182 @@
+services:
+  postgres-db:
+    image: pgvector/pgvector:pg16
+    container_name: postgres-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./daiphat-be/infra/postgres:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - daiphat-network
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - daiphat-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - daiphat-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: keycloak
+    restart: always
+    env_file:
+      - .env
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres-db:5432/${KEYCLOAK_DB_NAME}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_RELATIVE_PATH: "/"
+      KC_HOSTNAME_URL: http://localhost:8180
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    volumes:
+      - ./daiphat-be/infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+    command: start-dev --import-realm --features=token-exchange
+    ports:
+      - "8180:8080"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    networks:
+      - daiphat-network
+
+  account-service:
+    build:
+      context: ./daiphat-be
+      dockerfile: account-service/Dockerfile
+    container_name: account-service
+    ports:
+      - "${ACCOUNT_SERVICE_PORT}:${ACCOUNT_SERVICE_PORT}"
+    env_file:
+      - .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_CLOUD_CONFIG_URI=${SPRING_CLOUD_CONFIG_URI}
+      - SPRING_CLOUD_CONFIG_DISCOVERY_ENABLED=false
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=${EUREKA_SERVER_URL}
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    networks:
+      - daiphat-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${ACCOUNT_SERVICE_PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: ./daiphat-be
+      dockerfile: api-gateway-service/Dockerfile
+    container_name: api-gateway
+    ports:
+      - "${GATEWAY_PORT}:${GATEWAY_PORT}"
+    env_file:
+      - .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_CLOUD_CONFIG_URI=${SPRING_CLOUD_CONFIG_URI}
+      - SPRING_CLOUD_CONFIG_DISCOVERY_ENABLED=false
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=${EUREKA_SERVER_URL}
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - daiphat-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${GATEWAY_PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  config-server:
+    build:
+      context: ./daiphat-be
+      dockerfile: config-server/Dockerfile
+    container_name: config-server
+    ports:
+      - "${CONFIG_SERVER_PORT}:${CONFIG_SERVER_PORT}"
+    env_file:
+      - .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod,native
+      - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS=file:/config/api-gateway,file:/config/account-service,file:/config/discovery-server,file:/config/
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=${EUREKA_SERVER_URL}
+    volumes:
+      - ./daiphat-be/config:/config
+    networks:
+      - daiphat-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${CONFIG_SERVER_PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  discovery-server:
+    build:
+      context: ./daiphat-be
+      dockerfile: discovery-server/Dockerfile
+    container_name: discovery-server
+    ports:
+      - "${DISCOVERY_SERVER_PORT}:${DISCOVERY_SERVER_PORT}"
+    env_file:
+      - .env
+    depends_on:
+      config-server:
+        condition: service_healthy
+    networks:
+      - daiphat-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${DISCOVERY_SERVER_PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  daiphat-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
