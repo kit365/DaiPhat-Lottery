@@ -68,7 +68,7 @@ export const Header = () => {
   return (
     <>
       <motion.nav
-        className="relative w-full z-[1000] bg-white lg:fixed lg:top-0 lg:left-0 lg:bg-white/94 lg:backdrop-blur-3xl lg:border-b lg:border-black/5 lg:shadow-sm transition-all duration-300"
+        className="relative w-full z-[1000] bg-[#FDFBF7] lg:fixed lg:top-0 lg:left-0 lg:bg-[#FDFBF7]/95 lg:backdrop-blur-3xl lg:border-b lg:border-[#FFB800]/10 lg:shadow-sm transition-all duration-300"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -87,7 +87,7 @@ export const Header = () => {
                   strokeLinejoin="round"
                 />
               </svg>
-              <span className="text-lg lg:text-xl tracking-tighter font-client-display font-black">Đại Phát</span>
+              <span className="text-lg lg:text-xl tracking-tighter font-client-display font-black text-[#102937]">Đại Phát</span>
             </Link>
 
             {/* Tablet/Mobile Top Actions - Removed Avatar as it is in Bottom Nav */}

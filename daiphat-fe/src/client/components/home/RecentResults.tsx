@@ -20,11 +20,11 @@ export const RecentResults: React.FC<RecentResultsProps> = ({ history, onDateCha
   return (
     <div className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100 font-client-main">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-[15px] font-black text-[#102937] uppercase tracking-tight font-client-display">
+        <h3 className="text-[16px] font-semibold text-[#111111] uppercase font-client-main">
           KẾT QUẢ GẦN ĐÂY
         </h3>
         <button 
-          className="text-[12px] font-bold text-slate-400 hover:text-[#E60F14] flex items-center gap-1 cursor-pointer transition-colors active:scale-95"
+          className="text-[13px] font-medium text-slate-400 hover:text-[#E60F14] flex items-center gap-0.5 cursor-pointer transition-colors font-client-main"
         >
           Xem tất cả
           <span className="material-symbols-outlined text-[16px]">chevron_right</span>

@@ -29,3 +29,8 @@
 .hero-overlay {
   background: radial-gradient(circle at 70% 50%, rgba(255, 215, 0, 0.15), transparent 60%);
 }
+
+body {
+  background-color: #FDFBF7;
+  color: #17191F;
+}
