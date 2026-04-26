@@ -68,7 +68,7 @@ export const Header = () => {
   return (
     <>
       <motion.nav
-        className="relative w-full z-[1000] bg-white lg:fixed lg:top-0 lg:left-0 lg:bg-white/94 lg:backdrop-blur-3xl lg:border-b lg:border-black/5 lg:shadow-sm transition-all duration-300"
+        className="relative w-full z-[1000] bg-[#FDFBF7] lg:fixed lg:top-0 lg:left-0 lg:bg-[#FDFBF7]/95 lg:backdrop-blur-3xl lg:border-b lg:border-[#FFB800]/10 lg:shadow-sm transition-all duration-300"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -76,8 +76,8 @@ export const Header = () => {
       >
         <div className="max-w-[1440px] mx-auto px-5 lg:px-10 h-auto lg:h-20 grid grid-cols-1 lg:grid-cols-[1.2fr_auto_1fr] items-center py-4 lg:py-0 border-b border-black/5 lg:border-none">
           <div className="flex items-center justify-between w-full lg:w-auto">
-            <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-2.5 no-underline text-[#102937] font-bold transition-transform hover:scale-[1.02]" aria-label="DaiPhat home">
-              <svg aria-hidden="true" viewBox="0 0 36 36" fill="none" width="34" height="34" className="text-[#FF6262]">
+            <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-2.5 no-underline text-[#102937] font-bold transition-transform hover:scale-[1.02] font-client-display" aria-label="DaiPhat home">
+              <svg aria-hidden="true" viewBox="0 0 36 36" fill="none" width="34" height="34" className="text-[#E60F14]">
                 <rect width="36" height="36" rx="8" fill="currentColor" />
                 <path
                   d="M18 7.2 21.2 14h7l-5.6 4.6 1.8 7-6.4-3.8-6.4 3.8 1.8-7L7.8 14h7L18 7.2Z"
@@ -87,7 +87,7 @@ export const Header = () => {
                   strokeLinejoin="round"
                 />
               </svg>
-              <span className="text-lg lg:text-xl tracking-tighter">Đại Phát</span>
+              <span className="text-lg lg:text-xl tracking-tighter font-client-display font-black text-[#102937]">Đại Phát</span>
             </Link>
 
             {/* Tablet/Mobile Top Actions - Removed Avatar as it is in Bottom Nav */}
@@ -102,7 +102,7 @@ export const Header = () => {
               <Link 
                 key={item.label} 
                 to={item.to}
-                className="text-[#505050] font-bold no-underline transition-colors hover:text-[#FF6262] text-[15px] tracking-tight"
+                className="text-[#505050] font-bold no-underline transition-colors hover:text-[#E60F14] text-[15px] tracking-tight font-client-display"
               >
                 {item.label}
               </Link>
@@ -124,7 +124,7 @@ export const Header = () => {
                   <span className="text-[14px] font-bold text-[#102937] leading-none">{user.firstName} {user.lastName}</span>
                   <button 
                     onClick={() => logout()} 
-                    className="text-[12px] font-medium text-slate-400 hover:text-[#FF6262] transition-colors mt-0.5 cursor-pointer"
+                    className="text-[12px] font-medium text-slate-400 hover:text-[#E60F14] transition-colors mt-0.5 cursor-pointer font-client-main"
                   >
                     Đăng xuất
                   </button>
@@ -138,7 +138,7 @@ export const Header = () => {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-[#FF6262]/5 text-[#FF6262]">
+                      <div className="w-full h-full flex items-center justify-center bg-[#E60F14]/5 text-[#E60F14]">
                         <UserIcon size={20} className="font-bold" />
                       </div>
                     )}
@@ -150,7 +150,7 @@ export const Header = () => {
               <>
                 <button 
                   onClick={openLoginModal} 
-                  className="inline-flex items-center justify-center min-h-[44px] px-8 rounded-xl bg-[#FF6262] text-white font-bold no-underline shadow-lg shadow-[#FF6262]/26 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer text-[15px]"
+                  className="inline-flex items-center justify-center min-h-[44px] px-8 rounded-xl bg-[#E60F14] text-white font-bold no-underline shadow-lg shadow-[#E60F14]/26 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer text-[15px] font-client-display uppercase tracking-tight"
                   type="button"
                 >
                   Đăng nhập
@@ -162,7 +162,7 @@ export const Header = () => {
 
         {/* Universal Search Row (Visible on Tablet/Mobile < 1024px) - STICKY logic */}
         <div className="lg:hidden sticky top-0 w-full px-5 py-3.5 bg-white/94 backdrop-blur-md z-[1100] shadow-sm">
-          <div className="relative flex items-center h-12 px-4 bg-[#F4F6F8] border border-black/5 rounded-2xl focus-within:bg-white focus-within:border-[#FF6262] focus-within:shadow-md transition-all duration-300">
+          <div className="relative flex items-center h-12 px-4 bg-[#F4F6F8] border border-black/5 rounded-2xl focus-within:bg-white focus-within:border-[#E60F14] focus-within:shadow-md transition-all duration-300">
             <Search className="text-slate-400 mr-3 shrink-0" size={19} />
             <input 
               type="text" 
@@ -230,7 +230,7 @@ export const Header = () => {
                         </div>
                       </div>
                       <button
-                        className="h-13 flex items-center justify-center bg-white border-2 border-slate-100 rounded-2xl font-bold text-[#FF6262] transition-all active:scale-95 cursor-pointer"
+                        className="h-13 flex items-center justify-center bg-white border-2 border-slate-100 rounded-2xl font-bold text-[#E60F14] transition-all active:scale-95 cursor-pointer font-client-display"
                         onClick={() => {
                           setIsMenuOpen(false);
                           logout();

@@ -2,14 +2,13 @@
    REMAINING LEGACY STYLES (To be refactored)
 */
 .client-theme {
-    --client-font-main: "Public Sans", "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    --client-font-display: "Barlow", "Public Sans", sans-serif;
-    --client-primary: #ff6262;
-    --client-gold: #ffb800;
+    --client-font-main: "Public Sans", "Barlow", sans-serif;
+    --client-font-display: "Barlow", sans-serif;
+    --client-primary: #A60F14;
+    --client-gold: #FFD700;
     --client-navy: #102937;
     --client-radius-xl: 24px;
     font-family: var(--client-font-main);
-    color: #191c1b;
 }
 
 /* Scoped utilities for non-refactored pages */
