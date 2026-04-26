@@ -4,12 +4,12 @@ import { useAuthStore } from "../../../stores/useAuthStore";
 // Configuration constants for easier maintenance and cleaner JSX
 const HERO_CONTENT = {
   heading: {
-    line1: "Mua vé số kiến thiết",
-    line2: "Online - Săn lộc vàng",
-    line3: "Trúng lớn"
+    line1: "Mua vé số online",
+    line2: "Săn lộc vàng",
+    line3: "Trúng lớn mỗi ngày"
   },
   subtitle: "Uy Tín • An Toàn • Minh Bạch. Trải nghiệm mua vé nhanh chóng và tiện lợi ngay hôm nay!",
-  cta: "Mua ngay - Chọn số may mắn",
+  cta: "Mua vé ngay - Chọn số may mắn",
   images: {
     desktop: "/assets/images/hero_laptop.JPEG",
     mobile: "/assets/images/hero_mobile.JPEG"
@@ -43,7 +43,7 @@ export const Hero = () => {
       <div className="relative z-10 w-full px-4 sm:px-8 -mt-20 sm:-mt-28 lg:mt-0 lg:h-full lg:max-w-[1440px] lg:mx-auto lg:px-10 lg:flex lg:items-center">
         
         {/* Text Container Card */}
-        <div className="w-full max-w-[100%] sm:max-w-[540px] lg:max-w-[500px] xl:max-w-[700px] mx-auto lg:mx-0 bg-gradient-to-b from-[#A60F14] to-[#780A0E] lg:bg-none rounded-[28px] lg:rounded-none p-7 sm:p-10 lg:p-0 shadow-[0_20px_50px_rgba(166,15,20,0.25)] lg:shadow-none border border-white/20 lg:border-none text-white text-center lg:text-left flex flex-col items-center lg:items-start transition-all">
+        <div className="w-full max-w-[100%] sm:max-w-[540px] lg:max-w-[500px] xl:max-w-[700px] mx-auto lg:mx-0 bg-gradient-to-b from-[#E60F14] to-[#B71C1C] lg:bg-none rounded-[28px] lg:rounded-none p-7 sm:p-10 lg:p-0 shadow-[0_20px_50px_rgba(230,15,20,0.25)] lg:shadow-none border border-white/20 lg:border-none text-white text-center lg:text-left flex flex-col items-center lg:items-start transition-all font-client-main">
           
           {/* Main Heading - Linked to section via aria-labelledby */}
           <motion.h1 
@@ -51,7 +51,7 @@ export const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="text-[26px] sm:text-[32px] lg:text-[40px] xl:text-[54px] font-black leading-[1.25] lg:leading-[1.2] xl:leading-[1.15] tracking-tight mb-4 uppercase drop-shadow-xl"
+            className="text-[26px] sm:text-[32px] lg:text-[40px] xl:text-[54px] font-client-display font-black leading-[1.25] lg:leading-[1.2] xl:leading-[1.15] tracking-tight mb-4 uppercase drop-shadow-xl"
           >
             <span className="bg-gradient-to-b from-[#FFF2B2] via-[#FFD700] to-[#F9A826] text-transparent bg-clip-text filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">
               {HERO_CONTENT.heading.line1}<br className="hidden lg:block" />
@@ -79,7 +79,7 @@ export const Hero = () => {
           >
             <button 
               onClick={openLoginModal}
-              className="w-full lg:w-auto whitespace-nowrap inline-flex items-center justify-center min-h-[52px] sm:min-h-[60px] lg:min-h-[64px] px-6 sm:px-10 lg:px-14 rounded-full bg-gradient-to-r from-[#D91B1B] to-[#E53935] text-white font-extrabold text-[15px] sm:text-[16px] lg:text-[18px] uppercase tracking-wider border-[2px] lg:border-[2.5px] border-white/90 shadow-[0_0_15px_rgba(255,215,0,0.3)] transition-all hover:scale-[1.03] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)] hover:from-[#E53935] hover:to-[#EF5350] active:scale-95 cursor-pointer"
+              className="w-full lg:w-auto whitespace-nowrap inline-flex items-center justify-center min-h-[52px] sm:min-h-[60px] lg:min-h-[64px] px-6 sm:px-10 lg:px-14 rounded-full bg-gradient-to-r from-[#E60F14] to-[#B71C1C] text-white font-client-display font-extrabold text-[15px] sm:text-[16px] lg:text-[18px] uppercase tracking-wider border-[2px] lg:border-[2.5px] border-white/90 shadow-[0_0_15px_rgba(255,215,0,0.3)] transition-all hover:scale-[1.03] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)] hover:from-[#B71C1C] hover:to-[#E60F14] active:scale-95 cursor-pointer"
             >
               {HERO_CONTENT.cta}
             </button>
