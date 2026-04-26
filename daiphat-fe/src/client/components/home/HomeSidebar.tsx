@@ -11,9 +11,12 @@ interface HomeSidebarProps {
   history: LotteryResult[];
   onDateChange: (date: string) => void;
   selectedDigit?: string | null;
+  hoveredDigit?: string | null;
+  onDigitSelect?: (digit: string | null) => void;
+  onDigitHover?: (digit: string | null) => void;
 }
 
-export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, data, history, onDateChange, selectedDigit }) => {
+export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, data, history, onDateChange, selectedDigit, hoveredDigit, onDigitSelect, onDigitHover }) => {
   const { openLoginModal } = useAuthStore();
 
   return (
@@ -23,14 +26,14 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, data, histor
         <div className="relative z-10 space-y-4 max-w-[65%]">
           <div className="space-y-1">
             <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest font-client-display">Mua vé số online</p>
-            <h3 className="text-lg font-black text-white leading-tight uppercase font-client-display tracking-tight">
+            <h3 className="text-lg font-bold text-white leading-tight uppercase font-client-main tracking-tight">
               SĂN LỘC VÀNG<br />
               TRÚNG LỚN
             </h3>
           </div>
           <button 
             onClick={openLoginModal}
-            className="bg-[#FFD54F] hover:bg-white text-[#B71C1C] px-4 py-2 rounded-xl font-black text-[12px] transition-all shadow-md cursor-pointer active:scale-95 uppercase"
+            className="bg-[#FFD54F] hover:bg-white text-[#B71C1C] px-4 py-2 rounded-xl font-bold text-[12px] transition-all shadow-md cursor-pointer active:scale-95 uppercase font-client-main"
           >
             Mua vé ngay
           </button>
@@ -47,10 +50,15 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, data, histor
         </div>
       </div>
 
-      {/* Loto Table - Toggled by showLoto but dynamic based on prizes */}
       {showLoto && data && (
         <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-          <LotoTable prizes={data.prizes} selectedDigit={selectedDigit} />
+          <LotoTable 
+            prizes={data.prizes} 
+            selectedDigit={selectedDigit} 
+            hoveredDigit={hoveredDigit}
+            onDigitClick={onDigitSelect} 
+            onDigitHover={onDigitHover} 
+          />
         </div>
       )}
 

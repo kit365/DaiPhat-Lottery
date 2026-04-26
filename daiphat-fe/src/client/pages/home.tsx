@@ -43,7 +43,7 @@ export const HomePage = () => {
   }, [searchParams, openVerifyModal]);
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[#FAFAFA] text-client-ink font-client-main">
+    <div className="relative min-h-screen overflow-x-hidden bg-[#FDFBF7] text-client-ink font-client-main">
       <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.028] bg-[url('data:image/svg+xml,%3Csvg_viewBox=%270_0_200_200%27_xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter_id=%27n%27%3E%3CfeTurbulence_type=%27fractalNoise%27_baseFrequency=%27.65%27_numOctaves=%273%27_stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect_width=%27100%25%27_height=%27100%25%27_filter=%27url(%23n)%27/%3E%3C/svg%3E')]" aria-hidden="true" />
       
       <Header />
@@ -80,7 +80,7 @@ export const HomePage = () => {
                   <span className="material-symbols-outlined text-[48px] text-slate-300">search_off</span>
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-xl font-black text-[#102937] font-client-display uppercase tracking-tight">Chưa có kết quả</h3>
+                  <h3 className="text-xl font-bold text-[#111111] font-client-main uppercase tracking-tight">Chưa có kết quả</h3>
                   <p className="text-slate-400 font-medium max-w-[300px]">
                     Đài <span className="text-[#E60F14] font-bold">{selectedProvince}</span> hiện chưa cập nhật kết quả cho ngày hôm nay.
                   </p>
@@ -100,7 +100,10 @@ export const HomePage = () => {
             data={lotteryData} 
             history={historyData}
             onDateChange={setSelectedDate}
-            selectedDigit={activeDigit}
+            selectedDigit={selectedDigit}
+            hoveredDigit={hoveredDigit}
+            onDigitSelect={(digit) => setSelectedDigit(digit === selectedDigit ? null : digit)}
+            onDigitHover={setHoveredDigit}
           />
         </div>
 

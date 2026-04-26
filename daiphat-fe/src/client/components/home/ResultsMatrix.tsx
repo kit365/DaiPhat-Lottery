@@ -17,19 +17,30 @@ interface ResultsMatrixProps {
 
 // Helper to highlight specific digits
 const renderHighlightedNumber = (numStr: string, digitToHighlight: string | null) => {
-  if (!digitToHighlight || !numStr.includes(digitToHighlight)) {
-    return <>{numStr}</>;
+  if (!digitToHighlight) return <>{numStr}</>;
+
+  // Loto is only determined by the last 2 digits (or all digits if length < 2)
+  const length = numStr.length;
+  const lotoStartIndex = length >= 2 ? length - 2 : 0;
+  
+  // Check if the loto part contains the digit
+  const lotoPart = numStr.slice(lotoStartIndex);
+  const isMatch = lotoPart.includes(digitToHighlight);
+
+  // If no match in the Loto part, dim the entire number
+  if (!isMatch) {
+    return <span className="opacity-30 transition-opacity">{numStr}</span>;
   }
 
-  // Split by the digit and map to JSX, keeping the digit wrapped in a span
+  // If matched, highlight the ENTIRE Loto pair as a single block
+  const prefix = numStr.slice(0, lotoStartIndex);
+  
   return (
     <>
-      {numStr.split('').map((char, index) => {
-        if (char === digitToHighlight) {
-          return <span key={index} className="text-[#E60F14] drop-shadow-sm font-black">{char}</span>;
-        }
-        return <span key={index} className="opacity-30">{char}</span>;
-      })}
+      {prefix && <span className="opacity-30 transition-opacity">{prefix}</span>}
+      <span className="bg-[#FDE047] text-[#E60F14] font-black px-1.5 py-0.5 rounded-md shadow-sm ml-0.5 inline-block transition-all transform scale-105">
+        {lotoPart}
+      </span>
     </>
   );
 };
@@ -68,24 +79,23 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
     <section className="w-full">
       <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] overflow-hidden font-client-main">
         {/* Header Section */}
-        <div className="p-6 bg-white border-b border-gray-100">
+        <div className="p-5 lg:p-6 bg-white border-b border-gray-100 rounded-t-3xl">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="w-1.5 h-7 bg-[#E60F14] rounded-full"></div>
-                <h2 className="text-xl lg:text-2xl font-black text-[#102937] uppercase tracking-tight font-client-display">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-[4px] h-5 bg-[#C62828]"></div>
+                <h2 className="text-[18px] lg:text-[20px] font-bold text-[#111111] uppercase font-client-main">
                   KẾT QUẢ XỔ SỐ KIẾN THIẾT {data.province} {data.date}
                 </h2>
               </div>
-              <div className="flex items-center gap-2 ml-5">
-                <p className="text-[#102937] font-medium text-[16px] font-client-display tracking-tight flex items-center gap-3">
+              <div className="flex items-center gap-2 ml-3.5">
+                <p className="text-slate-600 text-[14px] flex items-center gap-2">
                   <span className="flex gap-1 items-center">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#E60F14]/20"></span>
-                    <span className="w-2 h-2 rounded-full bg-[#E60F14] animate-pulse shadow-[0_0_8px_rgba(230,15,20,0.4)]"></span>
+                    <span className="w-2 h-2 rounded-full bg-[#C62828] animate-pulse"></span>
                   </span>
                   <span>
-                    Đang chờ xổ số <span className="font-black text-[#102937]">{data.province}</span> lúc <span className="font-black">16h12'</span>.
-                    Còn <span className="text-[#E60F14] font-black tabular-nums mx-1">{formatTime(timeLeft.h)}:{formatTime(timeLeft.m)}:{formatTime(timeLeft.s)}</span> nữa
+                    Đang chờ xổ số <span className="font-semibold text-slate-900">{data.province}</span> lúc <span className="font-semibold">16h12'</span>.
+                    Còn <span className="text-[#C62828] font-semibold tabular-nums ml-1">{formatTime(timeLeft.h)}:{formatTime(timeLeft.m)}:{formatTime(timeLeft.s)}</span> nữa
                   </span>
                 </p>
               </div>
@@ -94,10 +104,10 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
         </div>
 
         {/* Integrated Quick Filter Bar */}
-        <div className="px-6 py-2 bg-slate-50/80 border-b border-gray-100 flex items-center overflow-x-auto lg:overflow-x-visible">
-          <div className="flex items-center gap-5 whitespace-nowrap w-full">
+        <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 flex items-center overflow-x-auto lg:overflow-x-visible">
+          <div className="flex items-center gap-6 whitespace-nowrap w-full">
             {/* Main Filters */}
-            <div className="flex items-center gap-4 pr-5 border-r border-gray-300/50">
+            <div className="flex items-center gap-4 pr-6 border-r border-slate-200">
               <button
                 onClick={() => setDisplayType('full')}
                 className={`text-[12px] font-bold transition-all font-client-display uppercase tracking-tight cursor-pointer ${displayType === 'full' ? 'text-[#E60F14]' : 'text-slate-500 hover:text-[#102937]'}`}
@@ -132,11 +142,11 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                     onClick={() => setSelectedDigit?.(isSelected ? null : strNum)}
                     onMouseEnter={() => setHoveredDigit?.(strNum)}
                     onMouseLeave={() => setHoveredDigit?.(null)}
-                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black border transition-all cursor-pointer shadow-sm ${isSelected
-                        ? 'bg-[#E60F14] border-[#E60F14] text-white scale-110'
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border transition-all cursor-pointer ${isSelected
+                        ? 'bg-[#FDE047] border-[#FDE047] text-[#111111]'
                         : isActive
-                          ? 'bg-[#FFF5F5] border-[#E60F14] text-[#E60F14] scale-110'
-                          : 'border-gray-200 bg-white text-[#102937] hover:border-[#E60F14] hover:text-[#E60F14]'
+                          ? 'bg-[#FEF9C3] border-[#FDE047] text-[#E60F14]'
+                          : 'border-gray-200 bg-white text-[#111111] hover:border-[#FDE047] hover:text-[#E60F14]'
                       }`}
                   >
                     {num}
@@ -148,7 +158,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
             {/* View Loto */}
             <button
               onClick={() => setShowLoto(!showLoto)}
-              className={`flex font-bold text-[12px] items-center gap-1.5 transition-all font-client-display uppercase tracking-tight ml-auto cursor-pointer ${showLoto ? 'text-[#E60F14]' : 'text-[#102937] hover:text-[#E60F14]'}`}
+              className={`flex font-bold text-[12px] items-center gap-2 transition-all font-client-main uppercase tracking-tight ml-auto cursor-pointer ${showLoto ? 'text-[#E60F14]' : 'text-slate-500 hover:text-[#E60F14]'}`}
             >
               {showLoto ? 'Ẩn bảng loto' : 'Xem bảng loto'}
               <span className={`material-symbols-outlined text-[18px] transition-transform duration-300 ${showLoto ? 'rotate-180' : ''}`}>
@@ -184,7 +194,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
             { label: "Giải bảy", numbers: [prizes.seventh] },
             { label: "Giải tám", numbers: [prizes.eighth], isHighlight: true },
           ].map((prize, idx) => (
-            <div key={prize.label} className={`flex border-b border-gray-100 last:border-0 ${idx % 2 !== 0 ? 'bg-white' : 'bg-[#FAFBFC]/40'}`}>
+            <div key={prize.label} className={`flex border-b border-gray-100 last:border-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFC]'}`}>
               <div className="w-[120px] lg:w-[180px] p-4 flex items-center justify-center shrink-0 border-r border-gray-100 bg-[#FAFAFA]/50">
                 <span className="text-[#E60F14] text-[13px] font-bold uppercase font-client-display">{prize.label}</span>
               </div>
@@ -192,7 +202,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                 {prize.isGrid ? (
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-10 gap-y-3">
                     {prize.numbers.map((n, i) => (
-                      <span key={i} className="text-[#102937] text-[18px] lg:text-[20px] font-extrabold tracking-tight">
+                      <span key={i} className="text-[#111111] text-[18px] lg:text-[20px] font-bold tracking-tight font-client-main">
                         {renderHighlightedNumber(getDisplayNumber(n, displayType), activeDigit)}
                       </span>
                     ))}
@@ -200,7 +210,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                 ) : (
                   <div className="flex flex-wrap items-center gap-x-12 gap-y-3">
                     {prize.numbers.map((n, i) => (
-                      <span key={i} className={`${prize.isHighlight && !activeDigit ? 'text-[#E60F14] text-[24px] lg:text-[28px]' : 'text-[#102937] text-[18px] lg:text-[22px]'} font-extrabold tracking-tight`}>
+                      <span key={i} className={`${prize.isHighlight && !activeDigit ? 'text-[#E60F14] text-[24px] lg:text-[28px]' : 'text-[#111111] text-[18px] lg:text-[22px]'} font-bold tracking-tight font-client-main`}>
                         {renderHighlightedNumber(getDisplayNumber(n, displayType), activeDigit)}
                       </span>
                     ))}
