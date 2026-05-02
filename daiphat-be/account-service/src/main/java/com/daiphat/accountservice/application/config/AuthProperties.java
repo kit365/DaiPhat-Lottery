@@ -83,6 +83,7 @@ public class AuthProperties {
     @Data
     public static class Keycloak {
         private String authServerUrl;
+        private String internalAuthServerUrl;
         private String realm;
         private String clientId;
         private String clientSecret;
