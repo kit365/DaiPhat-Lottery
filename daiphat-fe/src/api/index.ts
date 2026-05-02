@@ -3,7 +3,7 @@ import { useAuthStore } from "../stores/useAuthStore"
 import { API_PREFIX, API_VERSION } from "./api.constants"
 import { AppToast } from "../client/utils/toast.util"
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 const API_ROOT = `${BASE_URL}${API_PREFIX}${API_VERSION}`
 
 const apiApp = axios.create({

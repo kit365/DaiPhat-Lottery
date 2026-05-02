@@ -40,7 +40,7 @@ eureka:
     fetch-registry: true
     registry-fetch-interval-seconds: 5
     service-url:
-      defaultZone: ${EUREKA_SERVER_URL}
+      defaultZone: ${EUREKA_SERVER_URL:http://discovery-server:8761/eureka/}
   instance:
     prefer-ip-address: true
 

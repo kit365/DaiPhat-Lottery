@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Danh sách các database cần tạo
+# Danh sách các database cần tạo 
 databases=("daiphat_account_db" "daiphat_keycloak_db" "daiphat_ticket_db" "daiphat_payment_db")
 
 # 1. Kích hoạt extension vector ở database mặc định

@@ -7,6 +7,12 @@
   {
     "realm": "daiphat",
     "enabled": true,
+    "browserFlow": "browser",
+    "registrationFlow": "registration",
+    "directGrantFlow": "direct grant",
+    "resetCredentialsFlow": "reset credentials",
+    "clientAuthenticationFlow": "clients",
+    "dockerAuthenticationFlow": "docker auth",
     "roles": {
       "realm": [
         {
@@ -39,11 +45,13 @@
         "serviceAccountsEnabled": false,
         "redirectUris": [
           "http://localhost:5173/*",
-          "http://localhost:8080/*"
+          "http://localhost:8080/*",
+          "https://teddypet.id.vn/*"
         ],
         "webOrigins": [
           "http://localhost:5173",
-          "http://localhost:8080"
+          "http://localhost:8080",
+          "https://teddypet.id.vn"
         ],
         "attributes": {
           "access.token.lifespan": "86400",
@@ -69,15 +77,15 @@
     "users": [
       {
         "id": "0e44453a-1c44-445c-aedf-49d5eecf8a5d",
-        "username": "${ADMIN_USERNAME}",
+        "username": "${env.ADMIN_USERNAME:admin}",
         "enabled": true,
-        "email": "${ADMIN_EMAIL}",
-        "firstName": "${ADMIN_FIRST_NAME}",
-        "lastName": "${ADMIN_LAST_NAME}",
+        "email": "${env.ADMIN_EMAIL:admin@daiphat.com}",
+        "firstName": "${env.ADMIN_FIRST_NAME:Admin}",
+        "lastName": "${env.ADMIN_LAST_NAME:DaiPhat}",
         "credentials": [
           {
             "type": "password",
-            "value": "${KEYCLOAK_ADMIN_PASSWORD}",
+            "value": "${env.KEYCLOAK_ADMIN_PASSWORD:admin}",
             "temporary": false
           }
         ],
@@ -88,15 +96,15 @@
       },
       {
         "id": "400fb13d-1ee8-40b3-920c-6ff52a0dd4ad",
-        "username": "${USER_USERNAME}",
+        "username": "${env.USER_USERNAME:user}",
         "enabled": true,
-        "email": "${USER_EMAIL}",
-        "firstName": "${USER_FIRST_NAME}",
-        "lastName": "${USER_LAST_NAME}",
+        "email": "${env.USER_EMAIL:user@daiphat.com}",
+        "firstName": "${env.USER_FIRST_NAME:User}",
+        "lastName": "${env.USER_LAST_NAME:DaiPhat}",
         "credentials": [
           {
             "type": "password",
-            "value": "${KEYCLOAK_USER_PASSWORD}",
+            "value": "${env.KEYCLOAK_USER_PASSWORD:user}",
             "temporary": false
           }
         ],
@@ -106,15 +114,15 @@
       },
       {
         "id": "6e44453a-1c44-445c-aedf-49d5eecf8a5d",
-        "username": "${SHIPPER_USERNAME}",
+        "username": "${env.SHIPPER_USERNAME:shipper}",
         "enabled": true,
-        "email": "${SHIPPER_EMAIL}",
-        "firstName": "${SHIPPER_FIRST_NAME}",
-        "lastName": "${SHIPPER_LAST_NAME}",
+        "email": "${env.SHIPPER_EMAIL:shipper@daiphat.com}",
+        "firstName": "${env.SHIPPER_FIRST_NAME:Shipper}",
+        "lastName": "${env.SHIPPER_LAST_NAME:DaiPhat}",
         "credentials": [
           {
             "type": "password",
-            "value": "${KEYCLOAK_SHIPPER_PASSWORD}",
+            "value": "${env.KEYCLOAK_SHIPPER_PASSWORD:shipper}",
             "temporary": false
           }
         ],
@@ -124,15 +132,15 @@
       },
       {
         "id": "7e44453a-1c44-445c-aedf-49d5eecf8a5d",
-        "username": "${MANAGER_USERNAME}",
+        "username": "${env.MANAGER_USERNAME:manager}",
         "enabled": true,
-        "email": "${MANAGER_EMAIL}",
-        "firstName": "${MANAGER_FIRST_NAME}",
-        "lastName": "${MANAGER_LAST_NAME}",
+        "email": "${env.MANAGER_EMAIL:manager@daiphat.com}",
+        "firstName": "${env.MANAGER_FIRST_NAME:Manager}",
+        "lastName": "${env.MANAGER_LAST_NAME:DaiPhat}",
         "credentials": [
           {
             "type": "password",
-            "value": "${KEYCLOAK_MANAGER_PASSWORD}",
+            "value": "${env.KEYCLOAK_MANAGER_PASSWORD:manager}",
             "temporary": false
           }
         ],
@@ -184,6 +192,99 @@
       }
     ],
     "authenticationFlows": [
+      {
+        "alias": "browser",
+        "description": "Browser based authentication",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "auth-cookie", "requirement": "ALTERNATIVE", "priority": 10, "autheticatorFlow": false },
+          { "authenticator": "auth-spnego", "requirement": "DISABLED", "priority": 20, "autheticatorFlow": false },
+          { "authenticator": "identity-provider-redirector", "requirement": "ALTERNATIVE", "priority": 25, "autheticatorFlow": false },
+          { "requirement": "ALTERNATIVE", "priority": 30, "flowAlias": "browser forms", "autheticatorFlow": true }
+        ]
+      },
+      {
+        "alias": "browser forms",
+        "description": "Username/password form",
+        "providerId": "basic-flow",
+        "topLevel": false,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "auth-username-password-form", "requirement": "REQUIRED", "priority": 10, "autheticatorFlow": false },
+          { "authenticator": "auth-otp-form", "requirement": "OPTIONAL", "priority": 20, "autheticatorFlow": false }
+        ]
+      },
+      {
+        "alias": "direct grant",
+        "description": "OpenID Connect Resource Owner Grant",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "direct-grant-validate-username", "requirement": "REQUIRED", "priority": 10, "autheticatorFlow": false },
+          { "authenticator": "direct-grant-validate-password", "requirement": "REQUIRED", "priority": 20, "autheticatorFlow": false },
+          { "authenticator": "direct-grant-validate-otp", "requirement": "OPTIONAL", "priority": 30, "autheticatorFlow": false }
+        ]
+      },
+      {
+        "alias": "registration",
+        "description": "Registration flow",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "requirement": "REQUIRED", "priority": 10, "flowAlias": "registration form", "autheticatorFlow": true }
+        ]
+      },
+      {
+        "alias": "registration form",
+        "description": "Registration form",
+        "providerId": "form-flow",
+        "topLevel": false,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "registration-user-creation", "requirement": "REQUIRED", "priority": 20, "autheticatorFlow": false },
+          { "authenticator": "registration-password-action", "requirement": "REQUIRED", "priority": 50, "autheticatorFlow": false }
+        ]
+      },
+      {
+        "alias": "reset credentials",
+        "description": "Reset credentials flow",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "reset-credentials-choose-user", "requirement": "REQUIRED", "priority": 10, "autheticatorFlow": false },
+          { "authenticator": "reset-credential-email", "requirement": "REQUIRED", "priority": 20, "autheticatorFlow": false },
+          { "authenticator": "reset-password", "requirement": "REQUIRED", "priority": 30, "autheticatorFlow": false },
+          { "authenticator": "reset-otp", "requirement": "OPTIONAL", "priority": 40, "autheticatorFlow": false }
+        ]
+      },
+      {
+        "alias": "clients",
+        "description": "Base processing for clients",
+        "providerId": "client-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "client-secret", "requirement": "ALTERNATIVE", "priority": 10, "autheticatorFlow": false },
+          { "authenticator": "client-jwt", "requirement": "ALTERNATIVE", "priority": 20, "autheticatorFlow": false },
+          { "authenticator": "client-secret-jwt", "requirement": "ALTERNATIVE", "priority": 30, "autheticatorFlow": false },
+          { "authenticator": "client-x509", "requirement": "ALTERNATIVE", "priority": 40, "autheticatorFlow": false }
+        ]
+      },
+      {
+        "alias": "docker auth",
+        "description": "Used by Docker clients to authenticate against the IDP",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "docker-auth-test", "requirement": "REQUIRED", "priority": 10, "autheticatorFlow": false }
+        ]
+      },
       {
         "alias": "daiphat-first-broker-login",
         "description": "Custom seamless login flow for DaiPhat.",

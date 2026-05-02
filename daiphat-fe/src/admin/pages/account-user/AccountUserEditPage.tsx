@@ -21,7 +21,7 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
-import { UserUserTicketList } from "./sections/UserUserTicketList";
+import { UserUserTicketList } from "./sections/UserTicketList";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 
 export const AccountUserEditPage = () => {

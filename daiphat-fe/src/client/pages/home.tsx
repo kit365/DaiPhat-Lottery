@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Header } from "../components/layout/Header";
+import { Header } from "../components/layout/header";
 import { PartnerLogos } from "../components/layout/PartnerLogos";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { LeftSidebar } from "../components/home/LeftSidebar";
