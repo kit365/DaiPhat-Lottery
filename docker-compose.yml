@@ -4,7 +4,7 @@ services:
     image: pgvector/pgvector:pg16
     container_name: postgres-db
     ports:
-      - "${DB_PORT}:${DB_PORT}"
+      - "${DB_PORT}:5432"
     env_file:
       - .env
     volumes:
@@ -24,7 +24,7 @@ services:
     image: redis:alpine
     container_name: redis
     ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
+      - "${REDIS_PORT}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -39,7 +39,7 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: rabbitmq
     ports:
-      - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
+      - "${RABBITMQ_PORT}:5672"
       - "15672:15672"
     env_file:
       - .env
@@ -112,8 +112,6 @@ services:
       - KC_DB_URL=jdbc:postgresql://postgres-db:5432/${KEYCLOAK_DB_NAME}
       - KC_DB_USERNAME=${POSTGRES_USER}
       - KC_DB_PASSWORD=${POSTGRES_PASSWORD}
-      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
-      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
       - KC_HEALTH_ENABLED=true
       - KC_HOSTNAME_URL=https://${DOMAIN_NAME}/kc
       - KC_HOSTNAME_ADMIN_URL=https://${DOMAIN_NAME}/kc
