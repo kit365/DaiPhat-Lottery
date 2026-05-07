@@ -1,6 +1,7 @@
 package com.daiphat.accountservice.infrastructure.adapter.auth;
 
 import com.daiphat.accountservice.application.dto.response.auth.AuthResponse;
+import com.daiphat.accountservice.application.config.AuthProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.daiphat.accountservice.application.port.out.auth.KeycloakPort;
@@ -9,7 +10,6 @@ import com.daiphat.accountservice.domain.exception.ErrorCode;
 import com.daiphat.accountservice.domain.model.auth.KeycloakAuthResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
@@ -30,25 +30,31 @@ public class KeycloakAdapter implements KeycloakPort {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
-    @Value("${spring.security.oauth2.client.registration.keycloak.client-id}")
-    private String clientId;
+    private final AuthProperties authProperties;
 
-    @Value("${spring.security.oauth2.client.registration.keycloak.client-secret}")
-    private String clientSecret;
-
-    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
-    private String issuerUri;
+    private String getBaseUrlForApi() {
+        String internalUrl = authProperties.getKeycloak().getInternalAuthServerUrl();
+        String realm = authProperties.getKeycloak().getRealm();
+        
+        // Construct the full realm URL
+        if (internalUrl != null && !internalUrl.isBlank()) {
+            return internalUrl.endsWith("/") ? internalUrl + "realms/" + realm : internalUrl + "/realms/" + realm;
+        }
+        
+        String authServerUrl = authProperties.getKeycloak().getAuthServerUrl();
+        return authServerUrl.endsWith("/") ? authServerUrl + "realms/" + realm : authServerUrl + "/realms/" + realm;
+    }
 
     @Override
     public KeycloakAuthResult login(String username, String password) {
-        String tokenUrl = UriComponentsBuilder.fromUriString(issuerUri)
+        String tokenUrl = UriComponentsBuilder.fromUriString(getBaseUrlForApi())
                 .path("/protocol/openid-connect/token")
                 .toUriString();
 
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add(OAuth2ParameterNames.GRANT_TYPE, "password");
-        formData.add(OAuth2ParameterNames.CLIENT_ID, clientId);
-        formData.add(OAuth2ParameterNames.CLIENT_SECRET, clientSecret);
+        formData.add(OAuth2ParameterNames.CLIENT_ID, authProperties.getKeycloak().getClientId());
+        formData.add(OAuth2ParameterNames.CLIENT_SECRET, authProperties.getKeycloak().getClientSecret());
         formData.add(OAuth2ParameterNames.USERNAME, username);
         formData.add(OAuth2ParameterNames.PASSWORD, password);
         formData.add(OAuth2ParameterNames.SCOPE, "openid profile email");
@@ -74,11 +80,11 @@ public class KeycloakAdapter implements KeycloakPort {
     @Override
     public void logout(String refreshToken) {
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
-        formData.add(OAuth2ParameterNames.CLIENT_ID, clientId);
-        formData.add(OAuth2ParameterNames.CLIENT_SECRET, clientSecret);
+        formData.add(OAuth2ParameterNames.CLIENT_ID, authProperties.getKeycloak().getClientId());
+        formData.add(OAuth2ParameterNames.CLIENT_SECRET, authProperties.getKeycloak().getClientSecret());
         formData.add(OAuth2ParameterNames.REFRESH_TOKEN, refreshToken);
 
-        String logoutUrl = UriComponentsBuilder.fromUriString(issuerUri)
+        String logoutUrl = UriComponentsBuilder.fromUriString(getBaseUrlForApi())
                 .path("/protocol/openid-connect/logout")
                 .toUriString();
 
@@ -96,14 +102,14 @@ public class KeycloakAdapter implements KeycloakPort {
 
     @Override
     public KeycloakAuthResult refreshToken(String refreshToken) {
-        String tokenUrl = UriComponentsBuilder.fromUriString(issuerUri)
+        String tokenUrl = UriComponentsBuilder.fromUriString(getBaseUrlForApi())
                 .path("/protocol/openid-connect/token")
                 .toUriString();
 
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add(OAuth2ParameterNames.GRANT_TYPE, OAuth2ParameterNames.REFRESH_TOKEN);
-        formData.add(OAuth2ParameterNames.CLIENT_ID, clientId);
-        formData.add(OAuth2ParameterNames.CLIENT_SECRET, clientSecret);
+        formData.add(OAuth2ParameterNames.CLIENT_ID, authProperties.getKeycloak().getClientId());
+        formData.add(OAuth2ParameterNames.CLIENT_SECRET, authProperties.getKeycloak().getClientSecret());
         formData.add(OAuth2ParameterNames.REFRESH_TOKEN, refreshToken);
 
         AuthResponse response = restClient.post()

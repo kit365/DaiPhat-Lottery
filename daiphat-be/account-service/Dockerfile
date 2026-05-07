@@ -1,37 +1,24 @@
-# --- Stage 1: Build stage (Maven + BuildKit Cache) ---
-FROM maven:3.9.6-eclipse-temurin-21-alpine AS build
+FROM public.ecr.aws/docker/library/maven:3.9.6-eclipse-temurin-21-alpine AS build
 WORKDIR /app
 
-# Copy Parent POM first (Build from root context)
-COPY pom.xml .
+# COPY toàn bộ folder daiphat-be vào (Vì context là ./daiphat-be)
+COPY . .
 
-# Copy module specific files
-COPY account-service/pom.xml account-service/
-COPY account-service/src account-service/src
+# Build module account-service (Maven đã đứng ở thư mục gốc có pom.xml rồi)
+RUN --mount=type=cache,target=/root/.m2 mvn clean package -pl account-service -am -DskipTests -Dcheckstyle.skip
 
-# Build only the module (Main building phase)
-# skipping checkstyle inside Docker to ensure stability (already enforced in CI/CD)
-RUN --mount=type=cache,target=/root/.m2 mvn -f account-service/pom.xml clean package -DskipTests -Dcheckstyle.skip
-
-# Tuyệt chiêu: Gọt giũa JRE tí hon (~45MB)
+# Gọt giũa JRE
 RUN jlink \
-    --add-modules java.base,java.sql,java.naming,java.desktop,java.management,java.security.jgss,java.instrument \
+    --add-modules java.base,java.sql,java.naming,java.desktop,java.management,java.security.jgss,java.instrument,jdk.unsupported,jdk.crypto.ec \
     --strip-debug \
     --no-man-pages \
     --no-header-files \
     --compress=2 \
     --output /javaruntime
 
-# --- Stage 2: Runtime stage (Siêu mỏng) ---
-FROM alpine:latest
+FROM public.ecr.aws/docker/library/alpine:latest
 WORKDIR /app
-
-# Thêm curl để phục vụ Healthcheck từ Docker Compose
 RUN apk add --no-cache curl
-
-# Copy JRE tí hon và file JAR sang
 COPY --from=build /javaruntime /javaruntime
 COPY --from=build /app/account-service/target/*.jar app.jar
-
-# Chạy app bằng JRE tí hon
 ENTRYPOINT ["/javaruntime/bin/java", "-jar", "app.jar"]
