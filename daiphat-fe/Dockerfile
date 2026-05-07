@@ -12,10 +12,9 @@ RUN npm ci
 # Copy toàn bộ code FE
 COPY . .
 
-# Dùng Docker Build Secret để mount file .env vào lúc build
+# Dùng Docker Build Secret để nạp biến môi trường vào lúc build (không lưu file .env vào image)
 RUN --mount=type=secret,id=env_file \
-    cp /run/secrets/env_file .env && \
-    npx vite build
+    sh -c 'set -a && . /run/secrets/env_file && set +a && npx vite build'
 
 # --- Giai đoạn 2: Serve bằng Nginx ---
 FROM public.ecr.aws/docker/library/nginx:stable-alpine AS production-stage
