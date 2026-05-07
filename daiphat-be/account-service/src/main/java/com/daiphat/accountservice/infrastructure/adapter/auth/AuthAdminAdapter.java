@@ -68,8 +68,12 @@ public class AuthAdminAdapter implements IdentityManagementPort {
         this.keycloakPort = keycloakPort;
         this.roleRepositoryPort = roleRepositoryPort;
         
-        // Ensure base URL ends with a slash for proper relative path joining
-        String baseUrl = authProperties.getKeycloak().getAuthServerUrl();
+        // Ưu tiên dùng URL nội bộ (internal) nếu có để tránh lỗi resolve trong mạng Docker
+        String baseUrl = authProperties.getKeycloak().getInternalAuthServerUrl();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            baseUrl = authProperties.getKeycloak().getAuthServerUrl();
+        }
+        
         if (baseUrl != null && !baseUrl.endsWith("/")) {
             baseUrl += "/";
         }
@@ -392,7 +396,10 @@ public class AuthAdminAdapter implements IdentityManagementPort {
 
             log.info("--- ROLE SYNC COMPLETED SUCCESSFULLY ---");
         } catch (Exception e) {
-            log.error("CRITICAL: Role synchronization failed: {}", e.getMessage(), e);
+            log.warn("IDP Sync Warning: Could not synchronize roles with Keycloak on startup. " +
+                    "This usually means Keycloak is still starting up or unreachable. " +
+                    "Reason: {}", e.getMessage());
+            // We don't rethrow to allow the application to start and handle errors during actual login attempts
         }
     }
 }

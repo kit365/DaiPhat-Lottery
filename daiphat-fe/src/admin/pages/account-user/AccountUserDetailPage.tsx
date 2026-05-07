@@ -25,7 +25,7 @@ import { accountUserSchema } from "../../schemas/account-user.schema";
 import { toast } from "react-toastify";
 import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
 import { LoadingButton } from "../../components/ui/LoadingButton";
-import { UserUserTicketList } from "./sections/UserUserTicketList";
+import { UserUserTicketList } from "./sections/UserTicketList";
 import { UserTicketServiceOrderHistory } from "./sections/UserTicketServiceOrderHistory";
 import { UserOrderHistory } from "./sections/UserOrderHistory";
 import { UserBoardingHistory } from "./sections/UserBoardingHistory";

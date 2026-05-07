@@ -7,6 +7,12 @@
   {
     "realm": "daiphat",
     "enabled": true,
+    "browserFlow": "browser",
+    "registrationFlow": "registration",
+    "directGrantFlow": "direct grant",
+    "resetCredentialsFlow": "reset credentials",
+    "clientAuthenticationFlow": "clients",
+    "dockerAuthenticationFlow": "docker auth",
     "roles": {
       "realm": [
         {
@@ -39,11 +45,13 @@
         "serviceAccountsEnabled": false,
         "redirectUris": [
           "http://localhost:5173/*",
-          "http://localhost:8080/*"
+          "http://localhost:8080/*",
+          "https://teddypet.id.vn/*"
         ],
         "webOrigins": [
           "http://localhost:5173",
-          "http://localhost:8080"
+          "http://localhost:8080",
+          "https://teddypet.id.vn"
         ],
         "attributes": {
           "access.token.lifespan": "86400",
@@ -60,7 +68,7 @@
         "implicitFlowEnabled": false,
         "directAccessGrantsEnabled": false,
         "serviceAccountsEnabled": true,
-        "secret": "daiphat-be-secret",
+        "secret": "${KEYCLOAK_ADMIN_CLIENT_SECRET}",
         "attributes": {
           "access.token.lifespan": "86400"
         }
@@ -184,6 +192,99 @@
       }
     ],
     "authenticationFlows": [
+      {
+        "alias": "browser",
+        "description": "Browser based authentication",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "auth-cookie", "requirement": "ALTERNATIVE", "priority": 10, "autheticatorFlow": false },
+          { "authenticator": "auth-spnego", "requirement": "DISABLED", "priority": 20, "autheticatorFlow": false },
+          { "authenticator": "identity-provider-redirector", "requirement": "ALTERNATIVE", "priority": 25, "autheticatorFlow": false },
+          { "requirement": "ALTERNATIVE", "priority": 30, "flowAlias": "browser forms", "autheticatorFlow": true }
+        ]
+      },
+      {
+        "alias": "browser forms",
+        "description": "Username/password form",
+        "providerId": "basic-flow",
+        "topLevel": false,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "auth-username-password-form", "requirement": "REQUIRED", "priority": 10, "autheticatorFlow": false },
+          { "authenticator": "auth-otp-form", "requirement": "OPTIONAL", "priority": 20, "autheticatorFlow": false }
+        ]
+      },
+      {
+        "alias": "direct grant",
+        "description": "OpenID Connect Resource Owner Grant",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "direct-grant-validate-username", "requirement": "REQUIRED", "priority": 10, "autheticatorFlow": false },
+          { "authenticator": "direct-grant-validate-password", "requirement": "REQUIRED", "priority": 20, "autheticatorFlow": false },
+          { "authenticator": "direct-grant-validate-otp", "requirement": "OPTIONAL", "priority": 30, "autheticatorFlow": false }
+        ]
+      },
+      {
+        "alias": "registration",
+        "description": "Registration flow",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "requirement": "REQUIRED", "priority": 10, "flowAlias": "registration form", "autheticatorFlow": true }
+        ]
+      },
+      {
+        "alias": "registration form",
+        "description": "Registration form",
+        "providerId": "form-flow",
+        "topLevel": false,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "registration-user-creation", "requirement": "REQUIRED", "priority": 20, "autheticatorFlow": false },
+          { "authenticator": "registration-password-action", "requirement": "REQUIRED", "priority": 50, "autheticatorFlow": false }
+        ]
+      },
+      {
+        "alias": "reset credentials",
+        "description": "Reset credentials flow",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "reset-credentials-choose-user", "requirement": "REQUIRED", "priority": 10, "autheticatorFlow": false },
+          { "authenticator": "reset-credential-email", "requirement": "REQUIRED", "priority": 20, "autheticatorFlow": false },
+          { "authenticator": "reset-password", "requirement": "REQUIRED", "priority": 30, "autheticatorFlow": false },
+          { "authenticator": "reset-otp", "requirement": "OPTIONAL", "priority": 40, "autheticatorFlow": false }
+        ]
+      },
+      {
+        "alias": "clients",
+        "description": "Base processing for clients",
+        "providerId": "client-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "client-secret", "requirement": "ALTERNATIVE", "priority": 10, "autheticatorFlow": false },
+          { "authenticator": "client-jwt", "requirement": "ALTERNATIVE", "priority": 20, "autheticatorFlow": false },
+          { "authenticator": "client-secret-jwt", "requirement": "ALTERNATIVE", "priority": 30, "autheticatorFlow": false },
+          { "authenticator": "client-x509", "requirement": "ALTERNATIVE", "priority": 40, "autheticatorFlow": false }
+        ]
+      },
+      {
+        "alias": "docker auth",
+        "description": "Used by Docker clients to authenticate against the IDP",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "builtIn": true,
+        "authenticationExecutions": [
+          { "authenticator": "docker-auth-test", "requirement": "REQUIRED", "priority": 10, "autheticatorFlow": false }
+        ]
+      },
       {
         "alias": "daiphat-first-broker-login",
         "description": "Custom seamless login flow for DaiPhat.",

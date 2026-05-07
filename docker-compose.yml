@@ -1,0 +1,269 @@
+# Trigger Deployment: Update RabbitMQ Secret 2026-05-02
+services:
+  postgres-db:
+    image: pgvector/pgvector:pg16
+    container_name: postgres-db
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    env_file:
+      - .env
+    volumes:
+      - ./daiphat-be/infra/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "dev.dozzle.group=Infrastructure"
+    networks:
+      - daiphat-network
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "dev.dozzle.group=Infrastructure"
+    networks:
+      - daiphat-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "15672:15672"
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    restart: always
+    labels:
+      - "dev.dozzle.group=Infrastructure"
+    networks:
+      - daiphat-network
+
+  config-server:
+    image: ghcr.io/kit365/daiphat-config-server:latest
+    container_name: config-server
+    ports:
+      - "${CONFIG_SERVER_PORT:-8888}:${CONFIG_SERVER_PORT:-8888}"
+    env_file:
+      - .env
+    volumes:
+      - ./daiphat-be/config:/app/config
+    environment:
+      - SPRING_PROFILES_ACTIVE=native,${SPRING_PROFILES_ACTIVE}
+      - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS=file:/app/config/{application}/
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:${CONFIG_SERVER_PORT}/actuator/health" ]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      - rabbitmq
+    labels:
+      - "dev.dozzle.group=Backend"
+    networks:
+      - daiphat-network
+
+  discovery-server:
+    image: ghcr.io/kit365/daiphat-discovery-server:latest
+    container_name: discovery-server
+    ports:
+      - "${DISCOVERY_SERVER_PORT:-8761}:${DISCOVERY_SERVER_PORT:-8761}"
+    env_file:
+      - .env
+    depends_on:
+      config-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${DISCOVERY_SERVER_PORT}/actuator/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "dev.dozzle.group=Backend"
+    networks:
+      - daiphat-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.1
+    container_name: keycloak
+    command: start-dev --import-realm --health-enabled=true
+    env_file:
+      - .env
+    environment:
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres-db:5432/${KEYCLOAK_DB_NAME:-keycloak}
+      - KC_DB_USERNAME=${POSTGRES_USER:-postgres}
+      - KC_DB_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - KC_HEALTH_ENABLED=true
+      - KC_HOSTNAME_URL=https://${DOMAIN_NAME:-localhost}/kc
+      - KC_HOSTNAME_ADMIN_URL=https://${DOMAIN_NAME:-localhost}/kc
+      - KC_HOSTNAME_STRICT=false
+      - KC_HTTP_ENABLED=true
+      - KC_HTTP_RELATIVE_PATH=/kc
+      - KC_PROXY_HEADERS=xforwarded
+    volumes:
+      - ./daiphat-be/infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    ports:
+      - "${KEYCLOAK_PORT}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080; echo -e 'GET /kc/health/ready HTTP/1.1\\r\\nhost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep 'HTTP/1.1 200 OK' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: always
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    labels:
+      - "dev.dozzle.group=Backend"
+    networks:
+      - daiphat-network
+
+  account-service:
+    image: ghcr.io/kit365/daiphat-account-service:latest
+    container_name: account-service
+    ports:
+      - "${ACCOUNT_SERVICE_PORT:-8081}:${ACCOUNT_SERVICE_PORT:-8081}"
+    env_file:
+      - .env
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${ACCOUNT_SERVICE_PORT}/actuator/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    labels:
+      - "dev.dozzle.group=Backend"
+    networks:
+      - daiphat-network
+
+  api-gateway:
+    image: ghcr.io/kit365/daiphat-api-gateway:latest
+    container_name: api-gateway
+    ports:
+      - "${GATEWAY_PORT:-8080}:${GATEWAY_PORT:-8080}"
+    env_file:
+      - .env
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    depends_on:
+      config-server:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${GATEWAY_PORT}/actuator/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "dev.dozzle.group=Backend"
+    networks:
+      - daiphat-network
+
+  daiphat-fe:
+    image: ghcr.io/kit365/daiphat-fe:latest
+    container_name: daiphat-fe
+    restart: always
+    env_file:
+      - .env
+    labels:
+      - "dev.dozzle.group=Frontend"
+    networks:
+      - daiphat-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./daiphat-be/infra/nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template
+      - ./daiphat-be/infra/certbot/conf:/etc/letsencrypt
+      - ./daiphat-be/infra/certbot/www:/var/www/certbot
+    env_file:
+      - .env
+    depends_on:
+      - daiphat-fe
+    labels:
+      - "dev.dozzle.group=Frontend"
+    networks:
+      - daiphat-network
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./daiphat-be/infra/certbot/conf:/etc/letsencrypt
+      - ./daiphat-be/infra/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    labels:
+      - "dev.dozzle.group=Infrastructure"
+    networks:
+      - daiphat-network
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8881:8080"
+    environment:
+      - DOZZLE_BASE=/dozzle
+    restart: always
+    labels:
+      - "dev.dozzle.group=Infrastructure"
+    networks:
+      - daiphat-network
+
+networks:
+  daiphat-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+# Trigger Deploy: 2026-04-30 - Swagger Verification  
+ 
+ 
+ 
+ 
