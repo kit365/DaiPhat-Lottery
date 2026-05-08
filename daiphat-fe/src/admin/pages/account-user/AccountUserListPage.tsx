@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import Button from "@mui/material/Button";
 import AddIcon from '@mui/icons-material/Add';
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
@@ -5,9 +6,18 @@ import { Title } from "../../components/ui/Title";
 import { prefixAdmin } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { AccountUserList } from "./sections/AccountUserList";
+import AccountInviteModal from "./sections/AccountInviteModal";
+import { toast } from "react-toastify";
 
 export const AccountUserListPage = () => {
     const navigate = useNavigate();
+    const [openInvite, setOpenInvite] = useState(false);
+
+    const handleInvite = (data: any) => {
+        console.log('Invite customer data:', data);
+        // Sau này sẽ gọi API ở đây
+        toast.success(`Đã gửi lời mời đến khách hàng ${data.fullName || data.email}`);
+    };
 
     return (
         <>
@@ -23,15 +33,14 @@ export const AccountUserListPage = () => {
                     />
                 </div>
                 <Button
-                    onClick={() => navigate(`/${prefixAdmin}/account-user/create`)}
+                    onClick={() => setOpenInvite(true)}
                     sx={{
                         background: 'var(--palette-text-primary)',
-                        minHeight: "2.25rem",
-                        minWidth: "4rem",
+                        minHeight: "2.5rem",
+                        px: 3,
                         fontWeight: 700,
                         fontSize: "0.875rem",
-                        padding: "6px 12px",
-                        borderRadius: "var(--shape-borderRadius)",
+                        borderRadius: "12px",
                         textTransform: "none",
                         boxShadow: "none",
                         "&:hover": {
@@ -42,10 +51,17 @@ export const AccountUserListPage = () => {
                     variant="contained"
                     startIcon={<AddIcon />}
                 >
-                    Thêm tài khoản
+                    Mời khách hàng
                 </Button>
             </div>
+            
             <AccountUserList />
+
+            <AccountInviteModal 
+                open={openInvite}
+                onClose={() => setOpenInvite(false)}
+                onInvite={handleInvite}
+            />
         </>
     );
 };
