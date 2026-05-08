@@ -1,38 +1,43 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
 import { getAccounts, getAccountById, createAccount, updateAccount, deleteAccount, changeAccountPassword, getStaffByTicketService } from "../../../api/account-admin.api";
+import { getRoles } from "../../../api/role.api";
+import { QUERY_KEYS } from "../../../constants/queryKeys";
+import { ApiResponse, PageResponse, BaseQueryParams } from "../../../config/type";
+import { User } from "../../../../types/user.type";
 
-export const useAccounts = (params?: any) => {
+export const useAccounts = (params?: BaseQueryParams, options?: Partial<UseQueryOptions<ApiResponse<PageResponse<User>>>>) => {
     return useQuery({
-        queryKey: ["accounts-admin", params],
+        queryKey: [QUERY_KEYS.ACCOUNTS_ADMIN, params],
         queryFn: () => getAccounts(params),
-        // select: (res: any) => res.data?.recordList || [],
+        ...options
+    });
+};
+
+export const useRoles = () => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.ROLES],
+        queryFn: getRoles,
     });
 };
 
 export const useStaffByTicketService = (ticketServiceId?: string) => {
     return useQuery({
-        queryKey: ["staff-by-ticketService", ticketServiceId],
+        queryKey: [QUERY_KEYS.STAFF_BY_TICKET_SERVICE, ticketServiceId],
         queryFn: () => getStaffByTicketService(ticketServiceId!),
         enabled: !!ticketServiceId,
-        select: (res: any) => {
-            if (!res) return [];
-            const data = res as any;
-            if (Array.isArray(data.data?.recordList)) return data.data.recordList;
-            if (Array.isArray(data.recordList)) return data.recordList;
-            if (Array.isArray(data.data)) return data.data;
-            if (Array.isArray(data)) return data;
-            return [];
+        select: (res: ApiResponse<User[]>) => {
+            return res.data || [];
         },
     });
 };
 
 export const useAccountDetail = (id?: string) => {
     return useQuery({
-        queryKey: ["account-admin", id],
+        queryKey: [QUERY_KEYS.ACCOUNT_ADMIN_DETAIL, id],
         queryFn: () => getAccountById(id!),
         enabled: !!id,
-        select: (res: any) => res.data,
-        retry: false, // Don't spam 403 on profile if forbidden
+        select: (res: ApiResponse<User>) => res.data,
+        retry: false,
     });
 };
 
@@ -41,7 +46,7 @@ export const useCreateAccount = () => {
     return useMutation({
         mutationFn: (data: any) => createAccount(data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["accounts-admin"] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNTS_ADMIN] });
         },
     });
 };
@@ -51,8 +56,8 @@ export const useUpdateAccount = () => {
     return useMutation({
         mutationFn: ({ id, data }: { id: string; data: any }) => updateAccount(id, data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["accounts-admin"] });
-            queryClient.invalidateQueries({ queryKey: ["account-admin"] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNTS_ADMIN] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNT_ADMIN_DETAIL] });
         },
     });
 };
@@ -68,11 +73,7 @@ export const useDeleteAccount = () => {
     return useMutation({
         mutationFn: (id: string) => deleteAccount(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["accounts-admin"] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNTS_ADMIN] });
         },
     });
 };
-
-
-
-

@@ -16,6 +16,7 @@ import com.daiphat.accountservice.infrastructure.config.security.SecurityUser;
 import com.daiphat.accountservice.application.dto.request.user.ProfileSetupRequest;
 import jakarta.validation.Valid;
 
+import com.daiphat.accountservice.application.dto.response.base.PageResponse;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,7 +41,7 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('user:view') or #id.toString().equals(principal.id.toString())")
+    @PreAuthorize("hasAnyAuthority('member:view', 'admin:view') or #id.toString().equals(principal.id.toString())")
     @JsonView(Views.Admin.class)
     public ResponseEntity<ApiResponse<UserResponse>> getById(@PathVariable UUID id) {
         log.info("REST request to get user by id: {}", id);
@@ -50,7 +51,7 @@ public class UserController {
     }
 
     @GetMapping("/username/{username}")
-    @PreAuthorize("hasAuthority('user:view') or #username == principal.username")
+    @PreAuthorize("hasAnyAuthority('member:view', 'admin:view') or #username == principal.username")
     @JsonView(Views.Admin.class)
     public ResponseEntity<ApiResponse<UserResponse>> getByUsername(@PathVariable String username) {
         log.info("REST request to get user by username: {}", username);
@@ -60,12 +61,22 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('user:view')")
+    @PreAuthorize("hasAnyAuthority('member:view', 'admin:view')")
     @JsonView(Views.Admin.class)
-    public ResponseEntity<ApiResponse<List<UserResponse>>> getAll() {
-        log.info("REST request to get all users");
-        return ResponseEntity.ok(ApiResponse.<List<UserResponse>>builder()
-                .data(userServicePort.getAll())
+    public ResponseEntity<ApiResponse<Object>> getAll(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) List<String> roleIds,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
+        
+        log.info("REST request to get users - page: {}, limit: {}, query: {}, status: {}, roles: {}, sort: {} {}", 
+                page, limit, q, status, roleIds, sortBy, direction);
+                
+        return ResponseEntity.ok(ApiResponse.builder()
+                .data(userServicePort.getAll(page, limit, q, status, roleIds, sortBy, direction))
                 .build());
     }
 
@@ -89,6 +100,14 @@ public class UserController {
         userServicePort.delete(id);
         return ResponseEntity.ok(ApiResponse.<Void>builder()
                 .message("Đã xóa người dùng thành công.")
+                .build());
+    }
+
+    @GetMapping("/statuses")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<com.daiphat.accountservice.domain.model.enums.UserStatus>>> getStatuses() {
+        return ResponseEntity.ok(ApiResponse.<List<com.daiphat.accountservice.domain.model.enums.UserStatus>>builder()
+                .data(java.util.Arrays.asList(com.daiphat.accountservice.domain.model.enums.UserStatus.values()))
                 .build());
     }
 }

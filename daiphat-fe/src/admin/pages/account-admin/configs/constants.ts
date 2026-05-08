@@ -13,10 +13,27 @@ export const COLORS = {
     shadow: 'var(--customShadows-card)',
 };
 
+export enum RoleEnum {
+    ADMIN = 'ROLE_ADMIN',
+    MEMBER = 'ROLE_MEMBER',
+    STAFF_SHIPPER = 'ROLE_STAFF_SHIPPER',
+    STAFF_MANAGER = 'ROLE_STAFF_MANAGER'
+}
+
+export const STATUS_LABELS: Record<string, string> = {
+    'ACTIVE': 'Hoạt động',
+    'PENDING': 'Chờ xử lý',
+    'BANNED': 'Bị cấm',
+    'LOCKED': 'Bị khóa',
+    'DELETED': 'Đã xóa'
+};
+
 export const STATUS_OPTIONS = [
     { value: 'all', label: 'Tất cả' },
-    { value: 'active', label: 'Hoạt động' },
-    { value: 'inactive', label: 'Tạm dừng' },
+    { value: 'ACTIVE', label: 'Hoạt động' },
+    { value: 'PENDING', label: 'Chờ xử lý' },
+    { value: 'BANNED', label: 'Bị cấm' },
+    { value: 'LOCKED', label: 'Bị khóa' },
 ];
 
 

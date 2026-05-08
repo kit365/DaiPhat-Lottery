@@ -46,6 +46,16 @@ public enum AppPermission {
     MEMBER_DELETE(PermissionConstants.USER + PermissionConstants.DELETE, 
             "Thành viên", "Xóa thành viên", "Quyền xóa tài khoản khách hàng", 897),
     
+    // MODULE: PHÂN QUYỀN (RBAC)
+    ROLE_VIEW(PermissionConstants.ROLE + PermissionConstants.VIEW, 
+            "Phân quyền", "Xem nhóm quyền", "Quyền xem danh sách các vai trò và quyền hạn", 850),
+    ROLE_CREATE(PermissionConstants.ROLE + PermissionConstants.CREATE, 
+            "Phân quyền", "Tạo nhóm quyền", "Quyền tạo thêm vai trò mới", 849),
+    ROLE_EDIT(PermissionConstants.ROLE + PermissionConstants.EDIT, 
+            "Phân quyền", "Sửa nhóm quyền", "Quyền cập nhật quyền hạn cho vai trò", 848),
+    ROLE_DELETE(PermissionConstants.ROLE + PermissionConstants.DELETE, 
+            "Phân quyền", "Xóa nhóm quyền", "Quyền xóa vai trò khỏi hệ thống", 847),
+
     // MODULE: NỘI DUNG
     ARTICLE_VIEW(PermissionConstants.ARTICLE + PermissionConstants.VIEW, 
             "Quản lý Nội dung", "Xem danh sách bài viết", "Quyền đọc nội dung các bài chuẩn bị xuất bản", 800),
