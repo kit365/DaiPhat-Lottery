@@ -12,6 +12,8 @@ public interface UserServicePort {
     UserResponse getByUsername(String username);
     UserResponse getMyProfile(String username);
     List<UserResponse> getAll();
+    com.daiphat.accountservice.application.dto.response.base.PageResponse<UserResponse> getAll(
+            int page, int size, String search, String status, java.util.List<String> roleIds, String sortBy, String direction);
     void delete(UUID id);
 
     // Internal Use

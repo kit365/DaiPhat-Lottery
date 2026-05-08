@@ -1,19 +1,36 @@
 import { Role } from "./role.type.ts";
 
+export enum UserStatus {
+    ACTIVE = "ACTIVE",
+    PENDING = "PENDING",
+    LOCKED = "LOCKED",
+    BANNED = "BANNED",
+    DELETED = "DELETED"
+}
+
 export interface User {
     id: string;
-    firstName: string;
-    lastName: string;
-    fullName?: string;
     username: string;
     email: string;
-    avatar?: string;
-    avatarUrl?: string; // From BE
+    firstName: string;
+    lastName: string;
+    fullName?: string; // FE mapped
+    phone?: string;
+    avatarUrl?: string;
+    avatar?: string; // FE mapped
+    role?: Role;
+    rolesName?: string[]; // FE mapped
     permissions?: string[];
-    roles?: Role[];
-    phone?: string; // Standard FE
-    totalPoint?: number;
-    usedPoint?: number;
+    status: UserStatus | string;
     hasPassword?: boolean;
     agreedToTerms?: boolean;
+    emailVerified?: boolean;
+    twoFactorEnabled?: boolean;
+    zodiac?: string;
+    fortune?: string;
+    age?: number;
+    failedLoginAttempts?: number;
+    lockedUntil?: string;
+    createdAt?: string;
+    updatedAt?: string;
 }

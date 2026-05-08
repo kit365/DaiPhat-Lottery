@@ -1,61 +1,78 @@
 import { apiApp } from "../../api";
+import { ApiResponse, PageResponse, BaseQueryParams } from "../config/type";
+import { User } from "../../types/user.type";
 
 const BASE_URL = "/users";
 
-export const getAccounts = async (params?: any) => {
+export const getAccounts = async (params?: BaseQueryParams): Promise<ApiResponse<PageResponse<User>>> => {
     const response = await apiApp.get(BASE_URL, { params });
-    // Nếu BE trả về list trực tiếp, ta map lại cho đúng cấu trúc FE mong đợi
-    const users = response.data?.data || response.data || [];
+    const result = response.data?.data;
+    
+    // Map records to match FE expectations (fullName, rolesName, avatar)
+    const recordList = (result?.recordList || []).map((user: User) => ({
+        ...user,
+        fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
+        rolesName: user.role ? [user.role.name] : [],
+        avatar: user.avatarUrl
+    }));
+
+    const statusCounts = result?.statusCounts || {};
+    
     return {
         success: true,
+        message: response.data?.message || "",
+        timestamp: response.data?.timestamp || new Date().toISOString(),
         data: {
-            recordList: users,
-            pagination: {
-                totalRecords: users.length,
+            recordList,
+            pagination: result?.pagination || {
+                totalRecords: recordList.length,
                 totalPages: 1,
                 currentPage: params?.page || 1,
                 limit: params?.limit || 10
             },
             statusCounts: {
-                all: users.length,
-                active: users.filter((u: any) => u.status === 'active').length,
-                inactive: users.filter((u: any) => u.status === 'inactive').length,
+                all: result?.pagination?.totalRecords || recordList.length,
+                ACTIVE: statusCounts.ACTIVE || statusCounts.active || 0,
+                INACTIVE: statusCounts.INACTIVE || statusCounts.inactive || 0,
+                PENDING: statusCounts.PENDING || statusCounts.pending || 0,
+                BANNED: statusCounts.BANNED || statusCounts.banned || 0,
+                LOCKED: statusCounts.LOCKED || statusCounts.locked || 0,
             }
         }
     };
 };
 
-export const getStaffByTicketService = async (ticketServiceId: string) => {
-    // Tạm thời BE chưa có endpoint này, ta gọi chung list users hoặc xử lý sau nếu sếp cần
+export const getStaffByTicketService = async (ticketServiceId: string): Promise<ApiResponse<User[]>> => {
     const response = await apiApp.get(BASE_URL, { params: { ticketServiceId } });
     return response.data;
 };
 
-export const getAccountById = async (id: string) => {
+export const getAccountById = async (id: string): Promise<ApiResponse<User>> => {
     const response = await apiApp.get(`${BASE_URL}/${id}`);
     return {
         success: true,
+        message: response.data?.message || "",
+        timestamp: response.data?.timestamp || new Date().toISOString(),
         data: response.data?.data || response.data
     };
 };
 
-export const createAccount = async (data: any) => {
+export const createAccount = async (data: any): Promise<ApiResponse<User>> => {
     const response = await apiApp.post(BASE_URL, data);
     return response.data;
 };
 
-export const updateAccount = async (id: string, data: any) => {
+export const updateAccount = async (id: string, data: any): Promise<ApiResponse<User>> => {
     const response = await apiApp.patch(`${BASE_URL}/${id}`, data);
     return response.data;
 };
 
-export const changeAccountPassword = async (id: string, data: any) => {
-    // Giả định backend có endpoint change-password cho user
+export const changeAccountPassword = async (id: string, data: any): Promise<ApiResponse<void>> => {
     const response = await apiApp.patch(`${BASE_URL}/change-password/${id}`, data);
     return response.data;
 };
 
-export const deleteAccount = async (id: string) => {
+export const deleteAccount = async (id: string): Promise<ApiResponse<void>> => {
     const response = await apiApp.delete(`${BASE_URL}/${id}`);
     return response.data;
 };

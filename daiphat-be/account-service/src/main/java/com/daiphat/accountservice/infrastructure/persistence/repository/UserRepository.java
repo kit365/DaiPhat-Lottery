@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface UserRepository extends JpaRepository<UserEntity, UUID> {
+public interface UserRepository extends JpaRepository<UserEntity, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<UserEntity> {
     Optional<UserEntity> findByUsernameOrEmail(String username, String email);
     
     Optional<UserEntity> findByUsername(String username);

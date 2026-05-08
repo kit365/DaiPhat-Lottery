@@ -18,6 +18,12 @@ public interface UserRepositoryPort {
     Optional<UserModel> findByEmail(String email);
 
     List<UserModel> findAll();
+    
+    org.springframework.data.domain.Page<UserModel> findAll(
+            org.springframework.data.domain.Pageable pageable, 
+            String search, 
+            com.daiphat.accountservice.domain.model.enums.UserStatus status, 
+            java.util.List<String> roleIds);
 
     boolean existsById(UUID id);
 

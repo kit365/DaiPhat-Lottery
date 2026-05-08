@@ -21,6 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import com.daiphat.accountservice.application.dto.response.base.PageResponse;
+import com.daiphat.accountservice.domain.model.enums.UserStatus;
 
 /**
  * User Application Service - Central coordinator for user profile and account operations.
@@ -83,6 +87,44 @@ public class UserService implements UserServicePort {
         return userRepositoryPort.findAll().stream()
                 .map(userApplicationMapper::mapToUserResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<UserResponse> getAll(int page, int size, String search, String status, List<String> roleIds, String sortBy, String direction) {
+        UserStatus userStatus = null;
+        if (status != null && !status.isBlank() && !"all".equalsIgnoreCase(status)) {
+            try {
+                userStatus = UserStatus.valueOf(status.toUpperCase());
+            } catch (Exception e) {
+                log.warn("Invalid status filter: {}", status);
+            }
+        }
+
+        org.springframework.data.domain.Sort sort = direction.equalsIgnoreCase("asc") 
+                ? org.springframework.data.domain.Sort.by(sortBy).ascending() 
+                : org.springframework.data.domain.Sort.by(sortBy).descending();
+
+        Page<UserModel> userPage = userRepositoryPort.findAll(
+                PageRequest.of(page - 1, size, sort),
+                search,
+                userStatus,
+                roleIds
+        );
+
+        List<UserResponse> recordList = userPage.getContent().stream()
+                .map(userApplicationMapper::mapToUserResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.<UserResponse>builder()
+                .recordList(recordList)
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(userPage.getTotalElements())
+                        .totalPages(userPage.getTotalPages())
+                        .currentPage(page)
+                        .limit(size)
+                        .build())
+                .build();
     }
 
     @Override

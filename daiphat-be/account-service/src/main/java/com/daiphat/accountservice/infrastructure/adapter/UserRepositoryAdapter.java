@@ -12,6 +12,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.daiphat.accountservice.domain.model.enums.UserStatus;
 
 @Component
 @RequiredArgsConstructor
@@ -56,6 +59,12 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
         return userRepository.findAll().stream()
                 .map(userPersistenceMapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<UserModel> findAll(Pageable pageable, String search, UserStatus status, List<String> roleIds) {
+        return userRepository.findAll(com.daiphat.accountservice.infrastructure.persistence.specification.UserSpecification.filterUsers(search, status, roleIds), pageable)
+                .map(userPersistenceMapper::toDomain);
     }
 
     @Override
