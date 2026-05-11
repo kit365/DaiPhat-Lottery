@@ -3,7 +3,7 @@ import Button from "@mui/material/Button";
 import AddIcon from '@mui/icons-material/Add';
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
-import { prefixAdmin } from "../../constants/routes";
+import { prefixAdmin, ROUTES } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { AccountUserList } from "./sections/AccountUserList";
 import AccountInviteModal from "./sections/AccountInviteModal";
@@ -33,7 +33,7 @@ export const AccountUserListPage = () => {
                     />
                 </div>
                 <Button
-                    onClick={() => setOpenInvite(true)}
+                    onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.USER.CREATE)}
                     sx={{
                         background: 'var(--palette-text-primary)',
                         minHeight: "2.5rem",
@@ -51,11 +51,11 @@ export const AccountUserListPage = () => {
                     variant="contained"
                     startIcon={<AddIcon />}
                 >
-                    Mời khách hàng
+                    Tạo tài khoản
                 </Button>
             </div>
             
-            <AccountUserList />
+            <AccountUserList onInvite={() => setOpenInvite(true)} />
 
             <AccountInviteModal 
                 open={openInvite}

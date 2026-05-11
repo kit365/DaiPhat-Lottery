@@ -28,8 +28,10 @@ export const STATUS_LABELS: Record<string, string> = {
     'DELETED': 'Đã xóa'
 };
 
+import { FILTER_ALL } from "../../../constants/sort";
+
 export const STATUS_OPTIONS = [
-    { value: 'all', label: 'Tất cả' },
+    { value: FILTER_ALL, label: 'Tất cả' },
     { value: 'ACTIVE', label: 'Hoạt động' },
     { value: 'PENDING', label: 'Chờ xử lý' },
     { value: 'BANNED', label: 'Bị cấm' },

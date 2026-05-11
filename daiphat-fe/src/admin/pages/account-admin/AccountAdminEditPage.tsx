@@ -46,7 +46,6 @@ export const AccountAdminEditPage = () => {
             email: "",
             phone: "",
             roles: [],
-            status: "active",
             avatar: "",
         },
     });
@@ -59,8 +58,7 @@ export const AccountAdminEditPage = () => {
                 fullName: account.fullName,
                 email: account.email,
                 phone: account.phone || "",
-                roles: account.roles?.map((r: any) => typeof r === 'string' ? r : r._id) || [],
-                status: account.status,
+                roles: account.roles?.map((r: any) => typeof r === 'string' ? r : r.code) || [],
                 avatar: account.avatar || "",
             });
         }
@@ -291,14 +289,14 @@ export const AccountAdminEditPage = () => {
                                                 renderValue: (selected: any) => {
                                                     const selectedArray = Array.isArray(selected) ? selected : [selected];
                                                     return roles
-                                                        .filter((r: any) => selectedArray.includes(r._id))
+                                                        .filter((r: any) => selectedArray.includes(r.code))
                                                         .map((r: any) => r.name)
                                                         .join(', ');
                                                 }
                                             }}
                                         >
                                             {roles.map((role: any) => (
-                                                <MenuItem key={role._id} value={role._id} sx={{ fontSize: '0.875rem' }}>
+                                                <MenuItem key={role.code} value={role.code} sx={{ fontSize: '0.875rem' }}>
                                                     {role.name}
                                                 </MenuItem>
                                             ))}
@@ -306,21 +304,6 @@ export const AccountAdminEditPage = () => {
                                     )}
                                 />
 
-                                <Controller
-                                    name="status"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <TextField
-                                            {...field}
-                                            label="Trạng thái"
-                                            select
-                                            fullWidth
-                                        >
-                                            <MenuItem value="active" sx={{ fontSize: '0.875rem' }}>Hoạt động</MenuItem>
-                                            <MenuItem value="inactive" sx={{ fontSize: '0.875rem' }}>Tạm dừng</MenuItem>
-                                        </TextField>
-                                    )}
-                                />
                             </Box>
 
                             <Stack direction="row" justifyContent="flex-end" sx={{ mt: 3 }}>

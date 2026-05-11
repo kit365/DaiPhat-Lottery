@@ -4,10 +4,13 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.time.Duration;
 
+import org.springframework.beans.factory.annotation.Value;
+
 @Data
 @ConfigurationProperties(prefix = "daiphat.auth")
 public class AuthProperties {
-    private String frontendUrl = "http://localhost:3000";
+    @Value("${FRONTEND_URL:http://localhost:5173}")
+    private String frontendUrl;
     private VerificationPaths verificationPaths = new VerificationPaths();
     private Lockout lockout = new Lockout();
     private Cache cache = new Cache();
@@ -19,8 +22,9 @@ public class AuthProperties {
 
     @Data
     public static class VerificationPaths {
-        private String clientPath = "/verify-email?token=";
+        private String clientPath = "/?verify_token=";
         private String adminPath = "/admin/verify-email?token=";
+        private String loginPath = "/?auth=login";
     }
  
     @Data
@@ -33,14 +37,14 @@ public class AuthProperties {
  
     @Data
     public static class PasswordPolicy {
-        private int minLength = 8;
-        private int maxLength = 128;
+        private int minLength = 6;
+        private int maxLength = 100;
         private boolean requireUppercase = true;
-        private boolean requireLowercase = true;
-        private boolean requireDigit = true;
-        private boolean requireSpecial = true;
+        private boolean requireLowercase = false;
+        private boolean requireDigit = false;
+        private boolean requireSpecial = false;
         private boolean noSpace = true;
-        private String pattern = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,128}$";
+        private String pattern = "^[A-Z][^\\s]{5,99}$";
     }
 
     @Data

@@ -58,7 +58,7 @@ export const useForgotPassword = () => {
             queryKey: ["password-policy"],
             queryFn: async () => {
                 const res = await authService.getPasswordPolicy();
-                // res là AuthApiResponse<PasswordPolicy>
+                // res là ApiResponse<PasswordPolicy>
                 if (res.isSuccess || res.success) return res.data;
                 throw new Error(res.message || "Gánh thất bại khi lấy quy tắc mật khẩu");
             },
