@@ -36,4 +36,6 @@ public interface UserRepositoryPort {
     void deleteById(UUID id);
 
     void updateUserId(UUID oldId, UUID newId);
+    
+    long deleteInactiveUsers(com.daiphat.accountservice.domain.model.enums.UserStatus status, java.time.LocalDateTime before);
 }

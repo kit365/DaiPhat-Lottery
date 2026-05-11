@@ -32,4 +32,8 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID>, org.spr
     @Query(value = "UPDATE users SET id = :newId WHERE id = :oldId", nativeQuery = true)
     @Transactional
     void updateUserId(@Param("oldId") UUID oldId, @Param("newId") UUID newId);
+
+    @Modifying
+    @Transactional
+    long deleteByStatusAndCreatedAtBefore(String status, java.time.LocalDateTime before);
 }

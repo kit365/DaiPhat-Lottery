@@ -20,7 +20,7 @@ export const getColumnsConfig = (
 ): GridColDef[] => [
         {
             field: 'fullName',
-            headerName: 'Nhân viên',
+            headerName: 'Quản trị viên',
             minWidth: 280,
             flex: 1.5,
             renderCell: (params: GridRenderCellParams) => (

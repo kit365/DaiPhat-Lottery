@@ -19,13 +19,29 @@ public class UserSpecification {
 
             if (search != null && !search.isBlank()) {
                 String likePattern = "%" + search.toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get(UserEntity_.username)), likePattern),
-                        cb.like(cb.lower(root.get(UserEntity_.email)), likePattern),
-                        cb.like(cb.lower(root.get(UserEntity_.firstName)), likePattern),
-                        cb.like(cb.lower(root.get(UserEntity_.lastName)), likePattern),
-                        cb.like(cb.lower(root.get(UserEntity_.phone)), likePattern)
-                ));
+                List<Predicate> searchPredicates = new ArrayList<>();
+                
+                // Existing fields
+                searchPredicates.add(cb.like(cb.lower(root.get(UserEntity_.username)), likePattern));
+                searchPredicates.add(cb.like(cb.lower(root.get(UserEntity_.email)), likePattern));
+                searchPredicates.add(cb.like(cb.lower(root.get(UserEntity_.phone)), likePattern));
+                searchPredicates.add(cb.like(cb.lower(root.get(UserEntity_.firstName)), likePattern));
+                searchPredicates.add(cb.like(cb.lower(root.get(UserEntity_.lastName)), likePattern));
+
+                // Support searching by combined Full Name (firstName + " " + lastName)
+                searchPredicates.add(cb.like(cb.lower(
+                        cb.concat(cb.concat(root.get(UserEntity_.firstName), " "), root.get(UserEntity_.lastName))
+                ), likePattern));
+
+                // Support searching by exact ID if search string is a valid UUID
+                try {
+                    UUID id = UUID.fromString(search.trim());
+                    searchPredicates.add(cb.equal(root.get(UserEntity_.id), id));
+                } catch (IllegalArgumentException e) {
+                    // Not a UUID, skip adding ID predicate
+                }
+
+                predicates.add(cb.or(searchPredicates.toArray(new Predicate[0])));
             }
 
             if (status != null) {

@@ -96,4 +96,9 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     public void updateUserId(UUID oldId, UUID newId) {
         userRepository.updateUserId(oldId, newId);
     }
+
+    @Override
+    public long deleteInactiveUsers(UserStatus status, java.time.LocalDateTime before) {
+        return userRepository.deleteByStatusAndCreatedAtBefore(status.getCode(), before);
+    }
 }

@@ -9,8 +9,9 @@ export const getUsers = async (params?: BaseQueryParams): Promise<ApiResponse<Pa
     const result = response.data?.data;
     
     // Map records to match FE expectations (fullName, avatar)
-    const recordList = (result?.recordList || []).map((user: User) => ({
+    const recordList = (result?.recordList || []).map((user: any) => ({
         ...user,
+        phone: user.phoneNumber || user.phone,
         fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email,
         avatar: user.avatarUrl || user.avatar
     }));
@@ -50,6 +51,7 @@ export const getUserById = async (id: string): Promise<ApiResponse<User>> => {
         timestamp: response.data?.timestamp || new Date().toISOString(),
         data: {
             ...user,
+            phone: user.phoneNumber || user.phone,
             fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email,
             avatar: user.avatarUrl || user.avatar
         }
@@ -67,7 +69,17 @@ export const updateUser = async (id: string, data: any): Promise<ApiResponse<Use
 };
 
 export const changeUserPassword = async (id: string, data: any): Promise<ApiResponse<void>> => {
-    const response = await apiApp.patch(`${BASE_URL}/change-password/${id}`, data);
+    const response = await apiApp.patch(`${BASE_URL}/${id}/change-password`, data);
+    return response.data;
+};
+
+export const initiateResetPassword = async (id: string): Promise<ApiResponse<void>> => {
+    const response = await apiApp.post(`/auth/${id}/reset-password/initiate`);
+    return response.data;
+};
+
+export const confirmResetPassword = async (id: string, otp: string, phoneNumber?: string): Promise<ApiResponse<void>> => {
+    const response = await apiApp.post(`/auth/${id}/reset-password/confirm`, { otp, phoneNumber });
     return response.data;
 };
 

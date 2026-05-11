@@ -45,7 +45,6 @@ export const AccountUserEditPage = () => {
             fullName: "",
             email: "",
             phone: "",
-            status: "active",
             avatar: "",
         },
     });
@@ -58,7 +57,6 @@ export const AccountUserEditPage = () => {
                 fullName: user.fullName,
                 email: user.email,
                 phone: user.phone || "",
-                status: user.status,
                 avatar: user.avatar || "",
             });
         }
@@ -274,21 +272,7 @@ export const AccountUserEditPage = () => {
                                     )}
                                 />
 
-                                <Controller
-                                    name="status"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <TextField
-                                            {...field}
-                                            label="Trạng thái"
-                                            select
-                                            fullWidth
-                                        >
-                                            <MenuItem value="active" sx={{ fontSize: '0.875rem' }}>Hoạt động</MenuItem>
-                                            <MenuItem value="inactive" sx={{ fontSize: '0.875rem' }}>Tạm dừng</MenuItem>
-                                        </TextField>
-                                    )}
-                                />
+
                             </Box>
 
                             <Stack direction="row" justifyContent="flex-end" sx={{ mt: 3 }}>

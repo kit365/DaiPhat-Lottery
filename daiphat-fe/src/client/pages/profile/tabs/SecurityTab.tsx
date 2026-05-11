@@ -32,6 +32,21 @@ export const SecurityTab = () => {
         fetchPolicy();
     }, []);
 
+    const checkAllMet = () => {
+        if (!passwordPolicy) return true;
+        const pwd = newPassword || "";
+        const { minLength, maxLength, requirements } = passwordPolicy;
+
+        const isLengthMet = pwd.length >= minLength && (!maxLength || pwd.length <= maxLength);
+        const isReqsMet = requirements
+            .filter(req => req.regex)
+            .every(req => new RegExp(req.regex!).test(pwd));
+
+        return isLengthMet && isReqsMet;
+    };
+
+    const isPasswordValid = checkAllMet();
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
@@ -122,28 +137,13 @@ export const SecurityTab = () => {
                         </button>
                     </div>
 
-                    {isNewPasswordFocused && newPassword.length > 0 && (
-                        <div className="mt-3 p-4 bg-slate-50 rounded-xl border border-slate-100 transition-all">
-                            <PasswordStrengthMeter password={newPassword} />
-                            
-                            {passwordPolicy && (
-                                <ul className="mt-4 space-y-2">
-                                    {passwordPolicy.requirements.map((req) => {
-                                        const isMet = new RegExp(req.regex).test(newPassword);
-                                        return (
-                                            <li key={req.id} className="flex items-center gap-2 text-[13px]">
-                                                <CheckCircle2 
-                                                    size={14} 
-                                                    className={`transition-colors ${isMet ? 'text-emerald-500' : 'text-slate-300'}`} 
-                                                />
-                                                <span className={`${isMet ? 'text-slate-600' : 'text-slate-500'}`}>
-                                                    {req.description}
-                                                </span>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
+                    {isNewPasswordFocused && passwordPolicy && (
+                        <div className="mt-3">
+                            <PasswordStrengthMeter 
+                                password={newPassword} 
+                                policy={passwordPolicy} 
+                                isFocused={isNewPasswordFocused}
+                            />
                         </div>
                     )}
                 </div>
@@ -175,7 +175,7 @@ export const SecurityTab = () => {
                 <div className="pt-4">
                     <button 
                         type="submit" 
-                        disabled={isSubmitting || !currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
+                        disabled={isSubmitting || !currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword || !isPasswordValid}
                         className="h-12 px-8 bg-[#FF6262] text-white font-bold rounded-xl shadow-lg shadow-[#FF6262]/26 transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                         {isSubmitting ? "Đang cập nhật..." : "Cập nhật mật khẩu"}

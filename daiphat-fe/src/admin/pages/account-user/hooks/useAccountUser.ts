@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
-import { getUsers, getUserById, createUser, updateUser, deleteUser, changeUserPassword, getStatuses } from "../../../api/account-user.api";
+import { getUsers, getUserById, createUser, updateUser, deleteUser, changeUserPassword, getStatuses, initiateResetPassword, confirmResetPassword } from "../../../api/account-user.api";
 import { QUERY_KEYS } from "../../../constants/queryKeys";
 import { ApiResponse, PageResponse, BaseQueryParams } from "../../../config/type";
 import { User } from "../../../../types/user.type";
@@ -53,6 +53,18 @@ export const useUpdateUser = () => {
 export const useChangeUserPassword = () => {
     return useMutation({
         mutationFn: ({ id, data }: { id: string; data: any }) => changeUserPassword(id, data),
+    });
+};
+
+export const useInitiateResetPassword = () => {
+    return useMutation({
+        mutationFn: (id: string) => initiateResetPassword(id),
+    });
+};
+
+export const useConfirmResetPassword = () => {
+    return useMutation({
+        mutationFn: ({ id, otp, phoneNumber }: { id: string; otp: string; phoneNumber?: string }) => confirmResetPassword(id, otp, phoneNumber),
     });
 };
 

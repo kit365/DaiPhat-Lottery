@@ -33,6 +33,7 @@ import { User } from '../../../../types/user.type';
 import { ExportImport } from '../../../components/ui/ExportImport';
 import { confirmDelete } from "../../../utils/swal";
 import FilterListIcon from '@mui/icons-material/FilterList';
+import AccountResetPasswordModal from './AccountResetPasswordModal';
 
 // Styled component cho con số (Badge nhãn)
 const TabBadge = styled('span')(() => ({
@@ -58,6 +59,8 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
     const [sortBy, setSortBy] = useState('createdAt');
     const [direction, setDirection] = useState('desc');
     const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+    const [selectedUser, setSelectedUser] = useState<{ id: string; fullName: string; email: string } | null>(null);
+    const [openResetModal, setOpenResetModal] = useState(false);
 
     // Fetch dynamic statuses
     const { data: dynamicStatuses } = useUserStatuses();
@@ -121,7 +124,15 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
     };
 
     const handleChangePassword = (id: string) => {
-        navigate(`${ROUTES.ADMIN.ACCOUNTS.USER.CHANGE_PASSWORD}/${id}`);
+        const user = users.find(u => (u.id || u._id) === id);
+        if (user) {
+            setSelectedUser({ 
+                id: (user.id || user._id)!, 
+                fullName: user.fullName || user.username || "", 
+                email: user.email 
+            });
+            setOpenResetModal(true);
+        }
     };
 
     const columns = useMemo(() => getColumnsConfig(handleEdit, handleDelete, handleChangePassword, handleViewDetail), []);
@@ -390,6 +401,12 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
                     }}
                 />
             </Box>
+
+            <AccountResetPasswordModal
+                open={openResetModal}
+                onClose={() => setOpenResetModal(false)}
+                user={selectedUser}
+            />
         </Card>
     );
 };

@@ -23,7 +23,7 @@ interface AccountInviteModalProps {
 }
 
 const ROLE_OPTIONS = [
-    { value: 'STAFF', label: 'Nhân viên' },
+    { value: 'STAFF', label: 'Quản trị viên' },
     { value: 'MANAGER', label: 'Quản lý' },
     { value: 'ADMIN', label: 'Quản trị viên' },
 ];
@@ -75,7 +75,7 @@ const AccountInviteModal: React.FC<AccountInviteModalProps> = ({ open, onClose, 
                     }}>
                         <PersonAddIcon />
                     </Box>
-                    <Typography variant="h6" sx={{ fontWeight: 700 }}>Mời nhân viên mới</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>Mời quản trị viên mới</Typography>
                 </Stack>
                 <IconButton
                     aria-label="close"
@@ -90,7 +90,7 @@ const AccountInviteModal: React.FC<AccountInviteModalProps> = ({ open, onClose, 
 
             <DialogContent>
                 <Typography variant="body2" sx={{ mb: 3, color: 'var(--palette-text-secondary)' }}>
-                    Lời mời kèm theo hướng dẫn tạo mật khẩu sẽ được gửi đến email của nhân viên.
+                    Lời mời kèm theo hướng dẫn tạo mật khẩu sẽ được gửi đến email của quản trị viên.
                 </Typography>
 
                 <Stack spacing={2.5}>

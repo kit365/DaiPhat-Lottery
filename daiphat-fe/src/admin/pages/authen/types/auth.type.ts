@@ -1,14 +1,7 @@
 import { User } from "../../../../types/user.type";
+import { ApiResponse } from "../../../../types/api.type";
 
-export interface AuthApiResponse<T> {
-    code: string;
-    isSuccess: boolean;
-    success?: boolean; // Optional, mapping to backend field if exists
-    message: string;
-    data?: T;
-}
-
-export interface LoginResponse extends AuthApiResponse<{
+export interface LoginResponse extends ApiResponse<{
     access_token: string;
     expires_in?: number;
     token_type?: string;
@@ -16,7 +9,7 @@ export interface LoginResponse extends AuthApiResponse<{
     user: User;
 }> {}
 
-export interface GetMeResponse extends AuthApiResponse<User> {}
+export interface GetMeResponse extends ApiResponse<User> {}
 
 export interface PasswordRequirement {
     id: string;
@@ -30,13 +23,13 @@ export interface PasswordPolicy {
     maxLength: number;
 }
 
-export interface PasswordPolicyResponse extends AuthApiResponse<PasswordPolicy> {}
+export interface PasswordPolicyResponse extends ApiResponse<PasswordPolicy> {}
 
 export interface ForgotPasswordRequest {
     email: string;
 }
 
-export interface ForgotPasswordResponse extends AuthApiResponse<{
+export interface ForgotPasswordResponse extends ApiResponse<{
     email: string;
     expiresIn: number;
     retryAfter: number;
@@ -47,7 +40,7 @@ export interface VerifyOtpRequest {
     otp: string;
 }
 
-export interface VerifyOtpResponse extends AuthApiResponse<{
+export interface VerifyOtpResponse extends ApiResponse<{
     resetToken: string;
 }> {}
 
@@ -57,7 +50,17 @@ export interface ResetPasswordRequest {
     confirmPassword: string;
 }
 
-export interface RegisterResponse extends AuthApiResponse<User> {}
-export interface LogoutResponse extends AuthApiResponse<void> {}
-export interface VerifyEmailResponse extends AuthApiResponse<any> {}
-export interface SetupProfileResponse extends AuthApiResponse<User | any> {}
+export interface RegisterResponse extends ApiResponse<User> {}
+export interface LogoutResponse extends ApiResponse<void> {}
+export interface VerifyEmailResponse extends ApiResponse<any> {}
+export interface SetupProfileResponse extends ApiResponse<User | any> {}
+
+export interface RegisterRequest {
+    username: string;
+    email: string;
+    password?: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    agreedToTerms: boolean;
+}
