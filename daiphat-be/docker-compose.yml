@@ -4,19 +4,21 @@ services:
     image: pgvector/pgvector:pg16
     container_name: daiphat-postgres
     restart: always
+    env_file:
+      - ../.env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-sa}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-12345}
-      POSTGRES_DB: ${POSTGRES_DB:-daiphat_account_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-daiphat}
       LANG: en_US.utf8
       LC_ALL: en_US.utf8
     volumes:
       - ./infra/postgres:/docker-entrypoint-initdb.d
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U sa -d ${POSTGRES_DB:-daiphat_account_db}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,7 +30,7 @@ services:
     container_name: daiphat-redis
     restart: always
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     networks:
       - daiphat-network
 
@@ -36,44 +38,24 @@ services:
     image: quay.io/keycloak/keycloak:26.1
     container_name: daiphat-keycloak
     restart: always
+    env_file:
+      - ../.env
     environment:
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres-db:5432/${KEYCLOAK_DB_NAME:-daiphat_keycloak_db}
-      KC_DB_USERNAME: ${POSTGRES_USER:-sa}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-12345}
+      KC_DB_URL: jdbc:postgresql://postgres-db:5432/${KEYCLOAK_DB_NAME:-keycloak}
+      KC_DB_USERNAME: ${POSTGRES_USER:-postgres}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       KC_HOSTNAME_STRICT: "false"
       KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_HTTP_ENABLED: "true"
       KC_HTTP_RELATIVE_PATH: "/"
       KC_BOOTSTRAP_ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      ADMIN_USERNAME: ${ADMIN_USERNAME}
-      ADMIN_EMAIL: ${ADMIN_EMAIL}
-      ADMIN_FIRST_NAME: ${ADMIN_FIRST_NAME}
-      ADMIN_LAST_NAME: ${ADMIN_LAST_NAME}
-      KEYCLOAK_USER_PASSWORD: ${KEYCLOAK_USER_PASSWORD}
-      USER_USERNAME: ${USER_USERNAME}
-      USER_EMAIL: ${USER_EMAIL}
-      USER_FIRST_NAME: ${USER_FIRST_NAME}
-      USER_LAST_NAME: ${USER_LAST_NAME}
-      KEYCLOAK_SHIPPER_PASSWORD: ${KEYCLOAK_SHIPPER_PASSWORD}
-      SHIPPER_USERNAME: ${SHIPPER_USERNAME}
-      SHIPPER_EMAIL: ${SHIPPER_EMAIL}
-      SHIPPER_FIRST_NAME: ${SHIPPER_FIRST_NAME}
-      SHIPPER_LAST_NAME: ${SHIPPER_LAST_NAME}
-      KEYCLOAK_MANAGER_PASSWORD: ${KEYCLOAK_MANAGER_PASSWORD}
-      MANAGER_USERNAME: ${MANAGER_USERNAME}
-      MANAGER_EMAIL: ${MANAGER_EMAIL}
-      MANAGER_FIRST_NAME: ${MANAGER_FIRST_NAME}
-      MANAGER_LAST_NAME: ${MANAGER_LAST_NAME}
     volumes:
       - ./infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
     command: start-dev --import-realm --features=token-exchange
     ports:
-      - "8180:8080"
+      - "${KEYCLOAK_PORT:-8180}:8080"
     depends_on:
       postgres-db:
         condition: service_healthy
@@ -84,11 +66,13 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: daiphat-rabbitmq
     restart: always
+    env_file:
+      - ../.env
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
     ports:
-      - "5672:5672"
+      - "${RABBITMQ_PORT:-5672}:5672"
       - "15672:15672"
     networks:
       - daiphat-network

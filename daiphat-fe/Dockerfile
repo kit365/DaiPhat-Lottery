@@ -6,14 +6,15 @@ WORKDIR /app
 # Copy package files để cache layer node_modules
 COPY package*.json ./
 
-# Cài đặt dependencies (dùng --frozen-lockfile hoặc tương đương để đảm bảo ổn định)
-RUN npm install
+# Cài đặt dependencies (dùng npm ci để đảm bảo build ổn định và đúng version lock)
+RUN npm ci
 
 # Copy toàn bộ code FE
 COPY . .
 
-# Thực hiện build ra folder dist (Bỏ qua tsc check để build nhanh)
-RUN npx vite build
+# Dùng Docker Build Secret để nạp biến môi trường vào lúc build (không lưu file .env vào image)
+RUN --mount=type=secret,id=env_file \
+    sh -c 'set -a && . /run/secrets/env_file && set +a && npx vite build'
 
 # --- Giai đoạn 2: Serve bằng Nginx ---
 FROM public.ecr.aws/docker/library/nginx:stable-alpine AS production-stage

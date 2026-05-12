@@ -68,7 +68,7 @@
         "implicitFlowEnabled": false,
         "directAccessGrantsEnabled": false,
         "serviceAccountsEnabled": true,
-        "secret": "daiphat-be-secret",
+        "secret": "${KEYCLOAK_ADMIN_CLIENT_SECRET}",
         "attributes": {
           "access.token.lifespan": "86400"
         }
@@ -77,15 +77,15 @@
     "users": [
       {
         "id": "0e44453a-1c44-445c-aedf-49d5eecf8a5d",
-        "username": "${env.ADMIN_USERNAME:admin}",
+        "username": "${ADMIN_USERNAME}",
         "enabled": true,
-        "email": "${env.ADMIN_EMAIL:admin@daiphat.com}",
-        "firstName": "${env.ADMIN_FIRST_NAME:Admin}",
-        "lastName": "${env.ADMIN_LAST_NAME:DaiPhat}",
+        "email": "${ADMIN_EMAIL}",
+        "firstName": "${ADMIN_FIRST_NAME}",
+        "lastName": "${ADMIN_LAST_NAME}",
         "credentials": [
           {
             "type": "password",
-            "value": "${env.KEYCLOAK_ADMIN_PASSWORD:admin}",
+            "value": "${KEYCLOAK_ADMIN_PASSWORD}",
             "temporary": false
           }
         ],
@@ -96,15 +96,15 @@
       },
       {
         "id": "400fb13d-1ee8-40b3-920c-6ff52a0dd4ad",
-        "username": "${env.USER_USERNAME:user}",
+        "username": "${USER_USERNAME}",
         "enabled": true,
-        "email": "${env.USER_EMAIL:user@daiphat.com}",
-        "firstName": "${env.USER_FIRST_NAME:User}",
-        "lastName": "${env.USER_LAST_NAME:DaiPhat}",
+        "email": "${USER_EMAIL}",
+        "firstName": "${USER_FIRST_NAME}",
+        "lastName": "${USER_LAST_NAME}",
         "credentials": [
           {
             "type": "password",
-            "value": "${env.KEYCLOAK_USER_PASSWORD:user}",
+            "value": "${KEYCLOAK_USER_PASSWORD}",
             "temporary": false
           }
         ],
@@ -114,15 +114,15 @@
       },
       {
         "id": "6e44453a-1c44-445c-aedf-49d5eecf8a5d",
-        "username": "${env.SHIPPER_USERNAME:shipper}",
+        "username": "${SHIPPER_USERNAME}",
         "enabled": true,
-        "email": "${env.SHIPPER_EMAIL:shipper@daiphat.com}",
-        "firstName": "${env.SHIPPER_FIRST_NAME:Shipper}",
-        "lastName": "${env.SHIPPER_LAST_NAME:DaiPhat}",
+        "email": "${SHIPPER_EMAIL}",
+        "firstName": "${SHIPPER_FIRST_NAME}",
+        "lastName": "${SHIPPER_LAST_NAME}",
         "credentials": [
           {
             "type": "password",
-            "value": "${env.KEYCLOAK_SHIPPER_PASSWORD:shipper}",
+            "value": "${KEYCLOAK_SHIPPER_PASSWORD}",
             "temporary": false
           }
         ],
@@ -132,15 +132,15 @@
       },
       {
         "id": "7e44453a-1c44-445c-aedf-49d5eecf8a5d",
-        "username": "${env.MANAGER_USERNAME:manager}",
+        "username": "${MANAGER_USERNAME}",
         "enabled": true,
-        "email": "${env.MANAGER_EMAIL:manager@daiphat.com}",
-        "firstName": "${env.MANAGER_FIRST_NAME:Manager}",
-        "lastName": "${env.MANAGER_LAST_NAME:DaiPhat}",
+        "email": "${MANAGER_EMAIL}",
+        "firstName": "${MANAGER_FIRST_NAME}",
+        "lastName": "${MANAGER_LAST_NAME}",
         "credentials": [
           {
             "type": "password",
-            "value": "${env.KEYCLOAK_MANAGER_PASSWORD:manager}",
+            "value": "${KEYCLOAK_MANAGER_PASSWORD}",
             "temporary": false
           }
         ],
