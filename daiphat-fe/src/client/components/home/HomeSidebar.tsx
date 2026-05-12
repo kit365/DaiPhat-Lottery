@@ -22,7 +22,7 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, data, histor
   return (
     <aside className="w-full lg:w-[380px] space-y-4">
       {/* Smaller Promo Banner - Always Visible */}
-      <div className="relative overflow-hidden rounded-[20px] bg-[#E60F14] p-5 shadow-[0_10px_25px_rgba(230,15,20,0.15)] group cursor-pointer transition-all hover:scale-[1.01] flex items-center min-h-[140px]">
+      <div className="relative overflow-hidden rounded-[20px] bg-[#BA0000] p-5 shadow-[0_10px_25px_rgba(230,15,20,0.15)] group cursor-pointer transition-all hover:scale-[1.01] flex items-center min-h-[140px]">
         <div className="relative z-10 space-y-4 max-w-[65%]">
           <div className="space-y-1">
             <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest font-client-display">Mua vé số online</p>
@@ -46,7 +46,7 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, data, histor
             alt="Lucky Girl" 
             className="w-full h-full object-cover object-[82%_center] transition-transform group-hover:scale-105 duration-700 opacity-90"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#E60F14] via-[#E60F14]/60 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-[#BA0000] via-[#BA0000]/60 to-transparent"></div>
         </div>
       </div>
 

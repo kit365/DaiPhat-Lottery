@@ -83,7 +83,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               className={`
                 w-full text-left px-4 py-2.5 rounded-xl text-[14px] font-bold transition-all cursor-pointer
                 ${isActive 
-                  ? 'bg-white text-[#E60F14] shadow-sm' 
+                  ? 'bg-white text-[#BA0000] shadow-sm' 
                   : 'text-slate-500 hover:bg-white hover:text-[#102937]'
                 }
               `}
@@ -135,20 +135,20 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 className={`
                   relative aspect-square rounded-xl flex flex-col items-center justify-center text-[14px] font-bold transition-all group cursor-pointer
                   ${isSelected 
-                    ? 'bg-[#E60F14] text-white shadow-lg shadow-red-100 scale-105 z-10' 
-                    : 'text-[#102937] hover:bg-[#FFF5F5] hover:text-[#E60F14]'
+                    ? 'bg-[#BA0000] text-white shadow-lg shadow-red-100 scale-105 z-10' 
+                    : 'text-[#102937] hover:bg-[#FFF5F5] hover:text-[#BA0000]'
                   }
-                  ${isToday && !isSelected ? 'border border-[#E60F14]/30' : ''}
+                  ${isToday && !isSelected ? 'border border-[#BA0000]/30' : ''}
                 `}
               >
                 <span>{date.date()}</span>
                 {hasResult && (
-                  <span className={`absolute bottom-2 w-1 h-1 rounded-full ${isSelected ? 'bg-white/60' : 'bg-[#E60F14]'}`}></span>
+                  <span className={`absolute bottom-2 w-1 h-1 rounded-full ${isSelected ? 'bg-white/60' : 'bg-[#BA0000]'}`}></span>
                 )}
                 
                 {/* Tooltip-like effect on hover */}
                 {!isSelected && isToday && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#E60F14] rounded-full border-2 border-white"></span>
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#BA0000] rounded-full border-2 border-white"></span>
                 )}
               </button>
             );
