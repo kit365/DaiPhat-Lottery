@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { DatePickerModal } from './DatePickerModal';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 interface LeftSidebarProps {
   activeProvince: string;
@@ -38,72 +39,68 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
       {/* Date Picker Button - Premium Integration */}
       <button 
         onClick={() => setIsDatePickerOpen(true)}
-        className="w-full bg-[#FAFBFC] hover:bg-white border border-slate-200 text-[#102937] py-4 px-6 rounded-2xl font-bold flex items-center justify-between shadow-sm transition-all active:scale-[0.98] group cursor-pointer"
+        className="w-full bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.04)] border border-gray-100 flex items-center justify-between px-5 py-4 transition-all active:scale-[0.98] group cursor-pointer hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
       >
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-[20px] text-[#E60F14] group-hover:rotate-12 transition-transform">calendar_month</span>
-          <span className="text-[14px] uppercase tracking-tighter font-client-display">CHỌN NGÀY KHÁC</span>
+        <div className="flex items-center gap-2.5">
+          <span className="material-symbols-outlined text-[20px] text-[#BA0000]">calendar_month</span>
+          <span className="text-[16px] font-bold text-[#333333]">Chọn ngày khác</span>
         </div>
-        <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-[#E60F14] transition-colors">chevron_right</span>
+        <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-[#BA0000] transition-colors">chevron_right</span>
       </button>
 
       {/* Main Province Filter Card */}
       <div className="bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
         {/* Card Header */}
-        <div className="px-5 py-4 flex items-center gap-3 border-b border-gray-50">
-          <span className="material-symbols-outlined text-[#E60F14] text-[22px] font-bold">location_on</span>
-          <h3 className="text-[16px] font-bold text-[#17191F] font-client-display">Chọn tỉnh thành</h3>
+        <div className="px-5 py-4 flex items-center gap-2.5 border-b border-gray-100">
+          <div className="w-6 h-6 rounded-full bg-[#BA0000] flex items-center justify-center shadow-sm">
+            <LocationOnIcon sx={{ fontSize: 16, color: 'white' }} />
+          </div>
+          <h3 className="text-[16px] font-bold text-[#333333]">Chọn tỉnh thành</h3>
         </div>
 
         {/* Region Accordion */}
-        <div className="p-1">
+        <div className="p-0">
           <button 
             onClick={() => setIsMienNamOpen(!isMienNamOpen)}
-            className="w-full flex items-center justify-between px-3 py-3 text-[#17191F] font-bold text-[15px] hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between px-5 py-4 text-[#333333] font-bold text-[15px] hover:bg-slate-50 transition-colors cursor-pointer border-b border-gray-50"
           >
             <span>Miền Nam</span>
-            <span className={`material-symbols-outlined text-[20px] transition-transform duration-300 ${isMienNamOpen ? 'rotate-180' : ''}`}>
-              expand_more
+            <span className={`material-symbols-outlined text-[20px] text-slate-400 transition-transform duration-300 ${isMienNamOpen ? 'rotate-180' : ''}`}>
+              expand_less
             </span>
           </button>
 
           {/* Province List Area */}
-          <div className={`transition-all duration-300 overflow-hidden ${isMienNamOpen ? 'max-h-[500px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+          <div className={`transition-all duration-300 overflow-hidden ${isMienNamOpen ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
             
-            {/* Minimal Search Box */}
-            <div className="px-2 mb-2">
-              <div className="relative flex items-center">
-                <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[18px]">search</span>
-                <input 
-                  type="text" 
-                  placeholder="Tìm tỉnh..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-100 text-[13px] rounded-lg pl-9 pr-3 py-2 outline-none focus:border-[#FFB800]/50 focus:bg-white transition-all text-[#102937] placeholder:text-slate-400"
-                />
-              </div>
-            </div>
-
             {/* Scrollable List */}
-            <div className="space-y-0.5 px-1 pb-2 overflow-y-auto max-h-[350px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+            <div className="pb-2 overflow-y-auto max-h-[600px] no-scrollbar">
               {filteredProvinces.map((province) => {
                 const isActive = activeProvince === province;
                 return (
                   <button
                     key={province}
                     onClick={() => setActiveProvince(province)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer relative overflow-hidden group font-client-main ${
+                    className={`w-full flex items-center justify-between px-4 py-2.5 transition-all cursor-pointer relative group font-client-main ${
                       isActive 
-                        ? 'text-[#E60F14] font-bold' 
-                        : 'text-[#555555] hover:text-[#E60F14]'
+                        ? 'bg-[#FCE5DF] text-[#BA0000] font-semibold' 
+                        : 'text-[#444444] hover:bg-[#FCE5DF] hover:text-[#BA0000]'
                     }`}
                   >
-                    {/* Active Indicator Bar - Sharp like the header */}
-                    {isActive && (
-                      <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[#E60F14]"></div>
-                    )}
+                    {/* Active/Hover Indicator Bar - Thick and Sharp */}
+                    <div className={`absolute left-0 top-0 bottom-0 w-[5px] bg-[#BA0000] transition-opacity duration-200 ${
+                      isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}></div>
                     
-                    <span className="text-[14px] pl-1">{province}</span>
+                    <span className="text-[14px] leading-relaxed transition-all pl-2 font-medium">
+                      {province}
+                    </span>
+
+                    {isActive && (
+                      <span className="material-symbols-outlined text-[18px] text-[#FFB800]" style={{ fontVariationSettings: '"FILL" 1' }}>
+                        star
+                      </span>
+                    )}
                   </button>
                 );
               })}

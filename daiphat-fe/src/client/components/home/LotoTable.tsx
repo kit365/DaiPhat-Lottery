@@ -21,7 +21,7 @@ export const LotoTable: React.FC<LotoTableProps> = ({ prizes, selectedDigit, hov
       return (
         <React.Fragment key={idx}>
           <span className="font-bold font-client-main">{digit}</span>
-          {power && <sup className="text-[10px] text-[#E60F14] font-bold ml-0.5 font-client-main">{power}</sup>}
+          {power && <sup className="text-[10px] text-[#BA0000] font-bold ml-0.5 font-client-main">{power}</sup>}
           {idx < array.length - 1 && <span className="text-slate-300 mx-1">,</span>}
         </React.Fragment>
       );
@@ -35,7 +35,7 @@ export const LotoTable: React.FC<LotoTableProps> = ({ prizes, selectedDigit, hov
           <thead>
             <tr className="bg-slate-50 border-b border-gray-100">
               <th className="py-2.5 px-1 text-[11px] font-bold text-[#555555] uppercase border-r border-gray-100 w-[40%] text-center font-client-main">Chục</th>
-              <th className="py-2.5 px-1 text-[11px] font-bold text-[#C62828] uppercase border-r border-gray-100 w-[20%] text-center font-client-main">Số</th>
+              <th className="py-2.5 px-1 text-[11px] font-bold text-[#BA0000] uppercase border-r border-gray-100 w-[20%] text-center font-client-main">Số</th>
               <th className="py-2.5 px-1 text-[11px] font-bold text-[#555555] uppercase w-[40%] text-center font-client-main">Đơn vị</th>
             </tr>
           </thead>
@@ -64,7 +64,7 @@ export const LotoTable: React.FC<LotoTableProps> = ({ prizes, selectedDigit, hov
                     className={`py-1 px-1 text-center border-r cursor-pointer transition-colors ${isActive ? 'border-[#FDE047] font-bold' : 'border-gray-100 bg-[#FAFAFA] hover:bg-slate-100'}`}
                     onClick={() => onDigitClick?.(row.head)}
                   >
-                    <span className={`text-[#E60F14] text-[17px] font-bold leading-none font-client-main transition-colors inline-flex items-center justify-center min-w-[24px] h-[24px] rounded-md ${isActive ? 'bg-white shadow-sm' : ''}`}>
+                    <span className={`text-[#BA0000] text-[17px] font-bold leading-none font-client-main transition-colors inline-flex items-center justify-center min-w-[24px] h-[24px] rounded-md ${isActive ? 'bg-white shadow-sm' : ''}`}>
                       {row.head}
                     </span>
                   </td>
