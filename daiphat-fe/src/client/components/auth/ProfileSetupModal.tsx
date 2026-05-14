@@ -11,25 +11,13 @@ import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
 
-const setupSchema = z.object({
-    password: z.string()
-        .min(6, "Mật khẩu phải có ít nhất 6 ký tự")
-        .refine(val => /^\S*$/.test(val), "Mật khẩu không được chứa khoảng trắng"),
-    confirmPassword: z.string().min(1, "Vui lòng nhập lại mật khẩu"),
-    phoneNumber: z.string().optional().refine(val => {
-        if (!val) return true;
-        return /^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(val);
-    }, "Số điện thoại không đúng định dạng"),
-    agreedToTerms: z.boolean().refine(val => val === true, "Bạn phải đồng ý với điều khoản sử dụng")
-}).refine((data) => {
-    if (!data.password) return true;
-    return data.password === data.confirmPassword;
-}, {
-    message: "Mật khẩu nhập lại không khớp",
-    path: ["confirmPassword"],
-});
-
-type SetupFormData = z.infer<typeof setupSchema>;
+// Type for form data
+type SetupFormData = {
+    password: string;
+    confirmPassword: string;
+    phoneNumber?: string;
+    agreedToTerms: boolean;
+};
 
 export const ProfileSetupModal: React.FC = () => {
     const { user, set, isProfileSetupModalOpen, closeAuthModals } = useAuthStore();
@@ -42,16 +30,60 @@ export const ProfileSetupModal: React.FC = () => {
     const { usePasswordPolicy } = useForgotPassword();
     const { data: passwordPolicy } = usePasswordPolicy();
 
-    const { register, handleSubmit, watch, formState: { errors } } = useForm<SetupFormData>({
+    // Create dynamic schema based on backend policy
+    const setupSchema = React.useMemo(() => {
+        return z.object({
+            password: z.string()
+                .min(passwordPolicy?.minLength || 6, `Mật khẩu phải có ít nhất ${passwordPolicy?.minLength || 6} ký tự`)
+                .max(passwordPolicy?.maxLength || 100, `Mật khẩu tối đa ${passwordPolicy?.maxLength || 100} ký tự`)
+                .refine(val => /^\S*$/.test(val), "Mật khẩu không được chứa khoảng trắng")
+                .superRefine((val, ctx) => {
+                    if (passwordPolicy?.requirements) {
+                        passwordPolicy.requirements.forEach(req => {
+                            if (req.regex && !new RegExp(req.regex).test(val)) {
+                                ctx.addIssue({
+                                    code: z.ZodIssueCode.custom,
+                                    message: req.description,
+                                });
+                            }
+                        });
+                    }
+                }),
+            confirmPassword: z.string().min(1, "Vui lòng nhập lại mật khẩu"),
+            phoneNumber: z.string().optional().refine(val => {
+                if (!val) return true;
+                return /^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(val);
+            }, "Số điện thoại không đúng định dạng"),
+            agreedToTerms: z.boolean().refine(val => val === true, "Bạn phải đồng ý với điều khoản sử dụng")
+        }).refine((data) => {
+            if (!data.password && !data.confirmPassword) return true;
+            return data.password === data.confirmPassword;
+        }, {
+            message: "Mật khẩu nhập lại không khớp",
+            path: ["confirmPassword"],
+        });
+    }, [passwordPolicy]);
+
+    const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<SetupFormData>({
         resolver: zodResolver(setupSchema),
         defaultValues: {
-            agreedToTerms: user?.agreedToTerms || false,
-            phoneNumber: user?.phone || (user as any)?.phoneNumber || ""
+            agreedToTerms: !!user?.agreedToTerms,
+            phoneNumber: user?.phone || user?.phoneNumber || ""
         }
     });
 
+    // Sync form with user data when it loads
+    React.useEffect(() => {
+        if (user && isProfileSetupModalOpen) {
+            reset({
+                agreedToTerms: !!user.agreedToTerms,
+                phoneNumber: user.phone || user.phoneNumber || ""
+            });
+        }
+    }, [user, isProfileSetupModalOpen, reset]);
+
     const passwordValue = watch("password");
-    const isEditingPassword = passwordValue && passwordValue.length > 0;
+    const isEditingPassword = !!(passwordValue && passwordValue.length > 0);
 
     const onSubmit = async (data: SetupFormData) => {
         setIsSubmitting(true);
@@ -125,7 +157,13 @@ export const ProfileSetupModal: React.FC = () => {
 
                     {/* Form container to allow scrolling of form fields on very small screens */}
                     <div className="overflow-y-auto flex-1 scrollbar-hide">
-                        <form onSubmit={handleSubmit(onSubmit)} className="px-6 sm:px-8 pb-10 space-y-4 sm:space-y-5">
+                        <form 
+                            onSubmit={handleSubmit(
+                                onSubmit, 
+                                (err) => console.error("Validation Errors:", err)
+                            )} 
+                            className="px-6 sm:px-8 pb-10 space-y-4 sm:space-y-5"
+                        >
                         {/* Phone Number - Only show if not exists */}
                         {!(user?.phone || (user as any)?.phoneNumber) && (
                             <div className="flex flex-col gap-1.5 focus-within:z-10">
