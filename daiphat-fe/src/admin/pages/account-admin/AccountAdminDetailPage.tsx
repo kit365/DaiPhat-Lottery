@@ -90,7 +90,7 @@ export const AccountAdminDetailPage = () => {
                 fullName: account.fullName,
                 email: account.email,
                 phone: account.phone || "",
-                roles: account.roles?.map((r: any) => typeof r === 'string' ? r : r._id) || [],
+                roles: account.roles?.map((r: any) => typeof r === 'string' ? r : r.code) || [],
                 status: account.status,
                 avatar: account.avatar || "",
             });
@@ -392,14 +392,14 @@ export const AccountAdminDetailPage = () => {
                                                     renderValue: (selected: any) => {
                                                         const selectedArray = Array.isArray(selected) ? selected : [selected];
                                                         return roles
-                                                            .filter((r: any) => selectedArray.includes(r._id))
+                                                            .filter((r: any) => selectedArray.includes(r.code))
                                                             .map((r: any) => r.name)
                                                             .join(', ');
                                                     }
                                                 }}
                                             >
                                                 {roles.map((role: any) => (
-                                                    <MenuItem key={role._id} value={role._id} sx={{ fontSize: '0.875rem' }}>
+                                                    <MenuItem key={role.code} value={role.code} sx={{ fontSize: '0.875rem' }}>
                                                         {role.name}
                                                     </MenuItem>
                                                 ))}
@@ -442,7 +442,7 @@ export const AccountAdminDetailPage = () => {
                 <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", overflow: 'hidden' }}>
                     <Box sx={{ p: 3, borderBottom: '1px dashed var(--palette-divider)' }}>
                         <Typography variant="h6">Lịch sử dịch vụ</Typography>
-                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Toàn bộ đơn dịch vụ nhân viên được phân công</Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Toàn bộ đơn dịch vụ quản trị viên được phân công</Typography>
                     </Box>
                     <StaffTicketServiceOrderHistory staffId={id} />
                 </Card>
@@ -452,7 +452,7 @@ export const AccountAdminDetailPage = () => {
                 <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", overflow: 'hidden' }}>
                     <Box sx={{ p: 3, borderBottom: '1px dashed var(--palette-divider)' }}>
                         <Typography variant="h6">Lịch sử boarding</Typography>
-                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Toàn bộ đơn lưu trú nhân viên được phân công</Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Toàn bộ đơn lưu trú quản trị viên được phân công</Typography>
                     </Box>
                     <StaffBoardingHistory staffId={id} />
                 </Card>

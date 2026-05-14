@@ -12,6 +12,7 @@ import { LoginResponse } from "../types/auth.type";
 import { LoginFormValues } from "../../../schemas/login.schema";
 import Cookies from "js-cookie";
 import { STORAGE_KEYS } from "../../../../constants/storage.constants";
+import { QUERY_KEYS } from "../../../constants/queryKeys";
 
 export const useAuth = () => {
     const navigate = useNavigate();
@@ -20,7 +21,7 @@ export const useAuth = () => {
     const { token, user, set, login: loginStore, logout } = useAuthStore();
 
     const getMeQuery = useQuery({
-        queryKey: ["admin-me", token],
+        queryKey: [QUERY_KEYS.AUTH_ME, token],
         queryFn: userService.getMe,
         enabled: !!token,
         retry: false,
@@ -73,7 +74,7 @@ export const useAuth = () => {
                     loginStore(userInfo as User, access_token, response.data.expires_in);
 
                     // 2. Seed React Query Cache to prevent redundant getMe call
-                    queryClient.setQueryData(["admin-me", access_token], {
+                    queryClient.setQueryData([QUERY_KEYS.AUTH_ME, access_token], {
                         code: "SUCCESS",
                         isSuccess: true,
                         message: "Success",
@@ -91,7 +92,10 @@ export const useAuth = () => {
                     }
 
                     const roleCode = userInfo.roles?.[0]?.code || "";
-                    if (roleCode === USER_ROLES.ADMIN) {
+                    if (!userInfo.hasPassword) {
+                        toast.info("Vui lòng thiết lập mật khẩu cho lần đăng nhập đầu tiên.");
+                        navigate(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
+                    } else if (roleCode === USER_ROLES.ADMIN) {
                         toast.success("Chào mừng Quản trị viên!");
                         navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                     } else {

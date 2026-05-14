@@ -221,7 +221,7 @@ export const StaffBoardingHistory = ({ staffId }: StaffBoardingHistoryProps) => 
         return (
             <Box sx={{ p: 5, textAlign: "center", color: "var(--palette-text-disabled)" }}>
                 <Icon icon="solar:home-2-bold" width={40} style={{ marginBottom: 8, opacity: 0.4 }} />
-                <Typography variant="body2">Nhân viên chưa có lịch boarding nào.</Typography>
+                <Typography variant="body2">Quản trị viên chưa có lịch boarding nào.</Typography>
             </Box>
         );
     }
