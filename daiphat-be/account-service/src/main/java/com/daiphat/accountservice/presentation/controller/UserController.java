@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.daiphat.accountservice.infrastructure.config.security.SecurityUser;
 import com.daiphat.accountservice.application.dto.request.user.CreateUserRequest;
+import com.daiphat.accountservice.application.dto.request.user.UpdateUserRequest;
 import com.daiphat.accountservice.application.dto.request.user.ProfileSetupRequest;
 import com.daiphat.accountservice.application.dto.request.user.OtpConfirmationRequest;
 import com.daiphat.accountservice.infrastructure.util.SearchConstants;
@@ -42,6 +43,16 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.<UserResponse>builder()
                 .data(userServicePort.create(request))
                 .message(message)
+                .build());
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('admin:edit', 'member:edit') or #id.toString().equals(principal.id.toString())")
+    @JsonView(Views.Admin.class)
+    public ResponseEntity<ApiResponse<UserResponse>> update(@PathVariable UUID id, @Valid @RequestBody UpdateUserRequest request) {
+        return ResponseEntity.ok(ApiResponse.<UserResponse>builder()
+                .data(userServicePort.update(id, request))
+                .message("Cập nhật người dùng thành công.")
                 .build());
     }
 

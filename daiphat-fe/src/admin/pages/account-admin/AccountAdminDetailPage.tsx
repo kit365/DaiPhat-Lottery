@@ -15,6 +15,7 @@ import {
     InputAdornment,
     IconButton
 } from "@mui/material";
+import { UserStatus } from "../../../types/user.type";
 import Grid from "@mui/material/Grid";
 import { Icon } from "@iconify/react";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
@@ -69,7 +70,7 @@ export const AccountAdminDetailPage = () => {
             email: "",
             phone: "",
             roles: [],
-            status: "active",
+            status: UserStatus.ACTIVE,
             avatar: "",
         },
     });
@@ -255,10 +256,10 @@ export const AccountAdminDetailPage = () => {
                             <Card sx={{ p: '80px 24px', textAlign: 'center', borderRadius: "var(--shape-borderRadius-lg)", position: 'relative', boxShadow: "var(--customShadows-card)" }}>
                                 <Box sx={{ position: 'absolute', top: 24, right: 24 }}>
                                     <Chip
-                                        label={account?.status === 'active' ? 'Hoạt động' : 'Tạm dừng'}
+                                        label={account?.status === UserStatus.ACTIVE ? 'Hoạt động' : 'Tạm dừng'}
                                         sx={{
-                                            bgcolor: account?.status === 'active' ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255, 171, 0, 0.16)',
-                                            color: account?.status === 'active' ? 'rgb(17, 141, 87)' : 'rgb(183, 110, 0)',
+                                            bgcolor: account?.status === UserStatus.ACTIVE ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255, 171, 0, 0.16)',
+                                            color: account?.status === UserStatus.ACTIVE ? 'rgb(17, 141, 87)' : 'rgb(183, 110, 0)',
                                             borderRadius: "var(--shape-borderRadius-sm)",
                                             fontWeight: 700,
                                             fontSize: '0.75rem',
@@ -417,8 +418,9 @@ export const AccountAdminDetailPage = () => {
                                                 select
                                                 fullWidth
                                             >
-                                                <MenuItem value="active" sx={{ fontSize: '0.875rem' }}>Hoạt động</MenuItem>
-                                                <MenuItem value="inactive" sx={{ fontSize: '0.875rem' }}>Tạm dừng</MenuItem>
+                                                <MenuItem value={UserStatus.ACTIVE} sx={{ fontSize: '0.875rem' }}>Hoạt động</MenuItem>
+                                                <MenuItem value={UserStatus.LOCKED} sx={{ fontSize: '0.875rem' }}>Tạm dừng</MenuItem>
+                                                <MenuItem value={UserStatus.BANNED} sx={{ fontSize: '0.875rem' }}>Bị cấm</MenuItem>
                                             </TextField>
                                         )}
                                     />
