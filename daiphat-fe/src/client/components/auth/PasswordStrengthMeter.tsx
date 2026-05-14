@@ -11,28 +11,18 @@ interface Props {
 export const PasswordStrengthMeter: React.FC<Props> = ({ password = "", policy, isFocused }) => {
   const { requirements, minLength, maxLength } = policy;
 
-  const items = [
-    {
-      id: "min-length",
-      description: `Ít nhất ${minLength || 8} ký tự`,
-      isMet: password.length >= (minLength || 8),
-    },
-    ...(requirements || [])
-      .filter((req) => !req.description.toLowerCase().includes("ký tự")) // Avoid redundant length rules
-      .map((req) => ({
-        id: req.id,
-        description: req.description,
-        isMet: req.regex ? new RegExp(req.regex).test(password) : false,
-      })),
-  ];
+  const items = (requirements || []).map((req) => {
+    let isMet = false;
+    if (req.id === 'min_length') isMet = password.length >= (minLength || 6);
+    else if (req.id === 'max_length') isMet = password.length <= (maxLength || 100) && password.length > 0;
+    else isMet = req.regex ? new RegExp(req.regex).test(password) : false;
 
-  if (maxLength) {
-    items.push({
-      id: 'max-length',
-      description: `Tối đa ${maxLength} ký tự`,
-      isMet: password.length <= maxLength && password.length > 0
-    });
-  }
+    return {
+      id: req.id,
+      description: req.description,
+      isMet
+    };
+  });
 
   const metCount = items.filter(i => i.isMet).length;
   const totalCount = items.length;

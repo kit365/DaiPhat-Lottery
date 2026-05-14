@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 import { User } from "../../types/user.type";
 import { STORAGE_KEYS } from "../../constants/storage.constants";
 import Cookies from "js-cookie";
+import { RegisterRequest, RegisterResponse } from "../../admin/pages/authen/types/auth.type";
 
 export const useClientLogin = () => {
     const { token, user, set, login: loginStore } = useAuthStore();
@@ -65,12 +66,12 @@ export const useClientLogin = () => {
 
 export const useClientRegister = () => {
     const { closeAuthModals } = useAuthStore();
-    return useMutation({
-        mutationFn: (data: any) => authService.register(data),
-        onSuccess: (response: any) => {
+    return useMutation<RegisterResponse, Error, RegisterRequest>({
+        mutationFn: (data: RegisterRequest) => authService.register(data),
+        onSuccess: (response: RegisterResponse) => {
             const isSuccess = response.isSuccess || response.code === "SUCCESS";
             if (isSuccess) {
-                toast.success("Đăng ký thành công! Vui lòng đăng nhập.");
+                toast.success("Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.");
                 closeAuthModals();
             } else {
                 toast.error(response.message || "Đăng ký thất bại.");

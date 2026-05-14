@@ -16,11 +16,11 @@ export const registerSchema = z
     phone: z.string()
       .min(10, "Số điện thoại tối thiểu 10 số")
       .regex(/^0(3[2-9]|7[06-9]|8[1-9]|9[0-46-9]|5[2689])[0-9]{7}$/, "Số điện thoại không hợp lệ hoặc không thuộc nhà mạng hỗ trợ"),
-    password: z
-      .string()
-      .min(8, "Mật khẩu tối thiểu 8 ký tự")
-      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,128}$/, 
-        "Mật khẩu phải chứa chữ hoa, chữ thường, số và ký tự đặc biệt"),
+    password: z.string()
+        .min(6, "Mật khẩu phải có ít nhất 6 ký tự")
+        .max(100, "Mật khẩu không được quá 100 ký tự")
+        .regex(/^[A-Z]/, "Mật khẩu phải bắt đầu bằng chữ viết hoa")
+        .regex(/^\S*$/, "Mật khẩu không được chứa khoảng trắng"),
     confirmPassword: z.string().min(1, "Vui lòng nhập lại mật khẩu"),
     agreedToTerms: z.boolean().refine(val => val === true, "Bạn phải đồng ý với điều khoản sử dụng")
   })

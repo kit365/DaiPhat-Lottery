@@ -11,23 +11,13 @@ import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
 
-const setupSchema = z.object({
-    password: z.string()
-        .optional()
-        .refine(val => !val || val.length >= 6, "Mật khẩu phải có ít nhất 6 ký tự")
-        .refine(val => !val || /^\S*$/.test(val), "Mật khẩu không được chứa khoảng trắng"),
-    confirmPassword: z.string().optional().or(z.literal("")),
-    phoneNumber: z.string().regex(/^(0|\+84)[3|5|7|8|9][0-9]{8}$/, "Số điện thoại không đúng định dạng"),
-    agreedToTerms: z.boolean().refine(val => val === true, "Bạn phải đồng ý với điều khoản sử dụng")
-}).refine((data) => {
-    if (!data.password) return true;
-    return data.password === data.confirmPassword;
-}, {
-    message: "Mật khẩu nhập lại không khớp",
-    path: ["confirmPassword"],
-});
-
-type SetupFormData = z.infer<typeof setupSchema>;
+// Type for form data
+type SetupFormData = {
+    password: string;
+    confirmPassword: string;
+    phoneNumber?: string;
+    agreedToTerms: boolean;
+};
 
 export const ProfileSetupModal: React.FC = () => {
     const { user, set, isProfileSetupModalOpen, closeAuthModals } = useAuthStore();
@@ -40,16 +30,60 @@ export const ProfileSetupModal: React.FC = () => {
     const { usePasswordPolicy } = useForgotPassword();
     const { data: passwordPolicy } = usePasswordPolicy();
 
-    const { register, handleSubmit, watch, formState: { errors } } = useForm<SetupFormData>({
+    // Create dynamic schema based on backend policy
+    const setupSchema = React.useMemo(() => {
+        return z.object({
+            password: z.string()
+                .min(passwordPolicy?.minLength || 6, `Mật khẩu phải có ít nhất ${passwordPolicy?.minLength || 6} ký tự`)
+                .max(passwordPolicy?.maxLength || 100, `Mật khẩu tối đa ${passwordPolicy?.maxLength || 100} ký tự`)
+                .refine(val => /^\S*$/.test(val), "Mật khẩu không được chứa khoảng trắng")
+                .superRefine((val, ctx) => {
+                    if (passwordPolicy?.requirements) {
+                        passwordPolicy.requirements.forEach(req => {
+                            if (req.regex && !new RegExp(req.regex).test(val)) {
+                                ctx.addIssue({
+                                    code: z.ZodIssueCode.custom,
+                                    message: req.description,
+                                });
+                            }
+                        });
+                    }
+                }),
+            confirmPassword: z.string().min(1, "Vui lòng nhập lại mật khẩu"),
+            phoneNumber: z.string().optional().refine(val => {
+                if (!val) return true;
+                return /^(0|\+84)[3|5|7|8|9][0-9]{8}$/.test(val);
+            }, "Số điện thoại không đúng định dạng"),
+            agreedToTerms: z.boolean().refine(val => val === true, "Bạn phải đồng ý với điều khoản sử dụng")
+        }).refine((data) => {
+            if (!data.password && !data.confirmPassword) return true;
+            return data.password === data.confirmPassword;
+        }, {
+            message: "Mật khẩu nhập lại không khớp",
+            path: ["confirmPassword"],
+        });
+    }, [passwordPolicy]);
+
+    const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<SetupFormData>({
         resolver: zodResolver(setupSchema),
         defaultValues: {
-            agreedToTerms: false,
-            phoneNumber: ""
+            agreedToTerms: !!user?.agreedToTerms,
+            phoneNumber: user?.phone || user?.phoneNumber || ""
         }
     });
 
+    // Sync form with user data when it loads
+    React.useEffect(() => {
+        if (user && isProfileSetupModalOpen) {
+            reset({
+                agreedToTerms: !!user.agreedToTerms,
+                phoneNumber: user.phone || user.phoneNumber || ""
+            });
+        }
+    }, [user, isProfileSetupModalOpen, reset]);
+
     const passwordValue = watch("password");
-    const isEditingPassword = passwordValue && passwordValue.length > 0;
+    const isEditingPassword = !!(passwordValue && passwordValue.length > 0);
 
     const onSubmit = async (data: SetupFormData) => {
         setIsSubmitting(true);
@@ -123,32 +157,40 @@ export const ProfileSetupModal: React.FC = () => {
 
                     {/* Form container to allow scrolling of form fields on very small screens */}
                     <div className="overflow-y-auto flex-1 scrollbar-hide">
-                        <form onSubmit={handleSubmit(onSubmit)} className="px-6 sm:px-8 pb-10 space-y-4 sm:space-y-5">
-                        {/* Phone Number */}
-                        <div className="flex flex-col gap-1.5 focus-within:z-10">
-                            <label className="text-[13px] font-black uppercase tracking-wider text-slate-400 ml-1">Số điện thoại</label>
-                            <div className="relative group">
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#FF6262] transition-colors">
-                                    <Phone size={18} strokeWidth={2.5} />
+                        <form 
+                            onSubmit={handleSubmit(
+                                onSubmit, 
+                                (err) => console.error("Validation Errors:", err)
+                            )} 
+                            className="px-6 sm:px-8 pb-10 space-y-4 sm:space-y-5"
+                        >
+                        {/* Phone Number - Only show if not exists */}
+                        {!(user?.phone || (user as any)?.phoneNumber) && (
+                            <div className="flex flex-col gap-1.5 focus-within:z-10">
+                                <label className="text-[13px] font-black uppercase tracking-wider text-slate-400 ml-1">Số điện thoại</label>
+                                <div className="relative group">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#FF6262] transition-colors">
+                                        <Phone size={18} strokeWidth={2.5} />
+                                    </div>
+                                    <input
+                                        {...register("phoneNumber")}
+                                        type="text"
+                                        placeholder="0912 345 678"
+                                        className={`w-full h-11 pl-12 pr-5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium outline-none transition-all ${
+                                            errors.phoneNumber ? "border-[#FF6262]/50 focus:border-[#FF6262]" : "focus:bg-white focus:border-[#FF6262] focus:shadow-md"
+                                        }`}
+                                    />
                                 </div>
-                                <input
-                                    {...register("phoneNumber")}
-                                    type="text"
-                                    placeholder="0912 345 678"
-                                    className={`w-full h-11 pl-12 pr-5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium outline-none transition-all ${
-                                        errors.phoneNumber ? "border-[#FF6262]/50 focus:border-[#FF6262]" : "focus:bg-white focus:border-[#FF6262] focus:shadow-md"
-                                    }`}
-                                />
+                                {errors.phoneNumber && (
+                                    <p className="text-[#FF6262] text-[11.5px] font-bold mt-1 ml-1">{errors.phoneNumber.message}</p>
+                                )}
                             </div>
-                            {errors.phoneNumber && (
-                                <p className="text-[#FF6262] text-[11.5px] font-bold mt-1 ml-1">{errors.phoneNumber.message}</p>
-                            )}
-                        </div>
+                        )}
 
                         {/* Password Section */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="flex flex-col gap-1.5 focus-within:z-10">
-                                <label className="text-[13px] font-black uppercase tracking-wider text-slate-400 ml-1">Mật khẩu (Tùy chọn)</label>
+                                <label className="text-[13px] font-black uppercase tracking-wider text-slate-400 ml-1">Mật khẩu mới</label>
                                 <div className="relative group">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#FF6262] transition-colors">
                                         <Lock size={18} strokeWidth={2.5} />
@@ -221,63 +263,65 @@ export const ProfileSetupModal: React.FC = () => {
                             <p className="text-[#FF6262] text-[11.5px] font-bold mt-1 ml-1">{errors.confirmPassword.message}</p>
                         )}
 
-                        {/* Terms */}
-                        <div className="mt-3">
-                            <label className="flex items-start gap-4 cursor-pointer group select-none">
-                                <div className="relative mt-0.5">
-                                    <input
-                                        {...register("agreedToTerms")}
-                                        type="checkbox"
-                                        className="sr-only"
-                                    />
-                                    <motion.div
-                                        initial={false}
-                                        animate={{
-                                            backgroundColor: watch("agreedToTerms") ? "#FF6262" : "#f8fafc",
-                                            borderColor: watch("agreedToTerms") ? "#FF6262" : "#e2e8f0"
-                                        }}
-                                        transition={{ duration: 0.2 }}
-                                        className="w-5 h-5 border-2 rounded-md flex items-center justify-center shadow-sm group-hover:border-[#FF6262]/50 transition-colors"
-                                    >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            className="w-3.5 h-3.5 text-white"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
+                        {/* Terms - Only show if user hasn't agreed yet */}
+                        {!user?.agreedToTerms && (
+                            <div className="mt-3">
+                                <label className="flex items-start gap-4 cursor-pointer group select-none">
+                                    <div className="relative mt-0.5">
+                                        <input
+                                            {...register("agreedToTerms")}
+                                            type="checkbox"
+                                            className="sr-only"
+                                        />
+                                        <motion.div
+                                            initial={false}
+                                            animate={{
+                                                backgroundColor: watch("agreedToTerms") ? "#FF6262" : "#f8fafc",
+                                                borderColor: watch("agreedToTerms") ? "#FF6262" : "#e2e8f0"
+                                            }}
+                                            transition={{ duration: 0.2 }}
+                                            className="w-5 h-5 border-2 rounded-md flex items-center justify-center shadow-sm group-hover:border-[#FF6262]/50 transition-colors"
                                         >
-                                            <motion.path
-                                                d="M20 6L9 17L4 12"
-                                                initial={false}
-                                                animate={{ pathLength: watch("agreedToTerms") ? 1 : 0 }}
-                                                transition={{ 
-                                                    type: "spring", 
-                                                    stiffness: 300, 
-                                                    damping: 20 
-                                                }}
-                                            />
-                                        </svg>
-                                    </motion.div>
-                                </div>
-                                <span className="text-sm font-bold text-slate-500 leading-snug pt-0.5">
-                                    Tôi đồng ý với <span className="text-[#FF6262] hover:underline cursor-pointer">điều khoản sử dụng</span> & chính sách bảo mật của Đại Phát.
-                                </span>
-                            </label>
-                            <AnimatePresence>
-                                {errors.agreedToTerms && (
-                                    <motion.p 
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className="text-[#FF6262] text-[11.5px] font-bold mt-2 ml-1"
-                                    >
-                                        {errors.agreedToTerms.message}
-                                    </motion.p>
-                                )}
-                            </AnimatePresence>
-                        </div>
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                className="w-3.5 h-3.5 text-white"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            >
+                                                <motion.path
+                                                    d="M20 6L9 17L4 12"
+                                                    initial={false}
+                                                    animate={{ pathLength: watch("agreedToTerms") ? 1 : 0 }}
+                                                    transition={{ 
+                                                        type: "spring", 
+                                                        stiffness: 300, 
+                                                        damping: 20 
+                                                    }}
+                                                />
+                                            </svg>
+                                        </motion.div>
+                                    </div>
+                                    <span className="text-sm font-bold text-slate-500 leading-snug pt-0.5">
+                                        Tôi đồng ý với <span className="text-[#FF6262] hover:underline cursor-pointer">điều khoản sử dụng</span> & chính sách bảo mật của Đại Phát.
+                                    </span>
+                                </label>
+                                <AnimatePresence>
+                                    {errors.agreedToTerms && (
+                                        <motion.p 
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="text-[#FF6262] text-[11.5px] font-bold mt-2 ml-1"
+                                        >
+                                            {errors.agreedToTerms.message}
+                                        </motion.p>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        )}
 
                         {/* Submit */}
                         <button
