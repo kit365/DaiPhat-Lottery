@@ -16,6 +16,7 @@ export interface User {
     lastName: string;
     fullName?: string; // FE mapped
     phone?: string;
+    phoneNumber?: string; // Unified field for phone data from various endpoints
     avatarUrl?: string;
     avatar?: string; // FE mapped
     role?: Role;

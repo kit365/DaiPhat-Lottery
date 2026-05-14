@@ -85,7 +85,7 @@ public class UserService implements UserServicePort {
                 .status(UserStatus.PENDING)
                 .hasPassword(false) // Required to change on first login
                 .emailVerified(true)
-                .agreedToTerms(true)
+                .agreedToTerms(false)
                 .build();
 
         // 4. Create in Identity Provider (Keycloak)
