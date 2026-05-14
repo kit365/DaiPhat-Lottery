@@ -5,7 +5,7 @@ import com.daiphat.accountservice.application.dto.request.auth.ResetPasswordRequ
 import com.daiphat.accountservice.application.dto.request.auth.VerifyOtpRequest;
 import com.daiphat.accountservice.application.dto.response.auth.ForgotPasswordResponse;
 import com.daiphat.accountservice.application.dto.response.auth.VerifyOtpResponse;
-import com.daiphat.accountservice.application.port.in.mail.EmailServicePort;
+import com.daiphat.accountservice.application.event.ForgotPasswordEvent;
 import com.daiphat.accountservice.application.port.in.auth.PasswordResetServicePort;
 import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
 import com.daiphat.accountservice.application.port.out.auth.cache.OtpCachePort;
@@ -43,7 +43,6 @@ class PasswordResetServiceTest extends AuthTestBase {
     @Mock private UserRepositoryPort userRepositoryPort;
     @Mock private PasswordResetCachePort passwordResetCachePort;
     @Mock private OtpCachePort otpCachePort;
-    @Mock private EmailServicePort emailServicePort;
     @Mock private TransactionTemplate transactionTemplate;
 
     @BeforeEach
@@ -59,7 +58,7 @@ class PasswordResetServiceTest extends AuthTestBase {
                 passwordResetCachePort,
                 otpCachePort,
                 authProperties,
-                emailServicePort,
+                eventPublisher,
                 rateLimiterService,
                 identityManagementPort,
                 loginAttemptService
@@ -87,7 +86,7 @@ class PasswordResetServiceTest extends AuthTestBase {
         assertNotNull(response);
         assertEquals(DEFAULT_EMAIL, response.getEmail());
         verify(otpCachePort).saveOtp(eq(DEFAULT_EMAIL), anyString(), any());
-        verify(emailServicePort).sendEmail(eq(com.daiphat.accountservice.domain.model.enums.EmailType.FORGOT_PW_OTP), eq(DEFAULT_EMAIL), anyMap());
+        verify(eventPublisher).publishEvent(any(ForgotPasswordEvent.class));
     }
  
     @Test
@@ -191,7 +190,7 @@ class PasswordResetServiceTest extends AuthTestBase {
         assertDoesNotThrow(() -> passwordResetService.resetPassword(request));
  
         // THEN
-        verify(identityManagementPort).resetPassword(keycloakId, DEFAULT_PASSWORD);
+        verify(identityManagementPort).resetPassword(keycloakId, DEFAULT_PASSWORD, false);
         verify(passwordResetCachePort).deleteResetTokenData(resetToken);
     }
  

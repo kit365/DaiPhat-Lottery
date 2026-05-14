@@ -123,8 +123,11 @@ export const Header = () => {
                 <div className="flex flex-col items-end">
                   <span className="text-[14px] font-bold text-[#102937] leading-none">{user.firstName} {user.lastName}</span>
                   <button 
-                    onClick={() => logout()} 
-                    className="text-[12px] font-medium text-slate-400 hover:text-[#BA0000] transition-colors mt-0.5 cursor-pointer font-client-main"
+                    onClick={() => {
+                      logout();
+                      toast.success("Đăng xuất thành công!");
+                    }} 
+                    className="text-[12px] font-medium text-slate-400 hover:text-[#E60F14] transition-colors mt-0.5 cursor-pointer font-client-main"
                   >
                     Đăng xuất
                   </button>
@@ -234,6 +237,7 @@ export const Header = () => {
                         onClick={() => {
                           setIsMenuOpen(false);
                           logout();
+                          toast.success("Đăng xuất thành công!");
                         }}
                       >
                         Đăng xuất tài khoản

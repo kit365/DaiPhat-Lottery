@@ -32,6 +32,7 @@ public class AuthResponse {
     @JsonProperty("scope")
     String scope;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     String refreshToken;
 
     @JsonView(Views.Public.class)

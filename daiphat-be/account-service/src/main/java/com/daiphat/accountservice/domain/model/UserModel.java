@@ -62,7 +62,7 @@ public class UserModel {
      * @throws DomainException nếu không đủ điều kiện.
      */
     public void validateLoginEligibility() {
-        if (this.status == UserStatus.PENDING) {
+        if (this.status == UserStatus.PENDING && !this.emailVerified) {
             throw new DomainException(ErrorCode.USER_INACTIVE);
         }
 
@@ -73,7 +73,7 @@ public class UserModel {
         if (this.status == UserStatus.LOCKED) {
             // Self-unlocking awareness will be handled by LoginAttemptService
             // to provide accurate remaining time formatting.
-        } else if (this.status != UserStatus.ACTIVE) {
+        } else if (this.status != UserStatus.ACTIVE && this.status != UserStatus.PENDING) {
             throw new DomainException(ErrorCode.USER_INACTIVE);
         }
 

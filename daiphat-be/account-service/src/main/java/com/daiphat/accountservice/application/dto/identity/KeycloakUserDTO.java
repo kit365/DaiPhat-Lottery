@@ -26,14 +26,25 @@ public class KeycloakUserDTO {
     private Boolean enabled;
     private Boolean emailVerified;
     private Map<String, List<String>> attributes;
+    private List<KeycloakCredentialDTO> credentials;
 
     public static KeycloakUserDTO fromModel(UserModel user) {
-        return KeycloakUserDTO.builder()
+        return fromModel(user, null, false);
+    }
+
+    public static KeycloakUserDTO fromModel(UserModel user, String password, boolean temporary) {
+        KeycloakUserDTO.KeycloakUserDTOBuilder builder = KeycloakUserDTO.builder()
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .enabled(true)
-                .build();
+                .emailVerified(user.isEmailVerified());
+
+        if (password != null) {
+            builder.credentials(List.of(KeycloakCredentialDTO.password(password, temporary)));
+        }
+
+        return builder.build();
     }
 }

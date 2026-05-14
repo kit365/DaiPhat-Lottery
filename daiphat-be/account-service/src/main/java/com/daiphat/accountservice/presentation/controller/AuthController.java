@@ -12,6 +12,8 @@ import com.daiphat.accountservice.application.dto.response.auth.AuthResponse;
 import com.daiphat.accountservice.application.dto.response.auth.ForgotPasswordResponse;
 import com.daiphat.accountservice.application.dto.response.auth.VerifyOtpResponse;
 import com.daiphat.accountservice.application.port.in.auth.AuthServicePort;
+import com.daiphat.accountservice.application.port.in.user.UserServicePort;
+import com.daiphat.accountservice.application.dto.request.user.OtpConfirmationRequest;
 import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
 import com.daiphat.accountservice.presentation.constants.ApiConstants;
@@ -24,9 +26,12 @@ import org.springframework.http.ResponseEntity;
 import com.daiphat.accountservice.application.dto.response.base.Views;
 import com.fasterxml.jackson.annotation.JsonView;
 import java.security.Principal;
+import java.util.UUID;
+
 import com.daiphat.accountservice.application.config.AuthProperties;
 import com.daiphat.accountservice.application.dto.response.auth.PasswordPolicyResponse;
 import com.daiphat.accountservice.infrastructure.util.AuthUtils;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -36,12 +41,15 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private static final String FORGOT_PASSWORD = "/forgot-password";
+    private static final String RESET_PASSWORD = "/reset-password";
     private static final String DEFAULT_COOKIE_NAME = "refresh_token";
     private static final String MSG_POLICY_FETCHED = "Lấy quy tắc mật khẩu thành công.";
     private static final String MSG_OTP_SENT = "Mã xác thực đã được gửi về Email của bạn.";
     private static final String MSG_OTP_RESENT = "Mã xác thực mới đã được gửi.";
     private static final String MSG_OTP_VERIFIED = "Xác thực mã OTP thành công.";
     private static final String MSG_PW_RESET_SUCCESS = "Mật khẩu của bạn đã được đặt lại thành công.";
+    private static final String MSG_INITIATE_RESET_SUCCESS = "Yêu cầu đặt lại mật khẩu đã được gửi đến email người dùng.";
+    private static final String MSG_CONFIRM_RESET_SUCCESS = "Đặt lại mật khẩu thành công. Mật khẩu mới đã được gửi đến email người dùng.";
     private static final String MSG_LOGIN_SUCCESS = "Đăng nhập thành công.";
     private static final String MSG_LOGOUT_SUCCESS = "Đăng xuất thành công.";
     private static final String MSG_REGISTER_SUCCESS = "Đăng ký thành công! Vui lòng kiểm tra email để "
@@ -53,6 +61,7 @@ public class AuthController {
     private static final String MSG_REFRESH_TOKEN_SUCCESS = "Làm mới mã định danh thành công.";
 
     private final AuthServicePort authServicePort;
+    private final UserServicePort userServicePort;
     private final AuthProperties authProperties;
 
     @GetMapping("/password-policy")
@@ -104,6 +113,27 @@ public class AuthController {
         authServicePort.resetPassword(request);
         return ResponseEntity.ok(ApiResponse.<Void>builder()
                 .message(MSG_PW_RESET_SUCCESS)
+                .build());
+    }
+
+    @PostMapping("/{id}" + RESET_PASSWORD + "/initiate")
+    @PreAuthorize("hasAnyAuthority('member:edit')")
+    public ResponseEntity<ApiResponse<Void>> initiateResetPassword(@PathVariable UUID id) {
+        userServicePort.initiatePasswordReset(id);
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .message(MSG_INITIATE_RESET_SUCCESS)
+                .build());
+    }
+
+    @PostMapping("/{id}" + RESET_PASSWORD + "/confirm")
+    @PreAuthorize("hasAnyAuthority('member:edit')")
+    public ResponseEntity<ApiResponse<Void>> confirmResetPassword(
+            @PathVariable UUID id,
+            @Valid @RequestBody OtpConfirmationRequest request) {
+        log.info("REST request to confirm password reset for user: {}", id);
+        userServicePort.confirmPasswordReset(id, request.otp(), request.phoneNumber());
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .message(MSG_CONFIRM_RESET_SUCCESS)
                 .build());
     }
 

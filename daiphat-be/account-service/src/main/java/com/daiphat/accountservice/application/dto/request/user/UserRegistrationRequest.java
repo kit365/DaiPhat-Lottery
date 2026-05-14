@@ -19,9 +19,8 @@ public record UserRegistrationRequest(
     String email,
 
     @NotBlank(message = MSG_PASSWORD_REQUIRED)
-    @Size(min = 8, max = 128, message = MSG_PASSWORD_LENGTH)
-    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,128}$", 
-             message = MSG_PASSWORD_PATTERN)
+    @Size(min = 6, max = 100, message = MSG_PASSWORD_LENGTH)
+    @Pattern(regexp = "^[A-Z][^\\s]{5,99}$", message = MSG_PASSWORD_PATTERN)
     String password,
 
     @NotBlank(message = MSG_FIRSTNAME_REQUIRED)
@@ -49,9 +48,8 @@ public record UserRegistrationRequest(
     public static final String MSG_EMAIL_INVALID = "Định dạng email không hợp lệ";
     
     public static final String MSG_PASSWORD_REQUIRED = "Mật khẩu không được để trống";
-    public static final String MSG_PASSWORD_LENGTH = "Password too long (max 128 characters)";
-    public static final String MSG_PASSWORD_PATTERN = "Mật khẩu phải chứa chữ hoa, chữ thường, "
-            + "số và ký tự đặc biệt";
+    public static final String MSG_PASSWORD_LENGTH = "Mật khẩu phải từ 6 đến 100 ký tự";
+    public static final String MSG_PASSWORD_PATTERN = "Mật khẩu phải bắt đầu bằng chữ hoa và không có khoảng trắng";
     
     public static final String MSG_FIRSTNAME_REQUIRED = "Tên không được để trống";
     public static final String MSG_LASTNAME_REQUIRED = "Họ không được để trống";

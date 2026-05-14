@@ -1,0 +1,54 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!-- Wrap content in the Master Layout -->
+<div th:replace="~{emails/layout/main-layout :: layout('Tài khoản mới', ~{::content}, ~{}, false)}">
+  
+  <th:block th:fragment="content">
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:24px;font-weight:bold;line-height:24px;text-align:center;color:#f1f5f9;">
+          Chào mừng <span th:text="${firstName}">User</span>!
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:16px;line-height:24px;text-align:center;color:#94a3b8;">
+          Tài khoản DaiPhat Platform của bạn đã được khởi tạo thành công bởi Quản trị viên. Dưới đây là thông tin đăng nhập của bạn:
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:16px;padding:30px;word-break:break-word;">
+        <div class="code-box" style="background-color: #0f172a; border: 1px dashed #34d399; border-radius: 8px; padding: 25px; text-align: left;">
+          <div style="margin-bottom: 15px;">
+            <span style="color: #64748b; font-size: 14px;">Email đăng nhập:</span><br/>
+            <strong style="color: #f1f5f9; font-size: 18px;" th:text="${email}">user@example.com</strong>
+          </div>
+          <div>
+            <span style="color: #64748b; font-size: 14px;">Mật khẩu tạm thời:</span><br/>
+            <strong style="color: #34d399; font-size: 24px; letter-spacing: 2px;" th:text="${password}">DFY-X7U</strong>
+          </div>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:14px;line-height:24px;text-align:center;color:#94a3b8;">
+          Vì lý do bảo mật, vui lòng đăng nhập và thay đổi mật khẩu của bạn trong lần đầu tiên sử dụng hệ thống.
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:16px;padding:30px;word-break:break-word;">
+        <a th:href="${loginUrl}" 
+           style="background-color: #34d399; color: #0f172a; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px;" 
+           class="btn-action">
+          Đăng nhập ngay
+        </a>
+      </td>
+    </tr>
+  </th:block>
+
+</div>
+</html>

@@ -80,25 +80,13 @@ export const menuManagementData = [
         ]
     },
     {
-        id: "accounts",
-        label: "Tài khoản quản trị",
-        tKey: "admin.sidebar.accounts",
+        id: "account-management",
+        label: "Quản lý tài khoản",
         Icon: PeopleIcon,
         permission: PERMISSIONS.ACCOUNT.VIEW,
         children: [
-            { id: "account-list", label: "Danh sách", tKey: "admin.sidebar.account_list", path: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST, permission: PERMISSIONS.ACCOUNT.VIEW },
-            { id: "account-create", label: "Tạo mới", tKey: "admin.sidebar.account_create", path: ROUTES.ADMIN.ACCOUNTS.ADMIN.CREATE, permission: PERMISSIONS.ACCOUNT.CREATE },
-        ]
-    },
-    {
-        id: "members",
-        label: "Thành viên",
-        tKey: "admin.sidebar.members",
-        Icon: PeopleIcon,
-        permission: PERMISSIONS.USER.VIEW,
-        children: [
-            { id: "member-list", label: "Danh sách", tKey: "admin.sidebar.member_list", path: ROUTES.ADMIN.ACCOUNTS.MEMBER.LIST, permission: PERMISSIONS.USER.VIEW },
-            { id: "member-create", label: "Tạo mới", tKey: "admin.sidebar.member_create", path: ROUTES.ADMIN.ACCOUNTS.MEMBER.CREATE, permission: PERMISSIONS.USER.CREATE },
+            { id: "staff-management", label: "Quản lý nhân viên", path: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST, permission: PERMISSIONS.ACCOUNT.VIEW },
+            { id: "customer-management", label: "Quản lý khách hàng", path: ROUTES.ADMIN.ACCOUNTS.USER.LIST, permission: PERMISSIONS.USER.VIEW },
         ]
     },
 ];

@@ -8,7 +8,8 @@ import com.daiphat.accountservice.application.dto.response.auth.ForgotPasswordRe
 import com.daiphat.accountservice.application.dto.response.auth.PasswordPolicyResponse;
 import com.daiphat.accountservice.application.dto.response.auth.PasswordRequirementResponse;
 import com.daiphat.accountservice.application.dto.response.auth.VerifyOtpResponse;
-import com.daiphat.accountservice.application.port.in.mail.EmailServicePort;
+import org.springframework.context.ApplicationEventPublisher;
+import com.daiphat.accountservice.application.event.ForgotPasswordEvent;
 import com.daiphat.accountservice.application.port.in.auth.PasswordResetServicePort;
 import com.daiphat.accountservice.application.port.out.auth.IdentityManagementPort;
 import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
@@ -42,20 +43,21 @@ public class PasswordResetService implements PasswordResetServicePort {
     private final PasswordResetCachePort passwordResetCachePort;
     private final OtpCachePort otpCachePort;
     private final AuthProperties authProperties;
-    private final EmailServicePort emailServicePort;
+    private final ApplicationEventPublisher eventPublisher;
     private final RateLimiterPort rateLimiterService;
     private final IdentityManagementPort identityManagementPort;
     private final LoginAttemptPort loginAttemptService;
     
     // Password Requirement Constants
     private static final String REQ_MIN_LENGTH = "min_length";
+    private static final String REQ_MAX_LENGTH = "max_length";
     private static final String REQ_UPPERCASE = "uppercase";
     private static final String REQ_LOWERCASE = "lowercase";
     private static final String REQ_DIGIT = "digit";
     private static final String REQ_SPECIAL = "special";
     private static final String REQ_NO_SPACE = "no_space";
 
-    private static final String REGEX_UPPERCASE = "^(?=.*[A-Z]).*$";
+    private static final String REGEX_UPPERCASE = "^[A-Z].*$";
     private static final String REGEX_LOWERCASE = "^(?=.*[a-z]).*$";
     private static final String REGEX_DIGIT = "^(?=.*\\d).*$";
     private static final String REGEX_SPECIAL = "^(?=.*[@$!%*?&]).*$";
@@ -95,13 +97,11 @@ public class PasswordResetService implements PasswordResetServicePort {
         String otp = AuthUtils.generateOtp();
         otpCachePort.saveOtp(email, otp, authProperties.getCache().getOtpTtl());
 
-        // 2. Send Forgot Password OTP (Strict Dispatch)
-        try {
-            emailServicePort.sendEmail(EmailType.FORGOT_PW_OTP, email, Map.of(PARAM_OTP, otp));
-        } catch (EmailRateLimitException e) {
-            long retryAfter = rateLimiterService.getRemainingWaitTime(email, AuthAction.FORGOT_PASSWORD);
-            throw new DomainException(ErrorCode.TOO_MANY_REQUESTS, null, String.valueOf(retryAfter));
-        }
+        // 2. Fire Event (Listener will handle email after commit)
+        eventPublisher.publishEvent(ForgotPasswordEvent.builder()
+                .email(email)
+                .otp(otp)
+                .build());
 
         log.info("OTP sent for password reset. Email: {}", email);
 
@@ -189,9 +189,13 @@ public class PasswordResetService implements PasswordResetServicePort {
         }
 
         // 4. Update in Keycloak
-        identityManagementPort.resetPassword(user.getId(), request.getNewPassword());
+        identityManagementPort.resetPassword(user.getId(), request.getNewPassword(), false);
 
-        // 5. Unlock account and reset login attempts
+        // 5. Update local state
+        user.setHasPassword(true);
+        userRepositoryPort.save(user);
+
+        // 6. Unlock account and reset login attempts
         loginAttemptService.recordSuccessfulAttempt(data.getEmail());
 
         // 6. Cleanup
@@ -204,15 +208,16 @@ public class PasswordResetService implements PasswordResetServicePort {
         var policy = authProperties.getPasswordPolicy();
         java.util.List<PasswordRequirementResponse> requirements = new java.util.ArrayList<>();
 
-        // 1. Min Length is always mandatory
+        // 1. Length requirements
         requirements.add(new PasswordRequirementResponse(REQ_MIN_LENGTH, "Ít nhất " + policy.getMinLength() + " ký tự", null));
+        requirements.add(new PasswordRequirementResponse(REQ_MAX_LENGTH, "Tối đa " + policy.getMaxLength() + " ký tự", null));
 
         // 2. Conditionals based on AuthProperties
         if (policy.isNoSpace()) {
             requirements.add(new PasswordRequirementResponse(REQ_NO_SPACE, "Không chứa khoảng trắng", REGEX_NO_SPACE));
         }
         if (policy.isRequireUppercase()) {
-            requirements.add(new PasswordRequirementResponse(REQ_UPPERCASE, "Ít nhất 1 chữ hoa", REGEX_UPPERCASE));
+            requirements.add(new PasswordRequirementResponse(REQ_UPPERCASE, "Viết hoa chữ đầu", REGEX_UPPERCASE));
         }
         if (policy.isRequireLowercase()) {
             requirements.add(new PasswordRequirementResponse(REQ_LOWERCASE, "Ít nhất 1 chữ thường", REGEX_LOWERCASE));

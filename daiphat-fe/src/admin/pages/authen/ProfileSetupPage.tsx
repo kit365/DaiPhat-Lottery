@@ -97,6 +97,10 @@ export const ProfileSetupPage: React.FC = () => {
     const queryClient = useQueryClient();
     
     const onSubmit = async (data: SetupFormData) => {
+        if (!user.hasPassword && !data.password) {
+            toast.warning("Vui lòng thiết lập mật khẩu mới");
+            return;
+        }
         if (!isPasswordPolicyValid) {
             toast.warning("Mật khẩu chưa đạt yêu cầu bảo mật");
             return;
@@ -280,7 +284,7 @@ export const ProfileSetupPage: React.FC = () => {
                                 <Box>
                                     <TextField
                                         fullWidth
-                                        label="Mật khẩu mới (Tùy chọn)"
+                                        label={!user.hasPassword ? "Mật khẩu mới *" : "Mật khẩu mới (Tùy chọn)"}
                                         type={showPassword ? "text" : "password"}
                                         {...register("password")}
                                         onFocus={() => setIsPasswordFocused(true)}

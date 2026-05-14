@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface UserRepository extends JpaRepository<UserEntity, UUID> {
+public interface UserRepository extends JpaRepository<UserEntity, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<UserEntity> {
     Optional<UserEntity> findByUsernameOrEmail(String username, String email);
     
     Optional<UserEntity> findByUsername(String username);
@@ -32,4 +32,8 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
     @Query(value = "UPDATE users SET id = :newId WHERE id = :oldId", nativeQuery = true)
     @Transactional
     void updateUserId(@Param("oldId") UUID oldId, @Param("newId") UUID newId);
+
+    @Modifying
+    @Transactional
+    long deleteByStatusAndCreatedAtBefore(String status, java.time.LocalDateTime before);
 }

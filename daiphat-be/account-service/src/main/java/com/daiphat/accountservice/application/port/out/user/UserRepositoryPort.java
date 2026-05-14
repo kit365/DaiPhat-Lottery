@@ -18,6 +18,12 @@ public interface UserRepositoryPort {
     Optional<UserModel> findByEmail(String email);
 
     List<UserModel> findAll();
+    
+    org.springframework.data.domain.Page<UserModel> findAll(
+            org.springframework.data.domain.Pageable pageable, 
+            String search, 
+            com.daiphat.accountservice.domain.model.enums.UserStatus status, 
+            java.util.List<String> roleIds);
 
     boolean existsById(UUID id);
 
@@ -30,4 +36,6 @@ public interface UserRepositoryPort {
     void deleteById(UUID id);
 
     void updateUserId(UUID oldId, UUID newId);
+    
+    long deleteInactiveUsers(com.daiphat.accountservice.domain.model.enums.UserStatus status, java.time.LocalDateTime before);
 }
