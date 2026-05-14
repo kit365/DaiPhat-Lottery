@@ -52,8 +52,15 @@ export interface ResetPasswordRequest {
 
 export interface RegisterResponse extends ApiResponse<User> {}
 export interface LogoutResponse extends ApiResponse<void> {}
-export interface VerifyEmailResponse extends ApiResponse<any> {}
-export interface SetupProfileResponse extends ApiResponse<User | any> {}
+export interface GoogleTokenResponse {
+    access_token: string;
+    expires_in: number;
+    refresh_token?: string;
+    token_type: string;
+    id_token?: string;
+}
+
+export interface SetupProfileResponse extends ApiResponse<User> {}
 
 export interface RegisterRequest {
     username: string;

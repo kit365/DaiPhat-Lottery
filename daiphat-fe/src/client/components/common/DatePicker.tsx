@@ -26,23 +26,37 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   availableDates = [],
   className = ""
 }) => {
-  const [currentViewDate, setCurrentViewDate] = useState(dayjs(selectedDate, 'DD/MM/YYYY').isValid() ? dayjs(selectedDate, 'DD/MM/YYYY') : dayjs());
+  const [currentViewDate, setCurrentViewDate] = useState(
+    dayjs(selectedDate, 'DD/MM/YYYY').isValid() ? dayjs(selectedDate, 'DD/MM/YYYY').startOf('month') : dayjs().startOf('month')
+  );
   const [activeRange, setActiveRange] = useState<string | null>(null);
 
-  const startOfMonth = currentViewDate.startOf('month');
-  const endOfMonth = currentViewDate.endOf('month');
-  const daysInMonth = endOfMonth.date();
-  const startDayOfWeek = startOfMonth.day(); // 0 is Sunday
+  const nextMonthViewDate = currentViewDate.add(1, 'month');
 
-  const days = [];
-  // Add empty slots for days before the start of the month
-  for (let i = 0; i < (startDayOfWeek === 0 ? 6 : startDayOfWeek - 1); i++) {
-    days.push(null);
-  }
-  // Add days of the month
-  for (let i = 1; i <= daysInMonth; i++) {
-    days.push(startOfMonth.date(i));
-  }
+  const getDaysForMonth = (viewDate: dayjs.Dayjs) => {
+    const startOfMonth = viewDate.startOf('month');
+    const endOfMonth = viewDate.endOf('month');
+    const daysInMonth = endOfMonth.date();
+    const startDayOfWeek = startOfMonth.day(); // 0 is Sunday
+    
+    const days: (dayjs.Dayjs | null)[] = [];
+    const offset = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+    for (let i = 0; i < offset; i++) {
+      days.push(null);
+    }
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(startOfMonth.date(i));
+    }
+    
+    // Only fill until the end of the last week
+    const totalSlots = days.length;
+    const remainingInWeek = totalSlots % 7 === 0 ? 0 : 7 - (totalSlots % 7);
+    for (let i = 0; i < remainingInWeek; i++) {
+      days.push(null);
+    }
+    
+    return days;
+  };
 
   const handlePrevMonth = () => setCurrentViewDate(currentViewDate.subtract(1, 'month'));
   const handleNextMonth = () => setCurrentViewDate(currentViewDate.add(1, 'month'));
@@ -61,67 +75,26 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       default: targetDate = dayjs();
     }
     
-    setCurrentViewDate(targetDate);
+    setCurrentViewDate(targetDate.startOf('month'));
     
-    // Only auto-select if it's an exact day. Otherwise, just navigate the calendar view.
     if (range.type === 'exact') {
-      const dateStr = targetDate.format('DD/MM/YYYY');
-      onDateSelect(dateStr);
+      onDateSelect(targetDate.format('DD/MM/YYYY'));
     }
   };
 
-  return (
-    <div className={`flex bg-white rounded-[24px] overflow-hidden border border-gray-100 shadow-xl ${className}`}>
-      {/* Sidebar - Quick Ranges */}
-      <div className="w-[180px] bg-slate-50/50 border-r border-gray-100 p-3 flex flex-col gap-1">
-        {QUICK_RANGES.map((range) => {
-          const isActive = activeRange === range.value;
-          return (
-            <button
-              key={range.value}
-              onClick={() => handleQuickRangeSelect(range)}
-              className={`
-                w-full text-left px-4 py-2.5 rounded-xl text-[14px] font-bold transition-all cursor-pointer
-                ${isActive 
-                  ? 'bg-white text-[#E60F14] shadow-sm' 
-                  : 'text-slate-500 hover:bg-white hover:text-[#102937]'
-                }
-              `}
-            >
-              {range.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Calendar Area */}
-      <div className="flex-1 p-6 min-w-[340px]">
-        {/* Calendar Header */}
-        <div className="flex items-center justify-between mb-8 px-2">
-          <button onClick={handlePrevMonth} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 cursor-pointer transition-colors">
-            <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-          </button>
-          
-          <h4 className="text-[16px] font-black text-[#102937] uppercase tracking-tight font-client-display">
-            {currentViewDate.format('MMMM YYYY')}
-          </h4>
-
-          <button onClick={handleNextMonth} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 cursor-pointer transition-colors">
-            <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-          </button>
-        </div>
-
-        {/* Days Header */}
-        <div className="grid grid-cols-7 gap-1 mb-4">
+  const renderMonthGrid = (viewDate: dayjs.Dayjs) => {
+    const days = getDaysForMonth(viewDate);
+    return (
+      <div className="flex-1 px-4">
+        <div className="grid grid-cols-7 mb-2">
           {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => (
-            <div key={d} className="text-center text-[11px] font-black text-slate-400 uppercase py-2">{d}</div>
+            <div key={d} className="text-center text-[12px] font-bold text-[#444444]/60 py-3">{d}</div>
           ))}
         </div>
 
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 border-t border-l border-gray-100">
           {days.map((date, idx) => {
-            if (!date) return <div key={`empty-${idx}`} className="aspect-square"></div>;
+            if (!date) return <div key={`empty-${idx}`} className="aspect-[1.2/1] border-r border-b border-gray-100 bg-slate-50/20"></div>;
             
             const dateStr = date.format('DD/MM/YYYY');
             const isSelected = selectedDate === dateStr;
@@ -133,26 +106,81 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 key={dateStr}
                 onClick={() => onDateSelect(dateStr)}
                 className={`
-                  relative aspect-square rounded-xl flex flex-col items-center justify-center text-[14px] font-bold transition-all group cursor-pointer
+                  relative aspect-[1.2/1] border-r border-b border-gray-100 flex flex-col items-center justify-center text-[14px] transition-all cursor-pointer group
                   ${isSelected 
-                    ? 'bg-[#E60F14] text-white shadow-lg shadow-red-100 scale-105 z-10' 
-                    : 'text-[#102937] hover:bg-[#FFF5F5] hover:text-[#E60F14]'
+                    ? 'bg-[#BA0000]/80 text-white z-10' 
+                    : 'bg-white text-[#444444] hover:bg-[#BA0000]/80 hover:text-white'
                   }
-                  ${isToday && !isSelected ? 'border border-[#E60F14]/30' : ''}
                 `}
               >
-                <span>{date.date()}</span>
-                {hasResult && (
-                  <span className={`absolute bottom-2 w-1 h-1 rounded-full ${isSelected ? 'bg-white/60' : 'bg-[#E60F14]'}`}></span>
+                <span className={`font-bold ${isSelected ? 'text-white' : ''}`}>
+                  {date.date()}
+                </span>
+                
+                {hasResult && !isSelected && (
+                  <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#BA0000]"></div>
                 )}
                 
-                {/* Tooltip-like effect on hover */}
-                {!isSelected && isToday && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#E60F14] rounded-full border-2 border-white"></span>
+                {isToday && !isSelected && (
+                  <div className="absolute bottom-1 w-5 h-0.5 bg-[#BA0000]/30 rounded-full"></div>
                 )}
               </button>
             );
           })}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className={`flex bg-white rounded-[24px] overflow-hidden ${className}`}>
+      {/* Sidebar - Quick Ranges */}
+      <div className="w-[160px] bg-slate-50/50 border-r border-gray-100 p-4 flex flex-col gap-1 shrink-0">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-2">Phím tắt</span>
+        {QUICK_RANGES.map((range) => {
+          const isActive = activeRange === range.value;
+          return (
+            <button
+              key={range.value}
+              onClick={() => handleQuickRangeSelect(range)}
+              className={`
+                w-full text-left px-4 py-2.5 rounded-xl text-[14px] transition-all cursor-pointer
+                ${isActive 
+                  ? 'bg-white text-[#BA0000] font-bold shadow-sm' 
+                  : 'text-[#444444] font-medium hover:bg-white/80 hover:text-[#BA0000]'
+                }
+              `}
+            >
+              {range.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex-1 p-8">
+        {/* Unified Header: Month + Navigation */}
+        <div className="flex items-center justify-between mb-8 px-4">
+          <button 
+            onClick={handlePrevMonth} 
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 text-[#333333] cursor-pointer transition-all active:scale-90"
+          >
+            <span className="material-symbols-outlined text-[24px]">chevron_left</span>
+          </button>
+          
+          <h4 className="text-[16px] font-bold text-[#444444] capitalize">
+            {currentViewDate.format('MMMM YYYY')}
+          </h4>
+
+          <button 
+            onClick={handleNextMonth} 
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 text-[#333333] cursor-pointer transition-all active:scale-90"
+          >
+            <span className="material-symbols-outlined text-[24px]">chevron_right</span>
+          </button>
+        </div>
+
+        <div className="max-w-[400px] mx-auto">
+          {renderMonthGrid(currentViewDate)}
         </div>
       </div>
     </div>

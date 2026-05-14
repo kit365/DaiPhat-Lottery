@@ -44,7 +44,7 @@ export const useAccountDetail = (id?: string) => {
 export const useCreateAccount = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: any) => createAccount(data),
+        mutationFn: (data: Partial<User>) => createAccount(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNTS_ADMIN] });
         },
@@ -54,7 +54,7 @@ export const useCreateAccount = () => {
 export const useUpdateAccount = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, data }: { id: string; data: any }) => updateAccount(id, data),
+        mutationFn: ({ id, data }: { id: string; data: Partial<User> }) => updateAccount(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNTS_ADMIN] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNT_ADMIN_DETAIL] });
@@ -64,7 +64,7 @@ export const useUpdateAccount = () => {
 
 export const useChangeAccountPassword = () => {
     return useMutation({
-        mutationFn: ({ id, data }: { id: string; data: any }) => changeAccountPassword(id, data),
+        mutationFn: ({ id, data }: { id: string; data: { password?: string } }) => changeAccountPassword(id, data),
     });
 };
 

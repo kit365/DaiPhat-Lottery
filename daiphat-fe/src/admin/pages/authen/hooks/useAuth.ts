@@ -64,14 +64,14 @@ export const useAuth = () => {
     }, [getMeQuery.isError, logout, navigate]);
 
     const loginMutation = useMutation({
-        mutationFn: (data: LoginFormValues) => authService.login({ ...data, rememberMe: false } as any),
+        mutationFn: (data: LoginFormValues) => authService.login({ ...data, rememberMe: false }),
         onSuccess: (response: LoginResponse) => {
             const isSuccess = response.isSuccess || response.success || response.code === "SUCCESS";
             if (isSuccess && response.data?.access_token) {
                 const { access_token, user: userInfo } = response.data;
                 if (userInfo) {
                     // 1. Save to Zustand (Common Store)
-                    loginStore(userInfo as User, access_token, response.data.expires_in);
+                    loginStore(userInfo, access_token, response.data.expires_in);
 
                     // 2. Seed React Query Cache to prevent redundant getMe call
                     queryClient.setQueryData([QUERY_KEYS.AUTH_ME, access_token], {
@@ -107,7 +107,7 @@ export const useAuth = () => {
                 toast.error(response.message || "Đăng nhập thất bại.");
             }
         },
-        onError: (error: any) => {
+        onError: (error: { response?: { data?: { message?: string } } }) => {
             toast.error(error.response?.data?.message || "Lỗi đăng nhập.");
         }
     });
@@ -115,7 +115,7 @@ export const useAuth = () => {
     const oauthCallbackMutation = useMutation({
         mutationFn: (params: { code: string; redirectUri: string; codeVerifier?: string }) =>
             authService.exchangeGoogleToken(params.code, params.redirectUri, params.codeVerifier),
-        onSuccess: (response: any) => {
+        onSuccess: (response) => {
             if (response?.access_token) {
                 const { access_token, expires_in } = response;
                 
