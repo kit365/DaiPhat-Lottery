@@ -3,6 +3,7 @@ package com.daiphat.accountservice.application.service.user;
 import com.daiphat.accountservice.application.config.AuthProperties;
 import com.daiphat.accountservice.application.dto.request.user.CreateUserRequest;
 import com.daiphat.accountservice.application.dto.request.user.ProfileSetupRequest;
+import com.daiphat.accountservice.application.dto.request.user.UpdateUserRequest;
 import com.daiphat.accountservice.application.dto.response.base.PageResponse;
 import com.daiphat.accountservice.application.dto.response.user.UserResponse;
 import com.daiphat.accountservice.application.mapper.UserApplicationMapper;
@@ -123,6 +124,73 @@ public class UserService implements UserServicePort {
                 .build());
 
         return userApplicationMapper.mapToUserResponse(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse update(UUID id, UpdateUserRequest request) {
+        log.info("Updating user with id: {}", id);
+        UserModel user = userRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
+
+        if (request.fullName() != null && !request.fullName().isBlank()) {
+            String[] parts = request.fullName().trim().split("\\s+", 2);
+            user.setFirstName(parts.length > 0 ? parts[0] : "");
+            user.setLastName(parts.length > 1 ? parts[1] : "");
+        }
+
+        if (request.phone() != null) {
+            user.setPhoneNumber(request.phone());
+        }
+
+        if (request.avatar() != null) {
+            com.daiphat.accountservice.domain.model.UserImageModel newImage = com.daiphat.accountservice.domain.model.UserImageModel.builder()
+                    .id(UUID.randomUUID())
+                    .userId(user.getId())
+                    .imageUrl(request.avatar())
+                    .current(true)
+                    .build();
+
+            if (user.getImages() == null) {
+                user.setImages(new java.util.ArrayList<>());
+            } else {
+                user.getImages().forEach(img -> img.setCurrent(false));
+            }
+            user.getImages().add(newImage);
+        }
+
+        if (request.status() != null && !request.status().isBlank()) {
+            try {
+                UserStatus newStatus = UserStatus.valueOf(request.status().toUpperCase());
+                user.setStatus(newStatus);
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid status provided for update: {}", request.status());
+            }
+        }
+
+        if (request.roles() != null && !request.roles().isEmpty()) {
+            String primaryRoleCode = request.roles().get(0);
+            roleRepositoryPort.findByCode(primaryRoleCode).ifPresent(user::setRole);
+            
+            request.roles().forEach(role -> {
+                try {
+                    identityManagementPort.assignRole(id, role);
+                } catch (Exception e) {
+                    log.error("Failed to assign role {} to user {}: {}", role, id, e.getMessage());
+                }
+            });
+        }
+
+        if (request.email() != null && !request.email().isBlank() && !request.email().equals(user.getEmail())) {
+            if (userRepositoryPort.existsByEmail(request.email())) {
+                throw new DomainException(ErrorCode.EMAIL_EXISTED);
+            }
+            user.setEmail(request.email());
+            user.setUsername(request.email());
+        }
+
+        UserModel updatedUser = userRepositoryPort.save(user);
+        return userApplicationMapper.mapToUserResponse(updatedUser);
     }
 
     @Override

@@ -19,6 +19,7 @@ import {
     Stack,
     Chip
 } from "@mui/material";
+import { UserStatus } from "../../../types/user.type";
 import Grid from "@mui/material/Grid";
 import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
 import { LoadingButton } from "../../components/ui/LoadingButton";
@@ -153,10 +154,10 @@ export const AccountAdminEditPage = () => {
                         <Card sx={{ p: '80px 24px', textAlign: 'center', borderRadius: "var(--shape-borderRadius-lg)", position: 'relative', boxShadow: "var(--customShadows-card)" }}>
                             <Box sx={{ position: 'absolute', top: 24, right: 24 }}>
                                 <Chip
-                                    label={account?.status === 'active' ? 'Hoạt động' : 'Tạm dừng'}
+                                    label={account?.status === UserStatus.ACTIVE ? 'Hoạt động' : 'Tạm dừng'}
                                     sx={{
-                                        bgcolor: account?.status === 'active' ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255, 171, 0, 0.16)',
-                                        color: account?.status === 'active' ? 'rgb(17, 141, 87)' : 'rgb(183, 110, 0)',
+                                        bgcolor: account?.status === UserStatus.ACTIVE ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255, 171, 0, 0.16)',
+                                        color: account?.status === UserStatus.ACTIVE ? 'rgb(17, 141, 87)' : 'rgb(183, 110, 0)',
                                         borderRadius: "var(--shape-borderRadius-sm)",
                                         fontWeight: 700,
                                         fontSize: '0.75rem',

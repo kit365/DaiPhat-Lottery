@@ -1,6 +1,7 @@
 package com.daiphat.accountservice.application.port.in.user;
 
 import com.daiphat.accountservice.application.dto.request.user.CreateUserRequest;
+import com.daiphat.accountservice.application.dto.request.user.UpdateUserRequest;
 import com.daiphat.accountservice.application.dto.request.user.ProfileSetupRequest;
 import com.daiphat.accountservice.application.dto.response.user.UserResponse;
 import com.daiphat.accountservice.domain.model.UserModel;
@@ -10,6 +11,8 @@ import java.util.UUID;
 
 public interface UserServicePort {
     UserResponse create(CreateUserRequest request);
+
+    UserResponse update(UUID id, UpdateUserRequest request);
 
     UserResponse getById(UUID id);
 

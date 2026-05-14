@@ -8,12 +8,13 @@ export const getUsers = async (params?: BaseQueryParams): Promise<ApiResponse<Pa
     const response = await apiApp.get(BASE_URL, { params });
     const result = response.data?.data;
     
-    // Map records to match FE expectations (fullName, avatar)
+    // Map records to match FE expectations (fullName, avatar, status)
     const recordList = (result?.recordList || []).map((user: any) => ({
         ...user,
         phone: user.phoneNumber || user.phone,
         fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email,
-        avatar: user.avatarUrl || user.avatar
+        avatar: user.avatarUrl || user.avatar,
+        status: user.status ? user.status.toUpperCase() : 'PENDING'
     }));
 
     const rawCounts = result?.statusCounts || {};
@@ -53,7 +54,8 @@ export const getUserById = async (id: string): Promise<ApiResponse<User>> => {
             ...user,
             phone: user.phoneNumber || user.phone,
             fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email,
-            avatar: user.avatarUrl || user.avatar
+            avatar: user.avatarUrl || user.avatar,
+            status: user.status ? user.status.toUpperCase() : 'PENDING'
         }
     };
 };
@@ -64,12 +66,12 @@ export const createUser = async (data: any): Promise<ApiResponse<User>> => {
 };
 
 export const updateUser = async (id: string, data: any): Promise<ApiResponse<User>> => {
-    const response = await apiApp.patch(`${BASE_URL}/${id}`, data);
+    const response = await apiApp.put(`${BASE_URL}/${id}`, data);
     return response.data;
 };
 
 export const changeUserPassword = async (id: string, data: any): Promise<ApiResponse<void>> => {
-    const response = await apiApp.patch(`${BASE_URL}/${id}/change-password`, data);
+    const response = await apiApp.put(`${BASE_URL}/${id}/change-password`, data);
     return response.data;
 };
 
@@ -99,7 +101,7 @@ export const deleteUserAddress = async (id: string): Promise<ApiResponse<void>> 
 };
 
 export const setUserAddressDefault = async (id: string): Promise<ApiResponse<void>> => {
-    const response = await apiApp.patch(`${BASE_URL}/address/set-default/${id}`, {});
+    const response = await apiApp.put(`${BASE_URL}/address/set-default/${id}`, {});
     return response.data;
 };
 
