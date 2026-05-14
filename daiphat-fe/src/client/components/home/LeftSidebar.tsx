@@ -11,7 +11,7 @@ interface LeftSidebarProps {
 }
 
 const MIEN_NAM_PROVINCES = [
-  "TP. Hồ Chí Minh", "Đồng Tháp", "Cà Mau", 
+  "TP. Hồ Chí Minh", "Đồng Tháp", "Cà Mau",
   "Tây Ninh", "Vũng Tàu", "Bến Tre", "Bạc Liêu",
   "Đồng Nai", "Cần Thơ", "Sóc Trăng",
   "An Giang", "Bình Dương", "Hậu Giang",
@@ -35,9 +35,9 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   }, [searchQuery]);
 
   return (
-    <aside className="w-full lg:w-[280px] shrink-0 space-y-4 font-client-main">
+    <aside className="relative w-full lg:w-[280px] shrink-0 space-y-4 font-client-main">
       {/* Date Picker Button - Premium Integration */}
-      <button 
+      <button
         onClick={() => setIsDatePickerOpen(true)}
         className="w-full bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.04)] border border-gray-100 flex items-center justify-between px-5 py-4 transition-all active:scale-[0.98] group cursor-pointer hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
       >
@@ -60,7 +60,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
         {/* Region Accordion */}
         <div className="p-0">
-          <button 
+          <button
             onClick={() => setIsMienNamOpen(!isMienNamOpen)}
             className="w-full flex items-center justify-between px-5 py-4 text-[#333333] font-bold text-[15px] hover:bg-slate-50 transition-colors cursor-pointer border-b border-gray-50"
           >
@@ -72,7 +72,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
           {/* Province List Area */}
           <div className={`transition-all duration-300 overflow-hidden ${isMienNamOpen ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
-            
+
             {/* Scrollable List */}
             <div className="pb-2 overflow-y-auto max-h-[600px] no-scrollbar">
               {filteredProvinces.map((province) => {
@@ -81,17 +81,15 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                   <button
                     key={province}
                     onClick={() => setActiveProvince(province)}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 transition-all cursor-pointer relative group font-client-main ${
-                      isActive 
-                        ? 'bg-[#FCE5DF] text-[#BA0000] font-semibold' 
-                        : 'text-[#444444] hover:bg-[#FCE5DF] hover:text-[#BA0000]'
-                    }`}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 transition-all cursor-pointer relative group font-client-main ${isActive
+                      ? 'bg-[#FCE5DF] text-[#BA0000] font-semibold'
+                      : 'text-[#444444] hover:bg-[#FCE5DF] hover:text-[#BA0000]'
+                      }`}
                   >
                     {/* Active/Hover Indicator Bar - Thick and Sharp */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-[5px] bg-[#BA0000] transition-opacity duration-200 ${
-                      isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                    }`}></div>
-                    
+                    <div className={`absolute left-0 top-0 bottom-0 w-[5px] bg-[#BA0000] transition-opacity duration-200 ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      }`}></div>
+
                     <span className="text-[14px] leading-relaxed transition-all pl-2 font-medium">
                       {province}
                     </span>
@@ -123,7 +121,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           setIsDatePickerOpen(false);
         }}
         availableDates={availableDates}
-        selectedDate={selectedDate}
+        selectedDate={selectedDate || ''}
       />
     </aside>
   );
