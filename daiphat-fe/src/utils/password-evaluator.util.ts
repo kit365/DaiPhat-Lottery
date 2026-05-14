@@ -41,7 +41,7 @@ export const calculatePasswordStrength = (
     const requirementsStatus: RequirementStatus[] = policy.requirements.map(req => ({
         id: req.id,
         description: req.description,
-        isMet: new RegExp(req.regex).test(password)
+        isMet: req.regex ? new RegExp(req.regex).test(password) : (req.id === 'length-min' ? password.length >= policy.minLength : false)
     }));
 
     const metCount = requirementsStatus.filter(req => req.isMet).length;

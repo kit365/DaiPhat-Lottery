@@ -66,10 +66,16 @@ export const ROUTES = {
             ADMIN: {
                 LIST: `/${prefixAdmin}/account-admin/list`,
                 CREATE: `/${prefixAdmin}/account-admin/create`,
+                EDIT: `/${prefixAdmin}/account-admin/edit`,
+                DETAIL: `/${prefixAdmin}/account-admin/detail`,
+                CHANGE_PASSWORD: `/${prefixAdmin}/account-admin/change-password`,
             },
-            MEMBER: {
-                LIST: `/${prefixAdmin}/account-member/list`,
-                CREATE: `/${prefixAdmin}/account-member/create`,
+            USER: {
+                LIST: `/${prefixAdmin}/account-user/list`,
+                CREATE: `/${prefixAdmin}/account-user/create`,
+                EDIT: `/${prefixAdmin}/account-user/edit`,
+                DETAIL: `/${prefixAdmin}/account-user/detail`,
+                CHANGE_PASSWORD: `/${prefixAdmin}/account-user/change-password`,
             }
         },
         CHAT: `/${prefixAdmin}/chat`,

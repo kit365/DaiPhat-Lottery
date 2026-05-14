@@ -12,31 +12,11 @@ export const PasswordRequirementList: React.FC<Props> = ({ password, policy }) =
     const { requirements, minLength, maxLength } = policy;
     const pwd = password || "";
 
-    const filteredRequirements = requirements.filter(req =>
-        !req.description.toLowerCase().includes(`${minLength} ký tự`) &&
-        (!maxLength || !req.description.toLowerCase().includes(`${maxLength} ký tự`))
-    );
-
-    const items = [
-        {
-            id: 'min-length',
-            description: `Ít nhất ${minLength} ký tự`,
-            isMet: pwd.length >= minLength
-        },
-        ...filteredRequirements.map(req => ({
-            id: req.id,
-            description: req.description,
-            isMet: new RegExp(req.regex).test(pwd)
-        }))
-    ];
-
-    if (maxLength) {
-        items.push({
-            id: 'max-length',
-            description: `Tối đa ${maxLength} ký tự`,
-            isMet: pwd.length <= maxLength && pwd.length > 0
-        });
-    }
+    const items = requirements.map(req => ({
+        id: req.id,
+        description: req.description,
+        isMet: req.regex ? new RegExp(req.regex).test(pwd) : (req.id === 'length-min' ? pwd.length >= minLength : (req.id === 'length-max' ? (pwd.length <= maxLength && pwd.length > 0) : false))
+    }));
 
     return (
         <Stack spacing={1.2} sx={{ 

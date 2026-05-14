@@ -10,9 +10,12 @@ import com.daiphat.accountservice.domain.model.enums.EmailPriority;
 import com.daiphat.accountservice.domain.model.enums.EmailType;
 import com.daiphat.accountservice.infrastructure.adapter.notification.rabbitmq.RabbitEmailTaskProducer;
 import com.daiphat.accountservice.application.strategy.email.EmailStrategy;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,10 +23,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Service trung tâm điều phối gửi Email (Email Dispatcher).
- * Bản Pro Max: Tích hợp Resilience (Retries, Backoff), Observability (Metrics) và Hardened Error Handling.
- */
 @Service
 @Slf4j
 public class EmailService implements EmailServicePort {
@@ -31,17 +30,19 @@ public class EmailService implements EmailServicePort {
     private final RabbitEmailTaskProducer rabbitEmailTaskProducer;
     private final AuthProperties authProperties;
     private final MeterRegistry meterRegistry;
+    private final ObjectMapper objectMapper;
     private final Map<EmailType, EmailStrategy> strategyMap = new ConcurrentHashMap<>();
 
     public EmailService(List<EmailStrategy> strategies, 
                         RabbitEmailTaskProducer rabbitEmailTaskProducer,
                         AuthProperties authProperties,
-                        MeterRegistry meterRegistry) {
+                        MeterRegistry meterRegistry,
+                        ObjectMapper objectMapper) {
         this.rabbitEmailTaskProducer = rabbitEmailTaskProducer;
         this.authProperties = authProperties;
         this.meterRegistry = meterRegistry;
+        this.objectMapper = objectMapper;
         strategies.forEach(strategy -> strategyMap.put(strategy.getSupportedType(), strategy));
-        log.info("EmailService (PRO MAX) initialized with {} strategies and Micrometer monitoring", strategyMap.size());
     }
 
     // ENQUEUE -> de vao queue để gửi mail
@@ -86,11 +87,33 @@ public class EmailService implements EmailServicePort {
     }
 
     @Override
+    public void sendEmail(EmailType type, String recipient, Object data) {
+        try {
+            Map<String, Object> map = objectMapper.convertValue(data, new TypeReference<>() {});
+            this.sendEmail(type, recipient, map);
+        } catch (Exception e) {
+            log.error("Failed to convert email context object to map for {}: {}", type, e.getMessage());
+            throw new EmailDispatchException(ErrorCode.INTERNAL_SERVER_ERROR, "Invalid email context object");
+        }
+    }
+
+    @Override
     public void sendAsync(EmailType type, String recipient, Map<String, Object> data) {
         try {
             this.sendEmail(type, recipient, data);
         } catch (Exception e) {
             log.warn("Secondary Action: Silent failure in email dispatch for {}, error: {}", recipient, e.getMessage());
+            meterRegistry.counter("email.task.silent_failure", "type", type.name()).increment();
+        }
+    }
+
+    @Override
+    public void sendAsync(EmailType type, String recipient, Object data) {
+        try {
+            Map<String, Object> map = objectMapper.convertValue(data, new TypeReference<>() {});
+            this.sendAsync(type, recipient, map);
+        } catch (Exception e) {
+            log.warn("Secondary Action: Silent failure in object conversion for {}, error: {}", recipient, e.getMessage());
             meterRegistry.counter("email.task.silent_failure", "type", type.name()).increment();
         }
     }
@@ -141,13 +164,12 @@ public class EmailService implements EmailServicePort {
                     task.getId(), maxRetries, e.getMessage());
             meterRegistry.counter("email.task.exhausted", "type", task.getType().name()).increment();
             
-            throw new org.springframework.amqp.AmqpRejectAndDontRequeueException(
+            throw new AmqpRejectAndDontRequeueException(
                     "Email task retries exhausted: " + task.getId(), e);
         }
     }
 
     private long calculateBackoff(int attempt) {
-        // Exponential backoff logic
         long initial = authProperties.getEmail().getInitialBackoff().getSeconds();
         long max = authProperties.getEmail().getMaxBackoff().getSeconds();
         return Math.min(max, initial * (long) Math.pow(2, attempt));

@@ -171,8 +171,8 @@ public class AuthAdminAdapter implements IdentityManagementPort {
     }
 
     @Override
-    public UUID createUser(UserModel user, String password) {
-        KeycloakUserDTO payload = KeycloakUserDTO.fromModel(user);
+    public UUID createUser(UserModel user, String password, boolean temporary) {
+        KeycloakUserDTO payload = KeycloakUserDTO.fromModel(user, password, temporary);
 
         ResponseEntity<Void> response = adminRequest(HttpMethod.POST, PATH_USERS)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -187,12 +187,7 @@ public class AuthAdminAdapter implements IdentityManagementPort {
             String location = Objects.requireNonNull(response.getHeaders().getLocation())
                     .toString();
             String userId = location.substring(location.lastIndexOf("/") + 1);
-            UUID keycloakUuid = UUID.fromString(userId);
-            
-            resetPassword(keycloakUuid, password);
-            assignRole(keycloakUuid, UserRole.MEMBER.getCode());
-            
-            return keycloakUuid;
+            return UUID.fromString(userId);
         }
         
         log.error("Failed to create user in Keycloak. Status: {}", response.getStatusCode());
@@ -218,8 +213,8 @@ public class AuthAdminAdapter implements IdentityManagementPort {
     }
 
     @Override
-    public void resetPassword(UUID userId, String newPassword) {
-        KeycloakCredentialDTO payload = KeycloakCredentialDTO.password(newPassword, false);
+    public void resetPassword(UUID userId, String newPassword, boolean temporary) {
+        KeycloakCredentialDTO payload = KeycloakCredentialDTO.password(newPassword, temporary);
 
         adminRequest(HttpMethod.PUT, PATH_USERS + "/" + userId + PATH_RESET_PASSWORD)
                 .contentType(MediaType.APPLICATION_JSON)

@@ -26,7 +26,7 @@ public record UserResponse(
     @JsonView(Views.Public.class)
     String lastName,
 
-    @JsonView(Views.Me.class)
+    @JsonView({Views.Me.class, Views.Admin.class})
     String phone,
 
     @JsonView(Views.Public.class)

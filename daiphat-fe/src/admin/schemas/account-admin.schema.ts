@@ -7,14 +7,18 @@ export const accountAdminSchema = z.object({
     password: z.string().optional(),
     phone: z.string().optional(),
     roles: z.array(z.string()).min(1, "Vui lòng chọn ít nhất một nhóm quyền"),
-    status: z.enum(["active", "inactive"]),
+    status: z.enum(["active", "inactive"]).optional(),
     avatar: z.string().optional().nullable(),
 });
 
 export type AccountAdminFormValues = z.infer<typeof accountAdminSchema>;
 
 export const changePasswordSchema = z.object({
-    password: z.string().min(1, "Vui lòng nhập mật khẩu mới"),
+    password: z.string()
+        .min(6, "Mật khẩu phải có ít nhất 6 ký tự")
+        .max(100, "Mật khẩu không được quá 100 ký tự")
+        .regex(/^[A-Z]/, "Mật khẩu phải bắt đầu bằng chữ viết hoa")
+        .regex(/^\S*$/, "Mật khẩu không được chứa khoảng trắng"),
     confirmPassword: z.string().min(1, "Vui lòng xác nhận mật khẩu mới"),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Mật khẩu xác nhận không khớp",
