@@ -19,26 +19,27 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* Overlay */}
+    <>
+      {/* Invisible overlay for click-away */}
       <div 
-        className="absolute inset-0 bg-[#102937]/40 backdrop-blur-sm animate-in fade-in duration-300"
+        className="fixed inset-0 z-[90] cursor-default"
         onClick={onClose}
       />
       
-      {/* Modal Content */}
-      <div className="relative bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.2)] overflow-hidden animate-in zoom-in-95 fade-in duration-300">
-        {/* The clean DatePicker */}
-        <DatePicker 
-          selectedDate={selectedDate}
-          onDateSelect={(date) => {
-            onDateSelect(date);
-            onClose();
-          }}
-          availableDates={availableDates}
-          className="border-none shadow-none"
-        />
+      {/* Popup Content - Positioned absolutely relative to parent */}
+      <div className="absolute left-[calc(100%+20px)] top-0 z-[100] w-[600px] animate-in fade-in slide-in-from-left-4 duration-300">
+        <div className="bg-white rounded-[32px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-gray-100 overflow-hidden">
+          <DatePicker 
+            selectedDate={selectedDate}
+            onDateSelect={(date) => {
+              onDateSelect(date);
+              onClose();
+            }}
+            availableDates={availableDates}
+            className="border-none shadow-none"
+          />
+        </div>
       </div>
-    </div>
+    </>
   );
 };

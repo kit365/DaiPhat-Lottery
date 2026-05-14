@@ -8,6 +8,7 @@ import com.daiphat.accountservice.infrastructure.adapter.notification.rabbitmq.R
 import com.daiphat.accountservice.application.strategy.email.EmailStrategy;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,8 @@ class EmailServiceTest {
     private AuthProperties authProperties;
     @Mock
     private EmailStrategy mockStrategy;
+    @Mock
+    private ObjectMapper objectMapper;
 
     private MeterRegistry meterRegistry;
     private EmailService emailService;
@@ -55,7 +58,7 @@ class EmailServiceTest {
         // Gắn Lệnh bài Strategy
         lenient().when(mockStrategy.getSupportedType()).thenReturn(EmailType.WELCOME_VERIFY);
 
-        emailService = new EmailService(List.of(mockStrategy), rabbitEmailTaskProducer, authProperties, meterRegistry);
+        emailService = new EmailService(List.of(mockStrategy), rabbitEmailTaskProducer, authProperties, meterRegistry, objectMapper);
     }
 
     @Test

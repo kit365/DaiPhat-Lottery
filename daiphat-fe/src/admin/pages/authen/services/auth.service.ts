@@ -1,12 +1,12 @@
 import { apiApp } from "../../../../api";
 import { LoginFormValues } from "../../../schemas/login.schema";
-import { LoginResponse, GetMeResponse, ForgotPasswordRequest, VerifyOtpRequest, ResetPasswordRequest, PasswordPolicyResponse, ForgotPasswordResponse, VerifyOtpResponse, RegisterResponse, LogoutResponse, VerifyEmailResponse, RegisterRequest } from "../types/auth.type";
+import { LoginResponse, GetMeResponse, ForgotPasswordRequest, VerifyOtpRequest, ResetPasswordRequest, PasswordPolicyResponse, ForgotPasswordResponse, VerifyOtpResponse, RegisterResponse, LogoutResponse, VerifyEmailResponse, RegisterRequest, GoogleTokenResponse } from "../types/auth.type";
 import { ApiResponse } from "../../../../types/api.type";
 
 const API_AUTH = "/auth";
 
 export const authService = {
-    login: async (data: LoginFormValues): Promise<LoginResponse> => {
+    login: async (data: LoginFormValues & { rememberMe?: boolean }): Promise<LoginResponse> => {
         const response = await apiApp.post<LoginResponse>(`${API_AUTH}/login`, data);
         return response.data;
     },
@@ -46,7 +46,7 @@ export const authService = {
         return response.data;
     },
 
-    exchangeGoogleToken: async (code: string, redirectUri: string, codeVerifier?: string) => {
+    exchangeGoogleToken: async (code: string, redirectUri: string, codeVerifier?: string): Promise<GoogleTokenResponse> => {
         const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
         const realm = import.meta.env.VITE_KEYCLOAK_REALM;
         const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;

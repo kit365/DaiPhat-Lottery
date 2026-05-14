@@ -18,6 +18,7 @@ import {
     applyOptimization as apiApplyOptimization,
     suggestSmartAssignment as apiSuggestSmartAssignment
 } from "../../../api/ticketServiceOrder.api";
+import { ApiResponse, PageResponse } from "../../../config/type";
 
 export const useAvailableSlots = (params: { date: string, ticketServiceId: string, departmentId?: string }) => {
     return useQuery({
@@ -28,7 +29,7 @@ export const useAvailableSlots = (params: { date: string, ticketServiceId: strin
 };
 
 export const useTicketServiceOrders = (params?: any) => {
-    return useQuery<any>({
+    return useQuery<ApiResponse<PageResponse<any>>>({
         queryKey: ["ticketServiceOrders", params],
         queryFn: () => getTicketServiceOrders(params),
         placeholderData: keepPreviousData,

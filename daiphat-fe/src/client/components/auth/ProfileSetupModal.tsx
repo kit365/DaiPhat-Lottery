@@ -165,7 +165,7 @@ export const ProfileSetupModal: React.FC = () => {
                             className="px-6 sm:px-8 pb-10 space-y-4 sm:space-y-5"
                         >
                         {/* Phone Number - Only show if not exists */}
-                        {!(user?.phone || (user as any)?.phoneNumber) && (
+                        {!(user?.phone || user?.phoneNumber) && (
                             <div className="flex flex-col gap-1.5 focus-within:z-10">
                                 <label className="text-[13px] font-black uppercase tracking-wider text-slate-400 ml-1">Số điện thoại</label>
                                 <div className="relative group">
@@ -263,9 +263,8 @@ export const ProfileSetupModal: React.FC = () => {
                             <p className="text-[#FF6262] text-[11.5px] font-bold mt-1 ml-1">{errors.confirmPassword.message}</p>
                         )}
 
-                        {/* Terms - Only show if user hasn't agreed yet */}
-                        {!user?.agreedToTerms && (
-                            <div className="mt-3">
+                        {/* Terms - Shown during setup for user confirmation */}
+                        <div className="mt-3">
                                 <label className="flex items-start gap-4 cursor-pointer group select-none">
                                     <div className="relative mt-0.5">
                                         <input
@@ -321,7 +320,6 @@ export const ProfileSetupModal: React.FC = () => {
                                     )}
                                 </AnimatePresence>
                             </div>
-                        )}
 
                         {/* Submit */}
                         <button

@@ -114,7 +114,7 @@ const PasswordRequirementList = ({ password, policy }: { password: string; polic
 
 export const ProfilePage = () => {
     const { user } = useAuthStore();
-    const id = (user as any)?._id || user?.id;
+    const id = user?.id;
     const navigate = useNavigate();
 
     // States
@@ -130,7 +130,7 @@ export const ProfilePage = () => {
     
     // History can stay as it is specific to the profile view, but we make it optional
     const { data: ticketServiceOrdersData, isLoading: isTicketServiceOrdersLoading } = useTicketServiceOrders({ staffId: id });
-    const ticketServiceOrders = (ticketServiceOrdersData?.data as any)?.recordList || [];
+    const ticketServiceOrders = ticketServiceOrdersData?.data?.recordList || [];
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -155,7 +155,7 @@ export const ProfilePage = () => {
         reset,
         setValue,
         watch,
-    } = useForm<any>({
+    } = useForm<zod.infer<typeof accountAdminSchema>>({
         resolver: zodResolver(accountAdminSchema),
         defaultValues: {
             firstName: "",
@@ -168,7 +168,7 @@ export const ProfilePage = () => {
         },
     });
 
-    const passwordForm = useForm<any>({
+    const passwordForm = useForm<zod.infer<typeof passwordSchema>>({
         resolver: zodResolver(passwordSchema),
         defaultValues: {
             password: "",
@@ -209,7 +209,7 @@ export const ProfilePage = () => {
                 lastName: account.lastName || "",
                 email: account.email,
                 phone: account.phone || "",
-                roles: account.roles?.map((r: any) => typeof r === 'string' ? r : r._id) || [],
+                roles: account.role ? [account.role.id] : [],
                 status: account.status,
                 avatar: account.avatarUrl || account.avatar || "",
             });
@@ -235,13 +235,13 @@ export const ProfilePage = () => {
         }
     };
 
-    const onSubmit = (data: any) => {
+    const onSubmit = (data: zod.infer<typeof accountAdminSchema>) => {
         update({ id: id!, data }, {
             onSuccess: () => {
                 toast.success("Cập nhật thông tin thành công!");
                 setIsEditing(false);
             },
-            onError: (error: any) => {
+            onError: (error: { response?: { data?: { message?: string } } }) => {
                 toast.error(error.response?.data?.message || "Cập nhật thất bại");
             }
         });
@@ -249,7 +249,7 @@ export const ProfilePage = () => {
 
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
-    const onPasswordSubmit = (data: any) => {
+    const onPasswordSubmit = (data: zod.infer<typeof passwordSchema>) => {
         if (!isPasswordValid) {
             toast.error("Mật khẩu chưa thỏa mãn các yêu cầu bảo mật!");
             return;
@@ -259,7 +259,7 @@ export const ProfilePage = () => {
                 toast.success("Đổi mật khẩu thành công!");
                 passwordForm.reset();
             },
-            onError: (error: any) => {
+            onError: (error: { response?: { data?: { message?: string } } }) => {
                 toast.error(error.response?.data?.message || "Đổi mật khẩu thất bại");
             }
         });
@@ -364,7 +364,7 @@ export const ProfilePage = () => {
                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
                             <Icon icon="solar:shield-check-bold" color="var(--palette-primary-main)" width={16} />
                             <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600 }}>
-                                {(account as any)?.role?.name || "Member"}
+                                {account?.role?.name || "Member"}
                             </Typography>
                         </Stack>
                     </Box>
@@ -436,7 +436,7 @@ export const ProfilePage = () => {
                                 <ListItemButton
                                     key={tab.id}
                                     selected={activeTab === tab.id}
-                                    onClick={() => { setActiveTab(tab.id as any); setIsEditing(false); }}
+                                    onClick={() => { setActiveTab(tab.id as "general" | "security" | "history"); setIsEditing(false); }}
                                     sx={{
                                         borderRadius: "12px",
                                         mb: { xs: 0, md: 1 },
@@ -702,7 +702,7 @@ export const ProfilePage = () => {
                             ) : (
                                 <Box sx={{ overflowX: 'auto', p: 1, mt: 1 }}>
                                     <Box sx={{ minWidth: 900 }}>
-                                        {ticketServiceOrders.map((ticketServiceOrder: any) => (
+                                        {ticketServiceOrders.map((ticketServiceOrder) => (
                                             <Box
                                                 key={ticketServiceOrder._id}
                                                 onClick={() => navigate(`/${prefixAdmin}/ticketServiceOrder/detail/${ticketServiceOrder._id}`)}
@@ -744,7 +744,7 @@ export const ProfilePage = () => {
                                                 </Typography>
                                                 <Box textAlign="center">
                                                     {(() => {
-                                                        const statusMap: any = {
+                                                        const statusMap: Record<string, { label: string; color: string; bg: string }> = {
                                                             pending: { label: "Chờ duyệt", color: "var(--palette-warning-dark)", bg: "var(--palette-warning-lighter)" },
                                                             confirmed: { label: "Xác nhận", color: "var(--palette-info-dark)", bg: "var(--palette-info-lighter)" },
                                                             delayed: { label: "Trễ hẹn", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
@@ -752,7 +752,8 @@ export const ProfilePage = () => {
                                                             completed: { label: "Hoàn tất", color: "var(--palette-success-dark)", bg: "var(--palette-success-lighter)" },
                                                             cancelled: { label: "Đã hủy", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" }
                                                         };
-                                                        const status = statusMap[ticketServiceOrder.ticketServiceOrderStatus] || { label: ticketServiceOrder.ticketServiceOrderStatus, color: 'var(--palette-text-secondary)', bg: "var(--palette-background-neutral)" };
+                                                        const orderStatus = ticketServiceOrder.ticketServiceOrderStatus as string;
+                                                        const status = statusMap[orderStatus] || { label: orderStatus, color: 'var(--palette-text-secondary)', bg: "var(--palette-background-neutral)" };
                                                         return (
                                                             <Chip
                                                                 label={status.label}
