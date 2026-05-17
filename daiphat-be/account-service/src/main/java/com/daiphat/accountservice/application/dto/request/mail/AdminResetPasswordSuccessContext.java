@@ -4,7 +4,7 @@ import lombok.Builder;
 
 @Builder
 public record AdminResetPasswordSuccessContext(
-    String firstName,
+    String fullName,
     String email,
     String password,
     String loginUrl

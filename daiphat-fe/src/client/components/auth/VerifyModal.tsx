@@ -20,8 +20,7 @@ export const VerifyContent = () => {
                 
                 const response = await authService.verifyEmail(verificationToken);
                 
-                // Kiểm tra code linh hoạt (hỗ trợ cả "SUCCESS" string và 200/0 number)
-                if (response.code === "SUCCESS" || response.code === 200 || response.code === 0) {
+                if (response.isSuccess) {
                     setStatus('success');
                     setMessage('Tài khoản của bạn đã được kích hoạt thành công!');
                 } else {

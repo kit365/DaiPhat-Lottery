@@ -6,7 +6,5 @@ import lombok.Builder;
 @Builder
 public record OtpConfirmationRequest(
     @NotBlank(message = "Mã OTP không được để trống")
-    String otp,
-    
-    String phoneNumber
+    String otp
 ) {}

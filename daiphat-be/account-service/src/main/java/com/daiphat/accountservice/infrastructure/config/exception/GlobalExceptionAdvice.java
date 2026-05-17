@@ -31,7 +31,6 @@ public class GlobalExceptionAdvice {
 
         ApiResponse<Object> apiResponse = ApiResponse.builder()
                 .isSuccess(false)
-                .code(errorCode.getCode())
                 .message(e.getMessage())
                 .data(safeData)
                 .build();
@@ -56,7 +55,6 @@ public class GlobalExceptionAdvice {
 
         ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
                 .isSuccess(false)
-                .code(errorCode.getCode())
                 .message(errorCode.getMessage())
                 .build();
 
@@ -70,7 +68,6 @@ public class GlobalExceptionAdvice {
 
         ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
                 .isSuccess(false)
-                .code(errorCode.getCode())
                 .message(errorCode.getMessage())
                 .build();
 
@@ -88,7 +85,6 @@ public class GlobalExceptionAdvice {
 
         ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
                 .isSuccess(false)
-                .code(ErrorCode.INVALID_KEY.getCode())
                 .message(errorMessage)
                 .build();
 
@@ -104,7 +100,6 @@ public class GlobalExceptionAdvice {
 
         ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
                 .isSuccess(false)
-                .code(errorCode.getCode())
                 .message(errorCode.getMessage())
                 .build();
 
@@ -117,7 +112,6 @@ public class GlobalExceptionAdvice {
 
         ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
                 .isSuccess(false)
-                .code(ErrorCode.INTERNAL_SERVER_ERROR.getCode())
                 .message(ErrorCode.INTERNAL_SERVER_ERROR.getMessage())
                 .build();
 

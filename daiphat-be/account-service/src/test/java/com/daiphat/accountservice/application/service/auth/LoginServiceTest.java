@@ -37,7 +37,7 @@ class LoginServiceTest extends AuthTestBase {
     protected void setUp() {
         super.setUp();
         loginService = new LoginService(
-                userService,
+                userLookupService,
                 identityManagementPort,
                 tokenCachePort,
                 authApplicationMapper,
@@ -56,7 +56,7 @@ class LoginServiceTest extends AuthTestBase {
         UserModel user = buildActiveUser();
         KeycloakAuthResult keycloakResult = buildAuthResult(user.getId());
  
-        when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
+        when(userLookupService.findActiveByUsernameOrThrow(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
         when(authApplicationMapper.toResponse(eq(keycloakResult), eq(user))).thenReturn(AuthResponse.builder().accessToken(DEFAULT_TOKEN).expiresIn(3600L).build());
  
@@ -74,7 +74,7 @@ class LoginServiceTest extends AuthTestBase {
         LoginRequest request = LoginRequest.builder()
                 .username(NOT_FOUND_USERNAME).password(DEFAULT_PASSWORD).build();
  
-        when(userService.fetchActiveUserByUsername(NOT_FOUND_USERNAME)).thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS));
+        when(userLookupService.findActiveByUsernameOrThrow(NOT_FOUND_USERNAME)).thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS));
  
         assertThatThrownBy(() -> loginService.login(request))
                 .isInstanceOf(DomainException.class)
@@ -90,7 +90,7 @@ class LoginServiceTest extends AuthTestBase {
                 .username(DEFAULT_USERNAME).password(WRONG_PASSWORD).build();
  
         UserModel user = buildActiveUser();
-        when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
+        when(userLookupService.findActiveByUsernameOrThrow(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, WRONG_PASSWORD))
                 .thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS));
  
@@ -127,7 +127,7 @@ class LoginServiceTest extends AuthTestBase {
         UserModel user = buildActiveUser();
         KeycloakAuthResult keycloakResult = buildAuthResult(user.getId());
  
-        when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
+        when(userLookupService.findActiveByUsernameOrThrow(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
         when(authApplicationMapper.toResponse(eq(keycloakResult), eq(user))).thenReturn(AuthResponse.builder().build());
  
@@ -154,7 +154,7 @@ class LoginServiceTest extends AuthTestBase {
         String specialUser = "tuankiet!@#";
         LoginRequest request = LoginRequest.builder().username(specialUser).password(DEFAULT_PASSWORD).build();
  
-        when(userService.fetchActiveUserByUsername(specialUser)).thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS));
+        when(userLookupService.findActiveByUsernameOrThrow(specialUser)).thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS));
  
         assertThatThrownBy(() -> loginService.login(request))
                 .isInstanceOf(DomainException.class);
@@ -168,7 +168,7 @@ class LoginServiceTest extends AuthTestBase {
         UserModel user = buildActiveUser();
         user.setStatus(UserStatus.PENDING);
  
-        when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenThrow(new DomainException(ErrorCode.USER_INACTIVE));
+        when(userLookupService.findActiveByUsernameOrThrow(DEFAULT_USERNAME)).thenThrow(new DomainException(ErrorCode.USER_INACTIVE));
  
         assertThatThrownBy(() -> loginService.login(request))
                 .isInstanceOf(DomainException.class)
@@ -182,7 +182,7 @@ class LoginServiceTest extends AuthTestBase {
                 .username(DEFAULT_USERNAME).password(WRONG_PASSWORD).build();
         UserModel user = buildActiveUser();
  
-        when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
+        when(userLookupService.findActiveByUsernameOrThrow(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, WRONG_PASSWORD))
                 .thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS));
  
@@ -220,7 +220,7 @@ class LoginServiceTest extends AuthTestBase {
                 .isInstanceOf(DomainException.class)
                 .matches(e -> ((DomainException) e).getErrorCode() == ErrorCode.USER_LOCKED);
  
-        verifyNoInteractions(userService);
+        verifyNoInteractions(userLookupService);
     }
  
     @Test
@@ -231,7 +231,7 @@ class LoginServiceTest extends AuthTestBase {
         UserModel user = buildActiveUser();
         KeycloakAuthResult keycloakResult = buildAuthResult(user.getId());
  
-        when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
+        when(userLookupService.findActiveByUsernameOrThrow(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
         when(authApplicationMapper.toResponse(any(), any())).thenReturn(AuthResponse.builder().build());
  
@@ -248,7 +248,7 @@ class LoginServiceTest extends AuthTestBase {
         String attacker = "attacker_01";
         LoginRequest request = LoginRequest.builder().username(attacker).password(DEFAULT_PASSWORD).build();
  
-        lenient().when(userService.fetchActiveUserByUsername(attacker)).thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS));
+        lenient().when(userLookupService.findActiveByUsernameOrThrow(attacker)).thenThrow(new DomainException(ErrorCode.INVALID_CREDENTIALS));
  
         when(rateLimiterService.checkAndRecordFixed(eq(attacker), eq(com.daiphat.accountservice.application.port.out.auth.keys.AuthAction.LOGIN), anyInt(), anyLong()))
                 .thenReturn(true)
@@ -274,7 +274,7 @@ class LoginServiceTest extends AuthTestBase {
         user.setUsername(legitUser);
         KeycloakAuthResult keycloakResult = buildAuthResult(user.getId());
  
-        when(userService.fetchActiveUserByUsername(legitUser)).thenReturn(user);
+        when(userLookupService.findActiveByUsernameOrThrow(legitUser)).thenReturn(user);
         when(identityManagementPort.authenticate(legitUser, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
         when(authApplicationMapper.toResponse(any(), any())).thenReturn(AuthResponse.builder().build());
  
@@ -295,7 +295,7 @@ class LoginServiceTest extends AuthTestBase {
         KeycloakAuthResult keycloakResult = buildAuthResult(user.getId());
         Duration rememberMeTtl = Duration.ofDays(30);
  
-        when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
+        when(userLookupService.findActiveByUsernameOrThrow(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
         when(authApplicationMapper.toResponse(any(), any())).thenReturn(AuthResponse.builder().expiresIn(rememberMeTtl.toSeconds()).build());
         when(authProperties.getToken().getRememberMeTtl()).thenReturn(rememberMeTtl);
@@ -316,7 +316,7 @@ class LoginServiceTest extends AuthTestBase {
         KeycloakAuthResult keycloakResult = buildAuthResult(user.getId());
         keycloakResult.setAccessToken(NEW_ACCESS_TOKEN);
  
-        when(userService.fetchActiveUserById(user.getId())).thenReturn(user);
+        when(userLookupService.findActiveByIdOrThrow(user.getId())).thenReturn(user);
         when(identityManagementPort.refreshToken(DEFAULT_REFRESH_TOKEN)).thenReturn(keycloakResult);
         when(authApplicationMapper.toResponse(eq(keycloakResult), eq(user))).thenReturn(AuthResponse.builder().accessToken(NEW_ACCESS_TOKEN).build());
  
@@ -346,7 +346,7 @@ class LoginServiceTest extends AuthTestBase {
         UserModel user = buildActiveUser();
         KeycloakAuthResult keycloakResult = buildAuthResult(UUID.randomUUID());
  
-        when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
+        when(userLookupService.findActiveByUsernameOrThrow(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
  
         assertThatThrownBy(() -> loginService.login(request))
@@ -366,7 +366,7 @@ class LoginServiceTest extends AuthTestBase {
         KeycloakAuthResult keycloakResult = buildAuthResult(user.getId());
         keycloakResult.setKeycloakUserId(MALFORMED_UUID);
  
-        when(userService.fetchActiveUserByUsername(DEFAULT_USERNAME)).thenReturn(user);
+        when(userLookupService.findActiveByUsernameOrThrow(DEFAULT_USERNAME)).thenReturn(user);
         when(identityManagementPort.authenticate(DEFAULT_USERNAME, DEFAULT_PASSWORD)).thenReturn(keycloakResult);
  
         assertThatThrownBy(() -> loginService.login(request))
@@ -390,7 +390,7 @@ class LoginServiceTest extends AuthTestBase {
                 .isInstanceOf(DomainException.class)
                 .matches(e -> ((DomainException) e).getErrorCode() == ErrorCode.REFRESH_TOKEN_EXPIRED);
  
-        verifyNoInteractions(userService);
+        verifyNoInteractions(userLookupService);
         verify(tokenCachePort, never()).saveToken(anyString(), anyString(), any());
     }
  

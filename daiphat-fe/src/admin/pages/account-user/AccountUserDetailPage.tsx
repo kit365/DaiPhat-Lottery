@@ -52,7 +52,8 @@ export const AccountUserDetailPage = () => {
     } = useForm<any>({
         resolver: zodResolver(accountUserSchema),
         defaultValues: {
-            fullName: "",
+            firstName: "",
+            lastName: "",
             email: "",
             phone: "",
             status: UserStatus.ACTIVE,
@@ -65,7 +66,8 @@ export const AccountUserDetailPage = () => {
     useEffect(() => {
         if (user) {
             reset({
-                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
                 email: user.email,
                 phone: user.phone || "",
                 status: user.status,
@@ -148,7 +150,7 @@ export const AccountUserDetailPage = () => {
                     items={[
                         { label: "Dashboard", to: "/" },
                         { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
-                        { label: user?.fullName || "Chi tiết" }
+                        { label: user ? `${user.lastName} ${user.firstName}` : "Chi tiết" }
                     ]}
                 />
             </Box>
@@ -311,12 +313,26 @@ export const AccountUserDetailPage = () => {
                             <Card sx={{ p: 4, mb: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                                 <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
                                     <Controller
-                                        name="fullName"
+                                        name="lastName"
                                         control={control}
                                         render={({ field, fieldState }) => (
                                             <TextField
                                                 {...field}
-                                                label="Họ và tên"
+                                                label="Họ"
+                                                fullWidth
+                                                error={!!fieldState.error}
+                                                helperText={fieldState.error?.message}
+                                            />
+                                        )}
+                                    />
+
+                                    <Controller
+                                        name="firstName"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <TextField
+                                                {...field}
+                                                label="Tên"
                                                 fullWidth
                                                 error={!!fieldState.error}
                                                 helperText={fieldState.error?.message}
