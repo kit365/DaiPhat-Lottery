@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
-import { getUsers, getUserById, createUser, updateUser, deleteUser, changeUserPassword, getStatuses, initiateResetPassword, confirmResetPassword } from "../../../api/account-user.api";
+import { getUsers, getUserById, createUser, updateUser, deleteUser, changeUserPassword, getStatuses, initiateResetPassword, confirmResetPassword, inviteStaff } from "../../../api/account-user.api";
 import { QUERY_KEYS } from "../../../../constants/queryKeys";
 import { ApiResponse, PageResponse, BaseQueryParams } from "../../../config/type";
 import { User } from "../../../../types/user.type";
@@ -72,6 +72,16 @@ export const useDeleteUser = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => deleteUser(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNTS_USER] });
+        },
+    });
+};
+
+export const useInviteStaff = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, roleCode }: { id: string; roleCode: string }) => inviteStaff(id, { roleCode }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNTS_USER] });
         },
