@@ -2,11 +2,7 @@
 name: Microservices Backend Deploy
 
 on:
-  push:
-    branches: [ "main", "staging", "feature/dp-5-infs-test", "feature/dp-5-infs", "feature/dp-5-infs-backup" ]
-    paths:
-      - 'daiphat-be/**'
-      - 'docker-compose.yml'
+  workflow_dispatch:
 
 jobs:
   build-and-push:
