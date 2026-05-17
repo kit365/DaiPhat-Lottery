@@ -1,13 +1,10 @@
-import { GridColDef, GridRenderCellParams, GridActionsCell, GridActionsCellItem } from '@mui/x-data-grid';
-import Box from '@mui/material/Box';
+import { GridColDef, GridRenderCellParams, GridActionsCellItem } from '@mui/x-data-grid';
 import Chip from '@mui/material/Chip';
 import Avatar from '@mui/material/Avatar';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
-import { ListItemText } from '@mui/material';
-import { COLORS } from './constants';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { UserStatus } from '../../../../types/user.type';
 
@@ -28,16 +25,16 @@ export const getColumnsConfig = (
                     <Avatar
                         alt={params.row.fullName}
                         src={params.row.avatarUrl}
-                        sx={{ 
-                            width: 40, 
-                            height: 40, 
-                            fontWeight: 700, 
-                            bgcolor: 'rgba(145, 158, 171, 0.12)', 
+                        sx={{
+                            width: 40,
+                            height: 40,
+                            fontWeight: 700,
+                            bgcolor: 'rgba(145, 158, 171, 0.12)',
                             color: 'var(--palette-primary-main)',
                             fontSize: '1rem'
                         }}
                     >
-                        {params.row.fullName?.charAt(0).toUpperCase()}
+                        {params.row.lastName?.charAt(0).toUpperCase()}
                     </Avatar>
                     <Stack spacing={0.25}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--palette-text-primary)' }}>
@@ -97,8 +94,8 @@ export const getColumnsConfig = (
                         size="small"
                         color={color}
                         variant="soft"
-                        sx={{ 
-                            fontWeight: 700, 
+                        sx={{
+                            fontWeight: 700,
                             borderRadius: '6px',
                             height: 24,
                             fontSize: '0.75rem',

@@ -12,7 +12,7 @@ import { LoginResponse } from "../types/auth.type";
 import { LoginFormValues } from "../../../schemas/login.schema";
 import Cookies from "js-cookie";
 import { STORAGE_KEYS } from "../../../../constants/storage.constants";
-import { QUERY_KEYS } from "../../../constants/queryKeys";
+import { QUERY_KEYS } from "../../../../constants/queryKeys";
 
 export const useAuth = () => {
     const navigate = useNavigate();
@@ -30,19 +30,14 @@ export const useAuth = () => {
 
     useEffect(() => {
         if (getMeQuery.data) {
-            const isSuccess = getMeQuery.data.isSuccess || getMeQuery.data.code === "SUCCESS";
+            const isSuccess = getMeQuery.data.isSuccess;
             if (isSuccess && getMeQuery.data.data) {
                 const userData = getMeQuery.data.data as User;
 
-                const mappedUser = {
-                    ...userData,
-                    fullName: `${userData.firstName} ${userData.lastName}`.trim(),
-                };
-
-                if (JSON.stringify(user) !== JSON.stringify(mappedUser)) {
-                    set({ user: mappedUser });
+                if (JSON.stringify(user) !== JSON.stringify(userData)) {
+                    set({ user: userData });
                 }
-            } else if (!isSuccess && getMeQuery.data.code === "UNAUTHORIZED") {
+            } else if (!isSuccess) {
                 logout();
             }
         }
@@ -66,7 +61,7 @@ export const useAuth = () => {
     const loginMutation = useMutation({
         mutationFn: (data: LoginFormValues) => authService.login({ ...data, rememberMe: false }),
         onSuccess: (response: LoginResponse) => {
-            const isSuccess = response.isSuccess || response.success || response.code === "SUCCESS";
+            const isSuccess = response.isSuccess;
             if (isSuccess && response.data?.access_token) {
                 const { access_token, user: userInfo } = response.data;
                 if (userInfo) {
@@ -75,7 +70,6 @@ export const useAuth = () => {
 
                     // 2. Seed React Query Cache to prevent redundant getMe call
                     queryClient.setQueryData([QUERY_KEYS.AUTH_ME, access_token], {
-                        code: "SUCCESS",
                         isSuccess: true,
                         message: "Success",
                         data: userInfo
@@ -91,7 +85,7 @@ export const useAuth = () => {
                         Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, response.data.refresh_token, cookieOptions);
                     }
 
-                    const roleCode = userInfo.roles?.[0]?.code || "";
+                    const roleCode = userInfo.role?.code || "";
                     if (!userInfo.hasPassword) {
                         toast.info("Vui lòng thiết lập mật khẩu cho lần đăng nhập đầu tiên.");
                         navigate(ROUTES.ADMIN.AUTH.SETUP_PROFILE);

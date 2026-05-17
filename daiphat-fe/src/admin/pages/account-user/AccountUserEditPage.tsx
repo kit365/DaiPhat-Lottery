@@ -19,6 +19,7 @@ import {
     Stack,
     Chip
 } from "@mui/material";
+import { UserStatus } from "../../../types/user.type";
 import Grid from "@mui/material/Grid";
 import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
 import { UserUserTicketList } from "./sections/UserTicketList";
@@ -42,7 +43,8 @@ export const AccountUserEditPage = () => {
     } = useForm<any>({
         resolver: zodResolver(accountUserSchema),
         defaultValues: {
-            fullName: "",
+            firstName: "",
+            lastName: "",
             email: "",
             phone: "",
             avatar: "",
@@ -54,7 +56,8 @@ export const AccountUserEditPage = () => {
     useEffect(() => {
         if (user) {
             reset({
-                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
                 email: user.email,
                 phone: user.phone || "",
                 avatar: user.avatar || "",
@@ -149,10 +152,10 @@ export const AccountUserEditPage = () => {
                         <Card sx={{ p: '80px 24px', textAlign: 'center', borderRadius: "var(--shape-borderRadius-lg)", position: 'relative', boxShadow: "var(--customShadows-card)" }}>
                             <Box sx={{ position: 'absolute', top: 24, right: 24 }}>
                                 <Chip
-                                    label={user?.status === 'active' ? 'Hoạt động' : 'Tạm dừng'}
+                                    label={user?.status === UserStatus.ACTIVE ? 'Hoạt động' : 'Tạm dừng'}
                                     sx={{
-                                        bgcolor: user?.status === 'active' ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255, 171, 0, 0.16)',
-                                        color: user?.status === 'active' ? 'rgb(17, 141, 87)' : 'rgb(183, 110, 0)',
+                                        bgcolor: user?.status === UserStatus.ACTIVE ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255, 171, 0, 0.16)',
+                                        color: user?.status === UserStatus.ACTIVE ? 'rgb(17, 141, 87)' : 'rgb(183, 110, 0)',
                                         borderRadius: "var(--shape-borderRadius-sm)",
                                         fontWeight: 700,
                                         fontSize: '0.75rem',
@@ -231,12 +234,26 @@ export const AccountUserEditPage = () => {
                         <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
                                 <Controller
-                                    name="fullName"
+                                    name="lastName"
                                     control={control}
                                     render={({ field, fieldState }) => (
                                         <TextField
                                             {...field}
-                                            label="Họ và tên"
+                                            label="Họ"
+                                            fullWidth
+                                            error={!!fieldState.error}
+                                            helperText={fieldState.error?.message}
+                                        />
+                                    )}
+                                />
+
+                                <Controller
+                                    name="firstName"
+                                    control={control}
+                                    render={({ field, fieldState }) => (
+                                        <TextField
+                                            {...field}
+                                            label="Tên"
                                             fullWidth
                                             error={!!fieldState.error}
                                             helperText={fieldState.error?.message}

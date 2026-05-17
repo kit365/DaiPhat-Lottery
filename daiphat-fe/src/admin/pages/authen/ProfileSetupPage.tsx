@@ -114,7 +114,7 @@ export const ProfileSetupPage: React.FC = () => {
                 agreedToTerms: data.agreedToTerms
             });
 
-            if (response.isSuccess || response.code === "SUCCESS") {
+            if (response.isSuccess) {
                 toast.success("Thiết lập hồ sơ thành công!");
                 
                 // Invalidate query to ensure fresh profile data

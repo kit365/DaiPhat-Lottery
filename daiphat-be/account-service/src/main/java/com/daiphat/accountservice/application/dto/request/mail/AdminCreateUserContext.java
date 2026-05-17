@@ -4,7 +4,7 @@ import lombok.Builder;
 
 @Builder
 public record AdminCreateUserContext(
-    String firstName,
+    String fullName,
     String email,
     String password,
     String loginUrl

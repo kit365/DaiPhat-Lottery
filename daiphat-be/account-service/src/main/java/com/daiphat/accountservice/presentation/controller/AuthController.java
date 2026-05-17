@@ -1,5 +1,6 @@
 package com.daiphat.accountservice.presentation.controller;
 
+import com.daiphat.accountservice.application.dto.request.auth.ChangePasswordRequest;
 import com.daiphat.accountservice.application.dto.request.auth.ForgotPasswordRequest;
 import com.daiphat.accountservice.application.dto.request.auth.LoginRequest;
 import com.daiphat.accountservice.application.dto.request.auth.LogoutRequest;
@@ -12,7 +13,6 @@ import com.daiphat.accountservice.application.dto.response.auth.AuthResponse;
 import com.daiphat.accountservice.application.dto.response.auth.ForgotPasswordResponse;
 import com.daiphat.accountservice.application.dto.response.auth.VerifyOtpResponse;
 import com.daiphat.accountservice.application.port.in.auth.AuthServicePort;
-import com.daiphat.accountservice.application.port.in.user.UserServicePort;
 import com.daiphat.accountservice.application.dto.request.user.OtpConfirmationRequest;
 import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
@@ -59,9 +59,9 @@ public class AuthController {
     private static final String MSG_RESEND_VERIFY_SUCCESS = "Link xác thực mới đã được gửi về Email của bạn. "
             + "Vui lòng kiểm tra lại!";
     private static final String MSG_REFRESH_TOKEN_SUCCESS = "Làm mới mã định danh thành công.";
+    private static final String COOKIE_NAME_SPEL = "${daiphat.auth.cookie.name:" + DEFAULT_COOKIE_NAME + "}";
 
     private final AuthServicePort authServicePort;
-    private final UserServicePort userServicePort;
     private final AuthProperties authProperties;
 
     @GetMapping("/password-policy")
@@ -119,7 +119,7 @@ public class AuthController {
     @PostMapping("/{id}" + RESET_PASSWORD + "/initiate")
     @PreAuthorize("hasAnyAuthority('member:edit')")
     public ResponseEntity<ApiResponse<Void>> initiateResetPassword(@PathVariable UUID id) {
-        userServicePort.initiatePasswordReset(id);
+        authServicePort.initiatePasswordReset(id);
         return ResponseEntity.ok(ApiResponse.<Void>builder()
                 .message(MSG_INITIATE_RESET_SUCCESS)
                 .build());
@@ -131,9 +131,21 @@ public class AuthController {
             @PathVariable UUID id,
             @Valid @RequestBody OtpConfirmationRequest request) {
         log.info("REST request to confirm password reset for user: {}", id);
-        userServicePort.confirmPasswordReset(id, request.otp(), request.phoneNumber());
+        authServicePort.confirmPasswordReset(id, request.otp());
         return ResponseEntity.ok(ApiResponse.<Void>builder()
                 .message(MSG_CONFIRM_RESET_SUCCESS)
+                .build());
+    }
+
+    @PostMapping("/{id}/change-password")
+    @PreAuthorize("hasAnyAuthority('member:edit')")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @PathVariable UUID id,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        log.info("REST request to change password for user: {}", id);
+        authServicePort.changePassword(id, request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .message("Đổi mật khẩu thành công.")
                 .build());
     }
 
@@ -154,7 +166,6 @@ public class AuthController {
                 .sameSite(cookieProps.getSameSite())
                 .build();
 
-        response.setRefreshToken(null); // Hardened: move out of JSON body to HttpOnly cookie only
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(ApiResponse.<AuthResponse>builder()
@@ -165,20 +176,15 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
-            @CookieValue(name = "${daiphat.auth.cookie.name:" + DEFAULT_COOKIE_NAME
-                        + "}", required = false) String cookieRefreshToken,
+            @CookieValue(name = COOKIE_NAME_SPEL, required = false) String cookieRefreshToken,
             Principal principal) {
 
-        log.info("REST request to logout");
-
-        String refreshTokenToUse = cookieRefreshToken;
-
-        if (principal == null && (refreshTokenToUse == null || refreshTokenToUse.isBlank())) {
+        if (principal == null && (cookieRefreshToken == null || cookieRefreshToken.isBlank())) {
             log.info("Logout requested but no active session or refresh token found. "
                     + "Returning success for idempotency.");
         } else {
             try {
-                authServicePort.logout(new LogoutRequest(refreshTokenToUse));
+                authServicePort.logout(new LogoutRequest(cookieRefreshToken));
             } catch (Exception e) {
                 log.warn("Backend logout failed or was already invalidated: {}", e.getMessage());
             }
@@ -232,19 +238,15 @@ public class AuthController {
     @PostMapping("/refresh-token")
     @JsonView(Views.Me.class)
     public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(
-            @CookieValue(name = "${daiphat.auth.cookie.name:" + DEFAULT_COOKIE_NAME
-                        + "}", required = false) String cookieRefreshToken) {
+            @CookieValue(name = COOKIE_NAME_SPEL, required = false) String cookieRefreshToken) {
 
         log.info("REST request to refresh token");
 
-        String refreshTokenToUse = cookieRefreshToken;
-
-        if (refreshTokenToUse == null || refreshTokenToUse.isBlank()) {
+        if (cookieRefreshToken == null || cookieRefreshToken.isBlank()) {
             throw new DomainException(ErrorCode.UNAUTHORIZED);
         }
 
-        RefreshTokenRequest activeRequest = new RefreshTokenRequest(refreshTokenToUse);
-        AuthResponse response = authServicePort.refreshToken(activeRequest);
+        AuthResponse response = authServicePort.refreshToken(new RefreshTokenRequest(cookieRefreshToken));
 
         AuthProperties.Cookie cookieProps = authProperties.getCookie();
         String cookiePath = cookieProps.getPath() != null ? cookieProps.getPath() : ApiConstants.AUTH;
@@ -252,7 +254,7 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie
                 .from(cookieProps.getName(),
                                 response.getRefreshToken() != null ? response.getRefreshToken()
-                                                : refreshTokenToUse)
+                                                 : cookieRefreshToken)
                 .httpOnly(true)
                 .secure(cookieProps.isSecure())
                 .path(cookiePath)
@@ -260,7 +262,6 @@ public class AuthController {
                 .sameSite(cookieProps.getSameSite())
                 .build();
 
-        response.setRefreshToken(null);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(ApiResponse.<AuthResponse>builder()

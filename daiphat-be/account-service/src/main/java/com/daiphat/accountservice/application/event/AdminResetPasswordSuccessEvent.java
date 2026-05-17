@@ -5,6 +5,6 @@ import lombok.Builder;
 @Builder
 public record AdminResetPasswordSuccessEvent(
     String email,
-    String firstName,
+    String fullName,
     String password
 ) {}

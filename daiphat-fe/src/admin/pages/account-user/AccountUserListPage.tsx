@@ -16,7 +16,8 @@ export const AccountUserListPage = () => {
     const handleInvite = (data: any) => {
         console.log('Invite customer data:', data);
         // Sau này sẽ gọi API ở đây
-        toast.success(`Đã gửi lời mời đến khách hàng ${data.fullName || data.email}`);
+        const fullName = `${data.lastName || ''} ${data.firstName || ''}`.trim();
+        toast.success(`Đã gửi lời mời đến khách hàng ${fullName || data.email}`);
     };
 
     return (

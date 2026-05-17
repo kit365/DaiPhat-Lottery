@@ -5,6 +5,6 @@ import lombok.Builder;
 @Builder
 public record UserRegisteredEvent(
     String email,
-    String firstName,
+    String fullName,
     String token
 ) {}

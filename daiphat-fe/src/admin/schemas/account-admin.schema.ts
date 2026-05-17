@@ -7,7 +7,7 @@ export const accountAdminSchema = z.object({
     password: z.string().optional(),
     phone: z.string().optional(),
     roles: z.array(z.string()).min(1, "Vui lòng chọn ít nhất một nhóm quyền"),
-    status: z.enum(["active", "inactive"]).optional(),
+    status: z.enum(["ACTIVE", "LOCKED", "PENDING", "BANNED"]).optional(),
     avatar: z.string().optional().nullable(),
 });
 

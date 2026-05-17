@@ -28,6 +28,16 @@ export const authService = {
 
     getMe: async (): Promise<GetMeResponse> => {
         const response = await apiApp.get<GetMeResponse>("/users/me");
+        const user = response.data?.data || response.data;
+        if (response.data && user) {
+            response.data.data = {
+                ...user,
+                phone: user.phoneNumber || user.phone,
+                fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email,
+                avatar: user.avatarUrl || user.avatar,
+                status: user.status ? user.status.toUpperCase() : 'PENDING'
+            };
+        }
         return response.data;
     },
 

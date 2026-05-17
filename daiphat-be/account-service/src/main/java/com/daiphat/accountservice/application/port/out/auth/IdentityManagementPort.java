@@ -16,8 +16,11 @@ public interface IdentityManagementPort {
     UUID createUser(UserModel user, String password, boolean temporary);
 
     void assignRole(UUID userId, String roleCode);
+    void assignRole(UUID userId, List<String> roleCodes);
 
     void resetPassword(UUID userId, String newPassword, boolean temporary);
+
+    void logoutUserSessions(UUID userId);
 
     void deleteUser(UUID userId);
 

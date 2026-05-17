@@ -72,7 +72,7 @@ const BoardingRow = ({ ticketServiceOrder }: { ticketServiceOrder: any }) => {
                         {ticketServiceOrder.userTicketIds?.map((p: any) => p.name || "N/A").join(", ") || "N/A"}
                     </Typography>
                     <Typography variant="caption" sx={{ color: "var(--palette-text-disabled)" }}>
-                        KH: {ticketServiceOrder.fullName || ticketServiceOrder.userId?.fullName || "N/A"}
+                        KH: {ticketServiceOrder.userId ? `${ticketServiceOrder.userId.lastName} ${ticketServiceOrder.userId.firstName}` : (ticketServiceOrder.fullName || "N/A")}
                     </Typography>
                 </Box>
 
