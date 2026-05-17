@@ -1,6 +1,7 @@
 package com.daiphat.accountservice.infrastructure.adapter.auth.cache;
 
 import com.daiphat.accountservice.application.port.out.user.cache.InviteCachePort;
+import com.daiphat.accountservice.domain.model.auth.InviteData;
 import com.daiphat.accountservice.infrastructure.persistence.cache.redis.client.RedisClient;
 import com.daiphat.accountservice.application.port.out.auth.keys.AuthCacheKeyGenerator;
 import lombok.RequiredArgsConstructor;

@@ -145,13 +145,4 @@ public class UserController {
                 .message("Đã gửi lời mời nhân viên thành công.")
                 .build());
     }
-
-    @PostMapping("/invites/accept")
-    public ResponseEntity<ApiResponse<Void>> acceptInvite(
-            @Valid @RequestBody com.daiphat.accountservice.application.dto.request.AcceptInviteRequest request) {
-        userServicePort.acceptInvite(request);
-        return ResponseEntity.ok(ApiResponse.<Void>builder()
-                .message("Xác nhận lời mời thành công. Tài khoản của bạn đã được cập nhật quyền.")
-                .build());
-    }
 }
