@@ -38,7 +38,15 @@ import java.util.stream.Collectors;
 import com.daiphat.accountservice.application.dto.request.InviteStaffRequest;
 import com.daiphat.accountservice.application.dto.request.AcceptInviteRequest;
 import com.daiphat.accountservice.application.port.out.user.cache.InviteCachePort;
+import com.daiphat.accountservice.domain.model.auth.InviteData;
 import java.time.Duration;
+import com.daiphat.accountservice.infrastructure.persistence.entity.StaffInviteEntity;
+import com.daiphat.accountservice.infrastructure.persistence.entity.RoleEntity;
+import com.daiphat.accountservice.infrastructure.persistence.repository.RoleRepository;
+import com.daiphat.accountservice.infrastructure.persistence.repository.StaffInviteRepository;
+import com.daiphat.accountservice.domain.model.enums.InviteStatus;
+import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -54,6 +62,8 @@ public class UserService implements UserServicePort {
     private final InviteCachePort inviteCachePort;
     private final UserLookupServicePort userLookupService;
     private final UserValidationServicePort userValidationService;
+    private final RoleRepository roleRepository;
+    private final StaffInviteRepository staffInviteRepository;
 
 
     @Override
@@ -230,10 +240,48 @@ public class UserService implements UserServicePort {
         // Special case: Using mixed identifier lookup, primarily for the invitation flow.
         UserModel user = userLookupService.findByIdentifierOrThrow(id);
 
+        RoleEntity roleEntity = roleRepository.findByCode(request.getRoleCode())
+                .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
+
         // Generate a token and save to cache (24 hours expiry)
         String inviteToken = UUID.randomUUID().toString();
         inviteCachePort.saveInvite(inviteToken, user.getId(), request.getRoleCode(), Duration.ofHours(24));
         
+        UUID currentUserId = null;
+        try {
+            var auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getPrincipal() instanceof SecurityUser securityUser) {
+                currentUserId = securityUser.id();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get current user ID: {}", e.getMessage());
+        }
+
+        StaffInviteEntity staffInvite = staffInviteRepository.findByEmail(user.getEmail())
+                .orElseGet(() -> StaffInviteEntity.builder()
+                        .email(user.getEmail())
+                        .build());
+
+        if (staffInvite.getToken() != null) {
+            log.info("Invalidating old active invite token: {}", staffInvite.getToken());
+            try {
+                inviteCachePort.deleteInvite(staffInvite.getToken());
+            } catch (Exception e) {
+                log.warn("Failed to delete old invite token from cache: {}", e.getMessage());
+            }
+        }
+
+        staffInvite.setRole(roleEntity);
+        staffInvite.setStatus(InviteStatus.PENDING);
+        staffInvite.setToken(inviteToken);
+        staffInvite.setInvitedById(currentUserId);
+        staffInvite.setInvitedAt(LocalDateTime.now());
+        staffInvite.setApprovedAt(null);
+        staffInvite.setExpiresAt(LocalDateTime.now().plusHours(24));
+
+        staffInviteRepository.save(staffInvite);
+        log.info("Successfully saved staff invite record to DB for email: {}", user.getEmail());
+
         eventPublisher.publishEvent(StaffInviteEvent.builder()
                 .email(user.getEmail())
                 .fullName(user.getFullName())
@@ -247,7 +295,7 @@ public class UserService implements UserServicePort {
     public void acceptInvite(AcceptInviteRequest request) {
         log.info("Accepting staff invitation with token: {}", request.getToken());
         
-        InviteCachePort.InviteData inviteData = inviteCachePort.getInvite(request.getToken())
+        InviteData inviteData = inviteCachePort.getInvite(request.getToken())
                 .orElseThrow(() -> new DomainException(ErrorCode.INVITATION_INVALID));
 
         UserModel user = userLookupService.findByIdOrThrow(inviteData.userId());
@@ -257,6 +305,16 @@ public class UserService implements UserServicePort {
         assignRoleToUser(user, inviteData.role());
 
         userRepositoryPort.save(user);
+
+        staffInviteRepository.findByToken(request.getToken())
+                .ifPresentOrElse(invite -> {
+                    invite.setStatus(InviteStatus.APPROVED);
+                    invite.setApprovedAt(LocalDateTime.now());
+                    staffInviteRepository.save(invite);
+                    log.info("Updated staff invite record to APPROVED in DB for email: {}", invite.getEmail());
+                }, () -> {
+                    log.warn("No staff invite record found in DB for token: {}", request.getToken());
+                });
 
         inviteCachePort.deleteInvite(request.getToken());
         

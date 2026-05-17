@@ -89,5 +89,10 @@ export const authService = {
             params: { token }
         });
         return response.data;
+    },
+
+    acceptInvite: async (token: string): Promise<ApiResponse<any>> => {
+        const response = await apiApp.post<ApiResponse<any>>(`${API_AUTH}/invites/accept`, { token });
+        return response.data;
     }
 };

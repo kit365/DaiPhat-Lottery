@@ -24,8 +24,9 @@ const LoginPage = lazy(() => import("../pages/authen/LoginPage").then(m => ({ de
 const ForgotPasswordPage = lazy(() => import("../pages/authen/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 const OAuthCallbackPage = lazy(() => import("../pages/authen/OAuthCallbackPage").then(m => ({ default: m.OAuthCallbackPage })));
 const ProfileSetupPage = lazy(() => import("../pages/authen/ProfileSetupPage").then(m => ({ default: m.ProfileSetupPage })));
+const AcceptInvitePage = lazy(() => import("../pages/authen/AcceptInvitePage").then(m => ({ default: m.AcceptInvitePage })));
 
-export { LoginPage, ForgotPasswordPage, OAuthCallbackPage, ProfileSetupPage };
+export { LoginPage, ForgotPasswordPage, OAuthCallbackPage, ProfileSetupPage, AcceptInvitePage };
 const DashboardPage = lazy(() => import("../pages/dashboard/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const SystemPage = lazy(() => import("../pages/dashboard/SystemPage").then(m => ({ default: m.SystemPage })));
 const EcommercePage = lazy(() => import("../pages/dashboard/EcommercePage")); // Default export
@@ -166,4 +167,5 @@ export const AdminAuthRoutes = [
 export const CommonRoutes = [
     { path: "setup-profile", element: <ProfileSetupPage /> },
     { path: "auth/callback", element: <OAuthCallbackPage /> },
+    { path: "accept-invite", element: <AcceptInvitePage /> },
 ];
