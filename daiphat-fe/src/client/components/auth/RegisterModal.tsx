@@ -2,13 +2,24 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2 } from "lucide-react";
-import { useRegisterForm } from "../../hooks/useRegisterForm";
+import { useAuth } from "../../hooks/useAuth";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 import { GoogleIcon, VisualPanelContent, AuthBranding } from "./SharedAuth";
 
-export const RegisterContent = ({ onSwitchToLogin }: { onSwitchToLogin?: () => void }) => {
+import { UseFormReturn } from "react-hook-form";
+import { RegisterFormValues } from "../../../client/types/auth.schema";
+import { AppToast } from "../../utils/toast.util";
+
+interface RegisterContentProps {
+    onSwitchToLogin?: () => void;
+    registerForm: UseFormReturn<RegisterFormValues>;
+    handleRegister: (e?: React.BaseSyntheticEvent) => Promise<void>;
+    isPending: boolean;
+}
+
+export const RegisterContent = ({ onSwitchToLogin, registerForm, handleRegister: submit, isPending }: RegisterContentProps) => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
@@ -17,14 +28,10 @@ export const RegisterContent = ({ onSwitchToLogin }: { onSwitchToLogin?: () => v
     const { data: passwordPolicy } = usePasswordPolicy();
 
     const {
-        form: {
-            register,
-            formState: { errors },
-            watch,
-        },
-        submit,
-        isPending,
-    } = useRegisterForm();
+        register,
+        formState: { errors },
+        watch,
+    } = registerForm;
 
     const passwordValue = watch("password");
 
@@ -248,7 +255,10 @@ export const RegisterContent = ({ onSwitchToLogin }: { onSwitchToLogin?: () => v
 
             <p className="mt-3 pb-5 text-center text-slate-500 font-bold text-sm">
                 Đã có tài khoản?{" "}
-                <a href="#" onClick={(e) => { e.preventDefault(); onSwitchToLogin?.(); }} className="text-[#FF6262] hover:underline">
+                <a href="#" onClick={(e) => { 
+                    e.preventDefault(); 
+                    onSwitchToLogin?.(); 
+                }} className="text-[#FF6262] hover:underline">
                     Đăng nhập
                 </a>
             </p>
@@ -258,6 +268,31 @@ export const RegisterContent = ({ onSwitchToLogin }: { onSwitchToLogin?: () => v
 
 export const RegisterModal = () => {
     const { isRegisterModalOpen, closeAuthModals, openLoginModal } = useAuthStore();
+    const { 
+        registerForm, 
+        handleRegister, 
+        registerMutation: { isPending } 
+    } = useAuth();
+
+    const { isDirty } = registerForm.formState;
+
+    const handleCloseWithConfirm = async (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        
+        if (isDirty) {
+            const confirmClose = await AppToast.confirm("Bạn có chắc chắn muốn thoát? Các thông tin đã điền sẽ bị mất.");
+            if (!confirmClose) return;
+        }
+        closeAuthModals();
+    };
+
+    const handleSwitchToLogin = async () => {
+        if (isDirty) {
+            const confirmSwitch = await AppToast.confirm("Bạn có chắc chắn muốn rời đi? Các thông tin đã điền sẽ bị mất.");
+            if (!confirmSwitch) return;
+        }
+        openLoginModal();
+    };
 
     useEffect(() => {
         if (isRegisterModalOpen) document.body.style.overflow = "hidden";
@@ -268,7 +303,7 @@ export const RegisterModal = () => {
     if (!isRegisterModalOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-[#0f172a]/60 backdrop-blur-md transition-all" onClick={closeAuthModals}>
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-[#0f172a]/60 backdrop-blur-md transition-all" onClick={() => handleCloseWithConfirm()}>
             <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -279,7 +314,7 @@ export const RegisterModal = () => {
             >
                 <button 
                   className="absolute top-5 right-5 z-20 w-10 h-10 flex items-center justify-center rounded-full bg-black/5 text-[#102937] hover:bg-black/10 transition-colors cursor-pointer" 
-                  onClick={closeAuthModals}
+                  onClick={handleCloseWithConfirm}
                   aria-label="Đóng"
                 >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -289,7 +324,12 @@ export const RegisterModal = () => {
                 </button>
                 <div className="flex flex-col xl:flex-row flex-1 min-h-0 items-stretch overflow-hidden">
                     <div className="w-full xl:w-[54%] bg-white overflow-y-auto scrollbar-hide border-r border-slate-50 flex-1 min-h-0">
-                        <RegisterContent onSwitchToLogin={openLoginModal} />
+                        <RegisterContent 
+                            onSwitchToLogin={handleSwitchToLogin} 
+                            registerForm={registerForm}
+                            handleRegister={handleRegister}
+                            isPending={isPending}
+                        />
                     </div>
                     <div className="hidden xl:flex w-[46%] bg-[#102937] flex-shrink-0 items-stretch overflow-hidden">
                         <VisualPanelContent />

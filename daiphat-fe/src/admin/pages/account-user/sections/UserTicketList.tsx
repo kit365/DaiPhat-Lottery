@@ -121,7 +121,7 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
 
     const handleSubmit = () => {
         if (!formData.name) {
-            toast.error("Vui lòng nhập tên thú cưng");
+            toast.error("Vui lòng nhập tên vé");
             return;
         }
 
@@ -135,14 +135,14 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
         if (selectedUserTicket) {
             updateUserTicket({ id: selectedUserTicket._id, data }, {
                 onSuccess: () => {
-                    toast.success("Cập nhật thú cưng thành công");
+                    toast.success("Cập nhật vé thành công");
                     handleCloseDialog();
                 }
             });
         } else {
             createUserTicket(data, {
                 onSuccess: () => {
-                    toast.success("Thêm thú cưng mới thành công");
+                    toast.success("Thêm vé mới thành công");
                     handleCloseDialog();
                 }
             });
@@ -150,10 +150,10 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
     };
 
     const handleDelete = (id: string) => {
-        confirmDelete("Bạn có chắc chắn muốn xóa thú cưng này?", () => {
+        confirmDelete("Bạn có chắc chắn muốn xóa vé này?", () => {
             deleteUserTicket(id, {
                 onSuccess: () => {
-                    toast.success("Xóa thú cưng thành công");
+                    toast.success("Xóa vé thành công");
                 }
             });
         });
@@ -163,7 +163,7 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
         <Card sx={{ mt: 3, borderRadius: "var(--shape-borderRadius-lg)", border: '1px solid rgba(145, 158, 171, 0.2)', boxShadow: 'none' }}>
             <Box sx={{ p: "calc(3 * var(--spacing))", display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem', color: 'var(--palette-text-primary)' }}>
-                    Danh sách thú cưng
+                    Danh sách vé
                 </Typography>
                 <Button
                     variant="contained"
@@ -186,7 +186,7 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                         }
                     }}
                 >
-                    Thêm thú cưng
+                    Thêm vé
                 </Button>
             </Box>
 
@@ -194,11 +194,11 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                 <Table size="medium">
                     <TableHead>
                         <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
-                            <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-secondary)', borderBottom: 'none' }}>Tên</TableCell>
-                            <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-secondary)', borderBottom: 'none' }}>Loại</TableCell>
-                            <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-secondary)', borderBottom: 'none' }}>Giống</TableCell>
-                            <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-secondary)', borderBottom: 'none' }}>Cân nặng</TableCell>
-                            <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-secondary)', borderBottom: 'none' }}>Tuổi (tháng)</TableCell>
+                            <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-secondary)', borderBottom: 'none' }}>Tên vé</TableCell>
+                            <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-secondary)', borderBottom: 'none' }}>Loại hình</TableCell>
+                            <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-secondary)', borderBottom: 'none' }}>Đài</TableCell>
+                            <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-secondary)', borderBottom: 'none' }}>Số lượng</TableCell>
+                            <TableCell sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-secondary)', borderBottom: 'none' }}>Giá (VNĐ)</TableCell>
                             <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-secondary)', borderBottom: 'none' }}>Hành động</TableCell>
                         </TableRow>
                     </TableHead>
@@ -218,14 +218,14 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                                             }}
                                         >
                                             <Icon
-                                                icon={userTicket.type === 'dog' ? 'mdi:dog' : 'mdi:cat'}
+                                                icon={userTicket.type === 'dog' ? 'mdi:ticket-confirmation' : 'mdi:ticket-percent'}
                                                 style={{ fontSize: '1.5rem', color: userTicket.type === 'dog' ? 'var(--palette-primary-main)' : '#8E33FF' }}
                                             />
                                         </Avatar>
                                         <Box>
                                             <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>{userTicket.name}</Typography>
                                             <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.75rem' }}>
-                                                {userTicket.gender === 'male' ? 'Đực' : 'Cái'}
+                                                {userTicket.gender === 'male' ? 'Thường' : 'VIP'}
                                             </Typography>
                                         </Box>
                                     </Stack>
@@ -233,17 +233,17 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                                 <TableCell sx={{ borderBottom: '1px dashed var(--palette-text-disabled)33', fontSize: '0.875rem' }}>
                                     <Stack direction="row" spacing={1} alignItems="center">
                                         <Icon
-                                            icon={userTicket.type === 'dog' ? 'mdi:dog' : 'mdi:cat'}
+                                            icon={userTicket.type === 'dog' ? 'mdi:ticket-confirmation' : 'mdi:ticket-percent'}
                                             style={{ color: 'var(--palette-text-secondary)', fontSize: '1.25rem' }}
                                         />
                                         <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                                            {userTicket.type === 'dog' ? 'Chó' : 'Mèo'}
+                                            {userTicket.type === 'dog' ? 'Xổ số Vietlott' : 'Xổ số kiến thiết'}
                                         </Typography>
                                     </Stack>
                                 </TableCell>
                                 <TableCell sx={{ borderBottom: '1px dashed var(--palette-text-disabled)33', fontSize: '0.875rem' }}>{userTicket.ticketSubtype || '-'}</TableCell>
-                                <TableCell sx={{ borderBottom: '1px dashed var(--palette-text-disabled)33', fontSize: '0.875rem' }}>{userTicket.weight ? `${userTicket.weight} kg` : '-'}</TableCell>
-                                <TableCell sx={{ borderBottom: '1px dashed var(--palette-text-disabled)33', fontSize: '0.875rem' }}>{userTicket.age ? `${userTicket.age} tháng` : '-'}</TableCell>
+                                <TableCell sx={{ borderBottom: '1px dashed var(--palette-text-disabled)33', fontSize: '0.875rem' }}>{userTicket.weight ? `${userTicket.weight}` : '-'}</TableCell>
+                                <TableCell sx={{ borderBottom: '1px dashed var(--palette-text-disabled)33', fontSize: '0.875rem' }}>{userTicket.age ? `${userTicket.age.toLocaleString()}đ` : '-'}</TableCell>
                                 <TableCell align="right" sx={{ borderBottom: '1px dashed var(--palette-text-disabled)33' }}>
                                     <Stack direction="row" justifyContent="flex-end" spacing={1}>
                                         <IconButton onClick={() => handleOpenDialog(userTicket)} sx={{ color: 'var(--palette-text-secondary)', '&:hover': { bgcolor: 'rgba(145, 158, 171, 0.08)' } }}>
@@ -260,9 +260,9 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                 </Table>
                 {userTickets.length === 0 && !isLoading && (
                     <Box sx={{ py: 10, textAlign: 'center' }}>
-                        <Icon icon="mdi:paw-off" style={{ width: '4rem', height: '4rem', color: 'var(--palette-text-disabled)', opacity: 0.24, marginBottom: '1rem' }} />
+                        <Icon icon="mdi:ticket-off" style={{ width: '4rem', height: '4rem', color: 'var(--palette-text-disabled)', opacity: 0.24, marginBottom: '1rem' }} />
                         <Typography variant="body2" sx={{ color: 'var(--palette-text-disabled)', fontSize: '0.875rem', fontWeight: 500 }}>
-                            Khách hàng này chưa có thú cưng nào
+                            Khách hàng này chưa có vé nào
                         </Typography>
                     </Box>
                 )}
@@ -282,7 +282,7 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                 }}
             >
                 <DialogTitle sx={{ fontWeight: 700, fontSize: '1.125rem', p: '1.5rem 1.5rem 1rem' }}>
-                    {selectedUserTicket ? 'Chỉnh sửa thú cưng' : 'Thêm thú cưng mới'}
+                    {selectedUserTicket ? 'Chỉnh sửa vé' : 'Thêm vé mới'}
                 </DialogTitle>
                 <DialogContent sx={{ p: '0 1.5rem 1.5rem' }}>
                     <Stack spacing={2.5} sx={{ mt: 1 }}>
@@ -330,43 +330,43 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                                 onChange={handleFileChange}
                             />
                             <Typography variant="caption" sx={{ mt: 1.5, color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
-                                Nhấp để tải ảnh thú cưng
+                                Nhấp để tải ảnh vé
                             </Typography>
                         </Box>
 
                         <TextField
                             fullWidth
-                            label="Tên thú cưng"
-                            placeholder="Ví dụ: Bông, Lu, ..."
+                            label="Tên vé"
+                            placeholder="Ví dụ: Vé kiến thiết, Vé Vietlott..."
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             InputLabelProps={{ shrink: true }}
                             sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
                         />
                         <Stack direction="row" spacing={2}>
-                            <TextField
+                                <TextField
                                 select
                                 fullWidth
-                                label="Loại"
+                                label="Loại hình"
                                 value={formData.type}
                                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                                 InputLabelProps={{ shrink: true }}
                                 sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
                             >
-                                <MenuItem value="dog" sx={{ fontSize: '0.875rem' }}>Chó</MenuItem>
-                                <MenuItem value="cat" sx={{ fontSize: '0.875rem' }}>Mèo</MenuItem>
+                                <MenuItem value="dog" sx={{ fontSize: '0.875rem' }}>Xổ số Vietlott</MenuItem>
+                                <MenuItem value="cat" sx={{ fontSize: '0.875rem' }}>Xổ số kiến thiết</MenuItem>
                             </TextField>
                             <TextField
                                 select
                                 fullWidth
-                                label="Giới tính"
+                                label="Hạng vé"
                                 value={formData.gender}
                                 onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                                 InputLabelProps={{ shrink: true }}
                                 sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
                             >
-                                <MenuItem value="male" sx={{ fontSize: '0.875rem' }}>Đực</MenuItem>
-                                <MenuItem value="female" sx={{ fontSize: '0.875rem' }}>Cái</MenuItem>
+                                <MenuItem value="male" sx={{ fontSize: '0.875rem' }}>Thường</MenuItem>
+                                <MenuItem value="female" sx={{ fontSize: '0.875rem' }}>VIP</MenuItem>
                             </TextField>
                         </Stack>
 
@@ -417,8 +417,8 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                             renderInput={(params) => (
                                 <TextField
                                     {...params}
-                                    label="Giống"
-                                    placeholder="Ví dụ: Poodle, Golden Retriever, ..."
+                                    label="Đài"
+                                    placeholder="Ví dụ: Tiền Giang, TP.HCM, Hà Nội..."
                                     InputLabelProps={{ shrink: true }}
                                 />
                             )}
@@ -428,7 +428,7 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                         <Stack direction="row" spacing={2}>
                             <TextField
                                 fullWidth
-                                label="Cân nặng (kg)"
+                                label="Số lượng"
                                 type="number"
                                 value={formData.weight}
                                 onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
@@ -437,9 +437,9 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                             />
                             <TextField
                                 fullWidth
-                                label="Tuổi (tháng)"
+                                label="Giá vé (VNĐ)"
                                 type="number"
-                                placeholder="Ví dụ: 3, 12, 24..."
+                                placeholder="Ví dụ: 10000, 50000..."
                                 value={formData.age}
                                 onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                                 InputLabelProps={{ shrink: true }}
@@ -450,7 +450,7 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                             fullWidth
                             multiline
                             rows={3}
-                            label="Ghi chú sức khỏe/thói quen"
+                            label="Ghi chú thêm"
                             placeholder="Nhập thông tin quan trọng cần lưu ý..."
                             value={formData.notes}
                             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}

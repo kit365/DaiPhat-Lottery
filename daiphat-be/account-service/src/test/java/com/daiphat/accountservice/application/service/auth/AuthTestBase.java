@@ -1,7 +1,8 @@
 package com.daiphat.accountservice.application.service.auth;
 
 import com.daiphat.accountservice.application.config.AuthProperties;
-import com.daiphat.accountservice.application.port.in.user.UserServicePort;
+import com.daiphat.accountservice.application.port.in.user.UserLookupServicePort;
+import com.daiphat.accountservice.application.port.in.user.UserValidationServicePort;
 import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
 import com.daiphat.accountservice.application.port.out.auth.IdentityManagementPort;
 import com.daiphat.accountservice.application.port.out.auth.DistributedLockPort;
@@ -25,7 +26,9 @@ import static org.mockito.Mockito.mock;
 public abstract class AuthTestBase {
 
         @Mock
-        protected UserServicePort userService;
+        protected UserLookupServicePort userLookupService;
+        @Mock
+        protected UserValidationServicePort userValidationService;
         @Mock
         protected UserRepositoryPort userRepositoryPort;
         @Mock

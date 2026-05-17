@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -83,5 +85,21 @@ public class AuthService implements AuthServicePort {
         registrationService.resendVerificationEmail(email);
     }
 
+    @Override
+    @Transactional
+    public void changePassword(UUID id, String newPassword) {
+        passwordResetService.changePassword(id, newPassword);
+    }
 
+    @Override
+    @Transactional
+    public void initiatePasswordReset(UUID id) {
+        passwordResetService.initiatePasswordReset(id);
+    }
+
+    @Override
+    @Transactional
+    public void confirmPasswordReset(UUID id, String otp) {
+        passwordResetService.confirmPasswordReset(id, otp);
+    }
 }

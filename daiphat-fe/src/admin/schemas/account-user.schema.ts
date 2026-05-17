@@ -1,11 +1,12 @@
 import { z } from "zod";
 
 export const accountUserSchema = z.object({
-    fullName: z.string().min(1, "Vui lòng nhập họ tên"),
+    firstName: z.string().min(1, "Vui lòng nhập tên"),
+    lastName: z.string().min(1, "Vui lòng nhập họ"),
     email: z.string().email("Email không hợp lệ"),
     password: z.string().optional(),
     phone: z.string().optional(),
-    status: z.enum(["active", "inactive"]).optional(),
+    status: z.enum(["ACTIVE", "LOCKED", "PENDING", "BANNED"]).optional(),
     avatar: z.string().optional().nullable(),
 });
 

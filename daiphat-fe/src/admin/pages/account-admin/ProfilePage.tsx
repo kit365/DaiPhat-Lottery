@@ -729,8 +729,8 @@ export const ProfilePage = () => {
                                                 </Typography>
                                                 <Box>
                                                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{ticketServiceOrder.ticketServiceId?.name}</Typography>
-                                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
-                                                        Khách: {ticketServiceOrder.userId?.fullName}
+                                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.75rem' }}>
+                                                        Khách: {ticketServiceOrder.userId ? `${ticketServiceOrder.userId.lastName} ${ticketServiceOrder.userId.firstName}` : "N/A"}
                                                     </Typography>
                                                 </Box>
                                                 <Box>

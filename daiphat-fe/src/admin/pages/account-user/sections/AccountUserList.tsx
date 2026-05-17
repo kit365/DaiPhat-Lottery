@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataGrid } from '@mui/x-data-grid';
 import {
@@ -25,7 +25,7 @@ import {
 } from '../configs/styles.config';
 import { useUsers, useDeleteUser, useUserStatuses } from '../hooks/useAccountUser';
 import { ROUTES } from '../../../constants/routes';
-import { toast } from 'react-toastify';
+import { AppToast as toast } from '../../../../client/utils/toast.util';
 import { STATUS_LABELS, RoleEnum } from '../configs/constants';
 import { Search } from '../../../components/ui/Search';
 import { AccountSortField, SortDirection, createSortValue } from '../../../constants/sort';
@@ -33,7 +33,8 @@ import { User } from '../../../../types/user.type';
 import { ExportImport } from '../../../components/ui/ExportImport';
 import { confirmDelete } from "../../../utils/swal";
 import FilterListIcon from '@mui/icons-material/FilterList';
-import AccountResetPasswordModal from './AccountResetPasswordModal';
+import { AccountResetPasswordModal } from './AccountResetPasswordModal';
+import { StaffInviteModal } from './StaffInviteModal';
 
 // Styled component cho con số (Badge nhãn)
 const TabBadge = styled('span')(() => ({
@@ -61,6 +62,7 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
     const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
     const [selectedUser, setSelectedUser] = useState<{ id: string; fullName: string; email: string } | null>(null);
     const [openResetModal, setOpenResetModal] = useState(false);
+    const [openInviteStaffModal, setOpenInviteStaffModal] = useState(false);
 
     // Fetch dynamic statuses
     const { data: dynamicStatuses } = useUserStatuses();
@@ -105,7 +107,7 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
         { value: createSortValue(AccountSortField.FIRST_NAME, SortDirection.DESC), label: 'Tên Z-A' },
     ];
 
-    const handleDelete = (id: string) => {
+    const handleDelete = useCallback((id: string) => {
         confirmDelete("Bạn có chắc chắn muốn xóa tài khoản khách hàng này?", () => {
             deleteUser(id, {
                 onSuccess: () => {
@@ -113,17 +115,17 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
                 }
             });
         });
-    };
+    }, [deleteUser]);
 
-    const handleEdit = (id: string) => {
+    const handleEdit = useCallback((id: string) => {
         navigate(`${ROUTES.ADMIN.ACCOUNTS.USER.EDIT}/${id}`);
-    };
+    }, [navigate]);
 
-    const handleViewDetail = (id: string) => {
+    const handleViewDetail = useCallback((id: string) => {
         navigate(`${ROUTES.ADMIN.ACCOUNTS.USER.DETAIL}/${id}`);
-    };
+    }, [navigate]);
 
-    const handleChangePassword = (id: string) => {
+    const handleChangePassword = useCallback((id: string) => {
         const user = users.find(u => (u.id || u._id) === id);
         if (user) {
             setSelectedUser({ 
@@ -133,9 +135,21 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
             });
             setOpenResetModal(true);
         }
-    };
+    }, [users]);
 
-    const columns = useMemo(() => getColumnsConfig(handleEdit, handleDelete, handleChangePassword, handleViewDetail), []);
+    const handleInviteStaff = useCallback((id: string) => {
+        const user = users.find(u => (u.id || u._id) === id);
+        if (user) {
+            setSelectedUser({ 
+                id: (user.id || user._id)!, 
+                fullName: user.fullName || user.username || "", 
+                email: user.email 
+            });
+            setOpenInviteStaffModal(true);
+        }
+    }, [users]);
+
+    const columns = useMemo(() => getColumnsConfig(handleEdit, handleDelete, handleChangePassword, handleViewDetail, handleInviteStaff), [handleEdit, handleDelete, handleChangePassword, handleViewDetail, handleInviteStaff]);
 
     const handleStatusChange = (newStatus: string) => {
         setStatus(newStatus);
@@ -405,6 +419,12 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
             <AccountResetPasswordModal
                 open={openResetModal}
                 onClose={() => setOpenResetModal(false)}
+                user={selectedUser}
+            />
+
+            <StaffInviteModal
+                open={openInviteStaffModal}
+                onClose={() => setOpenInviteStaffModal(false)}
                 user={selectedUser}
             />
         </Card>

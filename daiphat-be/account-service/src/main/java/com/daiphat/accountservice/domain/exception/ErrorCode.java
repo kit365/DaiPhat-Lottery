@@ -57,6 +57,8 @@ public enum ErrorCode {
             HttpStatus.CONFLICT),
     USERNAME_NOT_FOUND("USR_005", "Username không tồn tại", HttpStatus.NOT_FOUND),
     EMAIL_NOT_FOUND("USR_006", "Email không tồn tại", HttpStatus.NOT_FOUND),
+    INVITATION_INVALID("USR_007", "Lời mời không hợp lệ hoặc đã hết hạn", HttpStatus.BAD_REQUEST),
+    INVITATION_EXPIRED("USR_008", "Lời mời đã hết hạn", HttpStatus.BAD_REQUEST),
     
     // System Errors
     UNCATEGORIZED_EXCEPTION("SYS_001", "Lỗi chưa được phân loại.", HttpStatus.INTERNAL_SERVER_ERROR),

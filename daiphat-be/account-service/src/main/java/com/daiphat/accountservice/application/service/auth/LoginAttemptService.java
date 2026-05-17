@@ -8,6 +8,7 @@ import com.daiphat.accountservice.application.port.out.auth.cache.AccountLockCac
 import com.daiphat.accountservice.application.port.out.auth.DistributedLockPort;
 import com.daiphat.accountservice.application.port.out.auth.keys.AuthCacheKeyGenerator;
 import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
+import com.daiphat.accountservice.application.port.in.user.UserLookupServicePort;
 import com.daiphat.accountservice.application.port.in.user.UserServicePort;
 import com.daiphat.accountservice.application.config.AuthProperties;
 import com.daiphat.accountservice.application.dto.response.auth.LoginLockoutResponse;
@@ -33,7 +34,7 @@ public class LoginAttemptService implements LoginAttemptPort {
     private final AuthProperties authProperties;
     private final DistributedLockPort lockManager;
     private final UserRepositoryPort userRepositoryPort;
-    private final UserServicePort userService;
+    private final UserLookupServicePort userLookupService;
     private final RateLimiterPort rateLimiterService;
     private final TransactionTemplate requiresNewTransactionTemplate;
 
@@ -42,14 +43,14 @@ public class LoginAttemptService implements LoginAttemptPort {
             AuthProperties authProperties,
             DistributedLockPort lockManager,
             UserRepositoryPort userRepositoryPort,
-            UserServicePort userService,
+            UserLookupServicePort userLookupService,
             RateLimiterPort rateLimiterService,
             PlatformTransactionManager transactionManager) {
         this.accountLockCachePort = accountLockCachePort;
         this.authProperties = authProperties;
         this.lockManager = lockManager;
         this.userRepositoryPort = userRepositoryPort;
-        this.userService = userService;
+        this.userLookupService = userLookupService;
         this.rateLimiterService = rateLimiterService;
         this.requiresNewTransactionTemplate = new TransactionTemplate(transactionManager);
         this.requiresNewTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -83,7 +84,7 @@ public class LoginAttemptService implements LoginAttemptPort {
 
     private void syncFailedAttemptToDb(String username, int failures, long waitTime) {
         requiresNewTransactionTemplate.execute(status -> {
-            userRepositoryPort.findByUsername(username).ifPresent(user -> {
+            userLookupService.findByUsername(username).ifPresent(user -> {
                 user.recordFailedLogin();
                 
                 // Chỉ thực hiện lệnh khóa khi số lần sai đạt đúng mốc (5, 10, 15...)
@@ -131,7 +132,7 @@ public class LoginAttemptService implements LoginAttemptPort {
 
     private void resetDbState(String username) {
         requiresNewTransactionTemplate.execute(status -> {
-            userRepositoryPort.findByUsername(username).ifPresent(user -> {
+            userLookupService.findByUsername(username).ifPresent(user -> {
                 boolean changed = false;
                 if (user.getFailedLoginAttempts() > 0) {
                     user.setFailedLoginAttempts(0);
@@ -180,7 +181,7 @@ public class LoginAttemptService implements LoginAttemptPort {
         }
 
         // 2. Fallback to DB if Redis is empty or doesn't have the last attempt time
-        return userRepositoryPort.findByUsername(username)
+        return userLookupService.findByUsername(username)
                 .map(user -> {
                     if (user.getLockedUntil() != null) {
                         long rem = Duration.between(java.time.LocalDateTime.now(), user.getLockedUntil()).toSeconds();
@@ -247,7 +248,7 @@ public class LoginAttemptService implements LoginAttemptPort {
 
     private void checkPersistentLockout(String username) {
         // Tái sử dụng logic thẩm định trung tâm từ UserService
-        UserModel user = userService.fetchActiveUserByUsername(username);
+        UserModel user = userLookupService.findActiveByUsernameOrThrow(username);
         
         if (user.isAccountLocked()) {
             long remainingSeconds = Duration.between(java.time.LocalDateTime.now(), user.getLockedUntil()).toSeconds();

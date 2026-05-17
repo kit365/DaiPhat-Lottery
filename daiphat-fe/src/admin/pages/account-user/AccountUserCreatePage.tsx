@@ -35,7 +35,8 @@ export const AccountUserCreatePage = () => {
     } = useForm<any>({
         resolver: zodResolver(accountUserSchema),
         defaultValues: {
-            fullName: "",
+            firstName: "",
+            lastName: "",
             email: "",
             avatar: "",
         },
@@ -163,12 +164,27 @@ export const AccountUserCreatePage = () => {
 
                             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
                                 <Controller
-                                    name="fullName"
+                                    name="lastName"
                                     control={control}
                                     render={({ field, fieldState }) => (
                                         <TextField
                                             {...field}
-                                            label="Họ và tên"
+                                            label="Họ"
+                                            fullWidth
+                                            error={!!fieldState.error}
+                                            helperText={fieldState.error?.message}
+                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: "var(--shape-borderRadius)", fontSize: '0.875rem' } }}
+                                        />
+                                    )}
+                                />
+
+                                <Controller
+                                    name="firstName"
+                                    control={control}
+                                    render={({ field, fieldState }) => (
+                                        <TextField
+                                            {...field}
+                                            label="Tên"
                                             fullWidth
                                             error={!!fieldState.error}
                                             helperText={fieldState.error?.message}

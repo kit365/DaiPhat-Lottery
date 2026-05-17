@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 @Builder
 public class UserVerificationContext {
-    private String firstName;
+    private String fullName;
     private String email;
     private String token;
     private String verifyLink;

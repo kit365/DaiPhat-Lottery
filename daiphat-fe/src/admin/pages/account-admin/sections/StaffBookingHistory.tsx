@@ -87,7 +87,7 @@ const TicketServiceOrderRow = ({ ticketServiceOrder, staffId }: { ticketServiceO
                         {ticketServiceOrder.ticketServiceId?.name || "Dịch vụ"}
                     </Typography>
                     <Typography variant="caption" sx={{ color: "var(--palette-text-disabled)" }}>
-                        KH: {ticketServiceOrder.userId?.fullName || "N/A"}
+                        KH: {ticketServiceOrder.userId ? `${ticketServiceOrder.userId.lastName} ${ticketServiceOrder.userId.firstName}` : "N/A"}
                     </Typography>
                 </Box>
 

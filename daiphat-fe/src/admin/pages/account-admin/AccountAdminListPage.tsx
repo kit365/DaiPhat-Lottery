@@ -16,7 +16,8 @@ export const AccountAdminListPage = () => {
     const handleInvite = (data: any) => {
         console.log('Invite data:', data);
         // Sau này sẽ gọi API ở đây
-        toast.success(`Đã gửi lời mời đến ${data.email}`);
+        const fullName = `${data.lastName || ''} ${data.firstName || ''}`.trim();
+        toast.success(`Đã gửi lời mời đến ${fullName || data.email}`);
     };
 
     return (

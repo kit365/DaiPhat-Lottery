@@ -1,96 +1,163 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService } from "../../admin/pages/authen/services/auth.service";
 import { useAuthStore } from "../../stores/useAuthStore";
-import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
 import { User } from "../../types/user.type";
+import { useNavigate } from "react-router-dom";
+import { AppToast } from "../utils/toast.util";
 import { STORAGE_KEYS } from "../../constants/storage.constants";
 import Cookies from "js-cookie";
-import { RegisterRequest, RegisterResponse } from "../../admin/pages/authen/types/auth.type";
+import { RegisterRequest } from "../../admin/pages/authen/types/auth.type";
+import { updateUser } from "../../admin/api/account-user.api";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { loginSchema, LoginFormValues, registerSchema, RegisterFormValues } from "../types/auth.schema";
+import { QUERY_KEYS } from "../../constants/queryKeys";
 
-export const useClientLogin = () => {
-    const { token, user, set, login: loginStore } = useAuthStore();
+export const useAuth = () => {
+    const queryClient = useQueryClient();
     const navigate = useNavigate();
 
-    // Pattern Admin: Fetch me if token exists but user doesn't (cache recovery)
+    // Token from Zustand (persisted) — source of truth for auth status
+    const token = useAuthStore((state) => state.token);
+    const logoutStore = useAuthStore((state) => state.logout);
+    const loginStore = useAuthStore((state) => state.login);
+    const closeAuthModals = useAuthStore((state) => state.closeAuthModals);
+
+    // React Query is the SINGLE SOURCE OF TRUTH for user data
+    // No useEffect syncing to Zustand needed — components read directly from here
     const getMeQuery = useQuery({
-        queryKey: ["client-me", token],
+        queryKey: [QUERY_KEYS.CLIENT_ME, token],
         queryFn: authService.getMe,
-        enabled: !!token && !user,
-        staleTime: 1000 * 60 * 10,
+        enabled: !!token,
+        staleTime: 0,         // always refetch when invalidated
+        gcTime: 1000 * 60 * 5,
+        retry: false,
     });
 
-    useEffect(() => {
-        if (getMeQuery.data) {
-            const isSuccess = getMeQuery.data.isSuccess || getMeQuery.data.code === "SUCCESS";
-            if (isSuccess && getMeQuery.data.data) {
-                set({ user: getMeQuery.data.data as User });
-            }
-        }
-    }, [getMeQuery.data, set]);
+    // Derive user from query — re-renders automatically when query data changes
+    const user = (getMeQuery.data?.data ?? null) as User | null;
 
-
-    return useMutation({
-        mutationFn: (data: any) => authService.login(data),
+    const loginMutation = useMutation({
+        mutationFn: (data: LoginFormValues) => authService.login(data),
         onSuccess: (response: any) => {
-            const isSuccess = response.isSuccess || response.success || response.code === "SUCCESS";
+            const isSuccess = response.isSuccess;
             if (isSuccess && response.data?.access_token) {
                 const { access_token, user: userInfo, expires_in } = response.data;
-                
-                // 1. Save to Zustand (Common Store)
                 loginStore(userInfo as User, access_token, expires_in);
-                
-                // 2. Save to Cookies (Unified key)
-                const cookieOptions = { 
+
+                const cookieOptions = {
                     expires: expires_in ? expires_in / 86400 : 7,
-                    path: '/' 
+                    path: '/'
                 };
                 Cookies.set(STORAGE_KEYS.TOKEN, access_token, cookieOptions);
                 if (response.data.refresh_token) {
                     Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, response.data.refresh_token, cookieOptions);
                 }
 
-                toast.success("Đăng nhập thành công!");
-                // No reload needed, state is preserved and Header will reactive update
-            } else {
-                toast.error(response.message || "Đăng nhập thất bại.");
-            }
-        },
-        onError: (error: any) => {
-            // Error is handled globally by API interceptor
-            console.error("Login mutation error:", error);
-        }
-    });
-};
-
-export const useClientRegister = () => {
-    const { closeAuthModals } = useAuthStore();
-    return useMutation<RegisterResponse, Error, RegisterRequest>({
-        mutationFn: (data: RegisterRequest) => authService.register(data),
-        onSuccess: (response: RegisterResponse) => {
-            const isSuccess = response.isSuccess || response.code === "SUCCESS";
-            if (isSuccess) {
-                toast.success("Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.");
+                AppToast.success(response.message || "Đăng nhập thành công!");
                 closeAuthModals();
             } else {
-                toast.error(response.message || "Đăng ký thất bại.");
+                AppToast.error(response.message || "Đăng nhập thất bại.");
             }
-        },
-        onError: (error: any) => {
-            // Error is handled globally by API interceptor
-            console.error("Registration mutation error:", error);
         }
     });
-};
 
-// Re-exporting admin hook logic if needed, or keeping it as a bridge
-export const useAuth = () => {
-    const { user, token, logout } = useAuthStore();
+    const registerMutation = useMutation({
+        mutationFn: (data: RegisterRequest) => authService.register(data),
+        onSuccess: (response: any) => {
+            const isSuccess = response.isSuccess;
+            if (isSuccess) {
+                AppToast.success(response.message || "Đăng ký thành công! Vui lòng kiểm tra email.");
+                closeAuthModals();
+            } else {
+                AppToast.error(response.message || "Đăng ký thất bại.");
+            }
+        }
+    });
+
+    const updateProfileMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string; data: any }) => updateUser(id, data),
+        onSuccess: (response: any) => {
+            const isSuccess = response.isSuccess;
+            if (isSuccess && response.data) {
+                queryClient.setQueryData(
+                    [QUERY_KEYS.CLIENT_ME, token],
+                    (oldData: any) => ({
+                        ...oldData,
+                        data: response.data,
+                    })
+                );
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_ME, token] });
+                AppToast.success(response.message || "Cập nhật thành công");
+            } else {
+                AppToast.error(response.message || "Cập nhật thất bại");
+            }
+        }
+    });
+
+    const loginForm = useForm<LoginFormValues>({
+        resolver: zodResolver(loginSchema),
+        defaultValues: { username: "", password: "" },
+    });
+
+    const registerForm = useForm<RegisterFormValues>({
+        resolver: zodResolver(registerSchema),
+        defaultValues: {
+            username: "",
+            firstName: "",
+            lastName: "",
+            email: "",
+            phone: "",
+            password: "",
+            confirmPassword: "",
+            agreedToTerms: false,
+        },
+    });
+
+    const handleLogin = loginForm.handleSubmit((values) => {
+        loginMutation.mutate(values);
+    });
+
+    const handleRegister = registerForm.handleSubmit(({ confirmPassword, ...payload }) => {
+        void confirmPassword;
+        registerMutation.mutate(payload);
+    });
+
+    const handleLogout = async () => {
+        try {
+            await authService.logout();
+        } catch (error) {
+            console.error("Lỗi đăng xuất phía backend:", error);
+        }
+        logoutStore();
+        queryClient.removeQueries({ queryKey: [QUERY_KEYS.CLIENT_ME] });
+        Cookies.remove(STORAGE_KEYS.TOKEN);
+        Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN);
+        navigate("/");
+        AppToast.success("Đăng xuất thành công!");
+    };
+
     return {
+        // State
         user,
         token,
-        logout,
-        isAuthenticated: !!token
+        isAuthenticated: !!token,
+        isUserLoading: getMeQuery.isLoading && !!token,
+
+        // Mutations
+        loginMutation,
+        registerMutation,
+        updateProfileMutation,
+
+        // Form Helpers
+        loginForm,
+        registerForm,
+        handleLogin,
+        handleRegister,
+        handleUpdateProfile: updateProfileMutation.mutate,
+        handleLogout,
+
+        // Actions
+        logout: handleLogout
     };
 };

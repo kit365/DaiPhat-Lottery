@@ -32,7 +32,7 @@ export const ProfileDashboardPage = () => {
                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                     <div>
                         <h1 className="text-2xl font-black tracking-tight text-[#102937]">Tổng quan tài khoản</h1>
-                        <p className="text-sm font-bold text-slate-400 mt-1">Chào mừng trở lại, {user.firstName}! Dưới đây là tóm tắt hoạt động của bạn.</p>
+                        <p className="text-sm font-bold text-slate-400 mt-1">Chào mừng trở lại, {user.fullName || user.username}! Dưới đây là tóm tắt hoạt động của bạn.</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="hidden lg:flex items-center gap-2 px-4 py-2 bg-white border border-slate-100 rounded-xl shadow-sm text-[13px] font-bold text-slate-500">

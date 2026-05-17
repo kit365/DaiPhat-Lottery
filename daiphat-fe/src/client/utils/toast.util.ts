@@ -1,4 +1,5 @@
 import { toast as reactToast, ToastOptions } from 'react-toastify';
+import Swal from 'sweetalert2';
 
 const defaultOptions: ToastOptions = {
     position: "top-right",
@@ -21,5 +22,25 @@ export const AppToast = {
     },
     warning: (message: string, options?: ToastOptions) => {
         reactToast.warning(message, { ...defaultOptions, ...options });
+    },
+    confirm: async (message: string, title: string = "Xác nhận"): Promise<boolean> => {
+        const result = await Swal.fire({
+            title,
+            text: message,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#FF6262',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Đồng ý',
+            cancelButtonText: 'Hủy',
+            reverseButtons: true,
+            customClass: {
+                container: '!z-[999999]',
+                popup: 'rounded-[2rem] border-none shadow-2xl',
+                confirmButton: 'rounded-xl font-black px-8 py-3 mx-2',
+                cancelButton: 'rounded-xl font-bold px-8 py-3 mx-2'
+            }
+        });
+        return result.isConfirmed;
     }
 };
