@@ -34,6 +34,7 @@ import { ExportImport } from '../../../components/ui/ExportImport';
 import { confirmDelete } from "../../../utils/swal";
 import FilterListIcon from '@mui/icons-material/FilterList';
 import { AccountResetPasswordModal } from './AccountResetPasswordModal';
+import { StaffInviteModal } from './StaffInviteModal';
 
 // Styled component cho con số (Badge nhãn)
 const TabBadge = styled('span')(() => ({
@@ -61,6 +62,7 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
     const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
     const [selectedUser, setSelectedUser] = useState<{ id: string; fullName: string; email: string } | null>(null);
     const [openResetModal, setOpenResetModal] = useState(false);
+    const [openInviteStaffModal, setOpenInviteStaffModal] = useState(false);
 
     // Fetch dynamic statuses
     const { data: dynamicStatuses } = useUserStatuses();
@@ -135,7 +137,19 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
         }
     }, [users]);
 
-    const columns = useMemo(() => getColumnsConfig(handleEdit, handleDelete, handleChangePassword, handleViewDetail), [handleEdit, handleDelete, handleChangePassword, handleViewDetail]);
+    const handleInviteStaff = useCallback((id: string) => {
+        const user = users.find(u => (u.id || u._id) === id);
+        if (user) {
+            setSelectedUser({ 
+                id: (user.id || user._id)!, 
+                fullName: user.fullName || user.username || "", 
+                email: user.email 
+            });
+            setOpenInviteStaffModal(true);
+        }
+    }, [users]);
+
+    const columns = useMemo(() => getColumnsConfig(handleEdit, handleDelete, handleChangePassword, handleViewDetail, handleInviteStaff), [handleEdit, handleDelete, handleChangePassword, handleViewDetail, handleInviteStaff]);
 
     const handleStatusChange = (newStatus: string) => {
         setStatus(newStatus);
@@ -405,6 +419,12 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
             <AccountResetPasswordModal
                 open={openResetModal}
                 onClose={() => setOpenResetModal(false)}
+                user={selectedUser}
+            />
+
+            <StaffInviteModal
+                open={openInviteStaffModal}
+                onClose={() => setOpenInviteStaffModal(false)}
                 user={selectedUser}
             />
         </Card>

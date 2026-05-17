@@ -8,13 +8,15 @@ import KeyIcon from '@mui/icons-material/Key';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { UserStatus } from '../../../../types/user.type';
 
 export const getColumnsConfig = (
     onEdit: (id: string) => void,
     onDelete: (id: string) => void,
     onChangePassword: (id: string) => void,
-    onView: (id: string) => void
+    onView: (id: string) => void,
+    onInviteStaff: (id: string) => void
 ): GridColDef[] => [
         {
             field: 'fullName',
@@ -109,36 +111,56 @@ export const getColumnsConfig = (
             headerName: '',
             width: 60,
             align: 'right',
-            getActions: (params) => [
-                <GridActionsCellItem
-                    key="view"
-                    icon={<VisibilityIcon sx={{ fontSize: 20 }} />}
-                    label="Chi tiết"
-                    onClick={() => onView(params.id as string)}
-                    showInMenu
-                />,
-                <GridActionsCellItem
-                    key="password"
-                    icon={<KeyIcon sx={{ fontSize: 20 }} />}
-                    label="Đổi mật khẩu"
-                    onClick={() => onChangePassword(params.id as string)}
-                    showInMenu
-                />,
-                <GridActionsCellItem
-                    key="edit"
-                    icon={<EditIcon sx={{ fontSize: 20 }} />}
-                    label="Chỉnh sửa"
-                    onClick={() => onEdit(params.id as string)}
-                    showInMenu
-                />,
-                <GridActionsCellItem
-                    key="delete"
-                    icon={<DeleteIcon sx={{ fontSize: 20, color: 'var(--palette-error-main)' }} />}
-                    label="Xóa"
-                    onClick={() => onDelete(params.id as string)}
-                    showInMenu
-                />,
-            ],
+            getActions: (params) => {
+                const status = params.row.status;
+                const items = [
+                    <GridActionsCellItem
+                        key="view"
+                        icon={<VisibilityIcon sx={{ fontSize: 20 }} />}
+                        label="Chi tiết"
+                        onClick={() => onView(params.id as string)}
+                        showInMenu
+                    />,
+                    <GridActionsCellItem
+                        key="password"
+                        icon={<KeyIcon sx={{ fontSize: 20 }} />}
+                        label="Đổi mật khẩu"
+                        onClick={() => onChangePassword(params.id as string)}
+                        showInMenu
+                    />,
+                ];
+
+                if (status === UserStatus.ACTIVE) {
+                    items.push(
+                        <GridActionsCellItem
+                            key="invite-staff"
+                            icon={<PersonAddIcon sx={{ fontSize: 20 }} />}
+                            label="Mời làm nhân viên"
+                            onClick={() => onInviteStaff(params.id as string)}
+                            showInMenu
+                        />
+                    );
+                }
+
+                items.push(
+                    <GridActionsCellItem
+                        key="edit"
+                        icon={<EditIcon sx={{ fontSize: 20 }} />}
+                        label="Chỉnh sửa"
+                        onClick={() => onEdit(params.id as string)}
+                        showInMenu
+                    />,
+                    <GridActionsCellItem
+                        key="delete"
+                        icon={<DeleteIcon sx={{ fontSize: 20, color: 'var(--palette-error-main)' }} />}
+                        label="Xóa"
+                        onClick={() => onDelete(params.id as string)}
+                        showInMenu
+                    />
+                );
+
+                return items;
+            },
         },
     ];
 

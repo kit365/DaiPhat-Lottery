@@ -13,6 +13,8 @@ import com.daiphat.accountservice.application.dto.response.auth.AuthResponse;
 import com.daiphat.accountservice.application.dto.response.auth.ForgotPasswordResponse;
 import com.daiphat.accountservice.application.dto.response.auth.VerifyOtpResponse;
 import com.daiphat.accountservice.application.port.in.auth.AuthServicePort;
+import com.daiphat.accountservice.application.port.in.user.UserServicePort;
+import com.daiphat.accountservice.application.dto.request.AcceptInviteRequest;
 import com.daiphat.accountservice.application.dto.request.user.OtpConfirmationRequest;
 import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
@@ -63,6 +65,7 @@ public class AuthController {
 
     private final AuthServicePort authServicePort;
     private final AuthProperties authProperties;
+    private final UserServicePort userServicePort;
 
     @GetMapping("/password-policy")
     public ResponseEntity<ApiResponse<PasswordPolicyResponse>> getPasswordPolicy() {
@@ -268,5 +271,15 @@ public class AuthController {
                                 .data(response)
                                 .message(MSG_REFRESH_TOKEN_SUCCESS)
                                 .build());
+    }
+
+    @PostMapping("/invites/accept")
+    public ResponseEntity<ApiResponse<Void>> acceptInvite(
+            @Valid @RequestBody AcceptInviteRequest request) {
+        log.info("REST request to accept invite with token: {}", request.getToken());
+        userServicePort.acceptInvite(request);
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .message("Xác nhận lời mời thành công. Tài khoản của bạn đã được cập nhật quyền.")
+                .build());
     }
 }
