@@ -13,4 +13,6 @@ public interface StaffInviteRepository extends JpaRepository<StaffInviteEntity, 
     Optional<StaffInviteEntity> findByEmailAndStatus(String email, InviteStatus status);
 
     Optional<StaffInviteEntity> findByToken(String token);
+
+    Optional<StaffInviteEntity> findByEmail(String email);
 }

@@ -120,3 +120,8 @@ export const getStatuses = async (): Promise<string[]> => {
     const response = await apiApp.get(`${BASE_URL}/statuses`);
     return response.data?.data || [];
 };
+
+export const inviteStaff = async (id: string, data: { roleCode: string }): Promise<ApiResponse<void>> => {
+    const response = await apiApp.post(`${BASE_URL}/${id}/invite-staff`, data);
+    return response.data;
+};
