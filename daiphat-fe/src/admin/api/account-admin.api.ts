@@ -8,12 +8,13 @@ export const getAccounts = async (params?: BaseQueryParams): Promise<ApiResponse
     const response = await apiApp.get(BASE_URL, { params });
     const result = response.data?.data;
     
-    // Map records to match FE expectations (fullName, rolesName, avatar)
+    // Map records to match FE expectations (fullName, rolesName, avatar, status)
     const recordList = (result?.recordList || []).map((user: User) => ({
         ...user,
         fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
         rolesName: user.role ? [user.role.name] : [],
-        avatar: user.avatarUrl
+        avatar: user.avatarUrl,
+        status: user.status ? user.status.toUpperCase() : 'PENDING'
     }));
 
     const statusCounts = result?.statusCounts || {};
@@ -44,16 +45,26 @@ export const getAccounts = async (params?: BaseQueryParams): Promise<ApiResponse
 
 export const getStaffByTicketService = async (ticketServiceId: string): Promise<ApiResponse<User[]>> => {
     const response = await apiApp.get(BASE_URL, { params: { ticketServiceId } });
-    return response.data;
+    return {
+        ...response.data,
+        data: (response.data?.data || []).map((user: any) => ({
+            ...user,
+            status: user.status ? user.status.toUpperCase() : 'PENDING'
+        }))
+    };
 };
 
 export const getAccountById = async (id: string): Promise<ApiResponse<User>> => {
     const response = await apiApp.get(`${BASE_URL}/${id}`);
+    const user = response.data?.data || response.data;
     return {
         success: true,
         message: response.data?.message || "",
         timestamp: response.data?.timestamp || new Date().toISOString(),
-        data: response.data?.data || response.data
+        data: {
+            ...user,
+            status: user.status ? user.status.toUpperCase() : 'PENDING'
+        }
     };
 };
 
@@ -63,12 +74,12 @@ export const createAccount = async (data: any): Promise<ApiResponse<User>> => {
 };
 
 export const updateAccount = async (id: string, data: any): Promise<ApiResponse<User>> => {
-    const response = await apiApp.patch(`${BASE_URL}/${id}`, data);
+    const response = await apiApp.put(`${BASE_URL}/${id}`, data);
     return response.data;
 };
 
 export const changeAccountPassword = async (id: string, data: any): Promise<ApiResponse<void>> => {
-    const response = await apiApp.patch(`${BASE_URL}/change-password/${id}`, data);
+    const response = await apiApp.put(`${BASE_URL}/change-password/${id}`, data);
     return response.data;
 };
 

@@ -36,13 +36,11 @@ public class KeycloakProvisioningStrategy implements OAuthProvisioningPort {
         RoleModel role = resolveRole(userInfo.email());
 
         UserModel user = userApplicationMapper.toUserModel(userInfo);
-        user.setRole(role);
-        user.setImages(new ArrayList<>());
-
+        user.onboardOAuthUser(role);
 
         if (userInfo.avatarUrl() != null && !userInfo.avatarUrl().isBlank()) {
             UserImageModel avatar = userApplicationMapper.toUserImageModel(userInfo.avatarUrl(), user.getId());
-            user.getImages().add(avatar);
+            user.replaceCurrentAvatar(avatar);
             log.debug("Avatar synchronized for user: {}", userInfo.username());
         }
 

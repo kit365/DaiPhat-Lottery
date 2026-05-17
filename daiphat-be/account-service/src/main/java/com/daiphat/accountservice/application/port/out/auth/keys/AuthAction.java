@@ -19,7 +19,8 @@ public enum AuthAction {
     VERIFY_EMAIL("verify_email"),
     RESEND_VERIFICATION("resend_verification"),
     MFA_VERIFY("mfa_verify"),
-    LOGIN_SPAM("login-spam");
+    LOGIN_SPAM("login-spam"),
+    STAFF_INVITE("staff_invite");
 
     private final String code;
 }

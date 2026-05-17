@@ -21,4 +21,8 @@ public interface AuthServicePort {
     VerifyOtpResponse verifyResetOtp(VerifyOtpRequest request);
     void resetPassword(ResetPasswordRequest request);
 
+    // Admin initiated password actions
+    void changePassword(java.util.UUID id, String newPassword);
+    void initiatePasswordReset(java.util.UUID id);
+    void confirmPasswordReset(java.util.UUID id, String otp);
 }

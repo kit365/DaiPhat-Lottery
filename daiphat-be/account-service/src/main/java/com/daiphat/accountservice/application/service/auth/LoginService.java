@@ -11,6 +11,7 @@ import com.daiphat.accountservice.application.port.out.auth.IdentityManagementPo
 import com.daiphat.accountservice.application.port.out.auth.LoginAttemptPort;
 import com.daiphat.accountservice.application.port.out.auth.RateLimiterPort;
 import com.daiphat.accountservice.application.port.out.auth.keys.AuthAction;
+import com.daiphat.accountservice.application.port.in.user.UserLookupServicePort;
 import com.daiphat.accountservice.application.port.out.auth.cache.TokenCachePort;
 import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
@@ -28,7 +29,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class LoginService implements LoginServicePort {
-    private final UserServicePort userService;
+    private final UserLookupServicePort userLookupService;
     private final IdentityManagementPort identityManagementPort;
     private final TokenCachePort tokenCachePort;
     private final AuthApplicationMapper authApplicationMapper;
@@ -43,7 +44,7 @@ public class LoginService implements LoginServicePort {
         checkRateLimits(request.getUsername());
 
         return loginAttemptService.executeSecurely(request.getUsername(), () -> {
-            UserModel user = userService.fetchActiveUserByUsername(request.getUsername());
+            UserModel user = userLookupService.findActiveByUsernameOrThrow(request.getUsername());
 
             KeycloakAuthResult result = authenticateWithIdp(request.getUsername(), request.getPassword());
             verifyIdpIdentity(user, result.getKeycloakUserId());
@@ -139,7 +140,7 @@ public class LoginService implements LoginServicePort {
         }
 
         // Kiểm tra nhất quán & trạng thái: Truyền trọng trách cho UserService thẩm định.
-        UserModel user = userService.fetchActiveUserById(keycloakUuid);
+        UserModel user = userLookupService.findActiveByIdOrThrow(keycloakUuid);
 
         // Cập nhật Cache và hoàn tất quy trình
         processTokenSecurityAndCaching(userId, result, false);

@@ -6,6 +6,8 @@ import com.daiphat.accountservice.application.port.in.auth.RegistrationServicePo
 import com.daiphat.accountservice.application.port.out.auth.IdentityManagementPort;
 import com.daiphat.accountservice.application.port.in.auth.RoleServicePort;
 import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
+import com.daiphat.accountservice.application.port.in.user.UserLookupServicePort;
+import com.daiphat.accountservice.application.port.in.user.UserValidationServicePort;
 import com.daiphat.accountservice.application.port.out.auth.cache.VerificationCachePort;
 import com.daiphat.accountservice.application.port.out.auth.DistributedLockPort;
 import com.daiphat.accountservice.application.port.out.auth.keys.AuthCacheKeyGenerator;
@@ -42,6 +44,8 @@ public class RegistrationService implements RegistrationServicePort {
     private final LoginAttemptPort loginAttemptPort;
     private final RateLimiterPort rateLimiterPort;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserLookupServicePort userLookupService;
+    private final UserValidationServicePort userValidationService;
 
 
     @Override
@@ -60,22 +64,28 @@ public class RegistrationService implements RegistrationServicePort {
         String verificationToken = UUID.randomUUID().toString();
         try {
             Phone phone = Phone.of(request.phone());
-            validateUserUniqueness(request.username(), request.email(), phone.getValue());
+            userValidationService.ensureUsernameAvailable(request.username(), null);
+            userValidationService.ensureEmailAvailable(request.email(), null);
+            userValidationService.ensurePhoneAvailable(phone.getValue(), null);
 
             UserModel userModel = userApplicationMapper.mapToUserModel(request);
-            userModel.initializeRegistration();
+            userModel.onboardSelfRegisteredUser(roleService.getDefaultRole());
 
             // 1. Provision to Keycloak Atomically (Includes Password)
             keycloakId = identityManagementPort.createUser(userModel, request.password(), false);
             userModel.updateKeycloakId(keycloakId);
             log.info("Identity provisioned atomically in Keycloak with ID: {}", keycloakId);
 
+            // 2. Assign Default Role in Keycloak
+            identityManagementPort.assignRole(keycloakId, roleService.getDefaultRole().getCode());
+            log.info("Default role assigned in Keycloak for user: {}", request.username());
+
             persistRegistration(userModel, verificationToken, request.username(), request.email());
 
 
             eventPublisher.publishEvent(UserRegisteredEvent.builder()
                     .email(request.email())
-                    .firstName(request.username())
+                    .fullName(userModel.getFullName())
                     .token(verificationToken)
                     .build());
 
@@ -105,8 +115,6 @@ public class RegistrationService implements RegistrationServicePort {
 
     private void persistRegistration(UserModel userModel, String verificationToken, String username, String email) {
         transactionTemplate.executeWithoutResult(status -> {
-            userModel.setRole(roleService.getDefaultRole());
-            userModel.setHasPassword(true);
             userRepositoryPort.save(userModel);
             
             verificationCachePort.saveVerificationToken(verificationToken, email, 
@@ -125,23 +133,20 @@ public class RegistrationService implements RegistrationServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.VERIFY_TOKEN_EXPIRED));
 
         transactionTemplate.executeWithoutResult(status -> {
-            UserModel user = userRepositoryPort.findByEmail(email)
-                    .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
+            UserModel user = userLookupService.findByEmailOrThrow(email);
  
             if (user.isEmailVerified()) {
                 log.info("Email already verified for: {}", email);
                 return;
             }
  
-            user.setEmailVerified(true);
-            user.setStatus(UserStatus.ACTIVE);
+            user.activate();
             userRepositoryPort.save(user);
             
             log.debug("Local DB updated: User {} is now ACTIVE", email);
         });
 
-        UserModel user = userRepositoryPort.findByEmail(email)
-                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
+        UserModel user = userLookupService.findByEmailOrThrow(email);
         
         identityManagementPort.verifyEmail(user.getId());
         verificationCachePort.deleteVerificationToken(token);
@@ -160,8 +165,7 @@ public class RegistrationService implements RegistrationServicePort {
         }
 
         // 2. Lookup user to ensure eligibility
-        UserModel user = userRepositoryPort.findByEmail(email)
-                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
+        UserModel user = userLookupService.findByEmailOrThrow(email);
 
         if (user.isEmailVerified()) {
             log.info("User {} already verified, skipping resend.", email);
@@ -181,22 +185,10 @@ public class RegistrationService implements RegistrationServicePort {
 
         eventPublisher.publishEvent(UserRegisteredEvent.builder()
                 .email(email)
-                .firstName(user.getUsername())
+                .fullName(user.getFullName())
                 .token(newToken)
                 .build());
         log.info("New verification email event dispatched for: {}", email);
-    }
-
-    private void validateUserUniqueness(String username, String email, String phone) {
-        if (userRepositoryPort.existsByUsername(username)) {
-            throw new DomainException(ErrorCode.USERNAME_EXISTED);
-        }
-        if (userRepositoryPort.existsByEmail(email)) {
-            throw new DomainException(ErrorCode.EMAIL_EXISTED);
-        }
-        if (userRepositoryPort.existsByPhone(phone)) {
-            throw new DomainException(ErrorCode.PHONE_EXISTED);
-        }
     }
 
     private void handleRegistrationFailure(String username, UUID keycloakId, 

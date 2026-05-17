@@ -8,7 +8,7 @@ import { useAuthStore } from "../../../stores/useAuthStore";
 import { userService } from "../../../admin/pages/authen/services/user.service";
 import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
-import { toast } from "react-toastify";
+import { AppToast as toast } from "../../utils/toast.util";
 import { useQueryClient } from "@tanstack/react-query";
 
 // Type for form data
@@ -94,7 +94,7 @@ export const ProfileSetupModal: React.FC = () => {
                 agreedToTerms: data.agreedToTerms
             });
 
-            if (response.isSuccess || response.code === "SUCCESS") {
+            if (response.isSuccess) {
                 toast.success("Thiết lập hồ sơ thành công!");
                 
                 // Refresh profile data
@@ -151,7 +151,7 @@ export const ProfileSetupModal: React.FC = () => {
                         </div>
                         <h2 className="text-2xl sm:text-3xl font-black text-[#102937] tracking-tight">Hoàn tất hồ sơ</h2>
                         <p className="text-slate-500 mt-1 sm:mt-2 font-medium text-xs sm:text-base leading-relaxed">
-                            Chào mừng {user?.firstName}! Bổ sung thông tin để bắt đầu trải nghiệm
+                            Chào mừng {user?.fullName || user?.username}! Bổ sung thông tin để bắt đầu trải nghiệm
                         </p>
                     </div>
 

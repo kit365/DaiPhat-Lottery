@@ -1,6 +1,7 @@
 export const QUERY_KEYS = {
     // Auth
     AUTH_ME: 'admin-me',
+    CLIENT_ME: 'client-me',
 
     // Admin / Staff
     ACCOUNTS_ADMIN: 'accounts-admin',

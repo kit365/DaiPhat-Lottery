@@ -1,0 +1,43 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!-- Wrap content in the Master Layout -->
+<div th:replace="~{emails/layout/main-layout :: layout('Thư Mời Tham Gia Đội Ngũ Nhân Viên - DaiPhat Platform', ~{::content}, ~{}, false)}">
+  
+  <th:block th:fragment="content">
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:28px;font-weight:bold;line-height:36px;text-align:center;color:#f1f5f9;">
+          Thư Mời Làm Nhân Viên
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:16px;line-height:24px;text-align:left;color:#94a3b8;">
+          <p>Xin chào <span th:text="${fullName}" style="color: #f1f5f9; font-weight: bold;">[Tên Khách Hàng]</span>,</p>
+          <p>Bạn đã được ban quản trị hệ thống <strong style="color: #f1f5f9;">DaiPhat Platform</strong> mời tham gia làm nhân viên của hệ thống với chức vụ/vai trò: <strong style="color: #34d399;" th:text="${roleName}">[Tên Role]</strong>.</p>
+          <p>Đây là cơ hội tuyệt vời để cùng chúng tôi xây dựng và phát triển cộng đồng lớn mạnh hơn nữa. Nếu bạn đồng ý với lời mời này, vui lòng nhấn vào nút bên dưới để xác nhận (hệ thống sẽ tự động cập nhật phân quyền mới cho tài khoản của bạn).</p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="font-size:16px;padding:30px;word-break:break-word;">
+        <a th:href="${inviteUrl}" 
+           style="background-color: #34d399; color: #0f172a; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px;" 
+           class="btn-action">
+          Chấp Nhận Lời Mời
+        </a>
+      </td>
+    </tr>
+    <tr>
+      <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:14px;line-height:22px;text-align:left;color:#64748b; font-style: italic;">
+          * Lời mời này có thời hạn <strong style="color: #94a3b8;" th:text="${expirationHours}">24</strong> giờ kể từ lúc nhận được email.<br />
+          * Nếu bạn không mong muốn trở thành nhân viên, bạn có thể bỏ qua email này. Không có sự thay đổi nào đối với tài khoản hiện tại của bạn.
+        </div>
+      </td>
+    </tr>
+  </th:block>
+
+</div>
+</html>

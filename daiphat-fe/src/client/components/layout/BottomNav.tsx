@@ -3,15 +3,15 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Home, Ticket, Trophy, User } from "lucide-react";
 import { ROUTES } from "../../../admin/constants/routes";
-import { useAuth } from "../../../admin/pages/authen/hooks/useAuth";
+import { useAuth } from "../../hooks/useAuth";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { toast } from "react-toastify";
+import { AppToast as toast } from "../../utils/toast.util";
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, openProfileSetupModal } = useAuth();
-  const { openLoginModal } = useAuthStore();
+  const { user } = useAuth();
+  const { openLoginModal, openProfileSetupModal } = useAuthStore();
 
   const navItems = [
     {

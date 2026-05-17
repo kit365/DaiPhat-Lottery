@@ -35,14 +35,11 @@ export const getColumnsConfig = (
                             fontSize: '1rem'
                         }}
                     >
-                        {params.row.fullName?.charAt(0).toUpperCase()}
+                        {params.row.lastName?.charAt(0).toUpperCase()}
                     </Avatar>
                     <Stack spacing={0.25}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--palette-text-primary)' }}>
                             {params.row.fullName}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.75rem', fontWeight: 500 }}>
-                            {params.row.email}
                         </Typography>
                     </Stack>
                 </Stack>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataGrid } from '@mui/x-data-grid';
 import {
@@ -25,7 +25,7 @@ import {
 } from '../configs/styles.config';
 import { useUsers, useDeleteUser, useUserStatuses } from '../hooks/useAccountUser';
 import { ROUTES } from '../../../constants/routes';
-import { toast } from 'react-toastify';
+import { AppToast as toast } from '../../../../client/utils/toast.util';
 import { STATUS_LABELS, RoleEnum } from '../configs/constants';
 import { Search } from '../../../components/ui/Search';
 import { AccountSortField, SortDirection, createSortValue } from '../../../constants/sort';
@@ -33,7 +33,7 @@ import { User } from '../../../../types/user.type';
 import { ExportImport } from '../../../components/ui/ExportImport';
 import { confirmDelete } from "../../../utils/swal";
 import FilterListIcon from '@mui/icons-material/FilterList';
-import AccountResetPasswordModal from './AccountResetPasswordModal';
+import { AccountResetPasswordModal } from './AccountResetPasswordModal';
 
 // Styled component cho con số (Badge nhãn)
 const TabBadge = styled('span')(() => ({
@@ -105,7 +105,7 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
         { value: createSortValue(AccountSortField.FIRST_NAME, SortDirection.DESC), label: 'Tên Z-A' },
     ];
 
-    const handleDelete = (id: string) => {
+    const handleDelete = useCallback((id: string) => {
         confirmDelete("Bạn có chắc chắn muốn xóa tài khoản khách hàng này?", () => {
             deleteUser(id, {
                 onSuccess: () => {
@@ -113,17 +113,17 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
                 }
             });
         });
-    };
+    }, [deleteUser]);
 
-    const handleEdit = (id: string) => {
+    const handleEdit = useCallback((id: string) => {
         navigate(`${ROUTES.ADMIN.ACCOUNTS.USER.EDIT}/${id}`);
-    };
+    }, [navigate]);
 
-    const handleViewDetail = (id: string) => {
+    const handleViewDetail = useCallback((id: string) => {
         navigate(`${ROUTES.ADMIN.ACCOUNTS.USER.DETAIL}/${id}`);
-    };
+    }, [navigate]);
 
-    const handleChangePassword = (id: string) => {
+    const handleChangePassword = useCallback((id: string) => {
         const user = users.find(u => (u.id || u._id) === id);
         if (user) {
             setSelectedUser({ 
@@ -133,9 +133,9 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
             });
             setOpenResetModal(true);
         }
-    };
+    }, [users]);
 
-    const columns = useMemo(() => getColumnsConfig(handleEdit, handleDelete, handleChangePassword, handleViewDetail), []);
+    const columns = useMemo(() => getColumnsConfig(handleEdit, handleDelete, handleChangePassword, handleViewDetail), [handleEdit, handleDelete, handleChangePassword, handleViewDetail]);
 
     const handleStatusChange = (newStatus: string) => {
         setStatus(newStatus);

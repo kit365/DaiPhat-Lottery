@@ -19,6 +19,7 @@ import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { prefixAdmin } from "../../constants/routes";
 import { useUserDetail, useUpdateUser, useDeleteUser } from "./hooks/useAccountUser";
+import { UserStatus } from "../../../types/user.type";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { accountUserSchema } from "../../schemas/account-user.schema";
@@ -51,10 +52,11 @@ export const AccountUserDetailPage = () => {
     } = useForm<any>({
         resolver: zodResolver(accountUserSchema),
         defaultValues: {
-            fullName: "",
+            firstName: "",
+            lastName: "",
             email: "",
             phone: "",
-            status: "active",
+            status: UserStatus.ACTIVE,
             avatar: "",
         },
     });
@@ -64,7 +66,8 @@ export const AccountUserDetailPage = () => {
     useEffect(() => {
         if (user) {
             reset({
-                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
                 email: user.email,
                 phone: user.phone || "",
                 status: user.status,
@@ -147,7 +150,7 @@ export const AccountUserDetailPage = () => {
                     items={[
                         { label: "Dashboard", to: "/" },
                         { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
-                        { label: user?.fullName || "Chi tiết" }
+                        { label: user ? `${user.lastName} ${user.firstName}` : "Chi tiết" }
                     ]}
                 />
             </Box>
@@ -229,10 +232,10 @@ export const AccountUserDetailPage = () => {
                             <Card sx={{ p: '80px 24px', textAlign: 'center', borderRadius: "var(--shape-borderRadius-lg)", position: 'relative', boxShadow: "var(--customShadows-card)" }}>
                                 <Box sx={{ position: 'absolute', top: 24, right: 24 }}>
                                     <Chip
-                                        label={user?.status === 'active' ? 'Hoạt động' : 'Tạm dừng'}
+                                        label={user?.status === UserStatus.ACTIVE ? 'Hoạt động' : 'Tạm dừng'}
                                         sx={{
-                                            bgcolor: user?.status === 'active' ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255, 171, 0, 0.16)',
-                                            color: user?.status === 'active' ? 'rgb(17, 141, 87)' : 'rgb(183, 110, 0)',
+                                            bgcolor: user?.status === UserStatus.ACTIVE ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255, 171, 0, 0.16)',
+                                            color: user?.status === UserStatus.ACTIVE ? 'rgb(17, 141, 87)' : 'rgb(183, 110, 0)',
                                             borderRadius: "var(--shape-borderRadius-sm)",
                                             fontWeight: 700,
                                             fontSize: '0.75rem',
@@ -310,12 +313,26 @@ export const AccountUserDetailPage = () => {
                             <Card sx={{ p: 4, mb: 3, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                                 <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
                                     <Controller
-                                        name="fullName"
+                                        name="lastName"
                                         control={control}
                                         render={({ field, fieldState }) => (
                                             <TextField
                                                 {...field}
-                                                label="Họ và tên"
+                                                label="Họ"
+                                                fullWidth
+                                                error={!!fieldState.error}
+                                                helperText={fieldState.error?.message}
+                                            />
+                                        )}
+                                    />
+
+                                    <Controller
+                                        name="firstName"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <TextField
+                                                {...field}
+                                                label="Tên"
                                                 fullWidth
                                                 error={!!fieldState.error}
                                                 helperText={fieldState.error?.message}
@@ -361,8 +378,9 @@ export const AccountUserDetailPage = () => {
                                                 select
                                                 fullWidth
                                             >
-                                                <MenuItem value="active" sx={{ fontSize: '0.875rem' }}>Hoạt động</MenuItem>
-                                                <MenuItem value="inactive" sx={{ fontSize: '0.875rem' }}>Tạm dừng</MenuItem>
+                                                <MenuItem value={UserStatus.ACTIVE} sx={{ fontSize: '0.875rem' }}>Hoạt động</MenuItem>
+                                                <MenuItem value={UserStatus.LOCKED} sx={{ fontSize: '0.875rem' }}>Tạm dừng</MenuItem>
+                                                <MenuItem value={UserStatus.BANNED} sx={{ fontSize: '0.875rem' }}>Bị cấm</MenuItem>
                                             </TextField>
                                         )}
                                     />
