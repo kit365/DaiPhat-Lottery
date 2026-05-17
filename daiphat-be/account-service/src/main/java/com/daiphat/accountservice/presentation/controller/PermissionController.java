@@ -5,6 +5,7 @@ import com.daiphat.accountservice.application.dto.request.permission.PermissionR
 import com.daiphat.accountservice.application.dto.response.auth.RoleResponse;
 import com.daiphat.accountservice.application.dto.response.base.ApiResponse;
 import com.daiphat.accountservice.application.port.in.auth.RoleServicePort;
+import com.daiphat.accountservice.application.port.in.user.UserLookupServicePort;
 import com.daiphat.accountservice.application.port.in.user.UserServicePort;
 import com.daiphat.accountservice.domain.model.PermissionModel;
 import com.daiphat.accountservice.domain.model.UserModel;
@@ -28,7 +29,7 @@ import java.util.stream.Collectors;
 public class PermissionController {
 
     private final RoleServicePort roleServicePort;
-    private final UserServicePort userService;
+    private final UserLookupServicePort userLookupService;
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('role:view', 'admin:view')")
@@ -92,7 +93,7 @@ public class PermissionController {
     @GetMapping("/users/{userId}")
     public ResponseEntity<ApiResponse<Set<String>>> getUserPermissions(@PathVariable UUID userId) {
         String msg = "Lấy quyền hạn người dùng thành công";
-        UserModel user = userService.fetchActiveUserById(userId);
+        UserModel user = userLookupService.findActiveByIdOrThrow(userId);
 
         if (user.getRole() == null || user.getRole().getPermissions() == null) {
             return ResponseEntity.ok(ApiResponse.<Set<String>>builder()

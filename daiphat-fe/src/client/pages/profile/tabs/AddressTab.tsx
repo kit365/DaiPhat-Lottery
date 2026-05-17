@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin, Plus, Trash2, Edit2 } from "lucide-react";
-import { toast } from "react-toastify";
+import { AppToast as toast } from "../../../utils/toast.util";
 
 // Define a type for address
 interface Address {

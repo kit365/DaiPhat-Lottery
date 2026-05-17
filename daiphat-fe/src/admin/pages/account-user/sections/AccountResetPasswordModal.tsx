@@ -5,12 +5,11 @@ import {
     Typography,
     Box,
     CircularProgress,
-    Stack,
     IconButton
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useInitiateResetPassword, useConfirmResetPassword } from '../hooks/useAccountUser';
-import { toast } from 'react-toastify';
+import { AppToast as toast } from "../../../../client/utils/toast.util";
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AccountResetPasswordModalProps {
@@ -94,7 +93,7 @@ const OtpInput = ({ value, onChange, disabled }: { value: string; onChange: (val
     );
 };
 
-const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetPasswordModalProps) => {
+export const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetPasswordModalProps) => {
     const [otpSent, setOtpSent] = useState(false);
     const [otp, setOtp] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
@@ -119,7 +118,7 @@ const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetPassword
         initiateReset(user.id, {
             onSuccess: () => {
                 setOtpSent(true);
-                toast.success("Mã OTP đã được gửi!");
+                toast.success("Mã OTP đã được gửi về email người dùng!");
             },
             onError: (error: any) => {
                 toast.error(error.response?.data?.message || "Không thể gửi OTP");
@@ -131,7 +130,7 @@ const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetPassword
         if (!user || !otp) return;
         confirmReset({ id: user.id, otp, phoneNumber }, {
             onSuccess: () => {
-                toast.success("Đặt lại mật khẩu thành công!");
+                toast.success("Đặt lại mật khẩu thành công! Mật khẩu mới đã được gửi đến email người dùng.");
                 handleClose();
             },
             onError: (error: any) => {
@@ -198,8 +197,8 @@ const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetPassword
                             </Typography>
                             
                             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 4, px: 2, lineHeight: 1.6 }}>
-                                Gửi mã OTP xác thực cho <span style={{ color: '#FF6262', fontWeight: 700 }}>{user?.fullName}</span>. 
-                                Hệ thống sẽ tự động tạo mật khẩu mới sau khi xác thực.
+                                Hệ thống sẽ gửi mã OTP xác thực cho <span style={{ color: '#FF6262', fontWeight: 700 }}>{user?.fullName}</span>. 
+                                Mật khẩu mới sẽ được tự động gửi qua email sau khi xác nhận.
                             </Typography>
 
                             <Button
@@ -260,42 +259,6 @@ const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetPassword
                                 <OtpInput value={otp} onChange={setOtp} disabled={isConfirming} />
                             </Box>
 
-                            <Box sx={{ mb: 4, width: '100%', textAlign: 'left' }}>
-                                <Typography variant="caption" sx={{ fontWeight: 900, color: 'text.secondary', ml: 1, mb: 1, display: 'block', textTransform: 'uppercase' }}>
-                                    Số điện thoại mới (Tùy chọn)
-                                </Typography>
-                                <input
-                                    type="text"
-                                    placeholder="Ví dụ: 0912345678"
-                                    value={phoneNumber}
-                                    onChange={(e) => setPhoneNumber(e.target.value)}
-                                    disabled={isConfirming}
-                                    style={{
-                                        width: '100%',
-                                        height: '48px',
-                                        padding: '0 16px',
-                                        fontSize: '0.95rem',
-                                        fontWeight: 600,
-                                        borderRadius: '12px',
-                                        border: '2px solid #f1f5f9',
-                                        backgroundColor: '#f8fafc',
-                                        outline: 'none',
-                                        transition: 'all 0.2s',
-                                        boxSizing: 'border-box'
-                                    }}
-                                    onFocus={(e) => {
-                                        e.target.style.backgroundColor = 'white';
-                                        e.target.style.borderColor = '#FF6262';
-                                        e.target.style.boxShadow = '0 4px 6px -1px rgb(0 0 0 / 0.1)';
-                                    }}
-                                    onBlur={(e) => {
-                                        e.target.style.backgroundColor = '#f8fafc';
-                                        e.target.style.borderColor = '#f1f5f9';
-                                        e.target.style.boxShadow = 'none';
-                                    }}
-                                />
-                            </Box>
-
                             <Button
                                 fullWidth
                                 variant="contained"
@@ -315,7 +278,7 @@ const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetPassword
                                     mb: 2
                                 }}
                             >
-                                {isConfirming ? <CircularProgress size={24} color="inherit" /> : "Xác nhận OTP"}
+                                {isConfirming ? <CircularProgress size={24} color="inherit" /> : "Xác nhận & Gửi mật khẩu"}
                             </Button>
 
                             <Button 
@@ -333,4 +296,4 @@ const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetPassword
     );
 };
 
-export default AccountResetPasswordModal;
+

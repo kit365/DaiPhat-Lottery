@@ -14,10 +14,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.daiphat.accountservice.infrastructure.config.security.SecurityUser;
 import com.daiphat.accountservice.application.dto.request.user.CreateUserRequest;
+import com.daiphat.accountservice.application.dto.request.user.UpdateUserRequest;
 import com.daiphat.accountservice.application.dto.request.user.ProfileSetupRequest;
 import com.daiphat.accountservice.application.dto.request.user.OtpConfirmationRequest;
 import com.daiphat.accountservice.infrastructure.util.SearchConstants;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import java.util.Map;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -30,18 +33,25 @@ public class UserController {
     private static final String DEFAULT_PAGE = "1";
     private static final String DEFAULT_LIMIT = "10";
     
-    private String message; // WARNING: Not thread-safe in singleton controller
-
     private final UserServicePort userServicePort;
 
     @PostMapping
     @PreAuthorize("hasAnyAuthority('admin:create', 'member:create')")
     @JsonView(Views.Admin.class)
-    public ResponseEntity<ApiResponse<UserResponse>> create(@Valid @RequestBody CreateUserRequest request) {
-        message = "Tạo người dùng thành công.";
-        return ResponseEntity.ok(ApiResponse.<UserResponse>builder()
-                .data(userServicePort.create(request))
-                .message(message)
+    public ResponseEntity<ApiResponse<Void>> create(@Valid @RequestBody CreateUserRequest request) {
+        userServicePort.create(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.<Void>builder()
+                .message("Tạo người dùng thành công.")
+                .build());
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('admin:edit', 'member:edit') or #id.toString().equals(principal.id.toString())")
+    @JsonView(Views.Admin.class)
+    public ResponseEntity<ApiResponse<Void>> update(@PathVariable UUID id, @Valid @RequestBody UpdateUserRequest request) {
+        userServicePort.update(id, request);
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .message("Cập nhật người dùng thành công.")
                 .build());
     }
 
@@ -102,20 +112,18 @@ public class UserController {
             @AuthenticationPrincipal SecurityUser principal,
             @Valid @RequestBody ProfileSetupRequest request) {
         
-        message = "Thiết lập hồ sơ thành công.";
         userServicePort.setupFirstTimeProfile(principal.username(), request);
         return ResponseEntity.ok(ApiResponse.<Void>builder()
-                .message(message)
+                .message("Thiết lập hồ sơ thành công.")
                 .build());
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('member:delete', 'admin:delete')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
-        message = "Đã xóa người dùng thành công.";
         userServicePort.delete(id);
         return ResponseEntity.ok(ApiResponse.<Void>builder()
-                .message(message)
+                .message("Đã xóa người dùng thành công.")
                 .build());
     }
 
@@ -124,6 +132,17 @@ public class UserController {
     public ResponseEntity<ApiResponse<List<UserStatus>>> getStatuses() {
         return ResponseEntity.ok(ApiResponse.<List<com.daiphat.accountservice.domain.model.enums.UserStatus>>builder()
                 .data(Arrays.asList(UserStatus.values()))
+                .build());
+    }
+
+    @PostMapping("/{id}/invite-staff")
+    @PreAuthorize("hasAnyAuthority('admin:create', 'admin:edit')")
+    public ResponseEntity<ApiResponse<Void>> inviteStaff(
+            @PathVariable String id,
+            @Valid @RequestBody com.daiphat.accountservice.application.dto.request.InviteStaffRequest request) {
+        userServicePort.inviteStaff(id, request);
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .message("Đã gửi lời mời nhân viên thành công.")
                 .build());
     }
 }

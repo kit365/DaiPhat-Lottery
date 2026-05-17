@@ -1,8 +1,7 @@
 package com.daiphat.accountservice.application.service.user;
-
-import com.daiphat.accountservice.application.config.AuthProperties;
 import com.daiphat.accountservice.application.dto.request.user.CreateUserRequest;
 import com.daiphat.accountservice.application.dto.request.user.ProfileSetupRequest;
+import com.daiphat.accountservice.application.dto.request.user.UpdateUserRequest;
 import com.daiphat.accountservice.application.dto.response.base.PageResponse;
 import com.daiphat.accountservice.application.dto.response.user.UserResponse;
 import com.daiphat.accountservice.application.mapper.UserApplicationMapper;
@@ -11,14 +10,16 @@ import com.daiphat.accountservice.application.port.in.user.UserServicePort;
 import com.daiphat.accountservice.application.port.out.auth.IdentityManagementPort;
 import com.daiphat.accountservice.application.port.out.auth.RoleRepositoryPort;
 import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
+import com.daiphat.accountservice.application.port.in.user.UserLookupServicePort;
+import com.daiphat.accountservice.application.port.in.user.UserValidationServicePort;
 import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
+import com.daiphat.accountservice.domain.model.RoleModel;
 import com.daiphat.accountservice.domain.model.UserModel;
 import com.daiphat.accountservice.domain.model.auth.OAuthUserInfo;
 import com.daiphat.accountservice.domain.model.enums.RoleConstants;
 import com.daiphat.accountservice.domain.model.enums.UserStatus;
 import com.daiphat.accountservice.application.event.*;
-import com.daiphat.accountservice.application.port.out.auth.cache.OtpCachePort;
 import com.daiphat.accountservice.infrastructure.config.security.SecurityUser;
 import com.daiphat.accountservice.infrastructure.util.AuthUtils;
 import com.daiphat.accountservice.infrastructure.util.SearchConstants;
@@ -31,14 +32,22 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import com.daiphat.accountservice.application.dto.request.InviteStaffRequest;
+import com.daiphat.accountservice.application.dto.request.AcceptInviteRequest;
+import com.daiphat.accountservice.application.port.out.user.cache.InviteCachePort;
+import com.daiphat.accountservice.domain.model.auth.InviteData;
+import java.time.Duration;
+import com.daiphat.accountservice.infrastructure.persistence.entity.StaffInviteEntity;
+import com.daiphat.accountservice.infrastructure.persistence.entity.RoleEntity;
+import com.daiphat.accountservice.infrastructure.persistence.repository.RoleRepository;
+import com.daiphat.accountservice.infrastructure.persistence.repository.StaffInviteRepository;
+import com.daiphat.accountservice.domain.model.enums.InviteStatus;
+import java.time.LocalDateTime;
+import java.util.Optional;
 
-/**
- * User Application Service - Central coordinator for user profile and account operations.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -50,103 +59,94 @@ public class UserService implements UserServicePort {
     private final OAuthProvisioningPort oauthProvisioningPort;
     private final RoleRepositoryPort roleRepositoryPort;
     private final ApplicationEventPublisher eventPublisher;
-    private final OtpCachePort otpCachePort;
-    private final AuthProperties authProperties;
+    private final InviteCachePort inviteCachePort;
+    private final UserLookupServicePort userLookupService;
+    private final UserValidationServicePort userValidationService;
+    private final RoleRepository roleRepository;
+    private final StaffInviteRepository staffInviteRepository;
+
 
     @Override
     @Transactional
-    public UserResponse create(CreateUserRequest request) {
+    public void create(CreateUserRequest request) {
         log.info("Admin creating new user with email: {}", request.email());
 
-        // 1. Validate if user exists
-        if (userRepositoryPort.existsByEmail(request.email())) {
-            throw new DomainException(ErrorCode.EMAIL_EXISTED);
-        }
+        userValidationService.ensureEmailAvailable(request.email(), null);
+        userValidationService.ensurePhoneAvailable(request.phone(), null);
 
-        // 2. Generate random password
         String generatedPassword = AuthUtils.generatePassword();
 
-        // 3. Prepare UserModel
-        String firstName = request.firstName();
-        String lastName = request.lastName();
+        UserModel user = userApplicationMapper.toUserModel(request);
+        user.onboardAdminCreatedUser();
 
-        if ((firstName == null || firstName.isBlank()) && request.fullName() != null) {
-            String[] parts = request.fullName().trim().split("\\s+", 2);
-            firstName = parts.length > 0 ? parts[0] : "";
-            lastName = parts.length > 1 ? parts[1] : "";
-        }
-
-        UserModel user = UserModel.builder()
-                .username(request.email())
-                .email(request.email())
-                .firstName(firstName)
-                .lastName(lastName)
-                .phoneNumber(request.phone())
-                .status(UserStatus.PENDING)
-                .hasPassword(false) // Required to change on first login
-                .emailVerified(true)
-                .agreedToTerms(false)
-                .build();
-
-        // 4. Create in Identity Provider (Keycloak)
         UUID identityId = identityManagementPort.createUser(user, generatedPassword, false);
         user.setId(identityId);
 
-        // 5. Assign Roles
-        if (request.roles() != null && !request.roles().isEmpty()) {
-            // Set primary role for local DB (take the first one)
-            String primaryRoleCode = request.roles().get(0);
-            roleRepositoryPort.findByCode(primaryRoleCode).ifPresent(user::setRole);
+        try {
+            String roleToAssign = (request.roleCode() != null) ? request.roleCode() : RoleConstants.ROLE_MEMBER;
+            assignRoleToUser(user, roleToAssign);
 
-            request.roles().forEach(role -> {
-                try {
-                    identityManagementPort.assignRole(identityId, role);
-                } catch (Exception e) {
-                    log.error("Failed to assign role {} to user {}: {}", role, identityId, e.getMessage());
-                }
-            });
+            userRepositoryPort.save(user);
+
+            eventPublisher.publishEvent(UserCreatedEvent.builder()
+                    .email(request.email())
+                    .fullName(user.getFullName())
+                    .password(generatedPassword)
+                    .build());
+        } catch (Exception e) {
+            log.error("Failed to complete user creation for {}. Initiating identity compensation (delete). Error: {}", 
+                    request.email(), e.getMessage());
+            identityManagementPort.deleteUser(identityId);
+            throw e;
+        }
+    }
+
+    @Override
+    @Transactional
+    public void update(UUID id, UpdateUserRequest request) {
+        log.info("Updating user with id: {}", id);
+        UserModel user = userLookupService.findByIdOrThrow(id);
+
+        updateIfPresent(request.firstName(), user::setFirstName);
+        updateIfPresent(request.lastName(), user::setLastName);
+        
+        userValidationService.ensurePhoneAvailable(request.phone(), user.getPhoneNumber());
+
+        updateIfPresent(request.phone(), user::setPhoneNumber);
+        
+        UserStatus newStatus = UserStatus.from(request.status());
+        if (newStatus != null) user.setStatus(newStatus);
+
+        if (request.avatar() != null) {
+            com.daiphat.accountservice.domain.model.UserImageModel newImage = 
+                userApplicationMapper.toUserImageModel(request.avatar(), user.getId());
+            user.replaceCurrentAvatar(newImage);
+        }
+        
+        if (request.roleCode() != null) {
+            assignRoleToUser(user, request.roleCode());
         }
 
-        // 6. Save to local DB
-        if (user.getRole() == null) {
-            log.warn("No valid role found for user {}. Assigning default MEMBER role.", request.email());
-            roleRepositoryPort.findByCode(RoleConstants.ROLE_MEMBER).ifPresent(user::setRole);
-        }
-
-        UserModel savedUser = userRepositoryPort.save(user);
-
-        // 7. Fire Event (Listener will handle email after commit)
-        eventPublisher.publishEvent(UserCreatedEvent.builder()
-                .email(request.email())
-                .firstName(request.firstName() != null ? request.firstName() : firstName)
-                .password(generatedPassword)
-                .build());
-
-        return userApplicationMapper.mapToUserResponse(savedUser);
+        userRepositoryPort.save(user);
     }
 
     @Override
     @Transactional(readOnly = true)
     public UserResponse getById(UUID id) {
-        UserModel user = userRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
-
-        return userApplicationMapper.mapToUserResponse(user);
+        return userApplicationMapper.mapToUserResponse(userLookupService.findByIdOrThrow(id));
     }
 
     @Override
     @Transactional(readOnly = true)
     public UserResponse getByUsername(String username) {
-        UserModel user = userRepositoryPort.findByUsername(username)
-                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
-
-        return userApplicationMapper.mapToUserResponse(user);
+        return userApplicationMapper.mapToUserResponse(userLookupService.findByUsernameOrThrow(username));
     }
+
 
     @Override
     @Transactional
     public UserResponse getMyProfile(String username) {
-        return userRepositoryPort.findByUsername(username)
+        return userLookupService.findByUsername(username)
                 .map(userApplicationMapper::mapToUserResponse)
                 .orElseGet(() -> {
                     Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -178,14 +178,7 @@ public class UserService implements UserServicePort {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<UserResponse> getAll(int page, int size, String search, String status, List<String> roleIds, String sortBy, String direction) {
-        UserStatus userStatus = null;
-        if (status != null && !status.isBlank() && !SearchConstants.FILTER_ALL.equalsIgnoreCase(status)) {
-            try {
-                userStatus = UserStatus.valueOf(status.toUpperCase());
-            } catch (Exception e) {
-                log.warn("Invalid status filter: {}", status);
-            }
-        }
+        UserStatus userStatus = UserStatus.fromFilter(status);
 
         Sort sort = direction.equalsIgnoreCase(SearchConstants.SORT_ASC)
                 ? Sort.by(sortBy).ascending()
@@ -216,71 +209,24 @@ public class UserService implements UserServicePort {
     @Override
     @Transactional
     public void delete(UUID id) {
-        if (!userRepositoryPort.existsById(id)) {
-            throw new DomainException(ErrorCode.USER_NOT_FOUND);
-        }
+        userLookupService.findByIdOrThrow(id);
         userRepositoryPort.deleteById(id);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public UserModel fetchActiveUserByUsername(String username) {
-        UserModel user = userRepositoryPort.findByUsername(username)
-                .orElseThrow(() -> new DomainException(ErrorCode.INVALID_CREDENTIALS));
-
-        user.validateLoginEligibility();
-        return user;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public UserModel fetchActiveUserById(UUID id) {
-        UserModel user = userRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
-
-        user.validateLoginEligibility();
-        return user;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public UUID getIdByUsername(String username) {
-        return userRepositoryPort.findIdByUsername(username)
-                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
     }
 
     @Override
     @Transactional
     public void setupFirstTimeProfile(String username, ProfileSetupRequest request) {
-        UserModel user = userRepositoryPort.findByUsername(username)
-                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
+        UserModel user = userLookupService.findByUsernameOrThrow(username);
 
-        // Update phone number only if provided in request
-        if (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) {
-            // Check if phone number is already taken by another user
-            if (userRepositoryPort.existsByPhone(request.getPhoneNumber()) && !request.getPhoneNumber().equals(user.getPhoneNumber())) {
-                log.warn("Phone number {} already exists for another user. Aborting setup for user: {}",
-                        request.getPhoneNumber(), username);
-                throw new DomainException(ErrorCode.PHONE_EXISTED);
-            }
-            user.setPhoneNumber(request.getPhoneNumber());
-        } else if (user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()) {
-            // If not provided and no existing phone, throw error as it's required for new setup
-            throw new DomainException(ErrorCode.PHONE_REQUIRED);
-        }
+        userValidationService.ensurePhoneAvailable(request.getPhoneNumber(), user.getPhoneNumber());
+        userValidationService.validateProfileSetup(request.getPhoneNumber(), user.getPhoneNumber());
 
-        // Synchronize password legacy update to Keycloak Identity Provider if provided
-        if (request.getPassword() != null && !request.getPassword().isBlank()) {
-            log.info("Provisioning updated password to Keycloak for user: {}", username);
-            identityManagementPort.resetPassword(user.getId(), request.getPassword(), false);
-        } else {
-            log.info("Skipping Keycloak password update for user: {} (no password provided)", username);
-        }
+        syncPasswordIfProvided(user.getId(), request.getPassword());
 
-        // Finalize local profile status
-        user.setAgreedToTerms(request.isAgreedToTerms());
-        user.setHasPassword(true);
-        user.setStatus(UserStatus.ACTIVE);
+        user.completeFirstTimeProfile(
+                (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) ? request.getPhoneNumber() : user.getPhoneNumber(),
+                request.isAgreedToTerms()
+        );
 
         log.info("Successfully finalized first-time profile setup for user: {}", username);
         userRepositoryPort.save(user);
@@ -288,64 +234,118 @@ public class UserService implements UserServicePort {
 
     @Override
     @Transactional
-    public void changePassword(UUID id, String newPassword) {
-        UserModel user = fetchActiveUserById(id);
-        identityManagementPort.resetPassword(user.getId(), newPassword, false);
-        user.setHasPassword(true);
-        userRepositoryPort.save(user);
-    }
+    public void inviteStaff(String id, InviteStaffRequest request) {
+        log.info("Inviting staff member with email/id: {} for role: {}", id, request.getRoleCode());
+        
+        // Special case: Using mixed identifier lookup, primarily for the invitation flow.
+        UserModel user = userLookupService.findByIdentifierOrThrow(id);
 
-    @Override
-    @Transactional
-    public void initiatePasswordReset(UUID id) {
-        UserModel user = fetchActiveUserById(id);
-        log.info("Admin initiating password reset for user: {}", user.getEmail());
+        RoleEntity roleEntity = roleRepository.findByCode(request.getRoleCode())
+                .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
 
-        String otp = AuthUtils.generateOtp();
-        otpCachePort.saveOtp(user.getEmail(), otp, authProperties.getCache().getOtpTtl());
-
-        eventPublisher.publishEvent(AdminResetPasswordOtpEvent.builder()
-                .email(user.getEmail())
-                .firstName(user.getFirstName())
-                .otp(otp)
-                .build());
-    }
-
-    @Override
-    @Transactional
-    public void confirmPasswordReset(UUID id, String otp, String phoneNumber) {
-        UserModel user = fetchActiveUserById(id);
-        log.info("Admin confirming password reset for user: {}", user.getEmail());
-
-        String cachedOtp = otpCachePort.getOtp(user.getEmail())
-                .orElseThrow(() -> new DomainException(ErrorCode.OTP_EXPIRED));
-
-        if (!cachedOtp.equals(otp)) {
-            otpCachePort.incrementOtpAttempt(user.getEmail(), authProperties.getCache().getOtpTtl());
-            throw new DomainException(ErrorCode.OTP_INVALID);
-        }
-
-        // Optional: Update phone number if provided by Admin
-        if (phoneNumber != null && !phoneNumber.isBlank()) {
-            if (userRepositoryPort.existsByPhone(phoneNumber) && !phoneNumber.equals(user.getPhoneNumber())) {
-                throw new DomainException(ErrorCode.PHONE_EXISTED);
+        // Generate a token and save to cache (24 hours expiry)
+        String inviteToken = UUID.randomUUID().toString();
+        inviteCachePort.saveInvite(inviteToken, user.getId(), request.getRoleCode(), Duration.ofHours(24));
+        
+        UUID currentUserId = null;
+        try {
+            var auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getPrincipal() instanceof SecurityUser securityUser) {
+                currentUserId = securityUser.id();
             }
-            user.setPhoneNumber(phoneNumber);
+        } catch (Exception e) {
+            log.warn("Failed to get current user ID: {}", e.getMessage());
         }
 
-        String temporaryPassword = AuthUtils.generatePassword();
-        identityManagementPort.resetPassword(user.getId(), temporaryPassword, false);
+        StaffInviteEntity staffInvite = staffInviteRepository.findByEmail(user.getEmail())
+                .orElseGet(() -> StaffInviteEntity.builder()
+                        .email(user.getEmail())
+                        .build());
 
-        user.setHasPassword(false); // Force password change on next login
+        if (staffInvite.getToken() != null) {
+            log.info("Invalidating old active invite token: {}", staffInvite.getToken());
+            try {
+                inviteCachePort.deleteInvite(staffInvite.getToken());
+            } catch (Exception e) {
+                log.warn("Failed to delete old invite token from cache: {}", e.getMessage());
+            }
+        }
+
+        staffInvite.setRole(roleEntity);
+        staffInvite.setStatus(InviteStatus.PENDING);
+        staffInvite.setToken(inviteToken);
+        staffInvite.setInvitedById(currentUserId);
+        staffInvite.setInvitedAt(LocalDateTime.now());
+        staffInvite.setApprovedAt(null);
+        staffInvite.setExpiresAt(LocalDateTime.now().plusHours(24));
+
+        staffInviteRepository.save(staffInvite);
+        log.info("Successfully saved staff invite record to DB for email: {}", user.getEmail());
+
+        eventPublisher.publishEvent(StaffInviteEvent.builder()
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .token(inviteToken)
+                .roleName(request.getRoleCode())
+                .build());
+    }
+
+    @Override
+    @Transactional
+    public void acceptInvite(AcceptInviteRequest request) {
+        log.info("Accepting staff invitation with token: {}", request.getToken());
+        
+        InviteData inviteData = inviteCachePort.getInvite(request.getToken())
+                .orElseThrow(() -> new DomainException(ErrorCode.INVITATION_INVALID));
+
+        UserModel user = userLookupService.findByIdOrThrow(inviteData.userId());
+
+        user.activate();
+
+        assignRoleToUser(user, inviteData.role());
+
         userRepositoryPort.save(user);
 
-        otpCachePort.deleteOtp(user.getEmail());
-        otpCachePort.resetOtpAttemptCount(user.getEmail());
+        staffInviteRepository.findByToken(request.getToken())
+                .ifPresentOrElse(invite -> {
+                    invite.setStatus(InviteStatus.APPROVED);
+                    invite.setApprovedAt(LocalDateTime.now());
+                    staffInviteRepository.save(invite);
+                    log.info("Updated staff invite record to APPROVED in DB for email: {}", invite.getEmail());
+                }, () -> {
+                    log.warn("No staff invite record found in DB for token: {}", request.getToken());
+                });
 
-        eventPublisher.publishEvent(AdminResetPasswordSuccessEvent.builder()
-                .email(user.getEmail())
-                .firstName(user.getFirstName())
-                .password(temporaryPassword)
-                .build());
+        inviteCachePort.deleteInvite(request.getToken());
+        
+        log.info("User {} successfully accepted invite and assigned role {}", user.getEmail(), inviteData.role());
+    }
+
+    private void assignRoleToUser(UserModel user, String roleCode) {
+        if (roleCode == null || roleCode.isBlank()) {
+            return;
+        }
+
+        RoleModel role = roleRepositoryPort.findByCode(roleCode)
+            .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
+        
+        user.setRole(role);
+
+    
+        identityManagementPort.assignRole(user.getId(), List.of(roleCode));
+    }
+
+
+    private void syncPasswordIfProvided(UUID userId, String password) {
+        if (password != null && !password.isBlank()) {
+            identityManagementPort.resetPassword(userId, password, false);
+            log.info("Successfully synced password to identity provider for user: {}", userId);
+        }
+    }
+
+    private void updateIfPresent(String newValue, java.util.function.Consumer<String> setter) {
+        if (newValue != null && !newValue.isBlank()) {
+            setter.accept(newValue);
+        }
     }
 }

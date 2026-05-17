@@ -61,7 +61,9 @@ class PasswordResetServiceTest extends AuthTestBase {
                 eventPublisher,
                 rateLimiterService,
                 identityManagementPort,
-                loginAttemptService
+                loginAttemptService,
+                userLookupService,
+                userValidationService
         );
 
         // Mock TransactionTemplate behavior (lenient because not all tests use it)
@@ -77,7 +79,8 @@ class PasswordResetServiceTest extends AuthTestBase {
     void forgotPassword_Success() {
         // GIVEN
         ForgotPasswordRequest request = ForgotPasswordRequest.builder().email(DEFAULT_EMAIL).build();
-        when(userRepositoryPort.existsByEmail(DEFAULT_EMAIL)).thenReturn(true);
+        UserModel mockUser = mock(UserModel.class);
+        when(userLookupService.findByEmailOrThrow(DEFAULT_EMAIL)).thenReturn(mockUser);
  
         // WHEN
         ForgotPasswordResponse response = passwordResetService.forgotPassword(request);
@@ -94,7 +97,8 @@ class PasswordResetServiceTest extends AuthTestBase {
     void forgotPassword_Fail_EmailNotFound() {
         // GIVEN
         ForgotPasswordRequest request = ForgotPasswordRequest.builder().email(NOT_FOUND_USERNAME).build();
-        when(userRepositoryPort.existsByEmail(NOT_FOUND_USERNAME)).thenReturn(false);
+        when(userLookupService.findByEmailOrThrow(NOT_FOUND_USERNAME))
+                .thenThrow(new DomainException(ErrorCode.USER_NOT_FOUND));
  
         // WHEN
         DomainException exception = assertThrows(DomainException.class, () -> passwordResetService.forgotPassword(request));
@@ -184,7 +188,7 @@ class PasswordResetServiceTest extends AuthTestBase {
         when(mockUser.getId()).thenReturn(keycloakId);
         
         when(passwordResetCachePort.getResetTokenData(resetToken)).thenReturn(Optional.of(data));
-        when(userRepositoryPort.findByEmail(DEFAULT_EMAIL)).thenReturn(Optional.of(mockUser));
+        when(userLookupService.findByEmailOrThrow(DEFAULT_EMAIL)).thenReturn(mockUser);
  
         // WHEN
         assertDoesNotThrow(() -> passwordResetService.resetPassword(request));
@@ -225,7 +229,10 @@ class PasswordResetServiceTest extends AuthTestBase {
                 .build();
         
         when(passwordResetCachePort.getResetTokenData(resetToken)).thenReturn(Optional.of(data));
-        when(userRepositoryPort.findByEmail(DEFAULT_EMAIL)).thenReturn(Optional.of(mock(UserModel.class)));
+        UserModel mockUser = mock(UserModel.class);
+        when(userLookupService.findByEmailOrThrow(DEFAULT_EMAIL)).thenReturn(mockUser);
+        doThrow(new DomainException(ErrorCode.PASSWORD_CONFIRM_MISMATCH, "Xác nhận mật khẩu không khớp"))
+                .when(userValidationService).validatePasswordMatch(DEFAULT_PASSWORD, "Mismatch123!");
  
         // WHEN
         DomainException exception = assertThrows(DomainException.class, () -> passwordResetService.resetPassword(request));

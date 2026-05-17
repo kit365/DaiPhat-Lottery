@@ -15,8 +15,8 @@ const withAuth = () => {
 
 export const getUserTickets = async (params?: any) => {
     const list = [
-        { _id: "P1", name: "Vé XSMN", type: "XSMN", ticketSubtype: "Tiền Giang", quantity: 10, age: 0, gender: "none", ownerName: "Nguyễn Văn A", avatar: "" },
-        { _id: "P2", name: "Vé XSMB", type: "XSMB", ticketSubtype: "Hà Nội", quantity: 5, age: 0, gender: "none", ownerName: "Trần Thị B", avatar: "" }
+        { _id: "P1", name: "Vé kiến thiết", type: "cat", ticketSubtype: "Đài 1", quantity: 10, age: 0, gender: "none", ownerName: "Nguyễn Văn A", avatar: "" },
+        { _id: "P2", name: "Vé Vietlott", type: "dog", ticketSubtype: "Mega 6/45", quantity: 5, age: 0, gender: "none", ownerName: "Trần Thị B", avatar: "" }
     ];
     return {
         success: true,
@@ -45,7 +45,7 @@ export const createUserTicket = async (data: any) => {
 };
 
 export const updateUserTicket = async (id: string, data: any) => {
-    const response = await apiApp.patch(`${BASE_URL}/${id}`, data, withAuth());
+    const response = await apiApp.put(`${BASE_URL}/${id}`, data, withAuth());
     return response.data;
 };
 

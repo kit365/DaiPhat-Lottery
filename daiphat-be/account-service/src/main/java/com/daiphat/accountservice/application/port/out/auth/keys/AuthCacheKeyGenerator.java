@@ -7,6 +7,7 @@ public class AuthCacheKeyGenerator {
     private static final String OTP_PREFIX = AUTH_PREFIX + ":otp";
     private static final String LOCK_PREFIX = AUTH_PREFIX + ":lock";
     private static final String VERIFY_PREFIX = AUTH_PREFIX + ":verify";
+    private static final String INVITE_PREFIX = AUTH_PREFIX + ":invite";
 
     // Token Keys
     public static String accessToken(String userId) {
@@ -68,6 +69,11 @@ public class AuthCacheKeyGenerator {
 
     public static String verifyEmail(String email) {
         return VERIFY_PREFIX + ":email:" + email;
+    }
+
+    // Invite Keys
+    public static String inviteToken(String token) {
+        return INVITE_PREFIX + ":token:" + token;
     }
 
     // Rate Limit Keys
