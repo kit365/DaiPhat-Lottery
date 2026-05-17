@@ -67,11 +67,22 @@ export const createUser = async (data: any): Promise<ApiResponse<User>> => {
 
 export const updateUser = async (id: string, data: any): Promise<ApiResponse<User>> => {
     const response = await apiApp.put(`${BASE_URL}/${id}`, data);
-    return response.data;
+    const user = response.data?.data || response.data;
+    
+    return {
+        ...response.data,
+        data: {
+            ...user,
+            phone: user.phoneNumber || user.phone,
+            fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email,
+            avatar: user.avatarUrl || user.avatar,
+            status: user.status ? user.status.toUpperCase() : 'PENDING'
+        }
+    };
 };
 
 export const changeUserPassword = async (id: string, data: any): Promise<ApiResponse<void>> => {
-    const response = await apiApp.put(`${BASE_URL}/${id}/change-password`, data);
+    const response = await apiApp.post(`/auth/${id}/change-password`, data);
     return response.data;
 };
 

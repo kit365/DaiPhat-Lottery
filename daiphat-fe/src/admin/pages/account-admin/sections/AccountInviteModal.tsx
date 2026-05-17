@@ -31,7 +31,8 @@ const ROLE_OPTIONS = [
 const AccountInviteModal: React.FC<AccountInviteModalProps> = ({ open, onClose, onInvite }) => {
     const [formData, setFormData] = React.useState({
         email: '',
-        fullName: '',
+        firstName: '',
+        lastName: '',
         role: 'STAFF'
     });
 
@@ -44,7 +45,7 @@ const AccountInviteModal: React.FC<AccountInviteModalProps> = ({ open, onClose, 
         onInvite(formData);
         onClose();
         // Reset form
-        setFormData({ email: '', fullName: '', role: 'STAFF' });
+        setFormData({ email: '', firstName: '', lastName: '', role: 'STAFF' });
     };
 
     return (
@@ -94,16 +95,28 @@ const AccountInviteModal: React.FC<AccountInviteModalProps> = ({ open, onClose, 
                 </Typography>
 
                 <Stack spacing={2.5}>
-                    <TextField
-                        fullWidth
-                        label="Họ và tên"
-                        name="fullName"
-                        value={formData.fullName}
-                        onChange={handleChange}
-                        placeholder="Ví dụ: Nguyễn Văn A"
-                        variant="outlined"
-                        sx={textFieldStyles}
-                    />
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+                        <TextField
+                            fullWidth
+                            label="Họ"
+                            name="lastName"
+                            value={formData.lastName}
+                            onChange={handleChange}
+                            placeholder="Nguyễn"
+                            variant="outlined"
+                            sx={textFieldStyles}
+                        />
+                        <TextField
+                            fullWidth
+                            label="Tên"
+                            name="firstName"
+                            value={formData.firstName}
+                            onChange={handleChange}
+                            placeholder="Văn A"
+                            variant="outlined"
+                            sx={textFieldStyles}
+                        />
+                    </Box>
 
                     <TextField
                         fullWidth

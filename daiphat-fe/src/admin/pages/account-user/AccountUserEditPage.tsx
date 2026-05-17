@@ -43,7 +43,8 @@ export const AccountUserEditPage = () => {
     } = useForm<any>({
         resolver: zodResolver(accountUserSchema),
         defaultValues: {
-            fullName: "",
+            firstName: "",
+            lastName: "",
             email: "",
             phone: "",
             avatar: "",
@@ -55,7 +56,8 @@ export const AccountUserEditPage = () => {
     useEffect(() => {
         if (user) {
             reset({
-                fullName: user.fullName,
+                firstName: user.firstName,
+                lastName: user.lastName,
                 email: user.email,
                 phone: user.phone || "",
                 avatar: user.avatar || "",
@@ -232,12 +234,26 @@ export const AccountUserEditPage = () => {
                         <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
                                 <Controller
-                                    name="fullName"
+                                    name="lastName"
                                     control={control}
                                     render={({ field, fieldState }) => (
                                         <TextField
                                             {...field}
-                                            label="Họ và tên"
+                                            label="Họ"
+                                            fullWidth
+                                            error={!!fieldState.error}
+                                            helperText={fieldState.error?.message}
+                                        />
+                                    )}
+                                />
+
+                                <Controller
+                                    name="firstName"
+                                    control={control}
+                                    render={({ field, fieldState }) => (
+                                        <TextField
+                                            {...field}
+                                            label="Tên"
                                             fullWidth
                                             error={!!fieldState.error}
                                             helperText={fieldState.error?.message}

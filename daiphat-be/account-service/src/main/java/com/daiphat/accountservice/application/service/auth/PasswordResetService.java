@@ -10,9 +10,13 @@ import com.daiphat.accountservice.application.dto.response.auth.PasswordRequirem
 import com.daiphat.accountservice.application.dto.response.auth.VerifyOtpResponse;
 import org.springframework.context.ApplicationEventPublisher;
 import com.daiphat.accountservice.application.event.ForgotPasswordEvent;
+import com.daiphat.accountservice.application.event.AdminResetPasswordOtpEvent;
+import com.daiphat.accountservice.application.event.AdminResetPasswordSuccessEvent;
 import com.daiphat.accountservice.application.port.in.auth.PasswordResetServicePort;
 import com.daiphat.accountservice.application.port.out.auth.IdentityManagementPort;
 import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
+import com.daiphat.accountservice.application.port.in.user.UserLookupServicePort;
+import com.daiphat.accountservice.application.port.in.user.UserValidationServicePort;
 import com.daiphat.accountservice.application.port.out.auth.cache.OtpCachePort;
 import com.daiphat.accountservice.application.port.out.auth.cache.PasswordResetCachePort;
 import com.daiphat.accountservice.application.port.out.auth.keys.AuthAction;
@@ -47,8 +51,9 @@ public class PasswordResetService implements PasswordResetServicePort {
     private final RateLimiterPort rateLimiterService;
     private final IdentityManagementPort identityManagementPort;
     private final LoginAttemptPort loginAttemptService;
-    
-    // Password Requirement Constants
+    private final UserLookupServicePort userLookupService;
+    private final UserValidationServicePort userValidationService;
+
     private static final String REQ_MIN_LENGTH = "min_length";
     private static final String REQ_MAX_LENGTH = "max_length";
     private static final String REQ_UPPERCASE = "uppercase";
@@ -72,7 +77,13 @@ public class PasswordResetService implements PasswordResetServicePort {
         log.info("Initiating forgot password for email: {}", email);
 
         // 1. Check if user exists
-        validateUserPresence(email);
+        try {
+            userLookupService.findByEmailOrThrow(email);
+        } catch (DomainException e) {
+            log.warn("Security Alert: Password reset attempted for non-existent email: {}", email);
+            loginAttemptService.recordFailedAttempt(email); // Anti-spam protection
+            throw e;
+        }
 
         // 2. Tier A: Burst Rate Limiting (Anti-Spam Button)
         // Chặn spam nút: 1 lần mỗi 3 giây. Nếu dính lớp này chỉ bị phạt 3s và KHÔNG làm tăng nấc phạt Resend.
@@ -88,7 +99,6 @@ public class PasswordResetService implements PasswordResetServicePort {
             throw new DomainException(ErrorCode.TOO_MANY_REQUESTS, null, String.valueOf(retryAfter));
         }
 
-        // 3. Delegate to internal logic
         return this.forgotPasswordInternal(email);
     }
 
@@ -176,13 +186,10 @@ public class PasswordResetService implements PasswordResetServicePort {
         }
 
         // 2. Find User
-        UserModel user = userRepositoryPort.findByEmail(data.getEmail())
-                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
+        UserModel user = userLookupService.findByEmailOrThrow(data.getEmail());
 
         // 3. Security Check
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            throw new DomainException(ErrorCode.PASSWORD_CONFIRM_MISMATCH);
-        }
+        userValidationService.validatePasswordMatch(request.getNewPassword(), request.getConfirmPassword());
 
         if (request.getNewPassword().toLowerCase().contains(data.getEmail().toLowerCase())) {
             throw new DomainException(ErrorCode.PASSWORD_CONTAINS_EMAIL);
@@ -190,9 +197,10 @@ public class PasswordResetService implements PasswordResetServicePort {
 
         // 4. Update in Keycloak
         identityManagementPort.resetPassword(user.getId(), request.getNewPassword(), false);
+        identityManagementPort.logoutUserSessions(user.getId());
 
         // 5. Update local state
-        user.setHasPassword(true);
+        user.markPasswordSet();
         userRepositoryPort.save(user);
 
         // 6. Unlock account and reset login attempts
@@ -236,11 +244,60 @@ public class PasswordResetService implements PasswordResetServicePort {
                 .build();
     }
 
-    private void validateUserPresence(String email) {
-        if (!userRepositoryPort.existsByEmail(email)) {
-            log.warn("Security Alert: Password reset attempted for non-existent email: {}", email);
-            loginAttemptService.recordFailedAttempt(email); // Anti-spam protection
-            throw new DomainException(ErrorCode.USER_NOT_FOUND);
+    @Override
+    @Transactional
+    public void changePassword(UUID id, String newPassword) {
+        UserModel user = userLookupService.findActiveByIdOrThrow(id);
+        identityManagementPort.resetPassword(user.getId(), newPassword, false);
+        identityManagementPort.logoutUserSessions(user.getId());
+        user.markPasswordSet();
+        userRepositoryPort.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void initiatePasswordReset(UUID id) {
+        UserModel user = userLookupService.findActiveByIdOrThrow(id);
+        log.info("Admin initiating password reset for user: {}", user.getEmail());
+
+        String otp = AuthUtils.generateOtp();
+        otpCachePort.saveOtp(user.getEmail(), otp, authProperties.getCache().getOtpTtl());
+
+        eventPublisher.publishEvent(AdminResetPasswordOtpEvent.builder()
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .otp(otp)
+                .build());
+    }
+
+    @Override
+    @Transactional
+    public void confirmPasswordReset(UUID id, String otp) {
+        UserModel user = userLookupService.findActiveByIdOrThrow(id);
+        log.info("Admin confirming password reset for user: {}", user.getEmail());
+
+        String cachedOtp = otpCachePort.getOtp(user.getEmail())
+                .orElseThrow(() -> new DomainException(ErrorCode.OTP_EXPIRED));
+
+        if (!cachedOtp.equals(otp)) {
+            otpCachePort.incrementOtpAttempt(user.getEmail(), authProperties.getCache().getOtpTtl());
+            throw new DomainException(ErrorCode.OTP_INVALID);
         }
+
+        String temporaryPassword = AuthUtils.generatePassword();
+        identityManagementPort.resetPassword(user.getId(), temporaryPassword, false);
+        identityManagementPort.logoutUserSessions(user.getId());
+
+        user.forcePasswordChange();
+        userRepositoryPort.save(user);
+
+        otpCachePort.deleteOtp(user.getEmail());
+        otpCachePort.resetOtpAttemptCount(user.getEmail());
+
+        eventPublisher.publishEvent(AdminResetPasswordSuccessEvent.builder()
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .password(temporaryPassword)
+                .build());
     }
 }

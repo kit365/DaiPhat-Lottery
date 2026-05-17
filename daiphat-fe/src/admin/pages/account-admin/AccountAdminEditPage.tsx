@@ -43,7 +43,8 @@ export const AccountAdminEditPage = () => {
     } = useForm<any>({
         resolver: zodResolver(accountAdminSchema),
         defaultValues: {
-            fullName: "",
+            firstName: "",
+            lastName: "",
             email: "",
             phone: "",
             roles: [],
@@ -56,7 +57,8 @@ export const AccountAdminEditPage = () => {
     useEffect(() => {
         if (account) {
             reset({
-                fullName: account.fullName,
+                firstName: account.firstName,
+                lastName: account.lastName,
                 email: account.email,
                 phone: account.phone || "",
                 roles: account.roles?.map((r: any) => typeof r === 'string' ? r : r.code) || [],
@@ -235,12 +237,26 @@ export const AccountAdminEditPage = () => {
                         <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
                                 <Controller
-                                    name="fullName"
+                                    name="lastName"
                                     control={control}
                                     render={({ field, fieldState }) => (
                                         <TextField
                                             {...field}
-                                            label="Họ và tên"
+                                            label="Họ"
+                                            fullWidth
+                                            error={!!fieldState.error}
+                                            helperText={fieldState.error?.message}
+                                        />
+                                    )}
+                                />
+
+                                <Controller
+                                    name="firstName"
+                                    control={control}
+                                    render={({ field, fieldState }) => (
+                                        <TextField
+                                            {...field}
+                                            label="Tên"
                                             fullWidth
                                             error={!!fieldState.error}
                                             helperText={fieldState.error?.message}

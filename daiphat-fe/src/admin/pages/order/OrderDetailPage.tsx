@@ -512,7 +512,7 @@ export const OrderDetailPage = () => {
                                 </Avatar>
                                 <Box>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                        {order.fullName || order.userId?.fullName || "Khách vãng lai"}
+                                        {order.userId ? `${order.userId.lastName} ${order.userId.firstName}` : (order.fullName || "Khách vãng lai")}
                                     </Typography>
                                     <Typography variant="body2" sx={{ color: 'var(--palette-text-disabled)', wordBreak: 'break-all' }}>
                                         {order.userId?.email || "Chưa có email"}

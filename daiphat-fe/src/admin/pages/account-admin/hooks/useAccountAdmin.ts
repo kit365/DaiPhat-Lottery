@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
 import { getAccounts, getAccountById, createAccount, updateAccount, deleteAccount, changeAccountPassword, getStaffByTicketService } from "../../../api/account-admin.api";
 import { getRoles } from "../../../api/role.api";
-import { QUERY_KEYS } from "../../../constants/queryKeys";
+import { QUERY_KEYS } from "../../../../constants/queryKeys";
 import { ApiResponse, PageResponse, BaseQueryParams } from "../../../config/type";
 import { User } from "../../../../types/user.type";
 

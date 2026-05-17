@@ -14,7 +14,7 @@ export interface User {
     email: string;
     firstName: string;
     lastName: string;
-    fullName?: string; // FE mapped
+    fullName: string; 
     phone?: string;
     phoneNumber?: string; // Unified field for phone data from various endpoints
     avatarUrl?: string;

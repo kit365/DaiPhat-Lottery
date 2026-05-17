@@ -640,7 +640,7 @@ export const TicketServiceOrderDetailPage = () => {
                                             {/* Staff assigned to this ticket */}
                                             {(() => {
                                                 const staffId = mapping?.staffId?._id || mapping?.staffId;
-                                                const assignedStaff = (typeof mapping?.staffId === 'object' && mapping.staffId?.fullName)
+                                                const assignedStaff = (typeof mapping?.staffId === 'object' && mapping.staffId?.lastName)
                                                     ? mapping.staffId
                                                     : (ticketServiceOrder.staffIds?.find((s: any) => (s._id || s) === staffId) || null);
 
@@ -667,7 +667,7 @@ export const TicketServiceOrderDetailPage = () => {
                                                         />
                                                         <Box>
                                                             <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', lineHeight: 1 }}>
-                                                                {assignedStaff.fullName}
+                                                                {assignedStaff.lastName} {assignedStaff.firstName}
                                                             </Typography>
                                                             <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', fontSize: '0.625rem' }}>
                                                                 Nhân viên phụ trách

@@ -4,6 +4,10 @@ import { useAuthStore } from "../../../stores/useAuthStore";
 import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
 import { AppToast as toast } from "../../utils/toast.util";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
+import Cookies from "js-cookie";
+import { STORAGE_KEYS } from "../../../constants/storage.constants";
+import { useQueryClient } from "@tanstack/react-query";
+import { authService } from "../../../admin/pages/authen/services/auth.service";
 
 const STEPS = {
     EMAIL: "EMAIL",
@@ -15,7 +19,8 @@ const STEPS = {
 type Step = keyof typeof STEPS;
 
 export const ForgotPasswordModal = () => {
-    const { isForgotPasswordModalOpen, closeForgotPasswordModal, openLoginModal } = useAuthStore();
+    const { isForgotPasswordModalOpen, closeForgotPasswordModal, openLoginModal, token, logout } = useAuthStore();
+    const queryClient = useQueryClient();
     const [step, setStep] = useState<Step>(STEPS.EMAIL);
     const [email, setEmail] = useState("");
     const [emailError, setEmailError] = useState("");
@@ -27,6 +32,25 @@ export const ForgotPasswordModal = () => {
     const [countdown, setCountdown] = useState(0);
 
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
+    useEffect(() => {
+        if (isForgotPasswordModalOpen && token) {
+            // Auto logout if already logged in to prevent active session leakage
+            const triggerAutoLogout = async () => {
+                try {
+                    await authService.logout();
+                } catch (e) {
+                    console.error("Lỗi tự động đăng xuất ở backend:", e);
+                }
+                logout();
+                Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
+                Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
+                queryClient.clear();
+                toast.info("Phiên làm việc đã được đóng để đặt lại mật khẩu.");
+            };
+            triggerAutoLogout();
+        }
+    }, [isForgotPasswordModalOpen, token, logout, queryClient]);
 
     const { requestOtp, verifyOtp, resetPassword, usePasswordPolicy, isPending } = useForgotPassword();
     const { data: passwordPolicy } = usePasswordPolicy();
@@ -92,8 +116,19 @@ export const ForgotPasswordModal = () => {
             newPassword: passwords.new,
             confirmPassword: passwords.confirm
         }, {
-            onSuccess: (res) => {
+            onSuccess: async (res) => {
                 if (res.isSuccess || res.success) {
+                    // Fully invalidate and clear active frontend session
+                    try {
+                        await authService.logout();
+                    } catch (e) {
+                        console.error("Lỗi đăng xuất khi đặt lại mật khẩu:", e);
+                    }
+                    logout();
+                    Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
+                    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
+                    queryClient.clear();
+                    
                     setStep(STEPS.SUCCESS);
                 }
             }

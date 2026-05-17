@@ -1,5 +1,5 @@
 package com.daiphat.accountservice.infrastructure.adapter.auth;
-
+import com.daiphat.accountservice.application.mapper.UserApplicationMapper;
 import com.daiphat.accountservice.application.config.AuthProperties;
 import com.daiphat.accountservice.application.dto.identity.*;
 import com.daiphat.accountservice.application.dto.response.auth.KeycloakTokenResponse;
@@ -9,12 +9,12 @@ import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
 import com.daiphat.accountservice.domain.model.UserModel;
 import com.daiphat.accountservice.domain.model.auth.KeycloakAuthResult;
-import com.daiphat.accountservice.domain.model.enums.UserRole;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -57,16 +57,19 @@ public class AuthAdminAdapter implements IdentityManagementPort {
     private final RestClient restClient;
     private final KeycloakPort keycloakPort;
     private final RoleRepositoryPort roleRepositoryPort;
+    private final UserApplicationMapper userMapper;
 
     // Token Cache
     private String cachedAdminToken;
     private Instant tokenExpiry;
 
     public AuthAdminAdapter(AuthProperties authProperties, RestClient.Builder restClientBuilder, 
-            KeycloakPort keycloakPort, RoleRepositoryPort roleRepositoryPort) {
+            KeycloakPort keycloakPort, RoleRepositoryPort roleRepositoryPort,
+            UserApplicationMapper userMapper) {
         this.authProperties = authProperties;
         this.keycloakPort = keycloakPort;
         this.roleRepositoryPort = roleRepositoryPort;
+        this.userMapper = userMapper;
         
         // Ưu tiên dùng URL nội bộ (internal) nếu có để tránh lỗi resolve trong mạng Docker
         String baseUrl = authProperties.getKeycloak().getInternalAuthServerUrl();
@@ -77,7 +80,7 @@ public class AuthAdminAdapter implements IdentityManagementPort {
         if (baseUrl != null && !baseUrl.endsWith("/")) {
             baseUrl += "/";
         }
-        
+
         this.restClient = restClientBuilder.baseUrl(baseUrl).build();
     }
 
@@ -127,16 +130,6 @@ public class AuthAdminAdapter implements IdentityManagementPort {
                 .header(HttpHeaders.AUTHORIZATION, BEARER_PREFIX + getAdminToken());
     }
 
-    private UserModel toDomainModel(KeycloakUserDTO dto) {
-        return UserModel.builder()
-                .id(UUID.fromString(dto.getId()))
-                .username(dto.getUsername())
-                .email(dto.getEmail())
-                .firstName(dto.getFirstName())
-                .lastName(dto.getLastName())
-                .build();
-    }
-
     @Override
     public List<UserModel> getAllUsers() {
         KeycloakUserDTO[] dtos = adminRequest(HttpMethod.GET, PATH_USERS)
@@ -148,7 +141,7 @@ public class AuthAdminAdapter implements IdentityManagementPort {
         }
         
         return Arrays.stream(dtos)
-                .map(this::toDomainModel)
+                .map(userMapper::toUserModel)
                 .toList();
     }
 
@@ -167,12 +160,15 @@ public class AuthAdminAdapter implements IdentityManagementPort {
             return Optional.empty();
         }
         
-        return Optional.of(toDomainModel(dtos[0]));
+        return Optional.of(userMapper.toUserModel(dtos[0]));
     }
 
     @Override
     public UUID createUser(UserModel user, String password, boolean temporary) {
-        KeycloakUserDTO payload = KeycloakUserDTO.fromModel(user, password, temporary);
+        KeycloakUserDTO payload = userMapper.toKeycloakDTO(user);
+        if (password != null) {
+            payload.setCredentials(List.of(KeycloakCredentialDTO.password(password, temporary)));
+        }
 
         ResponseEntity<Void> response = adminRequest(HttpMethod.POST, PATH_USERS)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -196,19 +192,35 @@ public class AuthAdminAdapter implements IdentityManagementPort {
 
     @Override
     public void assignRole(UUID userId, String roleCode) {
-        KeycloakRoleDTO role = adminRequest(HttpMethod.GET, PATH_ROLES + "/" + roleCode)
-                .retrieve()
-                .body(KeycloakRoleDTO.class);
+        assignRole(userId, Collections.singletonList(roleCode));
+    }
 
-        if (role == null) {
-            log.error("Role {} not found in Keycloak", roleCode);
+    @Override
+    public void assignRole(UUID userId, List<String> roleCodes) {
+        if (roleCodes == null || roleCodes.isEmpty()) return;
+
+        // Fetch all roles to get their metadata (including IDs)
+        List<KeycloakRoleDTO> allRoles = getAllRoles();
+        
+        // Filter roles matching the requested codes
+        List<KeycloakRoleDTO> rolesToAssign = allRoles.stream()
+                .filter(r -> roleCodes.contains(r.getName()))
+                .toList();
+
+        if (rolesToAssign.isEmpty()) {
+            log.warn("No matching roles found in Keycloak to assign for user {}: {}", userId, roleCodes);
             return;
         }
 
+        // Perform bulk assignment in a single request
         adminRequest(HttpMethod.POST, PATH_USERS + "/" + userId + PATH_ROLE_MAPPINGS_REALM)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Collections.singletonList(role))
+                .body(rolesToAssign)
                 .retrieve()
+                .onStatus(HttpStatusCode::isError, (req, resp) -> {
+                    log.error("Failed to assign roles to user {} in Keycloak. Status: {}", userId, resp.getStatusCode());
+                    throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR);
+                })
                 .toBodilessEntity();
     }
 
@@ -219,6 +231,14 @@ public class AuthAdminAdapter implements IdentityManagementPort {
         adminRequest(HttpMethod.PUT, PATH_USERS + "/" + userId + PATH_RESET_PASSWORD)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(payload)
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    @Override
+    public void logoutUserSessions(UUID userId) {
+        log.info("Keycloak: Invalidating all active sessions for user ID: {}", userId);
+        adminRequest(HttpMethod.POST, PATH_USERS + "/" + userId + "/logout")
                 .retrieve()
                 .toBodilessEntity();
     }

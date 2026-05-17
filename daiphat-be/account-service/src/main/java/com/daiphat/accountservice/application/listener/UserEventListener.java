@@ -31,7 +31,7 @@ public class UserEventListener {
             log.info("Transaction committed for user {}. Dispatching welcome email...", event.email());
 
             AdminCreateUserContext emailContext = AdminCreateUserContext.builder()
-                    .firstName(event.firstName())
+                    .fullName(event.fullName())
                     .email(event.email())
                     .password(event.password())
                     .loginUrl(authProperties.getFrontendUrl() + authProperties.getVerificationPaths().getLoginPath())
@@ -49,7 +49,7 @@ public class UserEventListener {
             log.info("Registration committed for {}. Dispatching verification email...", event.email());
 
             UserVerificationContext emailContext = UserVerificationContext.builder()
-                    .firstName(event.firstName())
+                    .fullName(event.fullName())
                     .email(event.email())
                     .token(event.token())
                     .build();
@@ -98,7 +98,7 @@ public class UserEventListener {
             log.info("Admin reset password completed for {}. Dispatching new password email...", event.email());
 
             AdminResetPasswordSuccessContext emailContext = AdminResetPasswordSuccessContext.builder()
-                    .firstName(event.firstName())
+                    .fullName(event.fullName())
                     .email(event.email())
                     .password(event.password())
                     .loginUrl(authProperties.getFrontendUrl() + authProperties.getVerificationPaths().getLoginPath())
@@ -107,6 +107,25 @@ public class UserEventListener {
             emailServicePort.sendAsync(EmailType.ADMIN_RESET_PASSWORD_SUCCESS, event.email(), emailContext);
         } catch (Exception e) {
             log.error("Failed to dispatch admin reset success email for {}: {}", event.email(), e.getMessage());
+        }
+    }
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onEvent(StaffInviteEvent event) {
+        try {
+            log.info("Staff invite initiated for {}. Dispatching invitation email...", event.getEmail());
+
+            com.daiphat.accountservice.application.dto.request.mail.StaffInviteContext emailContext = 
+                com.daiphat.accountservice.application.dto.request.mail.StaffInviteContext.builder()
+                    .fullName(event.getFullName())
+                    .email(event.getEmail())
+                    .token(event.getToken())
+                    .roleName(event.getRoleName())
+                    .inviteUrl(authProperties.getFrontendUrl() + "/accept-invite?token=" + event.getToken())
+                    .build();
+
+            emailServicePort.sendAsync(EmailType.STAFF_INVITE, event.getEmail(), emailContext);
+        } catch (Exception e) {
+            log.error("Failed to dispatch staff invite email for {}: {}", event.getEmail(), e.getMessage());
         }
     }
 }
