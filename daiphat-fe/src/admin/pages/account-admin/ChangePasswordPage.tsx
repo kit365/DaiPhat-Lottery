@@ -48,17 +48,12 @@ export const ChangePasswordPage = () => {
         const pwd = passwordValue || "";
         const { minLength, maxLength, requirements } = passwordPolicy;
 
-        const isMinMet = pwd.length >= minLength;
-        const isMaxMet = !maxLength || (pwd.length <= maxLength && pwd.length > 0);
+        const isLengthMet = pwd.length >= minLength && (!maxLength || pwd.length <= maxLength);
+        const isReqsMet = requirements
+            .filter(req => req.regex)
+            .every(req => new RegExp(req.regex!).test(pwd));
 
-        const filteredReqs = requirements.filter(req =>
-            !req.description.toLowerCase().includes(`${minLength} ký tự`) &&
-            (!maxLength || !req.description.toLowerCase().includes(`${maxLength} ký tự`))
-        );
-
-        const isReqsMet = filteredReqs.every(req => new RegExp(req.regex).test(pwd));
-
-        return isMinMet && isMaxMet && isReqsMet;
+        return isLengthMet && isReqsMet;
     };
 
     const isPasswordValid = checkAllMet();

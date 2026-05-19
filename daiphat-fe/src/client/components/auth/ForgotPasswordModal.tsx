@@ -3,6 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
 import { AppToast as toast } from "../../utils/toast.util";
+import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
+import Cookies from "js-cookie";
+import { STORAGE_KEYS } from "../../../constants/storage.constants";
+import { useQueryClient } from "@tanstack/react-query";
+import { authService } from "../../../admin/pages/authen/services/auth.service";
 
 const STEPS = {
     EMAIL: "EMAIL",
@@ -14,47 +19,68 @@ const STEPS = {
 type Step = keyof typeof STEPS;
 
 export const ForgotPasswordModal = () => {
-    const { isForgotPasswordModalOpen, closeForgotPasswordModal, openLoginModal } = useAuthStore();
+    const { isForgotPasswordModalOpen, closeForgotPasswordModal, openLoginModal, token, logout } = useAuthStore();
+    const queryClient = useQueryClient();
     const [step, setStep] = useState<Step>(STEPS.EMAIL);
     const [email, setEmail] = useState("");
     const [emailError, setEmailError] = useState("");
     const [otp, setOtp] = useState("");
     const [resetToken, setResetToken] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [passwords, setPasswords] = useState({ new: "", confirm: "" });
     const [countdown, setCountdown] = useState(0);
+
+    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
+    useEffect(() => {
+        if (isForgotPasswordModalOpen && token) {
+            // Auto logout if already logged in to prevent active session leakage
+            const triggerAutoLogout = async () => {
+                try {
+                    await authService.logout();
+                } catch (e) {
+                    console.error("Lỗi tự động đăng xuất ở backend:", e);
+                }
+                logout();
+                Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
+                Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
+                queryClient.clear();
+                toast.info("Phiên làm việc đã được đóng để đặt lại mật khẩu.");
+            };
+            triggerAutoLogout();
+        }
+    }, [isForgotPasswordModalOpen, token, logout, queryClient]);
 
     const { requestOtp, verifyOtp, resetPassword, usePasswordPolicy, isPending } = useForgotPassword();
     const { data: passwordPolicy } = usePasswordPolicy();
 
+    const isPasswordValid = (() => {
+        if (!passwordPolicy || !passwords.new) return false;
+        const pwd = passwords.new;
+        const { minLength, maxLength, requirements } = passwordPolicy;
+
+        const isLengthMet = pwd.length >= (minLength || 6) && (!maxLength || pwd.length <= maxLength);
+        const isReqsMet = requirements
+            .filter(req => req.regex)
+            .every(req => new RegExp(req.regex!).test(pwd));
+
+        return isLengthMet && isReqsMet;
+    })();
+
     useEffect(() => {
-        let timer: any;
         if (countdown > 0) {
-            timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
+            const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+            return () => clearTimeout(timer);
         }
-        return () => clearInterval(timer);
     }, [countdown]);
 
-    // Reset state when modal opens
-    useEffect(() => {
-        if (isForgotPasswordModalOpen) {
-            setStep(STEPS.EMAIL);
-            setEmail("");
-            setOtp("");
-            setPasswords({ new: "", confirm: "" });
-            setCountdown(0);
-        }
-    }, [isForgotPasswordModalOpen]);
-
-    if (!isForgotPasswordModalOpen) return null;
-
-    const handleRequestOtp = async (e: React.FormEvent) => {
+    const handleRequestOtp = (e: React.FormEvent) => {
         e.preventDefault();
         if (!email) {
-            setEmailError("Vui lòng nhập email để nhận mã");
+            setEmailError("Vui lòng nhập email");
             return;
         }
-
         requestOtp.mutate({ email }, {
             onSuccess: (res) => {
                 if (res.isSuccess || res.success) {
@@ -67,15 +93,11 @@ export const ForgotPasswordModal = () => {
 
     const handleVerifyOtp = (e: React.FormEvent) => {
         e.preventDefault();
-        if (otp.length !== 6) {
-            toast.warning("Vui lòng nhập đủ 6 số OTP");
-            return;
-        }
-
+        if (otp.length !== 6) return;
         verifyOtp.mutate({ email, otp }, {
             onSuccess: (res) => {
                 if (res.isSuccess || res.success) {
-                    setResetToken(res.data.resetToken);
+                    setResetToken(res.data?.resetToken || "");
                     setStep(STEPS.RESET);
                 }
             }
@@ -94,8 +116,19 @@ export const ForgotPasswordModal = () => {
             newPassword: passwords.new,
             confirmPassword: passwords.confirm
         }, {
-            onSuccess: (res) => {
+            onSuccess: async (res) => {
                 if (res.isSuccess || res.success) {
+                    // Fully invalidate and clear active frontend session
+                    try {
+                        await authService.logout();
+                    } catch (e) {
+                        console.error("Lỗi đăng xuất khi đặt lại mật khẩu:", e);
+                    }
+                    logout();
+                    Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
+                    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
+                    queryClient.clear();
+                    
                     setStep(STEPS.SUCCESS);
                 }
             }
@@ -113,6 +146,8 @@ export const ForgotPasswordModal = () => {
         });
     };
 
+    if (!isForgotPasswordModalOpen) return null;
+
     return (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-[#0f172a]/60 backdrop-blur-md transition-all" onClick={closeForgotPasswordModal}>
             <motion.div
@@ -120,7 +155,7 @@ export const ForgotPasswordModal = () => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="relative bg-white rounded-3xl shadow-2xl overflow-hidden max-w-[480px] w-full max-h-[90vh] flex flex-col pointer-events-auto"
+                className="relative bg-white rounded-3xl shadow-2xl overflow-hidden max-w-[480px] w-full max-h-[96vh] flex flex-col pointer-events-auto"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Close Button */}
@@ -134,8 +169,11 @@ export const ForgotPasswordModal = () => {
                     </svg>
                 </button>
 
-                <div className="p-8 sm:p-10">
-                    <AnimatePresence mode="wait">
+                <div className="flex flex-col flex-1 min-h-0 items-stretch overflow-hidden">
+                    {/* Main Content */}
+                    <div className="w-full bg-white overflow-y-auto scrollbar-hide flex-1 min-h-0">
+                        <div className="flex flex-col w-full p-8 sm:p-10 h-full justify-center">
+                            <AnimatePresence mode="wait">
                         {step === STEPS.EMAIL && (
                             <motion.div
                                 key="email"
@@ -150,12 +188,12 @@ export const ForgotPasswordModal = () => {
                                         <polyline points="22,6 12,13 2,6"></polyline>
                                     </svg>
                                 </div>
-                                <h2 className="font-client-display text-2xl font-black text-[#102937] mb-2">Quên mật khẩu?</h2>
-                                <p className="text-slate-500 font-medium text-sm mb-8">Vui lòng nhập email của bạn để nhận mã xác thực đặt lại mật khẩu.</p>
+                                <h2 className="font-client-display text-2xl sm:text-3xl xl:text-4xl font-black text-[#102937] mb-2 tracking-tight">Quên mật khẩu?</h2>
+                                <p className="text-slate-500 font-medium text-sm sm:text-base mb-8">Vui lòng nhập email của bạn để nhận mã xác thực đặt lại mật khẩu.</p>
                                 
                                 <form onSubmit={handleRequestOtp} className="w-full space-y-4">
                                     <div className="flex flex-col gap-1.5 text-left">
-                                        <label className="text-[13px] font-black uppercase tracking-wider text-slate-400 ml-1">Email</label>
+                                        <label className="text-[13px] font-black uppercase tracking-wider text-slate-500 ml-1">Email</label>
                                         <input
                                             type="email"
                                             value={email}
@@ -164,7 +202,7 @@ export const ForgotPasswordModal = () => {
                                                 if (emailError) setEmailError("");
                                             }}
                                             placeholder="nhap@email.com"
-                                            className={`h-12 px-5 bg-slate-50 border ${emailError ? 'border-[#FF6262]' : 'border-slate-100'} rounded-xl text-[14px] font-medium focus:bg-white focus:border-[#FF6262] outline-none transition-all w-full`}
+                                            className={`h-11 px-4 bg-slate-50 border ${emailError ? 'border-[#FF6262]' : 'border-slate-100'} rounded-xl text-[14px] font-medium focus:bg-white focus:border-[#FF6262] focus:shadow-md outline-none transition-all w-full`}
                                         />
                                         {emailError && (
                                             <span className="text-[#FF6262] text-[12px] font-bold ml-1">{emailError}</span>
@@ -173,7 +211,7 @@ export const ForgotPasswordModal = () => {
                                     <button
                                         type="submit"
                                         disabled={isPending}
-                                        className="w-full h-12 bg-[#FF6262] text-white font-black rounded-xl shadow-lg shadow-[#FF6262]/26 hover:scale-[1.01] transition-all disabled:opacity-50 cursor-pointer"
+                                        className="w-full h-11 bg-[#FF6262] text-white font-black rounded-xl shadow-lg shadow-[#FF6262]/26 hover:scale-[1.01] hover:shadow-xl active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                                     >
                                         {isPending ? "Đang gửi..." : "Gửi mã OTP"}
                                     </button>
@@ -225,8 +263,8 @@ export const ForgotPasswordModal = () => {
                                         <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                                     </svg>
                                 </div>
-                                <h2 className="font-client-display text-2xl font-black text-[#102937] mb-2">Xác thực OTP</h2>
-                                <p className="text-slate-500 font-medium text-sm mb-8">Mã xác thực đã được gửi đến <span className="text-[#102937] font-bold">{email}</span></p>
+                                <h2 className="font-client-display text-2xl sm:text-3xl xl:text-4xl font-black text-[#102937] mb-2 tracking-tight">Xác thực OTP</h2>
+                                <p className="text-slate-500 font-medium text-sm sm:text-base mb-8">Mã xác thực đã được gửi đến <span className="text-[#FF6262] font-bold">{email}</span></p>
 
                                 <form onSubmit={handleVerifyOtp} className="w-full space-y-6">
                                     <OtpInput value={otp} onChange={setOtp} disabled={isPending} />
@@ -234,7 +272,7 @@ export const ForgotPasswordModal = () => {
                                     <button
                                         type="submit"
                                         disabled={isPending || otp.length !== 6}
-                                        className="w-full h-12 bg-[#FF6262] text-white font-black rounded-xl shadow-lg shadow-[#FF6262]/26 hover:scale-[1.01] transition-all disabled:opacity-50 cursor-pointer"
+                                        className="w-full h-11 bg-[#FF6262] text-white font-black rounded-xl shadow-lg shadow-[#FF6262]/26 hover:scale-[1.01] hover:shadow-xl active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                                     >
                                         {isPending ? "Đang xác nhận..." : "Xác nhận OTP"}
                                     </button>
@@ -285,60 +323,75 @@ export const ForgotPasswordModal = () => {
                                         <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3m-3-3l-2.5-2.5"></path>
                                     </svg>
                                 </div>
-                                <h2 className="font-client-display text-2xl font-black text-[#102937] mb-2">Đổi mật khẩu mới</h2>
-                                <p className="text-slate-500 font-medium text-sm mb-6">Nhập mật khẩu mới mạnh mẽ để bảo vệ tài khoản của bạn.</p>
+                                <h2 className="font-client-display text-2xl sm:text-3xl xl:text-4xl font-black text-[#102937] mb-2 tracking-tight">Đổi mật khẩu mới</h2>
+                                <p className="text-slate-500 font-medium text-sm sm:text-base mb-8">Nhập mật khẩu mới mạnh mẽ để bảo vệ tài khoản của bạn.</p>
 
                                 <form onSubmit={handleResetPassword} className="w-full space-y-4 text-left">
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-[13px] font-black uppercase tracking-wider text-slate-400 ml-1">Mật khẩu mới</label>
+                                        <label className="text-[13px] font-black uppercase tracking-wider text-slate-500 ml-1">Mật khẩu mới</label>
                                         <div className="relative">
                                             <input
                                                 type={showPassword ? "text" : "password"}
                                                 value={passwords.new}
                                                 onChange={(e) => setPasswords(p => ({ ...p, new: e.target.value }))}
-                                                className="w-full h-12 px-5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium focus:bg-white focus:border-[#FF6262] outline-none transition-all"
+                                                onFocus={() => setIsPasswordFocused(true)}
+                                                onBlur={() => setIsPasswordFocused(false)}
+                                                placeholder="••••••••"
+                                                className="w-full h-11 px-4 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium transition-all focus:bg-white focus:border-[#FF6262] focus:shadow-md outline-none"
                                             />
                                             <button
                                                 type="button"
-                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#102937] transition-colors cursor-pointer"
                                                 onClick={() => setShowPassword(!showPassword)}
                                             >
                                                 {showPassword ? (
-                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
                                                 ) : (
-                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                                 )}
                                             </button>
                                         </div>
                                     </div>
 
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-[13px] font-black uppercase tracking-wider text-slate-400 ml-1">Xác nhận mật khẩu</label>
-                                        <input
-                                            type="password"
-                                            value={passwords.confirm}
-                                            onChange={(e) => setPasswords(p => ({ ...p, confirm: e.target.value }))}
-                                            className="w-full h-12 px-5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium focus:bg-white focus:border-[#FF6262] outline-none transition-all"
-                                        />
+                                        <label className="text-[13px] font-black uppercase tracking-wider text-slate-500 ml-1">Xác nhận mật khẩu</label>
+                                        <div className="relative">
+                                            <input
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                value={passwords.confirm}
+                                                onChange={(e) => setPasswords(p => ({ ...p, confirm: e.target.value }))}
+                                                placeholder="••••••••"
+                                                className={`w-full h-11 px-4 bg-slate-50 border ${passwords.confirm && passwords.new !== passwords.confirm ? 'border-red-400' : 'border-slate-100'} rounded-xl text-[14px] font-medium transition-all focus:bg-white focus:border-[#FF6262] focus:shadow-md outline-none`}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#102937] transition-colors cursor-pointer"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            >
+                                                {showConfirmPassword ? (
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                                ) : (
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                                )}
+                                            </button>
+                                        </div>
+                                        {passwords.confirm && passwords.new !== passwords.confirm && (
+                                            <p className="text-[#FF6262] text-[12px] font-bold mt-1 ml-1">Mật khẩu xác nhận không khớp</p>
+                                        )}
                                     </div>
 
-                                    {passwordPolicy && passwords.new && (
-                                        <div className="p-3 bg-slate-50 rounded-xl space-y-2">
-                                            <p className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Yêu cầu bảo mật</p>
-                                            {passwordPolicy.requirements.map((req: any) => (
-                                                <RequirementItem 
-                                                    key={req.id} 
-                                                    label={req.description} 
-                                                    isMet={new RegExp(req.regex).test(passwords.new)} 
-                                                />
-                                            ))}
-                                        </div>
+                                    {passwordPolicy && (
+                                        <PasswordStrengthMeter 
+                                            password={passwords.new} 
+                                            policy={passwordPolicy} 
+                                            isFocused={isPasswordFocused || passwords.new.length > 0}
+                                        />
                                     )}
 
                                     <button
                                         type="submit"
-                                        disabled={isPending || !passwords.confirm || passwords.new !== passwords.confirm}
-                                        className="w-full h-12 bg-[#FF6262] text-white font-black rounded-xl shadow-lg shadow-[#FF6262]/26 hover:scale-[1.01] transition-all disabled:opacity-50 cursor-pointer"
+                                        disabled={isPending || !passwords.confirm || passwords.new !== passwords.confirm || !isPasswordValid}
+                                        className="w-full h-11 bg-[#FF6262] text-white font-black rounded-xl shadow-lg shadow-[#FF6262]/26 transition-all hover:scale-[1.01] hover:shadow-xl active:scale-95 disabled:opacity-50 cursor-pointer mt-4"
                                     >
                                         {isPending ? "Đang xử lý..." : "Cập nhật mật khẩu"}
                                     </button>
@@ -358,8 +411,8 @@ export const ForgotPasswordModal = () => {
                                         <polyline points="20 6 9 17 4 12"></polyline>
                                     </svg>
                                 </div>
-                                <h2 className="font-client-display text-2xl font-black text-[#102937] mb-2">Thành công!</h2>
-                                <p className="text-slate-500 font-medium text-sm mb-8">Mật khẩu của bạn đã được thay đổi. Bây giờ bạn có thể đăng nhập bằng mật khẩu mới.</p>
+                                <h2 className="font-client-display text-2xl sm:text-3xl xl:text-4xl font-black text-[#102937] mb-2 tracking-tight">Thành công!</h2>
+                                <p className="text-slate-500 font-medium text-sm sm:text-base mb-8">Mật khẩu của bạn đã được thay đổi. Bây giờ bạn có thể đăng nhập bằng mật khẩu mới.</p>
                                 
                                 <button
                                     onClick={() => {
@@ -372,7 +425,9 @@ export const ForgotPasswordModal = () => {
                                 </button>
                             </motion.div>
                         )}
-                    </AnimatePresence>
+                        </AnimatePresence>
+                        </div>
+                    </div>
                 </div>
             </motion.div>
         </div>
@@ -434,11 +489,3 @@ const OtpInput = ({ value, onChange, disabled }: { value: string; onChange: (val
     );
 };
 
-const RequirementItem = ({ label, isMet }: { label: string; isMet: boolean }) => (
-    <div className={`flex items-center gap-2 text-xs font-bold transition-colors ${isMet ? 'text-emerald-500' : 'text-slate-300'}`}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-        <span>{label}</span>
-    </div>
-);

@@ -1,13 +1,24 @@
+import React, { useState } from "react";
 import Button from "@mui/material/Button";
 import AddIcon from '@mui/icons-material/Add';
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
-import { prefixAdmin } from "../../constants/routes";
+import { prefixAdmin, ROUTES } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { AccountAdminList } from "./sections/AccountAdminList";
+import AccountInviteModal from "./sections/AccountInviteModal";
+import { toast } from "react-toastify";
 
 export const AccountAdminListPage = () => {
     const navigate = useNavigate();
+    const [openInvite, setOpenInvite] = useState(false);
+
+    const handleInvite = (data: any) => {
+        console.log('Invite data:', data);
+        // Sau này sẽ gọi API ở đây
+        const fullName = `${data.lastName || ''} ${data.firstName || ''}`.trim();
+        toast.success(`Đã gửi lời mời đến ${fullName || data.email}`);
+    };
 
     return (
         <>
@@ -23,15 +34,14 @@ export const AccountAdminListPage = () => {
                     />
                 </div>
                 <Button
-                    onClick={() => navigate(`/${prefixAdmin}/account-admin/create`)}
+                    onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.ADMIN.CREATE)}
                     sx={{
                         background: 'var(--palette-text-primary)',
-                        minHeight: "2.25rem",
-                        minWidth: "4rem",
+                        minHeight: "2.5rem",
+                        px: 3,
                         fontWeight: 700,
                         fontSize: "0.875rem",
-                        padding: "6px 12px",
-                        borderRadius: "var(--shape-borderRadius)",
+                        borderRadius: "12px",
                         textTransform: "none",
                         boxShadow: "none",
                         "&:hover": {
@@ -42,10 +52,17 @@ export const AccountAdminListPage = () => {
                     variant="contained"
                     startIcon={<AddIcon />}
                 >
-                    Thêm tài khoản
+                    Tạo tài khoản
                 </Button>
             </div>
-            <AccountAdminList />
+            
+            <AccountAdminList onInvite={() => setOpenInvite(true)} />
+
+            <AccountInviteModal 
+                open={openInvite}
+                onClose={() => setOpenInvite(false)}
+                onInvite={handleInvite}
+            />
         </>
     );
 };

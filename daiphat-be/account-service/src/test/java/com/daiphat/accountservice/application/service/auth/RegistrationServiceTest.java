@@ -1,7 +1,7 @@
 package com.daiphat.accountservice.application.service.auth;
 import com.daiphat.accountservice.application.dto.request.user.UserRegistrationRequest;
+import com.daiphat.accountservice.application.event.UserRegisteredEvent;
 import com.daiphat.accountservice.application.mapper.UserApplicationMapper;
-import com.daiphat.accountservice.application.port.in.mail.EmailServicePort;
 import com.daiphat.accountservice.application.port.in.auth.RegistrationServicePort;
 import com.daiphat.accountservice.application.port.in.auth.RoleServicePort;
 import com.daiphat.accountservice.application.port.out.user.UserRepositoryPort;
@@ -9,6 +9,7 @@ import com.daiphat.accountservice.application.port.out.auth.cache.VerificationCa
 import com.daiphat.accountservice.domain.exception.DomainException;
 import com.daiphat.accountservice.domain.exception.ErrorCode;
 import com.daiphat.accountservice.domain.model.UserModel;
+import com.daiphat.accountservice.domain.model.RoleModel;
 import com.daiphat.accountservice.domain.model.enums.UserStatus;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
@@ -42,7 +43,6 @@ class RegistrationServiceTest extends AuthTestBase {
     @Mock private UserRepositoryPort userRepositoryPort;
     @Mock private RoleServicePort roleService;
     @Mock private UserApplicationMapper userApplicationMapper;
-    @Mock private EmailServicePort emailServicePort;
     @Mock private VerificationCachePort verificationCachePort;
     @Mock private TransactionTemplate transactionTemplate;
 
@@ -53,18 +53,28 @@ class RegistrationServiceTest extends AuthTestBase {
             validator = factory.getValidator();
         }
 
+        lenient().when(roleService.getDefaultRole()).thenReturn(
+                RoleModel.builder()
+                        .id(UUID.randomUUID())
+                        .code("ROLE_USER")
+                        .name("User")
+                        .build()
+        );
+
         registrationService = new RegistrationService(
                 userRepositoryPort,
                 identityManagementPort,
                 roleService,
                 userApplicationMapper,
-                emailServicePort,
                 verificationCachePort,
                 authProperties,
                 lockManager,
                 transactionTemplate,
                 loginAttemptService,
-                rateLimiterService
+                rateLimiterService,
+                eventPublisher,
+                userLookupService,
+                userValidationService
         );
     }
 
@@ -87,11 +97,8 @@ class RegistrationServiceTest extends AuthTestBase {
         UserRegistrationRequest request = createValidRequest();
         UserModel mockUser = mock(UserModel.class);
 
-        when(userRepositoryPort.existsByUsername(request.username())).thenReturn(false);
-        when(userRepositoryPort.existsByEmail(request.email())).thenReturn(false);
-        when(userRepositoryPort.existsByPhone(request.phone())).thenReturn(false);
         when(userApplicationMapper.mapToUserModel(request)).thenReturn(mockUser);
-        when(identityManagementPort.createUser(any(), anyString())).thenReturn(UUID.randomUUID());
+        when(identityManagementPort.createUser(any(), anyString(), eq(false))).thenReturn(UUID.randomUUID());
 
         // Mock transaction execution
         doAnswer(invocation -> {
@@ -105,7 +112,7 @@ class RegistrationServiceTest extends AuthTestBase {
 
         // THEN
         verify(userRepositoryPort).save(mockUser);
-        verify(emailServicePort).sendAsync(any(), eq(request.email()), anyMap());
+        verify(eventPublisher).publishEvent(any(UserRegisteredEvent.class));
         verify(lockManager).unlock(anyString());
     }
 
@@ -114,7 +121,8 @@ class RegistrationServiceTest extends AuthTestBase {
     void register_Fail_UsernameExisted() {
         // GIVEN
         UserRegistrationRequest request = createValidRequest();
-        when(userRepositoryPort.existsByUsername(request.username())).thenReturn(true);
+        doThrow(new DomainException(ErrorCode.USERNAME_EXISTED))
+                .when(userValidationService).ensureUsernameAvailable(request.username(), null);
 
         // WHEN
         DomainException exception = assertThrows(DomainException.class, () -> registrationService.register(request));
@@ -129,8 +137,8 @@ class RegistrationServiceTest extends AuthTestBase {
     void register_Fail_EmailExisted() {
         // GIVEN
         UserRegistrationRequest request = createValidRequest();
-        when(userRepositoryPort.existsByUsername(request.username())).thenReturn(false);
-        when(userRepositoryPort.existsByEmail(request.email())).thenReturn(true);
+        doThrow(new DomainException(ErrorCode.EMAIL_EXISTED))
+                .when(userValidationService).ensureEmailAvailable(request.email(), null);
 
         // WHEN
         DomainException exception = assertThrows(DomainException.class, () -> registrationService.register(request));
@@ -145,9 +153,8 @@ class RegistrationServiceTest extends AuthTestBase {
     void register_Fail_PhoneExisted() {
         // GIVEN
         UserRegistrationRequest request = createValidRequest();
-        when(userRepositoryPort.existsByUsername(request.username())).thenReturn(false);
-        when(userRepositoryPort.existsByEmail(request.email())).thenReturn(false);
-        when(userRepositoryPort.existsByPhone(request.phone())).thenReturn(true);
+        doThrow(new DomainException(ErrorCode.PHONE_EXISTED))
+                .when(userValidationService).ensurePhoneAvailable(request.phone(), null);
 
         // WHEN
         DomainException exception = assertThrows(DomainException.class, () -> registrationService.register(request));
@@ -166,7 +173,7 @@ class RegistrationServiceTest extends AuthTestBase {
         UserModel mockUser = mock(UserModel.class);
 
         when(verificationCachePort.getEmailByVerificationToken(token)).thenReturn(java.util.Optional.of(email));
-        when(userRepositoryPort.findByEmail(email)).thenReturn(java.util.Optional.of(mockUser));
+        when(userLookupService.findByEmailOrThrow(email)).thenReturn(mockUser);
         when(mockUser.isEmailVerified()).thenReturn(false);
         when(mockUser.getId()).thenReturn(UUID.randomUUID());
 
@@ -181,7 +188,7 @@ class RegistrationServiceTest extends AuthTestBase {
         assertDoesNotThrow(() -> registrationService.verifyEmail(token));
 
         // THEN
-        verify(mockUser).setEmailVerified(true);
+        verify(mockUser).activate();
         verify(userRepositoryPort).save(mockUser);
         verify(identityManagementPort).verifyEmail(any());
         verify(verificationCachePort).deleteVerificationToken(token);
@@ -196,11 +203,8 @@ class RegistrationServiceTest extends AuthTestBase {
                 .build();
         UserModel mockUser = mock(UserModel.class);
 
-        when(userRepositoryPort.existsByUsername(request.username())).thenReturn(false);
-        when(userRepositoryPort.existsByEmail(request.email())).thenReturn(false);
-        when(userRepositoryPort.existsByPhone(request.phone())).thenReturn(false);
         when(userApplicationMapper.mapToUserModel(request)).thenReturn(mockUser);
-        when(identityManagementPort.createUser(any(), anyString())).thenReturn(UUID.randomUUID());
+        when(identityManagementPort.createUser(any(), anyString(), eq(false))).thenReturn(UUID.randomUUID());
 
         doAnswer(invocation -> {
             Consumer<org.springframework.transaction.TransactionStatus> callback = invocation.getArgument(0);
@@ -211,7 +215,7 @@ class RegistrationServiceTest extends AuthTestBase {
         assertDoesNotThrow(() -> registrationService.register(request));
 
         verify(userRepositoryPort).save(mockUser);
-        verify(identityManagementPort).createUser(any(), anyString());
+        verify(identityManagementPort).createUser(any(), anyString(), eq(false));
     }
 
 
@@ -367,9 +371,8 @@ class RegistrationServiceTest extends AuthTestBase {
         // GIVEN
         String oldToken = "old-verification-token";
         UserModel mockUser = mock(UserModel.class);
-        when(userRepositoryPort.findByEmail(DEFAULT_EMAIL)).thenReturn(java.util.Optional.of(mockUser));
+        when(userLookupService.findByEmailOrThrow(DEFAULT_EMAIL)).thenReturn(mockUser);
         when(mockUser.isEmailVerified()).thenReturn(false);
-        when(mockUser.getUsername()).thenReturn(DEFAULT_USERNAME);
         when(verificationCachePort.getOldTokenByEmail(DEFAULT_EMAIL)).thenReturn(java.util.Optional.of(oldToken));
 
         // WHEN
@@ -379,7 +382,7 @@ class RegistrationServiceTest extends AuthTestBase {
         verify(rateLimiterService).checkAndRecord(eq(DEFAULT_EMAIL), eq(com.daiphat.accountservice.application.port.out.auth.keys.AuthAction.RESEND_VERIFICATION));
         verify(verificationCachePort).deleteVerificationToken(oldToken);
         verify(verificationCachePort).saveVerificationToken(anyString(), eq(DEFAULT_EMAIL), any());
-        verify(emailServicePort).sendAsync(eq(com.daiphat.accountservice.domain.model.enums.EmailType.WELCOME_VERIFY), eq(DEFAULT_EMAIL), anyMap());
+        verify(eventPublisher).publishEvent(any(UserRegisteredEvent.class));
     }
 
     @Test
@@ -389,11 +392,8 @@ class RegistrationServiceTest extends AuthTestBase {
         UserRegistrationRequest request = createValidRequest();
         UserModel realUser = new UserModel();
         
-        when(userRepositoryPort.existsByUsername(request.username())).thenReturn(false);
-        when(userRepositoryPort.existsByEmail(request.email())).thenReturn(false);
-        when(userRepositoryPort.existsByPhone(request.phone())).thenReturn(false);
         when(userApplicationMapper.mapToUserModel(request)).thenReturn(realUser);
-        when(identityManagementPort.createUser(any(), anyString())).thenReturn(UUID.randomUUID());
+        when(identityManagementPort.createUser(any(), anyString(), eq(false))).thenReturn(UUID.randomUUID());
         
         doAnswer(invocation -> {
             Consumer<org.springframework.transaction.TransactionStatus> callback = invocation.getArgument(0);
@@ -429,13 +429,10 @@ class RegistrationServiceTest extends AuthTestBase {
         UserModel mockUser = mock(UserModel.class);
         UUID keycloakId = UUID.randomUUID();
         
-        when(userRepositoryPort.existsByUsername(request.username())).thenReturn(false);
-        when(userRepositoryPort.existsByEmail(request.email())).thenReturn(false);
-        when(userRepositoryPort.existsByPhone(request.phone())).thenReturn(false);
         when(userApplicationMapper.mapToUserModel(request)).thenReturn(mockUser);
         
         // Simulating failure AFTER identity creation but BEFORE DB save
-        when(identityManagementPort.createUser(any(), anyString())).thenReturn(keycloakId);
+        when(identityManagementPort.createUser(any(), anyString(), eq(false))).thenReturn(keycloakId);
         doThrow(new DomainException(ErrorCode.INTERNAL_SERVER_ERROR)).when(transactionTemplate).executeWithoutResult(any());
 
         // WHEN & THEN

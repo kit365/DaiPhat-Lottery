@@ -31,7 +31,7 @@ const TicketServiceOrderRow = ({ ticketServiceOrder, staffId }: { ticketServiceO
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
 
-    // Chỉ lấy thú cưng mà nhân viên này phụ trách
+    // Chỉ lấy thú cưng mà quản trị viên này phụ trách
     const myUserTickets = useMemo(() => {
         return (ticketServiceOrder.userTicketStaffMap || []).filter(
             (m: any) => String(m.staffId?._id || m.staffId) === String(staffId)
@@ -87,7 +87,7 @@ const TicketServiceOrderRow = ({ ticketServiceOrder, staffId }: { ticketServiceO
                         {ticketServiceOrder.ticketServiceId?.name || "Dịch vụ"}
                     </Typography>
                     <Typography variant="caption" sx={{ color: "var(--palette-text-disabled)" }}>
-                        KH: {ticketServiceOrder.userId?.fullName || "N/A"}
+                        KH: {ticketServiceOrder.userId ? `${ticketServiceOrder.userId.lastName} ${ticketServiceOrder.userId.firstName}` : "N/A"}
                     </Typography>
                 </Box>
 
@@ -142,7 +142,7 @@ const TicketServiceOrderRow = ({ ticketServiceOrder, staffId }: { ticketServiceO
 
                     {myUserTickets.length === 0 ? (
                         <Typography variant="caption" sx={{ fontStyle: "italic", color: "var(--palette-text-disabled)" }}>
-                            Không có thú cưng nào được gán cụ thể cho nhân viên này.
+                            Không có thú cưng nào được gán cụ thể cho quản trị viên này.
                         </Typography>
                     ) : (
                         <Stack spacing={1}>
@@ -258,7 +258,7 @@ export const StaffTicketServiceOrderHistory = ({ staffId }: StaffTicketServiceOr
         return (
             <Box sx={{ p: 5, textAlign: "center", color: "var(--palette-text-disabled)" }}>
                 <Icon icon="solar:calendar-search-bold" width={40} style={{ marginBottom: 8, opacity: 0.4 }} />
-                <Typography variant="body2">Nhân viên chưa có lịch dịch vụ nào.</Typography>
+                <Typography variant="body2">Quản trị viên chưa có lịch dịch vụ nào.</Typography>
             </Box>
         );
     }

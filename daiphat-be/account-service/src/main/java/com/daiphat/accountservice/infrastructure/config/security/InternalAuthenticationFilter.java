@@ -63,6 +63,15 @@ public class InternalAuthenticationFilter extends OncePerRequestFilter {
                     .map(SimpleGrantedAuthority::new)
                     .toList());
 
+            // Augment with permissions from DB
+            Set<String> permissionCodes = roleRepositoryPort.findPermissionCodesByRoleCodes(roleCodes);
+            authorities.addAll(permissionCodes.stream()
+                    .map(SimpleGrantedAuthority::new)
+                    .toList());
+
+            log.debug("User {} authenticated with roles {} and permissions {}", 
+                    username, roleCodes, permissionCodes);
+
             // Create Authentication object (principal is the SecurityUser)
             SecurityUser principal = new SecurityUser(
                     UUID.fromString(userId),

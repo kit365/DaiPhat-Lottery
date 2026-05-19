@@ -16,10 +16,6 @@ import java.time.LocalDateTime;
 public class ApiResponse<T> {
     @JsonView(Views.Public.class)
     @Builder.Default
-    String code = "SUCCESS";
-    
-    @JsonView(Views.Public.class)
-    @Builder.Default
     boolean isSuccess = true;
     
     @JsonView(Views.Public.class)

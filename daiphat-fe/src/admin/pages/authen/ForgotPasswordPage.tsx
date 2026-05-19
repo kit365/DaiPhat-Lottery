@@ -17,6 +17,10 @@ import {
 import { AppToast as toast } from "../../../client/utils/toast.util";
 import { useForgotPassword } from "./hooks/use-forgot-password";
 import { PasswordRequirementList } from "../../components/auth/PasswordRequirementList";
+import { useAuthStore } from "../../../stores/useAuthStore";
+import Cookies from "js-cookie";
+import { STORAGE_KEYS } from "../../../constants/storage.constants";
+import { useQueryClient } from "@tanstack/react-query";
 
 const STEPS = {
     EMAIL: "EMAIL",
@@ -38,6 +42,20 @@ export const ForgotPasswordPage = () => {
     const [passwords, setPasswords] = useState({ new: "", confirm: "" });
     const [countdown, setCountdown] = useState(0);
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
+    const { logout, token } = useAuthStore();
+    const queryClient = useQueryClient();
+
+    // Auto logout if already logged in to prevent active session leakage
+    useEffect(() => {
+        if (token) {
+            logout();
+            Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
+            Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
+            queryClient.clear();
+            toast.info("Phiên làm việc đã được đóng để đặt lại mật khẩu.");
+        }
+    }, [token, logout, queryClient]);
 
     const { requestOtp, verifyOtp, resetPassword, usePasswordPolicy, isPending } = useForgotPassword();
     const { data: passwordPolicy } = usePasswordPolicy();
@@ -128,7 +146,7 @@ export const ForgotPasswordPage = () => {
 
         verifyOtp.mutate({ email, otp }, {
             onSuccess: (res) => {
-                if (res.isSuccess || res.success) {
+                if ((res.isSuccess || res.success) && res.data) {
                     setResetToken(res.data.resetToken);
                     setStep(STEPS.RESET);
                 }
@@ -150,6 +168,12 @@ export const ForgotPasswordPage = () => {
         }, {
             onSuccess: (res) => {
                 if (res.isSuccess || res.success) {
+                    // Fully invalidate and clear active session on password reset
+                    logout();
+                    Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
+                    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
+                    queryClient.clear();
+                    
                     setStep(STEPS.SUCCESS);
                 }
             }

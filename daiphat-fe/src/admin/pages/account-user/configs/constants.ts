@@ -1,18 +1,42 @@
+export enum RoleEnum {
+    ADMIN = 'ROLE_ADMIN',
+    MEMBER = 'ROLE_MEMBER',
+    STAFF_SHIPPER = 'ROLE_STAFF_SHIPPER',
+    STAFF_MANAGER = 'ROLE_STAFF_MANAGER'
+}
+
+export const STATUS_LABELS: Record<string, string> = {
+    'ACTIVE': 'Hoạt động',
+    'PENDING': 'Chờ xử lý',
+    'BANNED': 'Bị cấm',
+    'LOCKED': 'Bị khóa',
+    'DELETED': 'Đã xóa'
+};
+
 export const STATUS_OPTIONS = [
-    { label: 'Tất cả', value: 'all' },
-    { label: 'Hoạt động', value: 'active' },
-    { label: 'Tạm dừng', value: 'inactive' },
+    { value: 'all', label: 'Tất cả' },
+    { value: 'ACTIVE', label: 'Hoạt động' },
+    { value: 'PENDING', label: 'Chờ xử lý' },
+    { value: 'BANNED', label: 'Bị cấm' },
+    { value: 'LOCKED', label: 'Bị khóa' },
 ];
 
 export const COLORS = {
     primary: 'var(--palette-text-primary)',
     secondary: 'var(--palette-text-secondary)',
-    success: '#118D57',
+    success: 'var(--palette-success-main)',
     error: 'var(--palette-error-main)',
-    warning: '#FFAB00',
-    info: '#00B8D9',
+    warning: 'var(--palette-warning-main)',
+    info: 'var(--palette-info-main)',
     disabled: 'var(--palette-text-disabled)',
+    border: 'var(--palette-divider)',
+    borderLight: 'rgba(145, 158, 171, 0.2)',
+    borderMedium: 'rgba(145, 158, 171, 0.4)',
+    background: 'var(--palette-background-paper)',
+    backgroundLight: 'var(--palette-background-neutral)',
+    shadow: 'var(--customShadows-card)',
 };
+
 
 
 

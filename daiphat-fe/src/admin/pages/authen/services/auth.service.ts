@@ -1,16 +1,17 @@
 import { apiApp } from "../../../../api";
 import { LoginFormValues } from "../../../schemas/login.schema";
-import { LoginResponse, GetMeResponse, ForgotPasswordRequest, VerifyOtpRequest, ResetPasswordRequest, AuthApiResponse, PasswordPolicyResponse, ForgotPasswordResponse, VerifyOtpResponse, RegisterResponse, LogoutResponse, VerifyEmailResponse } from "../types/auth.type";
+import { LoginResponse, GetMeResponse, ForgotPasswordRequest, VerifyOtpRequest, ResetPasswordRequest, PasswordPolicyResponse, ForgotPasswordResponse, VerifyOtpResponse, RegisterResponse, LogoutResponse, VerifyEmailResponse, RegisterRequest, GoogleTokenResponse } from "../types/auth.type";
+import { ApiResponse } from "../../../../types/api.type";
 
 const API_AUTH = "/auth";
 
 export const authService = {
-    login: async (data: LoginFormValues): Promise<LoginResponse> => {
+    login: async (data: LoginFormValues & { rememberMe?: boolean }): Promise<LoginResponse> => {
         const response = await apiApp.post<LoginResponse>(`${API_AUTH}/login`, data);
         return response.data;
     },
 
-    register: async (data: any): Promise<RegisterResponse> => {
+    register: async (data: RegisterRequest): Promise<RegisterResponse> => {
         const response = await apiApp.post<RegisterResponse>(`${API_AUTH}/register`, data);
         return response.data;
     },
@@ -27,6 +28,16 @@ export const authService = {
 
     getMe: async (): Promise<GetMeResponse> => {
         const response = await apiApp.get<GetMeResponse>("/users/me");
+        const user = response.data?.data || response.data;
+        if (response.data && user) {
+            response.data.data = {
+                ...user,
+                phone: user.phoneNumber || user.phone,
+                fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email,
+                avatar: user.avatarUrl || user.avatar,
+                status: user.status ? user.status.toUpperCase() : 'PENDING'
+            };
+        }
         return response.data;
     },
 
@@ -40,12 +51,12 @@ export const authService = {
         return response.data;
     },
 
-    resetPassword: async (data: ResetPasswordRequest): Promise<AuthApiResponse<any>> => {
-        const response = await apiApp.post<AuthApiResponse<any>>(`${API_AUTH}/forgot-password/reset`, data);
+    resetPassword: async (data: ResetPasswordRequest): Promise<ApiResponse<any>> => {
+        const response = await apiApp.post<ApiResponse<any>>(`${API_AUTH}/forgot-password/reset`, data);
         return response.data;
     },
 
-    exchangeGoogleToken: async (code: string, redirectUri: string, codeVerifier?: string) => {
+    exchangeGoogleToken: async (code: string, redirectUri: string, codeVerifier?: string): Promise<GoogleTokenResponse> => {
         const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
         const realm = import.meta.env.VITE_KEYCLOAK_REALM;
         const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
@@ -77,6 +88,11 @@ export const authService = {
         const response = await apiApp.get<VerifyEmailResponse>(`${API_AUTH}/verify-email`, {
             params: { token }
         });
+        return response.data;
+    },
+
+    acceptInvite: async (token: string): Promise<ApiResponse<any>> => {
+        const response = await apiApp.post<ApiResponse<any>>(`${API_AUTH}/invites/accept`, { token });
         return response.data;
     }
 };

@@ -11,77 +11,55 @@ import java.util.UUID;
 
 @Builder
 public record UserResponse(
-    @JsonView(Views.Public.class)
-    UUID id,
+        @JsonView(Views.Public.class) UUID id,
 
-    @JsonView(Views.Public.class)
-    String username,
+        @JsonView(Views.Public.class) String username,
 
-    @JsonView(Views.Public.class)
-    String email,
+        @JsonView(Views.Public.class) String email,
 
-    @JsonView(Views.Public.class)
-    String firstName,
+        @JsonView(Views.Me.class) String firstName,
 
-    @JsonView(Views.Public.class)
-    String lastName,
+        @JsonView(Views.Me.class) String lastName,
 
-    @JsonView(Views.Me.class)
-    String phone,
+        @JsonView(Views.Public.class) String fullName,
 
-    @JsonView(Views.Public.class)
-    String avatarUrl,
+        @JsonView({
+                Views.Me.class, Views.Admin.class }) String phone,
 
-    @JsonView(Views.Public.class)
-    RoleResponse role,
+        @JsonView(Views.Public.class) String avatarUrl,
 
-    @JsonView(Views.Me.class)
-    Set<String> permissions,
+        @JsonView(Views.Public.class) RoleResponse role,
 
-    @JsonView(Views.Admin.class)
-    String status,
+        @JsonView(Views.Me.class) Set<String> permissions,
 
-    // Security flags - Only for 'Me' view
-    @JsonView(Views.Me.class)
-    boolean hasPassword,
+        @JsonView(Views.Admin.class) String status,
 
-    @JsonView(Views.Me.class)
-    boolean agreedToTerms,
+        @JsonView({ Views.Me.class, Views.Admin.class }) boolean hasPassword,
 
-    @JsonView(Views.Me.class)
-    boolean emailVerified,
+        @JsonView({ Views.Me.class, Views.Admin.class }) boolean agreedToTerms,
 
-    @JsonView(Views.Me.class)
-    boolean twoFactorEnabled,
+        @JsonView({ Views.Me.class, Views.Admin.class }) boolean emailVerified,
 
-    // Fortune/Profile info
-    @JsonView(Views.Public.class)
-    String zodiac,
+        @JsonView({ Views.Me.class, Views.Admin.class }) boolean twoFactorEnabled,
 
-    @JsonView(Views.Public.class)
-    String fortune,
+        // Fortune/Profile info
+        @JsonView(Views.Public.class) String zodiac,
 
-    @JsonView(Views.Public.class)
-    Integer age,
-    
-    // Lockout info - Admin only
-    @JsonView(Views.Admin.class)
-    Integer failedLoginAttempts,
+        @JsonView(Views.Public.class) String fortune,
 
-    @JsonView(Views.Admin.class)
-    LocalDateTime lockedUntil,
-    
-    // Nested Relationships
-    @JsonView(Views.Me.class)
-    List<UserImageResponse> images,
+        @JsonView(Views.Public.class) Integer age,
 
-    @JsonView(Views.Me.class)
-    List<UserAddressResponse> addresses,
-    
-    @JsonView(Views.Public.class)
-    LocalDateTime createdAt,
+        // Lockout info - Admin only
+        @JsonView(Views.Admin.class) Integer failedLoginAttempts,
 
-    @JsonView(Views.Public.class)
-    LocalDateTime updatedAt
-) {
+        @JsonView(Views.Admin.class) LocalDateTime lockedUntil,
+
+        // Nested Relationships
+        @JsonView(Views.Me.class) List<UserImageResponse> images,
+
+        @JsonView(Views.Me.class) List<UserAddressResponse> addresses,
+
+        @JsonView(Views.Public.class) LocalDateTime createdAt,
+
+        @JsonView(Views.Public.class) LocalDateTime updatedAt) {
 }

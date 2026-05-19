@@ -35,12 +35,24 @@ export const HomePage = () => {
 
   useEffect(() => {
     const token = searchParams.get("verify_token");
+    const authAction = searchParams.get("auth");
+
     if (token) {
+      const { openVerifyModal } = useAuthStore.getState();
       openVerifyModal(token);
+    }
+
+    if (authAction === "login") {
+      const { openLoginModal } = useAuthStore.getState();
+      openLoginModal();
+    }
+
+    if (token || authAction) {
       const newUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
-  }, [searchParams, openVerifyModal]);
+  }, [searchParams]);
+
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#FDFBF7] text-client-ink font-client-main">

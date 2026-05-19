@@ -10,9 +10,9 @@ import { ProfileSetupModal } from "../../components/auth/ProfileSetupModal";
 import { VerifyModal } from "../../components/auth/VerifyModal";
 import { ForgotPasswordModal } from "../../components/auth/ForgotPasswordModal";
 import { BottomNav } from "./BottomNav";
-import { useAuth } from "../../../admin/pages/authen/hooks/useAuth";
+import { useAuth } from "../../hooks/useAuth";
 import { Skeleton } from "../../../components/ui/Skeleton";
-import { toast } from "react-toastify";
+import { AppToast as toast } from "../../utils/toast.util";
 
 const navItems = [
   { label: "Trang chủ", to: ROUTES.PUBLIC.HOME },
@@ -22,9 +22,9 @@ const navItems = [
 ];
 
 export const Header = () => {
-  const {
-    user,
-    logout,
+  const { 
+    user, 
+    logout, 
     isUserLoading,
     token
   } = useAuth();
@@ -120,10 +120,12 @@ export const Header = () => {
             ) : user ? (
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-end">
-                  <span className="text-[14px] font-bold text-[#102937] leading-none">{user.firstName} {user.lastName}</span>
-                  <button
-                    onClick={() => logout()}
-                    className="text-[12px] font-medium text-slate-400 hover:text-[#BA0000] transition-colors mt-0.5 cursor-pointer font-client-main"
+                  <span className="text-[14px] font-bold text-[#102937] text-nowrap leading-none">{user.fullName || user.username}</span>
+                  <button 
+                    onClick={() => {
+                      logout();
+                    }} 
+                    className="text-[12px] font-medium text-slate-400 hover:text-[#E60F14] transition-colors mt-0.5 cursor-pointer font-client-main"
                   >
                     Đăng xuất
                   </button>
@@ -224,7 +226,7 @@ export const Header = () => {
                           )}
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[16px] font-bold text-[#102937] leading-tight">{user.firstName} {user.lastName}</span>
+                          <span className="text-[16px] font-bold text-[#102937] leading-tight">{user.fullName || user.username}</span>
                           <span className="text-[13px] font-medium text-slate-500">Khách hàng thành viên</span>
                         </div>
                       </div>

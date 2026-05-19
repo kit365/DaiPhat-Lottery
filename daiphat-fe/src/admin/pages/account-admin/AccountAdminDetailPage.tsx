@@ -15,6 +15,7 @@ import {
     InputAdornment,
     IconButton
 } from "@mui/material";
+import { UserStatus } from "../../../types/user.type";
 import Grid from "@mui/material/Grid";
 import { Icon } from "@iconify/react";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
@@ -65,11 +66,12 @@ export const AccountAdminDetailPage = () => {
     } = useForm<any>({
         resolver: zodResolver(accountAdminSchema),
         defaultValues: {
-            fullName: "",
+            firstName: "",
+            lastName: "",
             email: "",
             phone: "",
             roles: [],
-            status: "active",
+            status: UserStatus.ACTIVE,
             avatar: "",
         },
     });
@@ -87,10 +89,11 @@ export const AccountAdminDetailPage = () => {
     useEffect(() => {
         if (account) {
             reset({
-                fullName: account.fullName,
+                firstName: account.firstName,
+                lastName: account.lastName,
                 email: account.email,
                 phone: account.phone || "",
-                roles: account.roles?.map((r: any) => typeof r === 'string' ? r : r._id) || [],
+                roles: account.roles?.map((r: any) => typeof r === 'string' ? r : r.code) || [],
                 status: account.status,
                 avatar: account.avatar || "",
             });
@@ -183,7 +186,7 @@ export const AccountAdminDetailPage = () => {
                     items={[
                         { label: "Dashboard", to: "/" },
                         { label: "Quản trị viên", to: `/${prefixAdmin}/account-admin/list` },
-                        { label: account?.fullName || "Chi tiết" }
+                        { label: account ? `${account.lastName} ${account.firstName}` : "Chi tiết" }
                     ]}
                 />
             </Box>
@@ -255,10 +258,10 @@ export const AccountAdminDetailPage = () => {
                             <Card sx={{ p: '80px 24px', textAlign: 'center', borderRadius: "var(--shape-borderRadius-lg)", position: 'relative', boxShadow: "var(--customShadows-card)" }}>
                                 <Box sx={{ position: 'absolute', top: 24, right: 24 }}>
                                     <Chip
-                                        label={account?.status === 'active' ? 'Hoạt động' : 'Tạm dừng'}
+                                        label={account?.status === UserStatus.ACTIVE ? 'Hoạt động' : 'Tạm dừng'}
                                         sx={{
-                                            bgcolor: account?.status === 'active' ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255, 171, 0, 0.16)',
-                                            color: account?.status === 'active' ? 'rgb(17, 141, 87)' : 'rgb(183, 110, 0)',
+                                            bgcolor: account?.status === UserStatus.ACTIVE ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255, 171, 0, 0.16)',
+                                            color: account?.status === UserStatus.ACTIVE ? 'rgb(17, 141, 87)' : 'rgb(183, 110, 0)',
                                             borderRadius: "var(--shape-borderRadius-sm)",
                                             fontWeight: 700,
                                             fontSize: '0.75rem',
@@ -336,12 +339,26 @@ export const AccountAdminDetailPage = () => {
                             <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
                                 <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
                                     <Controller
-                                        name="fullName"
+                                        name="lastName"
                                         control={control}
                                         render={({ field, fieldState }) => (
                                             <TextField
                                                 {...field}
-                                                label="Họ và tên"
+                                                label="Họ"
+                                                fullWidth
+                                                error={!!fieldState.error}
+                                                helperText={fieldState.error?.message}
+                                            />
+                                        )}
+                                    />
+
+                                    <Controller
+                                        name="firstName"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <TextField
+                                                {...field}
+                                                label="Tên"
                                                 fullWidth
                                                 error={!!fieldState.error}
                                                 helperText={fieldState.error?.message}
@@ -392,14 +409,14 @@ export const AccountAdminDetailPage = () => {
                                                     renderValue: (selected: any) => {
                                                         const selectedArray = Array.isArray(selected) ? selected : [selected];
                                                         return roles
-                                                            .filter((r: any) => selectedArray.includes(r._id))
+                                                            .filter((r: any) => selectedArray.includes(r.code))
                                                             .map((r: any) => r.name)
                                                             .join(', ');
                                                     }
                                                 }}
                                             >
                                                 {roles.map((role: any) => (
-                                                    <MenuItem key={role._id} value={role._id} sx={{ fontSize: '0.875rem' }}>
+                                                    <MenuItem key={role.code} value={role.code} sx={{ fontSize: '0.875rem' }}>
                                                         {role.name}
                                                     </MenuItem>
                                                 ))}
@@ -417,8 +434,9 @@ export const AccountAdminDetailPage = () => {
                                                 select
                                                 fullWidth
                                             >
-                                                <MenuItem value="active" sx={{ fontSize: '0.875rem' }}>Hoạt động</MenuItem>
-                                                <MenuItem value="inactive" sx={{ fontSize: '0.875rem' }}>Tạm dừng</MenuItem>
+                                                <MenuItem value={UserStatus.ACTIVE} sx={{ fontSize: '0.875rem' }}>Hoạt động</MenuItem>
+                                                <MenuItem value={UserStatus.LOCKED} sx={{ fontSize: '0.875rem' }}>Tạm dừng</MenuItem>
+                                                <MenuItem value={UserStatus.BANNED} sx={{ fontSize: '0.875rem' }}>Bị cấm</MenuItem>
                                             </TextField>
                                         )}
                                     />
@@ -442,7 +460,7 @@ export const AccountAdminDetailPage = () => {
                 <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", overflow: 'hidden' }}>
                     <Box sx={{ p: 3, borderBottom: '1px dashed var(--palette-divider)' }}>
                         <Typography variant="h6">Lịch sử dịch vụ</Typography>
-                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Toàn bộ đơn dịch vụ nhân viên được phân công</Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Toàn bộ đơn dịch vụ quản trị viên được phân công</Typography>
                     </Box>
                     <StaffTicketServiceOrderHistory staffId={id} />
                 </Card>
@@ -452,7 +470,7 @@ export const AccountAdminDetailPage = () => {
                 <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", overflow: 'hidden' }}>
                     <Box sx={{ p: 3, borderBottom: '1px dashed var(--palette-divider)' }}>
                         <Typography variant="h6">Lịch sử boarding</Typography>
-                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Toàn bộ đơn lưu trú nhân viên được phân công</Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Toàn bộ đơn lưu trú quản trị viên được phân công</Typography>
                     </Box>
                     <StaffBoardingHistory staffId={id} />
                 </Card>
