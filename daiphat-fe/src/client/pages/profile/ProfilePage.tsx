@@ -75,7 +75,7 @@ export const ProfilePage = () => {
                             )}
                         </div>
                         <div className="text-white">
-                            <h1 className="text-3xl font-extrabold tracking-tight">Xin chào, {user.firstName || user.username}</h1>
+                            <h1 className="text-3xl font-extrabold tracking-tight">Xin chào, {user.fullName || user.username}</h1>
                             <p className="opacity-80 mt-1 max-w-lg">Quản lý thông tin cá nhân, địa chỉ nhận giải và thẻ thành viên của bạn tại đây.</p>
                         </div>
                     </div>

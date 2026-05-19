@@ -25,4 +25,27 @@ public enum UserStatus {
         }
         return PENDING; // Default
     }
+
+    public static UserStatus from(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return UserStatus.valueOf(raw.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new com.daiphat.accountservice.domain.exception.DomainException(
+                com.daiphat.accountservice.domain.exception.ErrorCode.INVALID_INPUT, 
+                "Trạng thái không hợp lệ: " + raw
+            );
+        }
+    }
+
+    public static UserStatus fromFilter(String raw) {
+        if (raw == null || raw.isBlank() || "ALL".equalsIgnoreCase(raw)) {
+            return null;
+        }
+        try {
+            return UserStatus.valueOf(raw.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null; // Ignore invalid filters
+        }
+    }
 }

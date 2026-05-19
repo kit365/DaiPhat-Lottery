@@ -13,11 +13,14 @@ public interface IdentityManagementPort {
 
     Optional<UserModel> getUserByUsername(String username);
 
-    UUID createUser(UserModel user, String password);
+    UUID createUser(UserModel user, String password, boolean temporary);
 
     void assignRole(UUID userId, String roleCode);
+    void assignRole(UUID userId, List<String> roleCodes);
 
-    void resetPassword(UUID userId, String newPassword);
+    void resetPassword(UUID userId, String newPassword, boolean temporary);
+
+    void logoutUserSessions(UUID userId);
 
     void deleteUser(UUID userId);
 

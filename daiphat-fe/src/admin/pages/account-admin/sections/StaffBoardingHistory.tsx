@@ -72,7 +72,7 @@ const BoardingRow = ({ ticketServiceOrder }: { ticketServiceOrder: any }) => {
                         {ticketServiceOrder.userTicketIds?.map((p: any) => p.name || "N/A").join(", ") || "N/A"}
                     </Typography>
                     <Typography variant="caption" sx={{ color: "var(--palette-text-disabled)" }}>
-                        KH: {ticketServiceOrder.fullName || ticketServiceOrder.userId?.fullName || "N/A"}
+                        KH: {ticketServiceOrder.userId ? `${ticketServiceOrder.userId.lastName} ${ticketServiceOrder.userId.firstName}` : (ticketServiceOrder.fullName || "N/A")}
                     </Typography>
                 </Box>
 
@@ -221,7 +221,7 @@ export const StaffBoardingHistory = ({ staffId }: StaffBoardingHistoryProps) => 
         return (
             <Box sx={{ p: 5, textAlign: "center", color: "var(--palette-text-disabled)" }}>
                 <Icon icon="solar:home-2-bold" width={40} style={{ marginBottom: 8, opacity: 0.4 }} />
-                <Typography variant="body2">Nhân viên chưa có lịch boarding nào.</Typography>
+                <Typography variant="body2">Quản trị viên chưa có lịch boarding nào.</Typography>
             </Box>
         );
     }

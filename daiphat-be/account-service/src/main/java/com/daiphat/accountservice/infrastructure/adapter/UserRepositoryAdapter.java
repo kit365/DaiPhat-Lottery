@@ -12,6 +12,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.daiphat.accountservice.domain.model.enums.UserStatus;
 
 @Component
 @RequiredArgsConstructor
@@ -59,6 +62,12 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
+    public Page<UserModel> findAll(Pageable pageable, String search, UserStatus status, List<String> roleIds) {
+        return userRepository.findAll(com.daiphat.accountservice.infrastructure.persistence.specification.UserSpecification.filterUsers(search, status, roleIds), pageable)
+                .map(userPersistenceMapper::toDomain);
+    }
+
+    @Override
     public boolean existsById(UUID id) {
         return userRepository.existsById(id);
     }
@@ -86,5 +95,10 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     @Override
     public void updateUserId(UUID oldId, UUID newId) {
         userRepository.updateUserId(oldId, newId);
+    }
+
+    @Override
+    public long deleteInactiveUsers(UserStatus status, java.time.LocalDateTime before) {
+        return userRepository.deleteByStatusAndCreatedAtBefore(status.getCode(), before);
     }
 }

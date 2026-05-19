@@ -8,18 +8,16 @@ import { accountUserSchema } from "../../schemas/account-user.schema";
 import { prefixAdmin } from "../../constants/routes";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import { z } from "zod";
 import {
     Box,
     TextField,
     Card,
     MenuItem,
     Stack,
-    InputAdornment,
-    IconButton
+    Alert,
+    AlertTitle
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 
@@ -35,15 +33,11 @@ export const AccountUserCreatePage = () => {
         setValue,
         watch
     } = useForm<any>({
-        resolver: zodResolver(accountUserSchema.extend({
-            password: z.string().min(6, "Mật khẩu ít nhất 6 ký tự")
-        })),
+        resolver: zodResolver(accountUserSchema),
         defaultValues: {
-            fullName: "",
+            firstName: "",
+            lastName: "",
             email: "",
-            password: "",
-            phone: "",
-            status: "active",
             avatar: "",
         },
     });
@@ -161,14 +155,36 @@ export const AccountUserCreatePage = () => {
 
                     <Grid size={{ xs: 12, md: 8 }}>
                         <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+                            <Box sx={{ mb: 3 }}>
+                                <Alert severity="info" sx={{ borderRadius: "var(--shape-borderRadius)" }}>
+                                    <AlertTitle>Thông tin mật khẩu</AlertTitle>
+                                    Mật khẩu sẽ được hệ thống <strong>tự động tạo</strong> và gửi về email của người dùng. Người dùng sẽ được yêu cầu đổi mật khẩu trong lần đăng nhập đầu tiên.
+                                </Alert>
+                            </Box>
+
                             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
                                 <Controller
-                                    name="fullName"
+                                    name="lastName"
                                     control={control}
                                     render={({ field, fieldState }) => (
                                         <TextField
                                             {...field}
-                                            label="Họ và tên"
+                                            label="Họ"
+                                            fullWidth
+                                            error={!!fieldState.error}
+                                            helperText={fieldState.error?.message}
+                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: "var(--shape-borderRadius)", fontSize: '0.875rem' } }}
+                                        />
+                                    )}
+                                />
+
+                                <Controller
+                                    name="firstName"
+                                    control={control}
+                                    render={({ field, fieldState }) => (
+                                        <TextField
+                                            {...field}
+                                            label="Tên"
                                             fullWidth
                                             error={!!fieldState.error}
                                             helperText={fieldState.error?.message}
@@ -192,66 +208,8 @@ export const AccountUserCreatePage = () => {
                                     )}
                                 />
 
-                                <Controller
-                                    name="phone"
-                                    control={control}
-                                    render={({ field, fieldState }) => (
-                                        <TextField
-                                            {...field}
-                                            label="Số điện thoại"
-                                            fullWidth
-                                            error={!!fieldState.error}
-                                            helperText={fieldState.error?.message}
-                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: "var(--shape-borderRadius)", fontSize: '0.875rem' } }}
-                                        />
-                                    )}
-                                />
 
-                                <Controller
-                                    name="status"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <TextField
-                                            {...field}
-                                            label="Trạng thái"
-                                            select
-                                            fullWidth
-                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: "var(--shape-borderRadius)", fontSize: '0.875rem' } }}
-                                        >
-                                            <MenuItem value="active" sx={{ fontSize: '0.875rem' }}>Hoạt động</MenuItem>
-                                            <MenuItem value="inactive" sx={{ fontSize: '0.875rem' }}>Tạm dừng</MenuItem>
-                                        </TextField>
-                                    )}
-                                />
 
-                                <Controller
-                                    name="password"
-                                    control={control}
-                                    render={({ field, fieldState }) => (
-                                        <TextField
-                                            {...field}
-                                            label="Mật khẩu"
-                                            type="password"
-                                            fullWidth
-                                            error={!!fieldState.error}
-                                            helperText={fieldState.error?.message}
-                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: "var(--shape-borderRadius)", fontSize: '0.875rem' } }}
-                                            InputProps={{
-                                                endAdornment: (
-                                                    <InputAdornment position="end">
-                                                        <IconButton
-                                                            onClick={() => setValue("password", "password123", { shouldValidate: true })}
-                                                            title="Sử dụng mật khẩu mặc định"
-                                                            edge="end"
-                                                        >
-                                                            <AutoFixHighIcon sx={{ fontSize: '1.25rem' }} />
-                                                        </IconButton>
-                                                    </InputAdornment>
-                                                ),
-                                            }}
-                                        />
-                                    )}
-                                />
                             </Box>
 
                             <Stack direction="row" justifyContent="flex-end" sx={{ mt: 3 }}>

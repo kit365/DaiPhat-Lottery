@@ -14,6 +14,25 @@ public final class AuthUtils {
         return String.format("%06d", SECURE_RANDOM.nextInt(1000000));
     }
 
+    public static String generatePassword() {
+        String upperCaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        String lowerCaseLetters = "abcdefghijklmnopqrstuvwxyz";
+        String numbers = "0123456789";
+        String allCharacters = upperCaseLetters + lowerCaseLetters + numbers;
+
+        StringBuilder password = new StringBuilder();
+        // First character MUST be Uppercase
+        password.append(upperCaseLetters.charAt(SECURE_RANDOM.nextInt(upperCaseLetters.length())));
+
+        // Remaining 11 characters can be anything (except space/special if not needed)
+        // Let's keep it simple with alphanumeric for generated passwords
+        for (int i = 0; i < 11; i++) {
+            password.append(allCharacters.charAt(SECURE_RANDOM.nextInt(allCharacters.length())));
+        }
+
+        return password.toString();
+    }
+
     public static long calculateWaitTime(int resendCount, long[] backoffConfig, long maxWaitTimeSeconds) {
         // Optimized for UX: First attempt (count=0) AND first resend (count=1) are immediate (0s wait).
         if (resendCount <= 1) {
@@ -73,8 +92,8 @@ public final class AuthUtils {
         if (password == null) {
             return false;
         }
-        // Min 8, max 32, at least 1 upper, 1 lower, 1 digit, 1 special
-        String passwordRegex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,32}$";
+        // Min 6, max 100, start with Uppercase, no spaces
+        String passwordRegex = "^[A-Z][^\\s]{5,99}$";
         return password.matches(passwordRegex);
     }
 

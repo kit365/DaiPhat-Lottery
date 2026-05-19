@@ -1,11 +1,7 @@
 name: Microservices Frontend Deploy
 
 on:
-  push:
-    branches: [ "main", "staging", "feature/dp-5-infs-test", "feature/dp-5-infs" ]
-    paths:
-      - 'daiphat-fe/**'
-      - 'docker-compose.yml'
+  workflow_dispatch:
 
 jobs:
   build-and-push:

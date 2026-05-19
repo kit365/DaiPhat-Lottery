@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ROUTES } from "../../../admin/constants/routes";
-import { useLoginForm } from "../../hooks/useLoginForm";
+import { useAuth } from "../../hooks/useAuth";
 import { generateCodeVerifier, generateCodeChallenge } from "../../../admin/utils/pkce";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { GoogleIcon, VisualPanelContent, AuthBranding } from "./SharedAuth";
@@ -10,13 +10,13 @@ import { GoogleIcon, VisualPanelContent, AuthBranding } from "./SharedAuth";
 export const LoginContent = ({ onSwitchToRegister }: { onSwitchToRegister?: () => void }) => {
     const [showPassword, setShowPassword] = useState(false);
     const {
-        form: {
+        loginForm: {
             register,
             formState: { errors },
         },
-        submit,
-        isPending,
-    } = useLoginForm();
+        handleLogin: submit,
+        loginMutation: { isPending },
+    } = useAuth();
     const { openForgotPasswordModal } = useAuthStore();
 
     const handleGoogleLogin = async () => {

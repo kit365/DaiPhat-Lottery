@@ -75,10 +75,20 @@ export const QuickCustomerDialog = ({ open, onClose, onSuccess }: QuickCustomerD
             return;
         }
 
+        // Tách fullName thành firstName và lastName để phù hợp với backend mới
+        const nameParts = customerData.fullName.trim().split(/\s+/);
+        const lastName = nameParts[0] || "";
+        const firstName = nameParts.slice(1).join(" ") || "";
+
         // Create user first
-        createUser({ ...customerData, createdBy: user?.id }, {
+        createUser({ 
+            ...customerData, 
+            firstName, 
+            lastName,
+            createdBy: user?.id 
+        }, {
             onSuccess: (userRes: any) => {
-                const userId = userRes.data._id;
+                const userId = userRes.data.id || userRes.data._id;
                 const createdTicketIds: string[] = [];
                 let ticketsCreated = 0;
 

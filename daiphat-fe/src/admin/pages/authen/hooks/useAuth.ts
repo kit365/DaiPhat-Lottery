@@ -12,6 +12,7 @@ import { LoginResponse } from "../types/auth.type";
 import { LoginFormValues } from "../../../schemas/login.schema";
 import Cookies from "js-cookie";
 import { STORAGE_KEYS } from "../../../../constants/storage.constants";
+import { QUERY_KEYS } from "../../../../constants/queryKeys";
 
 export const useAuth = () => {
     const navigate = useNavigate();
@@ -20,7 +21,7 @@ export const useAuth = () => {
     const { token, user, set, login: loginStore, logout } = useAuthStore();
 
     const getMeQuery = useQuery({
-        queryKey: ["admin-me", token],
+        queryKey: [QUERY_KEYS.AUTH_ME, token],
         queryFn: userService.getMe,
         enabled: !!token,
         retry: false,
@@ -29,19 +30,14 @@ export const useAuth = () => {
 
     useEffect(() => {
         if (getMeQuery.data) {
-            const isSuccess = getMeQuery.data.isSuccess || getMeQuery.data.code === "SUCCESS";
+            const isSuccess = getMeQuery.data.isSuccess;
             if (isSuccess && getMeQuery.data.data) {
                 const userData = getMeQuery.data.data as User;
 
-                const mappedUser = {
-                    ...userData,
-                    fullName: `${userData.firstName} ${userData.lastName}`.trim(),
-                };
-
-                if (JSON.stringify(user) !== JSON.stringify(mappedUser)) {
-                    set({ user: mappedUser });
+                if (JSON.stringify(user) !== JSON.stringify(userData)) {
+                    set({ user: userData });
                 }
-            } else if (!isSuccess && getMeQuery.data.code === "UNAUTHORIZED") {
+            } else if (!isSuccess) {
                 logout();
             }
         }
@@ -63,18 +59,17 @@ export const useAuth = () => {
     }, [getMeQuery.isError, logout, navigate]);
 
     const loginMutation = useMutation({
-        mutationFn: (data: LoginFormValues) => authService.login({ ...data, rememberMe: false } as any),
+        mutationFn: (data: LoginFormValues) => authService.login({ ...data, rememberMe: false }),
         onSuccess: (response: LoginResponse) => {
-            const isSuccess = response.isSuccess || response.success || response.code === "SUCCESS";
+            const isSuccess = response.isSuccess;
             if (isSuccess && response.data?.access_token) {
                 const { access_token, user: userInfo } = response.data;
                 if (userInfo) {
                     // 1. Save to Zustand (Common Store)
-                    loginStore(userInfo as User, access_token, response.data.expires_in);
+                    loginStore(userInfo, access_token, response.data.expires_in);
 
                     // 2. Seed React Query Cache to prevent redundant getMe call
-                    queryClient.setQueryData(["admin-me", access_token], {
-                        code: "SUCCESS",
+                    queryClient.setQueryData([QUERY_KEYS.AUTH_ME, access_token], {
                         isSuccess: true,
                         message: "Success",
                         data: userInfo
@@ -90,8 +85,11 @@ export const useAuth = () => {
                         Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, response.data.refresh_token, cookieOptions);
                     }
 
-                    const roleCode = userInfo.roles?.[0]?.code || "";
-                    if (roleCode === USER_ROLES.ADMIN) {
+                    const roleCode = userInfo.role?.code || "";
+                    if (!userInfo.hasPassword) {
+                        toast.info("Vui lòng thiết lập mật khẩu cho lần đăng nhập đầu tiên.");
+                        navigate(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
+                    } else if (roleCode === USER_ROLES.ADMIN) {
                         toast.success("Chào mừng Quản trị viên!");
                         navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
                     } else {
@@ -103,7 +101,7 @@ export const useAuth = () => {
                 toast.error(response.message || "Đăng nhập thất bại.");
             }
         },
-        onError: (error: any) => {
+        onError: (error: { response?: { data?: { message?: string } } }) => {
             toast.error(error.response?.data?.message || "Lỗi đăng nhập.");
         }
     });
@@ -111,7 +109,7 @@ export const useAuth = () => {
     const oauthCallbackMutation = useMutation({
         mutationFn: (params: { code: string; redirectUri: string; codeVerifier?: string }) =>
             authService.exchangeGoogleToken(params.code, params.redirectUri, params.codeVerifier),
-        onSuccess: (response: any) => {
+        onSuccess: (response) => {
             if (response?.access_token) {
                 const { access_token, expires_in } = response;
                 

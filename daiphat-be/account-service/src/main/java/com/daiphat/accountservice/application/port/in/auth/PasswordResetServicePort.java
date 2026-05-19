@@ -7,6 +7,8 @@ import com.daiphat.accountservice.application.dto.response.auth.ForgotPasswordRe
 import com.daiphat.accountservice.application.dto.response.auth.PasswordPolicyResponse;
 import com.daiphat.accountservice.application.dto.response.auth.VerifyOtpResponse;
 
+import java.util.UUID;
+
 /**
  * Port chuyên trách khâu Quên/Đổi mật khẩu.
  */
@@ -35,4 +37,9 @@ public interface PasswordResetServicePort {
      * Lấy chính sách mật khẩu hiện tại của hệ thống.
      */
     PasswordPolicyResponse getPasswordPolicy();
+
+    // Admin initiated password actions
+    void changePassword(UUID id, String newPassword);
+    void initiatePasswordReset(UUID id);
+    void confirmPasswordReset(UUID id, String otp);
 }

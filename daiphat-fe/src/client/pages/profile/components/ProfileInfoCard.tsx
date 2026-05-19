@@ -29,7 +29,7 @@ export const ProfileInfoCard: React.FC<ProfileInfoCardProps> = ({ user, onEdit }
                                 <img src={user.avatar || user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
                             ) : (
                                 <div className="text-[#FF6262] font-black text-2xl">
-                                    {(user.firstName?.[0] || user.username?.[0] || 'U').toUpperCase()}
+                                    {(user.fullName?.[0] || user.username?.[0] || 'U').toUpperCase()}
                                 </div>
                             )}
                         </div>
@@ -39,7 +39,7 @@ export const ProfileInfoCard: React.FC<ProfileInfoCardProps> = ({ user, onEdit }
                     </div>
                     <div>
                         <h4 className="text-xl font-black text-[#102937] leading-tight">
-                            {user.firstName} {user.lastName}
+                            {user.fullName}
                         </h4>
                         <span className="text-sm font-bold text-slate-400 mt-1 block">ID: #{user.id.slice(0, 8).toUpperCase()}</span>
                     </div>

@@ -14,18 +14,16 @@ import lombok.experimental.FieldDefaults;
 public class ResetPasswordRequest {
     public static final String MSG_TOKEN_REQUIRED = "Reset token is required";
     public static final String MSG_PASSWORD_REQUIRED = "Mật khẩu không được để trống";
-    public static final String MSG_PASSWORD_SIZE = "Mật khẩu phải từ 8 đến 32 ký tự";
-    public static final String MSG_PASSWORD_PATTERN = "Mật khẩu không đủ mạnh (Cần ít nhất 8 ký tự, "
-            + "bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt).";
+    public static final String MSG_PASSWORD_SIZE = "Mật khẩu phải từ 6 đến 100 ký tự";
+    public static final String MSG_PASSWORD_PATTERN = "Mật khẩu phải bắt đầu bằng chữ hoa và không có khoảng trắng";
     public static final String MSG_CONFIRM_PASSWORD_REQUIRED = "Xác nhận mật khẩu không được để trống";
 
     @NotBlank(message = MSG_TOKEN_REQUIRED)
     String resetToken;
 
     @NotBlank(message = MSG_PASSWORD_REQUIRED)
-    @Size(min = 8, max = 32, message = MSG_PASSWORD_SIZE)
-    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,32}$", 
-             message = MSG_PASSWORD_PATTERN)
+    @Size(min = 6, max = 100, message = MSG_PASSWORD_SIZE)
+    @Pattern(regexp = "^[A-Z][^\\s]{5,99}$", message = MSG_PASSWORD_PATTERN)
     String newPassword;
 
     @NotBlank(message = MSG_CONFIRM_PASSWORD_REQUIRED)
