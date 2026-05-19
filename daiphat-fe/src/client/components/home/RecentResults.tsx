@@ -23,7 +23,7 @@ export const RecentResults: React.FC<RecentResultsProps> = ({ history, onDateCha
     <div className="bg-white rounded-[32px] p-6 shadow-[0_15px_40px_rgba(0,0,0,0.03)] border border-gray-100 font-client-main relative overflow-hidden">
       {/* Decorative background element */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-[#FCE5DF]/40 rounded-full -mr-16 -mt-16 blur-2xl pointer-events-none" />
-      
+
       <div className="flex items-center justify-between mb-8 relative z-10">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-[#FCE5DF] flex items-center justify-center">

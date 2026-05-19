@@ -178,7 +178,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
             </div>
             <div className="flex-1 flex items-center justify-center py-6">
               <span className="text-[#BA0000] text-3xl lg:text-4xl font-black tracking-tight">
-                {renderHighlightedNumber(getDisplayNumber(prizes.special, displayType), activeDigit)}
+                {renderHighlightedNumber(getDisplayNumber(prizes.special, displayType), activeDigit || null)}
               </span>
             </div>
           </div>
@@ -203,7 +203,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-10 gap-y-3">
                     {prize.numbers.map((n, i) => (
                       <span key={i} className="text-[#111111] text-[18px] lg:text-[20px] font-bold tracking-tight font-client-main">
-                        {renderHighlightedNumber(getDisplayNumber(n, displayType), activeDigit)}
+                        {renderHighlightedNumber(getDisplayNumber(n, displayType), activeDigit || null)}
                       </span>
                     ))}
                   </div>
@@ -211,7 +211,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                   <div className="flex flex-wrap items-center gap-x-12 gap-y-3">
                     {prize.numbers.map((n, i) => (
                       <span key={i} className={`${prize.isHighlight && !activeDigit ? 'text-[#BA0000] text-[24px] lg:text-[28px]' : 'text-[#111111] text-[18px] lg:text-[22px]'} font-bold tracking-tight font-client-main`}>
-                        {renderHighlightedNumber(getDisplayNumber(n, displayType), activeDigit)}
+                        {renderHighlightedNumber(getDisplayNumber(n, displayType), activeDigit || null)}
                       </span>
                     ))}
                   </div>

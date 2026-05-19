@@ -22,14 +22,13 @@ const navItems = [
 ];
 
 export const Header = () => {
-  const { 
-    user, 
-    logout, 
-    openProfileSetupModal,
+  const {
+    user,
+    logout,
     isUserLoading,
     token
   } = useAuth();
-  const { isProfileSetupModalOpen, openLoginModal } = useAuthStore();
+  const { isProfileSetupModalOpen, openLoginModal, openProfileSetupModal } = useAuthStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -56,7 +55,7 @@ export const Header = () => {
 
   const handleProfileClick = (e: React.MouseEvent) => {
     if (!user) return;
-    
+
     const isSetupComplete = user.hasPassword && user.agreedToTerms;
     if (!isSetupComplete) {
       e.preventDefault();
@@ -99,8 +98,8 @@ export const Header = () => {
           {/* Desktop Navigation (Hidden on Tablet/Mobile < 1024px) */}
           <div className="hidden lg:flex justify-center items-center gap-8">
             {navItems.map((item) => (
-              <Link 
-                key={item.label} 
+              <Link
+                key={item.label}
                 to={item.to}
                 className="text-[#505050] font-bold no-underline transition-colors hover:text-[#BA0000] text-[15px] tracking-tight font-client-display"
               >
@@ -122,8 +121,8 @@ export const Header = () => {
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-end">
                   <span className="text-[14px] font-bold text-[#102937] leading-none">{user.firstName} {user.lastName}</span>
-                  <button 
-                    onClick={() => logout()} 
+                  <button
+                    onClick={() => logout()}
                     className="text-[12px] font-medium text-slate-400 hover:text-[#BA0000] transition-colors mt-0.5 cursor-pointer font-client-main"
                   >
                     Đăng xuất
@@ -132,9 +131,9 @@ export const Header = () => {
                 <Link to="/profile" onClick={handleProfileClick} className="relative group">
                   <div className="w-11 h-11 rounded-full border-2 border-white bg-slate-100 shadow-sm overflow-hidden transition-transform group-hover:scale-105 group-hover:border-[#FF6262]/20">
                     {user.avatar || user.avatarUrl ? (
-                      <img 
-                        src={user.avatar || user.avatarUrl} 
-                        alt={user.fullName || "User"} 
+                      <img
+                        src={user.avatar || user.avatarUrl}
+                        alt={user.fullName || "User"}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -148,8 +147,8 @@ export const Header = () => {
               </div>
             ) : (
               <>
-                <button 
-                  onClick={openLoginModal} 
+                <button
+                  onClick={openLoginModal}
                   className="inline-flex items-center justify-center min-h-[44px] px-8 rounded-xl bg-[#BA0000] text-white font-bold no-underline shadow-lg shadow-[#BA0000]/26 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer text-[15px] font-client-display uppercase tracking-tight"
                   type="button"
                 >
@@ -164,9 +163,9 @@ export const Header = () => {
         <div className="lg:hidden sticky top-0 w-full px-5 py-3.5 bg-white/94 backdrop-blur-md z-[1100] shadow-sm">
           <div className="relative flex items-center h-12 px-4 bg-[#F4F6F8] border border-black/5 rounded-2xl focus-within:bg-white focus-within:border-[#BA0000] focus-within:shadow-md transition-all duration-300">
             <Search className="text-slate-400 mr-3 shrink-0" size={19} />
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm vé số, kết quả..." 
+            <input
+              type="text"
+              placeholder="Tìm kiếm vé số, kết quả..."
               className="flex-1 bg-transparent border-none outline-none text-[15px] text-[#17191F] font-medium py-1"
             />
           </div>
@@ -177,14 +176,14 @@ export const Header = () => {
       <AnimatePresence>
         {isMenuOpen && (
           <>
-            <motion.div 
+            <motion.div
               className="mobile-drawer-overlay"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMenuOpen(false)}
             />
-            <motion.div 
+            <motion.div
               className="mobile-drawer"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
@@ -200,8 +199,8 @@ export const Header = () => {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.1 + index * 0.05 }}
                     >
-                      <Link 
-                        to={item.to} 
+                      <Link
+                        to={item.to}
                         className="mobile-nav-link"
                         onClick={() => setIsMenuOpen(false)}
                       >
