@@ -44,11 +44,11 @@ const LayoutAdminContent = () => {
     // Route state Toast listener removed. Using direct toast in use-login now.
 
     return (
-        <div className="flex">
+        <div className="flex min-h-screen bg-white">
             <OverrunAlerter />
             <SideBar />
 
-            <div className={`flex-1 transition-[padding-left] duration-[120ms] ease-linear ${isOpen ? 'pl-[300px]' : 'pl-[88px]'}`}>
+            <div className={`flex-1 min-h-screen bg-white transition-[padding-left] duration-[120ms] ease-linear ${isOpen ? 'pl-[300px]' : 'pl-[88px]'}`}>
                 <ThemeProvider theme={adminTheme}><Header /></ThemeProvider>
 
                 <ThemeProvider theme={adminTheme}>

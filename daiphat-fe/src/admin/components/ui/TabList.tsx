@@ -1,4 +1,5 @@
 import { Tabs, Tab, styled } from '@mui/material';
+import { getTabBadgeStyles } from '../../utils/badge';
 
 // Styled component cho con số (Badge nhãn)
 const TabBadge = styled('span')(() => ({
@@ -52,7 +53,7 @@ export const TabList = ({ value, onChange, counts = { all: 0, published: 0, draf
                 disableRipple
                 label="Tất cả"
                 icon={
-                    <TabBadge sx={{ backgroundColor: '#1C252E', color: '#fff' }}>
+                    <TabBadge sx={getTabBadgeStyles('all', value === 0)}>
                         {counts.all}
                     </TabBadge>
                 }
@@ -66,10 +67,7 @@ export const TabList = ({ value, onChange, counts = { all: 0, published: 0, draf
                 icon={
                     <TabBadge
                         className="badge-status"
-                        sx={{
-                            backgroundColor: value === 1 ? '#00B8D9' : 'rgba(0, 184, 217, 0.16)',
-                            color: value === 1 ? '#fff' : '#006C9C'
-                        }}
+                        sx={getTabBadgeStyles('info', value === 1)}
                     >
                         {counts.published}
                     </TabBadge>
@@ -84,10 +82,7 @@ export const TabList = ({ value, onChange, counts = { all: 0, published: 0, draf
                 icon={
                     <TabBadge
                         className="badge-status"
-                        sx={{
-                            backgroundColor: value === 2 ? '#454F5B' : 'rgba(145, 158, 171, 0.16)',
-                            color: value === 2 ? '#fff' : '#637381'
-                        }}
+                        sx={getTabBadgeStyles('neutral', value === 2)}
                     >
                         {counts.draft}
                     </TabBadge>
@@ -102,10 +97,7 @@ export const TabList = ({ value, onChange, counts = { all: 0, published: 0, draf
                 icon={
                     <TabBadge
                         className="badge-status"
-                        sx={{
-                            backgroundColor: value === 3 ? '#FF5630' : 'rgba(255, 86, 48, 0.16)',
-                            color: value === 3 ? '#fff' : '#B71D18'
-                        }}
+                        sx={getTabBadgeStyles('error', value === 3)}
                     >
                         {counts.archived}
                     </TabBadge>
