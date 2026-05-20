@@ -113,21 +113,48 @@ export const SelectMulti = memo(({ label, options, sx, value, onChange, disabled
             sx={{ ...FORM_CONTROL_STYLE, ...sx }}
             disabled={disabled}
         >
-            <InputLabel
-                id="demo-simple-select-label"
-                sx={LABEL_STYLE}
-            >
-                {label}
-            </InputLabel>
+            {selectedValues.length > 0 && (
+                <InputLabel
+                    id="select-multi-label"
+                    shrink
+                    sx={LABEL_STYLE}
+                >
+                    {label}
+                </InputLabel>
+            )}
             <Select
                 multiple
                 value={selectedValues}
-                label={label}
+                label={selectedValues.length > 0 ? label : undefined}
                 onChange={handleChange}
                 onClose={handleClose}
-                renderValue={displayValue}
-                sx={SELECT_SX}
+                displayEmpty
+                renderValue={(selected) => {
+                    const sel = selected as string[];
+                    if (sel.length === 0) {
+                        return (
+                            <span style={{
+                                color: '#637381',
+                                fontSize: '0.9375rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                height: '100%',
+                            }}>
+                                {label}
+                            </span>
+                        );
+                    }
+                    return displayValue(sel);
+                }}
+                sx={{
+                    ...SELECT_SX,
+                    '& .MuiSelect-select': {
+                        display: 'flex',
+                        alignItems: 'center',
+                    }
+                }}
                 MenuProps={MENU_PROPS}
+                notched={selectedValues.length > 0}
             >
                 {options.map((option) => (
                     <MenuItem
@@ -149,7 +176,7 @@ export const SelectMulti = memo(({ label, options, sx, value, onChange, disabled
                 <MenuItem
                     sx={APPLY_BUTTON}
                     onClick={(e) => {
-                        e.stopPropagation(); // QUAN TRỌNG
+                        e.stopPropagation();
                         if (document.activeElement instanceof HTMLElement) {
                             document.activeElement.blur();
                         }

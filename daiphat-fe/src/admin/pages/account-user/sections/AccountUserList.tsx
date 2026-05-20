@@ -6,12 +6,11 @@ import {
     Box,
     CircularProgress,
     MenuItem,
-    Popover,
     TextField,
+    Tabs,
+    Tab,
     Typography,
-    styled,
-    Button,
-    Stack
+    styled
 } from '@mui/material';
 import {
     SortAscendingIcon,
@@ -22,6 +21,7 @@ import { getColumnsConfig, columnsInitialState } from '../configs/column.config'
 import { DATA_GRID_LOCALE_VN } from '../configs/localeText.config';
 import {
     dataGridContainerStyles,
+    dataGridStyles
 } from '../configs/styles.config';
 import { useUsers, useDeleteUser, useUserStatuses } from '../hooks/useAccountUser';
 import { ROUTES } from '../../../constants/routes';
@@ -32,7 +32,7 @@ import { AccountSortField, SortDirection, createSortValue } from '../../../const
 import { User } from '../../../../types/user.type';
 import { ExportImport } from '../../../components/ui/ExportImport';
 import { confirmDelete } from "../../../utils/swal";
-import FilterListIcon from '@mui/icons-material/FilterList';
+import { getTabBadgeStyles } from "../../../utils/badge";
 import { AccountResetPasswordModal } from './AccountResetPasswordModal';
 import { StaffInviteModal } from './StaffInviteModal';
 
@@ -45,7 +45,7 @@ const TabBadge = styled('span')(() => ({
     justifyContent: "center",
     marginLeft: '8px',
     padding: '0px 6px',
-    borderRadius: "var(--shape-borderRadius-sm)",
+    borderRadius: "var(--shape-borderRadius-sm, 6px)",
     fontSize: '0.75rem',
     fontWeight: 700,
     transition: 'all 0.2s',
@@ -59,7 +59,6 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
     const [pageSize, setPageSize] = useState(10);
     const [sortBy, setSortBy] = useState('createdAt');
     const [direction, setDirection] = useState('desc');
-    const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
     const [selectedUser, setSelectedUser] = useState<{ id: string; fullName: string; email: string } | null>(null);
     const [openResetModal, setOpenResetModal] = useState(false);
     const [openInviteStaffModal, setOpenInviteStaffModal] = useState(false);
@@ -151,8 +150,8 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
 
     const columns = useMemo(() => getColumnsConfig(handleEdit, handleDelete, handleChangePassword, handleViewDetail, handleInviteStaff), [handleEdit, handleDelete, handleChangePassword, handleViewDetail, handleInviteStaff]);
 
-    const handleStatusChange = (newStatus: string) => {
-        setStatus(newStatus);
+    const handleStatusChange = (_event: React.SyntheticEvent, newValue: string) => {
+        setStatus(newValue);
         setPage(0);
     };
 
@@ -163,17 +162,14 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
         setPage(0);
     };
 
-    const handleFilterClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-        setAnchorEl(event.currentTarget);
-    };
-
-    const handleFilterClose = () => {
-        setAnchorEl(null);
-    };
-
-    const openFilter = Boolean(anchorEl);
-
-
+    const counts = useMemo(() => res?.data?.statusCounts || {
+        all: 0,
+        ACTIVE: 0,
+        PENDING: 0,
+        BANNED: 0,
+        LOCKED: 0,
+        DELETED: 0
+    }, [res]);
 
     return (
         <Card elevation={0} sx={{
@@ -182,155 +178,63 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
             boxShadow: 'var(--customShadows-card)',
             overflow: 'visible'
         }}>
-            <Box sx={{ 
-                p: { xs: 2, md: 2.5 }, 
-                display: 'flex', 
-                flexDirection: { xs: 'column', md: 'row' },
-                gap: { xs: 2.5, md: 2 }, 
-                alignItems: { xs: 'stretch', md: 'center' }, 
-                justifyContent: 'space-between',
-                borderBottom: '1px solid var(--palette-background-neutral)',
-            }}>
-                <Box sx={{ 
-                    display: 'flex', 
-                    gap: 1, 
-                    alignItems: 'center',
-                    overflowX: 'auto',
-                    pb: { xs: 1, md: 0 },
-                    mx: { xs: -2, md: 0 },
-                    px: { xs: 2, md: 0 },
-                    '&::-webkit-scrollbar': { display: 'none' },
-                    msOverflowStyle: 'none',
-                    scrollbarWidth: 'none',
-                }}>
-                    {statusOptions.map((option) => {
-                        const isActive = status === option.value;
-                        return (
-                            <Button
-                                key={option.value}
-                                onClick={() => handleStatusChange(option.value)}
-                                sx={{
-                                    height: 38,
-                                    px: 2,
-                                    borderRadius: '10px',
-                                    fontSize: '0.875rem',
-                                    fontWeight: 600,
-                                    textTransform: 'none',
-                                    whiteSpace: 'nowrap',
-                                    flexShrink: 0,
-                                    bgcolor: isActive ? 'rgba(0, 167, 111, 0.08)' : 'transparent',
-                                    color: isActive ? 'var(--palette-primary-main)' : 'var(--palette-text-secondary)',
-                                    '&:hover': {
-                                        bgcolor: isActive ? 'rgba(0, 167, 111, 0.16)' : 'rgba(145, 158, 171, 0.08)',
-                                    }
-                                }}
+            <Tabs
+                value={status}
+                onChange={handleStatusChange}
+                variant="scrollable"
+                scrollButtons={false}
+                sx={{
+                    px: '20px',
+                    minHeight: "48px",
+                    borderBottom: '1px solid var(--palette-background-neutral)',
+                    '& .MuiTabs-flexContainer': { gap: "calc(5 * var(--spacing))" },
+                    '& .MuiTabs-indicator': { backgroundColor: 'var(--palette-text-primary)', height: 2 },
+                }}
+            >
+                {statusOptions.map((option) => (
+                    <Tab
+                        key={option.value}
+                        value={option.value}
+                        disableRipple
+                        label={option.label}
+                        icon={
+                            <TabBadge
+                                sx={getTabBadgeStyles(option.value, status === option.value)}
                             >
-                                {option.label}
-                                {isActive && (
-                                    <TabBadge
-                                        sx={{
-                                            bgcolor: 'var(--palette-primary-main)',
-                                            color: 'var(--palette-common-white)',
-                                            ml: 1.25
-                                        }}
-                                    >
-                                        {pagination.totalRecords || 0}
-                                    </TabBadge>
-                                )}
-                            </Button>
-                        );
-                    })}
-                </Box>
+                                {option.value === 'all' ? (pagination.totalRecords || 0) : (counts[option.value as keyof typeof counts] || 0)}
+                            </TabBadge>
+                        }
+                        iconPosition="end"
+                        sx={{
+                            minWidth: 0,
+                            padding: '0',
+                            minHeight: '48px',
+                            textTransform: 'none',
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                            color: 'var(--palette-text-secondary)',
+                            flexDirection: 'row',
+                            '&.Mui-selected': {
+                                color: 'var(--palette-text-primary)',
+                                fontWeight: 600,
+                            },
+                        }}
+                    />
+                ))}
+            </Tabs>
 
-                <Box sx={{ 
-                    display: 'flex', 
-                    gap: 1.5, 
-                    alignItems: 'center', 
-                    justifyContent: 'flex-end',
-                    flexDirection: { xs: 'row', sm: 'row' },
-                    width: { xs: '100%', md: 'auto' }
-                }}>
-                <Box sx={{ flex: 1, maxWidth: { md: 320 } }}>
+            <Box sx={{ p: "calc(2 * var(--spacing))", display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', borderBottom: '1px dashed var(--palette-text-disabled)33' }}>
+                
+                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ flex: 1 }}>
                         <Search
                             placeholder="Tìm kiếm khách hàng..."
                             value={search}
-                            onChange={(val) => {
-                                setSearch(val);
-                                setPage(0);
-                            }}
-                            maxWidth={260}
+                            onChange={(val) => { setSearch(val); setPage(0); }}
+                            maxWidth="100%"
                         />
-                </Box>
-                    
-                    <Button
-                        variant="outlined"
-                        onClick={handleFilterClick}
-                        startIcon={<FilterListIcon />}
-                        sx={{ 
-                            height: 48, 
-                            borderRadius: "12px",
-                            borderColor: 'var(--palette-background-neutral)',
-                            bgcolor: anchorEl ? 'var(--palette-background-neutral)' : 'transparent',
-                            color: 'var(--palette-text-primary)',
-                            textTransform: 'none',
-                            fontWeight: 700,
-                            px: 2,
-                            whiteSpace: 'nowrap',
-                            minWidth: 'fit-content',
-                            '&:hover': { 
-                                bgcolor: 'var(--palette-background-neutral)',
-                                borderColor: 'var(--palette-background-neutral)',
-                            }
-                        }}
-                    >
-                        Bộ lọc
-                    </Button>
-
+                    </Box>
                     <ExportImport />
-
-                    <Popover
-                        open={openFilter}
-                        anchorEl={anchorEl}
-                        onClose={handleFilterClose}
-                        anchorOrigin={{
-                            vertical: 'bottom',
-                            horizontal: 'right',
-                        }}
-                        transformOrigin={{
-                            vertical: 'top',
-                            horizontal: 'right',
-                        }}
-                        PaperProps={{
-                            sx: {
-                                p: 2.5,
-                                mt: 1,
-                                width: 280,
-                                borderRadius: '12px',
-                                boxShadow: 'var(--customShadows-z20)',
-                                border: '1px solid var(--palette-background-neutral)',
-                            }
-                        }}
-                    >
-                        <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 700 }}>
-                            Sắp xếp
-                        </Typography>
-                        <TextField
-                            select
-                            fullWidth
-                            value={`${sortBy}:${direction}`}
-                            onChange={(e) => handleSortChange(e.target.value)}
-                            sx={{ 
-                                mb: 2,
-                                '& .MuiOutlinedInput-root': { height: 48, borderRadius: '8px' }
-                            }}
-                        >
-                            {sortOptions.map((option) => (
-                                <MenuItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                    </Popover>
                 </Box>
             </Box>
 
@@ -340,8 +244,7 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
                     getRowId={(row) => row.id || row._id}
                     loading={isLoading}
                     columns={columns}
-                    rowHeight={72}
-                    columnHeaderHeight={56}
+                    density="comfortable"
                     slots={{
                         columnSortedAscendingIcon: SortAscendingIcon,
                         columnSortedDescendingIcon: SortDescendingIcon,
@@ -364,53 +267,32 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
                         setPage(model.page);
                         setPageSize(model.pageSize);
                     }}
-                    pageSizeOptions={[5, 10, 20, 50]}
+                    pageSizeOptions={[5, 10, 20]}
                     initialState={columnsInitialState}
+                    getRowHeight={() => 'auto'}
                     checkboxSelection
                     disableRowSelectionOnClick
-                    autoHeight
                     sx={{
+                        ...dataGridStyles,
                         border: 'none',
+                        '& .MuiDataGrid-columnHeader': {
+                            bgcolor: 'var(--palette-background-neutral)',
+                            color: 'var(--palette-text-secondary)',
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                        },
+                        '& .MuiDataGrid-columnHeaderTitleContainer': {
+                            paddingX: '16px',
+                        },
+                        '& .MuiDataGrid-columnHeaderCheckbox .MuiDataGrid-columnHeaderTitleContainer': {
+                            padding: 0,
+                        },
                         '& .MuiDataGrid-cell': {
                             borderBottom: '1px dashed var(--palette-background-neutral)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            fontSize: '0.9375rem',
-                            '&:focus': { outline: 'none' },
+                            px: '16px',
                         },
-                        '& .MuiDataGrid-columnHeaders': {
-                            bgcolor: 'var(--palette-background-neutral)',
-                            borderRadius: '12px 12px 0 0',
-                            borderBottom: '1px solid var(--palette-divider)',
-                        },
-                        '& .MuiDataGrid-columnHeader': {
-                            bgcolor: 'transparent !important',
-                            '&:focus': { outline: 'none' },
-                        },
-                        '& .MuiDataGrid-columnSeparator': {
-                            display: 'none',
-                        },
-                        '& .MuiDataGrid-columnHeaderTitle': {
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            color: 'var(--palette-text-primary)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05rem',
-                        },
-                        '& .MuiDataGrid-footerContainer': {
-                            borderTop: 'none',
-                            px: 2,
-                        },
-                        '& .MuiDataGrid-row': {
-                            '&:hover': {
-                                bgcolor: 'rgba(145, 158, 171, 0.04)',
-                            },
-                        },
-                        '& .MuiCheckbox-root': {
-                            color: 'var(--palette-text-disabled)',
-                            '&.Mui-checked': {
-                                color: 'var(--palette-primary-main)',
-                            }
+                        '& .MuiDataGrid-row:hover': {
+                            bgcolor: 'var(--palette-action-hover)'
                         }
                     }}
                 />
