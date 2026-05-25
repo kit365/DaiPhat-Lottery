@@ -9,6 +9,7 @@ import { ProfilePage as ClientProfilePage } from './client/pages/profile/Profile
 import { ProfileDashboardPage } from './client/pages/profile/ProfileDashboardPage';
 
 import { BlogListPage } from './client/pages/BlogListPage';
+import { BlogDetailPage } from './client/pages/BlogDetailPage';
 
 import { ROUTES } from './admin/constants/routes';
 import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
@@ -45,6 +46,7 @@ function App() {
         <Route element={<ClientThemeLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/blogs" element={<BlogListPage />} />
+          <Route path="/blogs/detail" element={<BlogDetailPage />} />
 
           {/* Mapping Common Routes into Client Theme */}
           {CommonRoutes.map(({ path, element }: any) => (

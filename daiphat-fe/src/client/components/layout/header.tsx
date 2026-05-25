@@ -30,12 +30,7 @@ export const Header = () => {
     token
   } = useAuth();
   
-  // Mock user for UI visualization based on design
-  const user = realUser || {
-    fullName: "Nguyễn Văn A",
-    username: "nguyenvana",
-    avatar: "https://i.pravatar.cc/150?u=a042581f4e29026704d" 
-  };
+  const user = realUser;
   const { isProfileSetupModalOpen, openLoginModal, openProfileSetupModal } = useAuthStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
