@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
-import { Search, User as UserIcon } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Search, User as UserIcon, Home, Crosshair, Ticket, CalendarDays, Gift, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen } from "lucide-react";
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { LoginModal } from "../../components/auth/LoginModal";
@@ -15,22 +15,31 @@ import { Skeleton } from "../../../components/ui/Skeleton";
 import { AppToast as toast } from "../../utils/toast.util";
 
 const navItems = [
-  { label: "Trang chủ", to: ROUTES.PUBLIC.HOME },
-  { label: "Vé số", to: "#" },
-  { label: "Kết quả", to: "#" },
-  { label: "Hướng dẫn", to: "#" },
+  { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },
+  { label: "Kết quả", to: "#", icon: Crosshair },
+  { label: "Vé của tôi", to: "#", icon: Ticket },
+  { label: "Lịch mở thưởng", to: "#", icon: CalendarDays },
+  { label: "Bài viết", to: "#", icon: BookOpen },
 ];
 
 export const Header = () => {
   const { 
-    user, 
+    user: realUser, 
     logout, 
     isUserLoading,
     token
   } = useAuth();
+  
+  // Mock user for UI visualization based on design
+  const user = realUser || {
+    fullName: "Nguyễn Văn A",
+    username: "nguyenvana",
+    avatar: "https://i.pravatar.cc/150?u=a042581f4e29026704d" 
+  };
   const { isProfileSetupModalOpen, openLoginModal, openProfileSetupModal } = useAuthStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Removed mandatory DP-32 Setup Enforcement auto-trigger
 
@@ -67,16 +76,16 @@ export const Header = () => {
   return (
     <>
       <motion.nav
-        className="relative w-full z-[1000] bg-[#FDFBF7] lg:fixed lg:top-0 lg:left-0 lg:bg-[#FDFBF7]/95 lg:backdrop-blur-3xl lg:border-b lg:border-[#FFB800]/10 lg:shadow-sm transition-all duration-300"
+        className="relative w-full z-[1000] bg-white lg:fixed lg:top-0 lg:left-0 lg:bg-white/95 lg:backdrop-blur-3xl lg:border-b lg:border-slate-100 lg:shadow-sm transition-all duration-300"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         aria-label="Client navigation"
       >
-        <div className="max-w-[1440px] mx-auto px-5 lg:px-10 h-auto lg:h-20 grid grid-cols-1 lg:grid-cols-[1.2fr_auto_1fr] items-center py-4 lg:py-0 border-b border-black/5 lg:border-none">
-          <div className="flex items-center justify-between w-full lg:w-auto">
-            <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-2.5 no-underline text-[#102937] font-bold transition-transform hover:scale-[1.02] font-client-display" aria-label="DaiPhat home">
-              <svg aria-hidden="true" viewBox="0 0 36 36" fill="none" width="34" height="34" className="text-[#BA0000]">
+        <div className="max-w-[1440px] mx-auto px-4 lg:px-6 h-auto lg:h-20 flex flex-col lg:flex-row lg:items-center lg:justify-between py-4 lg:py-0 border-b border-black/5 lg:border-none gap-4 lg:gap-8">
+          <div className="flex items-center justify-between w-full lg:w-auto shrink-0">
+            <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-2 no-underline text-[#102937] font-bold transition-transform hover:scale-[1.02] font-client-display" aria-label="DaiPhat home">
+              <svg aria-hidden="true" viewBox="0 0 36 36" fill="none" width="28" height="28" className="text-[#BA0000]">
                 <rect width="36" height="36" rx="8" fill="currentColor" />
                 <path
                   d="M18 7.2 21.2 14h7l-5.6 4.6 1.8 7-6.4-3.8-6.4 3.8 1.8-7L7.8 14h7L18 7.2Z"
@@ -86,7 +95,7 @@ export const Header = () => {
                   strokeLinejoin="round"
                 />
               </svg>
-              <span className="text-lg lg:text-xl tracking-tighter font-client-display font-black text-[#102937]">Đại Phát</span>
+              <span className="text-lg tracking-tighter font-client-display font-black text-[#102937] whitespace-nowrap">Đại Phát</span>
             </Link>
 
             {/* Tablet/Mobile Top Actions - Removed Avatar as it is in Bottom Nav */}
@@ -96,19 +105,29 @@ export const Header = () => {
           </div>
 
           {/* Desktop Navigation (Hidden on Tablet/Mobile < 1024px) */}
-          <div className="hidden lg:flex justify-center items-center gap-8">
-            {navItems.map((item) => (
-              <Link
-                key={item.label}
-                to={item.to}
-                className="text-[#505050] font-bold no-underline transition-colors hover:text-[#BA0000] text-[15px] tracking-tight font-client-display"
-              >
-                {item.label}
-              </Link>
-            ))}
+          <div className="hidden lg:flex justify-center items-center gap-1 xl:gap-3 flex-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = item.to === ROUTES.PUBLIC.HOME ? location.pathname === ROUTES.PUBLIC.HOME : location.pathname.startsWith(item.to) && item.to !== "#";
+              
+              return (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  className={`flex items-center gap-2 font-bold no-underline transition-colors px-4 py-2.5 rounded-2xl text-[15px] tracking-tight font-client-display ${
+                    isActive || item.label === "Trang chủ" // Hardcode active for "Trang chủ" temporarily for visual match
+                      ? "bg-[#FFF4F4] text-[#BA0000]" 
+                      : "text-[#505050] hover:text-[#BA0000] hover:bg-slate-50"
+                  }`}
+                >
+                  <Icon size={18} strokeWidth={isActive || item.label === "Trang chủ" ? 2.5 : 2} />
+                  <span className="whitespace-nowrap">{item.label}</span>
+                </Link>
+              );
+            })}
           </div>
 
-          <div className="hidden lg:flex items-center justify-end gap-5">
+          <div className="hidden lg:flex items-center justify-end gap-3 xl:gap-5 shrink-0">
             {token && isUserLoading ? (
               <div className="flex items-center gap-4 animate-in fade-in duration-500">
                 <div className="flex flex-col items-end gap-1.5">
@@ -118,34 +137,55 @@ export const Header = () => {
                 <Skeleton variant="circle" width={44} height={44} />
               </div>
             ) : user ? (
-              <div className="flex items-center gap-4">
-                <div className="flex flex-col items-end">
-                  <span className="text-[14px] font-bold text-[#102937] text-nowrap leading-none">{user.fullName || user.username}</span>
-                  <button 
-                    onClick={() => {
-                      logout();
-                    }} 
-                    className="text-[12px] font-medium text-slate-400 hover:text-[#E60F14] transition-colors mt-0.5 cursor-pointer font-client-main"
-                  >
-                    Đăng xuất
+              <div className="flex items-center gap-6">
+                {/* Balance */}
+                <div className="flex items-center gap-3 bg-[#FFF4F4] py-1.5 px-3.5 rounded-2xl cursor-pointer hover:bg-[#ffeaea] transition-colors">
+                  <div className="text-[#BA0000]">
+                    <Wallet size={20} strokeWidth={2.5} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] text-[#BA0000]/70 font-medium leading-none mb-0.5 whitespace-nowrap">Số dư</span>
+                    <div className="flex items-center gap-1 text-[#BA0000] font-bold text-[14px] leading-none whitespace-nowrap">
+                      1.250.000 đ
+                      <ChevronDown size={14} strokeWidth={3} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Icons: Cart & Notifications */}
+                <div className="flex items-center gap-1">
+                  <button className="relative text-[#505050] hover:text-[#BA0000] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer">
+                    <ShoppingCart size={22} strokeWidth={2} />
+                    <span className="absolute top-0 right-0 w-4 h-4 bg-[#BA0000] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">2</span>
+                  </button>
+                  <button className="relative text-[#505050] hover:text-[#BA0000] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer">
+                    <Bell size={22} strokeWidth={2} />
+                    <span className="absolute top-0 right-0 w-4 h-4 bg-[#BA0000] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">3</span>
                   </button>
                 </div>
-                <Link to="/profile" onClick={handleProfileClick} className="relative group">
-                  <div className="w-11 h-11 rounded-full border-2 border-white bg-slate-100 shadow-sm overflow-hidden transition-transform group-hover:scale-105 group-hover:border-[#FF6262]/20">
-                    {user.avatar || user.avatarUrl ? (
-                      <img
-                        src={user.avatar || user.avatarUrl}
-                        alt={user.fullName || "User"}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-[#BA0000]/5 text-[#BA0000]">
-                        <UserIcon size={20} className="font-bold" />
-                      </div>
-                    )}
+
+                {/* User */}
+                <div className="flex items-center gap-3 cursor-pointer group">
+                  <Link to="/profile" onClick={handleProfileClick} className="relative shrink-0">
+                    <div className="w-10 h-10 rounded-full border-2 border-white bg-slate-100 shadow-sm overflow-hidden transition-transform group-hover:scale-105 group-hover:border-[#FF6262]/20">
+                      {user.avatar || user.avatarUrl ? (
+                        <img
+                          src={user.avatar || user.avatarUrl}
+                          alt={user.fullName || "User"}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-[#BA0000]/5 text-[#BA0000]">
+                          <UserIcon size={20} className="font-bold" />
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                  <div className="flex items-center gap-1 font-bold text-[#102937] text-[14px] whitespace-nowrap">
+                    {user.fullName || user.username}
+                    <ChevronDown size={16} className="text-slate-400 group-hover:text-[#BA0000] transition-colors" />
                   </div>
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>
-                </Link>
+                </div>
               </div>
             ) : (
               <>
