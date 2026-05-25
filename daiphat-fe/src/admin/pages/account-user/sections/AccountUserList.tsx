@@ -27,6 +27,7 @@ import { useUsers, useDeleteUser, useUserStatuses } from '../hooks/useAccountUse
 import { ROUTES } from '../../../constants/routes';
 import { AppToast as toast } from '../../../../client/utils/toast.util';
 import { STATUS_LABELS, RoleEnum } from '../configs/constants';
+import { SelectSingle } from '../../../components/ui/SelectSingle';
 import { Search } from '../../../components/ui/Search';
 import { AccountSortField, SortDirection, createSortValue } from '../../../constants/sort';
 import { User } from '../../../../types/user.type';
@@ -35,6 +36,7 @@ import { confirmDelete } from "../../../utils/swal";
 import { getTabBadgeStyles } from "../../../utils/badge";
 import { AccountResetPasswordModal } from './AccountResetPasswordModal';
 import { StaffInviteModal } from './StaffInviteModal';
+import { AccountUserQuickUpdateModal } from './AccountUserQuickUpdateModal';
 
 // Styled component cho con số (Badge nhãn)
 const TabBadge = styled('span')(() => ({
@@ -62,6 +64,7 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
     const [selectedUser, setSelectedUser] = useState<{ id: string; fullName: string; email: string } | null>(null);
     const [openResetModal, setOpenResetModal] = useState(false);
     const [openInviteStaffModal, setOpenInviteStaffModal] = useState(false);
+    const [quickUpdateId, setQuickUpdateId] = useState<string | null>(null);
 
     // Fetch dynamic statuses
     const { data: dynamicStatuses } = useUserStatuses();
@@ -117,8 +120,8 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
     }, [deleteUser]);
 
     const handleEdit = useCallback((id: string) => {
-        navigate(`${ROUTES.ADMIN.ACCOUNTS.USER.EDIT}/${id}`);
-    }, [navigate]);
+        setQuickUpdateId(id);
+    }, []);
 
     const handleViewDetail = useCallback((id: string) => {
         navigate(`${ROUTES.ADMIN.ACCOUNTS.USER.DETAIL}/${id}`);
@@ -224,6 +227,13 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
             </Tabs>
 
             <Box sx={{ p: "calc(2 * var(--spacing))", display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', borderBottom: '1px dashed var(--palette-text-disabled)33' }}>
+                <SelectSingle
+                    label="Sắp xếp"
+                    options={sortOptions}
+                    value={createSortValue(sortBy, direction)}
+                    onChange={handleSortChange}
+                    sx={{ minWidth: 140 }}
+                />
                 
                 <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Box sx={{ flex: 1 }}>
@@ -308,6 +318,12 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
                 open={openInviteStaffModal}
                 onClose={() => setOpenInviteStaffModal(false)}
                 user={selectedUser}
+            />
+
+            <AccountUserQuickUpdateModal
+                open={!!quickUpdateId}
+                onClose={() => setQuickUpdateId(null)}
+                id={quickUpdateId}
             />
         </Card>
     );

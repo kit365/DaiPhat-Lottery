@@ -39,6 +39,7 @@ import { Search } from '../../../components/ui/Search';
 import { ExportImport } from '../../../components/ui/ExportImport';
 import { confirmDelete } from "../../../utils/swal";
 import { getTabBadgeStyles } from "../../../utils/badge";
+import { AccountAdminQuickUpdateModal } from './AccountAdminQuickUpdateModal';
 
 // Styled component cho con số (Badge nhãn) - Tham khảo từ blog
 const TabBadge = styled('span')(() => ({
@@ -64,6 +65,7 @@ export const AccountAdminList = () => {
     const [pageSize, setPageSize] = useState(10);
     const [sortBy, setSortBy] = useState('createdAt');
     const [direction, setDirection] = useState('desc');
+    const [quickUpdateId, setQuickUpdateId] = useState<string | null>(null);
 
     const { data: dynamicStatuses } = useUserStatuses();
     const statusOptions = useMemo(() => {
@@ -122,7 +124,7 @@ export const AccountAdminList = () => {
     };
 
     const handleEdit = (id: string) => {
-        navigate(`${ROUTES.ADMIN.ACCOUNTS.ADMIN.EDIT}/${id}`);
+        setQuickUpdateId(id);
     };
 
     const handleViewDetail = (id: string) => {
@@ -292,6 +294,11 @@ export const AccountAdminList = () => {
                     }}
                 />
             </Box>
+            <AccountAdminQuickUpdateModal
+                open={!!quickUpdateId}
+                onClose={() => setQuickUpdateId(null)}
+                id={quickUpdateId}
+            />
         </Card>
     );
 };

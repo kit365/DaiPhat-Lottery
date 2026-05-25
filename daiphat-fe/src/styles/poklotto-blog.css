@@ -81,7 +81,7 @@
 
 /* 10. Breadcrumb */
 .poklotto-full-page .breadcrumb-pok {
-  background: linear-gradient(251.22deg, #0C244B 0%, #0B3846 99.53%);
+  background: #102937;
   padding: 180px 0 100px;
   text-align: center;
   position: relative;
@@ -91,7 +91,7 @@
 .poklotto-full-page .breadcrumb-pok .subtitle {
   font-weight: 600;
   font-size: 24px;
-  color: #F44A33;
+  color: #BA0000;
   font-family: "Barlow Condensed", sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -108,7 +108,7 @@
 .poklotto-full-page .page-links ul { display: flex; justify-content: center; list-style: none; padding: 0; margin: 0; }
 .poklotto-full-page .page-links li { margin: 0 10px; font-weight: 500; font-size: 18px; }
 .poklotto-full-page .page-links a { color: #fff; text-decoration: none; }
-.poklotto-full-page .page-links .current-page { color: #F44A33; }
+.poklotto-full-page .page-links .current-page { color: #BA0000; }
 
 /* 13. Blog posts */
 .poklotto-full-page .blog-posts { padding: 120px 0; }
@@ -136,7 +136,7 @@
   font-weight: 600;
   font-size: 16px;
   text-transform: uppercase;
-  color: #D3471A;
+  color: #BA0000;
   margin-bottom: 8px;
   display: block;
 }
@@ -145,11 +145,11 @@
   font-size: 28px;
   font-weight: 600;
   line-height: 1.2;
-  color: #0D3B54;
+  color: #102937;
   margin-bottom: 14px;
 }
 .poklotto-full-page .blog-post-title a { color: inherit; text-decoration: none; transition: 0.3s; }
-.poklotto-full-page .blog-post-title a:hover { color: #F44A33; }
+.poklotto-full-page .blog-post-title a:hover { color: #BA0000; }
 
 .poklotto-full-page .part-text p { font-size: 16px; line-height: 30px; color: #567687; margin-bottom: 19px; }
 
@@ -163,8 +163,8 @@
 }
 .poklotto-full-page .post-creator { display: flex; align-items: center; text-decoration: none; }
 .poklotto-full-page .creator-pic { width: 35px; height: 35px; border-radius: 50%; overflow: hidden; margin-right: 15px; flex-shrink: 0; }
-.poklotto-full-page .creator-name { font-family: "Barlow Condensed", sans-serif; font-weight: 500; font-size: 17px; color: #0D3B54; }
-.poklotto-full-page .posting-time { font-size: 15px; color: rgba(13, 59, 84, 0.6); }
+.poklotto-full-page .creator-name { font-family: "Barlow Condensed", sans-serif; font-weight: 500; font-size: 17px; color: #102937; }
+.poklotto-full-page .posting-time { font-size: 15px; color: rgba(16, 41, 55, 0.6); }
 
 /* SIDEBAR */
 .poklotto-full-page .pok-sidebar {
@@ -181,7 +181,7 @@
   line-height: 36px;
   letter-spacing: 0.01em;
   text-transform: capitalize;
-  color: rgba(29, 61, 100, 0.8);
+  color: #102937;
   position: relative;
   margin: -8px 0 0px;
   padding-bottom: 34px;
@@ -223,13 +223,11 @@
   line-height: 33px;
   margin: -8px 0 0px;
 }
-.poklotto-full-page .single-recent-post .part-text h5.post-title a { color: rgba(13, 59, 84, 0.6); text-decoration: none; }
-.poklotto-full-page .post-stats { font-family: "Barlow Condensed", sans-serif; font-size: 16px; color: rgba(13, 59, 84, 0.8); }
+.poklotto-full-page .single-recent-post .part-text h5.post-title a { color: rgba(16, 41, 55, 0.6); text-decoration: none; }
+.poklotto-full-page .post-stats { font-family: "Barlow Condensed", sans-serif; font-size: 16px; color: rgba(16, 41, 55, 0.8); }
 .poklotto-full-page .post-stats a { text-decoration: none; font-weight: 500; }
 .poklotto-full-page .post-stats a.category-by {
-  background-image: linear-gradient(223.14deg, #F44A33 -17.3%, #E8AE3D 101.56%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #BA0000;
 }
 
 /* Category List */
@@ -239,7 +237,7 @@
   font-family: "Barlow Condensed", sans-serif;
   font-weight: 600;
   font-size: 20px;
-  color: rgba(13, 59, 84, 0.7);
+  color: rgba(16, 41, 55, 0.7);
   text-transform: capitalize;
   padding-left: 28px;
   position: relative;
@@ -249,7 +247,7 @@
 .poklotto-full-page .category-list li a:after {
   position: absolute;
   content: "";
-  background: linear-gradient(223.14deg, #F44A33 -17.3%, #E8AE3D 101.56%);
+  background: #BA0000;
   width: 8px;
   height: 8px;
   left: 0;
@@ -265,7 +263,7 @@
   transform: translateY(-50%);
   width: 200px; /* SIMULATED DASHED LINE */
   height: 1px;
-  border-top: 1px dashed #0D3B54;
+  border-top: 1px dashed rgba(16, 41, 55, 0.3);
   opacity: 0.3;
   left: calc(100% + 20px);
 }
@@ -277,8 +275,8 @@
   font-family: "Barlow Condensed", sans-serif;
   font-weight: 600;
   font-size: 18px;
-  color: rgba(13, 59, 84, 0.7);
-  border: 1px solid rgba(13, 59, 84, 0.3);
+  color: rgba(16, 41, 55, 0.7);
+  border: 1px solid rgba(16, 41, 55, 0.3);
   border-radius: 50px;
   padding: 0 25px;
   margin-right: 15px;
@@ -295,7 +293,7 @@
   position: absolute;
   content: "";
   left: 0; top: 0; width: 100%; height: 100%;
-  background: linear-gradient(317.37deg, #114065 2.76%, #18687A 63.36%);
+  background: #BA0000;
   z-index: -1;
   opacity: 0;
   transition: 0.3s;
@@ -307,16 +305,16 @@
 .poklotto-full-page .pok-pagination { margin-top: 50px; text-align: center; }
 .poklotto-full-page .pok-pagination ul { display: flex; justify-content: center; align-items: center; list-style: none; padding: 0; margin: 0; }
 .poklotto-full-page .pok-pagination li { margin: 0 15px; }
-.poklotto-full-page .pok-pagination li.dotted { color: #0D3B54; font-size: 18px; font-weight: 600; margin: 0 15px; padding-top: 10px; }
+.poklotto-full-page .pok-pagination li.dotted { color: #102937; font-size: 18px; font-weight: 600; margin: 0 15px; padding-top: 10px; }
 .poklotto-full-page .pok-pagination a {
   width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  background: rgba(17, 64, 101, 0.1); color: #0D3B54; font-weight: 600; text-decoration: none; transition: 0.3s;
+  background: #FFF4F4; color: #BA0000; font-weight: 600; text-decoration: none; transition: 0.3s;
 }
 .poklotto-full-page .pok-pagination a.active, .poklotto-full-page .pok-pagination a:hover {
-  background: linear-gradient(317.37deg, #114065 2.76%, #18687A 63.36%); color: #fff;
+  background: #BA0000; color: #fff;
 }
 
 /* FOOTER */
-.poklotto-full-page .footer { background: #0D3B54; padding: 80px 0; text-align: center; color: #fff; margin-top: 120px; }
+.poklotto-full-page .footer { background: #102937; padding: 80px 0; text-align: center; color: #fff; margin-top: 120px; }
 .poklotto-full-page .footer .footer-logo img { height: 35px; margin-bottom: 30px; }
 .poklotto-full-page .footer p { opacity: 0.7; max-width: 600px; margin: 0 auto 30px; line-height: 1.8; }

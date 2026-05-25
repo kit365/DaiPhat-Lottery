@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import '../../styles/poklotto-blog.css';
+import { Header } from '../components/layout/header';
 
 export const BlogListPage = () => {
   useEffect(() => {
@@ -23,50 +24,25 @@ export const BlogListPage = () => {
 
   return (
     <div className="poklotto-full-page">
-      {/* header begin */}
-      <header className="header">
-        <div className="container">
-          <div className="row align-items-center">
-            <div className="col-xl-3 col-lg-3">
-              <div className="logo">
-                <Link to="/"><img src="/assets/img/logo.png" alt="Poklotto" /></Link>
-              </div>
-            </div>
-            <div className="col-xl-6 col-lg-6">
-              <div className="main-menu">
-                <nav className="navbar">
-                  <ul className="navbar-nav">
-                    <li className="nav-item"><Link className="nav-link" to="/">Homepage</Link></li>
-                    <li className="nav-item"><Link className="nav-link" to="#">About us</Link></li>
-                    <li className="nav-item"><Link className="nav-link" to="#">Lotteries</Link></li>
-                    <li className="nav-item"><Link className="nav-link active" to="/blogs">Blog</Link></li>
-                    <li className="nav-item"><Link className="nav-link" to="#">Contact</Link></li>
-                  </ul>
-                </nav>
-              </div>
-            </div>
-            <div className="col-xl-3 col-lg-3 text-right">
-              <Link className="btn-pok mid" to="#" style={{
-                background: 'linear-gradient(223.14deg, #F44A33 -17.3%, #E8AE3D 101.56%)',
-                color: '#fff', padding: '12px 30px', borderRadius: '50px', textDecoration: 'none', fontWeight: 600, textTransform: 'uppercase', fontFamily: 'Barlow Condensed'
-              }}>play lottery <i className="fa-solid fa-angle-right"></i></Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
+      <Header />
       {/* breadcrumb begin */}
-      <section className="breadcrumb-pok">
-        <img className="br-shape-left d-none d-xl-block" src="/assets/img/breadcrumb/left-bg.png" alt="" style={{position:'absolute', left:0, top:'50%', transform:'translateY(-50%)'}} />
-        <img className="br-shape-right d-none d-xl-block" src="/assets/img/breadcrumb/right-bg.png" alt="" style={{position:'absolute', right:0, top:'50%', transform:'translateY(-50%)'}} />
-        <div className="container">
-          <span className="subtitle">blog posts</span>
-          <h2 className="title">Get Lottery News & Lottery Winner Stories</h2>
-          <div className="page-links">
-            <ul>
-              <li><Link to="/">Home</Link></li>
-              <li><span className="current-page">Blog Posts</span></li>
-            </ul>
+      <section 
+        className="breadcrumb-pok" 
+        style={{ 
+          background: 'url(https://i.imgur.com/86RRLK9.png) center center / cover no-repeat',
+          textAlign: 'left',
+          padding: '160px 0 100px', // Thêm padding-top để ko bị Header đè lên
+          color: '#2A3042'
+        }}
+      >
+        <div className="container" style={{ position: 'relative', zIndex: 1, paddingLeft: '30px' }}>
+          <h2 style={{ fontSize: '56px', fontWeight: 800, marginBottom: '20px', fontFamily: "'Roboto', sans-serif", color: '#2C3038' }}>Blog 04</h2>
+          <div style={{ fontSize: '15px', color: '#6c757d', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Roboto', sans-serif" }}>
+            <Link to="/" style={{ color: '#6c757d', textDecoration: 'none', transition: '0.3s' }}>Home</Link> 
+            <span style={{ fontSize: '12px' }}>&gt;</span>
+            <Link to="/blogs" style={{ color: '#6c757d', textDecoration: 'none', transition: '0.3s' }}>Blog</Link> 
+            <span style={{ fontSize: '12px' }}>&gt;</span>
+            <span style={{ color: '#6c757d' }}>Blog 04</span>
           </div>
         </div>
       </section>
