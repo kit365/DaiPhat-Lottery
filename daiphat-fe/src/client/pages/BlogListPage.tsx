@@ -1,263 +1,178 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import '../../styles/poklotto-blog.css';
 import { Header } from '../components/layout/header';
+import { BlogCategoryWidget, BlogFeaturedWidget } from '../components/blog/BlogSidebar';
 
 export const BlogListPage = () => {
   useEffect(() => {
-    // Inject Fonts and Icons
-    const fontAwesome = document.createElement('link');
-    fontAwesome.rel = 'stylesheet';
-    fontAwesome.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
-    document.head.appendChild(fontAwesome);
-
-    const googleFont = document.createElement('link');
-    googleFont.rel = 'stylesheet';
-    googleFont.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap';
-    document.head.appendChild(googleFont);
-
-    return () => {
-      document.head.removeChild(fontAwesome);
-      document.head.removeChild(googleFont);
-    };
+    window.scrollTo(0, 0);
   }, []);
 
   return (
-    <div className="poklotto-full-page">
+    <div className="min-h-screen bg-[#F8F9FA] font-['Inter',sans-serif] pb-20">
       <Header />
-      {/* breadcrumb begin */}
-      <section 
-        className="breadcrumb-pok" 
-        style={{ 
-          background: 'url(https://i.imgur.com/86RRLK9.png) center center / cover no-repeat',
-          textAlign: 'left',
-          padding: '160px 0 100px', // Thêm padding-top để ko bị Header đè lên
-          color: '#2A3042'
-        }}
-      >
-        <div className="container" style={{ position: 'relative', zIndex: 1, paddingLeft: '30px' }}>
-          <h2 style={{ fontSize: '56px', fontWeight: 800, marginBottom: '20px', fontFamily: "'Roboto', sans-serif", color: '#2C3038' }}>Blog 04</h2>
-          <div style={{ fontSize: '15px', color: '#6c757d', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: "'Roboto', sans-serif" }}>
-            <Link to="/" style={{ color: '#6c757d', textDecoration: 'none', transition: '0.3s' }}>Home</Link> 
-            <span style={{ fontSize: '12px' }}>&gt;</span>
-            <Link to="/blogs" style={{ color: '#6c757d', textDecoration: 'none', transition: '0.3s' }}>Blog</Link> 
-            <span style={{ fontSize: '12px' }}>&gt;</span>
-            <span style={{ color: '#6c757d' }}>Blog 04</span>
-          </div>
-        </div>
-      </section>
 
-      {/* blog posts begin */}
-      <section className="blog-posts">
-        <div className="container">
-          <div className="row">
-            
-            <div className="col-xl-8">
-              <div className="row">
-                {/* 1 */}
-                <div className="col-xl-12">
-                  <div className="single-blog">
-                    <div className="part-img"><img src="/assets/img/blog/blog-post-1.jpg" alt="" /></div>
-                    <div className="part-text">
-                      <span className="post-category">euro jackpot</span>
-                      <h3 className="blog-post-title"><Link to="#">Even more and setted see.</Link></h3>
-                      <p>In it in more its bad got what's the based they world the on small where them. Had the equally were so a in sign it like into the kind the found been themselves go.</p>
-                      <div className="post-info-stats">
-                        <div className="post-creator">
-                          <div className="creator-pic"><img src="/assets/img/blog/user-1.jpg" alt="" /></div>
-                          <span className="creator-name">Sierra Guzman</span>
-                        </div>
-                        <span className="posting-time">3 days ago</span>
-                      </div>
+      <main className="pt-28">
+        <div className="max-w-[1440px] mx-auto px-4 lg:px-6">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-[14px] text-[#637381] mb-6">
+            <Link to="/" className="hover:text-[#BA0000] transition-colors">Trang chủ</Link>
+            <span className="text-[12px]">&gt;</span>
+            <span className="text-[#212B36] font-medium">Tin tức</span>
+          </div>
+
+          {/* Page Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <h1 className="text-[32px] font-bold text-[#212B36] m-0">Tin tức & Kinh nghiệm</h1>
+            <div className="relative w-full md:w-[320px]">
+              <input
+                type="text"
+                placeholder="Tìm kiếm tin tức..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#E5E8EB] rounded-lg text-[14px] outline-none focus:border-[#BA0000] transition-colors"
+              />
+              <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-[#919EAB]"></i>
+            </div>
+          </div>
+
+          {/* Categories Filter */}
+          <div className="flex flex-wrap gap-3 mb-8">
+            <button className="flex items-center gap-2 px-3 py-2 bg-[#FFF4F4] border border-[#BA0000] text-[#BA0000] rounded-lg text-[14px] font-semibold transition-colors">
+              <i className="fa-solid fa-border-all"></i> Tất cả
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E5E8EB] text-[#454F5B] rounded-lg text-[14px] font-medium hover:border-[#BA0000] hover:text-[#BA0000] transition-colors">
+              <i className="fa-solid fa-chart-simple text-[#919EAB]"></i> Kết quả & Thống kê
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E5E8EB] text-[#454F5B] rounded-lg text-[14px] font-medium hover:border-[#BA0000] hover:text-[#BA0000] transition-colors">
+              <i className="fa-solid fa-lightbulb text-[#919EAB]"></i> Kinh nghiệm chơi số
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E5E8EB] text-[#454F5B] rounded-lg text-[14px] font-medium hover:border-[#BA0000] hover:text-[#BA0000] transition-colors">
+              <i className="fa-solid fa-calendar-check text-[#919EAB]"></i> Sự kiện & Khuyến mãi
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E5E8EB] text-[#454F5B] rounded-lg text-[14px] font-medium hover:border-[#BA0000] hover:text-[#BA0000] transition-colors">
+              <i className="fa-regular fa-newspaper text-[#919EAB]"></i> Tin tức Đại Phát
+            </button>
+          </div>
+
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Left Content (Wider) */}
+            <div className="flex-1 min-w-0">
+              {/* Featured Article */}
+              <div className="flex flex-col md:flex-row bg-white rounded-xl overflow-hidden shadow-[0_4px_24px_rgb(0,0,0,0.04)] mb-6">
+                <div className="w-full md:w-[50%] h-[240px] md:h-[300px] shrink-0">
+                  <img src="/assets/img/blog/blog-post-1.jpg" alt="Kết quả xổ số" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 p-6 flex flex-col justify-center">
+                  <span className="inline-block px-3 py-1 bg-[#FFF4F4] text-[#BA0000] text-[12px] font-bold rounded-md mb-4 w-fit">
+                    KẾT QUẢ & THỐNG KÊ
+                  </span>
+                  <h2 className="text-[22px] md:text-[24px] font-bold text-[#212B36] leading-[1.3] mb-4">
+                    <Link to="#" className="hover:text-[#BA0000] transition-colors">Kết quả xổ số hôm nay 09/05/2025 – Kiên Giang 2K2</Link>
+                  </h2>
+                  <p className="text-[15px] text-[#637381] leading-relaxed mb-6">
+                    Cập nhật kết quả xổ số Kiên Giang 2K2 hôm nay 09/05/2025 nhanh chóng, chính xác nhất.
+                  </p>
+                  <div className="flex items-center gap-6 text-[13px] text-[#919EAB]">
+                    <span className="flex items-center gap-1.5"><i className="fa-regular fa-clock"></i> 09/05/2025</span>
+                    <span className="flex items-center gap-1.5"><i className="fa-regular fa-eye"></i> 12.458 lượt xem</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Normal Articles List */}
+              <div className="flex flex-col gap-5">
+                {/* Item 1 */}
+                <div className="flex flex-col sm:flex-row bg-white rounded-xl overflow-hidden shadow-[0_2px_12px_rgb(0,0,0,0.03)] hover:shadow-[0_4px_20px_rgb(0,0,0,0.06)] transition-shadow">
+                  <div className="w-full sm:w-[325px] h-[160px] shrink-0 p-3">
+                    <img src="/assets/img/blog/blog-post-2.jpg" alt="Thống kê" className="w-full h-full object-cover rounded-lg" />
+                  </div>
+                  <div className="flex-1 p-5 sm:pl-2 flex flex-col justify-center">
+                    <span className="inline-block px-2.5 py-1 bg-[#F0F5FF] text-[#1890FF] text-[11px] font-bold rounded mb-2.5 w-fit uppercase">
+                      Kết quả & Thống kê
+                    </span>
+                    <h3 className="text-[18px] font-bold text-[#212B36] leading-[1.4] mb-2">
+                      <Link to="#" className="hover:text-[#BA0000] transition-colors">Thống kê và phân tích kết quả xổ số Kiên Giang 30 ngày gần đây</Link>
+                    </h3>
+                    <p className="text-[14px] text-[#637381] leading-relaxed mb-4 line-clamp-2">
+                      Phân tích tần suất xuất hiện các cặp số, bộ số và đặc biệt trong 30 ngày qua để giúp bạn tham khảo tốt hơn.
+                    </p>
+                    <div className="flex items-center gap-5 text-[13px] text-[#919EAB] mt-auto">
+                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-clock"></i> 08/05/2025</span>
+                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-eye"></i> 8.752 lượt xem</span>
                     </div>
                   </div>
                 </div>
-                {/* 2 */}
-                <div className="col-xl-12">
-                  <div className="single-blog right-sided-img">
-                    <div className="part-img"><img src="/assets/img/blog/blog-post-3.jpg" alt="" /></div>
-                    <div className="part-text">
-                      <span className="post-category">mega millions</span>
-                      <h3 className="blog-post-title"><Link to="#">Began a need detailed free.</Link></h3>
-                      <p>In it in more its bad got what's the based they world the on small where them. Had the equally were so a in sign it like into the kind the found been themselves go.</p>
-                      <div className="post-info-stats">
-                        <div className="post-creator">
-                          <div className="creator-pic"><img src="/assets/img/blog/user-3.jpg" alt="" /></div>
-                          <span className="creator-name">Peter Bowen</span>
-                        </div>
-                        <span className="posting-time">2 days ago</span>
-                      </div>
+
+                {/* Item 2 */}
+                <div className="flex flex-col sm:flex-row bg-white rounded-xl overflow-hidden shadow-[0_2px_12px_rgb(0,0,0,0.03)] hover:shadow-[0_4px_20px_rgb(0,0,0,0.06)] transition-shadow">
+                  <div className="w-full sm:w-[325px] h-[160px] shrink-0 p-3">
+                    <img src="/assets/img/blog/blog-post-3.jpg" alt="Kinh nghiệm" className="w-full h-full object-cover rounded-lg" />
+                  </div>
+                  <div className="flex-1 p-5 sm:pl-2 flex flex-col justify-center">
+                    <span className="inline-block px-2.5 py-1 bg-[#FFF7E6] text-[#FA8C16] text-[11px] font-bold rounded mb-2.5 w-fit uppercase">
+                      Kinh nghiệm chơi số
+                    </span>
+                    <h3 className="text-[18px] font-bold text-[#212B36] leading-[1.4] mb-2">
+                      <Link to="#" className="hover:text-[#BA0000] transition-colors">Bí quyết chọn số may mắn theo ngày sinh hiệu quả</Link>
+                    </h3>
+                    <p className="text-[14px] text-[#637381] leading-relaxed mb-4 line-clamp-2">
+                      Hướng dẫn cách chọn số theo ngày sinh, mệnh ngũ hành giúp tăng cơ hội trúng thưởng.
+                    </p>
+                    <div className="flex items-center gap-5 text-[13px] text-[#919EAB] mt-auto">
+                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-clock"></i> 07/05/2025</span>
+                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-eye"></i> 6.341 lượt xem</span>
                     </div>
                   </div>
                 </div>
-                {/* 3 */}
-                <div className="col-xl-12">
-                  <div className="single-blog">
-                    <div className="part-img"><img src="/assets/img/blog/blog-post-4.jpg" alt="" /></div>
-                    <div className="part-text">
-                      <span className="post-category">online lotto</span>
-                      <h3 className="blog-post-title"><Link to="#">Similar empire for carpeting.</Link></h3>
-                      <p>In it in more its bad got what's the based they world the on small where them. Had the equally were so a in sign it like into the kind the found been themselves go.</p>
-                      <div className="post-info-stats">
-                        <div className="post-creator">
-                          <div className="creator-pic"><img src="/assets/img/blog/user-4.jpg" alt="" /></div>
-                          <span className="creator-name">Amelie Flynn</span>
-                        </div>
-                        <span className="posting-time">1 months ago</span>
-                      </div>
+
+                {/* Item 3 */}
+                <div className="flex flex-col sm:flex-row bg-white rounded-xl overflow-hidden shadow-[0_2px_12px_rgb(0,0,0,0.03)] hover:shadow-[0_4px_20px_rgb(0,0,0,0.06)] transition-shadow">
+                  <div className="w-full sm:w-[325px] h-[160px] shrink-0 p-3">
+                    <img src="/assets/img/blog/blog-post-4.jpg" alt="Khuyến mãi" className="w-full h-full object-cover rounded-lg" />
+                  </div>
+                  <div className="flex-1 p-5 sm:pl-2 flex flex-col justify-center">
+                    <span className="inline-block px-2.5 py-1 bg-[#F9F0FF] text-[#722ED1] text-[11px] font-bold rounded mb-2.5 w-fit uppercase">
+                      Sự kiện & Khuyến mãi
+                    </span>
+                    <h3 className="text-[18px] font-bold text-[#212B36] leading-[1.4] mb-2">
+                      <Link to="#" className="hover:text-[#BA0000] transition-colors">Khuyến mãi đặc biệt tháng 5 – Mua vé ngay, trúng lớn mỗi ngày!</Link>
+                    </h3>
+                    <p className="text-[14px] text-[#637381] leading-relaxed mb-4 line-clamp-2">
+                      Nhiều chương trình khuyến mãi hấp dẫn đang chờ bạn. Mua vé dễ dàng, nhận ngay cơ hội trúng thưởng giá trị.
+                    </p>
+                    <div className="flex items-center gap-5 text-[13px] text-[#919EAB] mt-auto">
+                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-clock"></i> 06/05/2025</span>
+                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-eye"></i> 5.120 lượt xem</span>
                     </div>
                   </div>
                 </div>
-                {/* 4 */}
-                <div className="col-xl-12">
-                  <div className="single-blog right-sided-img">
-                    <div className="part-img"><img src="/assets/img/blog/blog-post-6.jpg" alt="" /></div>
-                    <div className="part-text">
-                      <span className="post-category">Us powerball</span>
-                      <h3 className="blog-post-title"><Link to="#">Heaven with as best academic.</Link></h3>
-                      <p>In it in more its bad got what's the based they world the on small where them. Had the equally were so a in sign it like into the kind the found been themselves go.</p>
-                      <div className="post-info-stats">
-                        <div className="post-creator">
-                          <div className="creator-pic"><img src="/assets/img/blog/user-6.jpg" alt="" /></div>
-                          <span className="creator-name">Mason Knight</span>
-                        </div>
-                        <span className="posting-time">2 years ago</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              </div>
+
+              {/* Pagination */}
+              <div className="flex justify-center items-center gap-2 mt-10">
+                <button className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#BA0000] hover:border-[#BA0000] transition-colors">
+                  <i className="fa-solid fa-chevron-left text-[12px]"></i>
+                </button>
+                <button className="w-9 h-9 flex items-center justify-center bg-[#FFF4F4] border border-[#BA0000] rounded-lg text-[#BA0000] font-semibold">1</button>
+                <button className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#BA0000] hover:border-[#BA0000] transition-colors font-medium">2</button>
+                <button className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#BA0000] hover:border-[#BA0000] transition-colors font-medium">3</button>
+                <span className="text-[#919EAB] px-1">...</span>
+                <button className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#BA0000] hover:border-[#BA0000] transition-colors font-medium">10</button>
+                <button className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#BA0000] hover:border-[#BA0000] transition-colors">
+                  <i className="fa-solid fa-chevron-right text-[12px]"></i>
+                </button>
               </div>
             </div>
 
-            <div className="col-xl-4">
-              <div className="row">
-                {/* 5 */}
-                <div className="col-xl-12">
-                  <div className="single-blog vertical-style">
-                    <div className="part-img"><img src="/assets/img/blog/blog-post-2.jpg" alt="" /></div>
-                    <div className="part-text">
-                      <span className="post-category">super enalotto</span>
-                      <h3 className="blog-post-title"><Link to="#">Titled concept box made to.</Link></h3>
-                      <p>In it in more its bad got what's the based they world the on small where them. Had the equally were so a in sign it like into the kind the found been themselves go.</p>
-                      <div className="post-info-stats">
-                        <div className="post-creator">
-                          <div className="creator-pic"><img src="/assets/img/blog/user-2.jpg" alt="" /></div>
-                          <span className="creator-name">Henry Butler</span>
-                        </div>
-                        <span className="posting-time">1 days ago</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* 6 */}
-                <div className="col-xl-12">
-                  <div className="single-blog vertical-style">
-                    <div className="part-img"><img src="/assets/img/blog/blog-post-5.jpg" alt="" /></div>
-                    <div className="part-text">
-                      <span className="post-category">premier bet</span>
-                      <h3 className="blog-post-title"><Link to="#">Entered hard couple seman.</Link></h3>
-                      <p>In it in more its bad got what's the based they world the on small where them. Had the equally were so a in sign it like into the kind the found been themselves go.</p>
-                      <div className="post-info-stats">
-                        <div className="post-creator">
-                          <div className="creator-pic"><img src="/assets/img/blog/user-5.jpg" alt="" /></div>
-                          <span className="creator-name">Natasha Rowe</span>
-                        </div>
-                        <span className="posting-time">1 week ago</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <div className="pok-pagination">
-            <ul>
-              <li><Link to="#"><i className="fa-solid fa-angles-left"></i></Link></li>
-              <li><Link to="#" className="active">01</Link></li>
-              <li><Link to="#">02</Link></li>
-              <li><Link to="#">03</Link></li>
-              <li className="dotted">...</li>
-              <li><Link to="#">15</Link></li>
-              <li><Link to="#">16</Link></li>
-              <li><Link to="#"><i className="fa-solid fa-angles-right"></i></Link></li>
-            </ul>
-          </div>
-
-          {/* Sidebar Section */}
-          <div className="pok-sidebar">
-            <div className="row">
-              <div className="col-xl-4 col-lg-12">
-                <div className="single-element recent-postss">
-                  <h4 className="title">Recent posted</h4>
-                  <div className="recent-posts">
-                    <div className="single-recent-post">
-                      <div className="part-img"><img src="/assets/img/blog/recent-post-1.jpg" alt="" /></div>
-                      <div className="part-text">
-                        <h5 className="post-title"><Link to="#">Even more and setted see.</Link></h5>
-                        <div className="post-stats">
-                          <span className="text">by <Link to="#" className="posted-by">Sierra Guzman</Link></span>
-                          <span className="text">in <Link to="#" className="category-by">MegaMillions</Link></span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="single-recent-post">
-                      <div className="part-img"><img src="/assets/img/blog/recent-post-2.jpg" alt="" /></div>
-                      <div className="part-text">
-                        <h5 className="post-title"><Link to="#">Began a need detailed free.</Link></h5>
-                        <div className="post-stats">
-                          <span className="text">by <Link to="#" className="posted-by">Peter Bowen</Link></span>
-                          <span className="text">in <Link to="#" className="category-by">Euro Jackpot</Link></span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="col-xl-8 col-lg-12">
-                <div className="row">
-                  <div className="col-xl-6 col-lg-6">
-                    <div className="single-element posts-category">
-                      <h4 className="title">posts category</h4>
-                      <ul className="category-list">
-                        <li><Link to="#"><span className="cl-cat">Super enalotto</span><span className="q-numb">(02)</span></Link></li>
-                        <li><Link to="#"><span className="cl-cat">us powerball</span><span className="q-numb">(23)</span></Link></li>
-                        <li><Link to="#"><span className="cl-cat">euro Millions</span><span className="q-numb">(16)</span></Link></li>
-                        <li><Link to="#"><span className="cl-cat">Premier Bet</span><span className="q-numb">(24)</span></Link></li>
-                      </ul>
-                    </div>
-                  </div>
-                  <div className="col-xl-6 col-lg-6">
-                    <div className="single-element tag-lines">
-                      <h4 className="title">posts Tagline</h4>
-                      <div className="tag-words">
-                        <Link to="#" className="single-tag">lottery</Link>
-                        <Link to="#" className="single-tag">jackpot</Link>
-                        <Link to="#" className="single-tag">lotto</Link>
-                        <Link to="#" className="single-tag">euro millions</Link>
-                        <Link to="#" className="single-tag">mega millions</Link>
-                        <Link to="#" className="single-tag">powerball</Link>
-                        <Link to="#" className="single-tag">giveway</Link>
-                        <Link to="#" className="single-tag">lucky</Link>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {/* Right Content (Sidebar - Narrower) */}
+            <div className="w-full lg:w-[320px] shrink-0">
+              <BlogCategoryWidget activeCategoryName="Tất cả tin tức" />
+              <BlogFeaturedWidget />
             </div>
           </div>
         </div>
-      </section>
-
-      {/* footer */}
-      <footer className="footer">
-        <div className="container">
-          <div className="footer-logo"><img src="/assets/img/logo.png" alt="" /></div>
-          <p>Lottery players can play Virginia Lottery games online from anywhere in Virginia on a phone, tablet or computer.</p>
-          <p style={{marginTop:'40px', fontSize:'14px', opacity:0.5}}>copyright © 2022. all right reserved by PokLotto</p>
-        </div>
-      </footer>
+      </main>
     </div>
   );
 };
+
+
