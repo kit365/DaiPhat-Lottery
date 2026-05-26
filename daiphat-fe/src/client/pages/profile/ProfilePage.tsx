@@ -1,29 +1,28 @@
-import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { useLocation, useNavigate, Link, Outlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { User as UserIcon, MapPin, Shield, Gift, ChevronRight } from "lucide-react";
 import { Header } from "../../../client/components/layout/header";
 import { useAuth } from "../../hooks/useAuth";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { ProfileInfoTab } from "./tabs/ProfileInfoTab";
-import { AddressTab } from "./tabs/AddressTab";
-import { SecurityTab } from "./tabs/SecurityTab";
-import { PointsTab } from "./tabs/PointsTab";
 
-type TabId = 'profile' | 'address' | 'security' | 'points';
+type TabId = 'overview' | 'info' | 'address' | 'tickets' | 'history' | 'notifications' | 'settings';
 
 interface TabConfig {
     id: TabId;
+    path: string;
     label: string;
-    icon: React.ReactNode;
-    component: React.FC;
+    icon: string;
+    badge?: number;
 }
 
 const TABS: TabConfig[] = [
-    { id: 'profile', label: 'Hồ sơ cá nhân', icon: <UserIcon size={20} />, component: ProfileInfoTab },
-    { id: 'address', label: 'Sổ địa chỉ', icon: <MapPin size={20} />, component: AddressTab },
-    { id: 'security', label: 'Bảo mật', icon: <Shield size={20} />, component: SecurityTab },
-    { id: 'points', label: 'Điểm thưởng', icon: <Gift size={20} />, component: PointsTab },
+    { id: 'overview', path: '/profile/overview', label: 'Tổng quan tài khoản', icon: 'fa-regular fa-calendar-minus' },
+    { id: 'info', path: '/profile/info', label: 'Thông tin tài khoản', icon: 'fa-regular fa-user' },
+    { id: 'address', path: '/profile/address', label: 'Địa chỉ giao hàng', icon: 'fa-solid fa-location-dot' },
+    { id: 'tickets', path: '/profile/tickets', label: 'Vé của tôi', icon: 'fa-solid fa-ticket' },
+    { id: 'history', path: '/profile/history', label: 'Lịch sử giao dịch', icon: 'fa-solid fa-clock-rotate-left' },
+    { id: 'notifications', path: '/profile/notifications', label: 'Thông báo', icon: 'fa-regular fa-bell', badge: 3 },
+    { id: 'settings', path: '/profile/settings', label: 'Cài đặt', icon: 'fa-solid fa-gear' },
 ];
 
 export const ProfilePage = () => {
@@ -32,9 +31,6 @@ export const ProfilePage = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // Default to 'profile' unless hash is provided
-    const [activeTab, setActiveTab] = useState<TabId>('profile');
-
     useEffect(() => {
         if (!token && !isUserLoading) {
             navigate('/');
@@ -42,90 +38,122 @@ export const ProfilePage = () => {
         }
     }, [token, isUserLoading, navigate, openLoginModal]);
 
-    useEffect(() => {
-        const hash = location.hash.replace('#', '') as TabId;
-        if (TABS.some(t => t.id === hash)) {
-            setActiveTab(hash);
-        }
-    }, [location]);
+    if (isUserLoading || !user) return null;
 
-    const handleTabChange = (tabId: TabId) => {
-        setActiveTab(tabId);
-        window.history.replaceState(null, '', `#${tabId}`);
-    };
-
-    if (isUserLoading || !user) return null; // Let the layout/guard handle loading
-
-    const ActiveComponent = TABS.find(t => t.id === activeTab)?.component || ProfileInfoTab;
+    // Find the active tab based on the current pathname
+    const activeTabObj = TABS.find(t => location.pathname.startsWith(t.path)) || TABS[1];
 
     return (
-        <div className="min-h-screen bg-[#F4F6F8] font-client-main pb-20 lg:pb-0 text-client-ink">
+        <div className="min-h-screen bg-[#F8F9FA] font-['Inter',sans-serif] pb-20 lg:pb-0 text-[#212B36]">
             <Header />
             
-            <main className="max-w-[1240px] mx-auto px-5 lg:px-10 pt-28 lg:pt-32 pb-12">
-                {/* Header Banner */}
-                <div className="relative mb-8 rounded-2xl overflow-hidden bg-gradient-to-r from-[#FF6262] to-[#102937] px-8 py-10 shadow-lg flex items-center min-h-[160px]">
-                    <div className="absolute inset-0 opacity-[0.03] bg-[url('data:image/svg+xml,%3Csvg_viewBox=%270_0_200_200%27_xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter_id=%27n%27%3E%3CfeTurbulence_type=%27fractalNoise%27_baseFrequency=%27.65%27_numOctaves=%273%27_stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect_width=%27100%25%27_height=%27100%25%27_filter=%27url(%23n)%27/%3E%3C/svg%3E')]" aria-hidden="true" />
-                    <div className="relative z-10 flex items-center gap-6">
-                        <div className="w-20 h-20 rounded-full border-4 border-white/20 shadow-xl overflow-hidden bg-white/10 backdrop-blur-md flex items-center justify-center text-white">
-                            {user.avatar || user.avatarUrl ? (
-                                <img src={user.avatar || user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                            ) : (
-                                <UserIcon size={32} />
-                            )}
-                        </div>
-                        <div className="text-white">
-                            <h1 className="text-3xl font-extrabold tracking-tight">Xin chào, {user.fullName || user.username}</h1>
-                            <p className="opacity-80 mt-1 max-w-lg">Quản lý thông tin cá nhân, địa chỉ nhận giải và thẻ thành viên của bạn tại đây.</p>
-                        </div>
-                    </div>
-                </div>
-
+            <main className="max-w-[1440px] mx-auto px-4 lg:px-6 pt-28 pb-12">
+                
                 {/* Main Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 items-start">
+                <div className="flex flex-col lg:flex-row gap-6 items-start">
                     
-                    {/* Sidebar Tabs (Desktop) / Horizontal Tabs (Mobile) */}
-                    <div className="lg:sticky lg:top-28 bg-white rounded-2xl shadow-sm border border-black/5 overflow-hidden">
-                        <nav className="flex lg:flex-col overflow-x-auto lg:overflow-visible hide-scrollbar relative">
-                            {TABS.map((tab) => {
-                                const isActive = activeTab === tab.id;
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => handleTabChange(tab.id)}
-                                        className={`flex items-center gap-4 px-6 py-4.5 whitespace-nowrap transition-all outline-none cursor-pointer text-left relative
-                                            ${isActive ? 'text-[#FF6262] font-bold bg-[#FF6262]/5' : 'text-[#505050] font-medium hover:bg-slate-50 hover:text-[#102937]'}
-                                        `}
-                                    >
-                                        <span className={`transition-colors ${isActive ? 'text-[#FF6262]' : 'text-slate-400'}`}>
-                                            {tab.icon}
-                                        </span>
-                                        <span className="flex-1 text-[15px]">{tab.label}</span>
-                                        <ChevronRight size={16} className={`hidden lg:block opacity-0 -translate-x-2 transition-all ${isActive ? 'opacity-100 translate-x-0 text-[#FF6262]' : 'group-hover:opacity-100'}`} />
-                                        
-                                        {/* Mobile bottom indicator */}
-                                        {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FF6262] lg:hidden"></div>}
-                                        {/* Desktop left indicator */}
-                                        {isActive && <div className="hidden lg:block absolute left-0 top-0 bottom-0 w-1 bg-[#FF6262]"></div>}
-                                    </button>
-                                );
-                            })}
-                        </nav>
+                    {/* Left Sidebar */}
+                    <div className="w-full lg:w-[280px] shrink-0 flex flex-col gap-6">
+                        
+                        {/* Profile Summary Card */}
+                        <div className="bg-white rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-[#E5E8EB] p-6 flex flex-col items-center justify-center text-center">
+                            <div className="w-[88px] h-[88px] rounded-full overflow-hidden border-2 border-white shadow-sm mb-4 bg-slate-100 flex items-center justify-center text-[#919EAB]">
+                                {user.avatar || user.avatarUrl ? (
+                                    <img src={user.avatar || user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <i className="fa-solid fa-user text-4xl"></i>
+                                )}
+                            </div>
+                            <h2 className="text-[17px] font-bold text-[#212B36] mb-1">{user.fullName || user.username}</h2>
+                            <p className="text-[14px] text-[#637381]">{user.phone || '0901 234 567'}</p>
+                        </div>
+
+                        {/* Navigation Menu */}
+                        <div className="bg-white rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-[#E5E8EB] p-3">
+                            <nav className="flex flex-col gap-1">
+                                {TABS.map((tab) => {
+                                    const isActive = location.pathname.startsWith(tab.path);
+                                    return (
+                                        <Link
+                                            key={tab.id}
+                                            to={tab.path}
+                                            className={`flex items-center justify-between px-4 py-3 rounded-lg text-[14px] font-medium transition-colors outline-none cursor-pointer text-left
+                                                ${isActive ? 'bg-[#FFF4F4] text-[#BA0000]' : 'text-[#454F5B] hover:bg-[#FAFBFC] hover:text-[#212B36]'}
+                                            `}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <i className={`${tab.icon} w-5 text-center ${isActive ? 'text-[#BA0000]' : 'text-[#919EAB]'}`}></i>
+                                                <span>{tab.label}</span>
+                                            </div>
+                                            {tab.badge && (
+                                                <span className="bg-[#BA0000] text-white text-[11px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                                                    {tab.badge}
+                                                </span>
+                                            )}
+                                            {isActive && (
+                                                <div className="absolute left-0 w-1 h-8 bg-[#BA0000] rounded-r-md hidden"></div>
+                                            )}
+                                        </Link>
+                                    );
+                                })}
+                            </nav>
+                        </div>
+
+                        {/* Promo Banner */}
+                        <div className="bg-[#BA0000] rounded-xl shadow-lg p-5 relative overflow-hidden text-white flex flex-col justify-center min-h-[160px] group cursor-pointer">
+                            {/* Decorative background elements */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400 rounded-full blur-3xl opacity-20 transform translate-x-10 -translate-y-10"></div>
+                            
+                            <div className="relative z-10 w-2/3">
+                                <h3 className="text-[17px] font-extrabold uppercase leading-tight mb-3 text-yellow-300">Săn lộc vàng<br/>Trúng lớn!</h3>
+                                <button className="bg-yellow-400 text-red-900 text-[12px] font-bold px-4 py-1.5 rounded-md shadow-sm hover:bg-yellow-300 transition-colors">
+                                    Mua vé ngay
+                                </button>
+                            </div>
+                            
+                            {/* God of wealth image placeholder */}
+                            <div className="absolute bottom-0 right-0 w-24 h-24 transform translate-x-2 translate-y-2 group-hover:scale-110 transition-transform duration-300">
+                                <img src="/assets/img/blog/blog-post-2.jpg" className="w-full h-full object-cover rounded-tl-full opacity-50 mix-blend-luminosity" alt="Promo" />
+                            </div>
+                            {/* Lottery balls placeholders */}
+                            <div className="absolute bottom-2 left-2 w-6 h-6 bg-white rounded-full text-black text-[10px] font-bold flex items-center justify-center shadow-md">8</div>
+                            <div className="absolute bottom-2 left-10 w-6 h-6 bg-white rounded-full text-black text-[10px] font-bold flex items-center justify-center shadow-md">8</div>
+                            <div className="absolute bottom-2 right-12 w-6 h-6 bg-white rounded-full text-black text-[10px] font-bold flex items-center justify-center shadow-md">3</div>
+                        </div>
+
                     </div>
 
-                    {/* Content Area */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-6 lg:p-10 min-h-[500px]">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={activeTab}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                <ActiveComponent />
-                            </motion.div>
-                        </AnimatePresence>
+                    {/* Main Content Area */}
+                    <div className="flex-1 min-w-0 flex flex-col gap-6">
+                        
+                        {/* Breadcrumb */}
+                        <div className="flex items-center gap-2 text-[14px] text-[#637381]">
+                            <Link to="/" className="hover:text-[#BA0000] transition-colors">Trang chủ</Link>
+                            <span className="text-[12px]">&gt;</span>
+                            <span className="text-[#212B36] font-medium">{activeTabObj.label}</span>
+                        </div>
+
+                        {/* Title & Description */}
+                        <div>
+                            <h1 className="text-[28px] font-bold text-[#212B36] mb-1">{activeTabObj.label}</h1>
+                            <p className="text-[#637381] text-[15px]">Quản lý thông tin cá nhân và tài khoản của bạn</p>
+                        </div>
+
+                        {/* Dynamic Content */}
+                        <div className="mt-2">
+                            <AnimatePresence mode="wait">
+                                <motion.div
+                                    key={location.pathname}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                >
+                                    <Outlet />
+                                </motion.div>
+                            </AnimatePresence>
+                        </div>
+
                     </div>
 
                 </div>

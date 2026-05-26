@@ -7,9 +7,16 @@ import { AdminRoutes, AdminAuthRoutes, CommonRoutes, ProfileSetupPage, OAuthCall
 import { PrivateRoute } from './client/pages/private.route';
 import { ProfilePage as ClientProfilePage } from './client/pages/profile/ProfilePage';
 import { ProfileDashboardPage } from './client/pages/profile/ProfileDashboardPage';
+import { ProfileInfoTab } from './client/pages/profile/tabs/ProfileInfoTab';
+import { AddressTab } from './client/pages/profile/tabs/AddressTab';
+import { CreateAddressTab } from './client/pages/profile/tabs/CreateAddressTab';
+import { EditAddressTab } from './client/pages/profile/tabs/EditAddressTab';
+import { SecurityTab } from './client/pages/profile/tabs/SecurityTab';
 
 import { BlogListPage } from './client/pages/BlogListPage';
 import { BlogDetailPage } from './client/pages/BlogDetailPage';
+import { CartPage } from './client/pages/cart/CartPage';
+import { CheckoutPage } from './client/pages/cart/CheckoutPage';
 
 import { ROUTES } from './admin/constants/routes';
 import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
@@ -53,8 +60,23 @@ function App() {
             <Route key={path} path={path} element={element} />
           ))}
 
+          <Route path="/cart" element={<PrivateRoute />}>
+            <Route index element={<CartPage />} />
+          </Route>
+
+          <Route path="/checkout" element={<PrivateRoute />}>
+            <Route index element={<CheckoutPage />} />
+          </Route>
+
           <Route path="/profile" element={<PrivateRoute />}>
-            <Route index element={<ClientProfilePage />} />
+            <Route element={<ClientProfilePage />}>
+              <Route index element={<Navigate to="info" replace />} />
+              <Route path="info" element={<ProfileInfoTab />} />
+              <Route path="address" element={<AddressTab />} />
+              <Route path="address/create" element={<CreateAddressTab />} />
+              <Route path="address/edit/:id" element={<EditAddressTab />} />
+              <Route path="settings" element={<SecurityTab />} />
+            </Route>
           </Route>
 
           <Route path="/profile-v2" element={<PrivateRoute />}>
