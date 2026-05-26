@@ -19,7 +19,7 @@ const navItems = [
   { label: "Kết quả", to: "#", icon: Crosshair },
   { label: "Vé của tôi", to: "#", icon: Ticket },
   { label: "Lịch mở thưởng", to: "#", icon: CalendarDays },
-  { label: "Bài viết", to: "#", icon: BookOpen },
+  { label: "Bài viết", to: "/blogs", icon: BookOpen },
 ];
 
 export const Header = () => {
@@ -133,23 +133,13 @@ export const Header = () => {
               </div>
             ) : user ? (
               <div className="flex items-center gap-6">
-                {/* Balance */}
-                <div className="flex items-center gap-3 bg-[#FFF4F4] py-1.5 px-3.5 rounded-2xl cursor-pointer hover:bg-[#ffeaea] transition-colors">
-                  <div className="text-[#BA0000]">
-                    <Wallet size={20} strokeWidth={2.5} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[11px] text-[#BA0000]/70 font-medium leading-none mb-0.5 whitespace-nowrap">Số dư</span>
-                    <div className="flex items-center gap-1 text-[#BA0000] font-bold text-[14px] leading-none whitespace-nowrap">
-                      1.250.000 đ
-                      <ChevronDown size={14} strokeWidth={3} />
-                    </div>
-                  </div>
-                </div>
+                {/* Balance removed as requested */}
 
-                {/* Icons: Cart & Notifications */}
                 <div className="flex items-center gap-1">
-                  <button className="relative text-[#505050] hover:text-[#BA0000] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer">
+                  <button 
+                    onClick={() => navigate('/cart')}
+                    className="relative text-[#505050] hover:text-[#BA0000] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer"
+                  >
                     <ShoppingCart size={22} strokeWidth={2} />
                     <span className="absolute top-0 right-0 w-4 h-4 bg-[#BA0000] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">2</span>
                   </button>

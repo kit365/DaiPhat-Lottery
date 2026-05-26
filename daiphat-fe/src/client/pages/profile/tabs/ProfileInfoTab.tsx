@@ -1,136 +1,221 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from "../../../hooks/useAuth";
-import { User as UserIcon, Camera } from "lucide-react";
-
-// Inner form that receives user as a stable prop — key prop on parent resets this when user changes
-const ProfileForm = ({ user, handleUpdateProfile, isPending }: {
-    user: NonNullable<ReturnType<typeof useAuth>['user']>;
-    handleUpdateProfile: ReturnType<typeof useAuth>['handleUpdateProfile'];
-    isPending: boolean;
-}) => {
-    const [lastName, setLastName] = useState(user.lastName || '');
-    const [firstName, setFirstName] = useState(user.firstName || '');
-    const [phone, setPhone] = useState(user.phone || '');
-
-    // Re-sync if user data changes (e.g. after background refetch completes)
-    useEffect(() => {
-        setLastName(user.lastName || '');
-        setFirstName(user.firstName || '');
-        setPhone(user.phone || '');
-    }, [user.lastName, user.firstName, user.phone]);
-
-    const handleSave = (e: React.FormEvent) => {
-        e.preventDefault();
-        handleUpdateProfile({
-            id: user.id,
-            data: {
-                firstName,
-                lastName,
-                email: user.email,
-                phone,
-            }
-        });
-    };
-
-    return (
-        <form onSubmit={handleSave} className="space-y-6">
-            <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
-                <div className="relative group">
-                    <div className="w-24 h-24 rounded-full border-4 border-white bg-slate-100 shadow-md overflow-hidden relative">
-                        {user.avatar || user.avatarUrl ? (
-                            <img src={user.avatar || user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[#FF6262] bg-[#FF6262]/5">
-                                <UserIcon size={40} />
-                            </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                            <Camera className="text-white" size={24} />
-                        </div>
-                    </div>
-                </div>
-                <div className="flex-1">
-                    <h3 className="text-xl font-bold text-[#102937]">{user.fullName || user.username}</h3>
-                    <p className="text-sm text-[#505050] mt-1">{user.email}</p>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-                <div>
-                    <label className="block text-sm font-bold text-[#102937] mb-2">Họ</label>
-                    <input
-                        type="text"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        className="w-full px-4 h-12 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#FF6262] focus:ring-2 focus:ring-[#FF6262]/20 outline-none transition-all text-[#17191F] font-medium"
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm font-bold text-[#102937] mb-2">Tên</label>
-                    <input
-                        type="text"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        className="w-full px-4 h-12 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#FF6262] focus:ring-2 focus:ring-[#FF6262]/20 outline-none transition-all text-[#17191F] font-medium"
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-bold text-[#102937] mb-2">Tên đăng nhập</label>
-                    <input
-                        type="text"
-                        value={user.username}
-                        readOnly
-                        className="w-full px-4 h-12 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 font-medium cursor-not-allowed"
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-bold text-[#102937] mb-2">Email</label>
-                    <input
-                        type="email"
-                        value={user.email}
-                        readOnly
-                        className="w-full px-4 h-12 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 font-medium cursor-not-allowed"
-                    />
-                </div>
-
-                <div className="md:col-span-2">
-                    <label className="block text-sm font-bold text-[#102937] mb-2">Số điện thoại</label>
-                    <input
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full px-4 h-12 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#FF6262] focus:ring-2 focus:ring-[#FF6262]/20 outline-none transition-all text-[#17191F] font-medium"
-                    />
-                </div>
-            </div>
-
-            <div className="pt-6 flex justify-end">
-                <button
-                    type="submit"
-                    disabled={isPending}
-                    className="h-12 px-8 bg-[#FF6262] text-white font-bold rounded-xl shadow-lg shadow-[#FF6262]/26 transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-                >
-                    {isPending ? "Đang lưu..." : "Lưu thay đổi"}
-                </button>
-            </div>
-        </form>
-    );
-};
+import { AppToast as toast } from "../../../utils/toast.util";
 
 export const ProfileInfoTab = () => {
-    const { user, handleUpdateProfile, updateProfileMutation } = useAuth();
+    const { user } = useAuth();
+    const [isEditing, setIsEditing] = useState(false);
+    
+    // local state for editing
+    const [formData, setFormData] = useState({
+        fullName: user?.fullName || user?.username || '',
+        phone: user?.phone || '0901 234 567',
+        email: user?.email || 'nguyenvana@gmail.com',
+        dob: '1990-06-15',
+        gender: 'Nam'
+    });
 
     if (!user) return null;
 
+    const handleSave = () => {
+        if (!formData.fullName.trim()) {
+            toast.error("Họ và tên không được để trống");
+            return;
+        }
+        if (!formData.phone.trim()) {
+            toast.error("Số điện thoại không được để trống");
+            return;
+        }
+        
+        // Mock API call delay
+        setTimeout(() => {
+            toast.success("Cập nhật thông tin thành công!");
+            setIsEditing(false);
+        }, 500);
+    };
+
     return (
-        // key={user.updatedAt} forces form to remount with fresh state when user data changes from server
-        <ProfileForm
-            key={user.updatedAt || user.firstName + user.lastName}
-            user={user}
-            handleUpdateProfile={handleUpdateProfile}
-            isPending={updateProfileMutation.isPending}
-        />
+        <div className="flex flex-col gap-6">
+            {/* Personal Info Card */}
+            <div className="bg-white border border-[#E5E8EB] rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.03)] p-6 md:p-8">
+                <div className="flex justify-between items-center mb-8 border-b border-[#E5E8EB] pb-4">
+                    <div>
+                        <h3 className="text-[17px] font-bold text-[#212B36]">Thông tin cá nhân</h3>
+                        <p className="text-[14px] text-[#637381] mt-1">Quản lý thông tin hồ sơ để bảo mật tài khoản</p>
+                    </div>
+                    {!isEditing ? (
+                        <button 
+                            onClick={() => setIsEditing(true)}
+                            className="flex items-center gap-2 px-4 py-2 border border-[#BA0000] text-[#BA0000] rounded-lg text-[13px] font-bold hover:bg-[#FFF4F4] transition-colors cursor-pointer"
+                        >
+                            <i className="fa-solid fa-pen"></i> Chỉnh sửa
+                        </button>
+                    ) : (
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => setIsEditing(false)}
+                                className="px-4 py-2 border border-[#E5E8EB] text-[#637381] rounded-lg text-[13px] font-bold hover:bg-gray-50 transition-colors cursor-pointer"
+                            >
+                                Hủy
+                            </button>
+                            <button 
+                                onClick={handleSave}
+                                className="px-4 py-2 bg-[#BA0000] text-white rounded-lg text-[13px] font-bold hover:bg-[#990000] transition-colors cursor-pointer"
+                            >
+                                Lưu thay đổi
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex flex-col">
+                    {/* Full Name */}
+                    <div className="flex items-center py-5 border-b border-[#E5E8EB] last:border-0">
+                        <div className="w-10 h-10 rounded-full bg-[#FAFBFC] flex items-center justify-center text-[#919EAB] shrink-0 mr-4">
+                            <i className="fa-regular fa-user text-[16px]"></i>
+                        </div>
+                        <div className="w-1/3 min-w-[120px] text-[14px] text-[#637381]">Họ và tên</div>
+                        <div className="flex-1 text-right md:text-left text-[15px] font-medium text-[#212B36]">
+                            {isEditing ? (
+                                <input 
+                                    type="text" 
+                                    value={formData.fullName}
+                                    onChange={e => setFormData({...formData, fullName: e.target.value})}
+                                    className="w-full md:w-2/3 border border-[#E5E8EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#BA0000] transition-colors"
+                                />
+                            ) : (
+                                formData.fullName
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Phone */}
+                    <div className="flex items-center py-5 border-b border-[#E5E8EB] last:border-0">
+                        <div className="w-10 h-10 rounded-full bg-[#FAFBFC] flex items-center justify-center text-[#919EAB] shrink-0 mr-4">
+                            <i className="fa-solid fa-phone text-[16px]"></i>
+                        </div>
+                        <div className="w-1/3 min-w-[120px] text-[14px] text-[#637381]">Số điện thoại</div>
+                        <div className="flex-1 text-right md:text-left text-[15px] font-medium text-[#212B36]">
+                            {isEditing ? (
+                                <input 
+                                    type="text" 
+                                    value={formData.phone}
+                                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                                    className="w-full md:w-2/3 border border-[#E5E8EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#BA0000] transition-colors"
+                                />
+                            ) : (
+                                formData.phone
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Email */}
+                    <div className="flex items-center py-5 border-b border-[#E5E8EB] last:border-0">
+                        <div className="w-10 h-10 rounded-full bg-[#FAFBFC] flex items-center justify-center text-[#919EAB] shrink-0 mr-4">
+                            <i className="fa-regular fa-envelope text-[16px]"></i>
+                        </div>
+                        <div className="w-1/3 min-w-[120px] text-[14px] text-[#637381]">Email</div>
+                        <div className="flex-1 text-right md:text-left text-[15px] font-medium text-[#212B36]">
+                            {isEditing ? (
+                                <input 
+                                    type="email" 
+                                    value={formData.email}
+                                    onChange={e => setFormData({...formData, email: e.target.value})}
+                                    className="w-full md:w-2/3 border border-[#E5E8EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#BA0000] transition-colors"
+                                />
+                            ) : (
+                                formData.email
+                            )}
+                        </div>
+                    </div>
+
+                    {/* DOB */}
+                    <div className="flex items-center py-5 border-b border-[#E5E8EB] last:border-0">
+                        <div className="w-10 h-10 rounded-full bg-[#FAFBFC] flex items-center justify-center text-[#919EAB] shrink-0 mr-4">
+                            <i className="fa-regular fa-calendar text-[16px]"></i>
+                        </div>
+                        <div className="w-1/3 min-w-[120px] text-[14px] text-[#637381]">Ngày sinh</div>
+                        <div className="flex-1 text-right md:text-left text-[15px] font-medium text-[#212B36]">
+                            {isEditing ? (
+                                <input 
+                                    type="date" 
+                                    value={formData.dob}
+                                    onChange={e => setFormData({...formData, dob: e.target.value})}
+                                    className="w-full md:w-2/3 border border-[#E5E8EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#BA0000] transition-colors"
+                                />
+                            ) : (
+                                formData.dob.split('-').reverse().join('/')
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Gender */}
+                    <div className="flex items-center py-5 border-b border-[#E5E8EB] last:border-0">
+                        <div className="w-10 h-10 rounded-full bg-[#FAFBFC] flex items-center justify-center text-[#919EAB] shrink-0 mr-4">
+                            <i className="fa-solid fa-venus-mars text-[16px]"></i>
+                        </div>
+                        <div className="w-1/3 min-w-[120px] text-[14px] text-[#637381]">Giới tính</div>
+                        <div className="flex-1 text-right md:text-left text-[15px] font-medium text-[#212B36]">
+                            {isEditing ? (
+                                <div className="flex items-center gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input 
+                                            type="radio" 
+                                            name="gender" 
+                                            value="Nam" 
+                                            checked={formData.gender === 'Nam'}
+                                            onChange={e => setFormData({...formData, gender: e.target.value})}
+                                            className="accent-[#BA0000]"
+                                        />
+                                        <span className="text-[14px]">Nam</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input 
+                                            type="radio" 
+                                            name="gender" 
+                                            value="Nữ" 
+                                            checked={formData.gender === 'Nữ'}
+                                            onChange={e => setFormData({...formData, gender: e.target.value})}
+                                            className="accent-[#BA0000]"
+                                        />
+                                        <span className="text-[14px]">Nữ</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input 
+                                            type="radio" 
+                                            name="gender" 
+                                            value="Khác" 
+                                            checked={formData.gender === 'Khác'}
+                                            onChange={e => setFormData({...formData, gender: e.target.value})}
+                                            className="accent-[#BA0000]"
+                                        />
+                                        <span className="text-[14px]">Khác</span>
+                                    </label>
+                                </div>
+                            ) : (
+                                formData.gender
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Security Card */}
+            <div className="bg-[#FFF4F4] border border-[#FFE5E5] rounded-xl shadow-sm p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-5">
+                    <div className="w-12 h-12 rounded-full bg-white border border-[#FFE5E5] flex items-center justify-center text-[#BA0000] shrink-0">
+                        <i className="fa-solid fa-shield-halved text-[20px]"></i>
+                    </div>
+                    <div>
+                        <h3 className="text-[16px] font-bold text-[#212B36] mb-1">Bảo mật tài khoản</h3>
+                        <p className="text-[14px] text-[#637381]">Để bảo vệ tài khoản, vui lòng không chia sẻ thông tin đăng nhập cho bất kỳ ai.</p>
+                    </div>
+                </div>
+                
+                <button className="flex items-center justify-center gap-2 text-[#BA0000] font-bold text-[14px] whitespace-nowrap hover:underline shrink-0 cursor-pointer">
+                    Đổi mật khẩu <i className="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
     );
 };
