@@ -1,252 +1,82 @@
-import { create } from "zustand";
-import { persist, devtools } from "zustand/middleware";
-import { immer } from "zustand/middleware/immer";
-import { toast } from "react-toastify";
-import { STORAGE_KEYS } from "../constants/storage.constants";
-
-export interface CartVariant {
-    attrId: string;
-    attrType: string;
-    label: string;
-    value: string;
-}
+import { create } from 'zustand';
 
 export interface CartItem {
-    productId: string;
+    id: string;
+    province: string;
+    date: string;
+    time: string;
+    kyHieu: string;
+    numbers: string;
+    price: number;
     quantity: number;
-    checked: boolean;
-    variant?: CartVariant[];
-    detail: {
-        images: string[];
-        slug: string;
-        name: string;
-        priceNew: number;
-        priceOld: number;
-        stock: number;
-        attributeList?: any[];
-        variants?: any[];
-    };
+    color: string;
 }
 
-interface CartState {
+interface CartStore {
     items: CartItem[];
-    isHydrated: boolean;
-    addToCart: (item: CartItem) => boolean;
-    removeFromCart: (productId: string, variant?: CartVariant[]) => void;
-    updateQuantity: (productId: string, quantity: number, variant?: CartVariant[]) => void;
-    toggleCheck: (productId: string, variant?: CartVariant[]) => void;
-    toggleAll: () => void;
-    setChecked: (productId: string, checked: boolean, variant?: CartVariant[]) => void;
+    addItem: (item: Omit<CartItem, 'id'>) => void;
+    removeItem: (id: string) => void;
+    updateQuantity: (id: string, delta: number) => void;
     clearCart: () => void;
-    syncCart: (syncedItems: CartItem[]) => void;
-    totalAmount: () => number;
-    totalItems: () => number;
-    set: (newState: Partial<CartState>) => void;
 }
 
-export const useCartStore = create<CartState>()(
-    devtools(
-        immer(
-            persist(
-                (set, get) => ({
-                    // ... (rest of the store logic remains exactly the same)
-                    items: [],
-                    isHydrated: false,
-
-                    addToCart: (newItem) => {
-                        let success = true;
-                        set((state) => {
-                            const existingIndex = state.items.findIndex((item) => {
-                                if (item.productId !== newItem.productId) return false;
-                                if (!item.variant && !newItem.variant) return true;
-                                if (!item.variant || !newItem.variant) return false;
-                                if (item.variant.length !== newItem.variant.length) return false;
-                                return item.variant.every((attr) => {
-                                    const match = newItem.variant?.find(
-                                        (a) => a.attrId === attr.attrId && a.value === attr.value
-                                    );
-                                    return !!match;
-                                });
-                            });
-
-                            if (existingIndex !== -1) {
-                                const currentQty = state.items[existingIndex].quantity;
-                                const maxStock = newItem.detail.stock;
-
-                                if (currentQty + newItem.quantity > maxStock) {
-                                    toast.error(`Bạn đã có ${currentQty} sản phẩm trong giỏ. Không thể thêm quá tồn kho (${maxStock})!`);
-                                    success = false;
-                                    return;
-                                }
-
-                                state.items[existingIndex].quantity += newItem.quantity;
-                                state.items[existingIndex].detail = newItem.detail;
-                            } else {
-                                if (newItem.quantity > newItem.detail.stock) {
-                                    toast.error(`Số lượng yêu cầu vượt quá tồn kho (${newItem.detail.stock})!`);
-                                    success = false;
-                                    return;
-                                }
-                                state.items.unshift(newItem);
-                            }
-                        });
-                        return success;
-                    },
-
-                    removeFromCart: (productId, variant) => {
-                        set((state) => {
-                            state.items = state.items.filter((item) => {
-                                const isSameId = item.productId === productId;
-                                if (!isSameId) return true;
-
-                                if (!item.variant && !variant) return false;
-                                if (!item.variant || !variant) return true;
-                                if (item.variant.length !== variant.length) return true;
-
-                                const isSameVariant = item.variant.every((attr) => {
-                                    const match = variant.find(
-                                        (a) => a.attrId === attr.attrId && a.value === attr.value
-                                    );
-                                    return !!match;
-                                });
-
-                                return !isSameVariant;
-                            });
-                        });
-                    },
-
-                    updateQuantity: (productId, quantity, variant) => {
-                        set((state) => {
-                            const existingIndex = state.items.findIndex((item) => {
-                                if (item.productId !== productId) return false;
-                                if (!item.variant && !variant) return true;
-                                if (!item.variant || !variant) return false;
-                                if (item.variant.length !== variant.length) return false;
-                                return item.variant.every((attr) => {
-                                    const match = variant.find(
-                                        (a) => a.attrId === attr.attrId && a.value === attr.value
-                                    );
-                                    return !!match;
-                                });
-                            });
-
-                            if (existingIndex !== -1) {
-                                const maxStock = state.items[existingIndex].detail.stock;
-                                if (quantity > maxStock) {
-                                    state.items[existingIndex].quantity = maxStock;
-                                    toast.warning(`Đã tự động chỉnh về giới hạn tồn kho (${maxStock})`);
-                                } else if (quantity <= 0) {
-                                    state.items.splice(existingIndex, 1);
-                                } else {
-                                    state.items[existingIndex].quantity = quantity;
-                                }
-                            }
-                        });
-                    },
-
-                    toggleCheck: (productId, variant) => {
-                        set((state) => {
-                            const item = state.items.find((item) => {
-                                if (item.productId !== productId) return false;
-                                if (!item.variant && !variant) return true;
-                                if (!item.variant || !variant) return false;
-                                if (item.variant.length !== variant.length) return false;
-                                return item.variant.every((attr) => {
-                                    const match = variant.find(
-                                        (a) => a.attrId === attr.attrId && a.value === attr.value
-                                    );
-                                    return !!match;
-                                });
-                            });
-                            if (item) {
-                                item.checked = !item.checked;
-                            }
-                        });
-                    },
-
-                    toggleAll: () => {
-                        set((state) => {
-                            const allChecked = state.items.every(item => item.checked);
-                            state.items.forEach(item => {
-                                item.checked = !allChecked;
-                            });
-                        });
-                    },
-
-                    setChecked: (productId, checked, variant) => {
-                        set((state) => {
-                            const item = state.items.find((item) => {
-                                if (item.productId !== productId) return false;
-                                if (!item.variant && !variant) return true;
-                                if (!item.variant || !variant) return false;
-                                if (item.variant.length !== variant.length) return false;
-                                return item.variant.every((attr) => {
-                                    const match = variant.find(
-                                        (a) => a.attrId === attr.attrId && a.value === attr.value
-                                    );
-                                    return !!match;
-                                });
-                            });
-                            if (item) {
-                                item.checked = checked;
-                            }
-                        });
-                    },
-
-                    clearCart: () => set({ items: [] }),
-
-                    syncCart: (syncedItems) => {
-                        set((state) => {
-                            // Khi đồng bộ, ta giữ lại trạng thái 'checked' của item cũ nếu nó tồn tại
-                            state.items = syncedItems.map(newItem => {
-                                const oldItem = state.items.find(i =>
-                                    i.productId === newItem.productId &&
-                                    JSON.stringify(i.variant) === JSON.stringify(newItem.variant)
-                                );
-                                return {
-                                    ...newItem,
-                                    checked: oldItem ? oldItem.checked : newItem.checked
-                                };
-                            });
-                        });
-                    },
-
-                    totalAmount: () =>
-                        (get().items || []).reduce((sum, item) => {
-                            if (!item || !item.checked || !item.detail) return sum;
-                            return sum + (item.detail.priceNew || 0) * item.quantity;
-                        }, 0),
-
-                    totalItems: () =>
-                        (get().items || []).reduce((sum, item) => sum + (item?.quantity || 0), 0),
-
-                    set: set
-                }),
-                {
-                    name: STORAGE_KEYS.CART,
-                    onRehydrateStorage: () => (state) => {
-                        if (state) {
-                            state.set({ isHydrated: true });
-                        }
-                    },
-                }
-            )
-        ),
-        { name: "CartStore" }
-    )
-);
-
-if (import.meta.env.DEV) {
-    useCartStore.subscribe((state) => {
-        console.log("Cart Store updated:", state);
-    });
-}
-
-// Đồng bộ cache giữa các tab
-if (typeof window !== 'undefined') {
-    window.addEventListener('storage', (event) => {
-        if (event.key === STORAGE_KEYS.CART) {
-            useCartStore.persist.rehydrate();
+export const useCartStore = create<CartStore>((set) => ({
+    items: [
+        {
+            id: "1",
+            province: "Kiên Giang",
+            date: "Chủ nhật, 09/02/2025",
+            time: "16:10",
+            kyHieu: "2K2",
+            numbers: "853913",
+            price: 10000,
+            quantity: 1,
+            color: "#f59e0b"
+        },
+        {
+            id: "2",
+            province: "TP. Hồ Chí Minh",
+            date: "Thứ hai, 10/02/2025",
+            time: "16:15",
+            kyHieu: "2D2",
+            numbers: "123456",
+            price: 10000,
+            quantity: 1,
+            color: "#ec4899"
         }
-    });
-}
+    ],
+    addItem: (item) => set((state) => {
+        // Check if item already exists (same province, numbers, date)
+        const existingItem = state.items.find(i => 
+            i.province === item.province && 
+            i.numbers === item.numbers && 
+            i.date === item.date
+        );
+        
+        if (existingItem) {
+            return {
+                items: state.items.map(i => 
+                    i.id === existingItem.id 
+                        ? { ...i, quantity: i.quantity + item.quantity }
+                        : i
+                )
+            };
+        }
+        
+        return {
+            items: [...state.items, { ...item, id: Math.random().toString(36).substr(2, 9) }]
+        };
+    }),
+    removeItem: (id) => set((state) => ({
+        items: state.items.filter(item => item.id !== id)
+    })),
+    updateQuantity: (id, delta) => set((state) => ({
+        items: state.items.map(item => {
+            if (item.id === id) {
+                return { ...item, quantity: Math.max(1, item.quantity + delta) };
+            }
+            return item;
+        })
+    })),
+    clearCart: () => set({ items: [] })
+}));

@@ -1,34 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
 import { Trash2, ChevronRight, Minus, Plus, ShieldCheck, Truck, ArrowLeft } from 'lucide-react';
-
-const MOCK_CART_ITEMS = [
-    {
-        id: "1",
-        province: "Kiên Giang",
-        date: "Chủ nhật, 09/02/2025",
-        time: "16:10",
-        kyHieu: "2K2",
-        numbers: "853913",
-        price: 10000,
-        quantity: 1,
-        image: "/assets/img/lottery/kiengiang.png", // Mock path
-        color: "#f59e0b"
-    },
-    {
-        id: "2",
-        province: "TP. Hồ Chí Minh",
-        date: "Thứ hai, 10/02/2025",
-        time: "16:15",
-        kyHieu: "2D2",
-        numbers: "123456",
-        price: 10000,
-        quantity: 1,
-        image: "/assets/img/lottery/hcm.png", // Mock path
-        color: "#ec4899"
-    }
-];
+import { useCartStore } from '../../../stores/useCartStore';
+import { useAuthStore } from '../../../stores/useAuthStore';
 
 const SUGGESTIONS = [
     { province: "Đồng Nai", time: "16:20 • Hôm nay", price: 10000, icon: "DN" },
@@ -41,8 +16,14 @@ const SUGGESTIONS = [
 
 export const CartPage = () => {
     const navigate = useNavigate();
-    const [items, setItems] = useState(MOCK_CART_ITEMS);
-    const [selectedIds, setSelectedIds] = useState<string[]>(items.map(i => i.id));
+    const { items, updateQuantity, removeItem, clearCart, addItem } = useCartStore();
+    const { token, openLoginModal } = useAuthStore();
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    
+    // Auto-select new items
+    useEffect(() => {
+        setSelectedIds(items.map(i => i.id));
+    }, [items.length]);
 
     const toggleSelectAll = () => {
         if (selectedIds.length === items.length) {
@@ -58,19 +39,9 @@ export const CartPage = () => {
         );
     };
 
-    const updateQuantity = (id: string, delta: number) => {
-        setItems(prev => prev.map(item => {
-            if (item.id === id) {
-                const newQ = Math.max(1, item.quantity + delta);
-                return { ...item, quantity: newQ };
-            }
-            return item;
-        }));
-    };
-
-    const removeItem = (id: string) => {
-        setItems(prev => prev.filter(i => i.id !== id));
-        setSelectedIds(prev => prev.filter(i => i !== id));
+    const handleClearCart = () => {
+        clearCart();
+        setSelectedIds([]);
     };
 
     const selectedItems = items.filter(i => selectedIds.includes(i.id));
@@ -111,7 +82,7 @@ export const CartPage = () => {
                                         <span className="text-[14px] text-[#212B36]">Chọn tất cả</span>
                                     </label>
                                     <button 
-                                        onClick={() => { setItems([]); setSelectedIds([]); }}
+                                        onClick={handleClearCart}
                                         className="flex items-center gap-1 text-[14px] text-[#BA0000] hover:underline"
                                     >
                                         <Trash2 size={16} /> Xóa tất cả
@@ -121,45 +92,44 @@ export const CartPage = () => {
 
                             <div className="space-y-4">
                                 {items.map((item) => (
-                                    <div key={item.id} className="flex flex-col sm:flex-row gap-4 p-4 border border-[#E5E8EB] rounded-lg relative hover:border-[#BA0000] transition-colors">
-                                        <div className="absolute top-1/2 -translate-y-1/2 -left-3 bg-white p-1">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={selectedIds.includes(item.id)}
-                                                onChange={() => toggleSelect(item.id)}
-                                                className="w-5 h-5 accent-[#BA0000] rounded"
-                                            />
-                                        </div>
+                                    <div key={item.id} className="flex flex-col sm:flex-row gap-4 p-4 border border-[#E5E8EB] rounded-lg relative hover:border-[#BA0000] transition-colors items-start sm:items-center">
                                         
-                                        <div className="w-[280px] h-[130px] rounded flex items-center justify-center ml-4 shrink-0 overflow-hidden shadow-sm border border-gray-100">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedIds.includes(item.id)}
+                                            onChange={() => toggleSelect(item.id)}
+                                            className="w-5 h-5 accent-[#BA0000] rounded cursor-pointer shrink-0 mt-2 sm:mt-0"
+                                        />
+                                        
+                                        <div className="w-full sm:w-[280px] h-[130px] rounded flex items-center justify-center shrink-0 overflow-hidden shadow-sm border border-gray-100 bg-gray-50">
                                             <img src="https://i.imgur.com/V4b7V3x.jpeg" alt="Vé số" className="w-full h-full object-cover" />
                                         </div>
 
-                                        <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center">
-                                            <div>
-                                                <div className="inline-block px-2 py-0.5 bg-[#FFF4F4] text-[#BA0000] text-[11px] font-bold rounded mb-2">Sắp mở thưởng</div>
+                                        <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 w-full h-full">
+                                            <div className="flex flex-col justify-center">
+                                                <div className="inline-block px-2 py-0.5 bg-[#FFF4F4] text-[#BA0000] text-[11px] font-bold rounded mb-2 self-start">Sắp mở thưởng</div>
                                                 <h3 className="font-bold text-[#212B36] text-[16px] mb-2">Xổ số {item.province} {item.kyHieu}</h3>
                                                 <div className="text-[13px] text-[#637381] space-y-1">
                                                     <p><i className="fa-regular fa-calendar w-4 text-center"></i> Ngày mở thưởng: {item.date}</p>
-                                                    <p><i className="fa-regular fa-clock w-4 text-center"></i> Giờ mở thưởng: {item.time}</p>
-                                                    <p><i className="fa-solid fa-ticket w-4 text-center"></i> Ký hiệu: {item.kyHieu}</p>
                                                     <p><i className="fa-solid fa-location-dot w-4 text-center"></i> Khu vực: {item.province}</p>
+                                                    <p><i className="fa-regular fa-clock w-4 text-center"></i> Giờ mở thưởng: {item.time}</p>
                                                     <p><i className="fa-solid fa-print w-4 text-center"></i> Hình thức: Vé số truyền thống</p>
+                                                    <p><i className="fa-solid fa-ticket w-4 text-center"></i> Ký hiệu: {item.kyHieu}</p>
                                                 </div>
                                             </div>
 
-                                            <div className="flex flex-col items-end gap-4">
+                                            <div className="flex flex-row md:flex-col items-center md:items-end justify-between min-w-[140px] border-t md:border-t-0 border-[#E5E8EB] pt-4 md:pt-0">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="flex items-center border border-[#E5E8EB] rounded bg-white">
+                                                    <div className="flex items-center border border-[#E5E8EB] rounded bg-white h-8">
                                                         <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 flex items-center justify-center text-[#637381] hover:bg-gray-50"><Minus size={14}/></button>
                                                         <span className="w-8 text-center text-[14px] font-medium">{item.quantity}</span>
                                                         <button onClick={() => updateQuantity(item.id, 1)} className="w-8 h-8 flex items-center justify-center text-[#637381] hover:bg-gray-50"><Plus size={14}/></button>
                                                     </div>
-                                                    <button onClick={() => removeItem(item.id)} className="w-8 h-8 flex items-center justify-center text-[#BA0000] bg-[#FFF4F4] rounded hover:bg-[#ffe4e4] transition-colors">
+                                                    <button onClick={() => { removeItem(item.id); setSelectedIds(prev => prev.filter(i => i !== item.id)); }} className="w-8 h-8 flex items-center justify-center text-[#BA0000] bg-[#FFF4F4] rounded hover:bg-[#ffe4e4] transition-colors" title="Xóa vé này">
                                                         <Trash2 size={16}/>
                                                     </button>
                                                 </div>
-                                                <div className="text-[18px] font-bold text-[#BA0000]">
+                                                <div className="text-[18px] font-bold text-[#BA0000] md:mt-auto md:pb-1">
                                                     {(item.price * item.quantity).toLocaleString('vi-VN')} đ
                                                 </div>
                                             </div>
@@ -184,7 +154,16 @@ export const CartPage = () => {
                                         <div className="font-bold text-[14px] text-[#212B36]">{s.province}</div>
                                         <div className="text-[12px] text-[#637381] mt-1">{s.time}</div>
                                         <div className="text-[14px] font-bold text-[#BA0000] my-2">{s.price.toLocaleString('vi-VN')} đ</div>
-                                        <button className="text-[12px] font-medium border border-[#E5E8EB] rounded px-3 py-1 hover:border-[#BA0000] hover:text-[#BA0000] transition-colors w-full">
+                                        <button 
+                                            onClick={() => {
+                                                if (!token) {
+                                                    openLoginModal();
+                                                    return;
+                                                }
+                                                addItem({ province: s.province, date: "Hôm nay, 09/02/2025", time: "16:20", kyHieu: "2K2", numbers: Math.floor(100000 + Math.random() * 900000).toString(), price: s.price, quantity: 1, color: "#f59e0b" });
+                                            }}
+                                            className="text-[12px] font-medium border border-[#E5E8EB] rounded px-3 py-1 hover:border-[#BA0000] hover:text-[#BA0000] transition-colors w-full"
+                                        >
                                             + Thêm
                                         </button>
                                     </div>
@@ -251,7 +230,13 @@ export const CartPage = () => {
 
                             <div className="flex flex-col gap-3">
                                 <button 
-                                    onClick={() => navigate('/checkout')}
+                                    onClick={() => {
+                                        if (!token) {
+                                            openLoginModal();
+                                            return;
+                                        }
+                                        navigate('/checkout');
+                                    }}
                                     disabled={selectedItems.length === 0}
                                     className="w-full py-3.5 bg-[#BA0000] text-white font-bold rounded-lg hover:bg-[#990000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
