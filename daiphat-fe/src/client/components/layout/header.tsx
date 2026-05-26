@@ -16,10 +16,11 @@ import { AppToast as toast } from "../../utils/toast.util";
 
 const navItems = [
   { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },
+  { label: "Mua vé số", to: "/buy-ticket", icon: Ticket },
   { label: "Kết quả", to: "#", icon: Crosshair },
   { label: "Vé của tôi", to: "#", icon: Ticket },
   { label: "Lịch mở thưởng", to: "#", icon: CalendarDays },
-  { label: "Bài viết", to: "/blogs", icon: BookOpen },
+  { label: "Khuyến mãi", to: "#", icon: Gift },
 ];
 
 export const Header = () => {
@@ -110,12 +111,12 @@ export const Header = () => {
                   key={item.label}
                   to={item.to}
                   className={`flex items-center gap-2 font-bold no-underline transition-colors px-4 py-2.5 rounded-2xl text-[15px] tracking-tight font-client-display ${
-                    isActive || item.label === "Trang chủ" // Hardcode active for "Trang chủ" temporarily for visual match
+                    isActive
                       ? "bg-[#FFF4F4] text-[#BA0000]" 
                       : "text-[#505050] hover:text-[#BA0000] hover:bg-slate-50"
                   }`}
                 >
-                  <Icon size={18} strokeWidth={isActive || item.label === "Trang chủ" ? 2.5 : 2} />
+                  <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
                   <span className="whitespace-nowrap">{item.label}</span>
                 </Link>
               );

@@ -17,6 +17,7 @@ import { BlogListPage } from './client/pages/BlogListPage';
 import { BlogDetailPage } from './client/pages/BlogDetailPage';
 import { CartPage } from './client/pages/cart/CartPage';
 import { CheckoutPage } from './client/pages/cart/CheckoutPage';
+import { BuyTicketPage } from './client/pages/buy-ticket/BuyTicketPage';
 
 import { ROUTES } from './admin/constants/routes';
 import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
@@ -60,13 +61,9 @@ function App() {
             <Route key={path} path={path} element={element} />
           ))}
 
-          <Route path="/cart" element={<PrivateRoute />}>
-            <Route index element={<CartPage />} />
-          </Route>
-
-          <Route path="/checkout" element={<PrivateRoute />}>
-            <Route index element={<CheckoutPage />} />
-          </Route>
+          <Route path="/buy-ticket" element={<BuyTicketPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
 
           <Route path="/profile" element={<PrivateRoute />}>
             <Route element={<ClientProfilePage />}>
