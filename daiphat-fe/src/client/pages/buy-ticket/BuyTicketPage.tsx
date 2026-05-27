@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
 import { ChevronRight, Calendar as CalendarIcon, CheckCircle2, ShieldCheck, RefreshCw, Grid } from 'lucide-react';
+import { useCartStore } from '../../../stores/useCartStore';
+import { useAuthStore } from '../../../stores/useAuthStore';
+import { AppToast as toast } from '../../utils/toast.util';
 
 const PROVINCES = [
     { id: 'hcm', name: 'TP. Hồ Chí Minh', time: '16:15', day: 'Hôm nay', icon: 'HCM' },
@@ -19,6 +22,7 @@ const QUICK_NUMBERS = [
 
 export const BuyTicketPage = () => {
     const navigate = useNavigate();
+    const { token, openLoginModal } = useAuthStore();
     
     // State
     const [selectedDate, setSelectedDate] = useState<'today' | 'tomorrow'>('today');
@@ -39,8 +43,39 @@ export const BuyTicketPage = () => {
     const pricePerTicket = 10000;
     const totalAmount = quantity * pricePerTicket;
 
+    const addToCart = () => {
+        if (!token) {
+            openLoginModal();
+            return false;
+        }
+
+        if (!activeProvinceObj || selectedNumbers.length === 0) return false;
+        
+        selectedNumbers.forEach(num => {
+            useCartStore.getState().addItem({
+                province: activeProvinceObj.name,
+                date: selectedDate === 'today' ? `Hôm nay, 09/02/2025` : `Ngày mai, 10/02/2025`,
+                time: activeProvinceObj.time,
+                kyHieu: "2K2", // Mock
+                numbers: num,
+                price: pricePerTicket,
+                quantity: 1,
+                color: "#f59e0b" // Mock color
+            });
+        });
+        toast.success(`Đã thêm ${selectedNumbers.length} vé vào giỏ hàng`);
+        return true;
+    };
+
+    const handleCheckout = () => {
+        if (addToCart()) {
+            navigate('/checkout');
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#F8F9FA] font-['Inter',sans-serif] pb-20">
+            {/* ... */}
             <Header />
             
             <main className="max-w-[1200px] mx-auto px-4 pt-28">
@@ -271,16 +306,14 @@ export const BuyTicketPage = () => {
 
                             <div className="flex flex-col gap-3 mb-6">
                                 <button 
-                                    onClick={() => navigate('/checkout')}
+                                    onClick={handleCheckout}
                                     disabled={quantity === 0}
                                     className="w-full py-3.5 bg-[#BA0000] text-white font-bold rounded-lg hover:bg-[#990000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     <i className="fa-solid fa-lock"></i> Thanh toán
                                 </button>
                                 <button 
-                                    onClick={() => {
-                                        toast.success('Đã thêm vào giỏ hàng');
-                                    }}
+                                    onClick={addToCart}
                                     disabled={quantity === 0}
                                     className="w-full py-3.5 bg-white text-[#BA0000] font-bold rounded-lg border-2 border-[#BA0000] hover:bg-[#FFF4F4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >

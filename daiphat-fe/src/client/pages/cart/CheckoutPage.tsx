@@ -2,51 +2,24 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
 import { Trash2, ChevronRight, Minus, Plus, ShieldCheck, ArrowLeft, MapPin, CreditCard, Store, Truck } from 'lucide-react';
-
-const MOCK_CHECKOUT_ITEMS = [
-    {
-        id: "1",
-        province: "Kiên Giang",
-        date: "Chủ nhật, 09/02/2025",
-        time: "16:10",
-        kyHieu: "2K2",
-        numbers: "853913",
-        price: 10000,
-        quantity: 1,
-        color: "#f59e0b"
-    },
-    {
-        id: "2",
-        province: "TP. Hồ Chí Minh",
-        date: "Thứ hai, 10/02/2025",
-        time: "16:15",
-        kyHieu: "2D2",
-        numbers: "123456",
-        price: 10000,
-        quantity: 1,
-        color: "#ec4899"
-    }
-];
+import { useCartStore } from '../../../stores/useCartStore';
+import { useAuthStore } from '../../../stores/useAuthStore';
+import { AppToast as toast } from '../../utils/toast.util';
 
 export const CheckoutPage = () => {
     const navigate = useNavigate();
-    const [items, setItems] = useState(MOCK_CHECKOUT_ITEMS);
+    const { items, updateQuantity, removeItem, clearCart } = useCartStore();
+    const { token, openLoginModal } = useAuthStore();
     const [deliveryMethod, setDeliveryMethod] = useState<'store' | 'delivery'>('store');
     const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'bank'>('wallet');
 
-    const updateQuantity = (id: string, delta: number) => {
-        setItems(prev => prev.map(item => {
-            if (item.id === id) {
-                const newQ = Math.max(1, item.quantity + delta);
-                return { ...item, quantity: newQ };
-            }
-            return item;
-        }));
-    };
-
-    const removeItem = (id: string) => {
-        setItems(prev => prev.filter(i => i.id !== id));
-    };
+    React.useEffect(() => {
+        if (!token) {
+            toast.error("Vui lòng đăng nhập để tiếp tục thanh toán");
+            openLoginModal();
+            navigate('/cart', { replace: true });
+        }
+    }, [token, navigate, openLoginModal]);
 
     const totalTickets = items.reduce((sum, item) => sum + item.quantity, 0);
     const subTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -55,7 +28,8 @@ export const CheckoutPage = () => {
 
     const handleCheckout = () => {
         // Mock checkout API call
-        navigate('/profile/tickets'); // Navigate to purchased tickets page or success page
+        clearCart();
+        navigate('/'); // Navigate to home or success page
     };
 
     return (

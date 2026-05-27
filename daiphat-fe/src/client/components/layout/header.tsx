@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Search, User as UserIcon, Home, Crosshair, Ticket, CalendarDays, Gift, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen } from "lucide-react";
+import { Search, User as UserIcon, Home, Crosshair, Ticket, CalendarDays, Gift, Bell, Wallet, ChevronDown, ShoppingCart, BookOpen, Trash2 } from "lucide-react";
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuthStore } from "../../../stores/useAuthStore";
+import { useCartStore } from "../../../stores/useCartStore";
 import { LoginModal } from "../../components/auth/LoginModal";
 import { RegisterModal } from "../../components/auth/RegisterModal";
 import { ProfileSetupModal } from "../../components/auth/ProfileSetupModal";
@@ -36,6 +37,8 @@ export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const cartItems = useCartStore(state => state.items);
+  const removeCartItem = useCartStore(state => state.removeItem);
 
   // Removed mandatory DP-32 Setup Enforcement auto-trigger
 
@@ -137,13 +140,65 @@ export const Header = () => {
                 {/* Balance removed as requested */}
 
                 <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => navigate('/cart')}
-                    className="relative text-[#505050] hover:text-[#BA0000] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer"
-                  >
-                    <ShoppingCart size={22} strokeWidth={2} />
-                    <span className="absolute top-0 right-0 w-4 h-4 bg-[#BA0000] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">2</span>
-                  </button>
+                  <div className="relative group">
+                    <button 
+                      onClick={() => navigate('/cart')}
+                      className="relative text-[#505050] hover:text-[#BA0000] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer"
+                    >
+                      <ShoppingCart size={22} strokeWidth={2} />
+                      {cartItems.length > 0 && (
+                        <span className="absolute top-0 right-0 w-4 h-4 bg-[#BA0000] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
+                          {cartItems.length}
+                        </span>
+                      )}
+                    </button>
+                    
+                    {/* Cart Dropdown */}
+                    <div className="absolute top-full right-0 mt-2 w-[320px] bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-[#E5E8EB] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100]">
+                      <div className="p-4 border-b border-[#E5E8EB]">
+                        <h4 className="font-bold text-[#212B36]">Giỏ hàng mới thêm</h4>
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto p-2">
+                        {(() => {
+                          if (cartItems.length === 0) {
+                            return <div className="p-6 text-center text-[#637381] text-[14px]">Chưa có sản phẩm nào.</div>;
+                          }
+                          return cartItems.map(item => (
+                            <div key={item.id} className="flex gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors group/item">
+                              <div className="w-[80px] h-[40px] shrink-0 rounded overflow-hidden cursor-pointer" onClick={() => navigate('/cart')}>
+                                <img src="https://i.imgur.com/V4b7V3x.jpeg" alt="Vé số" className="w-full h-full object-cover" />
+                              </div>
+                              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate('/cart')}>
+                                <div className="text-[14px] font-bold text-[#212B36] truncate">Xổ số {item.province}</div>
+                                <div className="text-[12px] text-[#BA0000] font-black">{item.numbers}</div>
+                              </div>
+                              <div className="text-right flex flex-col items-end justify-between">
+                                <div className="text-[14px] font-bold text-[#BA0000]">{(item.price * item.quantity).toLocaleString('vi-VN')}đ</div>
+                                <div className="flex items-center gap-2">
+                                  <div className="text-[12px] text-[#637381]">x{item.quantity}</div>
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); removeCartItem(item.id); }} 
+                                    className="text-gray-400 hover:text-[#BA0000] transition-colors p-1"
+                                    title="Xóa vé"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                      {cartItems.length > 0 && (
+                        <div className="p-4 border-t border-[#E5E8EB]">
+                          <button onClick={() => navigate('/cart')} className="w-full py-2 bg-[#BA0000] text-white text-[14px] font-bold rounded-lg hover:bg-[#990000] transition-colors">
+                            Xem Giỏ Hàng
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <button className="relative text-[#505050] hover:text-[#BA0000] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer">
                     <Bell size={22} strokeWidth={2} />
                     <span className="absolute top-0 right-0 w-4 h-4 bg-[#BA0000] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">3</span>
