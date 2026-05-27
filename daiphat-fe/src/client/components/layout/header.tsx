@@ -176,7 +176,7 @@ export const Header = () => {
             ) : (
               <>
                 <button
-                  onClick={openLoginModal}
+                  onClick={() => navigate('/login')}
                   className="inline-flex items-center justify-center min-h-[44px] px-8 rounded-xl bg-[#BA0000] text-white font-bold no-underline shadow-lg shadow-[#BA0000]/26 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer text-[15px] font-client-display uppercase tracking-tight"
                   type="button"
                 >
@@ -273,7 +273,10 @@ export const Header = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4 }}
                         className="mobile-action-cta" // Using the CTA style for the single button
-                        onClick={() => handleAuthClick(openLoginModal)}
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          navigate('/login');
+                        }}
                       >
                         Đăng nhập
                       </motion.button>
@@ -287,8 +290,8 @@ export const Header = () => {
       </AnimatePresence>
 
       <BottomNav />
-      <LoginModal />
-      <RegisterModal />
+      {/* <LoginModal />
+      <RegisterModal /> */}
       <ProfileSetupModal />
       <VerifyModal />
       <ForgotPasswordModal />
