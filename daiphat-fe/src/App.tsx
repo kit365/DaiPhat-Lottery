@@ -18,6 +18,8 @@ import { BlogDetailPage } from './client/pages/BlogDetailPage';
 import { CartPage } from './client/pages/cart/CartPage';
 import { CheckoutPage } from './client/pages/cart/CheckoutPage';
 import { BuyTicketPage } from './client/pages/buy-ticket/BuyTicketPage';
+import { LoginPage } from './client/pages/auth/LoginPage';
+import { RegisterPage } from './client/pages/auth/RegisterPage';
 
 import { ROUTES } from './admin/constants/routes';
 import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
@@ -53,6 +55,8 @@ function App() {
         {/* Client Side Theme Context */}
         <Route element={<ClientThemeLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<GuestGuard><LoginPage /></GuestGuard>} />
+          <Route path="/register" element={<GuestGuard><RegisterPage /></GuestGuard>} />
           <Route path="/blogs" element={<BlogListPage />} />
           <Route path="/blogs/detail" element={<BlogDetailPage />} />
 
