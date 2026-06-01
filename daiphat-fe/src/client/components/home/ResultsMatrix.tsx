@@ -195,22 +195,22 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
             { label: "Giải tám", numbers: [prizes.eighth], isHighlight: true },
           ].map((prize, idx) => (
             <div key={prize.label} className={`flex border-b border-gray-100 last:border-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-[#F8FAFC]'}`}>
-              <div className="w-[120px] lg:w-[180px] p-4 flex items-center justify-center shrink-0 border-r border-gray-100 bg-[#FAFAFA]/50">
-                <span className="text-[#ee1314] text-[13px] font-bold uppercase font-client-display">{prize.label}</span>
+              <div className="w-[90px] md:w-[120px] lg:w-[180px] p-2 md:p-4 flex items-center justify-center shrink-0 border-r border-gray-100 bg-[#FAFAFA]/50 text-center">
+                <span className="text-[#ee1314] text-[12px] md:text-[13px] font-bold uppercase font-client-display">{prize.label}</span>
               </div>
-              <div className="flex-1 py-4 px-8 flex items-center">
+              <div className="flex-1 py-3 px-3 md:py-4 md:px-8 flex items-center justify-center lg:justify-start">
                 {prize.isGrid ? (
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-10 gap-y-3">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 md:gap-x-6 lg:gap-x-10 gap-y-3 w-full max-w-[400px] lg:max-w-none mx-auto lg:mx-0">
                     {prize.numbers.map((n, i) => (
-                      <span key={i} className="text-[#111111] text-[18px] lg:text-[20px] font-bold tracking-tight font-client-main">
+                      <span key={i} className="text-[#111111] text-[16px] md:text-[18px] lg:text-[20px] font-bold tracking-tight font-client-main text-center lg:text-left">
                         {renderHighlightedNumber(getDisplayNumber(n, displayType), activeDigit || null)}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-wrap items-center gap-x-12 gap-y-3">
+                  <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-6 md:gap-x-8 lg:gap-x-12 gap-y-3 w-full">
                     {prize.numbers.map((n, i) => (
-                      <span key={i} className={`${prize.isHighlight && !activeDigit ? 'text-[#ee1314] text-[24px] lg:text-[28px]' : 'text-[#111111] text-[18px] lg:text-[22px]'} font-bold tracking-tight font-client-main`}>
+                      <span key={i} className={`${prize.isHighlight && !activeDigit ? 'text-[#ee1314] text-[20px] md:text-[24px] lg:text-[28px]' : 'text-[#111111] text-[16px] md:text-[18px] lg:text-[22px]'} font-bold tracking-tight font-client-main`}>
                         {renderHighlightedNumber(getDisplayNumber(n, displayType), activeDigit || null)}
                       </span>
                     ))}
