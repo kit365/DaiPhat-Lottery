@@ -4,7 +4,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { Icon } from '@iconify/react';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useCallback } from 'react';
-import debounce from 'lodash/debounce';
+import { debounce } from 'lodash-es';
 
 interface SearchProps {
     maxWidth?: string | number;

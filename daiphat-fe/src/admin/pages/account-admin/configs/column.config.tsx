@@ -1,4 +1,5 @@
-import { GridColDef, GridRenderCellParams, GridActionsCellItem } from '@mui/x-data-grid';
+import Box from '@mui/material/Box';
+import { GridColDef, GridRenderCellParams, GridActionsCellItem, GridActionsCell } from '@mui/x-data-grid';
 import Chip from '@mui/material/Chip';
 import Avatar from '@mui/material/Avatar';
 import EditIcon from '@mui/icons-material/Edit';
@@ -21,7 +22,7 @@ export const getColumnsConfig = (
             minWidth: 280,
             flex: 1.5,
             renderCell: (params: GridRenderCellParams) => (
-                <Stack direction="row" alignItems="center" spacing={2} sx={{ py: 1 }}>
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ py: 2 }}>
                     <Avatar
                         alt={params.row.fullName}
                         src={params.row.avatarUrl}
@@ -53,7 +54,7 @@ export const getColumnsConfig = (
             minWidth: 240,
             flex: 1,
             renderCell: (params: GridRenderCellParams) => (
-                <Stack spacing={0.5} sx={{ py: 1, justifyContent: 'center', height: '100%' }}>
+                <Stack spacing={0.5} sx={{ py: 2, justifyContent: 'center', height: '100%' }}>
                     <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)', fontSize: '0.875rem' }}>
                         {params.row.phone || 'Chưa cập nhật'}
                     </Typography>
@@ -71,37 +72,43 @@ export const getColumnsConfig = (
             align: 'center',
             renderCell: (params: GridRenderCellParams) => {
                 const status = params.value as string;
-                let color: 'success' | 'warning' | 'error' | 'default' = 'default';
+                let colorKey: 'success' | 'warning' | 'error' | 'default' = 'default';
                 let label = status;
-
                 if (status === UserStatus.ACTIVE) {
-                    color = 'success';
+                    colorKey = 'success';
                     label = 'Hoạt động';
                 } else if (status === UserStatus.PENDING) {
-                    color = 'warning';
+                    colorKey = 'warning';
                     label = 'Chờ xử lý';
                 } else if (status === UserStatus.BANNED) {
-                    color = 'error';
+                    colorKey = 'error';
                     label = 'Bị cấm';
                 } else if (status === UserStatus.LOCKED) {
-                    color = 'default';
+                    colorKey = 'default';
                     label = 'Bị khóa';
                 }
-
+                // Use span with same styling as blog status badge
                 return (
-                    <Chip
-                        label={label}
-                        size="small"
-                        color={color}
-                        variant="soft"
-                        sx={{
-                            fontWeight: 700,
-                            borderRadius: '6px',
-                            height: 24,
-                            fontSize: '0.75rem',
-                            minWidth: 90
-                        }}
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                        <span
+                            className="minimal__label__root"
+                            style={{
+                                height: '24px',
+                                minWidth: '24px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '2px 6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                borderRadius: '6px',
+                                color: `var(--palette-${colorKey}-dark)`,
+                                backgroundColor: `rgba(var(--palette-${colorKey}-mainChannel) / calc(var(--opacity-soft-bg) * 100%))`,
+                            }}
+                        >
+                            {label}
+                        </span>
+                    </Box>
                 );
             },
         },
@@ -109,9 +116,16 @@ export const getColumnsConfig = (
             field: 'actions',
             type: 'actions',
             headerName: '',
-            width: 60,
+            width: 80,
             align: 'right',
             getActions: (params) => [
+                <GridActionsCellItem
+                    key="edit-inline"
+                    icon={<EditIcon sx={{ fontSize: '20px !important' }} />}
+                    label="Chỉnh sửa"
+                    onClick={() => onEdit(params.id as string)}
+                    sx={{ width: 36, height: 36, '& .MuiSvgIcon-root': { fontSize: '20px !important' } }}
+                />,
                 <GridActionsCellItem
                     key="view"
                     icon={<VisibilityIcon sx={{ fontSize: 20 }} />}

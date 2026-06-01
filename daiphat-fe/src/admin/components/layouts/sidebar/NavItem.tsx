@@ -1,12 +1,12 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, memo } from "react";
-import { motion } from "framer-motion";
 import { ListItemIcon, Collapse, ButtonBase, Popover, Paper } from '@mui/material';
 import { Link, useLocation } from "react-router-dom";
 import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { USER_ROLES } from "../../../../constants/role.constants";
+
 
 const SubNavItem = ({ child, isSubActive, t }: any) => {
     return (
@@ -50,8 +50,6 @@ export const NavItem = memo(({ item }: { item: any }) => {
 
     const [open, setOpen] = useState(isChildActive);
     const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
-    const [isHovered, setIsHovered] = useState(false);
-
     useEffect(() => {
         if (isChildActive) setOpen(true);
     }, [isChildActive]);
@@ -75,85 +73,58 @@ export const NavItem = memo(({ item }: { item: any }) => {
     const Icon = item.Icon;
 
     return (
-        <li className="inline-block w-full relative" style={{ listStyle: 'none' }}>
-            <motion.div
-                whileHover={{ x: 6, scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                onMouseEnter={() => {
-                    handleMouseEnter;
-                    setIsHovered(true);
+        <li className="inline-block w-full" style={{ listStyle: 'none' }}>
+            <ButtonBase
+                {...(!hasChildren && { component: Link, to: item.path })}
+                onClick={hasChildren ? handleToggle : undefined}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                sx={{
+                    padding: isOpen ? "4px 8px 4px 12px" : "8px 4px 6px",
+                    width: "100%",
+                    minHeight: isOpen ? "44px" : "58px",
+                    borderRadius: "8px",
+                    color: isParentHighlighted ? "#00A76F" : "#637381",
+                    bgcolor: isParentHighlighted ? "#00a76f14" : "transparent",
+                    flexDirection: isOpen ? "row" : "column",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: isOpen ? "flex-start" : "center",
+                    gap: isOpen ? "0" : "6px",
+
+                    '&:hover': {
+                        bgcolor: isParentHighlighted ? "#00a76f26" : "#919eab14",
+                    },
+
+                    fontWeight: isParentHighlighted ? 600 : 500,
                 }}
-                onMouseLeave={() => {
-                    handleMouseLeave;
-                    setIsHovered(false);
-                }}
-                className="relative"
             >
-                <ButtonBase
-                    {...(!hasChildren && { component: Link, to: item.path })}
-                    onClick={hasChildren ? handleToggle : undefined}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                    sx={{
-                        padding: isOpen ? "4px 8px 4px 12px" : "8px 4px 6px",
-                        width: "100%",
-                        minHeight: isOpen ? "44px" : "58px",
-                        borderRadius: "8px",
-                        color: isParentHighlighted ? "#00A76F" : "#637381",
-                        flexDirection: isOpen ? "row" : "column",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: isOpen ? "flex-start" : "center",
-                        gap: isOpen ? "0" : "6px",
-                        position: 'relative',
-                        zIndex: 1,
-                        transition: 'color 0.2s',
-                        fontWeight: isParentHighlighted ? 600 : 500,
-                    }}
-                >
-                    {Icon && (
-                        <ListItemIcon sx={{
-                            color: 'inherit',
-                            mr: isOpen ? "12px" : "0",
-                            minWidth: "24px",
-                            '& svg': { width: 22, height: 22 }
-                        }}>
-                            <Icon />
-                        </ListItemIcon>
-                    )}
+                {Icon && (
+                    <ListItemIcon sx={{
+                        color: 'inherit',
+                        mr: isOpen ? "12px" : "0",
+                        minWidth: "24px",
+                        '& svg': { width: 22, height: 22 }
+                    }}>
+                        <Icon />
+                    </ListItemIcon>
+                )}
 
-                    {isOpen && <span className="flex-1 text-[0.875rem] text-left">{t(item.tKey || item.label)}</span>}
-                    {!isOpen && <span className="text-[0.625rem] font-[600] text-center" style={{ wordBreak: 'break-word', maxWidth: '60px', lineHeight: '1.2' }}>{t(item.tKey || item.label)}</span>}
+                {isOpen && <span className="flex-1 text-[0.875rem] text-left">{t(item.tKey || item.label)}</span>}
+                {!isOpen && <span className="text-[0.625rem] font-[600] text-center" style={{ wordBreak: 'break-word', maxWidth: '60px', lineHeight: '1.2' }}>{t(item.tKey || item.label)}</span>}
 
-                    {hasChildren && isOpen && (
-                        <ArrowIcon
-                            sx={{
-                                fontSize: "1rem",
-                                transition: "transform 200ms",
-                                transform: open ? "rotate(0deg)" : "rotate(-90deg)",
-                                opacity: isParentHighlighted ? 1 : 0.8,
-                                color: 'inherit'
-                            }}
-                        />
-                    )}
-                </ButtonBase>
-
-                {(isHovered || isParentHighlighted) && (
-                    <motion.div
-                        layoutId="sidebar-highlight"
-                        className="absolute inset-0 z-0"
-                        style={{
-                            backgroundColor: isParentHighlighted ? "rgba(0, 167, 111, 0.08)" : "rgba(145, 158, 171, 0.08)",
-                            borderRadius: "8px",
-                        }}
-                        transition={{
-                            type: "spring",
-                            stiffness: 400,
-                            damping: 30,
+                {hasChildren && isOpen && (
+                    <ArrowIcon
+                        sx={{
+                            fontSize: "1rem",
+                            transition: "transform 200ms",
+                            transform: open ? "rotate(0deg)" : "rotate(-90deg)",
+                            opacity: isParentHighlighted ? 1 : 0.8,
+                            color: 'inherit'
                         }}
                     />
                 )}
-            </motion.div>
+            </ButtonBase>
 
             {/* Submenu popup khi collapse */}
             {hasChildren && (

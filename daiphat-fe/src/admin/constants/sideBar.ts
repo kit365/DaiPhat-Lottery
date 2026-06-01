@@ -27,14 +27,7 @@ export const menuOverviewData = [
         path: ROUTES.ADMIN.DASHBOARD.SYSTEM,
         permission: PERMISSIONS.DASHBOARD.SYSTEM
     },
-    {
-        id: "analytics",
-        Icon: DataExplorationIcon,
-        label: "Phân tích",
-        tKey: "admin.sidebar.analytics",
-        path: ROUTES.ADMIN.DASHBOARD.ANALYTICS,
-        permission: PERMISSIONS.DASHBOARD.ANALYTICS
-    },
+
     {
         id: "ecommerce",
         Icon: ShoppingCartIcon,
@@ -42,17 +35,7 @@ export const menuOverviewData = [
         path: ROUTES.ADMIN.DASHBOARD.ECOMMERCE,
         permission: PERMISSIONS.DASHBOARD.ECOMMERCE
     },
-    {
-        id: "statistics",
-        Icon: AssessmentIcon,
-        label: "Thống kê chi tiết",
-        permission: PERMISSIONS.STATISTICS.REVENUE,
-        children: [
-            { id: "gen-stats", label: "Doanh thu thuần", path: ROUTES.ADMIN.DASHBOARD.STATISTICS.GENERAL, permission: PERMISSIONS.STATISTICS.REVENUE },
-            { id: "order-stats", label: "Đơn hàng", path: ROUTES.ADMIN.DASHBOARD.STATISTICS.ORDERS, permission: PERMISSIONS.STATISTICS.ORDER },
-            { id: "ticketService-stats", label: "Dịch vụ", path: ROUTES.ADMIN.DASHBOARD.STATISTICS.TICKET_SERVICES, permission: PERMISSIONS.STATISTICS.SERVICE },
-        ]
-    },
+
 ];
 
 
