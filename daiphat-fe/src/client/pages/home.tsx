@@ -63,15 +63,48 @@ export const HomePage = () => {
 
       <main className="relative z-1">
         <div className="max-w-[1440px] mx-auto px-4 lg:px-6 py-8 lg:pt-24 flex flex-col lg:flex-row gap-6 items-start">
-          <LeftSidebar
-            activeProvince={selectedProvince}
-            setActiveProvince={setSelectedProvince}
-            onDateChange={setSelectedDate}
-            availableDates={historyData.map(h => h.date)}
-            selectedDate={lotteryData?.date}
-          />
+          <div className="hidden lg:block shrink-0">
+            <LeftSidebar
+              activeProvince={selectedProvince}
+              setActiveProvince={setSelectedProvince}
+              onDateChange={setSelectedDate}
+              availableDates={historyData.map(h => h.date)}
+              selectedDate={lotteryData?.date}
+            />
+          </div>
 
-          <div className={`flex-1 min-w-0 transition-all duration-300 ${isLoading ? 'opacity-50 grayscale-[0.5]' : 'opacity-100'}`}>
+          <div className={`flex-1 min-w-0 w-full transition-all duration-300 ${isLoading ? 'opacity-50 grayscale-[0.5]' : 'opacity-100'}`}>
+            
+            {/* Mobile Selectors */}
+            <div className="block lg:hidden mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                <div className="flex flex-col gap-3">
+                    <select 
+                        className="w-full p-3 rounded-xl border border-gray-200 text-[#111111] font-bold outline-none cursor-pointer"
+                        value={selectedProvince}
+                        onChange={(e) => setSelectedProvince(e.target.value)}
+                    >
+                        <option value="Miền Bắc">Miền Bắc</option>
+                        <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                        <option value="Đồng Nai">Đồng Nai</option>
+                        <option value="Sóc Trăng">Sóc Trăng</option>
+                        <option value="Cần Thơ">Cần Thơ</option>
+                        <option value="Tây Ninh">Tây Ninh</option>
+                        <option value="Đà Lạt">Đà Lạt</option>
+                        <option value="Bình Dương">Bình Dương</option>
+                        <option value="Khánh Hòa">Khánh Hòa</option>
+                    </select>
+
+                    <select 
+                        className="w-full p-3 rounded-xl border border-gray-200 text-[#637381] font-medium outline-none cursor-pointer"
+                        value={lotteryData?.date || ''}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                    >
+                        {historyData.map(h => (
+                            <option key={h.date} value={h.date}>{h.date}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
             {lotteryData ? (
               <ResultsMatrix
                 data={lotteryData}

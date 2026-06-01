@@ -23,7 +23,7 @@ export const BottomNav: React.FC = () => {
     {
       label: "Vé số",
       icon: Ticket,
-      to: "#",
+      to: "/buy-ticket",
       action: null
     },
     {
