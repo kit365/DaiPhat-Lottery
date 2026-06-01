@@ -220,9 +220,9 @@ export const Header = () => {
                 </div>
 
                 {/* User */}
-                <div className="flex items-center gap-3 cursor-pointer group">
+                <div className="flex items-center gap-3 cursor-pointer group relative py-2">
                   <Link to="/profile" onClick={handleProfileClick} className="relative shrink-0">
-                    <div className="w-10 h-10 rounded-full border-2 border-white bg-slate-100 shadow-sm overflow-hidden transition-transform group-hover:scale-105 group-hover:border-[#FF6262]/20">
+                    <div className="w-10 h-10 rounded-full border-2 border-white group-hover:border-[#FFB020] bg-slate-100 shadow-sm overflow-hidden transition-all duration-300">
                       {user.avatar || user.avatarUrl ? (
                         <img
                           src={user.avatar || user.avatarUrl}
@@ -236,9 +236,34 @@ export const Header = () => {
                       )}
                     </div>
                   </Link>
-                  <div className="flex items-center gap-1 font-bold text-[#102937] text-[14px] whitespace-nowrap">
+                  <div className="flex items-center gap-1 font-bold text-[#102937] group-hover:text-[#FFB020] transition-colors text-[14px] whitespace-nowrap">
                     {user.fullName || user.username}
-                    <ChevronDown size={16} className="text-slate-400 group-hover:text-[#ee1314] transition-colors" />
+                    <ChevronDown size={16} className="text-slate-400 group-hover:text-[#FFB020] transition-colors" />
+                  </div>
+
+                  {/* Profile Dropdown */}
+                  <div className="absolute top-full right-0 mt-1 w-[200px] bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] border border-[#E5E8EB] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100] py-2">
+                    {/* Triangle pointer */}
+                    <div className="absolute -top-[6px] right-8 w-3 h-3 bg-white border-l border-t border-[#E5E8EB] rotate-45"></div>
+                    
+                    <div className="relative z-10 bg-white rounded-xl">
+                        <Link to="/profile/overview" className="flex items-center gap-3 px-5 py-3 text-[14.5px] text-[#212B36] hover:bg-slate-50 transition-colors">
+                        <i className="fa-solid fa-layer-group text-[16px] text-[#637381] w-5 text-center"></i>
+                        <span>Tổng Quan</span>
+                        </Link>
+                        <Link to="/profile/info" className="flex items-center gap-3 px-5 py-3 text-[14.5px] text-[#212B36] hover:bg-slate-50 transition-colors">
+                        <i className="fa-regular fa-user text-[16px] text-[#637381] w-5 text-center"></i>
+                        <span>Tài Khoản</span>
+                        </Link>
+                        <Link to="/profile/tickets" className="flex items-center gap-3 px-5 py-3 text-[14.5px] text-[#212B36] hover:bg-slate-50 transition-colors">
+                        <i className="fa-solid fa-bag-shopping text-[16px] text-[#637381] w-5 text-center"></i>
+                        <span>Đơn Hàng</span>
+                        </Link>
+                        <button onClick={() => logout()} className="w-full flex items-center gap-3 px-5 py-3 text-[14.5px] text-[#212B36] hover:bg-slate-50 transition-colors cursor-pointer text-left">
+                        <i className="fa-solid fa-arrow-right-from-bracket text-[16px] text-[#637381] w-5 text-center"></i>
+                        <span>Đăng Xuất</span>
+                        </button>
+                    </div>
                   </div>
                 </div>
               </div>
