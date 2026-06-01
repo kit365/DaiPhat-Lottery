@@ -5,7 +5,7 @@ import { Header } from "../../../client/components/layout/header";
 import { useAuth } from "../../hooks/useAuth";
 import { useAuthStore } from "../../../stores/useAuthStore";
 
-type TabId = 'overview' | 'info' | 'address' | 'tickets' | 'history' | 'notifications' | 'settings';
+type TabId = 'overview' | 'info' | 'address' | 'tickets' | 'history' | 'notifications' | 'settings' | 'favorites';
 
 interface TabConfig {
     id: TabId;
@@ -16,13 +16,13 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-    { id: 'overview', path: '/profile/overview', label: 'Tổng quan tài khoản', icon: 'fa-regular fa-calendar-minus' },
-    { id: 'info', path: '/profile/info', label: 'Thông tin tài khoản', icon: 'fa-regular fa-user' },
-    { id: 'address', path: '/profile/address', label: 'Địa chỉ giao hàng', icon: 'fa-solid fa-location-dot' },
-    { id: 'tickets', path: '/profile/tickets', label: 'Vé của tôi', icon: 'fa-solid fa-ticket' },
-    { id: 'history', path: '/profile/history', label: 'Lịch sử giao dịch', icon: 'fa-solid fa-clock-rotate-left' },
-    { id: 'notifications', path: '/profile/notifications', label: 'Thông báo', icon: 'fa-regular fa-bell', badge: 3 },
-    { id: 'settings', path: '/profile/settings', label: 'Cài đặt', icon: 'fa-solid fa-gear' },
+    { id: 'overview', path: '/profile/overview', label: 'Tổng quan', icon: 'fa-solid fa-border-all' },
+    { id: 'info', path: '/profile/info', label: 'Tài khoản cá nhân', icon: 'fa-regular fa-user' },
+    { id: 'history', path: '/profile/history', label: 'Đơn hàng của tôi', icon: 'fa-solid fa-clipboard-list' },
+    { id: 'tickets', path: '/profile/tickets', label: 'Vé của tôi', icon: 'fa-solid fa-ticket-simple' },
+    { id: 'favorites', path: '/profile/favorites', label: 'Số yêu thích', icon: 'fa-regular fa-star' },
+    { id: 'notifications', path: '/profile/notifications', label: 'Thông báo', icon: 'fa-regular fa-bell' },
+    { id: 'settings', path: '/profile/settings', label: 'Bảo mật', icon: 'fa-solid fa-shield-halved' },
 ];
 
 export const ProfilePage = () => {
@@ -41,123 +41,156 @@ export const ProfilePage = () => {
     if (isUserLoading || !user) return null;
 
     // Find the active tab based on the current pathname
-    const activeTabObj = TABS.find(t => location.pathname.startsWith(t.path)) || TABS[1];
+    const activeTabObj = TABS.find(t => location.pathname.startsWith(t.path)) || TABS[0];
 
     return (
-        <div className="min-h-screen bg-[#F8F9FA] font-['Inter',sans-serif] pb-20 lg:pb-0 text-[#212B36]">
+        <div className="min-h-screen flex flex-col bg-[#F8F9FA] font-['Inter',sans-serif] text-[#212B36]">
             <Header />
-            
-            <main className="max-w-[1440px] mx-auto px-4 lg:px-6 pt-28 pb-12">
-                
-                {/* Main Content Grid */}
-                <div className="flex flex-col lg:flex-row gap-6 items-start">
-                    
-                    {/* Left Sidebar */}
-                    <div className="w-full lg:w-[280px] shrink-0 flex flex-col gap-6">
-                        
-                        {/* Profile Summary Card */}
-                        <div className="bg-white rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-[#E5E8EB] p-6 flex flex-col items-center justify-center text-center">
-                            <div className="w-[88px] h-[88px] rounded-full overflow-hidden border-2 border-white shadow-sm mb-4 bg-slate-100 flex items-center justify-center text-[#919EAB]">
-                                {user.avatar || user.avatarUrl ? (
-                                    <img src={user.avatar || user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                                ) : (
-                                    <i className="fa-solid fa-user text-4xl"></i>
-                                )}
-                            </div>
-                            <h2 className="text-[17px] font-bold text-[#212B36] mb-1">{user.fullName || user.username}</h2>
-                            <p className="text-[14px] text-[#637381]">{user.phone || '0901 234 567'}</p>
-                        </div>
 
-                        {/* Navigation Menu */}
-                        <div className="bg-white rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-[#E5E8EB] p-3">
-                            <nav className="flex flex-col gap-1">
-                                {TABS.map((tab) => {
-                                    const isActive = location.pathname.startsWith(tab.path);
-                                    return (
-                                        <Link
-                                            key={tab.id}
-                                            to={tab.path}
-                                            className={`flex items-center justify-between px-4 py-3 rounded-lg text-[14px] font-medium transition-colors outline-none cursor-pointer text-left
-                                                ${isActive ? 'bg-[#FFF4F4] text-[#BA0000]' : 'text-[#454F5B] hover:bg-[#FAFBFC] hover:text-[#212B36]'}
-                                            `}
+            <div
+                className="flex-1 w-full mt-[70px] lg:mt-[80px]"
+                style={{
+                    backgroundImage: "url('https://i.ibb.co/nsNc8F41/Screenshot-2026-05-30-141824.png'), url('https://i.ibb.co/DP5YBHxY/Screenshot-2026-05-30-142428.png')",
+                    backgroundPosition: "center -20px, bottom center",
+                    backgroundSize: "100% auto, 100% auto",
+                    backgroundRepeat: "no-repeat, no-repeat"
+                }}
+            >
+                <main className="max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12">
+
+                    {/* Main Content Grid */}
+                    <div className="flex flex-col lg:flex-row gap-6 items-start">
+
+                        {/* Left Sidebar */}
+                        <div className="w-full lg:w-[280px] shrink-0 flex flex-col gap-6">
+
+                            {/* Profile Summary & Nav Container */}
+                            <div className="bg-white rounded-[20px] shadow-[0_2px_12px_rgb(0,0,0,0.03)] overflow-hidden flex flex-col">
+
+                                {/* Top Section with Cherry Blossom BG */}
+                                <div className="relative pt-6 pb-2 flex flex-col items-center text-center">
+                                    {/* Cherry Blossom Background */}
+                                    <div
+                                        className="absolute top-0 left-0 right-0 h-[140px] bg-cover bg-top z-0"
+                                        style={{ backgroundImage: "url('https://i.ibb.co/hxtX5R85/5193a4bb-ce0a-469c-9345-0f9c814a8dab.png')" }}
+                                    >
+                                    </div>
+
+                                    {/* Avatar */}
+                                    <div className="relative z-10 mb-3">
+                                        <div className="w-[88px] h-[88px] rounded-full overflow-hidden border-[4px] border-white shadow-sm bg-slate-100 flex items-center justify-center text-[#919EAB]">
+                                            {user.avatar || user.avatarUrl ? (
+                                                <img src={user.avatar || user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <i className="fa-solid fa-user text-4xl"></i>
+                                            )}
+                                        </div>
+                                        <button className="absolute bottom-0 right-0 w-7 h-7 bg-white rounded-full shadow-md border border-slate-100 flex items-center justify-center text-slate-500 hover:text-[#BA0000] transition-colors cursor-pointer">
+                                            <i className="fa-solid fa-camera text-[11px]"></i>
+                                        </button>
+                                    </div>
+
+                                    {/* Info */}
+                                    <div className="relative z-10 w-full px-4 flex flex-col items-center">
+                                        <h2 className="text-[18px] font-black text-[#212B36] mb-2">{user.fullName || user.username}</h2>
+                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#FFF9F3] text-[#FFB020] rounded-full text-[12px] font-bold mb-3 shadow-sm border border-[#FFE5CD]">
+                                            <i className="fa-solid fa-crown text-[10px]"></i>
+                                            Thành viên Vàng
+                                        </div>
+                                        <p className="text-[12px] font-medium text-[#454F5B] mb-0.5">{user.email || 'john.doe@gmail.com'}</p>
+                                        <p className="text-[12px] font-medium text-[#454F5B]">{user.phone || '0987 654 321'}</p>
+                                    </div>
+                                </div>
+
+                                {/* Navigation Menu */}
+                                <div className="pb-4 pt-2">
+                                    <nav className="flex flex-col gap-1">
+                                        {TABS.map((tab) => {
+                                            const isActive = location.pathname.startsWith(tab.path);
+                                            return (
+                                                <Link
+                                                    key={tab.id}
+                                                    to={tab.path}
+                                                    className={`relative flex items-center justify-between px-6 py-3 text-[13px] font-medium transition-all outline-none cursor-pointer text-left overflow-hidden group
+                                                    ${isActive ? 'bg-gradient-to-r from-[#FFF4F4] to-white text-[#c80f11]' : 'text-[#454F5B] hover:bg-[#FAFBFC] hover:text-[#212B36]'}
+                                                `}
+                                                >
+                                                    <div className="flex items-center gap-3 relative z-10">
+                                                        <i className={`${tab.icon} w-5 text-center text-[16px] transition-colors ${isActive ? 'text-[#c80f11]' : 'text-[#919EAB] group-hover:text-[#454F5B]'}`}></i>
+                                                        <span>{tab.label}</span>
+                                                    </div>
+                                                    {tab.badge && (
+                                                        <span className="bg-[#ee1314] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center relative z-10">
+                                                            {tab.badge}
+                                                        </span>
+                                                    )}
+                                                    {isActive && (
+                                                        <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[#c80f11]"></div>
+                                                    )}
+                                                </Link>
+                                            );
+                                        })}
+
+                                        {/* Logout Button */}
+                                        <button
+                                            className="relative flex items-center justify-between px-6 py-3 mt-2 text-[13px] font-medium text-[#454F5B] hover:bg-[#FAFBFC] hover:text-[#212B36] transition-all outline-none cursor-pointer text-left w-full group"
                                         >
                                             <div className="flex items-center gap-3">
-                                                <i className={`${tab.icon} w-5 text-center ${isActive ? 'text-[#BA0000]' : 'text-[#919EAB]'}`}></i>
-                                                <span>{tab.label}</span>
+                                                <i className="fa-solid fa-arrow-right-from-bracket w-5 text-center text-[16px] text-[#919EAB] group-hover:text-[#454F5B] transition-colors"></i>
+                                                <span>Đăng xuất</span>
                                             </div>
-                                            {tab.badge && (
-                                                <span className="bg-[#BA0000] text-white text-[11px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
-                                                    {tab.badge}
-                                                </span>
-                                            )}
-                                            {isActive && (
-                                                <div className="absolute left-0 w-1 h-8 bg-[#BA0000] rounded-r-md hidden"></div>
-                                            )}
-                                        </Link>
-                                    );
-                                })}
-                            </nav>
+                                        </button>
+                                    </nav>
+                                </div>
+                            </div>
+
+                            {/* Support Widget */}
+                            <div
+                                className="rounded-[20px] p-5 relative overflow-hidden flex flex-col justify-center min-h-[140px] bg-cover bg-center shadow-sm"
+                                style={{ backgroundImage: "url('https://i.ibb.co/M5RCKKDn/d2ee3500-96d8-4e2f-a713-d74b7e35e64c.png')" }}
+                            >
+                                <div className="relative z-10 max-w-[65%]">
+                                    <h3 className="text-[14px] font-bold text-[#212B36] mb-1">Bạn cần hỗ trợ?</h3>
+                                    <p className="text-[11px] font-medium text-[#637381] mb-3 leading-tight">Đội ngũ của chúng tôi luôn sẵn sàng!</p>
+                                    <button className="bg-transparent border border-[#ee1314] text-[#ee1314] text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-[#ee1314] hover:text-white transition-colors flex items-center gap-1.5 w-max cursor-pointer">
+                                        <i className="fa-solid fa-headset"></i>
+                                        Liên hệ ngay
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Promo Banner */}
-                        <div className="bg-[#BA0000] rounded-xl shadow-lg p-5 relative overflow-hidden text-white flex flex-col justify-center min-h-[160px] group cursor-pointer">
-                            {/* Decorative background elements */}
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400 rounded-full blur-3xl opacity-20 transform translate-x-10 -translate-y-10"></div>
-                            
-                            <div className="relative z-10 w-2/3">
-                                <h3 className="text-[17px] font-extrabold uppercase leading-tight mb-3 text-yellow-300">Săn lộc vàng<br/>Trúng lớn!</h3>
-                                <button className="bg-yellow-400 text-red-900 text-[12px] font-bold px-4 py-1.5 rounded-md shadow-sm hover:bg-yellow-300 transition-colors">
-                                    Mua vé ngay
-                                </button>
+                        {/* Main Content Area */}
+                        <div className="flex-1 min-w-0 flex flex-col gap-6">
+
+                            {/* Title & Description */}
+                            {activeTabObj.id !== 'overview' && (
+                                <div>
+                                    <h1 className="text-[28px] font-bold text-[#212B36] mb-1">{activeTabObj.label}</h1>
+                                    <p className="text-[#637381] text-[15px]">Quản lý thông tin cá nhân và tài khoản của bạn</p>
+                                </div>
+                            )}
+
+                            {/* Dynamic Content */}
+                            <div className="mt-2">
+                                <AnimatePresence mode="wait">
+                                    <motion.div
+                                        key={location.pathname}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        <Outlet />
+                                    </motion.div>
+                                </AnimatePresence>
                             </div>
-                            
-                            {/* God of wealth image placeholder */}
-                            <div className="absolute bottom-0 right-0 w-24 h-24 transform translate-x-2 translate-y-2 group-hover:scale-110 transition-transform duration-300">
-                                <img src="/assets/img/blog/blog-post-2.jpg" className="w-full h-full object-cover rounded-tl-full opacity-50 mix-blend-luminosity" alt="Promo" />
-                            </div>
-                            {/* Lottery balls placeholders */}
-                            <div className="absolute bottom-2 left-2 w-6 h-6 bg-white rounded-full text-black text-[10px] font-bold flex items-center justify-center shadow-md">8</div>
-                            <div className="absolute bottom-2 left-10 w-6 h-6 bg-white rounded-full text-black text-[10px] font-bold flex items-center justify-center shadow-md">8</div>
-                            <div className="absolute bottom-2 right-12 w-6 h-6 bg-white rounded-full text-black text-[10px] font-bold flex items-center justify-center shadow-md">3</div>
+
                         </div>
 
                     </div>
-
-                    {/* Main Content Area */}
-                    <div className="flex-1 min-w-0 flex flex-col gap-6">
-                        
-                        {/* Breadcrumb */}
-                        <div className="flex items-center gap-2 text-[14px] text-[#637381]">
-                            <Link to="/" className="hover:text-[#BA0000] transition-colors">Trang chủ</Link>
-                            <span className="text-[12px]">&gt;</span>
-                            <span className="text-[#212B36] font-medium">{activeTabObj.label}</span>
-                        </div>
-
-                        {/* Title & Description */}
-                        <div>
-                            <h1 className="text-[28px] font-bold text-[#212B36] mb-1">{activeTabObj.label}</h1>
-                            <p className="text-[#637381] text-[15px]">Quản lý thông tin cá nhân và tài khoản của bạn</p>
-                        </div>
-
-                        {/* Dynamic Content */}
-                        <div className="mt-2">
-                            <AnimatePresence mode="wait">
-                                <motion.div
-                                    key={location.pathname}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    transition={{ duration: 0.2 }}
-                                >
-                                    <Outlet />
-                                </motion.div>
-                            </AnimatePresence>
-                        </div>
-
-                    </div>
-
-                </div>
-            </main>
+                </main>
+            </div>
         </div>
     );
 };

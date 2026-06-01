@@ -21,43 +21,49 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, data, histor
 
   return (
     <aside className="w-full lg:w-[380px] space-y-4">
-      {/* Smaller Promo Banner - Always Visible */}
-      <div className="relative overflow-hidden rounded-[20px] bg-[#BA0000] p-5 shadow-[0_10px_25px_rgba(230,15,20,0.15)] group cursor-pointer transition-all hover:scale-[1.01] flex items-center min-h-[140px]">
-        <div className="relative z-10 space-y-4 max-w-[65%]">
+      <div
+        onClick={openLoginModal}
+        className="relative overflow-hidden rounded-[16px] shadow-sm cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] w-full min-h-[150px] flex items-center p-5 group bg-[#e41212]"
+      >
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src="https://i.ibb.co/FbsnQfjR/28d77182-45b0-40bf-9aaf-58136bc87741.png"
+            alt="Săn Lộc Vàng Background"
+            className="w-full h-full object-cover object-center scale-[1.3] -translate-x-12"
+          />
+        </div>
+
+        {/* Text & Button Overlay */}
+        <div className="relative z-10 space-y-3 max-w-[65%]">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest font-client-display">Mua vé số online</p>
-            <h3 className="text-lg font-bold text-white leading-tight uppercase font-client-main tracking-tight">
+            <p className="text-[11px] font-bold text-white uppercase tracking-[0.1em] font-client-display drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+              Mua vé số online
+            </p>
+            <h3 className="text-[20px] font-black text-white leading-[1.1] uppercase font-client-main drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
               SĂN LỘC VÀNG<br />
               TRÚNG LỚN
             </h3>
           </div>
-          <button 
-            onClick={openLoginModal}
-            className="bg-[#FFD54F] hover:bg-white text-[#B71C1C] px-4 py-2 rounded-xl font-bold text-[12px] transition-all shadow-md cursor-pointer active:scale-95 uppercase font-client-main"
+          <button
+            className="bg-gradient-to-r from-[#ffe169] to-[#ffc107] hover:from-[#fff] hover:to-[#ffe169] text-[#c62828] px-4 py-2 rounded-full font-bold text-[12px] transition-all shadow-[0_4px_10px_rgba(255,213,79,0.3)] uppercase font-client-main flex items-center gap-1 w-max pointer-events-none"
           >
             Mua vé ngay
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+            </svg>
           </button>
-        </div>
-
-        {/* Lucky Girl Image */}
-        <div className="absolute right-0 top-0 w-full h-full z-0 pointer-events-none overflow-hidden rounded-[20px]">
-          <img 
-            src="/assets/images/hero_laptop.JPEG" 
-            alt="Lucky Girl" 
-            className="w-full h-full object-cover object-[82%_center] transition-transform group-hover:scale-105 duration-700 opacity-90"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#BA0000] via-[#BA0000]/60 to-transparent"></div>
         </div>
       </div>
 
       {showLoto && data && (
         <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-          <LotoTable 
-            prizes={data.prizes} 
-            selectedDigit={selectedDigit} 
+          <LotoTable
+            prizes={data.prizes}
+            selectedDigit={selectedDigit}
             hoveredDigit={hoveredDigit}
-            onDigitClick={onDigitSelect} 
-            onDigitHover={onDigitHover} 
+            onDigitClick={onDigitSelect}
+            onDigitHover={onDigitHover}
           />
         </div>
       )}

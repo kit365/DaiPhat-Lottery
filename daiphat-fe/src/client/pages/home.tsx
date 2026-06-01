@@ -55,9 +55,10 @@ export const HomePage = () => {
 
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[#FDFBF7] text-client-ink font-client-main">
-      <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.028] bg-[url('data:image/svg+xml,%3Csvg_viewBox=%270_0_200_200%27_xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter_id=%27n%27%3E%3CfeTurbulence_type=%27fractalNoise%27_baseFrequency=%27.65%27_numOctaves=%273%27_stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect_width=%27100%25%27_height=%27100%25%27_filter=%27url(%23n)%27/%3E%3C/svg%3E')]" aria-hidden="true" />
-
+    <div 
+      className="relative min-h-screen overflow-x-hidden font-client-main bg-fixed bg-cover bg-center"
+      style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+    >
       <Header />
 
       <main className="relative z-1">
@@ -94,12 +95,12 @@ export const HomePage = () => {
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-[#111111] font-client-main uppercase tracking-tight">Chưa có kết quả</h3>
                   <p className="text-slate-400 font-medium max-w-[300px]">
-                    Đài <span className="text-[#BA0000] font-bold">{selectedProvince}</span> hiện chưa cập nhật kết quả cho ngày hôm nay.
+                    Đài <span className="text-[#ee1314] font-bold">{selectedProvince}</span> hiện chưa cập nhật kết quả cho ngày hôm nay.
                   </p>
                 </div>
                 <button
                   onClick={() => setSelectedProvince("TP. Hồ Chí Minh")}
-                  className="bg-[#102937] text-white px-6 py-3 rounded-2xl font-bold text-[14px] hover:bg-[#BA0000] transition-all cursor-pointer active:scale-95 shadow-lg shadow-slate-200"
+                  className="bg-[#102937] text-white px-6 py-3 rounded-2xl font-bold text-[14px] hover:bg-[#ee1314] transition-all cursor-pointer active:scale-95 shadow-lg shadow-slate-200"
                 >
                   Xem đài TP. Hồ Chí Minh
                 </button>

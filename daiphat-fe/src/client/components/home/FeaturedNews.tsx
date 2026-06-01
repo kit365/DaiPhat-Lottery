@@ -22,7 +22,7 @@ export const FeaturedNews: React.FC = () => {
         <h3 className="text-[16px] font-semibold text-[#111111] uppercase font-client-main">
           TIN TỨC NỔI BẬT
         </h3>
-        <button className="text-[13px] font-medium text-slate-400 hover:text-[#BA0000] flex items-center gap-0.5 cursor-pointer transition-colors font-client-main">
+        <button className="text-[13px] font-medium text-slate-400 hover:text-[#ee1314] flex items-center gap-0.5 cursor-pointer transition-colors font-client-main">
           Xem tất cả
           <span className="material-symbols-outlined text-[16px]">chevron_right</span>
         </button>
@@ -40,7 +40,7 @@ export const FeaturedNews: React.FC = () => {
               <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors"></div>
             </div>
             <div className="flex flex-col justify-center gap-1">
-              <h4 className="text-[13px] font-bold text-[#102937] line-clamp-2 leading-snug group-hover:text-[#BA0000] transition-colors">
+              <h4 className="text-[13px] font-bold text-[#102937] line-clamp-2 leading-snug group-hover:text-[#ee1314] transition-colors">
                 {item.title}
               </h4>
               <span className="text-[11px] font-medium text-slate-400">{item.time}</span>

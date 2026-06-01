@@ -7,6 +7,7 @@ import { AdminRoutes, AdminAuthRoutes, CommonRoutes, ProfileSetupPage, OAuthCall
 import { PrivateRoute } from './client/pages/private.route';
 import { ProfilePage as ClientProfilePage } from './client/pages/profile/ProfilePage';
 import { ProfileDashboardPage } from './client/pages/profile/ProfileDashboardPage';
+import { OverviewTab } from './client/pages/profile/tabs/OverviewTab';
 import { ProfileInfoTab } from './client/pages/profile/tabs/ProfileInfoTab';
 import { AddressTab } from './client/pages/profile/tabs/AddressTab';
 import { CreateAddressTab } from './client/pages/profile/tabs/CreateAddressTab';
@@ -55,8 +56,8 @@ function App() {
         {/* Client Side Theme Context */}
         <Route element={<ClientThemeLayout />}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<GuestGuard><LoginPage /></GuestGuard>} />
-          <Route path="/register" element={<GuestGuard><RegisterPage /></GuestGuard>} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/blogs" element={<BlogListPage />} />
           <Route path="/blogs/detail" element={<BlogDetailPage />} />
 
@@ -71,7 +72,8 @@ function App() {
 
           <Route path="/profile" element={<PrivateRoute />}>
             <Route element={<ClientProfilePage />}>
-              <Route index element={<Navigate to="info" replace />} />
+              <Route index element={<Navigate to="overview" replace />} />
+              <Route path="overview" element={<OverviewTab />} />
               <Route path="info" element={<ProfileInfoTab />} />
               <Route path="address" element={<AddressTab />} />
               <Route path="address/create" element={<CreateAddressTab />} />
@@ -117,7 +119,7 @@ function App() {
             <Route path="auth/callback" element={<OAuthCallbackPage />} />
 
             {/* 2. Guarded Common Routes (Setup Profile) */}
-            <Route element={<AuthGuard />}>
+            <Route element={<AuthGuard><Outlet /></AuthGuard>}>
               <Route path="setup-profile" element={<ProfileSetupPage />} />
               {/* Add other guarded common routes here if needed */}
             </Route>

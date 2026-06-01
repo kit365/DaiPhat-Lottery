@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, Lock, Eye, EyeOff, Mail, User } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
@@ -20,8 +20,13 @@ export const RegisterPage = () => {
     const { 
         registerForm: { register, formState: { errors }, watch, handleSubmit }, 
         handleRegister: submit, 
-        registerMutation: { isPending } 
+        registerMutation: { isPending },
+        isAuthenticated,
     } = useAuth();
+
+    if (isAuthenticated) {
+        return <Navigate to="/" replace />;
+    }
 
     const passwordValue = watch("password");
 

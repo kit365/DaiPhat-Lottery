@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
-import { ChevronRight, Calendar as CalendarIcon, CheckCircle2, ShieldCheck, RefreshCw, Grid } from 'lucide-react';
+import { ChevronRight, Calendar as CalendarIcon, CheckCircle2, ShieldCheck, RefreshCw } from 'lucide-react';
 import { useCartStore } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast as toast } from '../../utils/toast.util';
 
 const PROVINCES = [
-    { id: 'hcm', name: 'TP. Hồ Chí Minh', time: '16:15', day: 'Hôm nay', icon: 'HCM' },
-    { id: 'dn', name: 'Đồng Nai', time: '16:20', day: 'Hôm nay', icon: 'DN' },
-    { id: 'ct', name: 'Cần Thơ', time: '16:15', day: 'Hôm nay', icon: 'CT' },
-    { id: 'st', name: 'Sóc Trăng', time: '16:15', day: 'Hôm nay', icon: 'ST' },
+    { id: 'hcm', name: 'TP. Hồ Chí Minh', time: '16:15', day: 'Hôm nay', icon: 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png' },
+    { id: 'dn', name: 'Đồng Nai', time: '16:20', day: 'Hôm nay', icon: 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png' },
+    { id: 'ct', name: 'Cần Thơ', time: '16:15', day: 'Hôm nay', icon: 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png' },
 ];
 
 const QUICK_NUMBERS = [
@@ -34,7 +33,7 @@ export const BuyTicketPage = () => {
         if (selectedNumbers.includes(num)) {
             setSelectedNumbers(selectedNumbers.filter(n => n !== num));
         } else {
-            setSelectedNumbers([num]); // Currently logic allows single selection for demo. Change to push for multiple.
+            setSelectedNumbers([num]);
         }
     };
 
@@ -48,7 +47,6 @@ export const BuyTicketPage = () => {
             openLoginModal();
             return false;
         }
-
         if (!activeProvinceObj || selectedNumbers.length === 0) return false;
         
         selectedNumbers.forEach(num => {
@@ -56,11 +54,11 @@ export const BuyTicketPage = () => {
                 province: activeProvinceObj.name,
                 date: selectedDate === 'today' ? `Hôm nay, 09/02/2025` : `Ngày mai, 10/02/2025`,
                 time: activeProvinceObj.time,
-                kyHieu: "2K2", // Mock
+                kyHieu: "2K2",
                 numbers: num,
                 price: pricePerTicket,
                 quantity: 1,
-                color: "#f59e0b" // Mock color
+                color: "#f59e0b"
             });
         });
         toast.success(`Đã thêm ${selectedNumbers.length} vé vào giỏ hàng`);
@@ -74,78 +72,85 @@ export const BuyTicketPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#F8F9FA] font-['Inter',sans-serif] pb-20">
-            {/* ... */}
+        <div 
+            className="min-h-screen font-client-main flex flex-col bg-fixed bg-cover bg-center"
+            style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
+        >
             <Header />
             
-            <main className="max-w-[1200px] mx-auto px-4 pt-28">
-                {/* Breadcrumb */}
-                <div className="flex items-center gap-2 text-[14px] text-[#637381] mb-6">
-                    <Link to="/" className="hover:text-[#BA0000] transition-colors">Trang chủ</Link>
-                    <ChevronRight size={14} />
-                    <span className="text-[#212B36] font-medium">Mua vé số</span>
-                </div>
-
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="text-[#BA0000] bg-[#FFF4F4] w-12 h-12 rounded-lg flex items-center justify-center">
-                        <i className="fa-solid fa-ticket text-[24px]"></i>
+            {/* Top Section for Breadcrumb & Title (Transparent to show background) */}
+            <div className="w-full mt-[70px] lg:mt-[80px] py-4 lg:py-6">
+                <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8">
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-2 text-[13px] text-[#637381] mb-2">
+                            <Link to="/" className="hover:text-[#ee1314] transition-colors">Trang chủ</Link>
+                            <ChevronRight size={14} />
+                            <span className="text-[#212B36] font-medium">Mua vé số</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="text-[#ee1314] bg-[#FFF4F4] w-10 h-10 rounded-lg flex items-center justify-center border border-[#FFEBEE] shadow-sm">
+                                <i className="fa-solid fa-ticket text-[20px]"></i>
+                            </div>
+                            <div>
+                                <h1 className="text-[20px] lg:text-[22px] font-bold text-[#212B36] leading-tight">Mua vé số</h1>
+                                <p className="text-[#637381] text-[13px]">Chọn đài, chọn số và thanh toán</p>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-[24px] font-bold text-[#212B36]">Mua vé số</h1>
-                        <p className="text-[#637381] text-[14px]">Chọn đài, chọn số và thanh toán</p>
-                    </div>
                 </div>
+            </div>
 
-                <div className="flex flex-col lg:flex-row gap-6 items-start">
+            <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 lg:px-8 pb-6 flex flex-col">
+                <div className="flex flex-col lg:flex-row gap-5 flex-1">
                     
-                    {/* Left Content */}
-                    <div className="flex-1 w-full flex flex-col gap-6">
+                    {/* Left Content - Master Container */}
+                    <div className="flex-1 w-full bg-white rounded-[20px] shadow-md border border-[#E5E8EB] flex flex-col h-fit">
                         
                         {/* 1. Chọn ngày mở thưởng */}
-                        <div className="bg-white rounded-xl shadow-sm border border-[#E5E8EB] p-6">
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="w-6 h-6 rounded-full bg-[#BA0000] text-white flex items-center justify-center text-[14px] font-bold">1</div>
-                                <h2 className="text-[18px] font-bold text-[#212B36]">Chọn ngày mở thưởng</h2>
+                        <div className="p-5 border-b border-[#E5E8EB] shrink-0">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-6 h-6 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-[13px] font-bold">1</div>
+                                <h2 className="text-[16px] font-bold text-[#212B36]">Chọn ngày mở thưởng</h2>
                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-4 max-w-[500px]">
                                 {/* Today */}
                                 <div 
                                     onClick={() => setSelectedDate('today')}
-                                    className={`relative p-4 rounded-lg border-2 cursor-pointer transition-colors flex gap-4
-                                        ${selectedDate === 'today' ? 'border-[#BA0000] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
+                                    className={`relative p-3.5 rounded-xl border-2 cursor-pointer transition-colors flex gap-3 items-center
+                                        ${selectedDate === 'today' ? 'border-[#ee1314] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
                                     `}
                                 >
-                                    <div className={`mt-0.5 ${selectedDate === 'today' ? 'text-[#BA0000]' : 'text-[#637381]'}`}>
-                                        <CalendarIcon size={24} />
+                                    <div className={`${selectedDate === 'today' ? 'text-[#ee1314]' : 'text-[#637381]'}`}>
+                                        <CalendarIcon size={22} />
                                     </div>
-                                    <div>
-                                        <div className={`font-bold text-[16px] ${selectedDate === 'today' ? 'text-[#BA0000]' : 'text-[#212B36]'}`}>Hôm nay</div>
-                                        <div className="text-[13px] text-[#637381] mt-1">09/02/2025 (Chủ nhật)</div>
+                                    <div className="flex-1">
+                                        <div className={`font-bold text-[14px] ${selectedDate === 'today' ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Hôm nay</div>
+                                        <div className="text-[12px] text-[#637381] mt-0.5">09/02/2025 (Chủ nhật)</div>
                                     </div>
                                     {selectedDate === 'today' && (
-                                        <div className="absolute top-4 right-4 text-[#BA0000]">
-                                            <CheckCircle2 size={20} className="fill-[#BA0000] text-white" />
+                                        <div className="text-[#ee1314]">
+                                            <CheckCircle2 size={24} className="fill-[#ee1314] text-white shadow-sm rounded-full" />
                                         </div>
                                     )}
                                 </div>
                                 {/* Tomorrow */}
                                 <div 
                                     onClick={() => setSelectedDate('tomorrow')}
-                                    className={`relative p-4 rounded-lg border-2 cursor-pointer transition-colors flex gap-4
-                                        ${selectedDate === 'tomorrow' ? 'border-[#BA0000] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
+                                    className={`relative p-3.5 rounded-xl border-2 cursor-pointer transition-colors flex gap-3 items-center
+                                        ${selectedDate === 'tomorrow' ? 'border-[#ee1314] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
                                     `}
                                 >
-                                    <div className={`mt-0.5 ${selectedDate === 'tomorrow' ? 'text-[#BA0000]' : 'text-[#637381]'}`}>
-                                        <CalendarIcon size={24} />
+                                    <div className={`${selectedDate === 'tomorrow' ? 'text-[#ee1314]' : 'text-[#637381]'}`}>
+                                        <CalendarIcon size={22} />
                                     </div>
-                                    <div>
-                                        <div className={`font-bold text-[16px] ${selectedDate === 'tomorrow' ? 'text-[#BA0000]' : 'text-[#212B36]'}`}>Ngày mai</div>
-                                        <div className="text-[13px] text-[#637381] mt-1">10/02/2025 (Thứ hai)</div>
+                                    <div className="flex-1">
+                                        <div className={`font-bold text-[14px] ${selectedDate === 'tomorrow' ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Ngày mai</div>
+                                        <div className="text-[12px] text-[#637381] mt-0.5">10/02/2025 (Thứ hai)</div>
                                     </div>
                                     {selectedDate === 'tomorrow' && (
-                                        <div className="absolute top-4 right-4 text-[#BA0000]">
-                                            <CheckCircle2 size={20} className="fill-[#BA0000] text-white" />
+                                        <div className="text-[#ee1314]">
+                                            <CheckCircle2 size={24} className="fill-[#ee1314] text-white shadow-sm rounded-full" />
                                         </div>
                                     )}
                                 </div>
@@ -153,85 +158,83 @@ export const BuyTicketPage = () => {
                         </div>
 
                         {/* 2. Chọn đài mở thưởng */}
-                        <div className="bg-white rounded-xl shadow-sm border border-[#E5E8EB] p-6">
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="w-6 h-6 rounded-full bg-[#BA0000] text-white flex items-center justify-center text-[14px] font-bold">2</div>
-                                <h2 className="text-[18px] font-bold text-[#212B36]">Chọn đài mở thưởng (Miền Nam)</h2>
+                        <div className="p-5 border-b border-[#E5E8EB] shrink-0">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-6 h-6 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-[13px] font-bold">2</div>
+                                <h2 className="text-[16px] font-bold text-[#212B36]">Chọn đài mở thưởng (Miền Nam)</h2>
                             </div>
                             
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div className="grid grid-cols-3 gap-4 max-w-[750px]">
                                 {PROVINCES.map((prov) => (
                                     <div 
                                         key={prov.id}
                                         onClick={() => setSelectedProvince(prov.id)}
-                                        className={`relative p-4 rounded-lg border-2 cursor-pointer transition-colors flex flex-col items-center text-center
-                                            ${selectedProvince === prov.id ? 'border-[#BA0000] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
+                                        className={`relative p-3.5 rounded-xl border-2 cursor-pointer transition-colors flex flex-col items-center text-center
+                                            ${selectedProvince === prov.id ? 'border-[#ee1314] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
                                         `}
                                     >
-                                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-[14px] font-bold text-slate-500 mb-3 border-2 border-white shadow-sm">
-                                            {prov.icon}
+                                        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm border border-[#E5E8EB] mb-2 overflow-hidden p-1.5">
+                                            <img src={prov.icon} alt={prov.name} className="w-full h-full object-contain" />
                                         </div>
-                                        <div className="font-bold text-[14px] text-[#212B36]">{prov.name}</div>
-                                        <div className="text-[12px] text-[#637381] mt-1">{prov.time} • {prov.day}</div>
+                                        <div className="font-bold text-[13px] text-[#212B36]">{prov.name}</div>
+                                        <div className="text-[11px] mt-0.5 font-medium text-[#ee1314]">{prov.time} • {prov.day}</div>
                                         
                                         {selectedProvince === prov.id && (
-                                            <div className="absolute top-2 right-2 text-[#BA0000]">
-                                                <CheckCircle2 size={18} className="fill-[#BA0000] text-white" />
+                                            <div className="absolute top-1.5 right-1.5 text-[#ee1314]">
+                                                <CheckCircle2 size={24} className="fill-[#ee1314] text-white shadow-sm rounded-full" />
                                             </div>
                                         )}
                                     </div>
                                 ))}
                             </div>
-                            
-                            <button className="w-full py-3 border border-[#E5E8EB] rounded-lg text-[14px] font-medium text-[#212B36] hover:bg-gray-50 transition-colors">
-                                + Thêm đài khác
-                            </button>
                         </div>
 
                         {/* 3. Chọn số */}
-                        <div className="bg-white rounded-xl shadow-sm border border-[#E5E8EB] p-6">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-6 h-6 rounded-full bg-[#BA0000] text-white flex items-center justify-center text-[14px] font-bold">3</div>
-                                <h2 className="text-[18px] font-bold text-[#212B36]">Chọn số</h2>
-                                {activeProvinceObj && (
-                                    <div className="ml-2 text-[14px] text-[#BA0000] font-medium">
-                                        {activeProvinceObj.name} • {activeProvinceObj.time} • {activeProvinceObj.day}
-                                    </div>
-                                )}
+                        <div className="p-5 flex-1 flex flex-col">
+                            <div className="flex items-center gap-3 mb-4 shrink-0">
+                                <div className="w-6 h-6 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-[13px] font-bold">3</div>
+                                <h2 className="text-[16px] font-bold text-[#212B36] flex items-center gap-2">
+                                    Chọn số 
+                                    {activeProvinceObj && (
+                                        <span className="text-[#ee1314] text-[14px]">
+                                            • {activeProvinceObj.name} • {activeProvinceObj.time} • {activeProvinceObj.day}
+                                        </span>
+                                    )}
+                                </h2>
                             </div>
                             
-                            {/* Tabs */}
-                            <div className="flex items-center gap-6 border-b border-[#E5E8EB] mb-6">
+                            {/* Pill Tabs */}
+                            <div className="flex items-center gap-2 mb-5 shrink-0">
                                 <button 
                                     onClick={() => setSelectedTab('quick')}
-                                    className={`pb-3 text-[15px] font-bold transition-colors border-b-2 ${selectedTab === 'quick' ? 'border-[#BA0000] text-[#BA0000]' : 'border-transparent text-[#637381] hover:text-[#212B36]'}`}
+                                    className={`px-5 py-2 rounded-full text-[13px] font-bold transition-colors ${selectedTab === 'quick' ? 'bg-[#FFF4F4] text-[#ee1314]' : 'bg-[#F4F6F8] text-[#637381] hover:bg-[#E5E8EB]'}`}
                                 >
                                     Chọn nhanh
                                 </button>
                                 <button 
                                     onClick={() => setSelectedTab('manual')}
-                                    className={`pb-3 text-[15px] font-bold transition-colors border-b-2 ${selectedTab === 'manual' ? 'border-[#BA0000] text-[#BA0000]' : 'border-transparent text-[#637381] hover:text-[#212B36]'}`}
+                                    className={`px-5 py-2 rounded-full text-[13px] font-bold transition-colors ${selectedTab === 'manual' ? 'bg-[#FFF4F4] text-[#ee1314]' : 'bg-[#F4F6F8] text-[#637381] hover:bg-[#E5E8EB]'}`}
                                 >
                                     Chọn số
                                 </button>
                                 <button 
                                     onClick={() => setSelectedTab('birthday')}
-                                    className={`pb-3 text-[15px] font-bold transition-colors border-b-2 ${selectedTab === 'birthday' ? 'border-[#BA0000] text-[#BA0000]' : 'border-transparent text-[#637381] hover:text-[#212B36]'}`}
+                                    className={`px-5 py-2 rounded-full text-[13px] font-bold transition-colors ${selectedTab === 'birthday' ? 'bg-[#FFF4F4] text-[#ee1314]' : 'bg-[#F4F6F8] text-[#637381] hover:bg-[#E5E8EB]'}`}
                                 >
                                     Số theo ngày sinh
                                 </button>
                             </div>
 
-                            {/* Numbers Grid */}
-                            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-3 mb-6">
+                            {/* Numbers Grid (10 columns) */}
+                            <div className="grid grid-cols-5 md:grid-cols-10 gap-2.5 flex-1 content-start shrink-0">
                                 {QUICK_NUMBERS.map((num, i) => {
                                     const isSelected = selectedNumbers.includes(num);
                                     return (
                                         <button
                                             key={i}
                                             onClick={() => toggleNumber(num)}
-                                            className={`py-2 rounded border text-[15px] font-bold transition-colors
-                                                ${isSelected ? 'bg-[#BA0000] border-[#BA0000] text-white' : 'border-[#E5E8EB] text-[#BA0000] hover:border-[#BA0000] hover:bg-[#FFF4F4]'}
+                                            className={`py-2 rounded-lg border text-[13px] font-bold transition-colors
+                                                ${isSelected ? 'bg-[#ee1314] border-[#ee1314] text-white' : 'border-[#E5E8EB] text-[#ee1314] hover:border-[#ee1314] hover:bg-[#FFF4F4]'}
                                             `}
                                         >
                                             {num}
@@ -241,15 +244,12 @@ export const BuyTicketPage = () => {
                             </div>
 
                             {/* Footer Actions */}
-                            <div className="flex items-center justify-between border-t border-[#E5E8EB] pt-4">
+                            <div className="flex items-center justify-start mt-5 shrink-0">
                                 <button 
                                     onClick={() => setSelectedNumbers([])}
-                                    className="flex items-center gap-2 text-[#637381] hover:text-[#212B36] text-[14px] font-medium transition-colors"
+                                    className="flex items-center gap-1.5 text-[#637381] hover:text-[#212B36] text-[13px] font-medium transition-colors"
                                 >
-                                    <RefreshCw size={16} /> Chọn lại
-                                </button>
-                                <button className="flex items-center gap-2 px-4 py-2 border border-[#E5E8EB] rounded-lg text-[#212B36] text-[14px] font-medium hover:bg-gray-50 transition-colors">
-                                    <Grid size={16} /> Chọn số khác <ChevronRight size={14} className="rotate-90" />
+                                    <RefreshCw size={14} /> Chọn lại
                                 </button>
                             </div>
                         </div>
@@ -257,78 +257,78 @@ export const BuyTicketPage = () => {
                     </div>
 
                     {/* Right Sidebar - Checkout Summary */}
-                    <div className="w-full lg:w-[340px] shrink-0">
-                        <div className="bg-white rounded-xl shadow-sm border border-[#E5E8EB] p-6 sticky top-28">
-                            <h3 className="text-[18px] font-bold text-[#212B36] mb-6">Tóm tắt đơn hàng</h3>
+                    <div className="w-full lg:w-[360px] shrink-0">
+                        <div className="bg-white rounded-[20px] shadow-md border border-[#E5E8EB] p-5 flex flex-col sticky top-[100px]">
+                            <h3 className="text-[18px] font-bold text-[#212B36] mb-5 shrink-0">Tóm tắt đơn hàng</h3>
                             
                             {/* Province Info */}
                             {activeProvinceObj && (
-                                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#E5E8EB]">
-                                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-[14px] font-bold text-slate-500 border-2 border-white shadow-sm">
-                                        {activeProvinceObj.icon}
+                                <div className="flex items-center gap-3 mb-5 pb-5 border-b border-[#E5E8EB] shrink-0">
+                                    <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center border border-[#E5E8EB] shadow-sm p-1.5 overflow-hidden">
+                                        <img src={activeProvinceObj.icon} alt={activeProvinceObj.name} className="w-full h-full object-contain" />
                                     </div>
                                     <div>
-                                        <div className="font-bold text-[16px] text-[#212B36]">{activeProvinceObj.name}</div>
-                                        <div className="text-[13px] text-[#637381] mt-0.5">{activeProvinceObj.time} • {activeProvinceObj.day}</div>
+                                        <div className="font-bold text-[15px] text-[#212B36]">{activeProvinceObj.name}</div>
+                                        <div className="text-[12px] text-[#637381] mt-0.5">{activeProvinceObj.time} • {activeProvinceObj.day}</div>
                                     </div>
                                 </div>
                             )}
 
                             {/* Selected Numbers */}
-                            <div className="flex justify-between items-start mb-6">
+                            <div className="flex justify-between items-start mb-5 shrink-0">
                                 <div>
-                                    <div className="text-[13px] text-[#637381] mb-1">Số đã chọn</div>
-                                    <div className="text-[24px] font-black tracking-widest text-[#BA0000]">
+                                    <div className="text-[12px] text-[#637381] mb-1">Số đã chọn</div>
+                                    <div className="text-[22px] font-black tracking-wider text-[#ee1314]">
                                         {selectedNumbers[0] || '---'}
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-[13px] text-[#637381] mb-1">Số lượng</div>
-                                    <div className="text-[15px] font-bold text-[#212B36]">{quantity} vé</div>
+                                    <div className="text-[12px] text-[#637381] mb-1">Số lượng</div>
+                                    <div className="text-[14px] font-bold text-[#212B36]">{quantity} vé</div>
                                 </div>
                             </div>
 
-                            <div className="space-y-4 mb-6 text-[14px] pt-6 border-t border-[#E5E8EB]">
+                            <div className="space-y-3 text-[13px] pt-4 border-t border-[#E5E8EB] shrink-0">
                                 <div className="flex justify-between text-[#637381]">
                                     <span>Tạm tính</span>
-                                    <span className="text-[#212B36] font-medium">{totalAmount.toLocaleString('vi-VN')} đ</span>
+                                    <span className="text-[#212B36] font-semibold">{totalAmount.toLocaleString('vi-VN')} đ</span>
                                 </div>
                                 <div className="flex justify-between text-[#637381]">
-                                    <span className="flex items-center gap-1">Phí giao vé (nếu có) <i className="fa-regular fa-circle-question text-[12px]"></i></span>
-                                    <span className="text-[#212B36] font-medium">0 đ</span>
+                                    <span className="flex items-center gap-1">Phí giao vé (nếu có) <i className="fa-regular fa-circle-question text-[11px]"></i></span>
+                                    <span className="text-[#212B36] font-semibold">0 đ</span>
                                 </div>
                             </div>
 
-                            <div className="flex justify-between items-center pt-4 border-t border-[#E5E8EB] mb-6">
-                                <span className="text-[16px] font-bold text-[#212B36]">Tổng tiền</span>
-                                <span className="text-[24px] font-bold text-[#BA0000]">{totalAmount.toLocaleString('vi-VN')} đ</span>
+                            <div className="flex justify-between items-center pt-4 border-t border-[#E5E8EB] my-5 shrink-0">
+                                <span className="text-[15px] font-bold text-[#212B36]">Tổng tiền</span>
+                                <span className="text-[22px] font-bold text-[#ee1314]">{totalAmount.toLocaleString('vi-VN')} đ</span>
                             </div>
 
-                            <div className="flex flex-col gap-3 mb-6">
+                            {/* Push buttons to bottom if space available */}
+                            <div className="mt-auto shrink-0 flex flex-col gap-3">
                                 <button 
                                     onClick={handleCheckout}
                                     disabled={quantity === 0}
-                                    className="w-full py-3.5 bg-[#BA0000] text-white font-bold rounded-lg hover:bg-[#990000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="w-full py-3 bg-[#ee1314] text-white font-bold rounded-xl text-[14px] hover:bg-[#B71C1C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md shadow-[#ee1314]/20"
                                 >
                                     <i className="fa-solid fa-lock"></i> Thanh toán
                                 </button>
                                 <button 
                                     onClick={addToCart}
                                     disabled={quantity === 0}
-                                    className="w-full py-3.5 bg-white text-[#BA0000] font-bold rounded-lg border-2 border-[#BA0000] hover:bg-[#FFF4F4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-full py-3 bg-white text-[#212B36] font-bold rounded-xl border-2 border-[#E5E8EB] text-[14px] hover:border-[#ee1314] hover:text-[#ee1314] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     Mua thêm vé
                                 </button>
                             </div>
 
-                            <div className="bg-[#F8F9FA] rounded-lg p-4 flex gap-3">
-                                <ShieldCheck className="text-[#00A76F] shrink-0 mt-0.5" size={20} />
+                            <div className="mt-5 flex gap-2.5 justify-center items-center shrink-0">
+                                <ShieldCheck className="text-[#00A76F]" size={20} />
                                 <div>
-                                    <div className="font-bold text-[13px] text-[#212B36]">Giao dịch bảo mật 100%</div>
-                                    <div className="text-[12px] text-[#637381] mt-0.5">Thông tin của bạn luôn được bảo vệ</div>
+                                    <div className="font-bold text-[12px] text-[#212B36]">Giao dịch bảo mật 100%</div>
+                                    <div className="text-[11px] text-[#637381]">Thông tin của bạn luôn được bảo vệ</div>
                                 </div>
                             </div>
-
                         </div>
                     </div>
 
@@ -337,3 +337,4 @@ export const BuyTicketPage = () => {
         </div>
     );
 };
+
