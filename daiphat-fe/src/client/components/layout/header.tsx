@@ -75,7 +75,7 @@ export const Header = () => {
   return (
     <>
       <motion.nav
-        className="relative w-full z-[1000] bg-white lg:fixed lg:top-0 lg:left-0 lg:bg-white/95 lg:backdrop-blur-3xl lg:border-b lg:border-slate-100 lg:shadow-sm transition-all duration-300"
+        className="relative w-full z-[1000] bg-white/80 backdrop-blur-xl border-b border-white/30 shadow-sm lg:fixed lg:top-0 lg:left-0 lg:bg-white/80 transition-all duration-300"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -83,18 +83,12 @@ export const Header = () => {
       >
         <div className="max-w-[1440px] mx-auto px-4 lg:px-6 h-auto lg:h-20 flex flex-col lg:flex-row lg:items-center lg:justify-between py-4 lg:py-0 border-b border-black/5 lg:border-none gap-4 lg:gap-8">
           <div className="flex items-center justify-between w-full lg:w-auto shrink-0">
-            <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-2 no-underline text-[#102937] font-bold transition-transform hover:scale-[1.02] font-client-display" aria-label="DaiPhat home">
-              <svg aria-hidden="true" viewBox="0 0 36 36" fill="none" width="28" height="28" className="text-[#BA0000]">
-                <rect width="36" height="36" rx="8" fill="currentColor" />
-                <path
-                  d="M18 7.2 21.2 14h7l-5.6 4.6 1.8 7-6.4-3.8-6.4 3.8 1.8-7L7.8 14h7L18 7.2Z"
-                  fill="#FFB800"
-                  stroke="#FFB800"
-                  strokeWidth=".6"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span className="text-lg tracking-tighter font-client-display font-black text-[#102937] whitespace-nowrap">Đại Phát</span>
+            <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-2.5 no-underline transition-transform hover:scale-[1.02] font-client-display" aria-label="DaiPhat home">
+              <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Đại Phát Logo" className="w-[42px] h-[42px] object-contain" />
+              <div className="flex flex-col justify-center">
+                  <span className="text-[20px] tracking-tight font-client-display font-black text-[#ee1314] leading-none mb-1">ĐẠI PHÁT</span>
+                  <span className="text-[8.5px] font-bold text-[#F59E0B] leading-none uppercase tracking-wider whitespace-nowrap">Tài lộc - May mắn - Thịnh vượng</span>
+              </div>
             </Link>
 
             {/* Tablet/Mobile Top Actions - Removed Avatar as it is in Bottom Nav */}
@@ -115,8 +109,8 @@ export const Header = () => {
                   to={item.to}
                   className={`flex items-center gap-2 font-bold no-underline transition-colors px-4 py-2.5 rounded-2xl text-[15px] tracking-tight font-client-display ${
                     isActive
-                      ? "bg-[#FFF4F4] text-[#BA0000]" 
-                      : "text-[#505050] hover:text-[#BA0000] hover:bg-slate-50"
+                      ? "bg-[#FFF4F4] text-[#ee1314]" 
+                      : "text-[#505050] hover:text-[#ee1314] hover:bg-slate-50"
                   }`}
                 >
                   <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
@@ -143,46 +137,57 @@ export const Header = () => {
                   <div className="relative group">
                     <button 
                       onClick={() => navigate('/cart')}
-                      className="relative text-[#505050] hover:text-[#BA0000] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer"
+                      className="relative text-[#505050] hover:text-[#ee1314] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer"
                     >
                       <ShoppingCart size={22} strokeWidth={2} />
                       {cartItems.length > 0 && (
-                        <span className="absolute top-0 right-0 w-4 h-4 bg-[#BA0000] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
+                        <span className="absolute top-0 right-0 w-4 h-4 bg-[#ee1314] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
                           {cartItems.length}
                         </span>
                       )}
                     </button>
                     
                     {/* Cart Dropdown */}
-                    <div className="absolute top-full right-0 mt-2 w-[320px] bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-[#E5E8EB] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100]">
-                      <div className="p-4 border-b border-[#E5E8EB]">
-                        <h4 className="font-bold text-[#212B36]">Giỏ hàng mới thêm</h4>
+                    <div className="absolute top-full right-0 mt-2 w-[360px] bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-[#E5E8EB] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100]">
+                      <div className="p-4 flex items-center justify-between border-b border-[#E5E8EB]">
+                        <h4 className="font-bold text-[#212B36] text-[15px]">Giỏ hàng <span className="text-[#ee1314]">({cartItems.length})</span></h4>
+                        <span className="text-[13px] text-[#637381] cursor-pointer hover:text-[#ee1314]" onClick={() => navigate('/cart')}>Xem giỏ hàng</span>
                       </div>
-                      <div className="max-h-[300px] overflow-y-auto p-2">
+                      <div className="max-h-[320px] overflow-y-auto p-2">
                         {(() => {
                           if (cartItems.length === 0) {
                             return <div className="p-6 text-center text-[#637381] text-[14px]">Chưa có sản phẩm nào.</div>;
                           }
                           return cartItems.map(item => (
-                            <div key={item.id} className="flex gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors group/item">
-                              <div className="w-[80px] h-[40px] shrink-0 rounded overflow-hidden cursor-pointer" onClick={() => navigate('/cart')}>
-                                <img src="https://i.imgur.com/V4b7V3x.jpeg" alt="Vé số" className="w-full h-full object-cover" />
+                            <div key={item.id} className="relative flex gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group/item border-b border-gray-100 last:border-0">
+                              {/* Left: Icon */}
+                              <div className="w-11 h-11 shrink-0 rounded-full border border-[#E5E8EB] shadow-sm p-1.5 flex items-center justify-center bg-white cursor-pointer" onClick={() => navigate('/cart')}>
+                                <img src="https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png" alt="Province" className="w-full h-full object-contain" />
                               </div>
-                              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate('/cart')}>
-                                <div className="text-[14px] font-bold text-[#212B36] truncate">Xổ số {item.province}</div>
-                                <div className="text-[12px] text-[#BA0000] font-black">{item.numbers}</div>
-                              </div>
-                              <div className="text-right flex flex-col items-end justify-between">
-                                <div className="text-[14px] font-bold text-[#BA0000]">{(item.price * item.quantity).toLocaleString('vi-VN')}đ</div>
-                                <div className="flex items-center gap-2">
-                                  <div className="text-[12px] text-[#637381]">x{item.quantity}</div>
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); removeCartItem(item.id); }} 
-                                    className="text-gray-400 hover:text-[#BA0000] transition-colors p-1"
-                                    title="Xóa vé"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
+                              
+                              {/* Middle & Right: Content */}
+                              <div className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer" onClick={() => navigate('/cart')}>
+                                <div className="flex items-start justify-between mb-1">
+                                    <div>
+                                        <div className="text-[13px] font-bold text-[#212B36] truncate">{item.province}</div>
+                                        <div className="text-[11px] text-[#637381] mt-0.5">
+                                            {item.time} • {item.date ? item.date.split(',')[0] : 'Hôm nay'}
+                                        </div>
+                                    </div>
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); removeCartItem(item.id); }} 
+                                      className="text-gray-400 hover:text-[#ee1314] transition-colors p-1"
+                                      title="Xóa vé"
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between mt-1">
+                                    <div className="text-[15px] font-black text-[#ee1314] tracking-wide">{item.numbers}</div>
+                                    <div className="flex items-center gap-5">
+                                        <div className="text-[13px] text-[#212B36]">x {item.quantity}</div>
+                                        <div className="text-[13px] font-bold text-[#212B36] w-[60px] text-right">{(item.price).toLocaleString('vi-VN')} đ</div>
+                                    </div>
                                 </div>
                               </div>
                             </div>
@@ -190,18 +195,27 @@ export const Header = () => {
                         })()}
                       </div>
                       {cartItems.length > 0 && (
-                        <div className="p-4 border-t border-[#E5E8EB]">
-                          <button onClick={() => navigate('/cart')} className="w-full py-2 bg-[#BA0000] text-white text-[14px] font-bold rounded-lg hover:bg-[#990000] transition-colors">
-                            Xem Giỏ Hàng
+                        <div className="p-4 border-t border-[#E5E8EB] flex flex-col gap-3">
+                          <div className="flex justify-between items-center mb-1">
+                              <span className="text-[14px] font-bold text-[#212B36]">Tổng tiền</span>
+                              <span className="text-[16px] font-bold text-[#ee1314]">
+                                  {cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0).toLocaleString('vi-VN')} đ
+                              </span>
+                          </div>
+                          <button onClick={() => navigate('/cart')} className="w-full py-2.5 bg-[#ee1314] text-white text-[14px] font-bold rounded-lg hover:bg-[#cc0000] transition-colors flex items-center justify-center gap-2">
+                            <ShoppingCart size={18} /> Xem giỏ hàng
+                          </button>
+                          <button onClick={() => navigate('/buy-ticket')} className="w-full py-2.5 bg-white text-[#212B36] border border-[#E5E8EB] text-[14px] font-bold rounded-lg hover:border-[#ee1314] hover:text-[#ee1314] transition-colors">
+                            Tiếp tục mua
                           </button>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <button className="relative text-[#505050] hover:text-[#BA0000] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer">
+                  <button className="relative text-[#505050] hover:text-[#ee1314] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer">
                     <Bell size={22} strokeWidth={2} />
-                    <span className="absolute top-0 right-0 w-4 h-4 bg-[#BA0000] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">3</span>
+                    <span className="absolute top-0 right-0 w-4 h-4 bg-[#ee1314] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">3</span>
                   </button>
                 </div>
 
@@ -216,7 +230,7 @@ export const Header = () => {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-[#BA0000]/5 text-[#BA0000]">
+                        <div className="w-full h-full flex items-center justify-center bg-[#ee1314]/5 text-[#ee1314]">
                           <UserIcon size={20} className="font-bold" />
                         </div>
                       )}
@@ -224,7 +238,7 @@ export const Header = () => {
                   </Link>
                   <div className="flex items-center gap-1 font-bold text-[#102937] text-[14px] whitespace-nowrap">
                     {user.fullName || user.username}
-                    <ChevronDown size={16} className="text-slate-400 group-hover:text-[#BA0000] transition-colors" />
+                    <ChevronDown size={16} className="text-slate-400 group-hover:text-[#ee1314] transition-colors" />
                   </div>
                 </div>
               </div>
@@ -232,7 +246,7 @@ export const Header = () => {
               <>
                 <button
                   onClick={() => navigate('/login')}
-                  className="inline-flex items-center justify-center min-h-[44px] px-8 rounded-xl bg-[#BA0000] text-white font-bold no-underline shadow-lg shadow-[#BA0000]/26 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer text-[15px] font-client-display uppercase tracking-tight"
+                  className="inline-flex items-center justify-center min-h-[44px] px-8 rounded-xl bg-[#ee1314] text-white font-bold no-underline shadow-lg shadow-[#ee1314]/26 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer text-[15px] font-client-display uppercase tracking-tight"
                   type="button"
                 >
                   Đăng nhập
@@ -244,7 +258,7 @@ export const Header = () => {
 
         {/* Universal Search Row (Visible on Tablet/Mobile < 1024px) - STICKY logic */}
         <div className="lg:hidden sticky top-0 w-full px-5 py-3.5 bg-white/94 backdrop-blur-md z-[1100] shadow-sm">
-          <div className="relative flex items-center h-12 px-4 bg-[#F4F6F8] border border-black/5 rounded-2xl focus-within:bg-white focus-within:border-[#BA0000] focus-within:shadow-md transition-all duration-300">
+          <div className="relative flex items-center h-12 px-4 bg-[#F4F6F8] border border-black/5 rounded-2xl focus-within:bg-white focus-within:border-[#ee1314] focus-within:shadow-md transition-all duration-300">
             <Search className="text-slate-400 mr-3 shrink-0" size={19} />
             <input
               type="text"
@@ -312,7 +326,7 @@ export const Header = () => {
                         </div>
                       </div>
                       <button
-                        className="h-13 flex items-center justify-center bg-white border-2 border-slate-100 rounded-2xl font-bold text-[#BA0000] transition-all active:scale-95 cursor-pointer font-client-display"
+                        className="h-13 flex items-center justify-center bg-white border-2 border-slate-100 rounded-2xl font-bold text-[#ee1314] transition-all active:scale-95 cursor-pointer font-client-display"
                         onClick={() => {
                           setIsMenuOpen(false);
                           logout();

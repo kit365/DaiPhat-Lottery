@@ -20,5 +20,19 @@ export default defineConfig({
       'hyperdolichocephalic-aerodynamic-ashlee.ngrok-free.dev',
       '.ngrok-free.dev'
     ]
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'mui-vendor': ['@mui/material', '@mui/icons-material', '@mui/x-data-grid', '@mui/x-date-pickers'],
+          'fullcalendar': ['@fullcalendar/react', '@fullcalendar/daygrid', '@fullcalendar/interaction', '@fullcalendar/list', '@fullcalendar/timegrid'],
+          'chart-vendor': ['apexcharts', 'react-apexcharts'],
+          'editor-vendor': ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/pm']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000
   }
 })

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Phone, Lock, Eye, EyeOff, Mail } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
@@ -14,8 +14,13 @@ export const LoginPage = () => {
         loginForm: { register, formState: { errors } },
         handleLogin: submit,
         loginMutation: { isPending },
+        isAuthenticated,
     } = useAuth();
     const { openForgotPasswordModal } = useAuthStore();
+
+    if (isAuthenticated) {
+        return <Navigate to="/" replace />;
+    }
 
     const handleGoogleLogin = async () => {
         const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
