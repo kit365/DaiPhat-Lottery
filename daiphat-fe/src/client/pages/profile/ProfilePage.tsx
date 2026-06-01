@@ -60,13 +60,13 @@ export const ProfilePage = () => {
                 <main className="max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12">
 
                     {/* Main Content Grid */}
-                    <div className="flex flex-col lg:flex-row gap-6 items-start">
+                    <div className="flex flex-col lg:flex-row gap-6 items-stretch">
 
                         {/* Left Sidebar */}
                         <div className="w-full lg:w-[280px] shrink-0 flex flex-col gap-6">
 
                             {/* Profile Summary & Nav Container */}
-                            <div className="bg-white rounded-[20px] shadow-[0_2px_12px_rgb(0,0,0,0.03)] overflow-hidden flex flex-col">
+                            <div className="bg-white rounded-[20px] shadow-[0_2px_12px_rgb(0,0,0,0.03)] overflow-hidden flex flex-col flex-1">
 
                                 {/* Top Section with Cherry Blossom BG */}
                                 <div className="relative pt-6 pb-2 flex flex-col items-center text-center">
@@ -94,18 +94,14 @@ export const ProfilePage = () => {
                                     {/* Info */}
                                     <div className="relative z-10 w-full px-4 flex flex-col items-center">
                                         <h2 className="text-[18px] font-black text-[#212B36] mb-2">{user.fullName || user.username}</h2>
-                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#FFF9F3] text-[#FFB020] rounded-full text-[12px] font-bold mb-3 shadow-sm border border-[#FFE5CD]">
-                                            <i className="fa-solid fa-crown text-[10px]"></i>
-                                            Thành viên Vàng
-                                        </div>
                                         <p className="text-[12px] font-medium text-[#454F5B] mb-0.5">{user.email || 'john.doe@gmail.com'}</p>
                                         <p className="text-[12px] font-medium text-[#454F5B]">{user.phone || '0987 654 321'}</p>
                                     </div>
                                 </div>
 
                                 {/* Navigation Menu */}
-                                <div className="pb-4 pt-2">
-                                    <nav className="flex flex-col gap-1">
+                                <div className="pb-4 pt-2 flex flex-col flex-1">
+                                    <nav className="flex flex-col gap-1 flex-1">
                                         {TABS.map((tab) => {
                                             const isActive = location.pathname.startsWith(tab.path);
                                             return (
@@ -131,34 +127,36 @@ export const ProfilePage = () => {
                                                 </Link>
                                             );
                                         })}
+                                        
+                                        <div className="flex-1"></div>
 
                                         {/* Logout Button */}
-                                        <button
-                                            className="relative flex items-center justify-between px-6 py-3 mt-2 text-[13px] font-medium text-[#454F5B] hover:bg-[#FAFBFC] hover:text-[#212B36] transition-all outline-none cursor-pointer text-left w-full group"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <i className="fa-solid fa-arrow-right-from-bracket w-5 text-center text-[16px] text-[#919EAB] group-hover:text-[#454F5B] transition-colors"></i>
-                                                <span>Đăng xuất</span>
-                                            </div>
-                                        </button>
+                                        <div className="mt-6 px-6 pb-2">
+                                            <button className="flex items-center justify-center gap-2 w-full py-2.5 border border-[#ee1314] text-[#ee1314] rounded-xl text-[14px] font-bold hover:bg-[#FFF4F4] transition-colors cursor-pointer">
+                                                <i className="fa-solid fa-arrow-right-from-bracket"></i>
+                                                Đăng xuất
+                                            </button>
+                                        </div>
                                     </nav>
                                 </div>
                             </div>
 
                             {/* Support Widget */}
-                            <div
-                                className="rounded-[20px] p-5 relative overflow-hidden flex flex-col justify-center min-h-[140px] bg-cover bg-center shadow-sm"
-                                style={{ backgroundImage: "url('https://i.ibb.co/M5RCKKDn/d2ee3500-96d8-4e2f-a713-d74b7e35e64c.png')" }}
-                            >
-                                <div className="relative z-10 max-w-[65%]">
-                                    <h3 className="text-[14px] font-bold text-[#212B36] mb-1">Bạn cần hỗ trợ?</h3>
-                                    <p className="text-[11px] font-medium text-[#637381] mb-3 leading-tight">Đội ngũ của chúng tôi luôn sẵn sàng!</p>
-                                    <button className="bg-transparent border border-[#ee1314] text-[#ee1314] text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-[#ee1314] hover:text-white transition-colors flex items-center gap-1.5 w-max cursor-pointer">
-                                        <i className="fa-solid fa-headset"></i>
-                                        Liên hệ ngay
-                                    </button>
+                            {location.pathname.includes('/profile/overview') && (
+                                <div
+                                    className="rounded-[20px] p-5 relative overflow-hidden flex flex-col justify-center min-h-[140px] bg-cover bg-center shadow-sm"
+                                    style={{ backgroundImage: "url('https://i.ibb.co/M5RCKKDn/d2ee3500-96d8-4e2f-a713-d74b7e35e64c.png')" }}
+                                >
+                                    <div className="relative z-10 max-w-[65%]">
+                                        <h3 className="text-[14px] font-bold text-[#212B36] mb-1">Bạn cần hỗ trợ?</h3>
+                                        <p className="text-[11px] font-medium text-[#637381] mb-3 leading-tight">Đội ngũ của chúng tôi luôn sẵn sàng!</p>
+                                        <button className="bg-transparent border border-[#ee1314] text-[#ee1314] text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-[#ee1314] hover:text-white transition-colors flex items-center gap-1.5 w-max cursor-pointer">
+                                            <i className="fa-solid fa-headset"></i>
+                                            Liên hệ ngay
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* Main Content Area */}
