@@ -9,6 +9,7 @@ import { ProfilePage as ClientProfilePage } from './client/pages/profile/Profile
 import { ProfileDashboardPage } from './client/pages/profile/ProfileDashboardPage';
 import { OverviewTab } from './client/pages/profile/tabs/OverviewTab';
 import { ProfileInfoTab } from './client/pages/profile/tabs/ProfileInfoTab';
+import { TicketsTab } from './client/pages/profile/tabs/TicketsTab';
 import { AddressTab } from './client/pages/profile/tabs/AddressTab';
 import { CreateAddressTab } from './client/pages/profile/tabs/CreateAddressTab';
 import { EditAddressTab } from './client/pages/profile/tabs/EditAddressTab';
@@ -75,6 +76,7 @@ function App() {
               <Route index element={<Navigate to="overview" replace />} />
               <Route path="overview" element={<OverviewTab />} />
               <Route path="info" element={<ProfileInfoTab />} />
+              <Route path="tickets" element={<TicketsTab />} />
               <Route path="address" element={<AddressTab />} />
               <Route path="address/create" element={<CreateAddressTab />} />
               <Route path="address/edit/:id" element={<EditAddressTab />} />
