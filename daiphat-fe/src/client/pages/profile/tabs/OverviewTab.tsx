@@ -66,53 +66,53 @@ export const OverviewTab = () => {
                         <h3 className="text-[16px] font-bold text-[#212B36]">Đơn hàng gần đây</h3>
                         <Link to="/profile/history" className="text-[13px] text-[#637381] hover:text-[#ee1314]">Xem tất cả &gt;</Link>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-[13px] whitespace-nowrap">
+                    <div className="overflow-x-auto pb-2">
+                        <table className="w-full text-left text-[13px] whitespace-nowrap min-w-[600px]">
                             <thead>
                                 <tr className="text-[#637381] border-b border-[#E5E8EB]">
-                                    <th className="pb-3 font-medium">Mã đơn hàng</th>
-                                    <th className="pb-3 font-medium">Ngày đặt</th>
-                                    <th className="pb-3 font-medium text-center">Số lượng</th>
-                                    <th className="pb-3 font-medium text-right">Tổng tiền</th>
-                                    <th className="pb-3 font-medium text-right">Trạng thái</th>
+                                    <th className="pb-3 px-2 font-medium">Mã đơn hàng</th>
+                                    <th className="pb-3 px-2 font-medium">Ngày đặt</th>
+                                    <th className="pb-3 px-2 font-medium text-center">Số lượng</th>
+                                    <th className="pb-3 px-2 font-medium text-right">Tổng tiền</th>
+                                    <th className="pb-3 pl-2 font-medium text-right">Trạng thái</th>
                                 </tr>
                             </thead>
                             <tbody className="text-[#212B36]">
                                 {/* Rows */}
                                 <tr className="border-b border-[#F4F6F8]">
-                                    <td className="py-3 font-medium">J4604844</td>
-                                    <td className="py-3 text-[#637381]">13/03/2025 - 16:37</td>
-                                    <td className="py-3 text-center">2 vé</td>
-                                    <td className="py-3 text-right font-medium">990.000đ</td>
-                                    <td className="py-3 text-right"><span className="text-[#FFB020] bg-[#FFF9F3] px-2 py-1 rounded-md text-[11px] font-semibold inline-block">Chờ xác nhận</span></td>
+                                    <td className="py-3 px-2 font-medium">J4604844</td>
+                                    <td className="py-3 px-2 text-[#637381]">13/03/2025 - 16:37</td>
+                                    <td className="py-3 px-2 text-center">2 vé</td>
+                                    <td className="py-3 px-2 text-right font-medium">990.000đ</td>
+                                    <td className="py-3 pl-2 text-right"><span className="text-[#FFB020] bg-[#FFF9F3] px-2 py-1 rounded-md text-[11px] font-semibold inline-block">Chờ xác nhận</span></td>
                                 </tr>
                                 <tr className="border-b border-[#F4F6F8]">
-                                    <td className="py-3 font-medium">CZ438008</td>
-                                    <td className="py-3 text-[#637381]">13/03/2025 - 11:03</td>
-                                    <td className="py-3 text-center">1 vé</td>
-                                    <td className="py-3 text-right font-medium">215.000đ</td>
-                                    <td className="py-3 text-right"><span className="text-[#1CD162] bg-[#F4FBFA] px-2 py-1 rounded-md text-[11px] font-semibold inline-block">Thành công</span></td>
+                                    <td className="py-3 px-2 font-medium">CZ438008</td>
+                                    <td className="py-3 px-2 text-[#637381]">13/03/2025 - 11:03</td>
+                                    <td className="py-3 px-2 text-center">1 vé</td>
+                                    <td className="py-3 px-2 text-right font-medium">215.000đ</td>
+                                    <td className="py-3 pl-2 text-right"><span className="text-[#1CD162] bg-[#F4FBFA] px-2 py-1 rounded-md text-[11px] font-semibold inline-block">Thành công</span></td>
                                 </tr>
                                 <tr className="border-b border-[#F4F6F8]">
-                                    <td className="py-3 font-medium">RP106810</td>
-                                    <td className="py-3 text-[#637381]">28/02/2025 - 10:34</td>
-                                    <td className="py-3 text-center">3 vé</td>
-                                    <td className="py-3 text-right font-medium">915.700đ</td>
-                                    <td className="py-3 text-right"><span className="text-[#1CD162] bg-[#F4FBFA] px-2 py-1 rounded-md text-[11px] font-semibold inline-block">Thành công</span></td>
+                                    <td className="py-3 px-2 font-medium">RP106810</td>
+                                    <td className="py-3 px-2 text-[#637381]">28/02/2025 - 10:34</td>
+                                    <td className="py-3 px-2 text-center">3 vé</td>
+                                    <td className="py-3 px-2 text-right font-medium">915.700đ</td>
+                                    <td className="py-3 pl-2 text-right"><span className="text-[#1CD162] bg-[#F4FBFA] px-2 py-1 rounded-md text-[11px] font-semibold inline-block">Thành công</span></td>
                                 </tr>
                                 <tr className="border-b border-[#F4F6F8]">
-                                    <td className="py-3 font-medium">CQ975101</td>
-                                    <td className="py-3 text-[#637381]">28/02/2025 - 10:28</td>
-                                    <td className="py-3 text-center">1 vé</td>
-                                    <td className="py-3 text-right font-medium">95.700đ</td>
-                                    <td className="py-3 text-right"><span className="text-[#FFB020] bg-[#FFF9F3] px-2 py-1 rounded-md text-[11px] font-semibold inline-block">Chờ xác nhận</span></td>
+                                    <td className="py-3 px-2 font-medium">CQ975101</td>
+                                    <td className="py-3 px-2 text-[#637381]">28/02/2025 - 10:28</td>
+                                    <td className="py-3 px-2 text-center">1 vé</td>
+                                    <td className="py-3 px-2 text-right font-medium">95.700đ</td>
+                                    <td className="py-3 pl-2 text-right"><span className="text-[#FFB020] bg-[#FFF9F3] px-2 py-1 rounded-md text-[11px] font-semibold inline-block">Chờ xác nhận</span></td>
                                 </tr>
                                 <tr>
-                                    <td className="py-3 font-medium">KB227418</td>
-                                    <td className="py-3 text-[#637381]">28/02/2025 - 10:27</td>
-                                    <td className="py-3 text-center">1 vé</td>
-                                    <td className="py-3 text-right font-medium">95.700đ</td>
-                                    <td className="py-3 text-right"><span className="text-[#1CD162] bg-[#F4FBFA] px-2 py-1 rounded-md text-[11px] font-semibold inline-block">Thành công</span></td>
+                                    <td className="py-3 px-2 font-medium">KB227418</td>
+                                    <td className="py-3 px-2 text-[#637381]">28/02/2025 - 10:27</td>
+                                    <td className="py-3 px-2 text-center">1 vé</td>
+                                    <td className="py-3 px-2 text-right font-medium">95.700đ</td>
+                                    <td className="py-3 pl-2 text-right"><span className="text-[#1CD162] bg-[#F4FBFA] px-2 py-1 rounded-md text-[11px] font-semibold inline-block">Thành công</span></td>
                                 </tr>
                             </tbody>
                         </table>

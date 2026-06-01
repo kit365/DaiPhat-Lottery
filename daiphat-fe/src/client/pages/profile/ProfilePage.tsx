@@ -18,7 +18,6 @@ interface TabConfig {
 const TABS: TabConfig[] = [
     { id: 'overview', path: '/profile/overview', label: 'Tổng quan', icon: 'fa-solid fa-border-all' },
     { id: 'info', path: '/profile/info', label: 'Tài khoản cá nhân', icon: 'fa-regular fa-user' },
-    { id: 'history', path: '/profile/history', label: 'Đơn hàng của tôi', icon: 'fa-solid fa-clipboard-list' },
     { id: 'tickets', path: '/profile/tickets', label: 'Vé của tôi', icon: 'fa-solid fa-ticket-simple' },
     { id: 'favorites', path: '/profile/favorites', label: 'Số yêu thích', icon: 'fa-regular fa-star' },
     { id: 'notifications', path: '/profile/notifications', label: 'Thông báo', icon: 'fa-regular fa-bell' },
@@ -47,15 +46,17 @@ export const ProfilePage = () => {
         <div className="min-h-screen flex flex-col bg-[#F8F9FA] font-['Inter',sans-serif] text-[#212B36]">
             <Header />
 
-            <div
-                className="flex-1 w-full mt-[70px] lg:mt-[80px]"
-                style={{
-                    backgroundImage: "url('https://i.ibb.co/nsNc8F41/Screenshot-2026-05-30-141824.png'), url('https://i.ibb.co/DP5YBHxY/Screenshot-2026-05-30-142428.png')",
-                    backgroundPosition: "center -20px, bottom center",
-                    backgroundSize: "100% auto, 100% auto",
-                    backgroundRepeat: "no-repeat, no-repeat"
-                }}
-            >
+            <style>{`
+                @media (min-width: 1024px) {
+                    .profile-bg {
+                        background-image: url('https://i.ibb.co/nsNc8F41/Screenshot-2026-05-30-141824.png'), url('https://i.ibb.co/DP5YBHxY/Screenshot-2026-05-30-142428.png');
+                        background-position: center -20px, bottom center;
+                        background-size: 100% auto, 100% auto;
+                        background-repeat: no-repeat, no-repeat;
+                    }
+                }
+            `}</style>
+            <div className="flex-1 w-full mt-[70px] lg:mt-[80px] profile-bg">
                 <main className="max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12">
 
                     {/* Main Content Grid */}
