@@ -29,7 +29,7 @@ export const ProvinceFilter: React.FC<ProvinceFilterProps> = ({
               return (
                 <button 
                   key={province}
-                  className="bg-[#BA0000] text-white px-7 py-3 rounded-xl font-bold text-[14px] transition-all shadow-md shadow-[#BA0000]/20 cursor-pointer active:scale-95 font-client-display min-w-[140px] text-center"
+                  className="bg-[#ee1314] text-white px-7 py-3 rounded-xl font-bold text-[14px] transition-all shadow-md shadow-[#ee1314]/20 cursor-pointer active:scale-95 font-client-display min-w-[140px] text-center"
                 >
                   {province}
                 </button>
@@ -40,7 +40,7 @@ export const ProvinceFilter: React.FC<ProvinceFilterProps> = ({
               <button 
                 key={province}
                 onClick={() => onProvinceChange?.(province)}
-                className="bg-white border border-gray-200 text-[#505050] px-7 py-3 rounded-xl font-bold text-[14px] hover:border-[#BA0000] hover:text-[#BA0000] transition-all flex items-center justify-center gap-2 cursor-pointer font-client-display min-w-[140px] border-solid"
+                className="bg-white border border-gray-200 text-[#505050] px-7 py-3 rounded-xl font-bold text-[14px] hover:border-[#ee1314] hover:text-[#ee1314] transition-all flex items-center justify-center gap-2 cursor-pointer font-client-display min-w-[140px] border-solid"
               >
                 {province}
                 {province === "Khác" && (

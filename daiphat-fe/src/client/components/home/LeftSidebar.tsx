@@ -42,17 +42,17 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
         className="w-full bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.04)] border border-gray-100 flex items-center justify-between px-5 py-4 transition-all active:scale-[0.98] group cursor-pointer hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
       >
         <div className="flex items-center gap-2.5">
-          <span className="material-symbols-outlined text-[20px] text-[#BA0000]">calendar_month</span>
+          <span className="material-symbols-outlined text-[20px] text-[#ee1314]">calendar_month</span>
           <span className="text-[16px] font-bold text-[#333333]">Chọn ngày khác</span>
         </div>
-        <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-[#BA0000] transition-colors">chevron_right</span>
+        <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-[#ee1314] transition-colors">chevron_right</span>
       </button>
 
       {/* Main Province Filter Card */}
       <div className="bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
         {/* Card Header */}
         <div className="px-5 py-4 flex items-center gap-2.5 border-b border-gray-100">
-          <div className="w-6 h-6 rounded-full bg-[#BA0000] flex items-center justify-center shadow-sm">
+          <div className="w-6 h-6 rounded-full bg-[#ee1314] flex items-center justify-center shadow-sm">
             <LocationOnIcon sx={{ fontSize: 16, color: 'white' }} />
           </div>
           <h3 className="text-[16px] font-bold text-[#333333]">Chọn tỉnh thành</h3>
@@ -82,12 +82,12 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                     key={province}
                     onClick={() => setActiveProvince(province)}
                     className={`w-full flex items-center justify-between px-4 py-2.5 transition-all cursor-pointer relative group font-client-main ${isActive
-                      ? 'bg-[#FCE5DF] text-[#BA0000] font-semibold'
-                      : 'text-[#444444] hover:bg-[#FCE5DF] hover:text-[#BA0000]'
+                      ? 'bg-[#FCE5DF] text-[#ee1314] font-semibold'
+                      : 'text-[#444444] hover:bg-[#FCE5DF] hover:text-[#ee1314]'
                       }`}
                   >
                     {/* Active/Hover Indicator Bar - Thick and Sharp */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-[5px] bg-[#BA0000] transition-opacity duration-200 ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    <div className={`absolute left-0 top-0 bottom-0 w-[5px] bg-[#ee1314] transition-opacity duration-200 ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                       }`}></div>
 
                     <span className="text-[14px] leading-relaxed transition-all pl-2 font-medium">

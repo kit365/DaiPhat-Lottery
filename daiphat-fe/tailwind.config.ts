@@ -10,9 +10,9 @@ const config: Config = {
     extend: {
       colors: {
         client: {
-          primary: "#A60F14",
-          "primary-strong": "#8B0D11",
-          "primary-soft": "#FFF5F5",
+          primary: "#ee1314",
+          "primary-strong": "#c80f11",
+          "primary-soft": "#FFF4F4",
           gold: "#FFD700",
           "gold-soft": "#FFF9E6",
           navy: "#102937",

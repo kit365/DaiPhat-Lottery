@@ -87,18 +87,45 @@ export const SelectSingle = memo(({ label, options, sx, value, onChange, disable
             sx={{ ...FORM_CONTROL_STYLE, ...sx }}
             disabled={disabled}
         >
-            <InputLabel
-                id="select-single-label"
-                sx={LABEL_STYLE}
-            >
-                {label}
-            </InputLabel>
+            {!!selectedValue && (
+                <InputLabel
+                    id="select-single-label"
+                    shrink
+                    sx={LABEL_STYLE}
+                >
+                    {label}
+                </InputLabel>
+            )}
             <Select
                 value={selectedValue}
-                label={label}
+                label={selectedValue ? label : undefined}
                 onChange={handleChange}
                 onClose={handleClose}
-                sx={SELECT_SX}
+                displayEmpty
+                notched={!!selectedValue}
+                renderValue={(selected) => {
+                    if (!selected) {
+                        return (
+                            <span style={{
+                                color: '#637381',
+                                fontSize: '0.9375rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                height: '100%',
+                            }}>
+                                {label}
+                            </span>
+                        );
+                    }
+                    return options.find(o => o.value === selected)?.label ?? selected;
+                }}
+                sx={{
+                    ...SELECT_SX,
+                    '& .MuiSelect-select': {
+                        display: 'flex',
+                        alignItems: 'center',
+                    },
+                }}
                 MenuProps={MENU_PROPS}
             >
                 {showClear && (
@@ -123,3 +150,4 @@ export const SelectSingle = memo(({ label, options, sx, value, onChange, disable
         </FormControl>
     )
 })
+
