@@ -41,11 +41,10 @@ apiApp.interceptors.response.use(
                     authStore.logout();
                     if (window.location.pathname.includes('/auth/login')) {
                         AppToast.error(message);
+                    } else if (window.location.pathname.includes('/login')) {
+                        AppToast.error(message);
                     } else {
                         AppToast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
-                    }
-                    if (window.location.pathname.startsWith('/admin') && !window.location.pathname.includes('/auth/login')) {
-                        window.location.href = '/admin/auth/login';
                     }
                     break;
                 case 403:
