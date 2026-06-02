@@ -14,8 +14,8 @@ export const HomePage = () => {
   const [searchParams] = useSearchParams();
 
   const {
-    selectedProvince,
-    setSelectedProvince,
+    selectedProvinces,
+    setSelectedProvinces,
     selectedDate,
     setSelectedDate,
     displayType,
@@ -32,6 +32,8 @@ export const HomePage = () => {
   } = useLottery();
 
   const activeDigit = hoveredDigit || selectedDigit;
+  const singleProvince = selectedProvinces.length > 0 ? selectedProvinces[0] : '';
+  const singleData = lotteryData.length > 0 ? lotteryData[0] : null;
 
   useEffect(() => {
     const token = searchParams.get("verify_token");
@@ -65,11 +67,11 @@ export const HomePage = () => {
         <div className="max-w-[1440px] mx-auto px-4 lg:px-6 py-8 lg:pt-24 flex flex-col lg:flex-row gap-6 items-start">
           <div className="hidden lg:block shrink-0">
             <LeftSidebar
-              activeProvince={selectedProvince}
-              setActiveProvince={setSelectedProvince}
+              activeProvinces={selectedProvinces}
+              setActiveProvinces={setSelectedProvinces}
               onDateChange={setSelectedDate}
               availableDates={historyData.map(h => h.date)}
-              selectedDate={lotteryData?.date}
+              selectedDate={singleData?.date}
             />
           </div>
 
@@ -80,8 +82,8 @@ export const HomePage = () => {
                 <div className="flex flex-col gap-3">
                     <select 
                         className="w-full p-3 rounded-xl border border-gray-200 text-[#111111] font-bold outline-none cursor-pointer"
-                        value={selectedProvince}
-                        onChange={(e) => setSelectedProvince(e.target.value)}
+                        value={singleProvince}
+                        onChange={(e) => setSelectedProvinces([e.target.value])}
                     >
                         <option value="Miền Bắc">Miền Bắc</option>
                         <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
@@ -96,7 +98,7 @@ export const HomePage = () => {
 
                     <select 
                         className="w-full p-3 rounded-xl border border-gray-200 text-[#637381] font-medium outline-none cursor-pointer"
-                        value={lotteryData?.date || ''}
+                        value={singleData?.date || ''}
                         onChange={(e) => setSelectedDate(e.target.value)}
                     >
                         {historyData.map(h => (
@@ -105,9 +107,9 @@ export const HomePage = () => {
                     </select>
                 </div>
             </div>
-            {lotteryData ? (
+            {lotteryData.length > 0 ? (
               <ResultsMatrix
-                data={lotteryData}
+                dataList={lotteryData}
                 displayType={displayType}
                 setDisplayType={setDisplayType}
                 showLoto={showLoto}
@@ -128,11 +130,11 @@ export const HomePage = () => {
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-[#111111] font-client-main uppercase tracking-tight">Chưa có kết quả</h3>
                   <p className="text-slate-400 font-medium max-w-[300px]">
-                    Đài <span className="text-[#ee1314] font-bold">{selectedProvince}</span> hiện chưa cập nhật kết quả cho ngày hôm nay.
+                    Đài <span className="text-[#ee1314] font-bold">{singleProvince}</span> hiện chưa cập nhật kết quả cho ngày hôm nay.
                   </p>
                 </div>
                 <button
-                  onClick={() => setSelectedProvince("TP. Hồ Chí Minh")}
+                  onClick={() => setSelectedProvinces(["TP. Hồ Chí Minh"])}
                   className="bg-[#102937] text-white px-6 py-3 rounded-2xl font-bold text-[14px] hover:bg-[#ee1314] transition-all cursor-pointer active:scale-95 shadow-lg shadow-slate-200"
                 >
                   Xem đài TP. Hồ Chí Minh
@@ -143,7 +145,8 @@ export const HomePage = () => {
 
           <HomeSidebar
             showLoto={showLoto}
-            data={lotteryData}
+            setShowLoto={setShowLoto}
+            dataList={lotteryData}
             history={historyData}
             onDateChange={setSelectedDate}
             selectedDigit={selectedDigit}

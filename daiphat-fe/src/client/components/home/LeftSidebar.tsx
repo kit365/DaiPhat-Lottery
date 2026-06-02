@@ -3,8 +3,8 @@ import { DatePickerModal } from './DatePickerModal';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 interface LeftSidebarProps {
-  activeProvince: string;
-  setActiveProvince: (province: string) => void;
+  activeProvinces: string[];
+  setActiveProvinces: (provinces: string[]) => void;
   onDateChange: (date: string) => void;
   availableDates: string[];
   selectedDate?: string;
@@ -20,8 +20,8 @@ const MIEN_NAM_PROVINCES = [
 ];
 
 export const LeftSidebar: React.FC<LeftSidebarProps> = ({
-  activeProvince,
-  setActiveProvince,
+  activeProvinces,
+  setActiveProvinces,
   onDateChange,
   availableDates,
   selectedDate
@@ -33,6 +33,22 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   const filteredProvinces = useMemo(() => {
     return MIEN_NAM_PROVINCES.filter(p => p.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [searchQuery]);
+
+  const handleSelectAll = () => {
+    if (activeProvinces.length === filteredProvinces.slice(0, 3).length) {
+      setActiveProvinces([]);
+    } else {
+      setActiveProvinces(filteredProvinces.slice(0, 3));
+    }
+  };
+
+  const handleToggleProvince = (province: string) => {
+    if (activeProvinces.includes(province)) {
+      setActiveProvinces(activeProvinces.filter(p => p !== province));
+    } else {
+      setActiveProvinces([...activeProvinces, province]);
+    }
+  };
 
   return (
     <aside className="relative w-full lg:w-[280px] shrink-0 space-y-4 font-client-main">
@@ -75,31 +91,66 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
             {/* Scrollable List */}
             <div className="pb-2 overflow-y-auto max-h-[600px] no-scrollbar">
-              {filteredProvinces.map((province) => {
-                const isActive = activeProvince === province;
+              <label className="w-full flex items-center gap-3 px-5 py-3 transition-all cursor-pointer relative group font-client-main text-[#444444] hover:bg-slate-50">
+                <div className="relative flex items-center justify-center">
+                  <input
+                    type="checkbox"
+                    checked={activeProvinces.length === filteredProvinces.slice(0, 3).length && activeProvinces.length > 0}
+                    onChange={handleSelectAll}
+                    className="absolute opacity-0 w-0 h-0"
+                  />
+                  <div className={`w-[16px] h-[16px] rounded flex items-center justify-center border transition-all ${activeProvinces.length === filteredProvinces.slice(0, 3).length && activeProvinces.length > 0 ? 'bg-[#ee1314] border-[#ee1314]' : 'bg-white border-gray-300'}`}>
+                    {activeProvinces.length === filteredProvinces.slice(0, 3).length && activeProvinces.length > 0 && (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-white -translate-y-[0.5px]">
+                        <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <span className="text-[14px] leading-relaxed transition-all font-medium">Chọn tất cả</span>
+              </label>
+
+              {filteredProvinces.slice(0, 3).map((province) => {
+                const isActive = activeProvinces.includes(province);
                 return (
-                  <button
+                  <label
                     key={province}
-                    onClick={() => setActiveProvince(province)}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 transition-all cursor-pointer relative group font-client-main ${isActive
+                    className={`w-full flex items-center justify-between px-5 py-3 transition-all cursor-pointer relative group font-client-main ${isActive
                       ? 'bg-[#FCE5DF] text-[#ee1314] font-semibold'
-                      : 'text-[#444444] hover:bg-[#FCE5DF] hover:text-[#ee1314]'
+                      : 'text-[#444444] hover:bg-slate-50'
                       }`}
                   >
                     {/* Active/Hover Indicator Bar - Thick and Sharp */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-[5px] bg-[#ee1314] transition-opacity duration-200 ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    <div className={`absolute left-0 top-0 bottom-0 w-[5px] bg-[#ee1314] transition-opacity duration-200 ${isActive ? 'opacity-100' : 'opacity-0'
                       }`}></div>
 
-                    <span className="text-[14px] leading-relaxed transition-all pl-2 font-medium">
-                      {province}
-                    </span>
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="relative flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={isActive}
+                          onChange={() => handleToggleProvince(province)}
+                          className="absolute opacity-0 w-0 h-0"
+                        />
+                        <div className={`w-[16px] h-[16px] rounded flex items-center justify-center border transition-all ${isActive ? 'bg-[#ee1314] border-[#ee1314]' : 'bg-white border-gray-300'}`}>
+                          {isActive && (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-white -translate-y-[0.5px]">
+                              <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-[14px] leading-relaxed transition-all font-medium">
+                        {province}
+                      </span>
+                    </div>
 
                     {isActive && (
-                      <span className="material-symbols-outlined text-[18px] text-[#FFB800]" style={{ fontVariationSettings: '"FILL" 1' }}>
+                      <span className="material-symbols-outlined text-[18px] text-[#FFB800] shrink-0" style={{ fontVariationSettings: '"FILL" 1' }}>
                         star
                       </span>
                     )}
-                  </button>
+                  </label>
                 );
               })}
 
