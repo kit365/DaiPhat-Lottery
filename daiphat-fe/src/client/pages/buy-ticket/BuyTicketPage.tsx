@@ -22,14 +22,17 @@ const QUICK_NUMBERS = [
 export const BuyTicketPage = () => {
     const navigate = useNavigate();
     const { token, openLoginModal } = useAuthStore();
-    
+
     // State
     const [selectedDate, setSelectedDate] = useState<'today' | 'tomorrow'>('today');
     const [selectedProvince, setSelectedProvince] = useState('hcm');
     const [selectedTab, setSelectedTab] = useState<'quick' | 'manual' | 'birthday'>('quick');
     const [selectedNumbers, setSelectedNumbers] = useState<string[]>(['853911']);
 
+    const [ticketQuantity, setTicketQuantity] = useState(1);
+
     const toggleNumber = (num: string) => {
+        setTicketQuantity(1); // Reset quantity when changing number
         if (selectedNumbers.includes(num)) {
             setSelectedNumbers(selectedNumbers.filter(n => n !== num));
         } else {
@@ -38,9 +41,9 @@ export const BuyTicketPage = () => {
     };
 
     const activeProvinceObj = PROVINCES.find(p => p.id === selectedProvince);
-    const quantity = selectedNumbers.length;
+    const totalQuantity = selectedNumbers.length * ticketQuantity;
     const pricePerTicket = 10000;
-    const totalAmount = quantity * pricePerTicket;
+    const totalAmount = totalQuantity * pricePerTicket;
 
     const addToCart = () => {
         if (!token) {
@@ -48,7 +51,7 @@ export const BuyTicketPage = () => {
             return false;
         }
         if (!activeProvinceObj || selectedNumbers.length === 0) return false;
-        
+
         selectedNumbers.forEach(num => {
             useCartStore.getState().addItem({
                 province: activeProvinceObj.name,
@@ -57,11 +60,11 @@ export const BuyTicketPage = () => {
                 kyHieu: "2K2",
                 numbers: num,
                 price: pricePerTicket,
-                quantity: 1,
+                quantity: ticketQuantity,
                 color: "#f59e0b"
             });
         });
-        toast.success(`Đã thêm ${selectedNumbers.length} vé vào giỏ hàng`);
+        toast.success(`Đã thêm ${totalQuantity} vé vào giỏ hàng`);
         return true;
     };
 
@@ -72,12 +75,12 @@ export const BuyTicketPage = () => {
     };
 
     return (
-        <div 
+        <div
             className="min-h-screen font-client-main flex flex-col bg-fixed bg-cover bg-center"
             style={{ backgroundImage: 'url("https://i.ibb.co/BVFGYpL1/86f05f70-fcf8-445f-978e-a0539eb2f0de.png")' }}
         >
             <Header />
-            
+
             {/* Top Section for Breadcrumb & Title (Transparent to show background) */}
             <div className="w-full mt-[70px] lg:mt-[80px] py-4 lg:py-6">
                 <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8">
@@ -101,21 +104,21 @@ export const BuyTicketPage = () => {
             </div>
 
             <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 lg:px-8 pb-6 flex flex-col">
-                <div className="flex flex-col lg:flex-row gap-5 flex-1">
-                    
+                <div className="flex flex-col lg:flex-row gap-5 flex-1 items-stretch">
+
                     {/* Left Content - Master Container */}
-                    <div className="flex-1 w-full bg-white rounded-[20px] shadow-md border border-[#E5E8EB] flex flex-col h-fit">
-                        
+                    <div className="flex-1 w-full bg-white rounded-[20px] shadow-md border border-[#E5E8EB] flex flex-col">
+
                         {/* 1. Chọn ngày mở thưởng */}
                         <div className="p-5 border-b border-[#E5E8EB] shrink-0">
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="w-6 h-6 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-[13px] font-bold">1</div>
                                 <h2 className="text-[16px] font-bold text-[#212B36]">Chọn ngày mở thưởng</h2>
                             </div>
-                            
+
                             <div className="grid grid-cols-2 gap-4 max-w-[500px]">
                                 {/* Today */}
-                                <div 
+                                <div
                                     onClick={() => setSelectedDate('today')}
                                     className={`relative p-3.5 rounded-xl border-2 cursor-pointer transition-colors flex gap-3 items-center
                                         ${selectedDate === 'today' ? 'border-[#ee1314] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
@@ -135,7 +138,7 @@ export const BuyTicketPage = () => {
                                     )}
                                 </div>
                                 {/* Tomorrow */}
-                                <div 
+                                <div
                                     onClick={() => setSelectedDate('tomorrow')}
                                     className={`relative p-3.5 rounded-xl border-2 cursor-pointer transition-colors flex gap-3 items-center
                                         ${selectedDate === 'tomorrow' ? 'border-[#ee1314] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
@@ -163,10 +166,10 @@ export const BuyTicketPage = () => {
                                 <div className="w-6 h-6 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-[13px] font-bold">2</div>
                                 <h2 className="text-[16px] font-bold text-[#212B36]">Chọn đài mở thưởng (Miền Nam)</h2>
                             </div>
-                            
+
                             <div className="grid grid-cols-3 gap-4 max-w-[750px]">
                                 {PROVINCES.map((prov) => (
-                                    <div 
+                                    <div
                                         key={prov.id}
                                         onClick={() => setSelectedProvince(prov.id)}
                                         className={`relative p-3.5 rounded-xl border-2 cursor-pointer transition-colors flex flex-col items-center text-center
@@ -178,7 +181,7 @@ export const BuyTicketPage = () => {
                                         </div>
                                         <div className="font-bold text-[13px] text-[#212B36]">{prov.name}</div>
                                         <div className="text-[11px] mt-0.5 font-medium text-[#ee1314]">{prov.time} • {prov.day}</div>
-                                        
+
                                         {selectedProvince === prov.id && (
                                             <div className="absolute top-1.5 right-1.5 text-[#ee1314]">
                                                 <CheckCircle2 size={24} className="fill-[#ee1314] text-white shadow-sm rounded-full" />
@@ -194,7 +197,7 @@ export const BuyTicketPage = () => {
                             <div className="flex items-center gap-3 mb-4 shrink-0">
                                 <div className="w-6 h-6 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-[13px] font-bold">3</div>
                                 <h2 className="text-[16px] font-bold text-[#212B36] flex items-center gap-2">
-                                    Chọn số 
+                                    Chọn số
                                     {activeProvinceObj && (
                                         <span className="text-[#ee1314] text-[14px]">
                                             • {activeProvinceObj.name} • {activeProvinceObj.time} • {activeProvinceObj.day}
@@ -202,27 +205,50 @@ export const BuyTicketPage = () => {
                                     )}
                                 </h2>
                             </div>
-                            
-                            {/* Pill Tabs */}
-                            <div className="flex items-center gap-2 mb-5 shrink-0">
-                                <button 
-                                    onClick={() => setSelectedTab('quick')}
-                                    className={`px-5 py-2 rounded-full text-[13px] font-bold transition-colors ${selectedTab === 'quick' ? 'bg-[#FFF4F4] text-[#ee1314]' : 'bg-[#F4F6F8] text-[#637381] hover:bg-[#E5E8EB]'}`}
-                                >
-                                    Chọn nhanh
-                                </button>
-                                <button 
-                                    onClick={() => setSelectedTab('manual')}
-                                    className={`px-5 py-2 rounded-full text-[13px] font-bold transition-colors ${selectedTab === 'manual' ? 'bg-[#FFF4F4] text-[#ee1314]' : 'bg-[#F4F6F8] text-[#637381] hover:bg-[#E5E8EB]'}`}
-                                >
-                                    Chọn số
-                                </button>
-                                <button 
-                                    onClick={() => setSelectedTab('birthday')}
-                                    className={`px-5 py-2 rounded-full text-[13px] font-bold transition-colors ${selectedTab === 'birthday' ? 'bg-[#FFF4F4] text-[#ee1314]' : 'bg-[#F4F6F8] text-[#637381] hover:bg-[#E5E8EB]'}`}
-                                >
-                                    Số theo ngày sinh
-                                </button>
+
+                            {/* Pill Tabs and Search */}
+                            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-5 shrink-0">
+                                {/* Search Box */}
+                                <div className="flex-1 w-full lg:max-w-[350px] flex items-center bg-white rounded-full border border-[#E5E8EB] p-1 shadow-sm">
+                                    <div className="pl-3 text-[#637381]">
+                                        <i className="fa-solid fa-magnifying-glass text-[14px]"></i>
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Tìm số (VD: 12345, 68686...)"
+                                        className="flex-1 bg-transparent border-none outline-none px-3 text-[13px] text-[#212B36] placeholder:text-[#919EAB]"
+                                    />
+                                    <button className="px-4 py-1.5 bg-[#FFF4F4] text-[#ee1314] font-bold text-[13px] rounded-full hover:bg-[#FFEBEB] transition-colors">
+                                        Tìm ngay
+                                    </button>
+                                </div>
+
+                                {/* Pill Tabs */}
+                                <div className="flex items-center gap-2 overflow-x-auto w-full lg:w-auto pb-2 lg:pb-0 scrollbar-hide">
+                                    <button
+                                        onClick={() => setSelectedTab('quick')}
+                                        className={`whitespace-nowrap px-4 py-2 rounded-full text-[13px] font-bold transition-colors flex items-center gap-1.5 ${selectedTab === 'quick' ? 'bg-[#FFF4F4] text-[#ee1314]' : 'bg-[#F4F6F8] text-[#637381] hover:bg-[#E5E8EB]'}`}
+                                    >
+                                        <i className="fa-regular fa-star"></i> Chọn nhanh
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedTab('manual')}
+                                        className={`whitespace-nowrap px-4 py-2 rounded-full text-[13px] font-bold transition-colors ${selectedTab === 'manual' ? 'bg-[#FFF4F4] text-[#ee1314]' : 'bg-[#F4F6F8] text-[#637381] hover:bg-[#E5E8EB]'}`}
+                                    >
+                                        Chọn số
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedTab('birthday')}
+                                        className={`whitespace-nowrap px-4 py-2 rounded-full text-[13px] font-bold transition-colors ${selectedTab === 'birthday' ? 'bg-[#FFF4F4] text-[#ee1314]' : 'bg-[#F4F6F8] text-[#637381] hover:bg-[#E5E8EB]'}`}
+                                    >
+                                        Số theo ngày sinh
+                                    </button>
+                                    <button
+                                        className="whitespace-nowrap px-4 py-2 rounded-full text-[13px] font-bold transition-colors bg-[#F4F6F8] text-[#637381] hover:bg-[#E5E8EB]"
+                                    >
+                                        Số yêu thích
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Numbers Grid (10 columns) */}
@@ -245,8 +271,11 @@ export const BuyTicketPage = () => {
 
                             {/* Footer Actions */}
                             <div className="flex items-center justify-start mt-5 shrink-0">
-                                <button 
-                                    onClick={() => setSelectedNumbers([])}
+                                <button
+                                    onClick={() => {
+                                        setSelectedNumbers([]);
+                                        setTicketQuantity(1);
+                                    }}
                                     className="flex items-center gap-1.5 text-[#637381] hover:text-[#212B36] text-[13px] font-medium transition-colors"
                                 >
                                     <RefreshCw size={14} /> Chọn lại
@@ -257,76 +286,113 @@ export const BuyTicketPage = () => {
                     </div>
 
                     {/* Right Sidebar - Checkout Summary */}
-                    <div className="w-full lg:w-[360px] shrink-0">
-                        <div className="bg-white rounded-[20px] shadow-md border border-[#E5E8EB] p-5 flex flex-col sticky top-[100px]">
-                            <h3 className="text-[18px] font-bold text-[#212B36] mb-5 shrink-0">Tóm tắt đơn hàng</h3>
-                            
-                            {/* Province Info */}
-                            {activeProvinceObj && (
-                                <div className="flex items-center gap-3 mb-5 pb-5 border-b border-[#E5E8EB] shrink-0">
-                                    <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center border border-[#E5E8EB] shadow-sm p-1.5 overflow-hidden">
-                                        <img src={activeProvinceObj.icon} alt={activeProvinceObj.name} className="w-full h-full object-contain" />
+                    <div className="w-full lg:w-[360px] shrink-0 flex flex-col">
+                        <div className="bg-white rounded-[20px] shadow-md border border-[#E5E8EB] flex flex-col flex-1 overflow-hidden">
+                            <div className="p-5 flex-1 flex flex-col">
+                                <div className="flex items-center gap-3 mb-5 shrink-0">
+                                    <div className="bg-[#ee1314] text-white w-6 h-6 rounded flex items-center justify-center text-[12px]">
+                                        <i className="fa-solid fa-ticket"></i>
                                     </div>
-                                    <div>
-                                        <div className="font-bold text-[15px] text-[#212B36]">{activeProvinceObj.name}</div>
-                                        <div className="text-[12px] text-[#637381] mt-0.5">{activeProvinceObj.time} • {activeProvinceObj.day}</div>
+                                    <h3 className="text-[16px] font-bold text-[#212B36]">Chi tiết vé</h3>
+                                </div>
+
+                                {/* Province Info */}
+                                {activeProvinceObj && (
+                                    <div className="bg-white border border-[#E5E8EB] rounded-xl p-4 flex items-center gap-3 mb-6 shrink-0 shadow-sm relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -translate-y-1/2 translate-x-1/3 opacity-50 pointer-events-none"></div>
+                                        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm p-1.5 overflow-hidden shrink-0 border border-[#E5E8EB] z-10">
+                                            <img src={activeProvinceObj.icon} alt={activeProvinceObj.name} className="w-full h-full object-contain" />
+                                        </div>
+                                        <div className="z-10 relative">
+                                            <div className="font-bold text-[14px] text-[#212B36]">Vé số {activeProvinceObj.name}</div>
+                                            <div className="text-[12px] text-[#637381] mt-1">Mở thưởng: {activeProvinceObj.time} • {activeProvinceObj.day}</div>
+                                            <div className="text-[12px] text-[#637381] mt-0.5">Ngày: {selectedDate === 'today' ? '09/02/2025' : '10/02/2025'}</div>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <div className="border-t border-dashed border-[#E5E8EB] -mx-5 mb-5"></div>
+
+                                {/* Selected Numbers & Quantity Selector */}
+                                <div className="mb-5 shrink-0">
+                                    <div className="text-[13px] text-[#637381] font-medium mb-2">Số đã chọn</div>
+                                    <div className="flex items-center gap-2 mb-6">
+                                        <span className="text-[28px] font-black tracking-widest text-[#ee1314]">
+                                            {selectedNumbers[0] || '---'}
+                                        </span>
+                                        {selectedNumbers[0] && (
+                                            <button className="text-[#637381] hover:text-[#212B36] transition-colors ml-1">
+                                                <i className="fa-regular fa-copy text-[18px]"></i>
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center justify-between mb-5">
+                                        <span className="text-[13px] text-[#637381] font-medium">Số lượng vé</span>
+                                        <div className="flex items-center gap-2 bg-white rounded-lg border border-[#E5E8EB] p-1 h-9 w-[100px]">
+                                            <button 
+                                                onClick={() => setTicketQuantity(Math.max(1, ticketQuantity - 1))}
+                                                disabled={ticketQuantity <= 1}
+                                                className="flex-1 h-full flex items-center justify-center text-[#212B36] hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                                            >
+                                                <i className="fa-solid fa-minus text-[12px]"></i>
+                                            </button>
+                                            <span className="w-8 text-center text-[14px] font-bold text-[#212B36] border-x border-[#E5E8EB] h-full flex items-center justify-center">{ticketQuantity}</span>
+                                            <button 
+                                                onClick={() => setTicketQuantity(ticketQuantity + 1)}
+                                                className="flex-1 h-full flex items-center justify-center text-[#212B36] hover:bg-gray-50 transition-colors"
+                                            >
+                                                <i className="fa-solid fa-plus text-[12px]"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-between items-center text-[13px]">
+                                        <span className="text-[#637381]">Thành tiền (1 vé)</span>
+                                        <span className="text-[#ee1314] font-bold">{pricePerTicket.toLocaleString('vi-VN')} đ</span>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
-                            {/* Selected Numbers */}
-                            <div className="flex justify-between items-start mb-5 shrink-0">
-                                <div>
-                                    <div className="text-[12px] text-[#637381] mb-1">Số đã chọn</div>
-                                    <div className="text-[22px] font-black tracking-wider text-[#ee1314]">
-                                        {selectedNumbers[0] || '---'}
+                            {/* Total & Action Bottom */}
+                            <div className="bg-[#FFF4F4] px-5 py-5 flex flex-col gap-4 mt-auto border-t border-[#FFEBEE]">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[14px] font-bold text-[#212B36]">Tổng thanh toán</span>
+                                    <span className="text-[24px] font-black text-[#ee1314] leading-none">{totalAmount.toLocaleString('vi-VN')} đ</span>
+                                </div>
+
+                                <div className="flex flex-col gap-3">
+                                    <button
+                                        onClick={handleCheckout}
+                                        disabled={totalQuantity === 0}
+                                        className="w-full py-3 bg-[#ee1314] text-white font-bold rounded-xl text-[14px] hover:bg-[#d00f10] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md shadow-[#ee1314]/20"
+                                    >
+                                        <i className="fa-solid fa-bolt"></i> Mua ngay
+                                    </button>
+                                    <button
+                                        onClick={addToCart}
+                                        disabled={totalQuantity === 0}
+                                        className="w-full py-3 bg-white text-[#ee1314] font-bold rounded-xl border border-[#ee1314] text-[14px] hover:bg-[#FFF4F4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                        <i className="fa-solid fa-cart-plus"></i> Thêm vào giỏ hàng
+                                    </button>
+                                </div>
+
+                                <div className="flex justify-between items-center mt-3 pt-4 border-t border-[#FFEBEE]/50 px-1">
+                                    <div className="flex flex-col items-center gap-1.5 text-center">
+                                        <ShieldCheck className="text-[#00A76F]" size={20} strokeWidth={1.5} />
+                                        <span className="text-[10px] text-[#637381] font-medium">Bảo mật 100%</span>
                                     </div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-[12px] text-[#637381] mb-1">Số lượng</div>
-                                    <div className="text-[14px] font-bold text-[#212B36]">{quantity} vé</div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3 text-[13px] pt-4 border-t border-[#E5E8EB] shrink-0">
-                                <div className="flex justify-between text-[#637381]">
-                                    <span>Tạm tính</span>
-                                    <span className="text-[#212B36] font-semibold">{totalAmount.toLocaleString('vi-VN')} đ</span>
-                                </div>
-                                <div className="flex justify-between text-[#637381]">
-                                    <span className="flex items-center gap-1">Phí giao vé (nếu có) <i className="fa-regular fa-circle-question text-[11px]"></i></span>
-                                    <span className="text-[#212B36] font-semibold">0 đ</span>
-                                </div>
-                            </div>
-
-                            <div className="flex justify-between items-center pt-4 border-t border-[#E5E8EB] my-5 shrink-0">
-                                <span className="text-[15px] font-bold text-[#212B36]">Tổng tiền</span>
-                                <span className="text-[22px] font-bold text-[#ee1314]">{totalAmount.toLocaleString('vi-VN')} đ</span>
-                            </div>
-
-                            {/* Push buttons to bottom if space available */}
-                            <div className="mt-auto shrink-0 flex flex-col gap-3">
-                                <button 
-                                    onClick={handleCheckout}
-                                    disabled={quantity === 0}
-                                    className="w-full py-3 bg-[#ee1314] text-white font-bold rounded-xl text-[14px] hover:bg-[#B71C1C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md shadow-[#ee1314]/20"
-                                >
-                                    <i className="fa-solid fa-lock"></i> Thanh toán
-                                </button>
-                                <button 
-                                    onClick={addToCart}
-                                    disabled={quantity === 0}
-                                    className="w-full py-3 bg-white text-[#212B36] font-bold rounded-xl border-2 border-[#E5E8EB] text-[14px] hover:border-[#ee1314] hover:text-[#ee1314] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    Mua thêm vé
-                                </button>
-                            </div>
-
-                            <div className="mt-5 flex gap-2.5 justify-center items-center shrink-0">
-                                <ShieldCheck className="text-[#00A76F]" size={20} />
-                                <div>
-                                    <div className="font-bold text-[12px] text-[#212B36]">Giao dịch bảo mật 100%</div>
-                                    <div className="text-[11px] text-[#637381]">Thông tin của bạn luôn được bảo vệ</div>
+                                    <div className="w-[1px] h-6 bg-[#E5E8EB]"></div>
+                                    <div className="flex flex-col items-center gap-1.5 text-center">
+                                        <i className="fa-solid fa-bolt text-[#F59E0B] text-[18px]"></i>
+                                        <span className="text-[10px] text-[#637381] font-medium">Thanh toán nhanh</span>
+                                    </div>
+                                    <div className="w-[1px] h-6 bg-[#E5E8EB]"></div>
+                                    <div className="flex flex-col items-center gap-1.5 text-center">
+                                        <i className="fa-solid fa-headset text-[#8B5CF6] text-[18px]"></i>
+                                        <span className="text-[10px] text-[#637381] font-medium">Hỗ trợ 24/7</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>

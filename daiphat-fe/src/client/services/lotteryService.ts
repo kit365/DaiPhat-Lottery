@@ -7,7 +7,7 @@ export const lotteryService = {
    */
   getResultsByProvince: async (province: string): Promise<ApiResponse<LotteryResult>> => {
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     const provinceResults = MOCK_DATABASE[province];
     const data = provinceResults ? provinceResults[0] : undefined;
@@ -33,7 +33,7 @@ export const lotteryService = {
    * Fetches a specific result for a province on a specific date.
    */
   getResultByDate: async (province: string, date: string): Promise<ApiResponse<LotteryResult>> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     const provinceResults = MOCK_DATABASE[province];
     const data = provinceResults?.find(r => r.date === date);
@@ -59,7 +59,7 @@ export const lotteryService = {
    * Fetches historical results for a specific province.
    */
   getHistoryByProvince: async (province: string): Promise<ApiResponse<LotteryResult[]>> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     const history = MOCK_DATABASE[province] || [];
 
@@ -75,7 +75,7 @@ export const lotteryService = {
    * Fetches the latest results for all supported provinces.
    */
   getAllResults: async (): Promise<ApiResponse<LotteryResult[]>> => {
-    await new Promise(resolve => setTimeout(resolve, 400));
+    await new Promise(resolve => setTimeout(resolve, 10));
     
     // Return the latest result for each province
     const allLatest = Object.values(MOCK_DATABASE).map(list => list[0]);
