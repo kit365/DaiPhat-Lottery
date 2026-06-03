@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import Button from "@mui/material/Button";
 import AddIcon from '@mui/icons-material/Add';
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
@@ -6,19 +5,9 @@ import { Title } from "../../components/ui/Title";
 import { prefixAdmin, ROUTES } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { AccountAdminList } from "./sections/AccountAdminList";
-import AccountInviteModal from "./sections/AccountInviteModal";
-import { toast } from "react-toastify";
 
 export const AccountAdminListPage = () => {
     const navigate = useNavigate();
-    const [openInvite, setOpenInvite] = useState(false);
-
-    const handleInvite = (data: any) => {
-        console.log('Invite data:', data);
-        // Sau này sẽ gọi API ở đây
-        const fullName = `${data.lastName || ''} ${data.firstName || ''}`.trim();
-        toast.success(`Đã gửi lời mời đến ${fullName || data.email}`);
-    };
 
     return (
         <>
@@ -56,13 +45,7 @@ export const AccountAdminListPage = () => {
                 </Button>
             </div>
             
-            <AccountAdminList onInvite={() => setOpenInvite(true)} />
-
-            <AccountInviteModal 
-                open={openInvite}
-                onClose={() => setOpenInvite(false)}
-                onInvite={handleInvite}
-            />
+            <AccountAdminList />
         </>
     );
 };

@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Phone, Lock, Eye, EyeOff, Mail } from "lucide-react";
+import { Lock, Eye, EyeOff, Mail } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
-import { useAuthStore } from "../../../stores/useAuthStore";
-import { generateCodeVerifier, generateCodeChallenge } from "../../../admin/utils/pkce";
 import { GoogleIcon } from "../../components/auth/SharedAuth";
+import { redirectToGoogleOAuth } from "../../utils/google-oauth.util";
 
 export const LoginPage = () => {
     const navigate = useNavigate();
@@ -14,35 +13,17 @@ export const LoginPage = () => {
         loginForm: { register, formState: { errors } },
         handleLogin: submit,
         loginMutation: { isPending },
+        pendingVerificationIdentifier,
+        resendVerificationEmail,
+        resendVerificationMutation: { isPending: isResendingVerification },
         isAuthenticated,
     } = useAuth();
-    const { openForgotPasswordModal } = useAuthStore();
-
     if (isAuthenticated) {
         return <Navigate to="/" replace />;
     }
 
     const handleGoogleLogin = async () => {
-        const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
-        const realm = import.meta.env.VITE_KEYCLOAK_REALM;
-        const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
-        const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
-        const { STORAGE_KEYS } = await import("../../../constants/storage.constants");
-
-        const codeVerifier = generateCodeVerifier();
-        const codeChallenge = await generateCodeChallenge(codeVerifier);
-        sessionStorage.setItem(STORAGE_KEYS.PKCE_VERIFIER, codeVerifier);
-
-        const googleAuthUrl = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/auth` +
-            `?client_id=${clientId}` +
-            `&redirect_uri=${redirectUri}` +
-            `&response_type=code` +
-            `&scope=openid` +
-            `&kc_idp_hint=google` +
-            `&code_challenge=${codeChallenge}` +
-            `&code_challenge_method=S256`;
-
-        window.location.href = googleAuthUrl;
+        await redirectToGoogleOAuth();
     };
 
     return (
@@ -93,17 +74,17 @@ export const LoginPage = () => {
                         </div>
 
                         <form className="flex flex-col gap-3.5 xl:gap-4" onSubmit={submit} noValidate>
-                            {/* Username / Phone Field */}
+                            {/* Username / Email Field */}
                             <div className="flex flex-col gap-1.5 xl:gap-2">
-                                <label htmlFor="username" className="text-[13px] xl:text-[14px] font-semibold text-[#333333]">Số điện thoại / Tên đăng nhập</label>
+                                <label htmlFor="username" className="text-[13px] xl:text-[14px] font-semibold text-[#333333]">Email / Tên đăng nhập</label>
                                 <div className="relative flex items-center">
                                     <div className="absolute left-4 text-[#999999]">
-                                        <Phone size={18} strokeWidth={2} />
+                                        <Mail size={18} strokeWidth={2} />
                                     </div>
                                     <input
                                         id="username"
                                         type="text"
-                                        placeholder="Nhập số điện thoại hoặc tên đăng nhập"
+                                        placeholder="Nhập email hoặc tên đăng nhập"
                                         disabled={isPending}
                                         autoComplete="username"
                                         className="w-full h-[48px] xl:h-[52px] pl-11 pr-4 bg-white border border-[#E0E0E0] rounded-xl text-[14px] xl:text-[15px] text-[#333333] placeholder:text-[#999999] focus:border-[#D32F2F] focus:ring-1 focus:ring-[#D32F2F] outline-none transition-all"
@@ -119,7 +100,7 @@ export const LoginPage = () => {
                                     <label htmlFor="password" className="text-[13px] xl:text-[14px] font-semibold text-[#333333]">Mật khẩu</label>
                                     <button
                                         type="button"
-                                        onClick={() => openForgotPasswordModal()}
+                                        onClick={() => navigate("/forgot-password")}
                                         className="text-[12px] xl:text-[13px] font-bold text-[#D32F2F] hover:underline"
                                     >
                                         Quên mật khẩu?
@@ -148,6 +129,20 @@ export const LoginPage = () => {
                                 </div>
                                 {errors.password && <p className="text-[#D32F2F] text-[12px] xl:text-[13px] mt-0.5">{errors.password.message}</p>}
                             </div>
+
+                            {pendingVerificationIdentifier && (
+                                <div className="rounded-xl border border-[#FAD7D7] bg-[#FFF7F7] px-4 py-3 text-[13px] text-[#7A1D1D]">
+                                    <p className="font-semibold">Email tài khoản này chưa được xác thực.</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => resendVerificationEmail(pendingVerificationIdentifier)}
+                                        disabled={isResendingVerification}
+                                        className="mt-2 font-bold text-[#D32F2F] hover:underline disabled:opacity-60"
+                                    >
+                                        {isResendingVerification ? "Đang gửi lại..." : "Gửi lại email xác thực"}
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Submit Button */}
                             <button

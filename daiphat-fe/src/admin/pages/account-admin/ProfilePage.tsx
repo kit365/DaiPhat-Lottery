@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
     Box,
@@ -23,28 +24,36 @@ import { Icon } from "@iconify/react";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { prefixAdmin } from "../../constants/routes";
-import { useAccountDetail, useUpdateAccount, useChangeAccountPassword } from "./hooks/useAccountAdmin";
-import { useRoles } from "../role/hooks/useRole";
+import { useUpdateAccount } from "./hooks/useAccountAdmin";
 import { useTicketServiceOrders } from "../ticket-service-order/hooks/useTicketServiceOrderManagement";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { accountAdminSchema } from "../../schemas/account-admin.schema";
 import { toast } from "react-toastify";
+import { AxiosError } from "axios";
 import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import dayjs from "dayjs";
 import * as zod from "zod";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { authService } from "../authen/services/auth.service";
-import { PasswordRequirement, PasswordPolicy } from "../authen/types/auth.type";
+import { PasswordPolicy } from "../authen/types/auth.type";
 
 const passwordSchema = zod.object({
-    password: zod.string().min(1, "Vui lòng nhập mật khẩu mới"),
+    currentPassword: zod.string().min(1, "Vui lòng nhập mật khẩu hiện tại"),
+    newPassword: zod.string().min(1, "Vui lòng nhập mật khẩu mới"),
     confirmPassword: zod.string().min(1, "Vui lòng xác nhận mật khẩu mới"),
-}).refine((data) => data.password === data.confirmPassword, {
+}).refine((data) => data.newPassword === data.confirmPassword, {
     message: "Mật khẩu xác nhận không khớp",
     path: ["confirmPassword"],
 });
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+    if (error instanceof AxiosError) {
+        return error.response?.data?.message || fallback;
+    }
+    return fallback;
+};
 
 // Component con hiển thị Checklist yêu cầu mật khẩu
 const PasswordRequirementList = ({ password, policy }: { password: string; policy: PasswordPolicy }) => {
@@ -126,15 +135,18 @@ export const ProfilePage = () => {
     const account = user;
 
     const { mutate: update, isPending: isUpdating } = useUpdateAccount();
-    const { mutate: changePassword, isPending: isChangingPassword } = useChangeAccountPassword();
+    const { mutate: changePassword, isPending: isChangingPassword } = useMutation({
+        mutationFn: authService.changePassword,
+    });
     
     // History can stay as it is specific to the profile view, but we make it optional
     const { data: ticketServiceOrdersData, isLoading: isTicketServiceOrdersLoading } = useTicketServiceOrders({ staffId: id });
-    const ticketServiceOrders = ticketServiceOrdersData?.data?.recordList || [];
+    const ticketServiceOrders = (ticketServiceOrdersData as { data?: { recordList?: Record<string, any>[] } } | undefined)?.data?.recordList || [];
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     useEffect(() => {
@@ -163,7 +175,7 @@ export const ProfilePage = () => {
             email: "",
             phone: "",
             roles: [],
-            status: "active",
+            status: "ACTIVE",
             avatar: "",
         },
     });
@@ -171,18 +183,19 @@ export const ProfilePage = () => {
     const passwordForm = useForm<zod.infer<typeof passwordSchema>>({
         resolver: zodResolver(passwordSchema),
         defaultValues: {
-            password: "",
+            currentPassword: "",
+            newPassword: "",
             confirmPassword: "",
         },
     });
 
-    const currentPassword = passwordForm.watch("password");
-    const avatar = watch("avatar");
+    const newPassword = passwordForm.watch("newPassword");
+    const avatar = watch("avatar") ?? undefined;
 
     // Kiểm tra xem mật khẩu có thỏa mãn mọi yêu cầu không
     const checkAllMet = () => {
         if (!passwordPolicy) return false;
-        const pwd = currentPassword || "";
+        const pwd = newPassword || "";
         const { minLength, maxLength, requirements } = passwordPolicy;
 
         const isMinMet = pwd.length >= minLength;
@@ -210,8 +223,8 @@ export const ProfilePage = () => {
                 email: account.email,
                 phone: account.phone || "",
                 roles: account.role ? [account.role.id] : [],
-                status: account.status,
-                avatar: account.avatarUrl || account.avatar || "",
+                status: account.status as zod.infer<typeof accountAdminSchema>["status"],
+                avatar: account.avatarUrl || account.avatar || undefined,
             });
         }
     }, [account, reset]);
@@ -236,13 +249,18 @@ export const ProfilePage = () => {
     };
 
     const onSubmit = (data: zod.infer<typeof accountAdminSchema>) => {
-        update({ id: id!, data }, {
+        const payload = {
+            ...data,
+            avatar: data.avatar ?? undefined,
+        };
+
+        update({ id: id!, data: payload }, {
             onSuccess: () => {
                 toast.success("Cập nhật thông tin thành công!");
                 setIsEditing(false);
             },
-            onError: (error: { response?: { data?: { message?: string } } }) => {
-                toast.error(error.response?.data?.message || "Cập nhật thất bại");
+            onError: (error: unknown) => {
+                toast.error(getErrorMessage(error, "Cập nhật thất bại"));
             }
         });
     };
@@ -254,13 +272,13 @@ export const ProfilePage = () => {
             toast.error("Mật khẩu chưa thỏa mãn các yêu cầu bảo mật!");
             return;
         }
-        changePassword({ id: id!, data: { password: data.password } }, {
+        changePassword(data, {
             onSuccess: () => {
                 toast.success("Đổi mật khẩu thành công!");
                 passwordForm.reset();
             },
-            onError: (error: { response?: { data?: { message?: string } } }) => {
-                toast.error(error.response?.data?.message || "Đổi mật khẩu thất bại");
+            onError: (error: unknown) => {
+                toast.error(getErrorMessage(error, "Đổi mật khẩu thất bại"));
             }
         });
     };
@@ -600,7 +618,31 @@ export const ProfilePage = () => {
                             <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}>
                                 <Stack spacing={4}>
                                     <Controller
-                                        name="password"
+                                        name="currentPassword"
+                                        control={passwordForm.control}
+                                        render={({ field, fieldState }) => (
+                                            <TextField
+                                                {...field}
+                                                type={showCurrentPassword ? "text" : "password"}
+                                                label="Mật khẩu hiện tại"
+                                                fullWidth
+                                                error={!!fieldState.error}
+                                                helperText={fieldState.error?.message}
+                                                InputProps={{
+                                                    endAdornment: (
+                                                        <InputAdornment position="end">
+                                                            <IconButton onClick={() => setShowCurrentPassword(!showCurrentPassword)} edge="end">
+                                                                <Icon icon={showCurrentPassword ? "solar:eye-bold-duotone" : "solar:eye-closed-bold-duotone"} />
+                                                            </IconButton>
+                                                        </InputAdornment>
+                                                    ),
+                                                }}
+                                            />
+                                        )}
+                                    />
+
+                                    <Controller
+                                        name="newPassword"
                                         control={passwordForm.control}
                                         render={({ field, fieldState }) => (
                                             <Box>
@@ -623,9 +665,9 @@ export const ProfilePage = () => {
                                                         ),
                                                     }}
                                                 />
-                                                {passwordPolicy && (isPasswordFocused || currentPassword) && !allRequirementsMet && (
+                                                {passwordPolicy && (isPasswordFocused || newPassword) && !allRequirementsMet && (
                                                     <PasswordRequirementList
-                                                        password={currentPassword || ""}
+                                                        password={newPassword || ""}
                                                         policy={passwordPolicy}
                                                     />
                                                 )}

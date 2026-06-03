@@ -29,7 +29,7 @@ interface StaffInviteModalProps {
 }
 
 export const StaffInviteModal: React.FC<StaffInviteModalProps> = ({ open, onClose, user }) => {
-    const [roleCode, setRoleCode] = useState<string>(RoleEnum.STAFF_SHIPPER);
+    const [roleCode, setRoleCode] = useState<string>(RoleEnum.STAFF_OPERATOR);
     const { mutate: inviteStaff, isPending } = useInviteStaff();
 
     const handleSubmit = () => {
@@ -116,8 +116,7 @@ export const StaffInviteModal: React.FC<StaffInviteModalProps> = ({ open, onClos
                             label="Vai trò nhân viên"
                             onChange={(e) => setRoleCode(e.target.value)}
                         >
-                            <MenuItem value={RoleEnum.STAFF_SHIPPER}>Nhân viên giao hàng (Shipper)</MenuItem>
-                            <MenuItem value={RoleEnum.STAFF_MANAGER}>Quản lý (Staff Manager)</MenuItem>
+                            <MenuItem value={RoleEnum.STAFF_OPERATOR}>Nhân viên vận hành</MenuItem>
                         </Select>
                     </FormControl>
                 </Stack>

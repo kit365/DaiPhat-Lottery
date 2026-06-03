@@ -8,4 +8,5 @@ export const STORAGE_KEYS = {
     WISHLIST: "wishlist-storage",
     BOOKING: "booking-storage",
     PKCE_VERIFIER: "pkce_code_verifier",
+    OAUTH_REDIRECT_URI: "oauth_redirect_uri",
 } as const;

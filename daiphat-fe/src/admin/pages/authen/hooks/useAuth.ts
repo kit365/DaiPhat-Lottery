@@ -30,7 +30,7 @@ export const useAuth = () => {
 
     useEffect(() => {
         if (getMeQuery.data) {
-            const isSuccess = getMeQuery.data.isSuccess;
+            const isSuccess = getMeQuery.data.isSuccess ?? getMeQuery.data.success;
             if (isSuccess && getMeQuery.data.data) {
                 const userData = getMeQuery.data.data as User;
 
@@ -60,42 +60,66 @@ export const useAuth = () => {
 
     const loginMutation = useMutation({
         mutationFn: (data: LoginFormValues) => authService.login({ ...data, rememberMe: false }),
-        onSuccess: (response: LoginResponse) => {
-            const isSuccess = response.isSuccess;
-            if (isSuccess && response.data?.access_token) {
-                const { access_token, user: userInfo } = response.data;
-                if (userInfo) {
-                    // 1. Save to Zustand (Common Store)
-                    loginStore(userInfo, access_token, response.data.expires_in);
+        onSuccess: async (response: LoginResponse) => {
+            const isSuccess = response.isSuccess ?? response.success;
+            const authData = response.data;
+            const accessToken = authData?.access_token ?? authData?.accessToken;
+            const expiresIn = authData?.expires_in ?? authData?.expiresIn;
+            const refreshToken = authData?.refresh_token ?? authData?.refreshToken;
 
-                    // 2. Seed React Query Cache to prevent redundant getMe call
-                    queryClient.setQueryData([QUERY_KEYS.AUTH_ME, access_token], {
-                        isSuccess: true,
-                        message: "Success",
-                        data: userInfo
-                    });
-                    
-                    // 3. Save to Cookies (Required for Admin APIs)
-                    const cookieOptions = { 
-                        expires: response.data.expires_in ? response.data.expires_in / 86400 : 7,
-                        path: '/' 
-                    };
-                    Cookies.set(STORAGE_KEYS.TOKEN, access_token, cookieOptions);
-                    if (response.data.refresh_token) {
-                        Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, response.data.refresh_token, cookieOptions);
-                    }
+            if (isSuccess && accessToken) {
+                const cookieOptions = {
+                    expires: expiresIn ? expiresIn / 86400 : 7,
+                    path: '/'
+                };
+                Cookies.set(STORAGE_KEYS.TOKEN, accessToken, cookieOptions);
+                if (refreshToken) {
+                    Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken, cookieOptions);
+                }
 
-                    const roleCode = userInfo.role?.code || "";
-                    if (!userInfo.hasPassword) {
-                        toast.info("Vui lòng thiết lập mật khẩu cho lần đăng nhập đầu tiên.");
-                        navigate(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
-                    } else if (roleCode === USER_ROLES.ADMIN) {
-                        toast.success("Chào mừng Quản trị viên!");
-                        navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
-                    } else {
-                        toast.success("Đăng nhập thành công!");
-                        navigate(ROUTES.ADMIN.MANAGEMENT.ROOT);
-                    }
+                set({
+                    token: accessToken,
+                    expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null
+                });
+
+                const meResponse = authData?.user
+                    ? { isSuccess: true, success: true, message: "Success", data: authData.user }
+                    : await userService.getMe();
+                const meSuccess = meResponse.isSuccess ?? meResponse.success;
+                const userInfo = meResponse.data;
+
+                if (!meSuccess || !userInfo) {
+                    toast.error("Đăng nhập thành công nhưng không lấy được thông tin người dùng.");
+                    return;
+                }
+
+                const roleCode = userInfo.role?.code || "";
+                if (roleCode === USER_ROLES.MEMBER || roleCode === USER_ROLES.STREET_AGENT) {
+                    toast.error("Tài khoản này không có quyền truy cập vùng quản trị.");
+                    logout();
+                    Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
+                    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
+                    return;
+                }
+
+                loginStore(userInfo, accessToken, expiresIn);
+
+                queryClient.setQueryData([QUERY_KEYS.AUTH_ME, accessToken], {
+                    isSuccess: true,
+                    success: true,
+                    message: "Success",
+                    data: userInfo
+                });
+
+                if (!userInfo.hasPassword) {
+                    toast.info("Vui lòng thiết lập mật khẩu cho lần đăng nhập đầu tiên.");
+                    navigate(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
+                } else if (roleCode === USER_ROLES.ADMIN) {
+                    toast.success("Chào mừng Quản trị viên!");
+                    navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
+                } else {
+                    toast.success("Đăng nhập thành công!");
+                    navigate(ROUTES.ADMIN.MANAGEMENT.ROOT);
                 }
             } else {
                 toast.error(response.message || "Đăng nhập thất bại.");
@@ -121,6 +145,7 @@ export const useAuth = () => {
                 
                 // 2. Clear Google state from sessionStorage
                 sessionStorage.removeItem(STORAGE_KEYS.PKCE_VERIFIER);
+                sessionStorage.removeItem(STORAGE_KEYS.OAUTH_REDIRECT_URI);
                 
                 toast.success("Xác thực Google thành công!");
 
@@ -134,8 +159,11 @@ export const useAuth = () => {
             }
         },
         onError: () => {
+            sessionStorage.removeItem(STORAGE_KEYS.PKCE_VERIFIER);
+            sessionStorage.removeItem(STORAGE_KEYS.OAUTH_REDIRECT_URI);
             toast.error("Xác thực OAuth thất bại.");
-            navigate(ROUTES.ADMIN.AUTH.LOGIN);
+            const isClientCallback = !location.pathname.startsWith(ROUTES.ADMIN.ROOT);
+            navigate(isClientCallback ? "/login" : ROUTES.ADMIN.AUTH.LOGIN);
         }
     });
 
