@@ -23,11 +23,10 @@ interface BlogListProps {
     page: number;
     onPageChange: (page: number) => void;
     pagination: any;
-    isTrash?: boolean;
     viewMode?: 'grid' | 'list';
 }
 
-export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pagination, isTrash, viewMode = 'grid' }: BlogListProps) => {
+export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pagination, viewMode = 'grid' }: BlogListProps) => {
     const { t } = useTranslation();
 
     const handleChangePage = (_event: React.ChangeEvent<unknown>, value: number) => {
@@ -39,8 +38,6 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
 
     const navigate = useNavigate();
     const { mutate: deleteBlog } = useDeleteBlog();
-    const { mutate: restoreBlog } = useRestoreBlog();
-    const { mutate: forceDeleteBlog } = useForceDeleteBlog();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [selectedBlogId, setSelectedBlogId] = useState<string | null>(null);
 
@@ -63,8 +60,8 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
 
     const handleDelete = () => {
         if (selectedBlogId) {
-            const message = isTrash ? "Bạn có chắc chắn muốn xóa vĩnh viễn bài này?" : t("admin.common.confirm_delete");
-            const action = isTrash ? forceDeleteBlog : deleteBlog;
+            const message = t("admin.common.confirm_delete");
+            const action = deleteBlog;
 
             confirmDelete(message, () => {
                 action(selectedBlogId, {
@@ -76,21 +73,6 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                         }
                     }
                 });
-            });
-            handleCloseMenu();
-        }
-    };
-
-    const handleRestore = () => {
-        if (selectedBlogId) {
-            restoreBlog(selectedBlogId, {
-                onSuccess: (res: any) => {
-                    if (res.success) {
-                        toast.success("Khôi phục thành công");
-                    } else {
-                        toast.error(res.message);
-                    }
-                }
             });
             handleCloseMenu();
         }
@@ -335,9 +317,11 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                                         >
                                             {blog.title}
                                         </Link>
-                                        <p className="text-[0.875rem] line-clamp-2 text-[var(--palette-text-secondary)] leading-[1.57143]">
-                                            {blog.excerpt || blog.metaDescription || "..."}
-                                        </p>
+                                        {(blog.summary || blog.excerpt || blog.metaDescription) && (
+                                            <p className="text-[0.875rem] line-clamp-2 text-[var(--palette-text-secondary)] leading-[1.57143]">
+                                                {blog.summary || blog.excerpt || blog.metaDescription}
+                                            </p>
+                                        )}
                                     </Stack>
 
                                     <Box sx={{ display: "flex", alignItems: "center" }}>
@@ -385,18 +369,24 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                                     sx={{
                                         p: "8px",
                                         width: "180px",
+                                        minWidth: "180px",
                                         height: "240px",
                                         position: "relative",
+                                        flexShrink: 0,
                                     }}
                                 >
-                                    <span className="max-w-[100%] h-full overflow-hidden relative rounded-[12px] inline-block">
+                                    <span style={{ display: 'block', width: '100%', height: '100%', overflow: 'hidden', borderRadius: '12px', backgroundColor: 'var(--palette-background-neutral)' }}>
                                         <img
                                             src={blog.featuredImage || "https://api-prod-minimal-v700.pages.dev/assets/images/cover/cover-1.webp"}
                                             alt={blog.title}
-                                            className="w-full h-full rounded-[12px] object-cover"
+                                            style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'contain', display: 'block' }}
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).src = "https://api-prod-minimal-v700.pages.dev/assets/images/cover/cover-1.webp";
+                                            }}
                                         />
                                     </span>
                                 </Box>
+
                             </Card>
                         );
                     })}
@@ -463,46 +453,29 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                     },
                 }}
             >
-                {!isTrash ? (
-                    <>
-                        <MenuItem onClick={() => {
-                            navigate(`/${prefixAdmin}/blog/detail/${selectedBlogId}`);
-                            handleCloseMenu();
-                        }} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
-                            <ListItemIcon sx={{ minWidth: '24px !important', mr: 1 }}>
-                                <EyeIcon sx={{ width: 20, height: 20 }} />
-                            </ListItemIcon>
-                            <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.details")}</ListItemText>
-                        </MenuItem>
-                        <MenuItem onClick={handleEdit} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
-                            <ListItemIcon sx={{ minWidth: '24px !important', mr: 1 }}>
-                                <EditIcon sx={{ width: 20, height: 20 }} />
-                            </ListItemIcon>
-                            <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.edit")}</ListItemText>
-                        </MenuItem>
-                        <MenuItem onClick={handleDelete} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1, color: 'error.main' }}>
-                            <ListItemIcon sx={{ minWidth: '24px !important', mr: 1, color: 'error.main' }}>
-                                <DeleteIcon sx={{ width: 20, height: 20 }} />
-                            </ListItemIcon>
-                            <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.delete")}</ListItemText>
-                        </MenuItem>
-                    </>
-                ) : (
-                    <>
-                        <MenuItem onClick={handleRestore} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1, color: 'info.main' }}>
-                            <ListItemIcon sx={{ minWidth: '24px !important', mr: 1, color: 'info.main' }}>
-                                <RestoreIcon sx={{ width: 20, height: 20 }} />
-                            </ListItemIcon>
-                            <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>Khôi phục</ListItemText>
-                        </MenuItem>
-                        <MenuItem onClick={handleDelete} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1, color: 'error.main' }}>
-                            <ListItemIcon sx={{ minWidth: '24px !important', mr: 1, color: 'error.main' }}>
-                                <DeleteIcon sx={{ width: 20, height: 20 }} />
-                            </ListItemIcon>
-                            <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>Xóa vĩnh viễn</ListItemText>
-                        </MenuItem>
-                    </>
-                )}
+                <>
+                    <MenuItem onClick={() => {
+                        navigate(`/${prefixAdmin}/blog/detail/${selectedBlogId}`);
+                        handleCloseMenu();
+                    }} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
+                        <ListItemIcon sx={{ minWidth: '24px !important', mr: 1 }}>
+                            <EyeIcon sx={{ width: 20, height: 20 }} />
+                        </ListItemIcon>
+                        <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.details")}</ListItemText>
+                    </MenuItem>
+                    <MenuItem onClick={handleEdit} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
+                        <ListItemIcon sx={{ minWidth: '24px !important', mr: 1 }}>
+                            <EditIcon sx={{ width: 20, height: 20 }} />
+                        </ListItemIcon>
+                        <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.edit")}</ListItemText>
+                    </MenuItem>
+                    <MenuItem onClick={handleDelete} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1, color: 'error.main' }}>
+                        <ListItemIcon sx={{ minWidth: '24px !important', mr: 1, color: 'error.main' }}>
+                            <DeleteIcon sx={{ width: 20, height: 20 }} />
+                        </ListItemIcon>
+                        <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.delete")}</ListItemText>
+                    </MenuItem>
+                </>
             </Popover>
         </>
     );

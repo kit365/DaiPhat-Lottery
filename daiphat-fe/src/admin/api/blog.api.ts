@@ -3,56 +3,34 @@ import { ApiResponse } from '../config/type';
 
 const BASE_URL = '/blogs';
 
-/** Lấy tất cả bài viết */
-import { mockBlogs } from '../data/blogs';
+/** Map sort option FE → params BE */
+const mapSortParams = (sort?: string): { sortBy: string; direction: string } => {
+    switch (sort) {
+        case 'oldest':  return { sortBy: 'createdAt', direction: 'asc' };
+        case 'popular': return { sortBy: 'viewCount',  direction: 'desc' };
+        default:        return { sortBy: 'createdAt', direction: 'desc' }; // 'latest'
+    }
+};
 
+/** Lấy danh sách bài viết (gọi API thật) */
 export const getBlogs = async (params?: any): Promise<ApiResponse<any>> => {
-    let list = [...mockBlogs];
-    
-    // 1. Lọc theo từ khóa
-    if (params?.keyword) {
-        const kw = params.keyword.toLowerCase();
-        list = list.filter(b => b.title.toLowerCase().includes(kw));
-    }
-    
-    // 2. Lọc theo trạng thái
-    if (params?.status) {
-        list = list.filter(b => b.status === params.status);
-    }
-    
-    // 3. Sắp xếp
-    if (params?.sort === 'oldest') {
-        list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    } else if (params?.sort === 'popular') {
-        list.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-    } else { // latest
-        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }
-    
-    // 4. Phân trang
-    const page = params?.page || 1;
-    const limit = params?.limit || 10;
-    const startIndex = (page - 1) * limit;
-    const paginatedList = list.slice(startIndex, startIndex + limit);
-    
-    return {
-        success: true,
-        data: {
-            recordList: paginatedList,
-            pagination: {
-                totalRecords: list.length,
-                totalPages: Math.ceil(list.length / limit),
-                currentPage: page,
-                limit: limit
-            },
-            statusCounts: {
-                all: mockBlogs.length,
-                published: mockBlogs.filter(b => b.status === 'published').length,
-                draft: mockBlogs.filter(b => b.status === 'draft').length,
-                archived: mockBlogs.filter(b => b.status === 'archived').length,
-            }
+    const { sortBy, direction } = mapSortParams(params?.sort);
+
+    const response = await apiApp.get(BASE_URL, {
+        params: {
+            page:           params?.page    || 1,
+            limit:          params?.limit   || 10,
+            q:              params?.keyword || undefined,
+            status:         params?.status  || undefined,
+            tagId:          params?.tagId   || undefined,
+            categoryId:     params?.categoryId || undefined,
+            type:           params?.type    || undefined,
+            sortBy,
+            direction,
+            includeDeleted: params?.is_trash ? true : undefined,
         }
-    } as any;
+    });
+    return response.data;
 };
 
 

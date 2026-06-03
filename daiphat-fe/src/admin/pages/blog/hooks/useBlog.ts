@@ -10,14 +10,17 @@ export const useBlogs = (params?: any) => {
         select: (res: ApiResponse<any>) => {
             const data = res.data;
             let records: any[] = [];
-            let pagination = { totalRecords: 0 };
+            let pagination = { totalRecords: 0, totalPages: 0, currentPage: 1, limit: 10, isFirst: true, isLast: true };
 
             if (data && typeof data === 'object' && 'recordList' in data) {
                 records = data.recordList || [];
                 pagination = {
                     totalRecords: data.pagination?.totalRecords || 0,
-                    deletedCount: data.pagination?.deletedCount || 0,
-                    ...data.pagination
+                    totalPages:   data.pagination?.totalPages   || 0,
+                    currentPage:  data.pagination?.currentPage  || 1,
+                    limit:        data.pagination?.limit        || 10,
+                    isFirst:      data.pagination?.isFirst      ?? true,
+                    isLast:       data.pagination?.isLast       ?? true,
                 };
             } else if (Array.isArray(data)) {
                 records = data;
@@ -26,18 +29,26 @@ export const useBlogs = (params?: any) => {
             return {
                 recordList: records.map((item: any) => ({
                     ...item,
-                    id: item._id,
-                    title: item.name,
-                    excerpt: item.description,
-                    featuredImage: item.avatar,
-                    viewCount: item.view || 0,
-                    status: (item.status || 'draft').toLowerCase(),
+                    // BE trả về đúng field – map thêm alias cho BlogList.tsx dùng
+                    id:            item.id,
+                    title:         item.title,
+                    featuredImage: item.thumbnail || null,
+                    viewCount:     item.viewCount  ?? 0,
+                    status:        (item.status || 'draft').toLowerCase(),
+                    createdAt:     item.createdAt,
+                    updatedAt:     item.updatedAt,
+                    category:      item.category   || null,
+                    tags:          item.tags        || [],
+                    slug:          item.slug        || '',
                 })),
-                pagination
+                pagination,
+                // BE không trả về statusCounts – để 0 để tránh crash UI
+                statusCounts: { all: 0, published: 0, draft: 0, archived: 0 },
             };
         },
     });
 };
+
 
 export const useCreateBlog = () => {
     const queryClient = useQueryClient();
