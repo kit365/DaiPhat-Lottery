@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.mapper.blog;
 
 import com.daiphat.coreapi.application.dto.request.blog.CreateBlogPostRequest;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogPostSummaryResponse;
 import com.daiphat.coreapi.domain.model.blogs.BlogPostModel;
 import com.daiphat.coreapi.domain.model.enums.blog.PostStatus;
 import com.daiphat.coreapi.domain.model.enums.blog.PostType;
@@ -31,4 +32,6 @@ public interface BlogPostApplicationMapper {
     BlogPostModel toModel(CreateBlogPostRequest request);
 
     BlogPostResponse toResponse(BlogPostModel model);
+
+    BlogPostSummaryResponse toSummaryResponse(BlogPostModel model);
 }
