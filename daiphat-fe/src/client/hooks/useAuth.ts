@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { authService } from "../../admin/pages/authen/services/auth.service";
+import { userService } from "../../admin/pages/authen/services/user.service";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { User } from "../../types/user.type";
 import { useNavigate } from "react-router-dom";
@@ -12,10 +14,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { loginSchema, LoginFormValues, registerSchema, RegisterFormValues } from "../types/auth.schema";
 import { QUERY_KEYS } from "../../constants/queryKeys";
+import { USER_ROLES } from "../../constants/role.constants";
 
 export const useAuth = () => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
+    const [pendingVerificationIdentifier, setPendingVerificationIdentifier] = useState<string | null>(null);
 
     // Token from Zustand (persisted) — source of truth for auth status
     const token = useAuthStore((state) => state.token);
@@ -39,25 +43,75 @@ export const useAuth = () => {
 
     const loginMutation = useMutation({
         mutationFn: (data: LoginFormValues) => authService.login(data),
-        onSuccess: (response: any) => {
-            const isSuccess = response.isSuccess;
-            if (isSuccess && response.data?.access_token) {
-                const { access_token, user: userInfo, expires_in } = response.data;
-                loginStore(userInfo as User, access_token, expires_in);
+        onMutate: () => {
+            setPendingVerificationIdentifier(null);
+        },
+        onSuccess: async (response: any) => {
+            setPendingVerificationIdentifier(null);
+            const isSuccess = response.isSuccess ?? response.success;
+            const authData = response.data;
+            const accessToken = authData?.access_token ?? authData?.accessToken;
+            const expiresIn = authData?.expires_in ?? authData?.expiresIn;
+            const refreshToken = authData?.refresh_token ?? authData?.refreshToken;
 
+            if (isSuccess && accessToken) {
                 const cookieOptions = {
-                    expires: expires_in ? expires_in / 86400 : 7,
+                    expires: expiresIn ? expiresIn / 86400 : 7,
                     path: '/'
                 };
-                Cookies.set(STORAGE_KEYS.TOKEN, access_token, cookieOptions);
-                if (response.data.refresh_token) {
-                    Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, response.data.refresh_token, cookieOptions);
+                Cookies.set(STORAGE_KEYS.TOKEN, accessToken, cookieOptions);
+                if (refreshToken) {
+                    Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken, cookieOptions);
                 }
+
+                useAuthStore.getState().set({
+                    token: accessToken,
+                    expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null
+                });
+
+                const meResponse = authData?.user
+                    ? { isSuccess: true, success: true, data: authData.user }
+                    : await authService.getMe();
+                const meSuccess = meResponse.isSuccess ?? meResponse.success;
+                const userInfo = meResponse.data;
+
+                if (!meSuccess || !userInfo) {
+                    AppToast.error("Đăng nhập thành công nhưng không lấy được thông tin người dùng.");
+                    return;
+                }
+
+                const roleCode = (userInfo as User).role?.code || "";
+                if (roleCode === USER_ROLES.STREET_AGENT) {
+                    AppToast.error("Tài khoản Street Agent chỉ dùng để quản lý hồ sơ nội bộ.");
+                    logoutStore();
+                    Cookies.remove(STORAGE_KEYS.TOKEN);
+                    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN);
+                    return;
+                }
+
+                loginStore(userInfo as User, accessToken, expiresIn);
+                queryClient.setQueryData([QUERY_KEYS.CLIENT_ME, accessToken], {
+                    isSuccess: true,
+                    success: true,
+                    data: userInfo
+                });
 
                 AppToast.success(response.message || "Đăng nhập thành công!");
                 closeAuthModals();
             } else {
                 AppToast.error(response.message || "Đăng nhập thất bại.");
+            }
+        },
+        onError: (error: any) => {
+            const message = error.response?.data?.message || "";
+            const isUnverifiedEmail =
+                message.includes("Email chưa được xác thực") ||
+                message.includes("Tài khoản chưa được kích hoạt");
+
+            if (isUnverifiedEmail) {
+                setPendingVerificationIdentifier(loginForm.getValues("username"));
+            } else {
+                setPendingVerificationIdentifier(null);
             }
         }
     });
@@ -65,12 +119,26 @@ export const useAuth = () => {
     const registerMutation = useMutation({
         mutationFn: (data: RegisterRequest) => authService.register(data),
         onSuccess: (response: any) => {
-            const isSuccess = response.isSuccess;
+            const isSuccess = response.isSuccess ?? response.success;
             if (isSuccess) {
                 AppToast.success(response.message || "Đăng ký thành công! Vui lòng kiểm tra email.");
                 closeAuthModals();
+                registerForm.reset();
+                navigate("/login");
             } else {
                 AppToast.error(response.message || "Đăng ký thất bại.");
+            }
+        }
+    });
+
+    const resendVerificationMutation = useMutation({
+        mutationFn: (identifier: string) => authService.resendVerification(identifier),
+        onSuccess: (response: any) => {
+            const isSuccess = response.isSuccess ?? response.success;
+            if (isSuccess) {
+                AppToast.success(response.message || "Đã gửi lại email xác thực.");
+            } else {
+                AppToast.error(response.message || "Gửi lại email xác thực thất bại.");
             }
         }
     });
@@ -78,7 +146,7 @@ export const useAuth = () => {
     const updateProfileMutation = useMutation({
         mutationFn: ({ id, data }: { id: string; data: any }) => updateUser(id, data),
         onSuccess: (response: any) => {
-            const isSuccess = response.isSuccess;
+            const isSuccess = response.isSuccess ?? response.success;
             if (isSuccess && response.data) {
                 queryClient.setQueryData(
                     [QUERY_KEYS.CLIENT_ME, token],
@@ -92,6 +160,60 @@ export const useAuth = () => {
             } else {
                 AppToast.error(response.message || "Cập nhật thất bại");
             }
+        }
+    });
+
+    const uploadAvatarMutation = useMutation({
+        mutationFn: (file: File) => {
+            if (!file.type.startsWith("image/")) {
+                throw new Error("Vui lòng chọn đúng định dạng ảnh.");
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                throw new Error("Ảnh đại diện không được vượt quá 5MB.");
+            }
+            return userService.uploadMyAvatar(file);
+        },
+        onSuccess: (response) => {
+            const isSuccess = response.isSuccess ?? response.success;
+            if (isSuccess && response.data) {
+                queryClient.setQueryData([QUERY_KEYS.CLIENT_ME, token], {
+                    isSuccess: true,
+                    success: true,
+                    message: response.message,
+                    data: response.data,
+                });
+                useAuthStore.getState().set({ user: response.data as User });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_ME, token] });
+                AppToast.success(response.message || "Cập nhật ảnh đại diện thành công.");
+            } else {
+                AppToast.error(response.message || "Cập nhật ảnh đại diện thất bại.");
+            }
+        },
+        onError: (error: any) => {
+            AppToast.error(error?.message || error?.response?.data?.message || "Cập nhật ảnh đại diện thất bại.");
+        }
+    });
+
+    const deleteAvatarMutation = useMutation({
+        mutationFn: userService.deleteMyAvatar,
+        onSuccess: (response) => {
+            const isSuccess = response.isSuccess ?? response.success;
+            if (isSuccess && response.data) {
+                queryClient.setQueryData([QUERY_KEYS.CLIENT_ME, token], {
+                    isSuccess: true,
+                    success: true,
+                    message: response.message,
+                    data: response.data,
+                });
+                useAuthStore.getState().set({ user: response.data as User });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_ME, token] });
+                AppToast.success(response.message || "Đã xóa ảnh đại diện.");
+            } else {
+                AppToast.error(response.message || "Xóa ảnh đại diện thất bại.");
+            }
+        },
+        onError: (error: any) => {
+            AppToast.error(error?.response?.data?.message || "Xóa ảnh đại diện thất bại.");
         }
     });
 
@@ -147,7 +269,10 @@ export const useAuth = () => {
         // Mutations
         loginMutation,
         registerMutation,
+        resendVerificationMutation,
         updateProfileMutation,
+        uploadAvatarMutation,
+        deleteAvatarMutation,
 
         // Form Helpers
         loginForm,
@@ -155,7 +280,11 @@ export const useAuth = () => {
         handleLogin,
         handleRegister,
         handleUpdateProfile: updateProfileMutation.mutate,
+        handleUploadAvatar: uploadAvatarMutation.mutate,
+        handleDeleteAvatar: deleteAvatarMutation.mutate,
         handleLogout,
+        pendingVerificationIdentifier,
+        resendVerificationEmail: resendVerificationMutation.mutate,
 
         // Actions
         logout: handleLogout

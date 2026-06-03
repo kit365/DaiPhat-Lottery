@@ -3,10 +3,10 @@ import { useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, Lock, Eye, EyeOff, Mail, User } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
-import { generateCodeVerifier, generateCodeChallenge } from "../../../admin/utils/pkce";
 import { GoogleIcon } from "../../components/auth/SharedAuth";
 import { PasswordStrengthMeter } from "../../components/auth/PasswordStrengthMeter";
 import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
+import { redirectToGoogleOAuth } from "../../utils/google-oauth.util";
 
 export const RegisterPage = () => {
     const navigate = useNavigate();
@@ -31,26 +31,7 @@ export const RegisterPage = () => {
     const passwordValue = watch("password");
 
     const handleGoogleLogin = async () => {
-        const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
-        const realm = import.meta.env.VITE_KEYCLOAK_REALM;
-        const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
-        const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
-        const { STORAGE_KEYS } = await import("../../../constants/storage.constants");
-
-        const codeVerifier = generateCodeVerifier();
-        const codeChallenge = await generateCodeChallenge(codeVerifier);
-        sessionStorage.setItem(STORAGE_KEYS.PKCE_VERIFIER, codeVerifier);
-
-        const googleAuthUrl = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/auth` +
-            `?client_id=${clientId}` +
-            `&redirect_uri=${redirectUri}` +
-            `&response_type=code` +
-            `&scope=openid` +
-            `&kc_idp_hint=google` +
-            `&code_challenge=${codeChallenge}` +
-            `&code_challenge_method=S256`;
-
-        window.location.href = googleAuthUrl;
+        await redirectToGoogleOAuth();
     };
 
     return (

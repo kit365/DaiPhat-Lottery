@@ -21,12 +21,11 @@ export const AuthGuard = ({ children }: Props) => {
         if (!r) return false;
         const code = typeof r === 'string' ? r : (r.code || "");
         const normalized = code.startsWith("ROLE_") ? code : `ROLE_${code}`;
-        return normalized === USER_ROLES.MEMBER;
+        return normalized === USER_ROLES.MEMBER || normalized === USER_ROLES.STREET_AGENT;
     };
 
     const isRestrictedRole = 
-        checkIsRestricted(user?.role) || 
-        user?.roles?.some(role => checkIsRestricted(role));
+        checkIsRestricted(user?.role);
 
     // HOOKS PHẢI ĐẶT TRƯỚC BẤT KỲ LỆNH RETURN NÀO
     useEffect(() => {

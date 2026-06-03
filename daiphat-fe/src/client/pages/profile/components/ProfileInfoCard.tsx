@@ -63,10 +63,10 @@ export const ProfileInfoCard: React.FC<ProfileInfoCardProps> = ({ user, onEdit }
                     </div>
 
                     <div className="flex flex-col gap-1">
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Địa chỉ mặc định</span>
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Địa chỉ</span>
                         <div className="flex items-start gap-3 text-sm font-bold text-[#102937]">
                             <MapPin size={16} className="text-slate-300 mt-0.5 shrink-0" />
-                            <span className="leading-relaxed">Số 123, Đường Phan Xích Long, Quận Phú Nhuận, TP. Hồ Chí Minh</span>
+                            <span className="leading-relaxed">{user.address || "Chưa cập nhật"}</span>
                         </div>
                     </div>
 

@@ -3,11 +3,15 @@ import { ApiResponse } from "../../../../types/api.type";
 
 export interface LoginResponse extends ApiResponse<{
     access_token: string;
+    accessToken?: string;
     expires_in?: number;
+    expiresIn?: number;
     refresh_token?: string;
+    refreshToken?: string;
     token_type?: string;
+    tokenType?: string;
     scope?: string;
-    user: User;
+    user?: User;
 }> {}
 
 export interface GetMeResponse extends ApiResponse<User> {}
@@ -51,7 +55,15 @@ export interface ResetPasswordRequest {
     confirmPassword: string;
 }
 
+export interface ChangePasswordRequest {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+}
+
 export interface RegisterResponse extends ApiResponse<User> {}
+export interface ResendVerificationResponse extends ApiResponse<void> {}
+export interface VerifyEmailResponse extends ApiResponse<void> {}
 export interface LogoutResponse extends ApiResponse<void> {}
 export interface GoogleTokenResponse {
     access_token: string;

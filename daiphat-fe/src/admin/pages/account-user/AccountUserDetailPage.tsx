@@ -30,7 +30,6 @@ import { UserUserTicketList } from "./sections/UserTicketList";
 import { UserTicketServiceOrderHistory } from "./sections/UserTicketServiceOrderHistory";
 import { UserOrderHistory } from "./sections/UserOrderHistory";
 import { UserBoardingHistory } from "./sections/UserBoardingHistory";
-import { UserAddressBook } from "./sections/UserAddressBook";
 
 export const AccountUserDetailPage = () => {
     const { id } = useParams();
@@ -56,6 +55,7 @@ export const AccountUserDetailPage = () => {
             lastName: "",
             email: "",
             phone: "",
+            address: "",
             status: UserStatus.ACTIVE,
             avatar: "",
         },
@@ -70,6 +70,7 @@ export const AccountUserDetailPage = () => {
                 lastName: user.lastName,
                 email: user.email,
                 phone: user.phone || "",
+                address: user.address || "",
                 status: user.status,
                 avatar: user.avatar || "",
             });
@@ -210,16 +211,6 @@ export const AccountUserDetailPage = () => {
                         <Stack direction="row" spacing={1} alignItems="center">
                             <Icon icon="solar:home-2-bold" width={20} />
                             <span>Lịch sử khách sạn</span>
-                        </Stack>
-                    }
-                />
-                <Tab
-                    disableRipple
-                    value="address"
-                    label={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Icon icon="solar:map-point-bold" width={20} />
-                            <span>Địa chỉ</span>
                         </Stack>
                     }
                 />
@@ -384,6 +375,23 @@ export const AccountUserDetailPage = () => {
                                             </TextField>
                                         )}
                                     />
+
+                                    <Controller
+                                        name="address"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <TextField
+                                                {...field}
+                                                label="Địa chỉ"
+                                                fullWidth
+                                                multiline
+                                                minRows={3}
+                                                sx={{ gridColumn: '1 / -1' }}
+                                                error={!!fieldState.error}
+                                                helperText={fieldState.error?.message}
+                                            />
+                                        )}
+                                    />
                                 </Box>
 
                                 <Stack direction="row" justifyContent="flex-end" sx={{ mt: 3 }}>
@@ -429,11 +437,6 @@ export const AccountUserDetailPage = () => {
                 </Card>
             )}
 
-            {currentTab === "address" && id && (
-                <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", p: 3 }}>
-                    <UserAddressBook userId={id} />
-                </Card>
-            )}
         </Box>
     );
 };

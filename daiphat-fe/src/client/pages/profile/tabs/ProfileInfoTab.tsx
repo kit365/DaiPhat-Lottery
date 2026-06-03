@@ -13,7 +13,7 @@ export const ProfileInfoTab = () => {
         email: user?.email || 'john.doe@gmail.com',
         dob: '1990-05-15',
         gender: 'Nam',
-        address: '123 Đường Lê Lợi, Quận 1, TP. Hồ Chí Minh'
+        address: user?.address || ''
     });
 
     if (!user) return null;
@@ -225,7 +225,7 @@ export const ProfileInfoTab = () => {
                                     className="w-full border border-[#E5E8EB] rounded-lg px-3 py-2 text-[14px] outline-none focus:border-[#ee1314] transition-colors font-normal"
                                 />
                             ) : (
-                                formData.address
+                                formData.address || "Chưa cập nhật"
                             )}
                         </div>
                     </div>

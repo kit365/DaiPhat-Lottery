@@ -3,7 +3,7 @@ import './App.css';
 import { BrowserRouter, Navigate, Route, Routes, Outlet } from 'react-router-dom';
 import { LayoutAdmin } from './admin/layouts/LayoutAdmin';
 import { HomePage } from './client/pages/home';
-import { AdminRoutes, AdminAuthRoutes, CommonRoutes, ProfileSetupPage, OAuthCallbackPage } from './admin/routes/index';
+import { AdminRoutes, AdminAuthRoutes, CommonRoutes, ProfileSetupPage, OAuthCallbackPage, AcceptInvitePage } from './admin/routes/index';
 import { PrivateRoute } from './client/pages/private.route';
 import { ProfilePage as ClientProfilePage } from './client/pages/profile/ProfilePage';
 import { ProfileDashboardPage } from './client/pages/profile/ProfileDashboardPage';
@@ -13,8 +13,6 @@ import { TicketsTab } from './client/pages/profile/tabs/TicketsTab';
 import { FavoritesTab } from './client/pages/profile/tabs/FavoritesTab';
 import { NotificationsTab } from './client/pages/profile/tabs/NotificationsTab';
 import { AddressTab } from './client/pages/profile/tabs/AddressTab';
-import { CreateAddressTab } from './client/pages/profile/tabs/CreateAddressTab';
-import { EditAddressTab } from './client/pages/profile/tabs/EditAddressTab';
 import { SecurityTab } from './client/pages/profile/tabs/SecurityTab';
 
 import { BlogListPage } from './client/pages/BlogListPage';
@@ -24,6 +22,7 @@ import { CheckoutPage } from './client/pages/cart/CheckoutPage';
 import { BuyTicketPage } from './client/pages/buy-ticket/BuyTicketPage';
 import { LoginPage } from './client/pages/auth/LoginPage';
 import { RegisterPage } from './client/pages/auth/RegisterPage';
+import { ForgotPasswordPage as ClientForgotPasswordPage } from './client/pages/auth/ForgotPasswordPage';
 
 import { ROUTES } from './admin/constants/routes';
 import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
@@ -61,6 +60,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ClientForgotPasswordPage />} />
           <Route path="/blogs" element={<BlogListPage />} />
           <Route path="/blogs/detail" element={<BlogDetailPage />} />
 
@@ -82,8 +82,6 @@ function App() {
               <Route path="favorites" element={<FavoritesTab />} />
               <Route path="notifications" element={<NotificationsTab />} />
               <Route path="address" element={<AddressTab />} />
-              <Route path="address/create" element={<CreateAddressTab />} />
-              <Route path="address/edit/:id" element={<EditAddressTab />} />
               <Route path="settings" element={<SecurityTab />} />
             </Route>
           </Route>
@@ -123,6 +121,7 @@ function App() {
             {/* Common Routes inside Admin Context */}
             {/* 1. Unguarded Common Routes (Callback) */}
             <Route path="auth/callback" element={<OAuthCallbackPage />} />
+            <Route path="accept-invite" element={<AcceptInvitePage />} />
 
             {/* 2. Guarded Common Routes (Setup Profile) */}
             <Route element={<AuthGuard><Outlet /></AuthGuard>}>

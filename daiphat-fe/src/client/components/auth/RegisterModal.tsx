@@ -7,6 +7,7 @@ import { useAuthStore } from "../../../stores/useAuthStore";
 import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 import { GoogleIcon, VisualPanelContent, AuthBranding } from "./SharedAuth";
+import { redirectToGoogleOAuth } from "../../utils/google-oauth.util";
 
 import { UseFormReturn } from "react-hook-form";
 import { RegisterFormValues } from "../../../client/types/auth.schema";
@@ -248,7 +249,7 @@ export const RegisterContent = ({ onSwitchToLogin, registerForm, handleRegister:
                 <span className="flex-1 h-px bg-slate-100"></span>
             </div>
 
-            <button type="button" className="h-11 flex items-center justify-center gap-3 bg-white border-2 border-slate-100 rounded-xl font-bold text-[#102937] text-sm transition-all hover:bg-slate-50 active:scale-95 disabled:opacity-50 cursor-pointer" disabled={isPending}>
+            <button type="button" className="h-11 flex items-center justify-center gap-3 bg-white border-2 border-slate-100 rounded-xl font-bold text-[#102937] text-sm transition-all hover:bg-slate-50 active:scale-95 disabled:opacity-50 cursor-pointer" onClick={redirectToGoogleOAuth} disabled={isPending}>
                 <GoogleIcon />
                 Đăng ký với Google
             </button>

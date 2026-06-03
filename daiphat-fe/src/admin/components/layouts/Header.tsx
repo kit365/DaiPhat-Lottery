@@ -83,7 +83,7 @@ export const Header = () => {
         try {
             // Clear local state immediately for better UX
             logoutStore();
-            Cookies.remove(STORAGE_KEYS.TOKEN_ADMIN, { path: '/' });
+            Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
             Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
             toast.success("Đăng xuất thành công!");
             navigate(ROUTES.ADMIN.AUTH.LOGIN);

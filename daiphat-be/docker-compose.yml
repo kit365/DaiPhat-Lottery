@@ -34,34 +34,6 @@ services:
     networks:
       - daiphat-network
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.1
-    container_name: daiphat-keycloak
-    restart: always
-    env_file:
-      - ../.env
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres-db:5432/${KEYCLOAK_DB_NAME:-keycloak}
-      KC_DB_USERNAME: ${POSTGRES_USER:-postgres}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      KC_HOSTNAME_STRICT: "false"
-      KC_HOSTNAME_STRICT_HTTPS: "false"
-      KC_HTTP_ENABLED: "true"
-      KC_HTTP_RELATIVE_PATH: "/"
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-    volumes:
-      - ./infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
-    command: start-dev --import-realm --features=token-exchange
-    ports:
-      - "${KEYCLOAK_PORT:-8180}:8080"
-    depends_on:
-      postgres-db:
-        condition: service_healthy
-    networks:
-      - daiphat-network
-
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: daiphat-rabbitmq

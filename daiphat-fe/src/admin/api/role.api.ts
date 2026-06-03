@@ -2,8 +2,8 @@ import { apiApp } from "../../api";
 
 const BASE_URL = "/permissions/roles";
 
-export const getRoles = async () => {
-    const response = await apiApp.get(BASE_URL);
+export const getRoles = async (params?: any) => {
+    const response = await apiApp.get(BASE_URL, { params });
     return response.data;
 };
 
