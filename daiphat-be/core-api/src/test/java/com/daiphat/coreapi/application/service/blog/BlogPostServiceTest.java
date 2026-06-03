@@ -13,6 +13,12 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.blogs.BlogCategoryModel;
 import com.daiphat.coreapi.domain.model.blogs.BlogPostModel;
 import com.daiphat.coreapi.domain.model.blogs.BlogTagModel;
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogPostSummaryResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,7 +32,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -279,5 +285,151 @@ class BlogPostServiceTest {
                 .isEqualTo(ErrorCode.TAG_NOT_FOUND);
 
         verify(blogPostRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("LIST: Lấy danh sách bài viết thành công với đầy đủ tham số bộ lọc")
+    void getPosts_success_withFilters() {
+        // GIVEN
+        int page = 1;
+        int limit = 10;
+        String search = "Tech";
+        Long tagId = 1L;
+        Long categoryId = 2L;
+        String type = "blog";
+        String status = "PUBLISHED";
+        String sortBy = "viewCount";
+        String direction = "desc";
+        boolean includeDeleted = false;
+
+        BlogPostModel post = BlogPostModel.builder()
+                .id(1L)
+                .title("Tech News")
+                .slug("tech-news")
+                .viewCount(100)
+                .build();
+        List<BlogPostModel> posts = List.of(post);
+        Page<BlogPostModel> postPage = new PageImpl<>(posts);
+
+        BlogPostSummaryResponse summaryResponse = BlogPostSummaryResponse.builder()
+                .id(1L)
+                .title("Tech News")
+                .slug("tech-news")
+                .viewCount(100)
+                .build();
+
+        when(blogPostRepositoryPort.findAll(
+                any(Pageable.class), eq(search), eq(tagId), eq(categoryId), eq(type), eq(status), eq(includeDeleted)
+        )).thenReturn(postPage);
+
+        when(blogPostApplicationMapper.toSummaryResponse(post)).thenReturn(summaryResponse);
+
+        // WHEN
+        PageResponse<BlogPostSummaryResponse> response = blogPostService.getPosts(
+                page, limit, search, tagId, categoryId, type, status, sortBy, direction, includeDeleted
+        );
+
+        // THEN
+        assertThat(response).isNotNull();
+        assertThat(response.getRecordList()).hasSize(1);
+        assertThat(response.getRecordList().get(0).title()).isEqualTo("Tech News");
+        assertThat(response.getPagination().getTotalRecords()).isEqualTo(1);
+        assertThat(response.getPagination().getCurrentPage()).isEqualTo(page);
+    }
+
+    @Test
+    @DisplayName("LIST: Lấy danh sách bài viết thành công khi sortBy rỗng - Fallback về sort mặc định")
+    void getPosts_success_withDefaultFilters() {
+        // GIVEN
+        int page = 1;
+        int limit = 10;
+
+        BlogPostModel post = BlogPostModel.builder().id(2L).title("General News").build();
+        Page<BlogPostModel> postPage = new PageImpl<>(List.of(post));
+        BlogPostSummaryResponse summaryResponse = BlogPostSummaryResponse.builder().id(2L).title("General News").build();
+
+        when(blogPostRepositoryPort.findAll(
+                any(Pageable.class), eq(null), eq(null), eq(null), eq(null), eq(null), eq(false)
+        )).thenReturn(postPage);
+
+        when(blogPostApplicationMapper.toSummaryResponse(post)).thenReturn(summaryResponse);
+
+        // WHEN
+        PageResponse<BlogPostSummaryResponse> response = blogPostService.getPosts(
+                page, limit, null, null, null, null, null, null, null, false
+        );
+
+        // THEN
+        assertThat(response).isNotNull();
+        assertThat(response.getRecordList()).hasSize(1);
+        verify(blogPostRepositoryPort).findAll(
+                argThat(pageable -> pageable.getSort().getOrderFor("createdAt") != null),
+                eq(null), eq(null), eq(null), eq(null), eq(null), eq(false)
+        );
+    }
+
+    @Test
+    @DisplayName("LIST: Lấy danh sách bài viết thành công khi không có dữ liệu khớp bộ lọc - Trả về danh sách rỗng")
+    void getPosts_success_emptyList() {
+        // GIVEN
+        int page = 1;
+        int limit = 10;
+        String search = "NonExistentKeyword";
+
+        Page<BlogPostModel> emptyPage = new PageImpl<>(Collections.emptyList());
+
+        when(blogPostRepositoryPort.findAll(
+                any(Pageable.class), eq(search), eq(null), eq(null), eq(null), eq(null), eq(false)
+        )).thenReturn(emptyPage);
+
+        // WHEN
+        PageResponse<BlogPostSummaryResponse> response = blogPostService.getPosts(
+                page, limit, search, null, null, null, null, null, null, false
+        );
+
+        // THEN
+        assertThat(response).isNotNull();
+        assertThat(response.getRecordList()).isEmpty();
+        assertThat(response.getPagination().getTotalRecords()).isZero();
+
+        verify(blogPostRepositoryPort).findAll(
+                any(Pageable.class), eq(search), eq(null), eq(null), eq(null), eq(null), eq(false)
+        );
+        verify(blogPostApplicationMapper, never()).toSummaryResponse(any());
+    }
+
+    @Test
+    @DisplayName("VIEW COUNT: Tăng lượt xem thành công khi bài viết tồn tại")
+    void incrementViewCount_success() {
+        // GIVEN
+        Long postId = 100L;
+        BlogPostModel post = BlogPostModel.builder().id(postId).title("Hot Post").build();
+
+        when(blogPostRepositoryPort.findById(postId)).thenReturn(Optional.of(post));
+
+        // WHEN
+        blogPostService.incrementViewCount(postId);
+
+        // THEN
+        verify(blogPostRepositoryPort).findById(postId);
+        verify(blogPostRepositoryPort).incrementViewCount(postId);
+    }
+
+    @Test
+    @DisplayName("VIEW COUNT: Tăng lượt xem thất bại - Bài viết không tồn tại ném lỗi BLOG_NOT_FOUND")
+    void incrementViewCount_notFound_throwsBlogNotFound() {
+        // GIVEN
+        Long postId = 100L;
+
+        when(blogPostRepositoryPort.findById(postId)).thenReturn(Optional.empty());
+
+        // WHEN & THEN
+        assertThatThrownBy(() -> blogPostService.incrementViewCount(postId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.BLOG_NOT_FOUND);
+
+        verify(blogPostRepositoryPort).findById(postId);
+        verify(blogPostRepositoryPort, never()).incrementViewCount(anyLong());
     }
 }
