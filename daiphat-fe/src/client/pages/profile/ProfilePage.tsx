@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useLocation, useNavigate, Link, Outlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Header } from "../../../client/components/layout/header";
@@ -25,10 +25,11 @@ const TABS: TabConfig[] = [
 ];
 
 export const ProfilePage = () => {
-    const { user, isUserLoading } = useAuth();
+    const { user, isUserLoading, handleUploadAvatar, uploadAvatarMutation } = useAuth();
     const { token, openLoginModal } = useAuthStore();
     const location = useLocation();
     const navigate = useNavigate();
+    const avatarInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (!token && !isUserLoading) {
@@ -41,6 +42,16 @@ export const ProfilePage = () => {
 
     // Find the active tab based on the current pathname
     const activeTabObj = TABS.find(t => location.pathname.startsWith(t.path)) || TABS[0];
+    const avatarSrc = user.avatar || user.avatarUrl;
+    const isUploadingAvatar = uploadAvatarMutation.isPending;
+
+    const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            handleUploadAvatar(file);
+        }
+        event.target.value = "";
+    };
 
     return (
         <div className="min-h-screen flex flex-col bg-[#F8F9FA] font-['Inter',sans-serif] text-[#212B36]">
@@ -80,14 +91,27 @@ export const ProfilePage = () => {
                                     {/* Avatar */}
                                     <div className="relative z-10 mb-3">
                                         <div className="w-[88px] h-[88px] rounded-full overflow-hidden border-[4px] border-white shadow-sm bg-slate-100 flex items-center justify-center text-[#919EAB]">
-                                            {user.avatar || user.avatarUrl ? (
-                                                <img src={user.avatar || user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                            {avatarSrc ? (
+                                                <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover" />
                                             ) : (
                                                 <i className="fa-solid fa-user text-4xl"></i>
                                             )}
                                         </div>
-                                        <button className="absolute bottom-0 right-0 w-7 h-7 bg-white rounded-full shadow-md border border-slate-100 flex items-center justify-center text-slate-500 hover:text-[#BA0000] transition-colors cursor-pointer">
-                                            <i className="fa-solid fa-camera text-[11px]"></i>
+                                        <input
+                                            ref={avatarInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleAvatarFileChange}
+                                        />
+                                        <button
+                                            type="button"
+                                            disabled={isUploadingAvatar}
+                                            onClick={() => avatarInputRef.current?.click()}
+                                            className="absolute bottom-0 right-0 w-7 h-7 bg-white rounded-full shadow-md border border-slate-100 flex items-center justify-center text-slate-500 hover:text-[#BA0000] transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+                                            aria-label="Cập nhật ảnh đại diện"
+                                        >
+                                            <i className={`fa-solid ${isUploadingAvatar ? "fa-spinner fa-spin" : "fa-camera"} text-[11px]`}></i>
                                         </button>
                                     </div>
 

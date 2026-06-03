@@ -1,5 +1,17 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
-import { getAccounts, getAccountById, createAccount, updateAccount, deleteAccount, changeAccountPassword, getStaffByTicketService } from "../../../api/account-admin.api";
+import {
+    getAccounts,
+    getAccountById,
+    createAccount,
+    updateAccount,
+    deleteAccount,
+    changeAccountPassword,
+    getStaffByTicketService,
+    initiateAccountPasswordReset,
+    confirmAccountPasswordReset,
+    uploadAccountAvatar,
+    deleteAccountAvatar
+} from "../../../api/account-admin.api";
 import { getRoles } from "../../../api/role.api";
 import { QUERY_KEYS } from "../../../../constants/queryKeys";
 import { ApiResponse, PageResponse, BaseQueryParams } from "../../../config/type";
@@ -64,7 +76,41 @@ export const useUpdateAccount = () => {
 
 export const useChangeAccountPassword = () => {
     return useMutation({
-        mutationFn: ({ id, data }: { id: string; data: { password?: string } }) => changeAccountPassword(id, data),
+        mutationFn: ({ id }: { id: string; data?: unknown }) => changeAccountPassword(id),
+    });
+};
+
+export const useInitiateAccountPasswordReset = () => {
+    return useMutation({
+        mutationFn: (id: string) => initiateAccountPasswordReset(id),
+    });
+};
+
+export const useConfirmAccountPasswordReset = () => {
+    return useMutation({
+        mutationFn: ({ id, otp }: { id: string; otp: string }) => confirmAccountPasswordReset(id, otp),
+    });
+};
+
+export const useUploadAccountAvatar = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, file }: { id: string; file: File }) => uploadAccountAvatar(id, file),
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNTS_ADMIN] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNT_ADMIN_DETAIL, variables.id] });
+        },
+    });
+};
+
+export const useDeleteAccountAvatar = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => deleteAccountAvatar(id),
+        onSuccess: (_data, id) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNTS_ADMIN] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ACCOUNT_ADMIN_DETAIL, id] });
+        },
     });
 };
 

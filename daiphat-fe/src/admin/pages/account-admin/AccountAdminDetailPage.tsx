@@ -12,8 +12,6 @@ import {
     MenuItem,
     Chip,
     Button,
-    InputAdornment,
-    IconButton
 } from "@mui/material";
 import { UserStatus } from "../../../types/user.type";
 import Grid from "@mui/material/Grid";
@@ -21,7 +19,14 @@ import { Icon } from "@iconify/react";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { prefixAdmin } from "../../constants/routes";
-import { useAccountDetail, useUpdateAccount, useDeleteAccount, useChangeAccountPassword } from "./hooks/useAccountAdmin";
+import {
+    useAccountDetail,
+    useUpdateAccount,
+    useDeleteAccount,
+    useConfirmAccountPasswordReset,
+    useInitiateAccountPasswordReset,
+    useUploadAccountAvatar
+} from "./hooks/useAccountAdmin";
 import { useRoles } from "../role/hooks/useRole";
 import { StaffTicketServiceOrderHistory } from "./sections/StaffBookingHistory";
 import { StaffBoardingHistory } from "./sections/StaffBoardingHistory";
@@ -29,17 +34,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { accountAdminSchema } from "../../schemas/account-admin.schema";
 import { toast } from "react-toastify";
-import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
 import { LoadingButton } from "../../components/ui/LoadingButton";
-import * as zod from "zod";
-
-const passwordSchema = zod.object({
-    password: zod.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
-    confirmPassword: zod.string().min(6, "Mật khẩu xác nhận phải có ít nhất 6 ký tự"),
-}).refine((data) => data.password === data.confirmPassword, {
-    message: "Mật khẩu xác nhận không khớp",
-    path: ["confirmPassword"],
-});
 
 export const AccountAdminDetailPage = () => {
     const { id } = useParams();
@@ -48,14 +43,16 @@ export const AccountAdminDetailPage = () => {
     const { data: account, isLoading: isAccountLoading } = useAccountDetail(id);
     const { mutate: update, isPending: isUpdating } = useUpdateAccount();
     const { mutate: removeAccount } = useDeleteAccount();
-    const { mutate: changePassword, isPending: isChangingPassword } = useChangeAccountPassword();
+    const { mutate: initiateReset, isPending: isInitiatingReset } = useInitiateAccountPasswordReset();
+    const { mutate: confirmReset, isPending: isConfirmingReset } = useConfirmAccountPasswordReset();
+    const { mutateAsync: uploadAvatar } = useUploadAccountAvatar();
     const { data: roles = [] } = useRoles();
 
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [otpSent, setOtpSent] = useState(false);
+    const [otp, setOtp] = useState("");
 
     const {
         control,
@@ -76,14 +73,6 @@ export const AccountAdminDetailPage = () => {
         },
     });
 
-    const passwordForm = useForm<any>({
-        resolver: zodResolver(passwordSchema),
-        defaultValues: {
-            password: "",
-            confirmPassword: "",
-        },
-    });
-
     const avatar = watch("avatar");
 
     useEffect(() => {
@@ -93,9 +82,9 @@ export const AccountAdminDetailPage = () => {
                 lastName: account.lastName,
                 email: account.email,
                 phone: account.phone || "",
-                roles: account.roles?.map((r: any) => typeof r === 'string' ? r : r.code) || [],
+                roles: account.role ? [account.role.code] : [],
                 status: account.status,
-                avatar: account.avatar || "",
+                avatar: account.avatarUrl || account.avatar || "",
             });
         }
     }, [account, reset]);
@@ -123,7 +112,8 @@ export const AccountAdminDetailPage = () => {
         }
         try {
             setIsUploading(true);
-            const [url] = await uploadImagesToCloudinary([file]);
+            const response = await uploadAvatar({ id: id!, file });
+            const url = response.data?.avatarUrl || response.data?.avatar || "";
             setValue("avatar", url, { shouldValidate: true });
             toast.success("Tải ảnh đại diện thành công!");
         } catch (error) {
@@ -134,7 +124,9 @@ export const AccountAdminDetailPage = () => {
     };
 
     const onSubmit = (data: any) => {
-        update({ id: id!, data }, {
+        const payload = { ...data };
+        delete payload.avatar;
+        update({ id: id!, data: payload }, {
             onSuccess: () => {
                 toast.success("Cập nhật quản trị viên thành công!");
             },
@@ -144,14 +136,32 @@ export const AccountAdminDetailPage = () => {
         });
     };
 
-    const onPasswordSubmit = (data: any) => {
-        changePassword({ id: id!, data: { password: data.password } }, {
+    const handleInitiateReset = () => {
+        initiateReset(id!, {
             onSuccess: () => {
-                toast.success("Đổi mật khẩu thành công!");
-                passwordForm.reset();
+                setOtpSent(true);
+                toast.success("Mã OTP đã được gửi đến email người dùng.");
             },
             onError: (error: any) => {
-                toast.error(error.response?.data?.message || "Đổi mật khẩu thất bại");
+                toast.error(error.response?.data?.message || "Không thể gửi OTP");
+            }
+        });
+    };
+
+    const handleConfirmReset = () => {
+        if (!otp || otp.length < 6) {
+            toast.warning("Vui lòng nhập mã OTP hợp lệ");
+            return;
+        }
+
+        confirmReset({ id: id!, otp }, {
+            onSuccess: () => {
+                toast.success("Đặt lại mật khẩu thành công! Mật khẩu mới đã được gửi đến email người dùng.");
+                setOtpSent(false);
+                setOtp("");
+            },
+            onError: (error: any) => {
+                toast.error(error.response?.data?.message || "Xác thực OTP thất bại");
             }
         });
     };
@@ -478,68 +488,58 @@ export const AccountAdminDetailPage = () => {
 
             {currentTab === "security" && (
                 <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
-                    <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}>
-                        <Stack spacing={3} alignItems="flex-end">
-                            <Controller
-                                name="password"
-                                control={passwordForm.control}
-                                render={({ field, fieldState }) => (
-                                    <TextField
-                                        {...field}
-                                        type={showPassword ? "text" : "password"}
-                                        label="Mật khẩu mới"
-                                        fullWidth
-                                        error={!!fieldState.error}
-                                        helperText={fieldState.error?.message}
-                                        InputProps={{
-                                            endAdornment: (
-                                                <InputAdornment position="end">
-                                                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                                                        <Icon icon={showPassword ? "solar:eye-bold" : "solar:eye-closed-bold"} />
-                                                    </IconButton>
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
-                                )}
-                            />
-
-                            <Controller
-                                name="confirmPassword"
-                                control={passwordForm.control}
-                                render={({ field, fieldState }) => (
-                                    <TextField
-                                        {...field}
-                                        type={showConfirmPassword ? "text" : "password"}
-                                        label="Xác nhận mật khẩu mới"
-                                        fullWidth
-                                        error={!!fieldState.error}
-                                        helperText={fieldState.error?.message}
-                                        InputProps={{
-                                            endAdornment: (
-                                                <InputAdornment position="end">
-                                                    <IconButton onClick={() => setShowConfirmPassword(!showConfirmPassword)} edge="end">
-                                                        <Icon icon={showConfirmPassword ? "solar:eye-bold" : "solar:eye-closed-bold"} />
-                                                    </IconButton>
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
-                                )}
-                            />
-
-                            <LoadingButton
-                                type="submit"
-                                loading={isChangingPassword}
-                                label="Lưu thay đổi"
-                                sx={{
-                                    bgcolor: 'var(--palette-grey-800)',
-                                    color: 'common.white',
-                                    '&:hover': { bgcolor: 'var(--palette-grey-900)' }
-                                }}
-                            />
+                    {!otpSent ? (
+                        <Stack spacing={3} alignItems="flex-start">
+                            <Typography variant="h6" sx={{ fontWeight: 800 }}>Đặt lại mật khẩu</Typography>
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                Hệ thống sẽ gửi mã OTP xác thực đến email người dùng. Sau khi xác nhận, mật khẩu mới sẽ được tạo tự động và gửi qua email.
+                            </Typography>
+                            <Stack direction="row" justifyContent="flex-end" sx={{ width: '100%' }}>
+                                <LoadingButton
+                                    onClick={handleInitiateReset}
+                                    loading={isInitiatingReset}
+                                    label="Gửi mã OTP"
+                                    loadingLabel="Đang gửi..."
+                                    sx={{
+                                        bgcolor: 'var(--palette-grey-800)',
+                                        color: 'common.white',
+                                        '&:hover': { bgcolor: 'var(--palette-grey-900)' }
+                                    }}
+                                />
+                            </Stack>
                         </Stack>
-                    </form>
+                    ) : (
+                        <Stack spacing={3} alignItems="flex-end">
+                            <TextField
+                                label="Nhập mã OTP"
+                                value={otp}
+                                onChange={(event) => setOtp(event.target.value)}
+                                placeholder="Nhập mã OTP gồm 6 chữ số"
+                                fullWidth
+                            />
+                            <Stack direction="row" spacing={2}>
+                                <Button
+                                    variant="text"
+                                    onClick={() => setOtpSent(false)}
+                                    sx={{ textTransform: 'none', fontWeight: 700 }}
+                                >
+                                    Quay lại
+                                </Button>
+                                <LoadingButton
+                                    onClick={handleConfirmReset}
+                                    loading={isConfirmingReset}
+                                    disabled={otp.length < 6}
+                                    label="Xác nhận đặt lại"
+                                    loadingLabel="Đang xác thực..."
+                                    sx={{
+                                        bgcolor: 'var(--palette-grey-800)',
+                                        color: 'common.white',
+                                        '&:hover': { bgcolor: 'var(--palette-grey-900)' }
+                                    }}
+                                />
+                            </Stack>
+                        </Stack>
+                    )}
                 </Card>
             )}
         </Box>

@@ -1,6 +1,6 @@
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
-import { useUpdateAccount, useAccountDetail, useDeleteAccount } from "./hooks/useAccountAdmin";
+import { useUpdateAccount, useAccountDetail, useDeleteAccount, useUploadAccountAvatar } from "./hooks/useAccountAdmin";
 import { useRoles } from "../role/hooks/useRole";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
@@ -21,7 +21,6 @@ import {
 } from "@mui/material";
 import { UserStatus } from "../../../types/user.type";
 import Grid from "@mui/material/Grid";
-import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 
 export const AccountAdminEditPage = () => {
@@ -30,6 +29,7 @@ export const AccountAdminEditPage = () => {
     const { data: account, isLoading } = useAccountDetail(id);
     const { mutate: update, isPending } = useUpdateAccount();
     const { mutate: removeAccount } = useDeleteAccount();
+    const { mutateAsync: uploadAvatar } = useUploadAccountAvatar();
     const { data: roles = [] } = useRoles();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -61,8 +61,8 @@ export const AccountAdminEditPage = () => {
                 lastName: account.lastName,
                 email: account.email,
                 phone: account.phone || "",
-                roles: account.roles?.map((r: any) => typeof r === 'string' ? r : r.code) || [],
-                avatar: account.avatar || "",
+                roles: account.role ? [account.role.code] : [],
+                avatar: account.avatarUrl || account.avatar || "",
             });
         }
     }, [account, reset]);
@@ -93,7 +93,8 @@ export const AccountAdminEditPage = () => {
 
         try {
             setIsUploading(true);
-            const [url] = await uploadImagesToCloudinary([file]);
+            const response = await uploadAvatar({ id: id!, file });
+            const url = response.data?.avatarUrl || response.data?.avatar || "";
             setValue("avatar", url, { shouldValidate: true });
             toast.success("Tải ảnh đại diện thành công!");
         } catch (error) {
@@ -118,7 +119,9 @@ export const AccountAdminEditPage = () => {
     };
 
     const onSubmit = (data: any) => {
-        update({ id: id!, data }, {
+        const payload = { ...data };
+        delete payload.avatar;
+        update({ id: id!, data: payload }, {
             onSuccess: () => {
                 toast.success("Cập nhật quản trị viên thành công!");
                 navigate(`/${prefixAdmin}/account-admin/list`);
@@ -300,17 +303,8 @@ export const AccountAdminEditPage = () => {
                                             fullWidth
                                             error={!!fieldState.error}
                                             helperText={fieldState.error?.message}
-                                            SelectProps={{
-                                                multiple: true,
-                                                value: field.value || [],
-                                                renderValue: (selected: any) => {
-                                                    const selectedArray = Array.isArray(selected) ? selected : [selected];
-                                                    return roles
-                                                        .filter((r: any) => selectedArray.includes(r.code))
-                                                        .map((r: any) => r.name)
-                                                        .join(', ');
-                                                }
-                                            }}
+                                            value={field.value?.[0] || ""}
+                                            onChange={(e) => field.onChange([e.target.value])}
                                         >
                                             {roles.map((role: any) => (
                                                 <MenuItem key={role.code} value={role.code} sx={{ fontSize: '0.875rem' }}>

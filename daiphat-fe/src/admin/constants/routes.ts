@@ -76,6 +76,10 @@ export const ROUTES = {
                 EDIT: `/${prefixAdmin}/account-user/edit`,
                 DETAIL: `/${prefixAdmin}/account-user/detail`,
                 CHANGE_PASSWORD: `/${prefixAdmin}/account-user/change-password`,
+            },
+            STREET_AGENT: {
+                LIST: `/${prefixAdmin}/street-agent/list`,
+                CREATE: `/${prefixAdmin}/street-agent/create`,
             }
         },
         CHAT: `/${prefixAdmin}/chat`,
