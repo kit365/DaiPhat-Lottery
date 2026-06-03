@@ -1,17 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCategories, createCategory, getNestedCategories, getCategoryById, deleteCategory, updateCategory, restoreCategory, forceDeleteCategory } from '../../../api/blog-category.api';
+import { getCategories, createCategory, getNestedCategories, getCategoryById, deleteCategory, updateCategory, restoreCategory, forceDeleteCategory, getCategoryStatuses } from '../../../api/blog-category.api';
+import { QUERY_KEYS } from '../../../../constants/queryKeys';
 
+export const useBlogCategoryStatuses = () => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.BLOG_CATEGORIES, 'statuses'],
+        queryFn: getCategoryStatuses,
+        staleTime: 5 * 60 * 1000,
+    });
+};
 
 export const useBlogCategories = (params?: any) => {
     return useQuery({
-        queryKey: ['blog-categories', params],
+        queryKey: [QUERY_KEYS.BLOG_CATEGORIES, params],
         queryFn: () => getCategories(params),
     });
 };
 
 export const useNestedBlogCategories = () => {
     return useQuery({
-        queryKey: ['blog-categories', 'nested'],
+        queryKey: [QUERY_KEYS.BLOG_CATEGORIES, 'nested'],
         queryFn: getNestedCategories,
         select: (res) => res.data,
     });
@@ -23,7 +31,7 @@ export const useCreateBlogCategory = () => {
     return useMutation({
         mutationFn: createCategory,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['blog-categories'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOG_CATEGORIES] });
         },
     });
 };
@@ -35,8 +43,8 @@ export const useUpdateBlogCategory = () => {
         mutationFn: ({ id, data }: { id: string | number; data: any }) => updateCategory(id, data),
         onSuccess: (response) => {
             if (response.success) {
-                queryClient.invalidateQueries({ queryKey: ['blog-categories'] });
-                queryClient.invalidateQueries({ queryKey: ['blog-category'] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOG_CATEGORIES] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOG_CATEGORY_DETAIL] });
             }
         },
     });
@@ -44,7 +52,7 @@ export const useUpdateBlogCategory = () => {
 
 export const useBlogCategoryDetail = (id?: string | number) => {
     return useQuery({
-        queryKey: ['blog-category', id],
+        queryKey: [QUERY_KEYS.BLOG_CATEGORY_DETAIL, id],
         queryFn: () => getCategoryById(id!),
         enabled: !!id,
         select: (res: any) => res.data,
@@ -57,7 +65,7 @@ export const useDeleteBlogCategory = () => {
     return useMutation({
         mutationFn: deleteCategory,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['blog-categories'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOG_CATEGORIES] });
         },
     });
 };
@@ -68,7 +76,7 @@ export const useRestoreBlogCategory = () => {
     return useMutation({
         mutationFn: restoreCategory,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['blog-categories'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOG_CATEGORIES] });
         },
     });
 };
@@ -79,7 +87,7 @@ export const useForceDeleteBlogCategory = () => {
     return useMutation({
         mutationFn: forceDeleteCategory,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['blog-categories'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOG_CATEGORIES] });
         },
     });
 };
