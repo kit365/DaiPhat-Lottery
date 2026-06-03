@@ -32,7 +32,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@DisplayName("Core PasswordResetService")
+@DisplayName("Core PasswordResetService - Test Suite")
 class PasswordResetServiceTest extends AuthTestBase {
 
     private PasswordResetServicePort passwordResetService;
@@ -54,7 +54,10 @@ class PasswordResetServiceTest extends AuthTestBase {
         ReflectionTestUtils.setField(passwordResetService, "maxPasswordLength", 100);
     }
 
+
+
     @Test
+    @DisplayName("TC-FGT-001: Gửi yêu cầu reset password thành công và lưu OTP")
     void forgotPassword_success_savesOtpAndPublishesEvent() {
         when(userRepositoryPort.findByEmail(DEFAULT_EMAIL)).thenReturn(Optional.of(activeUser()));
 
@@ -69,6 +72,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("TC-FGT-002: Gửi yêu cầu reset thất bại - Email không tồn tại")
     void forgotPassword_unknownEmail_throwsEmailNotFound() {
         when(userRepositoryPort.findByEmail(DEFAULT_EMAIL)).thenReturn(Optional.empty());
 
@@ -81,6 +85,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("TC-FGT-004: Xác minh OTP thành công, tạo reset token và xóa OTP")
     void verifyResetOtp_success_createsResetTokenAndClearsOtp() {
         VerifyOtpRequest request = VerifyOtpRequest.builder().email(DEFAULT_EMAIL).otp(DEFAULT_OTP).build();
         when(otpCachePort.getOtpAttemptCount(DEFAULT_EMAIL)).thenReturn(0);
@@ -95,6 +100,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("TC-FGT-005: Xác minh OTP thất bại - OTP không chính xác")
     void verifyResetOtp_wrongOtp_incrementsAttemptAndThrows() {
         VerifyOtpRequest request = VerifyOtpRequest.builder().email(DEFAULT_EMAIL).otp("999999").build();
         when(otpCachePort.getOtpAttemptCount(DEFAULT_EMAIL)).thenReturn(0);
@@ -109,6 +115,20 @@ class PasswordResetServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("TC-FGT-006 & 010: Xác minh OTP thất bại - OTP đã hết hạn hoặc bị xóa")
+    void verifyResetOtp_fail_otpExpired() {
+        VerifyOtpRequest request = VerifyOtpRequest.builder().email(DEFAULT_EMAIL).otp(DEFAULT_OTP).build();
+        when(otpCachePort.getOtpAttemptCount(DEFAULT_EMAIL)).thenReturn(0);
+        when(otpCachePort.getOtp(DEFAULT_EMAIL)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> passwordResetService.verifyResetOtp(request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.OTP_EXPIRED);
+    }
+
+    @Test
+    @DisplayName("TC-FGT-007: Đổi mật khẩu thành công và thu hồi tất cả refresh token cũ")
     void resetPassword_success_updatesPasswordAndDeletesResetToken() {
         UserModel user = activeUser();
         ResetPasswordRequest request = ResetPasswordRequest.builder()
@@ -135,6 +155,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("TC-FGT-009: Đổi mật khẩu thất bại - Xác nhận mật khẩu không khớp")
     void resetPassword_confirmMismatch_throws() {
         ResetPasswordRequest request = ResetPasswordRequest.builder()
                 .resetToken(RESET_TOKEN)
@@ -152,6 +173,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("ADMIN: Khởi tạo reset mật khẩu bởi Admin thành công")
     void initiatePasswordReset_success_savesOtpForActiveUser() {
         UserModel user = activeUser();
         when(userLookupService.findActiveByIdOrThrow(DEFAULT_USER_ID)).thenReturn(user);
@@ -163,6 +185,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("ADMIN: Xác nhận reset mật khẩu bởi Admin, sinh mật khẩu tạm thời")
     void confirmPasswordReset_success_generatesTemporaryPasswordAndForcesChange() {
         UserModel user = activeUser();
         when(userLookupService.findActiveByIdOrThrow(DEFAULT_USER_ID)).thenReturn(user);
@@ -180,6 +203,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("USER: Đổi mật khẩu trong trang cá nhân thành công")
     void changePassword_success_requiresCurrentPassword() {
         UserModel user = activeUser();
         ChangePasswordRequest request = ChangePasswordRequest.builder()
@@ -200,6 +224,7 @@ class PasswordResetServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("USER: Đổi mật khẩu cá nhân thất bại - Mật khẩu hiện tại sai")
     void changePassword_wrongCurrentPassword_throwsInvalidCredentials() {
         UserModel user = activeUser();
         ChangePasswordRequest request = ChangePasswordRequest.builder()
@@ -216,6 +241,44 @@ class PasswordResetServiceTest extends AuthTestBase {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_CREDENTIALS);
     }
+
+
+    /* =========================================================================
+     * COMMENTED OUT TESTS: Các tính năng cũ chưa có hoặc đã thay đổi trong Monolith
+     * (Giữ lại làm tài liệu tham khảo cho tương lai)
+     * ========================================================================= */
+
+    /*
+    @Test
+    @DisplayName("TC-FGT-003: Gửi yêu cầu reset - Field Email trống (JSR-380 Validation)")
+    // Được kiểm thử ở Controller Layer thông qua DTO Validation Annotations (@NotBlank, @Email)
+
+    @Test
+    @DisplayName("TC-FGT-008: Đổi mật khẩu - Mật khẩu mới trống (JSR-380 Validation)")
+    // Được kiểm thử ở Controller Layer thông qua DTO Validation Annotations
+
+    @Test
+    @DisplayName("TC-FGT-011: Token format sai (JSR-380 Validation trên OTP field)")
+    // Được kiểm thử ở Controller Layer thông qua DTO Validation Annotations
+
+    @Test
+    @DisplayName("TC-FGT-002-ALT: Tăng loginAttemptService khi email không tồn tại")
+    void forgotPassword_Fail_EmailNotFound_loginAttempt() {
+        // Monolith không còn tiêm loginAttemptService vào PasswordResetService
+    }
+
+    @Test
+    @DisplayName("TC-FGT-004-ALT: Reset rate limit khi OTP đúng")
+    void verifyResetOtp_Success_rateLimit() {
+        // Monolith không còn RateLimiterPort tiêm vào PasswordResetService
+    }
+
+    @Test
+    @DisplayName("TC-FGT-007-ALT: Reset password qua Keycloak IDP")
+    void resetPassword_Success_keycloak() {
+        // Monolith lưu trữ thông tin mật khẩu local qua local DB, không đồng bộ sang Keycloak IDP
+    }
+    */
 
     private ResetTokenData verifiedResetToken() {
         return ResetTokenData.builder()
