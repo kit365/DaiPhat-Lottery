@@ -1,12 +1,15 @@
 package com.daiphat.coreapi.adapter.in.web.controller.blogs;
 
 import com.daiphat.coreapi.application.dto.request.blog.CreateBlogPostRequest;
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogPostSummaryResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostTypeResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
+import com.daiphat.coreapi.shared.util.SearchConstants;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BlogPostController {
 
+    private static final String DEFAULT_PAGE= "1";
+    private static final String DEFAULT_LIMIT= "10";
+
     private final BlogPostServicePort blogPostServicePort;
 
     @GetMapping("/types")
@@ -32,6 +38,27 @@ public class BlogPostController {
                 .data(blogPostServicePort.getBlogTypes())
                 .message("Lấy danh sách loại bài viết thành công")
                 .build());
+    }
+
+
+    @GetMapping
+    @PreAuthorize("hasAnyAuthority('article:view')")
+    public ApiResponse<PageResponse<BlogPostSummaryResponse>> getPosts(
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_LIMIT) int limit,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Long tagId,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = SearchConstants.DEFAULT_SORT_BY) String sortBy,
+            @RequestParam(defaultValue = SearchConstants.DEFAULT_SORT_DIRECTION) String direction,
+            @RequestParam(defaultValue = "false") boolean includeDeleted) {
+
+        return ApiResponse.success(
+                "Lấy danh sách bài viết thành công",
+                blogPostServicePort.getPosts(page, limit, q, tagId, categoryId, type, status, sortBy, direction, includeDeleted)
+        );
     }
 
     @PostMapping
@@ -57,5 +84,11 @@ public class BlogPostController {
         return ApiResponse.success("Tải ảnh lên thành công",
                 blogPostServicePort.uploadImage(StorageUtils.toUploadRequest(file), folder));
     }
-}
 
+
+    @PatchMapping("/{id}/view")
+    public ApiResponse<Void> incrementView(@PathVariable Long id) {
+        blogPostServicePort.incrementViewCount(id);
+        return ApiResponse.success("Tăng lượt xem thành công", null);
+    }
+}

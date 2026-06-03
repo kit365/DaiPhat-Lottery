@@ -1,7 +1,9 @@
 package com.daiphat.coreapi.application.service.blog;
 
 import com.daiphat.coreapi.application.dto.request.blog.CreateBlogPostRequest;
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogPostSummaryResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostTypeResponse;
 import com.daiphat.coreapi.domain.model.enums.blog.PostType;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
@@ -17,8 +19,13 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.blogs.BlogCategoryModel;
 import com.daiphat.coreapi.domain.model.blogs.BlogPostModel;
 import com.daiphat.coreapi.domain.model.blogs.BlogTagModel;
+import com.daiphat.coreapi.shared.util.PageableUtils;
+import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -104,5 +111,67 @@ public class BlogPostService implements BlogPostServicePort {
                         .build())
                 .toList();
     }
-}
 
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BlogPostSummaryResponse> getPosts(
+            int page,
+            int limit,
+            String search,
+            Long tagId,
+            Long categoryId,
+            String type,
+            String status,
+            String sortBy,
+            String direction,
+            boolean includeDeleted
+    ) {
+        // Chỉ cho phép sort theo các trường hợp lệ; fallback về createdAt
+        String resolvedSortBy = resolvePostSortField(sortBy);
+        Sort sort = SortUtils.createSort(resolvedSortBy, direction);
+        Pageable pageable = PageableUtils.of(page, limit, sort);
+
+        Page<BlogPostModel> postPage = blogPostRepositoryPort.findAll(
+                pageable, search, tagId, categoryId, type, status, includeDeleted
+        );
+
+        List<BlogPostSummaryResponse> records = postPage.getContent().stream()
+                .map(blogPostApplicationMapper::toSummaryResponse)
+                .toList();
+
+        return PageResponse.<BlogPostSummaryResponse>builder()
+                .recordList(records)
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(postPage.getTotalElements())
+                        .totalPages(postPage.getTotalPages())
+                        .currentPage(page)
+                        .limit(limit)
+                        .isFirst(postPage.isFirst())
+                        .isLast(postPage.isLast())
+                        .build())
+                .build();
+    }
+
+    /**
+     * Kiểm tra và trả về tên cột sort hợp lệ cho bài viết.
+     * Chỉ chấp nhận: viewCount, createdAt, status, publishedAt, title.
+     */
+    private String resolvePostSortField(String sortBy) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return "createdAt";
+        }
+        return switch (sortBy.trim()) {
+            case "viewCount", "createdAt", "status", "publishedAt", "title", "updatedAt" -> sortBy.trim();
+            default -> "createdAt";
+        };
+    }
+
+    @Override
+    @Transactional
+    public void incrementViewCount(Long id) {
+        if (blogPostRepositoryPort.findById(id).isEmpty()) {
+            throw new DomainException(ErrorCode.BLOG_NOT_FOUND);
+        }
+        blogPostRepositoryPort.incrementViewCount(id);
+    }
+}
