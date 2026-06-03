@@ -129,7 +129,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
     let bg = "var(--palette-info-lighter)";
     let text = "var(--palette-info-dark)";
 
-    if (status === 'active') {
+    if (status && status.toUpperCase() === 'ACTIVE') {
         label = "Hoạt động";
         bg = "var(--palette-info-lighter)";
         text = "var(--palette-info-dark)";

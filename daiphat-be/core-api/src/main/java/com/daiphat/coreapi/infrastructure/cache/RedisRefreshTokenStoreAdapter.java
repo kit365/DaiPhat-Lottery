@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.infrastructure.cache;
 
-import com.daiphat.coreapi.application.port.out.RefreshTokenStorePort;
+import com.daiphat.coreapi.application.port.out.auth.RefreshTokenStorePort;
 import com.daiphat.coreapi.application.port.out.auth.keys.AuthCacheKeyGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

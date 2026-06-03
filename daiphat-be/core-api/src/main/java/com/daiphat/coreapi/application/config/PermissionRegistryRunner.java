@@ -3,7 +3,7 @@ package com.daiphat.coreapi.application.config;
 import com.daiphat.coreapi.application.dto.request.permission.PermissionItem;
 import com.daiphat.coreapi.application.dto.request.permission.PermissionRegistrationRequest;
 import com.daiphat.coreapi.application.port.in.auth.RoleServicePort;
-import com.daiphat.coreapi.domain.model.enums.AppPermission;
+import com.daiphat.coreapi.domain.model.enums.auth.AppPermission;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,6 +48,7 @@ public class PermissionRegistryRunner {
 
         roleServicePort.registerPermissions(request);
         roleServicePort.syncAdminPermissions();
-        log.info("System: Successfully registered {} permissions and synchronized admin roles.", items.size());
+        roleServicePort.syncOperatorStaffPermissions();
+        log.info("System: Successfully registered {} permissions and synchronized admin and operator roles.", items.size());
     }
 }

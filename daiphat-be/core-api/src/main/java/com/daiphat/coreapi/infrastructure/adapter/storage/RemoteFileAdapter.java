@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.infrastructure.adapter.storage;
 
-import com.daiphat.coreapi.application.port.out.RemoteFilePort;
+import com.daiphat.coreapi.application.port.out.file.RemoteFilePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;

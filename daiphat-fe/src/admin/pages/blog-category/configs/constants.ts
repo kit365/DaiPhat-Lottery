@@ -15,11 +15,6 @@ export const COLORS = {
     shadow: 'var(--customShadows-card)',
 };
 
-export const STATUS_OPTIONS: ISelectOption[] = [
-    { value: 'active', label: 'Hoạt động' },
-    { value: 'inactive', label: 'Tạm dừng' },
-];
-
 export const DemoData: IBlogCategory[] = [
     {
         _id: "1",

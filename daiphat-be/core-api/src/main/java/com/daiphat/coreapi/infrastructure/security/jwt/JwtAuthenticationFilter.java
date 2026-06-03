@@ -2,7 +2,7 @@ package com.daiphat.coreapi.infrastructure.security.jwt;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
-import com.daiphat.coreapi.application.port.out.TokenProviderPort;
+import com.daiphat.coreapi.application.port.out.auth.TokenProviderPort;
 import com.daiphat.coreapi.domain.model.UserModel;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;

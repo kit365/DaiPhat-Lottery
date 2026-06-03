@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.application.port.out.user;
 
 import com.daiphat.coreapi.domain.model.UserModel;
-import com.daiphat.coreapi.domain.model.enums.UserStatus;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;

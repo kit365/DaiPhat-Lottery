@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.request.user.ProfileSetupRequest;
 import com.daiphat.coreapi.application.dto.request.user.UpdateUserRequest;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.dto.response.base.Views;
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.user.UserStatusResponse;
 import com.daiphat.coreapi.application.dto.response.user.UserResponse;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
@@ -14,9 +15,10 @@ import com.daiphat.coreapi.application.port.in.user.UserServicePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
-import com.daiphat.coreapi.domain.model.enums.UserStatus;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.shared.util.SearchConstants;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.fasterxml.jackson.annotation.JsonView;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -76,7 +78,7 @@ public class UserController {
             @AuthenticationPrincipal UserModel principal,
             @RequestPart("file") MultipartFile file) {
         return ApiResponse.success("Cập nhật ảnh đại diện thành công.",
-                userServicePort.uploadAvatar(principal.getId(), toUploadRequest(file)));
+                userServicePort.uploadAvatar(principal.getId(), StorageUtils.toUploadRequest(file)));
     }
 
     @DeleteMapping("/me/avatar")
@@ -101,7 +103,7 @@ public class UserController {
             @PathVariable UUID id,
             @RequestPart("file") MultipartFile file) {
         return ApiResponse.success("Cập nhật ảnh đại diện thành công.",
-                userServicePort.uploadAvatar(id, toUploadRequest(file)));
+                userServicePort.uploadAvatar(id, StorageUtils.toUploadRequest(file)));
     }
 
     @DeleteMapping(ID_PATH + "/avatar")
@@ -123,7 +125,7 @@ public class UserController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('member:view', 'admin:view')")
     @JsonView(Views.Admin.class)
-    public ApiResponse<Object> getAll(
+    public ApiResponse<PageResponse<UserResponse>> getAll(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int limit,
             @RequestParam(required = false) String q,
@@ -184,16 +186,4 @@ public class UserController {
         return ApiResponse.success("Kích hoạt tài khoản nhân sự thành công.");
     }
 
-    private UploadRequest toUploadRequest(MultipartFile file) {
-        try {
-            return new UploadRequest(
-                    file.getBytes(),
-                    file.getOriginalFilename(),
-                    file.getContentType(),
-                    null
-            );
-        } catch (IOException e) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Cannot read uploaded image");
-        }
-    }
 }

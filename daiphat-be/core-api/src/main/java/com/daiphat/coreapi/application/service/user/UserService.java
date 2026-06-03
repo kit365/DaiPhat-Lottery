@@ -15,20 +15,23 @@ import com.daiphat.coreapi.application.mapper.UserApplicationMapper;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserValidationServicePort;
-import com.daiphat.coreapi.application.port.out.PasswordHashPort;
-import com.daiphat.coreapi.application.port.out.StoragePort;
+import com.daiphat.coreapi.application.port.out.auth.PasswordHashPort;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.auth.InviteCachePort;
 import com.daiphat.coreapi.application.port.out.auth.RoleRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.RoleModel;
+import com.daiphat.coreapi.domain.model.auth.RoleModel;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.auth.InviteData;
-import com.daiphat.coreapi.domain.model.enums.RoleConstants;
-import com.daiphat.coreapi.domain.model.enums.UserStatus;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.shared.util.AuthUtils;
 import com.daiphat.coreapi.shared.util.SearchConstants;
+import com.daiphat.coreapi.shared.util.SortUtils;
+import com.daiphat.coreapi.shared.util.PageableUtils;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -158,12 +161,10 @@ public class UserService implements UserServicePort {
     public PageResponse<UserResponse> getAll(int page, int size, String search, String status, List<String> roleIds, String sortBy, String direction) {
         UserStatus userStatus = UserStatus.fromFilter(status);
 
-        Sort sort = direction.equalsIgnoreCase(SearchConstants.SORT_ASC)
-                ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
+        Sort sort = SortUtils.createSort(sortBy, direction);
 
         Page<UserModel> userPage = userRepositoryPort.findAll(
-                PageRequest.of(page - 1, size, sort),
+                PageableUtils.of(page, size, sort),
                 search,
                 userStatus,
                 roleIds
@@ -180,6 +181,8 @@ public class UserService implements UserServicePort {
                         .totalPages(userPage.getTotalPages())
                         .currentPage(page)
                         .limit(size)
+                        .isFirst(userPage.isFirst())
+                        .isLast(userPage.isLast())
                         .build())
                 .build();
     }
@@ -215,7 +218,7 @@ public class UserService implements UserServicePort {
     @Transactional
     public UserResponse uploadAvatar(UUID id, UploadRequest request) {
         UserModel user = userLookupService.findByIdOrThrow(id);
-        validateImageUpload(request);
+        StorageUtils.validateImageUpload(request);
 
         String oldPublicId = user.getImagePublicId();
         StorageResult result = storagePort.upload(new UploadRequest(
@@ -370,12 +373,4 @@ public class UserService implements UserServicePort {
         }
     }
 
-    private void validateImageUpload(UploadRequest request) {
-        if (request == null || request.data() == null || request.data().length == 0) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Image file is required");
-        }
-        if (request.contentType() == null || !request.contentType().startsWith("image/")) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Only image files are allowed");
-        }
-    }
 }

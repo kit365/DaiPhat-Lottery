@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.application.port.in.mail;
 
-import com.daiphat.coreapi.domain.model.enums.EmailType;
+import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import java.util.Map;
 
 public interface EmailServicePort {
