@@ -4,16 +4,19 @@ import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { prefixAdmin } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
-import { Box, Card, Tabs, Tab, styled, ToggleButtonGroup, ToggleButton } from "@mui/material";
+import { Box, Card, Tabs, Tab, styled, ToggleButtonGroup, ToggleButton, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import GridViewIcon from '@mui/icons-material/GridView';
 import ViewListIcon from '@mui/icons-material/ViewList';
+import FolderIcon from '@mui/icons-material/Folder';
+import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import { Search } from "../../components/ui/Search";
 import { SelectSingle } from "../../components/ui/SelectSingle";
 import { BlogList } from "./sections/BlogList";
-import { useBlogs } from "./hooks/useBlog";
+import { useBlogs, useBlogTypes } from "./hooks/useBlog";
+import { useNestedBlogCategories } from "../blog-category/hooks/useBlogCategory";
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import DeleteIcon from '@mui/icons-material/Delete';
+
 import { getTabBadgeStyles } from "../../utils/badge";
 
 // Styled component cho con số (Badge nhãn)
@@ -50,22 +53,66 @@ export const BlogListPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [sortBy, setSortBy] = useState("latest");
-    const [isTrash, setIsTrash] = useState(false);
-    const [tabStatus, setTabStatus] = useState(0); // 0: All, 1: Published, 2: Draft, 3: Archived
+
+    const [tabStatus, setTabStatus] = useState(0); // 0: All, 1: Published, 2: Draft, 3: Unpublished
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [categoryId, setCategoryId] = useState<string>("");
+    const [type, setType] = useState<string>("");
+
+    // Data for filter dropdowns
+    const { data: nestedCategories } = useNestedBlogCategories();
+    const { data: blogTypes } = useBlogTypes();
+
+    const typeOptions = useMemo(() => {
+        const base = [{ value: '', label: 'Tất cả loại' }];
+        if (!blogTypes) return base;
+        return [...base, ...blogTypes.map(t => ({ value: t.code, label: t.name }))];
+    }, [blogTypes]);
+
+    /** Render đệ quy MenuItem dạng cây cho dropdown danh mục */
+    const renderCategoryTree = (nodes: any[], level = 0): React.ReactNode[] => {
+        if (!nodes) return [];
+        return nodes.filter(n => n && n.id != null).flatMap(node => [
+            <MenuItem
+                key={node.id}
+                value={String(node.id)}
+                sx={{
+                    pl: 2 + level * 2,
+                    py: '6px',
+                    fontSize: '0.875rem',
+                    fontWeight: level === 0 ? 600 : 400,
+                    gap: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                }}
+            >
+                {level === 0
+                    ? <FolderIcon sx={{ fontSize: 16, color: 'var(--palette-text-disabled)', flexShrink: 0 }} />
+                    : <SubdirectoryArrowRightIcon sx={{ fontSize: 14, color: 'var(--palette-text-disabled)', flexShrink: 0 }} />
+                }
+                {node.name || node.label}
+            </MenuItem>,
+            ...renderCategoryTree(node.children || [], level + 1),
+        ]);
+    };
+
+    const statusFromTab = tabStatus === 1 ? 'published' : tabStatus === 2 ? 'draft' : tabStatus === 3 ? 'unpublished' : undefined;
 
     const filters = {
         page,
         limit: 10,
-        keyword: search,
-        status: tabStatus === 1 ? 'published' : (tabStatus === 2 ? 'draft' : (tabStatus === 3 ? 'archived' : undefined)),
-        is_trash: isTrash || undefined,
-        sort: sortBy
+        keyword: search || undefined,
+        status: statusFromTab,
+        categoryId: categoryId ? Number(categoryId) : undefined,
+        type: type || undefined,
+
+        sort: sortBy,
     };
 
     const { data, isLoading } = useBlogs(filters);
+
     const blogs = data?.recordList || [];
     const pagination = data?.pagination || { totalRecords: 0 };
 
@@ -88,41 +135,16 @@ export const BlogListPage = () => {
         <>
             <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
                 <div className="mr-auto">
-                    <Title title={isTrash ? "Thùng rác bài viết" : t("admin.blog.title.list")} />
+                    <Title title={t("admin.blog.title.list")} />
                     <Breadcrumb
                         items={[
                             { label: t("admin.dashboard.title"), to: "/" },
                             { label: t("admin.blog.title.list"), to: `/${prefixAdmin}/blog/list` },
-                            { label: isTrash ? "Thùng rác" : t("admin.common.list") }
+                            { label: t("admin.common.list") }
                         ]}
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
-                    <Button
-                        onClick={() => {
-                            setIsTrash(!isTrash);
-                            setTabStatus(0);
-                            setPage(1);
-                        }}
-                        sx={{
-                            background: isTrash ? 'var(--palette-error-main)' : 'rgba(255, 86, 48, 0.16)',
-                            color: isTrash ? '#fff' : 'var(--palette-error-main)',
-                            minHeight: "2.25rem",
-                            fontWeight: 700,
-                            fontSize: "0.875rem",
-                            padding: "6px 12px",
-                            borderRadius: "var(--shape-borderRadius)",
-                            textTransform: "none",
-                            boxShadow: "none",
-                            "&:hover": {
-                                background: isTrash ? 'var(--palette-error-dark)' : 'rgba(255, 86, 48, 0.24)',
-                            }
-                        }}
-                        variant="contained"
-                        startIcon={<DeleteIcon />}
-                    >
-                        {isTrash ? "Quay lại" : `Thùng rác (${(pagination as any).deletedCount || 0})`}
-                    </Button>
                     <Button
                         onClick={() => navigate(`/${prefixAdmin}/blog/create`)}
                         sx={{
@@ -155,8 +177,7 @@ export const BlogListPage = () => {
                 overflow: 'visible',
                 mb: "32px"
             }}>
-                {!isTrash && (
-                    <Tabs
+                <Tabs
                         value={tabStatus}
                         onChange={(_, newVal) => { setTabStatus(newVal); setPage(1); }}
                         variant="scrollable"
@@ -204,7 +225,7 @@ export const BlogListPage = () => {
                         />
                         <Tab
                             disableRipple
-                            label="Đã lưu trữ"
+                            label="Gỡ xuống"
                             icon={
                                 <TabBadge sx={getTabBadgeStyles('error', tabStatus === 3)}>
                                     {counts.archived}
@@ -214,7 +235,6 @@ export const BlogListPage = () => {
                             sx={tabStyle}
                         />
                     </Tabs>
-                )}
 
                 <Box sx={{ p: "calc(2 * var(--spacing))", display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', justifyContent: 'space-between' }}>
                     <Box sx={{ flex: 1, minWidth: 240 }}>
@@ -227,6 +247,68 @@ export const BlogListPage = () => {
                     </Box>
                     
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                        {/* Filter danh mục – dạng cây */}
+                        <FormControl size="small" sx={{ minWidth: 180 }}>
+                            {!!categoryId && (
+                                <InputLabel sx={{ fontSize: '0.875rem' }} shrink>
+                                    Danh mục
+                                </InputLabel>
+                            )}
+                            <Select
+                                value={categoryId}
+                                label={categoryId ? "Danh mục" : undefined}
+                                onChange={(e) => { setCategoryId(e.target.value); setPage(1); }}
+                                displayEmpty
+                                notched={!!categoryId}
+                                MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
+                                renderValue={(selected) => {
+                                    if (!selected) {
+                                        return (
+                                            <span style={{
+                                                color: '#637381',
+                                                fontSize: '0.875rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                height: '100%',
+                                            }}>
+                                                Danh mục
+                                            </span>
+                                        );
+                                    }
+                                    const findCategoryName = (nodes: any[], id: string): string => {
+                                        if (!nodes) return "";
+                                        for (const node of nodes) {
+                                            if (node && String(node.id) === id) return node.name || node.label;
+                                            if (node && node.children) {
+                                                const found = findCategoryName(node.children, id);
+                                                if (found) return found;
+                                            }
+                                        }
+                                        return "";
+                                    };
+                                    return findCategoryName(nestedCategories || [], selected) || selected;
+                                }}
+                                sx={{
+                                    fontSize: '0.875rem',
+                                    borderRadius: 'var(--shape-borderRadius)',
+                                    '& .MuiSelect-select': { py: '8.5px', display: 'flex', alignItems: 'center' },
+                                }}
+                            >
+                                <MenuItem value="" sx={{ fontSize: '0.875rem', fontStyle: 'italic', color: 'var(--palette-text-secondary)' }}>
+                                    Tất cả danh mục
+                                </MenuItem>
+                                {renderCategoryTree(nestedCategories || [])}
+                            </Select>
+                        </FormControl>
+                        {/* Filter loại bài */}
+                        <SelectSingle
+                            label="Loại bài"
+                            options={typeOptions}
+                            value={type}
+                            onChange={(val) => { setType(val); setPage(1); }}
+                            sx={{ minWidth: 140 }}
+                        />
+                        {/* Sort */}
                         <SelectSingle
                             label="Sắp xếp"
                             options={sortOptions}
@@ -266,6 +348,7 @@ export const BlogListPage = () => {
                         </ToggleButtonGroup>
                     </Box>
                 </Box>
+
             </Card>
 
             <BlogList
@@ -274,7 +357,6 @@ export const BlogListPage = () => {
                 page={page}
                 onPageChange={setPage}
                 pagination={pagination}
-                isTrash={isTrash}
                 viewMode={viewMode}
             />
         </>
