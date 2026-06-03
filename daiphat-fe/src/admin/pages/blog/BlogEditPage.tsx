@@ -1,16 +1,17 @@
-import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress, FormControl, InputLabel, Select, MenuItem, FormHelperText } from "@mui/material";
+import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress, FormControl, InputLabel, Select, MenuItem, FormHelperText, Autocomplete } from "@mui/material";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { Tiptap } from "../../components/layouts/titap/Tiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
-import { useBlogDetail, useUpdateBlog } from "./hooks/useBlog";
+import { useBlogDetail, useUpdateBlog, useBlogTags } from "./hooks/useBlog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { createBlogSchema, CreateBlogFormValues } from "../../schemas/blog.schema";
 import { prefixAdmin } from "../../constants/routes";
 import { FormUploadSingleFile } from "../../components/upload/FormUploadSingleFile";
+import { uploadBlogImage } from "../../api/blog.api";
 import { toast } from "react-toastify";
 import { useParams } from "react-router-dom";
 import { useNestedBlogCategories } from "../blog-category/hooks/useBlogCategory";
@@ -30,7 +31,9 @@ export const BlogEditPage = () => {
 
     const { data: detailRes, isLoading: isLoadingDetail } = useBlogDetail(id);
     const { data: blogCategories = [] } = useNestedBlogCategories();
+    const { data: blogTags = [], isLoading: isLoadingTags } = useBlogTags();
     const { mutate: update, isPending: isUpdating } = useUpdateBlog();
+    const [isUploading, setIsUploading] = useState(false);
 
     const {
         control,
@@ -45,15 +48,19 @@ export const BlogEditPage = () => {
             avatar: "",
             category: [],
             status: "draft",
+            tags: [],
         },
     });
 
     useEffect(() => {
         if (detailRes) {
-            // detailRes is the mapped object from useBlogDetail
             const detail = detailRes;
             const categoryValue = Array.isArray(detail.category)
                 ? detail.category.map((cat: any) => typeof cat === 'object' ? cat._id : cat)
+                : [];
+            
+            const tagValue = Array.isArray(detail.tags)
+                ? detail.tags.map((tag: any) => typeof tag === 'object' ? tag.id : tag)
                 : [];
 
             reset({
@@ -63,29 +70,51 @@ export const BlogEditPage = () => {
                 avatar: detail.avatar || "",
                 category: categoryValue,
                 status: detail.status || "draft",
+                tags: tagValue,
             });
         }
     }, [detailRes, reset]);
 
-    const onSubmit = (data: CreateBlogFormValues) => {
-        const payload = {
-            ...data,
-            slug: detailRes?.slug,
-            category: JSON.stringify(data.category)
-        };
+    const onSubmit = async (data: CreateBlogFormValues) => {
+        try {
+            setIsUploading(true);
+            let imageUrl = data.avatar;
 
-        update({ id: id!, data: payload }, {
-            onSuccess: (response) => {
-                if (response.success) {
-                    toast.success(response.message || "Cập nhật bài viết thành công");
+            if (data.avatar instanceof File) {
+                const uploadRes = await uploadBlogImage(data.avatar, 'blog-content');
+                if (uploadRes.success && uploadRes.data?.url) {
+                    imageUrl = uploadRes.data.url;
                 } else {
-                    toast.error(response.message);
+                    toast.error(uploadRes.message || "Tải ảnh lên thất bại");
+                    return;
                 }
-            },
-            onError: () => {
-                toast.error("Có lỗi xảy ra trong quá trình cập nhật");
             }
-        });
+
+            const payload = {
+                ...data,
+                avatar: imageUrl,
+                slug: detailRes?.slug,
+                category: JSON.stringify(data.category)
+            };
+
+            update({ id: id!, data: payload }, {
+                onSuccess: (response) => {
+                    if (response.success) {
+                        toast.success(response.message || "Cập nhật bài viết thành công");
+                    } else {
+                        toast.error(response.message);
+                    }
+                },
+                onError: () => {
+                    toast.error("Có lỗi xảy ra trong quá trình cập nhật");
+                }
+            });
+        } catch (error) {
+            console.error(error);
+            toast.error("Đã có lỗi xảy ra");
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     if (isLoadingDetail) {
@@ -170,6 +199,7 @@ export const BlogEditPage = () => {
                                 <FormUploadSingleFile
                                     name="avatar"
                                     control={control}
+                                    useRawFile={true}
                                 />
                             </Stack>
                         </CollapsibleCard>
@@ -214,6 +244,41 @@ export const BlogEditPage = () => {
                                         placeholder="Chọn danh mục"
                                         multiple={true}
                                     />
+                                    <Controller
+                                        name="tags"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <Autocomplete
+                                                multiple
+                                                options={blogTags}
+                                                getOptionLabel={(option: any) => option.name || ""}
+                                                loading={isLoadingTags}
+                                                value={blogTags.filter((tag: any) => field.value?.includes(tag.id))}
+                                                onChange={(_e, newValue) => {
+                                                    field.onChange(newValue.map((tag: any) => tag.id));
+                                                }}
+                                                sx={{ gridColumn: "span 2" }}
+                                                renderInput={(params) => (
+                                                    <TextField
+                                                        {...params}
+                                                        label="Thẻ bài viết"
+                                                        placeholder="Chọn thẻ..."
+                                                        error={!!fieldState.error}
+                                                        helperText={fieldState.error?.message}
+                                                        InputProps={{
+                                                            ...params.InputProps,
+                                                            endAdornment: (
+                                                                <>
+                                                                    {isLoadingTags ? <CircularProgress color="inherit" size={20} /> : null}
+                                                                    {params.InputProps.endAdornment}
+                                                                </>
+                                                            ),
+                                                        }}
+                                                    />
+                                                )}
+                                            />
+                                        )}
+                                    />
                                 </Box>
                             </Stack>
                         </CollapsibleCard>
@@ -221,7 +286,7 @@ export const BlogEditPage = () => {
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
                             <LoadingButton
                                 type="submit"
-                                loading={isUpdating}
+                                loading={isUpdating || isUploading}
                                 label="Cập nhật bài viết"
                                 loadingLabel="Đang cập nhật..."
                             />

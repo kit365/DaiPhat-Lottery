@@ -1,8 +1,8 @@
 package com.daiphat.coreapi.application.mapper;
 
 import com.daiphat.coreapi.application.dto.response.auth.RoleResponse;
-import com.daiphat.coreapi.domain.model.PermissionModel;
-import com.daiphat.coreapi.domain.model.RoleModel;
+import com.daiphat.coreapi.domain.model.auth.PermissionModel;
+import com.daiphat.coreapi.domain.model.auth.RoleModel;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;

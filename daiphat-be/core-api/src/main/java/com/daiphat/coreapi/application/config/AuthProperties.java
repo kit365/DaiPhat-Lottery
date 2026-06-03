@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.time.Duration;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 public class AuthProperties {
     @Value("${FRONTEND_URL:http://localhost:5173}")
     private String frontendUrl;
+    private Set<String> defaultOperatorPermissions = new java.util.HashSet<>();
     private VerificationPaths verificationPaths = new VerificationPaths();
     private Lockout lockout = new Lockout();
     private Cache cache = new Cache();

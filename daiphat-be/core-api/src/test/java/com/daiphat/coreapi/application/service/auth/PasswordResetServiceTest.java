@@ -13,7 +13,7 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.auth.ResetTokenData;
-import com.daiphat.coreapi.domain.model.enums.PasswordResetStatus;
+import com.daiphat.coreapi.domain.model.enums.auth.PasswordResetStatus;
 import com.daiphat.coreapi.application.port.in.auth.PasswordResetServicePort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

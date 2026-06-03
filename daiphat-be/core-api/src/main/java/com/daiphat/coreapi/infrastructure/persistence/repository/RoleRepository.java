@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.repository;
 
-import com.daiphat.coreapi.infrastructure.persistence.entity.RoleEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.auth.RoleEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

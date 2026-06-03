@@ -5,7 +5,7 @@ import com.daiphat.coreapi.application.dto.request.auth.LoginRequest;
 import com.daiphat.coreapi.application.dto.request.auth.RefreshTokenRequest;
 import com.daiphat.coreapi.application.dto.response.auth.AuthResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
-import com.daiphat.coreapi.application.port.out.RemoteFilePort;
+import com.daiphat.coreapi.application.port.out.file.RemoteFilePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;

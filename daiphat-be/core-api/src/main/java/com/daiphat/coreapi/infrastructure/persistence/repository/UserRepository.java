@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.repository;
 
-import com.daiphat.coreapi.infrastructure.persistence.entity.UserEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;

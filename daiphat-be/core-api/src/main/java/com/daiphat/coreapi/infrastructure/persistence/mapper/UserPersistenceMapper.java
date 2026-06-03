@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.mapper;
 
 import com.daiphat.coreapi.domain.model.UserModel;
-import com.daiphat.coreapi.infrastructure.persistence.entity.UserEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;

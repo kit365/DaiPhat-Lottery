@@ -1,7 +1,7 @@
 import { Toolbar } from "@mui/material";
 import { SelectMulti } from "../../../components/ui/SelectMulti";
 import { Search } from "../../../components/ui/Search";
-import { STATUS_OPTIONS } from "../configs/constants";
+import { useBlogCategoryStatuses } from "../hooks/useBlogCategory";
 import { toolbarStyles } from "../configs/styles.config";
 import { ExportImport } from "../../../components/ui/ExportImport";
 
@@ -13,12 +13,14 @@ interface BlogCategoryToolbarProps {
 }
 
 export const BlogCategoryToolbar = ({ search, onSearchChange, status, onStatusChange }: BlogCategoryToolbarProps) => {
+    const { data: statuses = [] } = useBlogCategoryStatuses();
+
     return (
         <Toolbar style={toolbarStyles.root}>
             <div className='flex gap-[calc(2*var(--spacing))] w-full'>
                 <SelectMulti 
                     label="Trạng thái" 
-                    options={STATUS_OPTIONS} 
+                    options={statuses} 
                     value={status}
                     onChange={onStatusChange}
                 />
