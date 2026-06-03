@@ -16,7 +16,7 @@ export const getColumnsConfig = (
     onDelete: (id: string) => void,
     onChangePassword: (id: string) => void,
     onView: (id: string) => void,
-    onInviteStaff: (id: string) => void
+    onInviteStaff?: (id: string) => void
 ): GridColDef[] => [
         {
             field: 'fullName',
@@ -74,7 +74,7 @@ export const getColumnsConfig = (
                 let colorKey: 'success' | 'warning' | 'error' | 'default' = 'default';
                 let label = status;
 
-                if (status === UserStatus.ACTIVE) {
+                if (status === UserStatus.ACTIVE && onInviteStaff) {
                     colorKey = 'success';
                     label = 'Hoạt động';
                 } else if (status === UserStatus.BANNED) {

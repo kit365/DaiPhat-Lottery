@@ -53,7 +53,7 @@ export const TicketServiceOrderList = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { user } = useAuthStore();
-    const isStaff = user?.roles?.some((role: any) => role.isStaff);
+    const isStaff = user?.role?.code?.includes('STAFF');
     const [tabStatus, setTabStatus] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [page, setPage] = useState(0);

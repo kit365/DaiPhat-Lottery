@@ -1,0 +1,74 @@
+server:
+  port: ${CORE_API_PORT}
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${CORE_POSTGRES_HOST}:${CORE_DB_PORT}/${CORE_POSTGRES_DB}?charSet=UTF-8
+    username: ${CORE_POSTGRES_USER}
+    password: ${CORE_POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: ${CORE_MULTIPART_MAX_FILE_SIZE}
+      max-request-size: ${CORE_MULTIPART_MAX_REQUEST_SIZE}
+  data:
+    redis:
+      host: ${CORE_REDIS_HOST}
+      port: ${CORE_REDIS_PORT}
+    mongodb:
+      uri: mongodb://${CORE_MONGO_ROOT_USERNAME}:${CORE_MONGO_ROOT_PASSWORD}@${CORE_MONGO_HOST}:${CORE_MONGO_PORT}/${CORE_MONGO_DB}?authSource=admin
+  mail:
+    host: ${AUTH_PROD_MAIL_HOST}
+    port: ${AUTH_PROD_MAIL_PORT}
+    username: ${AUTH_PROD_MAIL_USERNAME}
+    password: ${AUTH_PROD_MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+daiphat:
+  storage:
+    cloudinary:
+      cloud-name: ${CLOUDINARY_CLOUD_NAME}
+      api-key: ${CLOUDINARY_API_KEY}
+      api-secret: ${CLOUDINARY_API_SECRET}
+      root-folder: ${CLOUDINARY_ROOT_FOLDER}
+  auth:
+    frontend-url: ${FRONTEND_URL}
+    jwt:
+      issuer: ${AUTH_JWT_ISSUER}
+      secret: ${AUTH_JWT_SECRET}
+      access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS}
+      refresh-token-ttl-seconds: ${AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS}
+    cookie:
+      name: ${AUTH_REFRESH_COOKIE_NAME}
+      secure: ${AUTH_REFRESH_COOKIE_SECURE}
+      same-site: ${AUTH_REFRESH_COOKIE_SAME_SITE}
+      path: ${AUTH_REFRESH_COOKIE_PATH}
+    cache:
+      verification-token-ttl-seconds: ${AUTH_VERIFICATION_TOKEN_TTL_SECONDS}
+      otp-ttl-seconds: ${AUTH_OTP_TTL_SECONDS}
+      reset-token-ttl-seconds: ${AUTH_RESET_TOKEN_TTL_SECONDS}
+      invite-ttl-seconds: ${AUTH_INVITE_TTL_SECONDS}
+    password-policy:
+      min-length: ${AUTH_PASSWORD_MIN_LENGTH}
+      max-length: ${AUTH_PASSWORD_MAX_LENGTH}
+
+logging:
+  level:
+    root: INFO
+    com.daiphat: INFO
+    org.springframework.web: INFO
+    org.hibernate.SQL: INFO

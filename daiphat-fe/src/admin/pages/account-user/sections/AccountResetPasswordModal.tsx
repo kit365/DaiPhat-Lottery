@@ -96,7 +96,6 @@ const OtpInput = ({ value, onChange, disabled }: { value: string; onChange: (val
 export const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetPasswordModalProps) => {
     const [otpSent, setOtpSent] = useState(false);
     const [otp, setOtp] = useState("");
-    const [phoneNumber, setPhoneNumber] = useState("");
 
     const { mutate: initiateReset, isPending: isInitiating } = useInitiateResetPassword();
     const { mutate: confirmReset, isPending: isConfirming } = useConfirmResetPassword();
@@ -105,7 +104,6 @@ export const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetP
         if (!open) {
             setOtpSent(false);
             setOtp("");
-            setPhoneNumber("");
         }
     }, [open]);
 
@@ -128,7 +126,7 @@ export const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetP
 
     const handleConfirm = () => {
         if (!user || !otp) return;
-        confirmReset({ id: user.id, otp, phoneNumber }, {
+        confirmReset({ id: user.id, otp }, {
             onSuccess: () => {
                 toast.success("Đặt lại mật khẩu thành công! Mật khẩu mới đã được gửi đến email người dùng.");
                 handleClose();
@@ -295,5 +293,4 @@ export const AccountResetPasswordModal = ({ open, onClose, user }: AccountResetP
         </Dialog>
     );
 };
-
 

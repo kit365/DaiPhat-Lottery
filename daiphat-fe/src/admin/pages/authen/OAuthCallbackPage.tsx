@@ -23,8 +23,8 @@ export const OAuthCallbackPage = () => {
             return
         }
 
-        // Dynamically get current origin + pathname to match Keycloak's expectation
-        const redirectUri = `${window.location.origin}${window.location.pathname}`
+        const redirectUri = sessionStorage.getItem(STORAGE_KEYS.OAUTH_REDIRECT_URI)
+            || `${window.location.origin}${window.location.pathname}`
         const codeVerifier = sessionStorage.getItem(STORAGE_KEYS.PKCE_VERIFIER) || undefined
 
         exchangeToken({ code, redirectUri, codeVerifier })

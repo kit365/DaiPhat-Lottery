@@ -117,7 +117,7 @@ export const TicketServiceOrderEditPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { user } = useAuthStore();
-    const isStaff = user?.roles?.some((role: any) => role.isStaff);
+    const isStaff = user?.role?.code?.includes('STAFF');
 
     const { data: ticketServiceOrderRes, isLoading: isLoadingTicketServiceOrder } = useTicketServiceOrderDetail(id || "");
     const ticketServiceOrder = ticketServiceOrderRes?.data;

@@ -5,9 +5,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { useRef, useState } from "react";
 import { accountUserSchema } from "../../schemas/account-user.schema";
-import { prefixAdmin } from "../../constants/routes";
+import { prefixAdmin, ROUTES } from "../../constants/routes";
 import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
     Box,
     TextField,
@@ -20,9 +20,12 @@ import {
 import Grid from "@mui/material/Grid";
 import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
 import { LoadingButton } from "../../components/ui/LoadingButton";
+import { RoleEnum } from "./configs/constants";
 
 export const AccountUserCreatePage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const isStreetAgent = location.pathname.includes("/street-agent/");
     const { mutate: create, isPending } = useCreateUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -82,10 +85,14 @@ export const AccountUserCreatePage = () => {
     };
 
     const onSubmit = (data: any) => {
-        create(data, {
+        const payload = isStreetAgent
+            ? { ...data, roleCode: RoleEnum.STREET_AGENT }
+            : data;
+
+        create(payload, {
             onSuccess: () => {
-                toast.success("Tạo tài khoản khách hàng thành công!");
-                navigate(`/${prefixAdmin}/account-user/list`);
+                toast.success(isStreetAgent ? "Tạo hồ sơ Street Agent thành công!" : "Tạo tài khoản khách hàng thành công!");
+                navigate(isStreetAgent ? ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST : `/${prefixAdmin}/account-user/list`);
             },
             onError: (error: any) => {
                 toast.error(error.response?.data?.message || "Tạo thất bại");
@@ -97,11 +104,11 @@ export const AccountUserCreatePage = () => {
         <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
             <Box sx={{ mb: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
-                    <Title title="Tạo tài khoản khách hàng mới" />
+                    <Title title={isStreetAgent ? "Tạo hồ sơ Street Agent mới" : "Tạo tài khoản khách hàng mới"} />
                     <Breadcrumb
                         items={[
                             { label: "Dashboard", to: "/" },
-                            { label: "Khách hàng", to: `/${prefixAdmin}/account-user/list` },
+                            { label: isStreetAgent ? "Street Agent" : "Khách hàng", to: isStreetAgent ? ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST : `/${prefixAdmin}/account-user/list` },
                             { label: "Tạo mới" }
                         ]}
                     />
@@ -216,7 +223,7 @@ export const AccountUserCreatePage = () => {
                                 <LoadingButton
                                     type="submit"
                                     loading={isPending}
-                                    label="Tạo tài khoản khách hàng"
+                                    label={isStreetAgent ? "Tạo Street Agent" : "Tạo tài khoản khách hàng"}
                                     loadingLabel="Đang tạo..."
                                 />
                             </Stack>

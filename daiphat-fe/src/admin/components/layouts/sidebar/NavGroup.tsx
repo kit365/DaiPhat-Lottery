@@ -16,8 +16,9 @@ export const NavGroup = memo(({ title, data }: Props) => {
     const { isOpen } = useSidebar();
     const { user } = useAuthStore();
 
-    const isAdmin = user?.roles?.some(role => role.code === USER_ROLES.ADMIN);
-    const isStaff = user?.roles?.some(role => role.code.includes('STAFF'));
+    const roleCode = user?.role?.code || "";
+    const isAdmin = roleCode === USER_ROLES.ADMIN;
+    const isStaff = roleCode.includes('STAFF');
 
     const filteredData = data.filter(item => {
         // 1. Check Staff hide flag

@@ -64,7 +64,7 @@ export const useInitiateResetPassword = () => {
 
 export const useConfirmResetPassword = () => {
     return useMutation({
-        mutationFn: ({ id, otp, phoneNumber }: { id: string; otp: string; phoneNumber?: string }) => confirmResetPassword(id, otp, phoneNumber),
+        mutationFn: ({ id, otp }: { id: string; otp: string }) => confirmResetPassword(id, otp),
     });
 };
 
