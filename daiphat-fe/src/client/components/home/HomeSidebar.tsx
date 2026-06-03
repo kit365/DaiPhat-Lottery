@@ -7,7 +7,8 @@ import { LotteryResult } from '../../types/lottery';
 
 interface HomeSidebarProps {
   showLoto?: boolean;
-  data: LotteryResult | null;
+  setShowLoto?: (val: boolean) => void;
+  dataList: LotteryResult[];
   history: LotteryResult[];
   onDateChange: (date: string) => void;
   selectedDigit?: string | null;
@@ -16,7 +17,7 @@ interface HomeSidebarProps {
   onDigitHover?: (digit: string | null) => void;
 }
 
-export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, data, history, onDateChange, selectedDigit, hoveredDigit, onDigitSelect, onDigitHover }) => {
+export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto, dataList, history, onDateChange, selectedDigit, hoveredDigit, onDigitSelect, onDigitHover }) => {
   const { openLoginModal } = useAuthStore();
 
   return (
@@ -56,14 +57,16 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, data, histor
         </div>
       </div>
 
-      {showLoto && data && (
+      {/* Loto Table - Shown conditionally on mobile, always on desktop if data exists */}
+      {showLoto && dataList.length > 0 && (
         <div className="animate-in fade-in slide-in-from-top-2 duration-300">
           <LotoTable
-            prizes={data.prizes}
+            dataList={dataList}
             selectedDigit={selectedDigit}
             hoveredDigit={hoveredDigit}
             onDigitClick={onDigitSelect}
             onDigitHover={onDigitHover}
+            setShowLoto={setShowLoto}
           />
         </div>
       )}
