@@ -30,8 +30,9 @@ export const NavItem = memo(({ item }: { item: any }) => {
     const { isOpen } = useSidebar();
     const { user } = useAuthStore();
 
-    const isAdmin = user?.roles?.some(role => role.code === USER_ROLES.ADMIN);
-    const isStaff = user?.roles?.some(role => role.code.includes('STAFF'));
+    const roleCode = user?.role?.code || "";
+    const isAdmin = roleCode === USER_ROLES.ADMIN;
+    const isStaff = roleCode.includes('STAFF');
 
     const filteredChildren = (item.children || []).filter((child: any) => {
         if (child.hidden) return false;

@@ -121,7 +121,7 @@ export const ProfileSetupPage: React.FC = () => {
                 await queryClient.invalidateQueries({ queryKey: ["admin-me"] });
 
                 if (user) {
-                    const isAdmin = user.roles?.[0]?.isStaff || 
+                    const isAdmin = user.role?.code?.includes('STAFF') || 
                                    user.permissions?.includes(PERMISSIONS.DASHBOARD.SYSTEM);
                                    
                     set({ 

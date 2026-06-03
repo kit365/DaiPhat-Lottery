@@ -20,6 +20,7 @@ export interface PageResponse<T> {
 
 export interface BaseQueryParams {
     page?: number;
+    limit?: number;
     size?: number;
     q?: string;
     sortBy?: string;

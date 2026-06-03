@@ -6,6 +6,7 @@ export const accountUserSchema = z.object({
     email: z.string().email("Email không hợp lệ"),
     password: z.string().optional(),
     phone: z.string().optional(),
+    address: z.string().optional().nullable(),
     status: z.enum(["ACTIVE", "LOCKED", "PENDING", "BANNED"]).optional(),
     avatar: z.string().optional().nullable(),
 });

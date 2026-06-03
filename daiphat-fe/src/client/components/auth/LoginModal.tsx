@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuth } from "../../hooks/useAuth";
-import { generateCodeVerifier, generateCodeChallenge } from "../../../admin/utils/pkce";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { GoogleIcon, VisualPanelContent, AuthBranding } from "./SharedAuth";
+import { redirectToGoogleOAuth } from "../../utils/google-oauth.util";
 
 export const LoginContent = ({ onSwitchToRegister }: { onSwitchToRegister?: () => void }) => {
+    const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
     const {
         loginForm: {
@@ -16,30 +17,14 @@ export const LoginContent = ({ onSwitchToRegister }: { onSwitchToRegister?: () =
         },
         handleLogin: submit,
         loginMutation: { isPending },
+        pendingVerificationIdentifier,
+        resendVerificationEmail,
+        resendVerificationMutation: { isPending: isResendingVerification },
     } = useAuth();
-    const { openForgotPasswordModal } = useAuthStore();
+    const { closeAuthModals } = useAuthStore();
 
     const handleGoogleLogin = async () => {
-        const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
-        const realm = import.meta.env.VITE_KEYCLOAK_REALM;
-        const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
-        const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
-        const { STORAGE_KEYS } = await import("../../../constants/storage.constants");
-
-        const codeVerifier = generateCodeVerifier();
-        const codeChallenge = await generateCodeChallenge(codeVerifier);
-        sessionStorage.setItem(STORAGE_KEYS.PKCE_VERIFIER, codeVerifier);
-
-        const googleAuthUrl = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/auth` +
-            `?client_id=${clientId}` +
-            `&redirect_uri=${redirectUri}` +
-            `&response_type=code` +
-            `&scope=openid` +
-            `&kc_idp_hint=google` +
-            `&code_challenge=${codeChallenge}` +
-            `&code_challenge_method=S256`;
-
-        window.location.href = googleAuthUrl;
+        await redirectToGoogleOAuth();
     };
 
     return (
@@ -92,6 +77,20 @@ export const LoginContent = ({ onSwitchToRegister }: { onSwitchToRegister?: () =
                     {errors.password && <p className="text-[#FF6262] text-[11.5px] font-bold mt-1 ml-1">{errors.password.message}</p>}
                 </div>
 
+                {pendingVerificationIdentifier && (
+                    <div className="rounded-xl border border-[#FFE1E1] bg-[#FFF7F7] px-4 py-3 text-[13px] text-[#7A1D1D]">
+                        <p className="font-bold">Email tài khoản này chưa được xác thực.</p>
+                        <button
+                            type="button"
+                            onClick={() => resendVerificationEmail(pendingVerificationIdentifier)}
+                            disabled={isResendingVerification}
+                            className="mt-2 font-black text-[#FF6262] hover:underline disabled:opacity-60"
+                        >
+                            {isResendingVerification ? "Đang gửi lại..." : "Gửi lại email xác thực"}
+                        </button>
+                    </div>
+                )}
+
                 <div className="flex items-center justify-between text-sm font-bold mt-1 px-1">
                     <label className="flex items-center gap-2.5 text-slate-500 cursor-pointer select-none">
                         <input type="checkbox" className="w-4.5 h-4.5 rounded border-slate-200 text-[#FF6262] focus:ring-[#FF6262]" />
@@ -99,7 +98,11 @@ export const LoginContent = ({ onSwitchToRegister }: { onSwitchToRegister?: () =
                     </label>
                     <a 
                         href="#" 
-                        onClick={(e) => { e.preventDefault(); openForgotPasswordModal(); }} 
+                        onClick={(e) => {
+                            e.preventDefault();
+                            closeAuthModals();
+                            navigate("/forgot-password");
+                        }}
                         className="text-[#FF6262] hover:underline"
                     >
                         Quên mật khẩu?

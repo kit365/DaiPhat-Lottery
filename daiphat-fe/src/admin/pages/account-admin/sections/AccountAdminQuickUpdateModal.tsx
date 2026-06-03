@@ -19,8 +19,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useAccountDetail, useUpdateAccount } from '../hooks/useAccountAdmin';
 import { useRoles } from '../../role/hooks/useRole';
 import { toast } from 'react-toastify';
-import { UserStatus } from '../../../../types/user.type';
-import { STATUS_LABELS } from '../configs/constants';
+import { useUserStatuses } from '../../account-user/hooks/useAccountUser';
 
 interface AccountAdminQuickUpdateModalProps {
     open: boolean;
@@ -32,6 +31,7 @@ export const AccountAdminQuickUpdateModal = ({ open, onClose, id }: AccountAdmin
     const { data: account, isLoading } = useAccountDetail(id || undefined);
     const { mutate: update, isPending } = useUpdateAccount();
     const { data: roles = [] } = useRoles();
+    const { data: statuses = [] } = useUserStatuses();
 
     const [formValues, setFormValues] = useState({
         status: '',
@@ -50,7 +50,7 @@ export const AccountAdminQuickUpdateModal = ({ open, onClose, id }: AccountAdmin
                 lastName: account.lastName || '',
                 email: account.email || '',
                 phone: account.phone || '',
-                roles: account.roles?.map((r: any) => typeof r === 'string' ? r : r.code) || [],
+                roles: account.role ? [account.role.code] : [],
             });
         }
     }, [account, open]);
@@ -177,11 +177,11 @@ export const AccountAdminQuickUpdateModal = ({ open, onClose, id }: AccountAdmin
                                     value={formValues.status}
                                     onChange={(e) => handleInputChange('status', e.target.value)}
                                 >
-                                    {Object.entries(STATUS_LABELS)
-                                        .filter(([key]) => key !== 'all' && key !== 'DELETED')
-                                        .map(([key, value]) => (
-                                            <MenuItem key={key} value={key} sx={{ fontSize: '0.875rem' }}>
-                                                {value}
+                                    {statuses
+                                        .filter((status) => status.value !== 'DELETED')
+                                        .map((status) => (
+                                            <MenuItem key={status.value} value={status.value} sx={{ fontSize: '0.875rem' }}>
+                                                {status.label}
                                             </MenuItem>
                                         ))
                                     }

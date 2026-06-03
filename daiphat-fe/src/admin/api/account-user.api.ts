@@ -65,24 +65,8 @@ export const createUser = async (data: any): Promise<ApiResponse<User>> => {
     return response.data;
 };
 
-export const updateUser = async (id: string, data: any): Promise<ApiResponse<User>> => {
+export const updateUser = async (id: string, data: any): Promise<ApiResponse<void>> => {
     const response = await apiApp.put(`${BASE_URL}/${id}`, data);
-    const user = response.data?.data || response.data;
-    
-    return {
-        ...response.data,
-        data: {
-            ...user,
-            phone: user.phoneNumber || user.phone,
-            fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email,
-            avatar: user.avatarUrl || user.avatar,
-            status: user.status ? user.status.toUpperCase() : 'PENDING'
-        }
-    };
-};
-
-export const changeUserPassword = async (id: string, data: any): Promise<ApiResponse<void>> => {
-    const response = await apiApp.post(`/auth/${id}/change-password`, data);
     return response.data;
 };
 
@@ -91,8 +75,10 @@ export const initiateResetPassword = async (id: string): Promise<ApiResponse<voi
     return response.data;
 };
 
-export const confirmResetPassword = async (id: string, otp: string, phoneNumber?: string): Promise<ApiResponse<void>> => {
-    const response = await apiApp.post(`/auth/${id}/reset-password/confirm`, { otp, phoneNumber });
+export const changeUserPassword = initiateResetPassword;
+
+export const confirmResetPassword = async (id: string, otp: string): Promise<ApiResponse<void>> => {
+    const response = await apiApp.post(`/auth/${id}/reset-password/confirm`, { otp });
     return response.data;
 };
 
@@ -101,24 +87,35 @@ export const deleteUser = async (id: string): Promise<ApiResponse<void>> => {
     return response.data;
 };
 
-export const getUserAddresses = async (userId: string): Promise<ApiResponse<any[]>> => {
-    const response = await apiApp.get(`${BASE_URL}/address/${userId}`);
-    return response.data;
-};
+export interface UserStatusOption {
+    code: string;
+    name: string;
+    value: string;
+    label: string;
+}
 
-export const deleteUserAddress = async (id: string): Promise<ApiResponse<void>> => {
-    const response = await apiApp.delete(`${BASE_URL}/address/delete/${id}`);
-    return response.data;
-};
-
-export const setUserAddressDefault = async (id: string): Promise<ApiResponse<void>> => {
-    const response = await apiApp.put(`${BASE_URL}/address/set-default/${id}`, {});
-    return response.data;
-};
-
-export const getStatuses = async (): Promise<string[]> => {
+export const getStatuses = async (): Promise<UserStatusOption[]> => {
     const response = await apiApp.get(`${BASE_URL}/statuses`);
-    return response.data?.data || [];
+    const statuses = response.data?.data || [];
+    return statuses.map((status: string | { code?: string; name?: string; label?: string; value?: string }) => {
+        if (typeof status === "string") {
+            return {
+                code: status,
+                name: status,
+                value: status,
+                label: status,
+            };
+        }
+
+        const code = status.code || status.value || "";
+        const name = status.name || status.label || code;
+        return {
+            code,
+            name,
+            value: code,
+            label: name,
+        };
+    });
 };
 
 export const inviteStaff = async (id: string, data: { roleCode: string }): Promise<ApiResponse<void>> => {

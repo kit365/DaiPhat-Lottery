@@ -16,8 +16,8 @@ export const COLORS = {
 export enum RoleEnum {
     ADMIN = 'ROLE_ADMIN',
     MEMBER = 'ROLE_MEMBER',
-    STAFF_SHIPPER = 'ROLE_STAFF_SHIPPER',
-    STAFF_MANAGER = 'ROLE_STAFF_MANAGER'
+    STREET_AGENT = 'ROLE_STREET_AGENT',
+    STAFF_OPERATOR = 'ROLE_STAFF_OPERATOR'
 }
 
 export const STATUS_LABELS: Record<string, string> = {

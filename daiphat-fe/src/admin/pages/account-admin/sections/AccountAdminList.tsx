@@ -56,6 +56,8 @@ const TabBadge = styled('span')(() => ({
     transition: 'all 0.2s',
 }));
 
+const STAFF_ACCOUNT_ROLE_CODES = [RoleEnum.ADMIN, RoleEnum.STAFF_OPERATOR];
+
 export const AccountAdminList = () => {
     const navigate = useNavigate();
     const [status, setStatus] = useState('all');
@@ -71,10 +73,15 @@ export const AccountAdminList = () => {
     const statusOptions = useMemo(() => {
         const options = [{ value: 'all', label: 'Tất cả' }];
         if (dynamicStatuses && Array.isArray(dynamicStatuses)) {
-            dynamicStatuses.forEach((st: string) => {
+            dynamicStatuses.forEach((st) => {
+                const value = typeof st === 'string' ? st : st.value;
+                const label = typeof st === 'string' ? (STATUS_LABELS[st] || st) : st.label;
+                if (!value || value === 'DELETED') {
+                    return;
+                }
                 options.push({
-                    value: st,
-                    label: STATUS_LABELS[st] || st
+                    value,
+                    label
                 });
             });
         }
@@ -86,7 +93,7 @@ export const AccountAdminList = () => {
         limit: pageSize,
         q: search || undefined,
         status: status === 'all' ? undefined : status,
-        roleIds: roleIds.length > 0 ? roleIds : undefined,
+        roleIds: roleIds.length > 0 ? roleIds : STAFF_ACCOUNT_ROLE_CODES,
         sortBy,
         direction,
     }), [page, pageSize, search, status, roleIds, sortBy, direction]);
@@ -101,7 +108,10 @@ export const AccountAdminList = () => {
     const accounts: User[] = res?.data?.recordList || [];
     const pagination = res?.data?.pagination || { totalRecords: 0 };
 
-    const roleOptions = Array.isArray(roles) ? roles.map((role: Role) => ({
+    const roleRecords = Array.isArray(roles) ? roles : (roles as any)?.data || [];
+    const roleOptions = Array.isArray(roleRecords) ? roleRecords
+        .filter((role: Role) => STAFF_ACCOUNT_ROLE_CODES.includes(role.code as RoleEnum))
+        .map((role: Role) => ({
         value: role.id,
         label: role.name
     })) : [];
@@ -206,31 +216,31 @@ export const AccountAdminList = () => {
                 ))}
             </Tabs>
 
-            <Box sx={{ p: "calc(2 * var(--spacing))", display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', borderBottom: '1px dashed var(--palette-text-disabled)33' }}>
-                <SelectMulti
-                    label="Vai trò"
-                    options={roleOptions}
-                    value={roleIds}
-                    onChange={(val) => { setRoleIds(val); setPage(0); }}
-                    sx={{ minWidth: 160 }}
-                />
-                <SelectSingle
-                    label="Sắp xếp"
-                    options={sortOptions}
-                    value={createSortValue(sortBy, direction)}
-                    onChange={handleSortChange}
-                    sx={{ minWidth: 140 }}
-                />
+            <Box sx={{ p: "calc(2 * var(--spacing))", display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px dashed var(--palette-text-disabled)33' }}>
+                <Box sx={{ flex: 1, minWidth: 240 }}>
+                    <Search
+                        placeholder="Tìm kiếm nhân viên..."
+                        value={search}
+                        onChange={(val) => { setSearch(val); setPage(0); }}
+                        maxWidth="100%"
+                    />
+                </Box>
                 
-                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box sx={{ flex: 1 }}>
-                        <Search
-                            placeholder="Tìm kiếm nhân viên..."
-                            value={search}
-                            onChange={(val) => { setSearch(val); setPage(0); }}
-                            maxWidth="100%"
-                        />
-                    </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                    <SelectMulti
+                        label="Vai trò"
+                        options={roleOptions}
+                        value={roleIds}
+                        onChange={(val) => { setRoleIds(val); setPage(0); }}
+                        sx={{ minWidth: 160 }}
+                    />
+                    <SelectSingle
+                        label="Sắp xếp"
+                        options={sortOptions}
+                        value={createSortValue(sortBy, direction)}
+                        onChange={handleSortChange}
+                        sx={{ minWidth: 140 }}
+                    />
                     <ExportImport />
                 </Box>
             </Box>
