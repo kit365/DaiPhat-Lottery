@@ -62,6 +62,7 @@ const AccountUserCreatePage = lazy(() => import("../pages/account-user/AccountUs
 const AccountUserEditPage = lazy(() => import("../pages/account-user/AccountUserEditPage").then(m => ({ default: m.AccountUserEditPage })));
 const AccountUserDetailPage = lazy(() => import("../pages/account-user/AccountUserDetailPage").then(m => ({ default: m.AccountUserDetailPage })));
 const ChangePasswordUserPage = lazy(() => import("../pages/account-user/ChangePasswordPage").then(m => ({ default: m.ChangePasswordPage })));
+const StreetAgentListPage = lazy(() => import("../pages/street-agent/StreetAgentListPage").then(m => ({ default: m.StreetAgentListPage })));
 const TicketServiceOrderListPage = lazy(() => import("../pages/ticket-service-order/TicketServiceOrderListPage").then(m => ({ default: m.TicketServiceOrderListPage })));
 const TicketServiceOrderCreatePage = lazy(() => import("../pages/ticket-service-order/TicketServiceOrderCreatePage").then(m => ({ default: m.TicketServiceOrderCreatePage })));
 const TicketServiceOrderEditPage = lazy(() => import("../pages/ticket-service-order/TicketServiceOrderEditPage").then(m => ({ default: m.TicketServiceOrderEditPage })));
@@ -144,6 +145,8 @@ export const AdminRoutes = [
     { path: "account-user/edit/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><AccountUserEditPage /></PermissionGuard> },
     { path: "account-user/detail/:id", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><AccountUserDetailPage /></PermissionGuard> },
     { path: "account-user/change-password/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><ChangePasswordUserPage /></PermissionGuard> },
+    { path: "street-agent/list", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><StreetAgentListPage /></PermissionGuard> },
+    { path: "street-agent/create", element: <PermissionGuard permission={PERMISSIONS.USER.CREATE}><AccountUserCreatePage /></PermissionGuard> },
     { path: "ticketServiceOrder/list", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.VIEW}><TicketServiceOrderListPage /></PermissionGuard> },
     { path: "ticketServiceOrder/create", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.VIEW}><TicketServiceOrderCreatePage /></PermissionGuard> },
     { path: "ticketServiceOrder/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.EDIT}><TicketServiceOrderEditPage /></PermissionGuard> },

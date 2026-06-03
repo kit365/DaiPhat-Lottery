@@ -40,7 +40,7 @@ import { useAuthStore } from "../../../stores/useAuthStore";
 export const TicketServiceOrderCreatePage = () => {
     const navigate = useNavigate();
     const { user } = useAuthStore();
-    const isStaff = user?.roles?.some((role: any) => role.isStaff);
+    const isStaff = user?.role?.code?.includes('STAFF');
 
     const ticketServicesRes = useTicketServices({ limit: 1000 });
     const ticketServices = useMemo(() => {
@@ -103,7 +103,7 @@ export const TicketServiceOrderCreatePage = () => {
         userId: "",
         ticketIds: [] as string[],
         ticketServiceId: "",
-        staffIds: (user?.roles?.some((role: any) => role.isStaff)) ? [user?.id || ""] : [] as string[],
+        staffIds: isStaff ? [user?.id || ""] : [] as string[],
         ticketStaffMap: [] as { ticketId: string, staffId: string }[],
         date: defaultDate,
         startTime: defaultStartTime,

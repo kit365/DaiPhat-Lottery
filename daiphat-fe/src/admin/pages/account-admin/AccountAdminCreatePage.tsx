@@ -227,23 +227,12 @@ export const AccountAdminCreatePage = () => {
                                             fullWidth
                                             error={!!fieldState.error}
                                             helperText={fieldState.error?.message}
-                                            SelectProps={{
-                                                multiple: true,
-                                                renderValue: (selected: any) => (
-                                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                        {roles
-                                                            .filter((r: any) => selected.includes(r.code))
-                                                            .map((r: any) => (
-                                                                <Chip key={r.code} label={r.name} size="small" />
-                                                            ))}
-                                                    </Box>
-                                                )
-                                            }}
+                                            value={field.value?.[0] || ""}
+                                            onChange={(e) => field.onChange([e.target.value])}
                                             sx={{ '& .MuiOutlinedInput-root': { borderRadius: "var(--shape-borderRadius)", fontSize: '0.875rem' } }}
                                         >
                                             {roles.map((role: any) => (
                                                 <MenuItem key={role.code} value={role.code} sx={{ fontSize: '0.875rem' }}>
-                                                    <Checkbox checked={field.value.indexOf(role.code) > -1} />
                                                     <ListItemText primary={role.name} />
                                                 </MenuItem>
                                             ))}

@@ -26,7 +26,7 @@ import {
 import { useUsers, useDeleteUser, useUserStatuses } from '../hooks/useAccountUser';
 import { ROUTES } from '../../../constants/routes';
 import { AppToast as toast } from '../../../../client/utils/toast.util';
-import { STATUS_LABELS, RoleEnum } from '../configs/constants';
+import { RoleEnum } from '../configs/constants';
 import { SelectSingle } from '../../../components/ui/SelectSingle';
 import { Search } from '../../../components/ui/Search';
 import { AccountSortField, SortDirection, createSortValue } from '../../../constants/sort';
@@ -53,7 +53,28 @@ const TabBadge = styled('span')(() => ({
     transition: 'all 0.2s',
 }));
 
-export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: string; assignedStaffId?: string }) => {
+const DEFAULT_MEMBER_ROLE_IDS = [RoleEnum.MEMBER];
+
+interface AccountUserListProps {
+    createdBy?: string;
+    assignedStaffId?: string;
+    onInvite?: () => void;
+    roleIds?: string[];
+    searchPlaceholder?: string;
+    deleteMessage?: string;
+    showInviteStaffAction?: boolean;
+}
+
+export const AccountUserList = ({
+    createdBy,
+    assignedStaffId,
+    onInvite,
+    roleIds = DEFAULT_MEMBER_ROLE_IDS,
+    searchPlaceholder = "Tìm kiếm khách hàng...",
+    deleteMessage = "Bạn có chắc chắn muốn xóa tài khoản khách hàng này?",
+    showInviteStaffAction = true,
+}: AccountUserListProps) => {
+    void onInvite;
     const navigate = useNavigate();
     const [status, setStatus] = useState('all');
     const [search, setSearch] = useState('');
@@ -71,10 +92,10 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
     const statusOptions = useMemo(() => {
         const options = [{ value: 'all', label: 'Tất cả' }];
         if (dynamicStatuses && Array.isArray(dynamicStatuses)) {
-            dynamicStatuses.forEach((st: string) => {
+            dynamicStatuses.forEach((status) => {
                 options.push({
-                    value: st,
-                    label: STATUS_LABELS[st] || st
+                    value: status.value,
+                    label: status.label
                 });
             });
         }
@@ -86,12 +107,12 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
         limit: pageSize,
         q: search || undefined,
         status: status === 'all' ? undefined : status,
-        roleIds: [RoleEnum.MEMBER],
+        roleIds,
         sortBy,
         direction,
         ...(createdBy && { createdBy }),
         ...(assignedStaffId && { assignedStaffId }),
-    }), [page, pageSize, search, status, sortBy, direction, createdBy, assignedStaffId]);
+    }), [page, pageSize, search, status, roleIds, sortBy, direction, createdBy, assignedStaffId]);
 
     const { data: res, isLoading } = useUsers(params, {
         placeholderData: (prev: any) => prev,
@@ -110,14 +131,14 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
     ];
 
     const handleDelete = useCallback((id: string) => {
-        confirmDelete("Bạn có chắc chắn muốn xóa tài khoản khách hàng này?", () => {
+        confirmDelete(deleteMessage, () => {
             deleteUser(id, {
                 onSuccess: () => {
                     toast.success("Xóa tài khoản thành công!");
                 }
             });
         });
-    }, [deleteUser]);
+    }, [deleteMessage, deleteUser]);
 
     const handleEdit = useCallback((id: string) => {
         setQuickUpdateId(id);
@@ -151,7 +172,16 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
         }
     }, [users]);
 
-    const columns = useMemo(() => getColumnsConfig(handleEdit, handleDelete, handleChangePassword, handleViewDetail, handleInviteStaff), [handleEdit, handleDelete, handleChangePassword, handleViewDetail, handleInviteStaff]);
+    const columns = useMemo(
+        () => getColumnsConfig(
+            handleEdit,
+            handleDelete,
+            handleChangePassword,
+            handleViewDetail,
+            showInviteStaffAction ? handleInviteStaff : undefined
+        ),
+        [handleEdit, handleDelete, handleChangePassword, handleViewDetail, handleInviteStaff, showInviteStaffAction]
+    );
 
     const handleStatusChange = (_event: React.SyntheticEvent, newValue: string) => {
         setStatus(newValue);
@@ -226,24 +256,24 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
                 ))}
             </Tabs>
 
-            <Box sx={{ p: "calc(2 * var(--spacing))", display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', borderBottom: '1px dashed var(--palette-text-disabled)33' }}>
-                <SelectSingle
-                    label="Sắp xếp"
-                    options={sortOptions}
-                    value={createSortValue(sortBy, direction)}
-                    onChange={handleSortChange}
-                    sx={{ minWidth: 140 }}
-                />
+            <Box sx={{ p: "calc(2 * var(--spacing))", display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px dashed var(--palette-text-disabled)33' }}>
+                <Box sx={{ flex: 1, minWidth: 240 }}>
+                    <Search
+                        placeholder={searchPlaceholder}
+                        value={search}
+                        onChange={(val) => { setSearch(val); setPage(0); }}
+                        maxWidth="100%"
+                    />
+                </Box>
                 
-                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box sx={{ flex: 1 }}>
-                        <Search
-                            placeholder="Tìm kiếm khách hàng..."
-                            value={search}
-                            onChange={(val) => { setSearch(val); setPage(0); }}
-                            maxWidth="100%"
-                        />
-                    </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                    <SelectSingle
+                        label="Sắp xếp"
+                        options={sortOptions}
+                        value={createSortValue(sortBy, direction)}
+                        onChange={handleSortChange}
+                        sx={{ minWidth: 140 }}
+                    />
                     <ExportImport />
                 </Box>
             </Box>
@@ -330,4 +360,3 @@ export const AccountUserList = ({ createdBy, assignedStaffId }: { createdBy?: st
 };
 
 export default AccountUserList;
-

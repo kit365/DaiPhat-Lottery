@@ -16,9 +16,8 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { useUserDetail, useUpdateUser } from '../hooks/useAccountUser';
+import { useUserDetail, useUpdateUser, useUserStatuses } from '../hooks/useAccountUser';
 import { AppToast as toast } from '../../../../client/utils/toast.util';
-import { STATUS_LABELS } from '../configs/constants';
 
 interface AccountUserQuickUpdateModalProps {
     open: boolean;
@@ -29,6 +28,7 @@ interface AccountUserQuickUpdateModalProps {
 export const AccountUserQuickUpdateModal = ({ open, onClose, id }: AccountUserQuickUpdateModalProps) => {
     const { data: user, isLoading } = useUserDetail(id || undefined);
     const { mutate: update, isPending } = useUpdateUser();
+    const { data: statuses = [] } = useUserStatuses();
 
     const [formValues, setFormValues] = useState({
         status: '',
@@ -168,11 +168,11 @@ export const AccountUserQuickUpdateModal = ({ open, onClose, id }: AccountUserQu
                                     value={formValues.status}
                                     onChange={(e) => handleInputChange('status', e.target.value)}
                                 >
-                                    {Object.entries(STATUS_LABELS)
-                                        .filter(([key]) => key !== 'all' && key !== 'DELETED')
-                                        .map(([key, value]) => (
-                                            <MenuItem key={key} value={key} sx={{ fontSize: '0.875rem' }}>
-                                                {value}
+                                    {statuses
+                                        .filter((status) => status.value !== 'DELETED')
+                                        .map((status) => (
+                                            <MenuItem key={status.value} value={status.value} sx={{ fontSize: '0.875rem' }}>
+                                                {status.label}
                                             </MenuItem>
                                         ))
                                     }
