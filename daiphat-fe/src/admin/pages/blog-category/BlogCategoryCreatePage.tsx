@@ -1,11 +1,11 @@
-import { Box, Stack, TextField, ThemeProvider, useTheme } from "@mui/material"
+import { Box, MenuItem, Stack, TextField, ThemeProvider, useTheme } from "@mui/material"
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { Breadcrumb } from "../../components/ui/Breadcrumb"
 import { Title } from "../../components/ui/Title"
 import { Tiptap } from "../../components/layouts/titap/Tiptap"
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
-import { useCreateBlogCategory, useNestedBlogCategories } from "./hooks/useBlogCategory";
+import { useCreateBlogCategory, useNestedBlogCategories, useBlogCategoryStatuses } from "./hooks/useBlogCategory";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { createCategorySchema, CreateCategoryFormValues } from "../../schemas/blog-category.schema";
@@ -14,7 +14,7 @@ import { prefixAdmin } from "../../constants/routes";
 import { FormUploadSingleFile } from "../../components/upload/FormUploadSingleFile";
 import { toast } from "react-toastify";
 import { CategoryParentSelect } from "../../components/ui/CategoryTreeSelect";
-import { SwitchButton } from "../../components/ui/SwitchButton";
+import { uploadBlogImage } from "../../api/blog.api";
 
 export const BlogCategoryCreatePage = () => {
     const [expandedDetail, setExpandedDetail] = useState(true);
@@ -34,10 +34,13 @@ export const BlogCategoryCreatePage = () => {
             name: "",
             description: "",
             parent: "",
-            status: "active",
+            status: "ACTIVE",
             avatar: "",
         },
     });
+
+    // Lấy danh mục động từ BE
+    const { data: statuses = [] } = useBlogCategoryStatuses();
 
     // Lấy danh mục dạng cây
     const {
@@ -48,28 +51,53 @@ export const BlogCategoryCreatePage = () => {
 
     // Tạo
     const { mutate: create, isPending } = useCreateBlogCategory();
+    const [isUploading, setIsUploading] = useState(false);
 
-    const onSubmit = (data: CreateCategoryFormValues) => {
-        create(data, {
-            onSuccess: (response) => {
-                if (response.success) {
-                    toast.success(response.message);
-                    reset({
-                        name: "",
-                        description: "",
-                        parent: "",
-                        status: "active",
-                        avatar: "",
-                    });
+    const onSubmit = async (data: CreateCategoryFormValues) => {
+        try {
+            setIsUploading(true);
+            let imageUrl = data.avatar;
+
+            if (data.avatar instanceof File) {
+                const uploadRes = await uploadBlogImage(data.avatar, 'category');
+                if (uploadRes.success && uploadRes.data?.url) {
+                    imageUrl = uploadRes.data.url;
                 } else {
-                    toast.error(response.message);
+                    toast.error(uploadRes.message || "Tải ảnh lên thất bại");
+                    return;
                 }
-
-            },
-            onError: () => {
-                toast.error("Tạo danh mục thất bại");
             }
-        });
+
+            const payload = {
+                ...data,
+                avatar: imageUrl
+            };
+
+            create(payload, {
+                onSuccess: (response) => {
+                    if (response.success) {
+                        toast.success(response.message);
+                        reset({
+                            name: "",
+                            description: "",
+                            parent: "",
+                            status: "active",
+                            avatar: "",
+                        });
+                    } else {
+                        toast.error(response.message);
+                    }
+                },
+                onError: () => {
+                    toast.error("Tạo danh mục thất bại");
+                }
+            });
+        } catch (error) {
+            console.error(error);
+            toast.error("Đã có lỗi xảy ra");
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     return (
@@ -137,19 +165,34 @@ export const BlogCategoryCreatePage = () => {
                                 <FormUploadSingleFile
                                     name="avatar"
                                     control={control}
+                                    useRawFile={true}
                                 />
                             </Stack>
                         </CollapsibleCard>
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center" }}>
-                            <SwitchButton
-                                control={control}
+                            <Controller
                                 name="status"
-                                checkedValue="active"
-                                uncheckedValue="inactive"
+                                control={control}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        select
+                                        label="Trạng thái"
+                                        {...field}
+                                        error={!!fieldState.error}
+                                        helperText={fieldState.error?.message}
+                                        sx={{ minWidth: 150 }}
+                                    >
+                                        {statuses.map((opt) => (
+                                            <MenuItem key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                )}
                             />
                             <LoadingButton
                                 type="submit"
-                                loading={isPending}
+                                loading={isPending || isUploading}
                                 label="Tạo danh mục"
                                 loadingLabel="Đang tạo..."
                             />

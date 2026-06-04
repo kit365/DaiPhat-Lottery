@@ -2,7 +2,8 @@ package com.daiphat.coreapi.domain.model;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.enums.UserStatus;
+import com.daiphat.coreapi.domain.model.auth.RoleModel;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import lombok.*;
 
 import java.time.LocalDateTime;

@@ -39,6 +39,7 @@
             "blogs": "Blogs",
             "blog_list": "Blog List",
             "blog_category": "Blog Category",
+            "blog_tag": "Blog Tags",
             "ticketServiceOrders": "Service Orders",
             "ticketServiceOrder_list": "Order List",
             "roles": "Roles",

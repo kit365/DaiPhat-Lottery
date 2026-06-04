@@ -16,7 +16,8 @@ import { Controller, Control } from "react-hook-form";
 export interface CategoryNode {
     id?: string;
     _id?: string;
-    name: string;
+    name?: string;
+    label?: string;
     children: CategoryNode[];
 }
 
@@ -80,7 +81,7 @@ export const CategoryParentSelect = ({ control, categories, excludedId, name = "
                             <FolderOpenIcon sx={{ fontSize: '1.125rem', mr: 1, color: '#919EAB' }} />
                         )}
                         <ListItemText
-                            primary={node.name}
+                            primary={node.name || node.label}
                             slotProps={{
                                 primary: {
                                     sx: {
@@ -108,7 +109,7 @@ export const CategoryParentSelect = ({ control, categories, excludedId, name = "
     const findCategoryName = (nodes: CategoryNode[], id: string): string | undefined => {
         for (const node of nodes) {
             const nodeId = (node.id || node._id || "").toString();
-            if (nodeId === id) return node.name;
+            if (nodeId === id) return node.name || node.label;
             if (node.children?.length) {
                 const found = findCategoryName(node.children, id);
                 if (found) return found;

@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.repository;
 
-import com.daiphat.coreapi.infrastructure.persistence.entity.PermissionEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.auth.PermissionEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

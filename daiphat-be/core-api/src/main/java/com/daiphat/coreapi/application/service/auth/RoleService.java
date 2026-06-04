@@ -8,10 +8,11 @@ import com.daiphat.coreapi.application.port.in.auth.RoleServicePort;
 import com.daiphat.coreapi.application.port.out.auth.RoleRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.PermissionModel;
-import com.daiphat.coreapi.domain.model.RoleModel;
-import com.daiphat.coreapi.domain.model.enums.PermissionConstants;
-import com.daiphat.coreapi.domain.model.enums.RoleConstants;
+import com.daiphat.coreapi.domain.model.auth.PermissionModel;
+import com.daiphat.coreapi.domain.model.auth.RoleModel;
+import com.daiphat.coreapi.domain.model.enums.auth.PermissionConstants;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.application.config.AuthProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class RoleService implements RoleServicePort {
 
     private final RoleRepositoryPort roleRepositoryPort;
     private final RoleApplicationMapper roleApplicationMapper;
+    private final AuthProperties authProperties;
 
     @Override
     public RoleModel getDefaultRole() {
@@ -79,6 +81,19 @@ public class RoleService implements RoleServicePort {
     @Transactional
     public void syncAdminPermissions() {
         roleRepositoryPort.assignAllPermissionsToRole(RoleConstants.ADMIN);
+    }
+
+    @Override
+    @Transactional
+    public void syncOperatorStaffPermissions() {
+        RoleModel role = roleRepositoryPort.findByCode(RoleConstants.ROLE_STAFF_OPERATOR)
+                .orElse(null);
+        if (role != null && (role.getPermissions() == null || role.getPermissions().isEmpty())) {
+            Set<String> permissionCodes = authProperties.getDefaultOperatorPermissions();
+            if (permissionCodes != null && !permissionCodes.isEmpty()) {
+                roleRepositoryPort.assignPermissionsToRole(RoleConstants.ROLE_STAFF_OPERATOR, permissionCodes);
+            }
+        }
     }
 
     @Override

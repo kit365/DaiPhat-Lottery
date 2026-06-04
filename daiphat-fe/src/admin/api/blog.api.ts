@@ -1,41 +1,36 @@
 import { apiApp } from '../../api';
-import Cookies from 'js-cookie';
 import { ApiResponse } from '../config/type';
 
-const BASE_URL = '/admin/article';
+const BASE_URL = '/blogs';
 
-/** Header auth dùng chung */
-const withAuth = () => {
-    const token = Cookies.get(STORAGE_KEYS.TOKEN);
-
-    return {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    };
+/** Map sort option FE → params BE */
+const mapSortParams = (sort?: string): { sortBy: string; direction: string } => {
+    switch (sort) {
+        case 'oldest':  return { sortBy: 'createdAt', direction: 'asc' };
+        case 'popular': return { sortBy: 'viewCount',  direction: 'desc' };
+        default:        return { sortBy: 'createdAt', direction: 'desc' }; // 'latest'
+    }
 };
 
-/** Lấy tất cả bài viết */
-import { mockBlogs } from '../data/blogs';
-
+/** Lấy danh sách bài viết (gọi API thật) */
 export const getBlogs = async (params?: any): Promise<ApiResponse<any>> => {
-    return {
-        success: true,
-        data: {
-            recordList: mockBlogs,
-            pagination: {
-                totalRecords: mockBlogs.length,
-                totalPages: 1,
-                currentPage: params?.page || 1,
-                limit: params?.limit || 10
-            },
-            statusCounts: {
-                all: mockBlogs.length,
-                published: mockBlogs.filter(b => b.status === 'published').length,
-                draft: mockBlogs.filter(b => b.status === 'draft').length,
-            }
+    const { sortBy, direction } = mapSortParams(params?.sort);
+
+    const response = await apiApp.get(BASE_URL, {
+        params: {
+            page:           params?.page    || 1,
+            limit:          params?.limit   || 10,
+            q:              params?.keyword || undefined,
+            status:         params?.status  || undefined,
+            tagId:          params?.tagId   || undefined,
+            categoryId:     params?.categoryId || undefined,
+            type:           params?.type    || undefined,
+            sortBy,
+            direction,
+            includeDeleted: params?.is_trash ? true : undefined,
         }
-    } as any;
+    });
+    return response.data;
 };
 
 
@@ -53,14 +48,29 @@ export const getBlogById = async (id: string | number): Promise<any> => {
 
 /** Tạo bài viết */
 export const createBlog = async (data: any): Promise<any> => {
-    // Data đã được format đúng từ FE (BlogCreatePage)
-    // Chỉ cần đảm bảo slug
+    // Map data từ FE sang BE format (CreateBlogPostRequest)
+    let categoryArray = data.category;
+    if (typeof categoryArray === 'string') {
+        try {
+            categoryArray = JSON.parse(categoryArray);
+        } catch (e) {
+            categoryArray = [];
+        }
+    }
+    const categoryId = Array.isArray(categoryArray) && categoryArray.length > 0 ? Number(categoryArray[0]) : null;
+
     const payload = {
-        ...data,
+        title: data.name,
+        summary: data.description,
+        content: data.content,
+        thumbnail: data.avatar,
+        categoryId: categoryId,
+        status: data.status,
+        type: data.type,
         slug: data.slug || generateSlug(data.name || ''),
-        // category và status đã được xử lý ở form/hook
+        tagIds: data.tags || []
     };
-    const response = await apiApp.post(BASE_URL, payload, withAuth());
+    const response = await apiApp.post(BASE_URL, payload);
     return response.data;
 };
 
@@ -117,3 +127,86 @@ export const mapStatusToFrontend = (status: string): string => {
     };
     return statusMap[status] || 'DRAFT';
 };
+
+/** Lấy toàn bộ tag (không phân trang) */
+export const getAllBlogTags = async (): Promise<ApiResponse<any[]>> => {
+    const response = await apiApp.get(`${BASE_URL}/tags/all`);
+    return response.data;
+};
+
+/** Lấy danh sách tag (phân trang) */
+export const getBlogTags = async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiApp.get(`${BASE_URL}/tags`, {
+        params: {
+            page: params?.page || 1,
+            limit: params?.limit || 10,
+            search: params?.search || ''
+        }
+    });
+    return response.data;
+};
+
+/** Tạo tag */
+export const createBlogTag = async (data: { name: string; slug?: string }): Promise<any> => {
+    const response = await apiApp.post(`${BASE_URL}/tags`, data);
+    return response.data;
+};
+
+/** Xóa tag */
+export const deleteBlogTag = async (id: string | number): Promise<any> => {
+    const response = await apiApp.delete(`${BASE_URL}/tags/${id}`);
+    return response.data;
+};
+
+/** Cập nhật tag */
+export const updateBlogTag = async (id: string | number, data: { name: string; slug?: string }): Promise<any> => {
+    const response = await apiApp.patch(`${BASE_URL}/tags/${id}`, data);
+    return response.data;
+};
+
+const withAuth = () => {
+    const token = localStorage.getItem("token") || "";
+    return {
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
+    };
+};
+
+export const uploadBlogImage = async (file: File, folder: 'blog-content' | 'category' = 'blog-content'): Promise<ApiResponse<{ publicId: string; url: string }>> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await apiApp.post<ApiResponse<{ publicId: string; url: string }>>(`${BASE_URL}/upload`, formData, {
+        params: { folder },
+        headers: {
+            "Content-Type": "multipart/form-data",
+        },
+    });
+
+    return response.data;
+};
+
+export interface BlogTypeOption {
+    code: string;
+    name: string;
+    value: string;
+    label: string;
+}
+
+export const getBlogTypes = async (): Promise<BlogTypeOption[]> => {
+    const response = await apiApp.get(`${BASE_URL}/types`);
+    const types = response.data?.data || [];
+    return types.map((t: any) => {
+        const code = t.code || t.value || "";
+        const name = t.name || t.label || code;
+        return {
+            code,
+            name,
+            value: code,
+            label: name,
+        };
+    });
+};
+
+

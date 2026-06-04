@@ -38,6 +38,18 @@ daiphat:
       api-secret: ${CLOUDINARY_API_SECRET}
       root-folder: ${CLOUDINARY_ROOT_FOLDER:daiphat}
   auth:
+    default-operator-permissions:
+      - "article:view"
+      - "article:create"
+      - "article:edit"
+      - "article:delete"
+      - "member:view"
+      - "member:create"
+      - "member:edit"
+      - "member:delete"
+      - "provider:view"
+      - "provider:create"
+      - "provider:edit"
     seed:
       admin:
         username: ${AUTH_SEED_ADMIN_USERNAME:}

@@ -1,5 +1,5 @@
 package com.daiphat.coreapi.domain.exception;
-import com.daiphat.coreapi.domain.model.enums.EmailType;
+import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import lombok.Getter;
 
 @Getter

@@ -34,5 +34,11 @@ public class PageResponse<T> {
 
         @JsonView(Views.Public.class)
         private int limit;
+
+        @JsonView(Views.Public.class)
+        private boolean isFirst;
+
+        @JsonView(Views.Public.class)
+        private boolean isLast;
     }
 }

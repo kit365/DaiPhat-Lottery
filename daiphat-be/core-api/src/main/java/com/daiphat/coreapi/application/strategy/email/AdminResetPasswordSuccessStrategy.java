@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.application.strategy.email;
 
 import com.daiphat.coreapi.application.port.out.mail.MailPort;
-import com.daiphat.coreapi.domain.model.enums.EmailType;
+import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import org.springframework.stereotype.Component;
 import org.thymeleaf.TemplateEngine;
 

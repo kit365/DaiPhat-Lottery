@@ -2,12 +2,12 @@ package com.daiphat.coreapi.infrastructure.adapter.auth;
 
 import com.daiphat.coreapi.application.dto.request.permission.PermissionItem;
 import com.daiphat.coreapi.application.port.out.auth.RoleRepositoryPort;
-import com.daiphat.coreapi.domain.model.PermissionModel;
-import com.daiphat.coreapi.domain.model.RoleModel;
+import com.daiphat.coreapi.domain.model.auth.PermissionModel;
+import com.daiphat.coreapi.domain.model.auth.RoleModel;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.infrastructure.persistence.entity.PermissionEntity;
-import com.daiphat.coreapi.infrastructure.persistence.entity.RoleEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.auth.PermissionEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.auth.RoleEntity;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.RolePersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.PermissionPersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.PermissionRepository;

@@ -10,6 +10,8 @@ export interface PaginationMetadata {
     totalPages: number;
     currentPage: number;
     limit: number;
+    isFirst?: boolean;
+    isLast?: boolean;
 }
 
 export interface PageResponse<T> {
