@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../components/layout/header';
-import { BlogCategoryWidget, BlogFeaturedWidget, BuyTicketBanner } from '../components/blog/BlogSidebar';
+import { RightSidebarBlog } from '../components/blog/BlogSidebar';
 
 export const BlogDetailPage = () => {
   const navigate = useNavigate();
@@ -13,7 +13,7 @@ export const BlogDetailPage = () => {
   return (
     <div className="min-h-screen bg-[#F8F9FA] font-['Inter',sans-serif] pb-20">
       <Header />
-      
+
       <main className="pt-[80px]">
         {/* Hero Section */}
         <div
@@ -34,7 +34,7 @@ export const BlogDetailPage = () => {
               <h1 className="text-[28px] md:text-[36px] font-bold text-[#212B36] leading-[1.3] mb-4">
                 Cách chọn số theo ngày sinh mang lại may mắn và tài lộc
               </h1>
-              
+
               <p className="text-[15px] text-[#454F5B] leading-[1.6] mb-6">
                 Khám phá cách chọn số theo ngày sinh để thu hút may mắn, tài lộc và tăng cơ hội thành công trong cuộc sống. Hướng dẫn chi tiết, dễ áp dụng cho mọi người.
               </p>
@@ -52,30 +52,11 @@ export const BlogDetailPage = () => {
 
         <div className="max-w-[1440px] mx-auto px-4 lg:px-6">
           <div className="flex flex-col lg:flex-row gap-8">
-            
+
             {/* Left Content Area (One huge white block) */}
             <div className="flex-1 min-w-0 bg-white rounded-2xl shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col overflow-hidden">
-              <div className="flex flex-col md:flex-row flex-1">
-                
-                {/* Table of Contents - Sticky Left Sidebar */}
-                <div className="w-full md:w-[280px] shrink-0 border-r border-[#E5E8EB] p-6 lg:p-8">
-                  <div className="sticky top-[100px]">
-                    <h3 className="text-[15px] font-bold text-[#212B36] mb-6 flex items-center gap-3">
-                      <div className="w-5 h-5 flex items-center justify-center bg-[#FFF4F4] rounded"><i className="fa-solid fa-list-ul text-[#ee1314] text-[12px]"></i></div> Nội dung bài viết
-                    </h3>
-                    <ul className="flex flex-col gap-4">
-                      <li><a href="#section-1" className="text-[14px] text-[#212B36] hover:text-[#ee1314] font-medium transition-colors flex gap-3"><span className="text-[#ee1314] font-bold w-4">1.</span> Ý nghĩa của số theo ngày sinh</a></li>
-                      <li><a href="#section-2" className="text-[14px] text-[#454F5B] hover:text-[#ee1314] transition-colors flex gap-3"><span className="font-semibold text-[#212B36] w-4">2.</span> Cách tính con số chủ đạo</a></li>
-                      <li><a href="#section-3" className="text-[14px] text-[#454F5B] hover:text-[#ee1314] transition-colors flex gap-3"><span className="font-semibold text-[#212B36] w-4">3.</span> Gợi ý số may mắn theo từng nhóm</a></li>
-                      <li><a href="#section-4" className="text-[14px] text-[#454F5B] hover:text-[#ee1314] transition-colors flex gap-3"><span className="font-semibold text-[#212B36] w-4">4.</span> Những lưu ý khi chọn số</a></li>
-                      <li><a href="#section-5" className="text-[14px] text-[#454F5B] hover:text-[#ee1314] transition-colors flex gap-3"><span className="font-semibold text-[#212B36] w-4">5.</span> Kết luận</a></li>
-                    </ul>
-                  </div>
-                </div>
+              <div className="flex-1 min-w-0 p-6 lg:p-8">
 
-                {/* Article Content */}
-                <div className="flex-1 min-w-0 p-6 lg:p-8">
-                  
                   <h2 className="text-[20px] font-bold text-[#212B36] mb-4">Giới thiệu</h2>
                   <div className="text-[15px] text-[#454F5B] leading-[1.8] space-y-4">
                     <p>
@@ -109,7 +90,7 @@ export const BlogDetailPage = () => {
                       <div className="flex-1">
                         <h4 className="text-[15px] font-bold text-[#ee1314] mb-2">Ví dụ minh họa</h4>
                         <p className="text-[14px] text-[#454F5B] mb-1">Ngày sinh: 12/05/1995</p>
-                        <p className="text-[14px] text-[#454F5B]">1 + 2 + 0 + 5 + 1 + 9 + 9 + 5 = 32<br/>3 + 2 = 5</p>
+                        <p className="text-[14px] text-[#454F5B]">1 + 2 + 0 + 5 + 1 + 9 + 9 + 5 = 32<br />3 + 2 = 5</p>
                       </div>
                       <div className="w-full sm:w-[160px] bg-white border border-[#FFE8E8] rounded-xl py-5 px-4 flex flex-col items-center justify-center shrink-0 shadow-[0_2px_8px_rgb(0,0,0,0.02)]">
                         <p className="text-[13px] font-semibold text-[#212B36] mb-1">Con số chủ đạo</p>
@@ -203,9 +184,7 @@ export const BlogDetailPage = () => {
                       Việc chọn số theo ngày sinh là một phương pháp đơn giản nhưng mang lại nhiều lợi ích về mặt tinh thần và năng lượng. Hy vọng bài viết giúp bạn tìm được những con số may mắn, đồng hành và mang lại tài lộc trên hành trình của mình.
                     </p>
                   </div>
-
                 </div>
-              </div>
 
               {/* Share Section - Full width of the left container */}
               <div className="border-t border-[#E5E8EB] p-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white">
@@ -226,27 +205,9 @@ export const BlogDetailPage = () => {
             </div>
 
             {/* Right Sidebar */}
-            <div className="w-full lg:w-[320px] shrink-0 space-y-6">
-              <BlogCategoryWidget activeCategoryName="Kinh nghiệm chơi số" hideCount={true} />
-              <BlogFeaturedWidget />
-              <BuyTicketBanner />
-              
-              {/* Popular Tags Widget */}
-              <div className="bg-white rounded-xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
-                <h3 className="text-[16px] font-bold text-[#212B36] mb-4">Tags phổ biến</h3>
-                <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1.5 bg-[#F4F6F8] border border-[#E5E8EB] text-[#454F5B] text-[12px] font-medium rounded-lg cursor-pointer hover:bg-[#E5E8EB] transition-colors">chọn số theo ngày sinh</span>
-                  <span className="px-3 py-1.5 bg-[#F4F6F8] border border-[#E5E8EB] text-[#454F5B] text-[12px] font-medium rounded-lg cursor-pointer hover:bg-[#E5E8EB] transition-colors">số may mắn</span>
-                  <span className="px-3 py-1.5 bg-[#F4F6F8] border border-[#E5E8EB] text-[#454F5B] text-[12px] font-medium rounded-lg cursor-pointer hover:bg-[#E5E8EB] transition-colors">phong thủy số</span>
-                  <span className="px-3 py-1.5 bg-[#F4F6F8] border border-[#E5E8EB] text-[#454F5B] text-[12px] font-medium rounded-lg cursor-pointer hover:bg-[#E5E8EB] transition-colors">thần số học</span>
-                  <span className="px-3 py-1.5 bg-[#F4F6F8] border border-[#E5E8EB] text-[#454F5B] text-[12px] font-medium rounded-lg cursor-pointer hover:bg-[#E5E8EB] transition-colors">tài lộc</span>
-                  <span className="px-3 py-1.5 bg-[#F4F6F8] border border-[#E5E8EB] text-[#454F5B] text-[12px] font-medium rounded-lg cursor-pointer hover:bg-[#E5E8EB] transition-colors">kinh nghiệm chơi số</span>
-                </div>
-              </div>
-
-            </div>
+            <RightSidebarBlog activeCategoryName="Kinh nghiệm chơi số" hideCategoryCount={true} />
           </div>
-          
+
           {/* Related Articles Section */}
           <div className="mt-12 mb-8 bg-white rounded-2xl p-6 lg:p-8 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
             <h3 className="text-[20px] font-bold text-[#212B36] mb-6">Bài viết liên quan</h3>
@@ -312,7 +273,6 @@ export const BlogDetailPage = () => {
               </div>
             </div>
           </div>
-
         </div>
       </main>
     </div>
