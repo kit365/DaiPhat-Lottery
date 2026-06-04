@@ -6,9 +6,11 @@ import com.daiphat.coreapi.infrastructure.persistence.mapper.blog.BlogPostPersis
 import com.daiphat.coreapi.infrastructure.persistence.repository.BlogPostRepository;
 import com.daiphat.coreapi.infrastructure.persistence.specification.BlogPostSpecification;
 import lombok.RequiredArgsConstructor;
+import com.daiphat.coreapi.domain.model.enums.blog.PostStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -52,8 +54,19 @@ public class BlogPostRepositoryAdapter implements BlogPostRepositoryPort {
     }
 
     @Override
+    public boolean existsById(Long id) {
+        return blogPostRepository.existsById(id);
+    }
+
+    @Override
     public void incrementViewCount(Long id) {
         blogPostRepository.incrementViewCount(id);
+    }
+
+    @Override
+    @Transactional
+    public void incrementViewCountBy(Long id, Integer increment) {
+        blogPostRepository.incrementViewCountBy(id, increment);
     }
 
     @Override
@@ -72,5 +85,10 @@ public class BlogPostRepositoryAdapter implements BlogPostRepositoryPort {
             entity.getTags().removeIf(tag -> tag.getId().equals(tagId));
         }
         blogPostRepository.saveAll(entities);
+    }
+
+    @Override
+    public long countPublishedPostsByCategoryId(Long categoryId) {
+        return blogPostRepository.countByCategoryIdAndStatusAndIsDeletedFalse(categoryId, PostStatus.PUBLISHED);
     }
 }

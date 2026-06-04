@@ -5,12 +5,15 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostSummaryResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostTypeResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogPostStatusResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.shared.util.SearchConstants;
 import com.daiphat.coreapi.shared.util.StorageUtils;
+import com.daiphat.coreapi.shared.util.StorageFolderConstants;
+import com.daiphat.coreapi.domain.model.enums.blog.PostStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -40,6 +43,15 @@ public class BlogPostController {
                 .build());
     }
 
+    @GetMapping("/statuses")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<BlogPostStatusResponse>>> getBlogStatuses() {
+        return ResponseEntity.ok(ApiResponse.<List<BlogPostStatusResponse>>builder()
+                .data(blogPostServicePort.getBlogStatuses())
+                .message("Lấy danh sách trạng thái bài viết thành công")
+                .build());
+    }
+
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('article:view')")
@@ -61,6 +73,21 @@ public class BlogPostController {
         );
     }
 
+    @GetMapping("/public")
+    public ApiResponse<PageResponse<BlogPostSummaryResponse>> getPublicPosts(
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_LIMIT) int limit,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(defaultValue = SearchConstants.DEFAULT_SORT_BY) String sortBy,
+            @RequestParam(defaultValue = SearchConstants.DEFAULT_SORT_DIRECTION) String direction) {
+
+        return ApiResponse.success(
+                "Lấy danh sách bài viết công khai thành công",
+                blogPostServicePort.getPosts(page, limit, q, null, categoryId, null, PostStatus.PUBLISHED.getCode(), sortBy, direction, false)
+        );
+    }
+
     @PostMapping
     @PreAuthorize("hasAuthority('article:create')")
     public ResponseEntity<ApiResponse<BlogPostResponse>> createPost(
@@ -79,7 +106,7 @@ public class BlogPostController {
     @PreAuthorize("hasAnyAuthority('article:create', 'article:edit')")
     public ApiResponse<StorageResult> uploadImage(
             @RequestPart("file") MultipartFile file,
-            @RequestParam(value = "folder", defaultValue = "blog-content") String folder) {
+            @RequestParam(value = "folder", defaultValue = StorageFolderConstants.BLOG_CONTENT_SUBFOLDER) String folder) {
         
         return ApiResponse.success("Tải ảnh lên thành công",
                 blogPostServicePort.uploadImage(StorageUtils.toUploadRequest(file), folder));

@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.request.blog.CreateBlogCategoryReques
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryTreeResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryPublicResponse;
 import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,15 @@ public class BlogCategoryController {
         return ResponseEntity.ok(ApiResponse.<PageResponse<BlogCategoryResponse>>builder()
                 .data(response)
                 .message("Lấy danh sách danh mục thành công")
+                .build());
+    }
+
+    @GetMapping("/public")
+    public ResponseEntity<ApiResponse<List<BlogCategoryPublicResponse>>> getPublicCategories() {
+        List<BlogCategoryPublicResponse> response = blogCategoryServicePort.getPublicCategories();
+        return ResponseEntity.ok(ApiResponse.<List<BlogCategoryPublicResponse>>builder()
+                .data(response)
+                .message("Lấy danh sách danh mục công khai thành công")
                 .build());
     }
 

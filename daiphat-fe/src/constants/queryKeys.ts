@@ -25,4 +25,5 @@ export const QUERY_KEYS = {
     BLOG_TAGS: 'blogTags',
     BLOG_TAGS_PAGED: 'blogTagsPaged',
     BLOG_TYPES: 'blogTypes',
+    BLOG_STATUSES: 'blogStatuses',
 } as const;

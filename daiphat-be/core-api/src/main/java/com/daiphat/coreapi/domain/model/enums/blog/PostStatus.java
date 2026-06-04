@@ -11,7 +11,8 @@ import lombok.RequiredArgsConstructor;
 public enum PostStatus {
     DRAFT("draft", "Bản nháp"),
     PUBLISHED("published", "Đã đăng công khai"),
-    UNPUBLISHED("unpublished", "Đã gỡ xuống");
+    UNPUBLISHED("unpublished", "Đã gỡ xuống"),
+    SCHEDULED("scheduled", "Hẹn giờ đăng");
 
     private final String code;
     private final String label;

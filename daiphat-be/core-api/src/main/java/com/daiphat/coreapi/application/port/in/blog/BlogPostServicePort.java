@@ -5,6 +5,7 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostSummaryResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostTypeResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogPostStatusResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 
@@ -14,21 +15,8 @@ public interface BlogPostServicePort {
     BlogPostResponse createPost(CreateBlogPostRequest request);
     StorageResult uploadImage(UploadRequest request, String folder);
     List<BlogPostTypeResponse> getBlogTypes();
+    List<BlogPostStatusResponse> getBlogStatuses();
 
-    /**
-     * Lấy danh sách bài viết cho trang quản trị, hỗ trợ tìm kiếm, lọc và phân trang.
-     *
-     * @param page           trang hiện tại (1-indexed)
-     * @param limit          số bản ghi mỗi trang
-     * @param search         tìm kiếm theo tiêu đề (nullable)
-     * @param tagId          lọc theo tag id (nullable)
-     * @param categoryId     lọc theo category id (nullable)
-     * @param type           lọc theo loại bài – code string (nullable)
-     * @param status         lọc theo trạng thái – code string (nullable)
-     * @param sortBy         trường sắp xếp (viewCount | createdAt | status)
-     * @param direction      chiều sắp xếp (asc | desc)
-     * @param includeDeleted nếu true, bao gồm cả bài đã xoá mềm
-     */
     PageResponse<BlogPostSummaryResponse> getPosts(
             int page,
             int limit,
@@ -48,4 +36,6 @@ public interface BlogPostServicePort {
 
     void clearCategoryForPosts(List<Long> categoryIds);
     void removeTagFromPosts(Long tagId);
+
+    long countPublishedPostsByCategoryId(Long categoryId);
 }

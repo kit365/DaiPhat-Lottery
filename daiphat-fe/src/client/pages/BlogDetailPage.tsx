@@ -31,11 +31,11 @@ export const BlogDetailPage = () => {
             </div>
 
             <div className="max-w-[700px]">
-              <h1 className="text-[28px] md:text-[36px] font-bold text-[#212B36] leading-[1.3] mb-4">
+              <h1 className="text-[24px] md:text-[28px] font-bold text-[#212B36] leading-[1.3] mb-4">
                 Cách chọn số theo ngày sinh mang lại may mắn và tài lộc
               </h1>
 
-              <p className="text-[15px] text-[#454F5B] leading-[1.6] mb-6">
+              <p className="text-[13px] text-[#637381] leading-[1.6] mb-6">
                 Khám phá cách chọn số theo ngày sinh để thu hút may mắn, tài lộc và tăng cơ hội thành công trong cuộc sống. Hướng dẫn chi tiết, dễ áp dụng cho mọi người.
               </p>
 

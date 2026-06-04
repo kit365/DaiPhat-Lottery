@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getBlogs, createBlog, getBlogById, updateBlog, deleteBlog, getBlogTags, getAllBlogTags, createBlogTag, deleteBlogTag, updateBlogTag, getBlogTypes } from '../../../api/blog.api';
+import { getBlogs, createBlog, getBlogById, updateBlog, deleteBlog, getBlogTags, getAllBlogTags, createBlogTag, deleteBlogTag, updateBlogTag, getBlogTypes, getBlogStatuses } from '../../../api/blog.api';
 import { ApiResponse } from '../../../config/type';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 
@@ -185,6 +185,14 @@ export const useBlogTypes = () => {
     return useQuery({
         queryKey: [QUERY_KEYS.BLOG_TYPES],
         queryFn: getBlogTypes,
+        staleTime: 5 * 60 * 1000,
+    });
+};
+
+export const useBlogStatuses = () => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.BLOG_STATUSES],
+        queryFn: getBlogStatuses,
         staleTime: 5 * 60 * 1000,
     });
 };

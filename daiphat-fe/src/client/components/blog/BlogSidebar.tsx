@@ -1,132 +1,127 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { usePublicCategories, usePublicPosts } from '../../hooks/useClientBlog';
 
-const CATEGORIES = [
-  { id: 'all', name: 'Tất cả bài viết', icon: 'fa-regular fa-newspaper', count: 120 },
-  { id: 'result', name: 'Kết quả xổ số', icon: 'fa-solid fa-chart-simple', count: 32 },
-  { id: 'exp', name: 'Kinh nghiệm chơi số', icon: 'fa-solid fa-lightbulb', count: 28 },
-  { id: 'soicau', name: 'Soi cầu', icon: 'fa-solid fa-magnifying-glass-chart', count: 25 },
-  { id: 'news', name: 'Tin tức', icon: 'fa-regular fa-newspaper', count: 20 },
-  { id: 'promo', name: 'Khuyến mãi', icon: 'fa-solid fa-gift', count: 15 },
-  { id: 'featured', name: 'Bài viết nổi bật', icon: 'fa-solid fa-star', count: 12 }
-];
+const formatViews = (views: number) => {
+  if (views >= 1000) {
+    return `${(views / 1000).toFixed(1)}K lượt xem`;
+  }
+  return `${views} lượt xem`;
+};
 
-export const BlogCategoryWidget = ({ activeCategoryName = 'Tất cả bài viết', hideCount = false }: { activeCategoryName?: string, hideCount?: boolean }) => {
+export const BlogCategoryWidget = ({ 
+  activeCategoryName = 'Tất cả bài viết', 
+  activeCategoryId, 
+  hideCount = false 
+}: { 
+  activeCategoryName?: string, 
+  activeCategoryId?: string | number, 
+  hideCount?: boolean 
+}) => {
+  const { data: categories = [], isLoading } = usePublicCategories();
+
+  // Tạo thêm mục virtual "Tất cả bài viết" ở đầu
+  const totalCount = categories.reduce((sum, cat) => sum + (cat.postCount || 0), 0);
+  const items = [
+    { id: 'all', name: 'Tất cả bài viết', slug: 'all', icon: 'fa-regular fa-newspaper', count: totalCount },
+    ...categories.map(cat => ({
+      id: cat.id.toString(),
+      name: cat.name,
+      slug: cat.slug,
+      icon: cat.avatar || 'fa-regular fa-newspaper', // sử dụng trường avatar lưu font awesome class
+      count: cat.postCount
+    }))
+  ];
+
   return (
     <div className="bg-white rounded-xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] mb-6">
       <h3 className="text-[17px] font-bold text-[#212B36] mb-4">Danh mục bài viết</h3>
-      <ul className="flex flex-col">
-        {CATEGORIES.map((cat, index) => {
-          const isActive = cat.name === activeCategoryName;
-          const isLast = index === CATEGORIES.length - 1;
-          return (
-            <li key={cat.id} className={isLast ? '' : 'border-b border-[#F4F6F8]'}>
-              <Link
-                to="/blogs"
-                className={`flex items-center justify-between px-4 py-2.5 rounded-lg transition-colors group ${isActive ? 'bg-[#FFF4F4] text-[#ee1314]' : 'hover:bg-[#FAFBFC] text-[#454F5B]'
-                  }`}
-              >
-                <div className={`flex items-center gap-3 text-[14px] ${isActive ? 'font-semibold' : 'font-medium group-hover:text-[#212B36]'}`}>
-                  <i className={`${cat.icon} w-4 text-center ${isActive ? '' : 'text-[#919EAB]'}`}></i> {cat.name}
-                </div>
-                {!hideCount && (
-                  <span className={`${isActive ? 'text-[#ee1314]' : 'text-[#637381]'} text-[13px]`}>
-                    {cat.count}
-                  </span>
-                )}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      {isLoading ? (
+        <div className="py-4 text-center text-[14px] text-[#919EAB]">Đang tải danh mục...</div>
+      ) : (
+        <ul className="flex flex-col">
+          {items.map((cat, index) => {
+            const isActive = cat.name === activeCategoryName || 
+                             activeCategoryId === cat.id || 
+                             (cat.slug === 'all' && (!activeCategoryId || activeCategoryId === 'all') && (activeCategoryName === 'Tất cả bài viết'));
+            const isLast = index === items.length - 1;
+            return (
+              <li key={cat.id} className={isLast ? '' : 'border-b border-[#F4F6F8]'}>
+                <Link
+                  to={cat.slug === 'all' ? '/blogs' : `/blogs?category=${cat.slug}`}
+                  className={`flex items-center justify-between px-4 py-2.5 rounded-lg transition-colors group ${isActive ? 'bg-[#FFF4F4] text-[#ee1314]' : 'hover:bg-[#FAFBFC] text-[#454F5B]'
+                    }`}
+                >
+                  <div className={`flex items-center gap-3 text-[14px] ${isActive ? 'font-semibold' : 'font-medium group-hover:text-[#212B36]'}`}>
+                    <i className={`${cat.icon} w-4 text-center ${isActive ? '' : 'text-[#919EAB]'}`}></i> {cat.name}
+                  </div>
+                  {!hideCount && (
+                    <span className={`${isActive ? 'text-[#ee1314]' : 'text-[#637381]'} text-[13px]`}>
+                      {cat.count}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 };
 
 export const BlogFeaturedWidget = () => {
   const navigate = useNavigate();
+  const { data: featuredData, isLoading } = usePublicPosts({
+    page: 1,
+    limit: 6,
+    sortBy: 'viewCount',
+    direction: 'desc'
+  });
 
-  const handleNavigate = () => {
-    navigate('/blogs/detail/1');
-    window.scrollTo(0, 0);
-  };
+  const featuredPosts = featuredData?.recordList || [];
 
   return (
     <div className="bg-white rounded-xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
       <h3 className="text-[17px] font-bold text-[#212B36] mb-5">Bài viết nổi bật</h3>
       <div className="flex flex-col">
-        {/* Small Post 1 */}
-        <div className="flex gap-3 group cursor-pointer border-b border-[#F4F6F8] pb-3 mb-3" onClick={handleNavigate}>
-          <img src="/assets/img/blog/blog-post-1.jpg" alt="post" className="w-[84px] h-[64px] rounded-lg object-cover shrink-0" />
-          <div className="flex flex-col justify-center">
-            <h4 className="text-[13px] font-semibold text-[#212B36] leading-[1.4] mb-1.5 group-hover:text-[#ee1314] transition-colors line-clamp-2">
-              Kết quả xổ số hôm nay 09/02/2025 – Cập nhật...
-            </h4>
-            <div className="flex items-center text-[11px] text-[#919EAB]">
-              <span>12.5K lượt xem</span>
-            </div>
-          </div>
-        </div>
-        {/* Small Post 2 */}
-        <div className="flex gap-3 group cursor-pointer border-b border-[#F4F6F8] pb-3 mb-3" onClick={handleNavigate}>
-          <img src="/assets/img/blog/blog-post-2.jpg" alt="post" className="w-[84px] h-[64px] rounded-lg object-cover shrink-0" />
-          <div className="flex flex-col justify-center">
-            <h4 className="text-[13px] font-semibold text-[#212B36] leading-[1.4] mb-1.5 group-hover:text-[#ee1314] transition-colors line-clamp-2">
-              Thần tài gõ cửa: Những con số may mắn hôm nay...
-            </h4>
-            <div className="flex items-center text-[11px] text-[#919EAB]">
-              <span>8.7K lượt xem</span>
-            </div>
-          </div>
-        </div>
-        {/* Small Post 3 */}
-        <div className="flex gap-3 group cursor-pointer border-b border-[#F4F6F8] pb-3 mb-3" onClick={handleNavigate}>
-          <img src="/assets/img/blog/blog-post-3.jpg" alt="post" className="w-[84px] h-[64px] rounded-lg object-cover shrink-0" />
-          <div className="flex flex-col justify-center">
-            <h4 className="text-[13px] font-semibold text-[#212B36] leading-[1.4] mb-1.5 group-hover:text-[#ee1314] transition-colors line-clamp-2">
-              Cách chọn số theo ngày sinh mang lại may mắn và tài lộc
-            </h4>
-            <div className="flex items-center text-[11px] text-[#919EAB]">
-              <span>15.3K lượt xem</span>
-            </div>
-          </div>
-        </div>
-        {/* Small Post 4 */}
-        <div className="flex gap-3 group cursor-pointer border-b border-[#F4F6F8] pb-3 mb-3" onClick={handleNavigate}>
-          <img src="/assets/img/blog/blog-post-4.jpg" alt="post" className="w-[84px] h-[64px] rounded-lg object-cover shrink-0" />
-          <div className="flex flex-col justify-center">
-            <h4 className="text-[13px] font-semibold text-[#212B36] leading-[1.4] mb-1.5 group-hover:text-[#ee1314] transition-colors line-clamp-2">
-              Soi cầu xổ số miền Nam 09/02/2025 – Dự đoán...
-            </h4>
-            <div className="flex items-center text-[11px] text-[#919EAB]">
-              <span>9.1K lượt xem</span>
-            </div>
-          </div>
-        </div>
-        {/* Small Post 5 */}
-        <div className="flex gap-3 group cursor-pointer border-b border-[#F4F6F8] pb-3 mb-3" onClick={handleNavigate}>
-          <img src="/assets/img/blog/blog-post-1.jpg" alt="post" className="w-[84px] h-[64px] rounded-lg object-cover shrink-0" />
-          <div className="flex flex-col justify-center">
-            <h4 className="text-[13px] font-semibold text-[#212B36] leading-[1.4] mb-1.5 group-hover:text-[#ee1314] transition-colors line-clamp-2">
-              Mua vé số Online – Tiện lợi, nhanh chóng, bảo mật 100%
-            </h4>
-            <div className="flex items-center text-[11px] text-[#919EAB]">
-              <span>6.2K lượt xem</span>
-            </div>
-          </div>
-        </div>
-        {/* Small Post 6 */}
-        <div className="flex gap-3 group cursor-pointer" onClick={handleNavigate}>
-          <img src="/assets/img/blog/blog-post-1.jpg" alt="post" className="w-[84px] h-[64px] rounded-lg object-cover shrink-0" />
-          <div className="flex flex-col justify-center">
-            <h4 className="text-[13px] font-semibold text-[#212B36] leading-[1.4] mb-1.5 group-hover:text-[#ee1314] transition-colors line-clamp-2">
-              Kết quả xổ số hôm nay 09/02/2025 – Cập nhật...
-            </h4>
-            <div className="flex items-center text-[11px] text-[#919EAB]">
-              <span>12.5K lượt xem</span>
-            </div>
-          </div>
-        </div>
+        {isLoading ? (
+          <div className="py-4 text-center text-[13px] text-[#919EAB]">Đang tải...</div>
+        ) : featuredPosts.length === 0 ? (
+          <div className="py-4 text-center text-[13px] text-[#919EAB]">Không có bài viết nổi bật.</div>
+        ) : (
+          featuredPosts.map((post, index) => {
+            const isLast = index === featuredPosts.length - 1;
+            return (
+              <div 
+                key={post.id} 
+                className={`flex gap-3 group cursor-pointer ${isLast ? '' : 'border-b border-[#F4F6F8] pb-3 mb-3'}`} 
+                onClick={() => {
+                  navigate(`/blogs/detail/${post.id}`);
+                  window.scrollTo(0, 0);
+                }}
+              >
+                <img 
+                  src={post.thumbnail || '/assets/img/blog/blog-post-1.jpg'} 
+                  alt={post.title} 
+                  className="w-[84px] h-[64px] rounded-lg object-cover shrink-0" 
+                  style={{ objectFit: 'cover' }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/assets/img/blog/blog-post-1.jpg';
+                  }}
+                />
+                <div className="flex flex-col justify-center">
+                  <h4 className="text-[13px] font-semibold text-[#212B36] leading-[1.4] mb-1.5 group-hover:text-[#ee1314] transition-colors line-clamp-2">
+                    {post.title}
+                  </h4>
+                  <div className="flex items-center text-[11px] text-[#919EAB]">
+                    <span>{formatViews(post.viewCount)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -190,10 +185,22 @@ export const BuyTicketBanner = () => (
   </Link>
 );
 
-export const RightSidebarBlog = ({ activeCategoryName = 'Tất cả bài viết', hideCategoryCount = false }: { activeCategoryName?: string, hideCategoryCount?: boolean }) => {
+export const RightSidebarBlog = ({ 
+  activeCategoryName = 'Tất cả bài viết', 
+  activeCategoryId, 
+  hideCategoryCount = false 
+}: { 
+  activeCategoryName?: string, 
+  activeCategoryId?: string | number, 
+  hideCategoryCount?: boolean 
+}) => {
   return (
     <div className="w-full lg:w-[340px] shrink-0">
-      <BlogCategoryWidget activeCategoryName={activeCategoryName} hideCount={hideCategoryCount} />
+      <BlogCategoryWidget 
+        activeCategoryName={activeCategoryName} 
+        activeCategoryId={activeCategoryId} 
+        hideCount={hideCategoryCount} 
+      />
       <BlogFeaturedWidget />
       <BuyTicketBanner />
     </div>

@@ -59,7 +59,12 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 AUTH + "/verify-email",
-                                AUTH + "/password-policy"
+                                AUTH + "/password-policy",
+                                ApiConstants.API_V1 + "/blogs/public",
+                                ApiConstants.API_V1 + "/blogs/categories/public"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.PATCH,
+                                ApiConstants.API_V1 + "/blogs/*/view"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

@@ -5,7 +5,7 @@ import { Title } from "../../components/ui/Title";
 import { Tiptap } from "../../components/layouts/titap/Tiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
-import { useBlogDetail, useUpdateBlog, useBlogTags } from "./hooks/useBlog";
+import { useBlogDetail, useUpdateBlog, useBlogTags, useBlogStatuses } from "./hooks/useBlog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { createBlogSchema, CreateBlogFormValues } from "../../schemas/blog.schema";
@@ -32,6 +32,7 @@ export const BlogEditPage = () => {
     const { data: detailRes, isLoading: isLoadingDetail } = useBlogDetail(id);
     const { data: blogCategories = [] } = useNestedBlogCategories();
     const { data: blogTags = [], isLoading: isLoadingTags } = useBlogTags();
+    const { data: blogStatuses = [] } = useBlogStatuses();
     const { mutate: update, isPending: isUpdating } = useUpdateBlog();
     const [isUploading, setIsUploading] = useState(false);
 
@@ -229,9 +230,11 @@ export const BlogEditPage = () => {
                                                     labelId="status-select-label"
                                                     label="Trạng thái"
                                                 >
-                                                    <MenuItem value="draft">Bản nháp</MenuItem>
-                                                    <MenuItem value="published">Xuất bản</MenuItem>
-                                                    <MenuItem value="archived">Đã lưu trữ</MenuItem>
+                                                    {blogStatuses.map((opt) => (
+                                                        <MenuItem key={opt.value} value={opt.value}>
+                                                            {opt.label}
+                                                        </MenuItem>
+                                                    ))}
                                                 </Select>
                                             </FormControl>
                                         )}

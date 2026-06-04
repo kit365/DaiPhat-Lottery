@@ -196,4 +196,27 @@ export const getBlogTypes = async (): Promise<BlogTypeOption[]> => {
     });
 };
 
+export interface BlogStatusOption {
+    code: string;
+    name: string;
+    value: string;
+    label: string;
+}
+
+export const getBlogStatuses = async (): Promise<BlogStatusOption[]> => {
+    const response = await apiApp.get(`${BASE_URL}/statuses`);
+    const statuses = response.data?.data || [];
+    return statuses.map((s: any) => {
+        const code = s.code || s.value || "";
+        const name = s.name || s.label || code;
+        return {
+            code,
+            name,
+            value: code,
+            label: name,
+        };
+    });
+};
+
+
 

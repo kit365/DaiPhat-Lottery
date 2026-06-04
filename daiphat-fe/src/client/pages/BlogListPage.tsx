@@ -1,15 +1,20 @@
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Header } from '../components/layout/header';
 import { RightSidebarBlog } from '../components/blog/BlogSidebar';
+import { usePublicCategories, usePublicPosts } from '../hooks/useClientBlog';
 
-const SortDropdown = () => {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [selected, setSelected] = React.useState('Mới nhất');
+interface SortDropdownProps {
+  selectedLabel: string;
+  onSelect: (label: string) => void;
+}
+
+const SortDropdown = ({ selectedLabel, onSelect }: SortDropdownProps) => {
+  const [isOpen, setIsOpen] = useState(false);
   const options = ['Mới nhất', 'Cũ nhất', 'Xem nhiều'];
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -22,27 +27,29 @@ const SortDropdown = () => {
   return (
     <div className="relative w-full md:w-[160px]" ref={dropdownRef}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center justify-between pl-4 pr-3 py-2.5 bg-white border ${isOpen ? 'border-[#ee1314] shadow-[0_0_0_2px_rgba(238,19,20,0.1)]' : 'border-[#E5E8EB]'} rounded-lg text-[14px] text-[#212B36] font-medium outline-none transition-all hover:border-[#ee1314]`}
       >
-        {selected}
+        {selectedLabel}
         <i className={`fa-solid fa-chevron-down text-[#919EAB] text-[12px] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}></i>
       </button>
 
       {isOpen && (
         <div className="absolute top-full right-0 mt-1.5 w-full bg-white border border-[#E5E8EB] rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] overflow-hidden z-20 py-1 animate-in fade-in zoom-in-95 duration-200 origin-top">
           {options.map(option => (
-            <div
+            <button
+              type="button"
               key={option}
               onClick={() => {
-                setSelected(option);
+                onSelect(option);
                 setIsOpen(false);
               }}
-              className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors flex items-center justify-between ${selected === option ? 'bg-[#FFF4F4] text-[#ee1314] font-semibold' : 'text-[#454F5B] hover:bg-[#F4F6F8]'}`}
+              className={`w-full text-left px-4 py-2.5 text-[14px] cursor-pointer transition-colors flex items-center justify-between ${selectedLabel === option ? 'bg-[#FFF4F4] text-[#ee1314] font-semibold' : 'text-[#454F5B] hover:bg-[#F4F6F8]'}`}
             >
               {option}
-              {selected === option && <i className="fa-solid fa-check text-[12px]"></i>}
-            </div>
+              {selectedLabel === option && <i className="fa-solid fa-check text-[12px]"></i>}
+            </button>
           ))}
         </div>
       )}
@@ -50,10 +57,100 @@ const SortDropdown = () => {
   );
 };
 
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+const formatViews = (views: number) => {
+  if (views >= 1000) {
+    return `${(views / 1000).toFixed(1)}K lượt xem`;
+  }
+  return `${views} lượt xem`;
+};
+
 export const BlogListPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // URL States
+  const categorySlug = searchParams.get('category') || 'all';
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const searchKeyword = searchParams.get('q') || '';
+  const sortLabel = searchParams.get('sort') || 'Mới nhất';
+
+  const [searchInput, setSearchInput] = useState(searchKeyword);
+
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, []);
+  }, [categorySlug, page]);
+
+  // Synchronize input value with search param
+  useEffect(() => {
+    setSearchInput(searchKeyword);
+  }, [searchKeyword]);
+
+  // Fetch categories to map slug to categoryId
+  const { data: categories = [] } = usePublicCategories();
+  const selectedCategory = categories.find(c => c.slug === categorySlug);
+
+  // Resolve sort order
+  let sortBy = 'createdAt';
+  let direction = 'desc';
+  if (sortLabel === 'Cũ nhất') {
+    sortBy = 'createdAt';
+    direction = 'asc';
+  } else if (sortLabel === 'Xem nhiều') {
+    sortBy = 'viewCount';
+    direction = 'desc';
+  }
+
+  // Fetch public posts
+  const limit = 5;
+  const { data: postsData, isLoading } = usePublicPosts({
+    page,
+    limit,
+    q: searchKeyword,
+    categoryId: selectedCategory?.id,
+    sortBy,
+    direction
+  });
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newParams = new URLSearchParams(searchParams);
+    if (searchInput.trim()) {
+      newParams.set('q', searchInput.trim());
+    } else {
+      newParams.delete('q');
+    }
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  };
+
+  const handleSortChange = (label: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('sort', label);
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('page', newPage.toString());
+    setSearchParams(newParams);
+  };
+
+  const activeCategoryName = selectedCategory ? selectedCategory.name : 'Tất cả bài viết';
+  const activeCategoryId = selectedCategory ? selectedCategory.id : 'all';
+
+  const records = postsData?.recordList || [];
+  const pagination = postsData?.pagination;
+  const totalPages = pagination?.totalPages || 1;
 
   return (
     <div className="min-h-screen bg-[#fdfafa] font-['Inter',sans-serif] pb-20">
@@ -67,15 +164,23 @@ export const BlogListPage = () => {
         >
           <div className="relative z-10 w-full max-w-[1440px] mx-auto px-4 lg:px-6">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-[14px] text-[#637381] mb-2">
+            <div className="flex items-center gap-2 text-[13px] text-[#637381] mb-2">
               <Link to="/" className="hover:text-[#ee1314] transition-colors">Trang chủ</Link>
               <span className="text-[12px]">&gt;</span>
               <span className="text-[#212B36] font-medium">Bài viết</span>
+              {selectedCategory && (
+                <>
+                  <span className="text-[12px]">&gt;</span>
+                  <span className="text-[#212B36] font-medium">{selectedCategory.name}</span>
+                </>
+              )}
             </div>
 
-            <h1 className="text-[32px] md:text-[36px] font-bold text-[#212B36] m-0 mb-2">Bài viết</h1>
-            <p className="text-[#637381] text-[15px]">
-              Cập nhật tin tức, kinh nghiệm và thông tin hữu ích mỗi ngày
+            <h1 className="text-[24px] md:text-[28px] font-bold text-[#212B36] m-0 mb-2">
+              {selectedCategory ? selectedCategory.name : 'Bài viết'}
+            </h1>
+            <p className="text-[#637381] text-[13px]">
+              {selectedCategory?.description || 'Cập nhật tin tức, kinh nghiệm và thông tin hữu ích mỗi ngày'}
             </p>
           </div>
         </div>
@@ -86,160 +191,109 @@ export const BlogListPage = () => {
             {/* Left Content */}
             <div className="flex-1 min-w-0 bg-white rounded-2xl p-4 md:p-6 shadow-[0_2px_24px_rgb(0,0,0,0.02)]">
               {/* Search and Sort */}
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+              <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div className="relative flex-1 w-full">
                   <input
                     type="text"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
                     placeholder="Tìm kiếm bài viết..."
                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#E5E8EB] rounded-lg text-[14px] outline-none focus:border-[#ee1314] transition-colors"
                   />
                   <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-[#919EAB]"></i>
                 </div>
-                <SortDropdown />
-              </div>
+                <SortDropdown selectedLabel={sortLabel} onSelect={handleSortChange} />
+              </form>
 
               {/* Articles List */}
-              <div className="flex flex-col gap-4">
-                {/* Item 1 */}
-                <div className="flex flex-col sm:flex-row bg-white overflow-hidden group gap-6">
-                  <div className="w-full sm:w-[325px] h-[190px] shrink-0">
-                    <img src="/assets/img/blog/blog-post-1.jpg" alt="Kết quả xổ số" className="w-full h-full object-cover rounded-xl" />
-                  </div>
-                  <div className="flex-1 flex flex-col justify-center py-1">
-                    <span className="inline-block px-3 py-1 bg-[#FFF4F4] text-[#ee1314] text-[12px] font-medium rounded-md mb-3 w-fit">
-                      Kết quả xổ số
-                    </span>
-                    <h3 className="text-[18px] font-bold text-[#212B36] leading-[1.4] mb-2">
-                      <Link to="/blogs/detail/1" className="hover:text-[#ee1314] transition-colors">Kết quả xổ số hôm nay 09/02/2025 – Cập nhật nhanh chóng, chính xác</Link>
-                    </h3>
-                    <p className="text-[14px] text-[#637381] leading-relaxed mb-4 line-clamp-2">
-                      Cập nhật kết quả xổ số hôm nay 09/02/2025 của tất cả các đài trên cả nước. Thông tin nhanh chóng, chính xác và đầy đủ nhất.
-                    </p>
-                    <div className="flex items-center gap-5 text-[13px] text-[#919EAB] mt-auto">
-                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-calendar"></i> 09/02/2025</span>
-                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-eye"></i> 12.5K lượt xem</span>
-                      <Link to="/blogs/detail/1" className="ml-auto text-[#ee1314] font-semibold hover:underline">Đọc tiếp <i className="fa-solid fa-arrow-right text-[12px] ml-1"></i></Link>
-                    </div>
-                  </div>
+              {isLoading ? (
+                <div className="py-20 text-center text-[#919EAB]">Đang tải danh sách bài viết...</div>
+              ) : records.length === 0 ? (
+                <div className="py-20 text-center text-[#919EAB]">Không tìm thấy bài viết nào phù hợp.</div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {records.map((post, idx) => (
+                    <React.Fragment key={post.id}>
+                      {idx > 0 && <div className="w-full h-[1px] bg-[#F4F6F8]"></div>}
+                      <div className="flex flex-col sm:flex-row bg-white overflow-hidden group gap-6">
+                        <div className="w-full sm:w-[325px] h-[190px] shrink-0">
+                          <img 
+                            src={post.thumbnail || '/assets/img/blog/blog-post-1.jpg'} 
+                            alt={post.title} 
+                            className="w-full h-full object-cover rounded-xl" 
+                            style={{ objectFit: 'cover' }}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = '/assets/img/blog/blog-post-1.jpg';
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 flex flex-col justify-center py-1">
+                          {post.category && (
+                            <Link 
+                              to={`/blogs?category=${post.category.slug}`}
+                              className="inline-block px-3 py-1 bg-[#FFF4F4] text-[#ee1314] text-[12px] font-medium rounded-md mb-3 w-fit hover:bg-[#ee1314] hover:text-white transition-colors"
+                            >
+                              {post.category.name}
+                            </Link>
+                          )}
+                          <h3 className="text-[18px] font-bold text-[#212B36] leading-[1.4] mb-2">
+                            <Link to={`/blogs/detail/${post.id}`} className="hover:text-[#ee1314] transition-colors">{post.title}</Link>
+                          </h3>
+                          <p className="text-[14px] text-[#637381] leading-relaxed mb-4 line-clamp-2">
+                            {post.summary}
+                          </p>
+                          <div className="flex items-center gap-5 text-[13px] text-[#919EAB] mt-auto">
+                            <span className="flex items-center gap-1.5"><i className="fa-regular fa-calendar"></i> {formatDate(post.publishedAt)}</span>
+                            <span className="flex items-center gap-1.5"><i className="fa-regular fa-eye"></i> {formatViews(post.viewCount)}</span>
+                            <Link to={`/blogs/detail/${post.id}`} className="ml-auto text-[#ee1314] font-semibold hover:underline">Đọc tiếp <i className="fa-solid fa-arrow-right text-[12px] ml-1"></i></Link>
+                          </div>
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  ))}
                 </div>
-
-                {/* Item 2 */}
-                <div className="w-full h-[1px] bg-[#F4F6F8]"></div>
-                <div className="flex flex-col sm:flex-row bg-white overflow-hidden group gap-6">
-                  <div className="w-full sm:w-[325px] h-[190px] shrink-0">
-                    <img src="/assets/img/blog/blog-post-2.jpg" alt="Kinh nghiệm chơi số" className="w-full h-full object-cover rounded-xl" />
-                  </div>
-                  <div className="flex-1 flex flex-col justify-center py-1">
-                    <span className="inline-block px-3 py-1 bg-[#FFF4F4] text-[#ee1314] text-[12px] font-medium rounded-md mb-3 w-fit">
-                      Kinh nghiệm chơi số
-                    </span>
-                    <h3 className="text-[18px] font-bold text-[#212B36] leading-[1.4] mb-2">
-                      <Link to="/blogs/detail/1" className="hover:text-[#ee1314] transition-colors">Thần tài gõ cửa: Những con số may mắn hôm nay 09/02/2025</Link>
-                    </h3>
-                    <p className="text-[14px] text-[#637381] leading-relaxed mb-4 line-clamp-2">
-                      Tham khảo những con số may mắn được chuyên gia dự đoán cho ngày 09/02/2025 để tăng cơ hội trúng lớn.
-                    </p>
-                    <div className="flex items-center gap-5 text-[13px] text-[#919EAB] mt-auto">
-                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-calendar"></i> 09/02/2025</span>
-                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-eye"></i> 8.7K lượt xem</span>
-                      <Link to="/blogs/detail/1" className="ml-auto text-[#ee1314] font-semibold hover:underline">Đọc tiếp <i className="fa-solid fa-arrow-right text-[12px] ml-1"></i></Link>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Item 3 */}
-                <div className="w-full h-[1px] bg-[#F4F6F8]"></div>
-                <div className="flex flex-col sm:flex-row bg-white overflow-hidden group gap-6">
-                  <div className="w-full sm:w-[325px] h-[190px] shrink-0">
-                    <img src="/assets/img/blog/blog-post-3.jpg" alt="Kinh nghiệm" className="w-full h-full object-cover rounded-xl" />
-                  </div>
-                  <div className="flex-1 flex flex-col justify-center py-1">
-                    <span className="inline-block px-3 py-1 bg-[#FFF4F4] text-[#ee1314] text-[12px] font-medium rounded-md mb-3 w-fit">
-                      Kinh nghiệm chơi số
-                    </span>
-                    <h3 className="text-[18px] font-bold text-[#212B36] leading-[1.4] mb-2">
-                      <Link to="/blogs/detail/1" className="hover:text-[#ee1314] transition-colors">Cách chọn số theo ngày sinh mang lại may mắn và tài lộc</Link>
-                    </h3>
-                    <p className="text-[14px] text-[#637381] leading-relaxed mb-4 line-clamp-2">
-                      Hướng dẫn cách chọn số theo ngày sinh đơn giản, dễ áp dụng và được nhiều người tin tưởng mang lại may mắn.
-                    </p>
-                    <div className="flex items-center gap-5 text-[13px] text-[#919EAB] mt-auto">
-                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-calendar"></i> 09/02/2025</span>
-                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-eye"></i> 15.3K lượt xem</span>
-                      <Link to="/blogs/detail/1" className="ml-auto text-[#ee1314] font-semibold hover:underline">Đọc tiếp <i className="fa-solid fa-arrow-right text-[12px] ml-1"></i></Link>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Item 4 */}
-                <div className="w-full h-[1px] bg-[#F4F6F8]"></div>
-                <div className="flex flex-col sm:flex-row bg-white overflow-hidden group gap-6">
-                  <div className="w-full sm:w-[325px] h-[190px] shrink-0">
-                    <img src="/assets/img/blog/blog-post-4.jpg" alt="Soi cầu" className="w-full h-full object-cover rounded-xl" />
-                  </div>
-                  <div className="flex-1 flex flex-col justify-center py-1">
-                    <span className="inline-block px-3 py-1 bg-[#FFF4F4] text-[#ee1314] text-[12px] font-medium rounded-md mb-3 w-fit">
-                      Soi cầu
-                    </span>
-                    <h3 className="text-[18px] font-bold text-[#212B36] leading-[1.4] mb-2">
-                      <Link to="/blogs/detail/1" className="hover:text-[#ee1314] transition-colors">Soi cầu xổ số miền Nam 09/02/2025 – Dự đoán bạch thủ, song thủ</Link>
-                    </h3>
-                    <p className="text-[14px] text-[#637381] leading-relaxed mb-4 line-clamp-2">
-                      Phân tích, soi cầu xổ số miền Nam 09/02/2025 với những con số bạch thủ, song thủ tiềm năng nhất.
-                    </p>
-                    <div className="flex items-center gap-5 text-[13px] text-[#919EAB] mt-auto">
-                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-calendar"></i> 08/02/2025</span>
-                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-eye"></i> 9.1K lượt xem</span>
-                      <Link to="/blogs/detail/1" className="ml-auto text-[#ee1314] font-semibold hover:underline">Đọc tiếp <i className="fa-solid fa-arrow-right text-[12px] ml-1"></i></Link>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Item 5 */}
-                <div className="w-full h-[1px] bg-[#F4F6F8]"></div>
-                <div className="flex flex-col sm:flex-row bg-white overflow-hidden group gap-6">
-                  <div className="w-full sm:w-[325px] h-[190px] shrink-0">
-                    <img src="/assets/img/blog/blog-post-1.jpg" alt="Tin tức" className="w-full h-full object-cover rounded-xl" />
-                  </div>
-                  <div className="flex-1 flex flex-col justify-center py-1">
-                    <span className="inline-block px-3 py-1 bg-[#FFF4F4] text-[#ee1314] text-[12px] font-medium rounded-md mb-3 w-fit">
-                      Tin tức
-                    </span>
-                    <h3 className="text-[18px] font-bold text-[#212B36] leading-[1.4] mb-2">
-                      <Link to="/blogs/detail/1" className="hover:text-[#ee1314] transition-colors">Mua vé số Online – Tiện lợi, nhanh chóng, bảo mật 100%</Link>
-                    </h3>
-                    <p className="text-[14px] text-[#637381] leading-relaxed mb-4 line-clamp-2">
-                      Mua vé số online tại Đại Phát dễ dàng, nhanh chóng với nhiều ưu đãi hấp dẫn và cam kết bảo mật tuyệt đối.
-                    </p>
-                    <div className="flex items-center gap-5 text-[13px] text-[#919EAB] mt-auto">
-                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-calendar"></i> 09/02/2025</span>
-                      <span className="flex items-center gap-1.5"><i className="fa-regular fa-eye"></i> 6.2K lượt xem</span>
-                      <Link to="/blogs/detail/1" className="ml-auto text-[#ee1314] font-semibold hover:underline">Đọc tiếp <i className="fa-solid fa-arrow-right text-[12px] ml-1"></i></Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Pagination */}
-              <div className="flex justify-center items-center gap-2 mt-10">
-                <button className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314] transition-colors shadow-sm">
-                  <i className="fa-solid fa-angles-left text-[12px]"></i>
-                </button>
-                <button className="w-9 h-9 flex items-center justify-center bg-[#ee1314] border border-[#ee1314] rounded-lg text-white font-semibold shadow-md">1</button>
-                <button className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314] transition-colors font-medium shadow-sm">2</button>
-                <button className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314] transition-colors font-medium shadow-sm">3</button>
-                <button className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314] transition-colors font-medium shadow-sm">4</button>
-                <button className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314] transition-colors font-medium shadow-sm">5</button>
-                <span className="text-[#919EAB] px-1">...</span>
-                <button className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314] transition-colors font-medium shadow-sm">20</button>
-                <button className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314] transition-colors shadow-sm">
-                  <i className="fa-solid fa-angles-right text-[12px]"></i>
-                </button>
-              </div>
+              {!isLoading && totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-10">
+                  <button 
+                    type="button"
+                    disabled={page === 1}
+                    onClick={() => handlePageChange(page - 1)}
+                    className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314] transition-colors shadow-sm disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <i className="fa-solid fa-chevron-left text-[12px]"></i>
+                  </button>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => {
+                    const isCurrent = pNum === page;
+                    return (
+                      <button
+                        type="button"
+                        key={pNum}
+                        onClick={() => handlePageChange(pNum)}
+                        className={`w-9 h-9 flex items-center justify-center border rounded-lg transition-colors font-medium shadow-sm ${isCurrent ? 'bg-[#ee1314] border-[#ee1314] text-white font-semibold shadow-md' : 'bg-white border-[#E5E8EB] text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314]'}`}
+                      >
+                        {pNum}
+                      </button>
+                    );
+                  })}
+
+                  <button 
+                    type="button"
+                    disabled={page === totalPages}
+                    onClick={() => handlePageChange(page + 1)}
+                    className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314] transition-colors shadow-sm disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <i className="fa-solid fa-chevron-right text-[12px]"></i>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Right Content (Sidebar) */}
-            <RightSidebarBlog activeCategoryName="Tất cả bài viết" />
+            <RightSidebarBlog activeCategoryName={activeCategoryName} activeCategoryId={activeCategoryId} />
           </div>
         </div>
       </main>
