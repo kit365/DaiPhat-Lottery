@@ -3,7 +3,7 @@ package com.daiphat.coreapi.application.service.mail;
 import com.daiphat.coreapi.application.port.in.mail.EmailServicePort;
 import com.daiphat.coreapi.application.strategy.email.EmailStrategy;
 import com.daiphat.coreapi.application.strategy.email.EmailStrategyFactory;
-import com.daiphat.coreapi.domain.model.enums.EmailType;
+import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

@@ -1,118 +1,120 @@
 import { apiApp } from '../../api';
-import Cookies from 'js-cookie';
 import { CategoryNode } from '../components/ui/CategoryTreeSelect';
 import { ApiResponse } from '../config/type';
 
-const BASE_URL = '/admin/article/category';
-
-/** Header auth dùng chung cho blog-categories */
-const withAuth = () => {
-    const token = Cookies.get(STORAGE_KEYS.TOKEN);
-
-    return {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    };
-};
+const BASE_URL = '/blogs/categories';
 
 /** Danh sách (flat) */
 export const getCategories = async (params?: any): Promise<ApiResponse<any>> => {
-    return {
-        success: true,
-        data: {
-            recordList: [
-                { _id: "BC1", name: "Chăm sóc thú cưng", slug: "cham-soc-thu-cung", status: "active", createdAt: new Date().toISOString() },
-                { _id: "BC2", name: "Tin tức", slug: "tin-tuc", status: "active", createdAt: new Date().toISOString() }
-            ],
-            pagination: {
-                totalRecords: 2,
-                totalPages: 1,
-                currentPage: params?.page || 1,
-                limit: params?.limit || 10
-            }
-        }
-    } as any;
-};
-
-
-export const getNestedCategories = async (): Promise<ApiResponse<CategoryNode[]>> => {
-    return {
-        success: true,
-        data: [
-            { id: "BC1", label: "Chăm sóc thú cưng", value: "BC1", children: [] },
-            { id: "BC2", label: "Tin tức", value: "BC2", children: [] }
-        ]
-    } as any;
-};
-
-
-/** Tạo danh mục */
-export const createCategory = async (data: any): Promise<any> => {
-    // Map data từ FE sang BE format
-    const payload = {
-        name: data.name,
-        slug: data.slug || generateSlug(data.name),
-        parent: data.parent || '',
-        description: data.description || '',
-        avatar: data.avatar || '',
-        status: data.status || 'active',
-    };
-    const response = await apiApp.post(`${BASE_URL}/create`, payload, withAuth());
+    const response = await apiApp.get(BASE_URL, { 
+        params: { 
+            page: params?.page || 1, 
+            limit: params?.limit || 10, 
+            search: params?.search || params?.keyword || '', 
+            isTrash: params?.isTrash || params?.is_trash || false,
+            status: params?.status || undefined
+        } 
+    });
+    
+    // Map id to _id for table rendering compatibility
+    if (response.data && response.data.data && response.data.data.recordList) {
+        response.data.data.recordList = response.data.data.recordList.map((item: any) => ({
+            ...item,
+            _id: item.id
+        }));
+    }
     return response.data;
 };
 
-/** Chi tiết */
+/** Danh sách phân cấp */
+export const getNestedCategories = async (): Promise<ApiResponse<CategoryNode[]>> => {
+    const response = await apiApp.get(`${BASE_URL}/nested`);
+    return response.data;
+};
+
+/** Tạo danh mục */
+export const createCategory = async (data: any): Promise<any> => {
+    const payload = {
+        name: data.name,
+        slug: data.slug || undefined,
+        parentId: data.parent || null,
+        description: data.description || '',
+        displayOrder: data.displayOrder || undefined,
+        status: data.status,
+        avatar: data.avatar || null,
+    };
+    const response = await apiApp.post(BASE_URL, payload);
+    return response.data;
+};
+
+/** Chi tiết danh mục */
 export const getCategoryById = async (id: string | number): Promise<any> => {
-    const response = await apiApp.get(`${BASE_URL}/detail/${id}`, withAuth());
+    const response = await apiApp.get(`${BASE_URL}/${id}`);
+    
+    // Map response data for frontend form values compatibility
+    if (response.data && response.data.data) {
+        const item = response.data.data;
+        response.data.data = {
+            ...item,
+            _id: item.id,
+            parent: item.parentId || ''
+        };
+    }
     return response.data;
 };
 
 /** Cập nhật danh mục */
 export const updateCategory = async (id: string | number, data: any): Promise<any> => {
-    // Map data từ FE sang BE format
     const payload = {
         name: data.name,
-        slug: data.slug || generateSlug(data.name),
-        parent: data.parent || '',
+        slug: data.slug || undefined,
+        parentId: data.parent || null,
         description: data.description || '',
-        avatar: data.avatar || '',
-        status: data.status || 'active',
+        displayOrder: data.displayOrder || undefined,
+        status: data.status,
+        avatar: data.avatar || null,
     };
-    const response = await apiApp.patch(`${BASE_URL}/edit/${id}`, payload, withAuth());
+    const response = await apiApp.patch(`${BASE_URL}/${id}`, payload);
     return response.data;
 };
 
 /** Xóa */
 export const deleteCategory = async (id: string | number): Promise<any> => {
-    const response = await apiApp.patch(`${BASE_URL}/delete/${id}`, {}, withAuth());
+    const response = await apiApp.patch(`${BASE_URL}/${id}/delete`);
     return response.data;
 };
 
 /** Khôi phục */
 export const restoreCategory = async (id: string | number): Promise<any> => {
-    const response = await apiApp.patch(`${BASE_URL}/restore/${id}`, {}, withAuth());
+    const response = await apiApp.patch(`${BASE_URL}/${id}/restore`);
     return response.data;
 };
 
 /** Xóa vĩnh viễn */
 export const forceDeleteCategory = async (id: string | number): Promise<any> => {
-    const response = await apiApp.delete(`${BASE_URL}/force-delete/${id}`, withAuth());
+    const response = await apiApp.delete(`${BASE_URL}/${id}/force`);
     return response.data;
 };
 
-// --- Helper functions ---
+export interface CategoryStatusOption {
+    code: string;
+    name: string;
+    value: string;
+    label: string;
+}
 
-/** Generate slug từ name */
-const generateSlug = (name: string): string => {
-    return name
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/đ/g, 'd')
-        .replace(/Đ/g, 'D')
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim();
+export const getCategoryStatuses = async (): Promise<CategoryStatusOption[]> => {
+    const response = await apiApp.get(`${BASE_URL}/statuses`);
+    const statuses = response.data?.data || [];
+    return statuses.map((status: any) => {
+        const code = status.code || status.value || "";
+        const name = status.name || status.label || code;
+        return {
+            code,
+            name,
+            value: code,
+            label: name,
+        };
+    });
 };
+

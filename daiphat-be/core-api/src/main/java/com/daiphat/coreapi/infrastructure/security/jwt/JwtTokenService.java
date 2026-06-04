@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.infrastructure.security.jwt;
 
-import com.daiphat.coreapi.application.port.out.TokenProviderPort;
+import com.daiphat.coreapi.application.port.out.auth.TokenProviderPort;
 import com.daiphat.coreapi.domain.model.UserModel;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;

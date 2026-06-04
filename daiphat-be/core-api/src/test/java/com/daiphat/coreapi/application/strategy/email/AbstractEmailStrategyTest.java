@@ -2,7 +2,7 @@ package com.daiphat.coreapi.application.strategy.email;
 
 import com.daiphat.coreapi.application.config.AuthProperties;
 import com.daiphat.coreapi.application.port.out.mail.MailPort;
-import com.daiphat.coreapi.domain.model.enums.EmailType;
+import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

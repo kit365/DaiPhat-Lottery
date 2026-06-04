@@ -1,9 +1,11 @@
 package com.daiphat.coreapi.infrastructure.persistence.specification;
 
-import com.daiphat.coreapi.domain.model.enums.UserStatus;
-import com.daiphat.coreapi.infrastructure.persistence.entity.RoleEntity_;
-import com.daiphat.coreapi.infrastructure.persistence.entity.UserEntity;
-import com.daiphat.coreapi.infrastructure.persistence.entity.UserEntity_;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
+
+import com.daiphat.coreapi.infrastructure.persistence.entity.auth.RoleEntity_;
+import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
+
+import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity_;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 

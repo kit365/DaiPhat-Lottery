@@ -10,16 +10,18 @@ interface CustomFile extends File {
 }
 
 interface UploadSingleFileProps {
-    value?: string;
-    onChange: (value: string) => void;
+    value?: string | File | null;
+    onChange: (value: any) => void;
     disabled?: boolean;
     error?: string;
+    useRawFile?: boolean;
 }
 
 export const UploadSingleFile = memo(
-    ({ value, onChange, disabled, error }: UploadSingleFileProps) => {
+    ({ value, onChange, disabled, error, useRawFile }: UploadSingleFileProps) => {
         const [localFile, setLocalFile] = useState<CustomFile | null>(null);
         const [isUploading, setIsUploading] = useState(false);
+        const [previewUrl, setPreviewUrl] = useState<string>("");
 
         const fileRef = useRef<CustomFile | null>(null);
 
@@ -27,14 +29,28 @@ export const UploadSingleFile = memo(
             fileRef.current = localFile;
         }, [localFile]);
 
+        useEffect(() => {
+            if (useRawFile && value instanceof File) {
+                const objectUrl = URL.createObjectURL(value);
+                setPreviewUrl(objectUrl);
+                return () => URL.revokeObjectURL(objectUrl);
+            } else {
+                setPreviewUrl("");
+            }
+        }, [value, useRawFile]);
+
         const onDrop = useCallback((acceptedFiles: File[]) => {
             if (!acceptedFiles.length) return;
 
-            const file = acceptedFiles[0] as CustomFile;
-            file.preview = URL.createObjectURL(file);
-
-            setLocalFile(file);
-        }, []);
+            const file = acceptedFiles[0];
+            if (useRawFile) {
+                onChange(file);
+            } else {
+                const customFile = file as CustomFile;
+                customFile.preview = URL.createObjectURL(file);
+                setLocalFile(customFile);
+            }
+        }, [useRawFile, onChange]);
 
         const { getRootProps, getInputProps, isDragActive } = useDropzone({
             accept: { "image/*": [] },
@@ -44,12 +60,16 @@ export const UploadSingleFile = memo(
         });
 
         const handleRemove = useCallback(() => {
-            if (localFile?.preview) {
-                URL.revokeObjectURL(localFile.preview);
+            if (useRawFile) {
+                onChange(null);
+            } else {
+                if (localFile?.preview) {
+                    URL.revokeObjectURL(localFile.preview);
+                }
+                setLocalFile(null);
+                onChange("");
             }
-            setLocalFile(null);
-            onChange("");
-        }, [localFile, onChange]);
+        }, [localFile, onChange, useRawFile]);
 
         const handleUpload = async () => {
             if (!localFile) return;
@@ -82,10 +102,22 @@ export const UploadSingleFile = memo(
         }, [value]);
 
         const renderThumb = () => {
-            const src = localFile?.preview || value;
-            if (!src) return null;
+            let src = "";
+            let isUploaded = false;
 
-            const isUploaded = Boolean(value && !localFile);
+            if (useRawFile) {
+                if (value instanceof File) {
+                    src = previewUrl;
+                } else if (typeof value === "string") {
+                    src = value;
+                    isUploaded = true;
+                }
+            } else {
+                src = localFile?.preview || (value as string);
+                isUploaded = Boolean(value && !localFile);
+            }
+
+            if (!src) return null;
 
             return (
                 <li className="inline-flex">
@@ -135,9 +167,11 @@ export const UploadSingleFile = memo(
         };
 
         const getErrorMessage = () => {
-            if (localFile && !value) return "Bạn chưa nhấn 'Tải lên' để hoàn tất chọn ảnh";
+            if (!useRawFile && localFile && !value) return "Bạn chưa nhấn 'Tải lên' để hoàn tất chọn ảnh";
             return error;
         };
+
+        const hasMedia = useRawFile ? Boolean(value) : Boolean(localFile || value);
 
         return (
             <Stack>
@@ -163,19 +197,19 @@ export const UploadSingleFile = memo(
                     </div>
                 </div>
 
-                {(error || (localFile && !value)) && (
+                {(error || (!useRawFile && localFile && !value)) && (
                     <FormHelperText error>
                         {getErrorMessage()}
                     </FormHelperText>
                 )}
 
-                {(localFile || value) && (
+                {hasMedia && (
                     <>
                         <Box sx={{ my: 3 }}>
                             <ul className="flex gap-[12px] flex-wrap">{renderThumb()}</ul>
                         </Box>
 
-                        {localFile && (
+                        {!useRawFile && localFile && (
                             <Box sx={{ gap: "12px", display: "flex", justifyContent: "flex-end" }}>
                                 <Button
                                     size="small"

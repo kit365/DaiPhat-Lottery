@@ -1,8 +1,8 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
-import com.daiphat.coreapi.domain.model.enums.RoleConstants;
-import com.daiphat.coreapi.infrastructure.persistence.entity.RoleEntity;
-import com.daiphat.coreapi.infrastructure.persistence.entity.UserEntity;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.infrastructure.persistence.entity.auth.RoleEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.RoleRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;

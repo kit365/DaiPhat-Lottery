@@ -43,6 +43,7 @@
             "blogs": "Bài viết",
             "blog_list": "Danh sách bài viết",
             "blog_category": "Danh mục bài viết",
+            "blog_tag": "Thẻ bài viết",
             "ticketServiceOrders": "Đơn hàng / Mua hộ",
             "ticketServiceOrder_list": "Danh sách đơn hàng",
             "roles": "Nhóm quyền",

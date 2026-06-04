@@ -1,4 +1,4 @@
-import { Box, Stack, TextField, ThemeProvider, useTheme, MenuItem, Select, FormControl, InputLabel, FormHelperText, createTheme } from "@mui/material"
+import { Box, Stack, TextField, ThemeProvider, useTheme, MenuItem, Select, FormControl, InputLabel, FormHelperText, createTheme, Autocomplete, CircularProgress } from "@mui/material"
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { useTranslation } from "react-i18next";
 import { Breadcrumb } from "../../components/ui/Breadcrumb"
@@ -6,7 +6,8 @@ import { Title } from "../../components/ui/Title"
 import { useState, type Dispatch, type SetStateAction } from "react"
 import { Tiptap } from "../../components/layouts/titap/Tiptap"
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
-import { useCreateBlog } from "./hooks/useBlog"
+import { useCreateBlog, useBlogTags, useBlogTypes } from "./hooks/useBlog"
+import { uploadBlogImage } from "../../api/blog.api"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, Controller } from "react-hook-form"
 import { createBlogSchema, CreateBlogFormValues } from "../../schemas/blog.schema"
@@ -57,7 +58,10 @@ export const BlogCreatePage = () => {
     });
 
     const { data: blogCategories = [] } = useNestedBlogCategories();
+    const { data: blogTags = [], isLoading: isLoadingTags } = useBlogTags();
+    const { data: blogTypes = [] } = useBlogTypes();
     const { mutate: create, isPending } = useCreateBlog();
+    const [isUploading, setIsUploading] = useState(false);
 
     const {
         control,
@@ -72,34 +76,51 @@ export const BlogCreatePage = () => {
             avatar: "",
             category: [],
             status: "draft",
+            type: "blog",
+            tags: [],
         },
     });
 
-    const onSubmit = (data: CreateBlogFormValues) => {
-        // Map string IDs to what API expects.
-        // BE expects "category" as a JSON string of array of strings, e.g. "[\"id1\"]" 
-        // OR simply an array of strings if using non-form-data JSON body.
-        // Given existing patterns, we likely need to send it compatible with what controller expects.
-        // Controller: req.body.category = JSON.parse(req.body.category); -> implies it receives a stringified JSON.
+    const onSubmit = async (data: CreateBlogFormValues) => {
+        try {
+            setIsUploading(true);
+            let imageUrl = data.avatar;
 
-        const payload = {
-            ...data,
-            category: JSON.stringify(data.category)
-        };
-
-        create(payload, {
-            onSuccess: (response) => {
-                if (response.success) {
-                    toast.success(response.message || "Tạo bài viết thành công");
-                    reset();
+            if (data.avatar instanceof File) {
+                const uploadRes = await uploadBlogImage(data.avatar, 'blog-content');
+                if (uploadRes.success && uploadRes.data?.url) {
+                    imageUrl = uploadRes.data.url;
                 } else {
-                    toast.error(response.message);
+                    toast.error(uploadRes.message || "Tải ảnh lên thất bại");
+                    return;
                 }
-            },
-            onError: () => {
-                toast.error("Tạo bài viết thất bại");
             }
-        });
+
+            const payload = {
+                ...data,
+                avatar: imageUrl,
+                category: JSON.stringify(data.category)
+            };
+
+            create(payload, {
+                onSuccess: (response) => {
+                    if (response.success) {
+                        toast.success(response.message || "Tạo bài viết thành công");
+                        reset();
+                    } else {
+                        toast.error(response.message);
+                    }
+                },
+                onError: () => {
+                    toast.error("Tạo bài viết thất bại");
+                }
+            });
+        } catch (error) {
+            console.error(error);
+            toast.error("Đã có lỗi xảy ra");
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     return (
@@ -174,6 +195,7 @@ export const BlogCreatePage = () => {
                                 <FormUploadSingleFile
                                     name="avatar"
                                     control={control}
+                                    useRawFile={true}
                                 />
                             </Stack>
                         </CollapsibleCard>
@@ -209,6 +231,29 @@ export const BlogCreatePage = () => {
                                             </FormControl>
                                         )}
                                     />
+                                    <Controller
+                                        name="type"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <FormControl fullWidth error={!!fieldState.error}>
+                                                <InputLabel id="type-select-label">Loại bài viết</InputLabel>
+                                                <Select
+                                                    {...field}
+                                                    labelId="type-select-label"
+                                                    label="Loại bài viết"
+                                                >
+                                                    {blogTypes.map((opt) => (
+                                                        <MenuItem key={opt.value} value={opt.value}>
+                                                            {opt.label}
+                                                        </MenuItem>
+                                                    ))}
+                                                </Select>
+                                                {fieldState.error && (
+                                                    <FormHelperText>{fieldState.error.message}</FormHelperText>
+                                                )}
+                                            </FormControl>
+                                        )}
+                                    />
                                     <CategoryTreeSelectGeneric
                                         control={control}
                                         categories={blogCategories}
@@ -217,13 +262,47 @@ export const BlogCreatePage = () => {
                                         placeholder={t("admin.blog.fields.select_category")}
                                         multiple={true}
                                     />
+                                    <Controller
+                                        name="tags"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <Autocomplete
+                                                multiple
+                                                options={blogTags}
+                                                getOptionLabel={(option: any) => option.name || ""}
+                                                loading={isLoadingTags}
+                                                value={blogTags.filter((tag: any) => field.value?.includes(tag.id))}
+                                                onChange={(_e, newValue) => {
+                                                    field.onChange(newValue.map((tag: any) => tag.id));
+                                                }}
+                                                renderInput={(params) => (
+                                                    <TextField
+                                                        {...params}
+                                                        label={t("admin.blog.fields.tags")}
+                                                        placeholder={t("admin.blog.fields.tags_placeholder")}
+                                                        error={!!fieldState.error}
+                                                        helperText={fieldState.error?.message}
+                                                        InputProps={{
+                                                            ...params.InputProps,
+                                                            endAdornment: (
+                                                                <>
+                                                                    {isLoadingTags ? <CircularProgress color="inherit" size={20} /> : null}
+                                                                    {params.InputProps.endAdornment}
+                                                                </>
+                                                            ),
+                                                        }}
+                                                    />
+                                                )}
+                                            />
+                                        )}
+                                    />
                                 </Box>
                             </Stack>
                         </CollapsibleCard>
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
                             <LoadingButton
                                 type="submit"
-                                loading={isPending}
+                                loading={isPending || isUploading}
                                 label={t('admin.blog.title.create')}
                                 loadingLabel={t('admin.common.processing')}
                             />

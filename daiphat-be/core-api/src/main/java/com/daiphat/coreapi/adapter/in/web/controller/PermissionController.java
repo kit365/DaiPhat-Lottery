@@ -6,7 +6,7 @@ import com.daiphat.coreapi.application.dto.response.auth.RoleResponse;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.port.in.auth.RoleServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
-import com.daiphat.coreapi.domain.model.PermissionModel;
+import com.daiphat.coreapi.domain.model.auth.PermissionModel;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import lombok.RequiredArgsConstructor;

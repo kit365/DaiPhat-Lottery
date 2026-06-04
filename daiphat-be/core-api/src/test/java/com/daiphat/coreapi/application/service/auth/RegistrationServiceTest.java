@@ -5,8 +5,8 @@ import com.daiphat.coreapi.application.event.UserRegisteredEvent;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
-import com.daiphat.coreapi.domain.model.enums.RoleConstants;
-import com.daiphat.coreapi.domain.model.enums.UserStatus;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.application.port.in.auth.RegistrationServicePort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +25,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@DisplayName("Core RegistrationService")
+@DisplayName("Core RegistrationService - Test Suite")
 class RegistrationServiceTest extends AuthTestBase {
 
     private RegistrationServicePort registrationService;
@@ -43,7 +43,10 @@ class RegistrationServiceTest extends AuthTestBase {
         ReflectionTestUtils.setField(registrationService, "verificationTokenTtlSeconds", 86400L);
     }
 
+
+
     @Test
+    @DisplayName("TC-REG-001: Đăng ký thành công với tất cả thông tin hợp lệ")
     void register_success_savesPendingUserAndVerificationToken() {
         UserRegistrationRequest request = registrationRequest();
         UserModel mappedUser = UserModel.builder()
@@ -56,6 +59,9 @@ class RegistrationServiceTest extends AuthTestBase {
         UserModel savedUser = mappedUser;
         savedUser.setId(DEFAULT_USER_ID);
 
+        when(userRepositoryPort.existsByUsername(request.username())).thenReturn(false);
+        when(userRepositoryPort.existsByEmail(request.email())).thenReturn(false);
+        when(userRepositoryPort.existsByPhone(request.phone())).thenReturn(false);
         when(roleRepositoryPort.findByCode(RoleConstants.ROLE_MEMBER)).thenReturn(Optional.of(defaultRole()));
         when(userApplicationMapper.mapToUserModel(request)).thenReturn(mappedUser);
         when(passwordHashPort.encode(request.password())).thenReturn(ENCODED_PASSWORD);
@@ -73,6 +79,7 @@ class RegistrationServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("TC-REG-002: Đăng ký thất bại - Username đã tồn tại")
     void register_duplicateUsername_throwsUsernameExisted() {
         UserRegistrationRequest request = registrationRequest();
         when(userRepositoryPort.existsByUsername(request.username())).thenReturn(true);
@@ -86,8 +93,43 @@ class RegistrationServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("TC-REG-003: Đăng ký thất bại - Email đã tồn tại")
+    void register_duplicateEmail_throwsEmailExisted() {
+        UserRegistrationRequest request = registrationRequest();
+        when(userRepositoryPort.existsByUsername(request.username())).thenReturn(false);
+        when(userRepositoryPort.existsByEmail(request.email())).thenReturn(true);
+
+        assertThatThrownBy(() -> registrationService.register(request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.EMAIL_EXISTED);
+
+        verify(userRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("TC-REG-004: Đăng ký thất bại - Số điện thoại đã tồn tại")
+    void register_duplicatePhone_throwsPhoneExisted() {
+        UserRegistrationRequest request = registrationRequest();
+        when(userRepositoryPort.existsByUsername(request.username())).thenReturn(false);
+        when(userRepositoryPort.existsByEmail(request.email())).thenReturn(false);
+        when(userRepositoryPort.existsByPhone(request.phone())).thenReturn(true);
+
+        assertThatThrownBy(() -> registrationService.register(request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PHONE_EXISTED);
+
+        verify(userRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("TC-REG-005: Đăng ký thất bại - Thiếu Member Role trong DB")
     void register_missingDefaultRole_throwsRoleNotFound() {
         UserRegistrationRequest request = registrationRequest();
+        when(userRepositoryPort.existsByUsername(request.username())).thenReturn(false);
+        when(userRepositoryPort.existsByEmail(request.email())).thenReturn(false);
+        when(userRepositoryPort.existsByPhone(request.phone())).thenReturn(false);
         when(roleRepositoryPort.findByCode(RoleConstants.ROLE_MEMBER)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> registrationService.register(request))
@@ -97,6 +139,7 @@ class RegistrationServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("TC-REG-013: Xác minh email thành công và kích hoạt tài khoản")
     void verifyEmail_success_activatesUserAndDeletesToken() {
         UserModel user = activeUser();
         user.setEmailVerified(false);
@@ -114,6 +157,34 @@ class RegistrationServiceTest extends AuthTestBase {
     }
 
     @Test
+    @DisplayName("TC-REG-019: Xác minh email thất bại - Link xác thực hết hạn")
+    void verifyEmail_fail_tokenExpired() {
+        when(verificationCachePort.getEmailByVerificationToken(RESET_TOKEN)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> registrationService.verifyEmail(RESET_TOKEN))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.VERIFY_TOKEN_EXPIRED);
+    }
+
+    @Test
+    @DisplayName("TC-REG-020: Gửi lại email xác thực thành công cho tài khoản chưa xác thực")
+    void resendVerificationEmail_success_savesTokenAndPublishesEvent() {
+        UserModel user = activeUser();
+        user.setEmailVerified(false);
+
+        when(userRepositoryPort.findByUsernameOrEmail(DEFAULT_EMAIL)).thenReturn(Optional.of(user));
+
+        registrationService.resendVerificationEmail(DEFAULT_EMAIL);
+
+        ArgumentCaptor<String> tokenCaptor = ArgumentCaptor.forClass(String.class);
+        verify(verificationCachePort).saveVerificationToken(tokenCaptor.capture(), eq(DEFAULT_EMAIL), eq(Duration.ofSeconds(86400)));
+        assertThat(tokenCaptor.getValue()).isNotBlank();
+        verify(eventPublisher).publishEvent(any(UserRegisteredEvent.class));
+    }
+
+    @Test
+    @DisplayName("TC-REG-020-ALT: Gửi lại email xác thực - Bỏ qua nếu email đã xác thực")
     void resendVerificationEmail_alreadyVerified_doesNothing() {
         UserModel user = activeUser();
         when(userRepositoryPort.findByUsernameOrEmail(DEFAULT_EMAIL)).thenReturn(Optional.of(user));
@@ -123,6 +194,33 @@ class RegistrationServiceTest extends AuthTestBase {
         verify(verificationCachePort, never()).saveVerificationToken(any(), any(), any());
         verify(eventPublisher, never()).publishEvent(any());
     }
+
+
+    /* =========================================================================
+     * COMMENTED OUT TESTS: Các tính năng cũ chưa có hoặc đã thay đổi trong Monolith
+     * (Giữ lại làm tài liệu tham khảo cho tương lai)
+     * ========================================================================= */
+
+    /*
+    @Test
+    @DisplayName("TC-REG-005 -> 012 & 015, 017, 018: JSR-380 Bean Validation")
+    // Các testcase validation đầu vào (Format email, phone, trống tên, mật khẩu yếu...)
+    // hiện tại được xử lý bằng các annotation @NotBlank, @Pattern, @Size ở mức Controller/DTO.
+    // Việc kiểm thử các annotation này nên được thực hiện qua Controller Integration Tests.
+
+    @Test
+    @DisplayName("TC-REG-016: Đăng ký - Ngăn chặn SQL Injection (Được bảo vệ bởi Spring Data JPA/Hibernate)")
+    void register_Success_PreventSqlInjection() {
+        // Thực tế Hibernate sử dụng PreparedStatements nên tự động escape các ký tự đặc biệt này.
+    }
+
+    @Test
+    @DisplayName("TC-REG-023: Đăng ký - Rollback Keycloak User khi lưu DB lỗi")
+    void register_Fail_RollbackOnIdentityError() {
+        // Monolith không tích hợp Keycloak nên không có logic gọi API deleteUser để rollback.
+        // Giao dịch được rollback tự động bởi Spring @Transactional hoàn toàn ở mức DB.
+    }
+    */
 
     private UserRegistrationRequest registrationRequest() {
         return UserRegistrationRequest.builder()
