@@ -91,4 +91,13 @@ public class BlogPostController {
         blogPostServicePort.incrementViewCount(id);
         return ApiResponse.success("Tăng lượt xem thành công", null);
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('article:delete')")
+    public ResponseEntity<ApiResponse<Void>> deletePost(@PathVariable Long id) {
+        blogPostServicePort.deletePost(id);
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .message("Xóa bài viết thành công")
+                .build());
+    }
 }

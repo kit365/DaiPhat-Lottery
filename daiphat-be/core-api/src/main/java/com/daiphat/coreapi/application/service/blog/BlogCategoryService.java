@@ -20,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.daiphat.coreapi.domain.model.enums.blog.CategoryStatus;
+
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -28,6 +30,7 @@ public class BlogCategoryService implements BlogCategoryServicePort {
 
     private final BlogCategoryRepositoryPort blogCategoryRepositoryPort;
     private final BlogCategoryApplicationMapper blogCategoryApplicationMapper;
+    private final com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort blogPostServicePort;
 
     @Override
     @Transactional(readOnly = true)
@@ -168,26 +171,20 @@ public class BlogCategoryService implements BlogCategoryServicePort {
     public void deleteCategory(Long id) {
         BlogCategoryModel category = blogCategoryRepositoryPort.findById(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.CATEGORY_NOT_FOUND));
+       List<Long> deletedCategoryIds = new ArrayList<>();
+        softDeleteCategoryRecursively(category, deletedCategoryIds);
+        blogPostServicePort.clearCategoryForPosts(deletedCategoryIds);
+    }
+
+    private void softDeleteCategoryRecursively(BlogCategoryModel category, List<Long> deletedCategoryIds) {
         category.setDeleted(true);
+        category.setStatus(CategoryStatus.INACTIVE);
         blogCategoryRepositoryPort.save(category);
-    }
-
-    @Override
-    @Transactional
-    public void restoreCategory(Long id) {
-        BlogCategoryModel category = blogCategoryRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.CATEGORY_NOT_FOUND));
-        category.setDeleted(false);
-        blogCategoryRepositoryPort.save(category);
-    }
-
-    @Override
-    @Transactional
-    public void forceDeleteCategory(Long id) {
-        if (!blogCategoryRepositoryPort.findById(id).isPresent()) {
-            throw new DomainException(ErrorCode.CATEGORY_NOT_FOUND);
+        deletedCategoryIds.add(category.getId());
+        
+        List<BlogCategoryModel> children = blogCategoryRepositoryPort.findAllByParentIdAndIsDeletedFalse(category.getId());
+        for (BlogCategoryModel child : children) {
+            softDeleteCategoryRecursively(child, deletedCategoryIds);
         }
-        blogCategoryRepositoryPort.deleteById(id);
     }
-
 }

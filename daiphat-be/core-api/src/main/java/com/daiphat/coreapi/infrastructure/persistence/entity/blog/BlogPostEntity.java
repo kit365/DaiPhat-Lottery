@@ -5,6 +5,7 @@ import com.daiphat.coreapi.domain.model.enums.blog.PostType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.Builder;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
@@ -25,7 +26,7 @@ public class BlogPostEntity extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)
+    @JoinColumn(name = "category_id")
     private BlogCategoryEntity category;
 
     @Enumerated(EnumType.STRING)
@@ -66,9 +67,9 @@ public class BlogPostEntity extends BaseEntity {
     @Builder.Default
     private boolean isDeleted = false;
 
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToMany(fetch = FetchType.LAZY, cascade = {CascadeType.MERGE})
     @JoinTable(
-        name = "blog_tag_map",
+        name = "blog_post_tag",
         joinColumns = @JoinColumn(name = "post_id"),
         inverseJoinColumns = @JoinColumn(name = "tag_id")
     )

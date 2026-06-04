@@ -27,7 +27,7 @@ public class BlogTagRepositoryAdapter implements BlogTagRepositoryPort {
 
     @Override
     public Set<BlogTagModel> findAllByIds(Set<Long> ids) {
-        return blogTagRepository.findAllByIdIn(ids).stream()
+        return blogTagRepository.findAllByIdInAndIsDeletedFalse(ids).stream()
                 .map(blogTagPersistenceMapper::toDomain)
                 .collect(Collectors.toSet());
     }
@@ -40,41 +40,36 @@ public class BlogTagRepositoryAdapter implements BlogTagRepositoryPort {
 
     @Override
     public List<BlogTagModel> findAll() {
-        return blogTagRepository.findAll().stream()
+        return blogTagRepository.findAllByIsDeletedFalse().stream()
                 .map(blogTagPersistenceMapper::toDomain)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public void deleteById(Long id) {
-        blogTagRepository.deleteById(id);
-    }
-
-    @Override
     public boolean existsByName(String name) {
-        return blogTagRepository.existsByName(name);
+        return blogTagRepository.existsByNameAndIsDeletedFalse(name);
     }
 
     @Override
     public boolean existsBySlug(String slug) {
-        return blogTagRepository.existsBySlug(slug);
+        return blogTagRepository.existsBySlugAndIsDeletedFalse(slug);
     }
 
     @Override
     public boolean existsByNameAndIdNot(String name, Long id) {
-        return blogTagRepository.existsByNameAndIdNot(name, id);
+        return blogTagRepository.existsByNameAndIdNotAndIsDeletedFalse(name, id);
     }
 
     @Override
     public boolean existsBySlugAndIdNot(String slug, Long id) {
-        return blogTagRepository.existsBySlugAndIdNot(slug, id);
+        return blogTagRepository.existsBySlugAndIdNotAndIsDeletedFalse(slug, id);
     }
 
     @Override
     public Page<BlogTagModel> findAll(Pageable pageable, String search) {
         var entities = (search != null && !search.isBlank())
-                ? blogTagRepository.findAllByNameContainingIgnoreCase(search, pageable)
-                : blogTagRepository.findAll(pageable);
+                ? blogTagRepository.findAllByIsDeletedFalseAndNameContainingIgnoreCase(search, pageable)
+                : blogTagRepository.findAllByIsDeletedFalse(pageable);
         return entities.map(blogTagPersistenceMapper::toDomain);
     }
 }

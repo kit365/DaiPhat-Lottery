@@ -28,27 +28,7 @@ export const BlogCategoryListPage = () => {
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
-                    <Button
-                        onClick={() => setIsTrash(!isTrash)}
-                        sx={{
-                            background: isTrash ? 'var(--palette-error-main)' : 'rgba(255, 86, 48, 0.16)',
-                            color: isTrash ? '#fff' : 'var(--palette-error-main)',
-                            minHeight: "2.25rem",
-                            fontWeight: 700,
-                            fontSize: "0.875rem",
-                            padding: "6px 12px",
-                            borderRadius: "var(--shape-borderRadius)",
-                            textTransform: "none",
-                            boxShadow: "none",
-                            "&:hover": {
-                                background: isTrash ? 'var(--palette-error-dark)' : 'rgba(255, 86, 48, 0.24)',
-                            }
-                        }}
-                        variant="contained"
-                        startIcon={<DeleteIcon />}
-                    >
-                        {isTrash ? "Quay lại" : "Thùng rác"}
-                    </Button>
+
                     <Button
                         onClick={() => navigate(`/${prefixAdmin}/blog-category/create`)}
                         sx={{

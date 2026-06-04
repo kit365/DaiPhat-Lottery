@@ -25,9 +25,6 @@ public class BlogCategoryController {
 
     private static final String ID_PATH = "/{id}";
     private static final String NESTED_PATH = "/nested";
-    private static final String DELETE_PATH = ID_PATH + "/delete";
-    private static final String RESTORE_PATH = ID_PATH + "/restore";
-    private static final String FORCE_PATH = ID_PATH + "/force";
 
     private final BlogCategoryServicePort blogCategoryServicePort;
 
@@ -106,30 +103,12 @@ public class BlogCategoryController {
                 .build());
     }
 
-    @PatchMapping(DELETE_PATH)
+    @DeleteMapping(ID_PATH)
     @PreAuthorize("hasAuthority('article:delete')")
     public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable(name = "id") Long id) {
         blogCategoryServicePort.deleteCategory(id);
         return ResponseEntity.ok(ApiResponse.<Void>builder()
                 .message("Xóa danh mục thành công")
-                .build());
-    }
-
-    @PatchMapping(RESTORE_PATH)
-    @PreAuthorize("hasAuthority('article:delete')")
-    public ResponseEntity<ApiResponse<Void>> restoreCategory(@PathVariable(name = "id") Long id) {
-        blogCategoryServicePort.restoreCategory(id);
-        return ResponseEntity.ok(ApiResponse.<Void>builder()
-                .message("Khôi phục danh mục thành công")
-                .build());
-    }
-
-    @DeleteMapping(FORCE_PATH)
-    @PreAuthorize("hasAuthority('article:delete')")
-    public ResponseEntity<ApiResponse<Void>> forceDeleteCategory(@PathVariable(name = "id") Long id) {
-        blogCategoryServicePort.forceDeleteCategory(id);
-        return ResponseEntity.ok(ApiResponse.<Void>builder()
-                .message("Xóa vĩnh viễn danh mục thành công")
                 .build());
     }
 }

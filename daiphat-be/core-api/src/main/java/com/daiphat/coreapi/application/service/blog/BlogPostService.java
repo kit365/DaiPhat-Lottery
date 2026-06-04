@@ -174,4 +174,27 @@ public class BlogPostService implements BlogPostServicePort {
         }
         blogPostRepositoryPort.incrementViewCount(id);
     }
+
+    @Override
+    @Transactional
+    public void deletePost(Long id) {
+        BlogPostModel post = blogPostRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.BLOG_NOT_FOUND));
+        post.setDeleted(true);
+        blogPostRepositoryPort.save(post);
+    }
+
+    @Override
+    @Transactional
+    public void clearCategoryForPosts(List<Long> categoryIds) {
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            blogPostRepositoryPort.clearCategoryForPosts(categoryIds);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void removeTagFromPosts(Long tagId) {
+        blogPostRepositoryPort.removeTagFromPosts(tagId);
+    }
 }

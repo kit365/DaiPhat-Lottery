@@ -42,13 +42,10 @@ public interface BlogPostServicePort {
             boolean includeDeleted
     );
 
-    /**
-     * Tăng lượt xem bài viết thêm 1 – gọi khi người dùng mở xem chi tiết.
-     * Không yêu cầu authentication (public endpoint).
-     *
-     * @param id id bài viết
-     */
     void incrementViewCount(Long id);
+
+    void deletePost(Long id);
+
+    void clearCategoryForPosts(List<Long> categoryIds);
+    void removeTagFromPosts(Long tagId);
 }
-
-

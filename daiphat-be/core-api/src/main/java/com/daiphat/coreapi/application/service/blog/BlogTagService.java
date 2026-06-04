@@ -26,6 +26,7 @@ public class BlogTagService implements BlogTagServicePort {
 
     private final BlogTagRepositoryPort blogTagRepositoryPort;
     private final BlogTagApplicationMapper blogTagApplicationMapper;
+    private final com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort blogPostServicePort;
 
     @Override
     @Transactional(readOnly = true)
@@ -120,10 +121,10 @@ public class BlogTagService implements BlogTagServicePort {
     @Override
     @Transactional
     public void deleteTag(Long id) {
-        if (!blogTagRepositoryPort.findById(id).isPresent()) {
-            throw new DomainException(ErrorCode.TAG_NOT_FOUND);
-        }
-        blogTagRepositoryPort.deleteById(id);
+        BlogTagModel tag = blogTagRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.TAG_NOT_FOUND));
+        tag.setDeleted(true);
+        blogTagRepositoryPort.save(tag);
+        blogPostServicePort.removeTagFromPosts(id);
     }
-
 }

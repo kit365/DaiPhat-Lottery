@@ -12,7 +12,6 @@ public interface BlogTagRepositoryPort {
     Set<BlogTagModel> findAllByIds(Set<Long> ids);
     BlogTagModel save(BlogTagModel tag);
     List<BlogTagModel> findAll();
-    void deleteById(Long id);
     boolean existsByName(String name);
     boolean existsBySlug(String slug);
     boolean existsByNameAndIdNot(String name, Long id);
