@@ -72,13 +72,16 @@ class BlogCategoryServiceTest {
     @Mock
     private BlogCategoryApplicationMapper blogCategoryApplicationMapper;
 
+    @Mock
+    private com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort blogPostServicePort;
+
     private BlogCategoryModel rootCategory;
     private BlogCategoryModel childCategory;
     private BlogCategoryResponse rootResponse;
 
     @BeforeEach
     void setUp() {
-        blogCategoryService = new BlogCategoryService(blogCategoryRepositoryPort, blogCategoryApplicationMapper);
+        blogCategoryService = new BlogCategoryService(blogCategoryRepositoryPort, blogCategoryApplicationMapper, blogPostServicePort);
 
         rootCategory = BlogCategoryModel.builder()
                 .id(ROOT_ID)
@@ -342,40 +345,80 @@ class BlogCategoryServiceTest {
     @Test
     void deleteCategory_success() {
         when(blogCategoryRepositoryPort.findById(ROOT_ID)).thenReturn(Optional.of(rootCategory));
+        when(blogCategoryRepositoryPort.findAllByParentIdAndIsDeletedFalse(ROOT_ID)).thenReturn(List.of());
 
         blogCategoryService.deleteCategory(ROOT_ID);
 
         assertThat(rootCategory.isDeleted()).isTrue();
+        assertThat(rootCategory.getStatus()).isEqualTo(CategoryStatus.INACTIVE);
         verify(blogCategoryRepositoryPort).save(rootCategory);
+        verify(blogCategoryRepositoryPort).findAllByParentIdAndIsDeletedFalse(ROOT_ID);
+        verify(blogPostServicePort).clearCategoryForPosts(List.of(ROOT_ID));
     }
 
     @Test
-    void restoreCategory_success() {
-        rootCategory.setDeleted(true);
+    void deleteCategory_withChildren_success_softDeletesRecursively() {
         when(blogCategoryRepositoryPort.findById(ROOT_ID)).thenReturn(Optional.of(rootCategory));
+        // Giả lập ROOT_ID có 1 child
+        when(blogCategoryRepositoryPort.findAllByParentIdAndIsDeletedFalse(ROOT_ID)).thenReturn(List.of(childCategory));
+        // Giả lập child không có sub-child
+        when(blogCategoryRepositoryPort.findAllByParentIdAndIsDeletedFalse(CHILD_ID)).thenReturn(List.of());
 
-        blogCategoryService.restoreCategory(ROOT_ID);
+        blogCategoryService.deleteCategory(ROOT_ID);
 
+        assertThat(rootCategory.isDeleted()).isTrue();
+        assertThat(rootCategory.getStatus()).isEqualTo(CategoryStatus.INACTIVE);
+        assertThat(childCategory.isDeleted()).isTrue();
+        assertThat(childCategory.getStatus()).isEqualTo(CategoryStatus.INACTIVE);
+        
+        verify(blogCategoryRepositoryPort).save(rootCategory);
+        verify(blogCategoryRepositoryPort).save(childCategory);
+        verify(blogPostServicePort).clearCategoryForPosts(List.of(ROOT_ID, CHILD_ID));
+    }
+
+    @Test
+    void deleteCategory_childOnly_success() {
+        when(blogCategoryRepositoryPort.findById(CHILD_ID)).thenReturn(Optional.of(childCategory));
+        when(blogCategoryRepositoryPort.findAllByParentIdAndIsDeletedFalse(CHILD_ID)).thenReturn(List.of());
+
+        blogCategoryService.deleteCategory(CHILD_ID);
+
+        assertThat(childCategory.isDeleted()).isTrue();
+        assertThat(childCategory.getStatus()).isEqualTo(CategoryStatus.INACTIVE);
+        
+        // Parent must remain active and not deleted
         assertThat(rootCategory.isDeleted()).isFalse();
-        verify(blogCategoryRepositoryPort).save(rootCategory);
+        assertThat(rootCategory.getStatus()).isEqualTo(CategoryStatus.ACTIVE);
+
+        verify(blogCategoryRepositoryPort).save(childCategory);
+        verify(blogCategoryRepositoryPort, never()).save(rootCategory);
+        verify(blogPostServicePort).clearCategoryForPosts(List.of(CHILD_ID));
     }
 
     @Test
-    void forceDeleteCategory_success() {
-        when(blogCategoryRepositoryPort.findById(ROOT_ID)).thenReturn(Optional.of(rootCategory));
-
-        blogCategoryService.forceDeleteCategory(ROOT_ID);
-
-        verify(blogCategoryRepositoryPort).deleteById(ROOT_ID);
-    }
-
-    @Test
-    void forceDeleteCategory_notFound_throwsCategoryNotFound() {
+    void deleteCategory_notFound_throwsCategoryNotFound() {
         when(blogCategoryRepositoryPort.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> blogCategoryService.forceDeleteCategory(99L))
+        assertThatThrownBy(() -> blogCategoryService.deleteCategory(99L))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CATEGORY_NOT_FOUND);
+
+        verify(blogPostServicePort, never()).clearCategoryForPosts(any());
+    }
+
+    @Test
+    void deleteCategory_alreadyDeleted_success() {
+        rootCategory.setDeleted(true);
+        rootCategory.setStatus(CategoryStatus.INACTIVE);
+        when(blogCategoryRepositoryPort.findById(ROOT_ID)).thenReturn(Optional.of(rootCategory));
+        when(blogCategoryRepositoryPort.findAllByParentIdAndIsDeletedFalse(ROOT_ID)).thenReturn(List.of());
+
+        blogCategoryService.deleteCategory(ROOT_ID);
+
+        assertThat(rootCategory.isDeleted()).isTrue();
+        assertThat(rootCategory.getStatus()).isEqualTo(CategoryStatus.INACTIVE);
+        verify(blogCategoryRepositoryPort).save(rootCategory);
+        verify(blogPostServicePort).clearCategoryForPosts(List.of(ROOT_ID));
     }
 }
