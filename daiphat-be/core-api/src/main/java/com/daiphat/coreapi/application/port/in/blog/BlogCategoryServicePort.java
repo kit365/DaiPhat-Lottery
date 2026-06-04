@@ -14,6 +14,4 @@ public interface BlogCategoryServicePort {
     BlogCategoryResponse createCategory(CreateBlogCategoryRequest request);
     BlogCategoryResponse updateCategory(Long id, CreateBlogCategoryRequest request);
     void deleteCategory(Long id);
-    void restoreCategory(Long id);
-    void forceDeleteCategory(Long id);
 }

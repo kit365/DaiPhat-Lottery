@@ -22,4 +22,6 @@ public interface BlogCategoryRepository extends JpaRepository<BlogCategoryEntity
 
     @Query("SELECT COALESCE(MAX(c.displayOrder), 0) FROM BlogCategoryEntity c WHERE c.parent IS NULL AND c.isDeleted = false")
     int findMaxDisplayOrderForRoot();
+
+    List<BlogCategoryEntity> findAllByParentIdAndIsDeletedFalse(Long parentId);
 }

@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS blog_tag (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE,
     slug VARCHAR(50) NOT NULL UNIQUE,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100) DEFAULT 'SYSTEM',
@@ -27,7 +28,7 @@ CREATE TABLE IF NOT EXISTS blog_tag (
 
 CREATE TABLE IF NOT EXISTS blog_post (
     id BIGSERIAL PRIMARY KEY,
-    category_id BIGINT NOT NULL,
+    category_id BIGINT,
     type VARCHAR(20) NOT NULL,
     title VARCHAR(255) NOT NULL,
     slug VARCHAR(255) NOT NULL UNIQUE,
@@ -46,15 +47,15 @@ CREATE TABLE IF NOT EXISTS blog_post (
     CONSTRAINT fk_blog_post_category FOREIGN KEY (category_id) REFERENCES blog_category(id)
 );
 
-CREATE TABLE IF NOT EXISTS blog_tag_map (
+CREATE TABLE IF NOT EXISTS blog_post_tag (
     id BIGSERIAL PRIMARY KEY,
     post_id BIGINT NOT NULL,
     tag_id BIGINT NOT NULL,
-    CONSTRAINT fk_blog_tag_map_post FOREIGN KEY (post_id) REFERENCES blog_post(id) ON DELETE CASCADE,
-    CONSTRAINT fk_blog_tag_map_tag FOREIGN KEY (tag_id) REFERENCES blog_tag(id) ON DELETE CASCADE,
-    CONSTRAINT uq_blog_tag_map UNIQUE (post_id, tag_id)
+    CONSTRAINT fk_blog_post_tag_post FOREIGN KEY (post_id) REFERENCES blog_post(id) ON DELETE CASCADE,
+    CONSTRAINT fk_blog_post_tag_tag FOREIGN KEY (tag_id) REFERENCES blog_tag(id) ON DELETE CASCADE,
+    CONSTRAINT uq_blog_post_tag UNIQUE (post_id, tag_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_blog_post_category_id ON blog_post(category_id);
-CREATE INDEX IF NOT EXISTS idx_blog_tag_map_post_id ON blog_tag_map(post_id);
-CREATE INDEX IF NOT EXISTS idx_blog_tag_map_tag_id ON blog_tag_map(tag_id);
+CREATE INDEX IF NOT EXISTS idx_blog_post_tag_post_id ON blog_post_tag(post_id);
+CREATE INDEX IF NOT EXISTS idx_blog_post_tag_tag_id ON blog_post_tag(tag_id);

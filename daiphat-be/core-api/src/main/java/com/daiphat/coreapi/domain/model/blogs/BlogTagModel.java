@@ -17,4 +17,6 @@ public class BlogTagModel {
     private LocalDateTime updatedAt;
     private String createdBy;
     private String lastModifiedBy;
+    @Builder.Default
+    private boolean isDeleted = false;
 }

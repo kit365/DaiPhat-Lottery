@@ -14,7 +14,7 @@ public interface BlogCategoryRepositoryPort {
     List<BlogCategoryModel> findAllByIsDeletedFalse();
     boolean existsBySlug(String slug);
     boolean existsBySlugAndIdNot(String slug, Long id);
-    void deleteById(Long id);
     int findMaxDisplayOrderByParentId(Long parentId);
     int findMaxDisplayOrderForRoot();
+    List<BlogCategoryModel> findAllByParentIdAndIsDeletedFalse(Long parentId);
 }

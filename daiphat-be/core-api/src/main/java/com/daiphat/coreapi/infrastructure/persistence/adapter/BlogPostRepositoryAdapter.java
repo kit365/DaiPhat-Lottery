@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -54,5 +55,22 @@ public class BlogPostRepositoryAdapter implements BlogPostRepositoryPort {
     public void incrementViewCount(Long id) {
         blogPostRepository.incrementViewCount(id);
     }
-}
 
+    @Override
+    public void clearCategoryForPosts(List<Long> categoryIds) {
+        var entities = blogPostRepository.findByCategoryIdIn(categoryIds);
+        for (var entity : entities) {
+            entity.setCategory(null);
+        }
+        blogPostRepository.saveAll(entities);
+    }
+
+    @Override
+    public void removeTagFromPosts(Long tagId) {
+        var entities = blogPostRepository.findByTagsId(tagId);
+        for (var entity : entities) {
+            entity.getTags().removeIf(tag -> tag.getId().equals(tagId));
+        }
+        blogPostRepository.saveAll(entities);
+    }
+}

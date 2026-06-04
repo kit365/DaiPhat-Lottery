@@ -25,4 +25,8 @@ public class BlogTagEntity extends BaseEntity {
 
     @Column(nullable = false, unique = true, length = 50)
     private String slug;
+
+    @Column(name = "is_deleted", nullable = false)
+    @Builder.Default
+    private boolean isDeleted = false;
 }

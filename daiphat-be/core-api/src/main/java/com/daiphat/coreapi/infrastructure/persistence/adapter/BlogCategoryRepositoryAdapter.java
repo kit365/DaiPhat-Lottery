@@ -56,11 +56,6 @@ public class BlogCategoryRepositoryAdapter implements BlogCategoryRepositoryPort
     }
 
     @Override
-    public void deleteById(Long id) {
-        blogCategoryRepository.deleteById(id);
-    }
-
-    @Override
     public int findMaxDisplayOrderByParentId(Long parentId) {
         return blogCategoryRepository.findMaxDisplayOrderByParentId(parentId);
     }
@@ -68,5 +63,12 @@ public class BlogCategoryRepositoryAdapter implements BlogCategoryRepositoryPort
     @Override
     public int findMaxDisplayOrderForRoot() {
         return blogCategoryRepository.findMaxDisplayOrderForRoot();
+    }
+
+    @Override
+    public java.util.List<BlogCategoryModel> findAllByParentIdAndIsDeletedFalse(Long parentId) {
+        return blogCategoryRepository.findAllByParentIdAndIsDeletedFalse(parentId).stream()
+                .map(blogCategoryPersistenceMapper::toDomain)
+                .toList();
     }
 }

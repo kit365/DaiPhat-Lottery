@@ -11,10 +11,12 @@ import java.util.Set;
 
 @Repository
 public interface BlogTagRepository extends JpaRepository<BlogTagEntity, Long> {
-    Set<BlogTagEntity> findAllByIdIn(Collection<Long> ids);
-    boolean existsByName(String name);
-    boolean existsBySlug(String slug);
-    boolean existsByNameAndIdNot(String name, Long id);
-    boolean existsBySlugAndIdNot(String slug, Long id);
-    Page<BlogTagEntity> findAllByNameContainingIgnoreCase(String name, Pageable pageable);
+    Set<BlogTagEntity> findAllByIdInAndIsDeletedFalse(Collection<Long> ids);
+    boolean existsByNameAndIsDeletedFalse(String name);
+    boolean existsBySlugAndIsDeletedFalse(String slug);
+    boolean existsByNameAndIdNotAndIsDeletedFalse(String name, Long id);
+    boolean existsBySlugAndIdNotAndIsDeletedFalse(String slug, Long id);
+    Page<BlogTagEntity> findAllByIsDeletedFalseAndNameContainingIgnoreCase(String name, Pageable pageable);
+    Page<BlogTagEntity> findAllByIsDeletedFalse(Pageable pageable);
+    java.util.List<BlogTagEntity> findAllByIsDeletedFalse();
 }
