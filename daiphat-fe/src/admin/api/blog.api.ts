@@ -86,22 +86,9 @@ export const updateBlog = async (id: string | number, data: any): Promise<any> =
 
 /** Xóa bài viết */
 export const deleteBlog = async (id: string | number): Promise<any> => {
-    const response = await apiApp.patch(`${BASE_URL}/delete/${id}`, {}, withAuth());
+    const response = await apiApp.delete(`${BASE_URL}/${id}`, withAuth());
     return response.data;
 };
-
-/** Khôi phục bài viết */
-export const restoreBlog = async (id: string | number): Promise<any> => {
-    const response = await apiApp.patch(`${BASE_URL}/restore/${id}`, {}, withAuth());
-    return response.data;
-};
-
-/** Xóa vĩnh viễn bài viết */
-export const forceDeleteBlog = async (id: string | number): Promise<any> => {
-    const response = await apiApp.delete(`${BASE_URL}/force-delete/${id}`, withAuth());
-    return response.data;
-};
-
 // --- Helper functions ---
 
 /** Generate slug từ title */

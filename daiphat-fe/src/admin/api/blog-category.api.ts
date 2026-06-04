@@ -80,7 +80,7 @@ export const updateCategory = async (id: string | number, data: any): Promise<an
 
 /** Xóa */
 export const deleteCategory = async (id: string | number): Promise<any> => {
-    const response = await apiApp.patch(`${BASE_URL}/${id}/delete`);
+    const response = await apiApp.delete(`${BASE_URL}/${id}`);
     return response.data;
 };
 
