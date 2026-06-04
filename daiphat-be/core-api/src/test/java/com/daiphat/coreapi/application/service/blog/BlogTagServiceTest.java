@@ -58,13 +58,16 @@ class BlogTagServiceTest {
     @Mock
     private BlogTagApplicationMapper blogTagApplicationMapper;
 
+    @Mock
+    private com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort blogPostServicePort;
+
     private BlogTagModel mockTag1;
     private BlogTagModel mockTag2;
     private BlogTagResponse tagResponse1;
 
     @BeforeEach
     void setUp() {
-        blogTagService = new BlogTagService(blogTagRepositoryPort, blogTagApplicationMapper);
+        blogTagService = new BlogTagService(blogTagRepositoryPort, blogTagApplicationMapper, blogPostServicePort);
 
         mockTag1 = BlogTagModel.builder()
                 .id(TAG1_ID)
@@ -273,7 +276,9 @@ class BlogTagServiceTest {
 
         blogTagService.deleteTag(TAG1_ID);
 
-        verify(blogTagRepositoryPort).deleteById(TAG1_ID);
+        assertThat(mockTag1.isDeleted()).isTrue();
+        verify(blogTagRepositoryPort).save(mockTag1);
+        verify(blogPostServicePort).removeTagFromPosts(TAG1_ID);
     }
 
     @Test
@@ -284,5 +289,28 @@ class BlogTagServiceTest {
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.TAG_NOT_FOUND);
+    }
+
+    @Test
+    void deleteTag_alreadyDeleted_success() {
+        mockTag1.setDeleted(true);
+        when(blogTagRepositoryPort.findById(TAG1_ID)).thenReturn(Optional.of(mockTag1));
+
+        blogTagService.deleteTag(TAG1_ID);
+
+        assertThat(mockTag1.isDeleted()).isTrue();
+        verify(blogTagRepositoryPort).save(mockTag1);
+        verify(blogPostServicePort).removeTagFromPosts(TAG1_ID);
+    }
+
+    @Test
+    void deleteTag_noPostsLinked_success() {
+        when(blogTagRepositoryPort.findById(TAG1_ID)).thenReturn(Optional.of(mockTag1));
+
+        blogTagService.deleteTag(TAG1_ID);
+
+        assertThat(mockTag1.isDeleted()).isTrue();
+        verify(blogTagRepositoryPort).save(mockTag1);
+        verify(blogPostServicePort).removeTagFromPosts(TAG1_ID);
     }
 }

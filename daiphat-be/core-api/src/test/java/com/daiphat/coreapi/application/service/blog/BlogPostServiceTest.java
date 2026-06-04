@@ -432,4 +432,91 @@ class BlogPostServiceTest {
         verify(blogPostRepositoryPort).findById(postId);
         verify(blogPostRepositoryPort, never()).incrementViewCount(anyLong());
     }
+
+    @Test
+    @DisplayName("DELETE: Xóa mềm bài viết thành công")
+    void deletePost_success() {
+        // GIVEN
+        Long postId = 100L;
+        BlogPostModel post = BlogPostModel.builder().id(postId).isDeleted(false).build();
+
+        when(blogPostRepositoryPort.findById(postId)).thenReturn(Optional.of(post));
+
+        // WHEN
+        blogPostService.deletePost(postId);
+
+        // THEN
+        verify(blogPostRepositoryPort).findById(postId);
+        verify(blogPostRepositoryPort).save(argThat(model -> model.isDeleted() == true));
+    }
+
+    @Test
+    @DisplayName("DELETE: Xóa bài viết thất bại - Không tìm thấy bài viết")
+    void deletePost_notFound_throwsBlogNotFound() {
+        // GIVEN
+        Long postId = 100L;
+        when(blogPostRepositoryPort.findById(postId)).thenReturn(Optional.empty());
+
+        // WHEN & THEN
+        assertThatThrownBy(() -> blogPostService.deletePost(postId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.BLOG_NOT_FOUND);
+
+        verify(blogPostRepositoryPort).findById(postId);
+        verify(blogPostRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("DELETE: Xóa bài viết đã bị xóa trước đó - idempotent")
+    void deletePost_alreadyDeleted_success() {
+        // GIVEN
+        Long postId = 100L;
+        BlogPostModel post = BlogPostModel.builder().id(postId).isDeleted(true).build();
+        when(blogPostRepositoryPort.findById(postId)).thenReturn(Optional.of(post));
+
+        // WHEN
+        blogPostService.deletePost(postId);
+
+        // THEN
+        verify(blogPostRepositoryPort).findById(postId);
+        verify(blogPostRepositoryPort).save(argThat(model -> model.isDeleted() == true));
+    }
+
+    @Test
+    @DisplayName("CLEAR CATEGORY: Gỡ liên kết danh mục cho bài viết thành công")
+    void clearCategoryForPosts_success() {
+        // GIVEN
+        List<Long> categoryIds = List.of(1L, 2L);
+
+        // WHEN
+        blogPostService.clearCategoryForPosts(categoryIds);
+
+        // THEN
+        verify(blogPostRepositoryPort).clearCategoryForPosts(categoryIds);
+    }
+
+    @Test
+    @DisplayName("CLEAR CATEGORY: Danh sách rỗng hoặc null - no-op")
+    void clearCategoryForPosts_emptyOrNull_noOp() {
+        // WHEN
+        blogPostService.clearCategoryForPosts(List.of());
+        blogPostService.clearCategoryForPosts(null);
+
+        // THEN
+        verify(blogPostRepositoryPort, never()).clearCategoryForPosts(any());
+    }
+
+    @Test
+    @DisplayName("CLEAR CATEGORY: Hoạt động idempotent khi ngắt liên kết")
+    void clearCategoryForPosts_idempotent() {
+        // GIVEN
+        List<Long> categoryIds = List.of(1L);
+
+        // WHEN
+        blogPostService.clearCategoryForPosts(categoryIds);
+
+        // THEN
+        verify(blogPostRepositoryPort).clearCategoryForPosts(categoryIds);
+    }
 }
