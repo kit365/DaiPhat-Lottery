@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Header } from '../components/layout/header';
-import { BlogCategoryWidget, BlogFeaturedWidget, BuyTicketBanner } from '../components/blog/BlogSidebar';
+import { RightSidebarBlog } from '../components/blog/BlogSidebar';
 
 const SortDropdown = () => {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -239,11 +239,7 @@ export const BlogListPage = () => {
             </div>
 
             {/* Right Content (Sidebar) */}
-            <div className="w-full lg:w-[340px] shrink-0">
-              <BlogCategoryWidget activeCategoryName="Tất cả bài viết" />
-              <BlogFeaturedWidget />
-              <BuyTicketBanner />
-            </div>
+            <RightSidebarBlog activeCategoryName="Tất cả bài viết" />
           </div>
         </div>
       </main>

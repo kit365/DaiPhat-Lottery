@@ -21,11 +21,10 @@ export const BlogCategoryWidget = ({ activeCategoryName = 'Tất cả bài viế
           const isLast = index === CATEGORIES.length - 1;
           return (
             <li key={cat.id} className={isLast ? '' : 'border-b border-[#F4F6F8]'}>
-              <Link 
-                to="/blogs" 
-                className={`flex items-center justify-between px-4 py-2.5 rounded-lg transition-colors group ${
-                  isActive ? 'bg-[#FFF4F4] text-[#ee1314]' : 'hover:bg-[#FAFBFC] text-[#454F5B]'
-                }`}
+              <Link
+                to="/blogs"
+                className={`flex items-center justify-between px-4 py-2.5 rounded-lg transition-colors group ${isActive ? 'bg-[#FFF4F4] text-[#ee1314]' : 'hover:bg-[#FAFBFC] text-[#454F5B]'
+                  }`}
               >
                 <div className={`flex items-center gap-3 text-[14px] ${isActive ? 'font-semibold' : 'font-medium group-hover:text-[#212B36]'}`}>
                   <i className={`${cat.icon} w-4 text-center ${isActive ? '' : 'text-[#919EAB]'}`}></i> {cat.name}
@@ -190,3 +189,13 @@ export const BuyTicketBanner = () => (
     </div>
   </Link>
 );
+
+export const RightSidebarBlog = ({ activeCategoryName = 'Tất cả bài viết', hideCategoryCount = false }: { activeCategoryName?: string, hideCategoryCount?: boolean }) => {
+  return (
+    <div className="w-full lg:w-[340px] shrink-0">
+      <BlogCategoryWidget activeCategoryName={activeCategoryName} hideCount={hideCategoryCount} />
+      <BlogFeaturedWidget />
+      <BuyTicketBanner />
+    </div>
+  );
+};
