@@ -4,7 +4,9 @@ import com.daiphat.coreapi.application.dto.request.blog.CreateBlogCategoryReques
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryTreeResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryPublicResponse;
 import com.daiphat.coreapi.application.mapper.blog.BlogCategoryApplicationMapper;
+import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
 import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
 import com.daiphat.coreapi.application.port.out.blog.BlogCategoryRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -30,7 +32,7 @@ public class BlogCategoryService implements BlogCategoryServicePort {
 
     private final BlogCategoryRepositoryPort blogCategoryRepositoryPort;
     private final BlogCategoryApplicationMapper blogCategoryApplicationMapper;
-    private final com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort blogPostServicePort;
+    private final BlogPostServicePort blogPostServicePort;
 
     @Override
     @Transactional(readOnly = true)
@@ -86,6 +88,13 @@ public class BlogCategoryService implements BlogCategoryServicePort {
         BlogCategoryModel category = blogCategoryRepositoryPort.findById(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.CATEGORY_NOT_FOUND));
         return blogCategoryApplicationMapper.toResponse(category);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BlogCategoryModel getCategoryModelById(Long id) {
+        return blogCategoryRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.CATEGORY_NOT_FOUND));
     }
 
     @Override
@@ -186,5 +195,21 @@ public class BlogCategoryService implements BlogCategoryServicePort {
         for (BlogCategoryModel child : children) {
             softDeleteCategoryRecursively(child, deletedCategoryIds);
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BlogCategoryPublicResponse> getPublicCategories() {
+        List<BlogCategoryModel> all = blogCategoryRepositoryPort.findAllByIsDeletedFalse();
+        return all.stream()
+                .filter(c -> c.getStatus() == CategoryStatus.ACTIVE)
+                .map(c -> BlogCategoryPublicResponse.builder()
+                        .id(c.getId())
+                        .name(c.getName())
+                        .slug(c.getSlug())
+                        .avatar(c.getAvatar())
+                        .postCount(blogPostServicePort.countPublishedPostsByCategoryId(c.getId()))
+                        .build())
+                .toList();
     }
 }

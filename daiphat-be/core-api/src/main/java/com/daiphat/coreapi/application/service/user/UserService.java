@@ -32,6 +32,7 @@ import com.daiphat.coreapi.shared.util.SearchConstants;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.StorageUtils;
+import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,8 +54,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class UserService implements UserServicePort {
-
-    private static final String PROFILE_IMAGE_FOLDER = "profiles";
 
     private final UserRepositoryPort userRepositoryPort;
     private final UserApplicationMapper userApplicationMapper;
@@ -225,7 +224,7 @@ public class UserService implements UserServicePort {
                 request.data(),
                 request.fileName(),
                 request.contentType(),
-                PROFILE_IMAGE_FOLDER
+                StorageFolderConstants.PROFILE_IMAGE_FOLDER
         ));
 
         if (oldPublicId != null && !oldPublicId.isBlank()) {

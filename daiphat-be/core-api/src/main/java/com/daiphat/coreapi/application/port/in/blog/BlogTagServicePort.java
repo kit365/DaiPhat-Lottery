@@ -5,6 +5,8 @@ import com.daiphat.coreapi.application.dto.response.blog.BlogTagResponse;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 
 import java.util.List;
+import java.util.Set;
+import com.daiphat.coreapi.domain.model.blogs.BlogTagModel;
 
 public interface BlogTagServicePort {
     List<BlogTagResponse> getAllTags();
@@ -13,4 +15,5 @@ public interface BlogTagServicePort {
     BlogTagResponse createTag(CreateBlogTagRequest request);
     BlogTagResponse updateTag(Long id, CreateBlogTagRequest request);
     void deleteTag(Long id);
+    Set<BlogTagModel> getTagModelsByIds(Set<Long> ids);
 }

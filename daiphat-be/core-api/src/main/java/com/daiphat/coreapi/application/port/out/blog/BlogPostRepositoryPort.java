@@ -23,8 +23,13 @@ public interface BlogPostRepositoryPort {
     );
 
 
+    boolean existsById(Long id);
+
     void incrementViewCount(Long id);
+    void incrementViewCountBy(Long id, Integer increment);
 
     void clearCategoryForPosts(List<Long> categoryIds);
     void removeTagFromPosts(Long tagId);
+
+    long countPublishedPostsByCategoryId(Long categoryId);
 }

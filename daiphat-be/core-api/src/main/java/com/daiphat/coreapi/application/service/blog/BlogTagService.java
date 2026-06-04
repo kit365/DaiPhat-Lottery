@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.blog;
 import com.daiphat.coreapi.application.dto.request.blog.CreateBlogTagRequest;
 import com.daiphat.coreapi.application.dto.response.blog.BlogTagResponse;
 import com.daiphat.coreapi.application.mapper.blog.BlogTagApplicationMapper;
+import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
 import com.daiphat.coreapi.application.port.in.blog.BlogTagServicePort;
 import com.daiphat.coreapi.application.port.out.blog.BlogTagRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -26,7 +28,7 @@ public class BlogTagService implements BlogTagServicePort {
 
     private final BlogTagRepositoryPort blogTagRepositoryPort;
     private final BlogTagApplicationMapper blogTagApplicationMapper;
-    private final com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort blogPostServicePort;
+    private final BlogPostServicePort blogPostServicePort;
 
     @Override
     @Transactional(readOnly = true)
@@ -126,5 +128,11 @@ public class BlogTagService implements BlogTagServicePort {
         tag.setDeleted(true);
         blogTagRepositoryPort.save(tag);
         blogPostServicePort.removeTagFromPosts(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<BlogTagModel> getTagModelsByIds(Set<Long> ids) {
+        return blogTagRepositoryPort.findAllByIds(ids);
     }
 }

@@ -5,16 +5,20 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostSummaryResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostTypeResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogPostStatusResponse;
 import com.daiphat.coreapi.domain.model.enums.blog.PostType;
+import com.daiphat.coreapi.domain.model.enums.blog.PostStatus;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.mapper.blog.BlogPostApplicationMapper;
 import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
-import com.daiphat.coreapi.application.port.out.blog.BlogCategoryRepositoryPort;
+import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
+import com.daiphat.coreapi.application.port.in.blog.BlogTagServicePort;
 import com.daiphat.coreapi.application.port.out.blog.BlogPostRepositoryPort;
-import com.daiphat.coreapi.application.port.out.blog.BlogTagRepositoryPort;
+import com.daiphat.coreapi.application.port.out.blog.BlogViewCachePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
+import org.springframework.context.annotation.Lazy;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.blogs.BlogCategoryModel;
 import com.daiphat.coreapi.domain.model.blogs.BlogPostModel;
@@ -22,6 +26,7 @@ import com.daiphat.coreapi.domain.model.blogs.BlogTagModel;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.StorageUtils;
+import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -35,39 +40,48 @@ import java.util.List;
 import java.util.Set;
 
 @Service
-@RequiredArgsConstructor
 public class BlogPostService implements BlogPostServicePort {
 
     private final BlogPostRepositoryPort blogPostRepositoryPort;
-    private final BlogCategoryRepositoryPort blogCategoryRepositoryPort;
-    private final BlogTagRepositoryPort blogTagRepositoryPort;
+    private final BlogCategoryServicePort blogCategoryServicePort;
+    private final BlogTagServicePort blogTagServicePort;
     private final BlogPostApplicationMapper blogPostApplicationMapper;
     private final StoragePort storagePort;
+    private final BlogViewCachePort blogViewCachePort;
 
-    private static final String ROOT_BLOG_FOLDER = "blogs";
+    public BlogPostService(
+            BlogPostRepositoryPort blogPostRepositoryPort,
+            @Lazy BlogCategoryServicePort blogCategoryServicePort,
+            @Lazy BlogTagServicePort blogTagServicePort,
+            BlogPostApplicationMapper blogPostApplicationMapper,
+            StoragePort storagePort,
+            BlogViewCachePort blogViewCachePort
+    ) {
+        this.blogPostRepositoryPort = blogPostRepositoryPort;
+        this.blogCategoryServicePort = blogCategoryServicePort;
+        this.blogTagServicePort = blogTagServicePort;
+        this.blogPostApplicationMapper = blogPostApplicationMapper;
+        this.storagePort = storagePort;
+        this.blogViewCachePort = blogViewCachePort;
+    }
 
     @Override
     @Transactional
     public BlogPostResponse createPost(CreateBlogPostRequest request) {
-        // 1. Kiểm tra slug duy nhất
         if (blogPostRepositoryPort.existsBySlug(request.slug())) {
             throw new DomainException(ErrorCode.SLUG_EXISTED);
         }
 
-        // 2. Tìm danh mục bài viết
-        BlogCategoryModel category = blogCategoryRepositoryPort.findById(request.categoryId())
-                .orElseThrow(() -> new DomainException(ErrorCode.CATEGORY_NOT_FOUND));
-
-        // 3. Tìm danh sách tags
+        BlogCategoryModel category = blogCategoryServicePort.getCategoryModelById(request.categoryId());
+        
         Set<BlogTagModel> tags = Collections.emptySet();
         if (request.tagIds() != null && !request.tagIds().isEmpty()) {
-            tags = blogTagRepositoryPort.findAllByIds(request.tagIds());
+            tags = blogTagServicePort.getTagModelsByIds(request.tagIds());
             if (tags.size() != request.tagIds().size()) {
                 throw new DomainException(ErrorCode.TAG_NOT_FOUND);
             }
         }
 
-        // 4. Map request sang domain model
         BlogPostModel postModel = blogPostApplicationMapper.toModel(request);
         postModel.setCategory(category);
         postModel.setTags(tags);
@@ -86,11 +100,11 @@ public class BlogPostService implements BlogPostServicePort {
     public StorageResult uploadImage(UploadRequest request, String folder) {
         StorageUtils.validateImageUpload(request);
 
-        String subFolder = "blog-content";
-        if ("category".equalsIgnoreCase(folder)) {
-            subFolder = "category";
+        String subFolder = StorageFolderConstants.BLOG_CONTENT_SUBFOLDER;
+        if (StorageFolderConstants.BLOG_CATEGORY_SUBFOLDER.equalsIgnoreCase(folder)) {
+            subFolder = StorageFolderConstants.BLOG_CATEGORY_SUBFOLDER;
         }
-        String targetFolder = ROOT_BLOG_FOLDER + "/" + subFolder;
+        String targetFolder = StorageFolderConstants.BLOG_ROOT_FOLDER + "/" + subFolder;
 
         UploadRequest blogsRequest = new UploadRequest(
                 request.data(),
@@ -113,6 +127,16 @@ public class BlogPostService implements BlogPostServicePort {
     }
 
     @Override
+    public List<BlogPostStatusResponse> getBlogStatuses() {
+        return Arrays.stream(PostStatus.values())
+                .map(status -> BlogPostStatusResponse.builder()
+                        .code(status.getCode())
+                        .name(status.getLabel())
+                        .build())
+                .toList();
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public PageResponse<BlogPostSummaryResponse> getPosts(
             int page,
@@ -126,7 +150,6 @@ public class BlogPostService implements BlogPostServicePort {
             String direction,
             boolean includeDeleted
     ) {
-        // Chỉ cho phép sort theo các trường hợp lệ; fallback về createdAt
         String resolvedSortBy = resolvePostSortField(sortBy);
         Sort sort = SortUtils.createSort(resolvedSortBy, direction);
         Pageable pageable = PageableUtils.of(page, limit, sort);
@@ -167,12 +190,13 @@ public class BlogPostService implements BlogPostServicePort {
     }
 
     @Override
-    @Transactional
     public void incrementViewCount(Long id) {
-        if (blogPostRepositoryPort.findById(id).isEmpty()) {
-            throw new DomainException(ErrorCode.BLOG_NOT_FOUND);
+        if (!blogViewCachePort.hasViewCount(id)) {
+            if (!blogPostRepositoryPort.existsById(id)) {
+                throw new DomainException(ErrorCode.BLOG_NOT_FOUND);
+            }
         }
-        blogPostRepositoryPort.incrementViewCount(id);
+        blogViewCachePort.incrementViewCount(id);
     }
 
     @Override
@@ -196,5 +220,11 @@ public class BlogPostService implements BlogPostServicePort {
     @Transactional
     public void removeTagFromPosts(Long tagId) {
         blogPostRepositoryPort.removeTagFromPosts(tagId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countPublishedPostsByCategoryId(Long categoryId) {
+        return blogPostRepositoryPort.countPublishedPostsByCategoryId(categoryId);
     }
 }

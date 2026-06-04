@@ -54,10 +54,10 @@ export const CartPage = () => {
                         <div className="flex items-center gap-2 text-[13px] text-[#637381] mb-2 font-medium">
                             <Link to="/" className="hover:text-[#ee1314] transition-colors">Trang chủ</Link>
                             <ChevronRight size={14} />
-                            <span className="text-[#212B36] font-bold">Giỏ hàng</span>
+                            <span className="text-[#212B36] font-medium">Giỏ hàng</span>
                         </div>
-                        <h1 className="text-[32px] md:text-[40px] font-extrabold text-[#11223F] mb-1 font-client-display tracking-tight">Giỏ hàng</h1>
-                        <p className="text-[15px] text-[#637381]">Kiểm tra lại vé số trước khi thanh toán</p>
+                        <h1 className="text-[24px] md:text-[28px] font-bold text-[#212B36] mb-1 tracking-tight">Giỏ hàng</h1>
+                        <p className="text-[13px] text-[#637381]">Kiểm tra lại vé số trước khi thanh toán</p>
                     </div>
                 </div>
             </div>

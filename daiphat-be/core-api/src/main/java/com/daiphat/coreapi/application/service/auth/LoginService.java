@@ -27,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 
 import java.time.Duration;
 
@@ -34,8 +35,6 @@ import java.time.Duration;
 @RequiredArgsConstructor
 @Slf4j
 public class LoginService implements LoginServicePort {
-
-    private static final String PROFILE_IMAGE_FOLDER = "profiles";
 
     private final UserLookupServicePort userLookupService;
     private final UserRepositoryPort userRepositoryPort;
@@ -176,7 +175,7 @@ public class LoginService implements LoginServicePort {
                     avatar.data(),
                     avatar.fileName(),
                     avatar.contentType(),
-                    PROFILE_IMAGE_FOLDER
+                    StorageFolderConstants.PROFILE_IMAGE_FOLDER
             ));
             user.replaceAvatar(uploaded.publicId(), uploaded.url());
         } catch (RuntimeException e) {
