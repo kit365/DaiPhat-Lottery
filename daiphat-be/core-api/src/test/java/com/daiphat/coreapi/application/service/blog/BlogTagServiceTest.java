@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.request.blog.CreateBlogTagRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogTagResponse;
 import com.daiphat.coreapi.application.mapper.blog.BlogTagApplicationMapper;
+import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
 import com.daiphat.coreapi.application.port.in.blog.BlogTagServicePort;
 import com.daiphat.coreapi.application.port.out.blog.BlogTagRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -59,7 +60,7 @@ class BlogTagServiceTest {
     private BlogTagApplicationMapper blogTagApplicationMapper;
 
     @Mock
-    private com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort blogPostServicePort;
+    private BlogPostServicePort blogPostServicePort;
 
     private BlogTagModel mockTag1;
     private BlogTagModel mockTag2;

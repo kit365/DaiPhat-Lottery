@@ -4,8 +4,10 @@ import com.daiphat.coreapi.application.dto.request.blog.CreateBlogCategoryReques
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryTreeResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryPublicResponse;
 import com.daiphat.coreapi.application.mapper.blog.BlogCategoryApplicationMapper;
 import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
+import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
 import com.daiphat.coreapi.application.port.out.blog.BlogCategoryRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -73,7 +75,7 @@ class BlogCategoryServiceTest {
     private BlogCategoryApplicationMapper blogCategoryApplicationMapper;
 
     @Mock
-    private com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort blogPostServicePort;
+    private BlogPostServicePort blogPostServicePort;
 
     private BlogCategoryModel rootCategory;
     private BlogCategoryModel childCategory;
@@ -420,5 +422,35 @@ class BlogCategoryServiceTest {
         assertThat(rootCategory.getStatus()).isEqualTo(CategoryStatus.INACTIVE);
         verify(blogCategoryRepositoryPort).save(rootCategory);
         verify(blogPostServicePort).clearCategoryForPosts(List.of(ROOT_ID));
+    }
+
+    @Test
+    @DisplayName("getPublicCategories success")
+    void getPublicCategories_success() {
+        List<BlogCategoryModel> allCategories = List.of(rootCategory, childCategory);
+        when(blogCategoryRepositoryPort.findAllByIsDeletedFalse()).thenReturn(allCategories);
+        when(blogPostServicePort.countPublishedPostsByCategoryId(ROOT_ID)).thenReturn(10L);
+        when(blogPostServicePort.countPublishedPostsByCategoryId(CHILD_ID)).thenReturn(5L);
+
+        List<BlogCategoryPublicResponse> result = blogCategoryService.getPublicCategories();
+
+        assertThat(result).hasSize(2);
+
+        BlogCategoryPublicResponse rootRes = result.get(0);
+        assertThat(rootRes.id()).isEqualTo(ROOT_ID);
+        assertThat(rootRes.name()).isEqualTo(ROOT_NAME);
+        assertThat(rootRes.slug()).isEqualTo(ROOT_SLUG);
+        assertThat(rootRes.avatar()).isEqualTo(ROOT_AVATAR);
+        assertThat(rootRes.postCount()).isEqualTo(10L);
+
+        BlogCategoryPublicResponse childRes = result.get(1);
+        assertThat(childRes.id()).isEqualTo(CHILD_ID);
+        assertThat(childRes.name()).isEqualTo(CHILD_NAME);
+        assertThat(childRes.slug()).isEqualTo(CHILD_SLUG);
+        assertThat(childRes.postCount()).isEqualTo(5L);
+
+        verify(blogCategoryRepositoryPort).findAllByIsDeletedFalse();
+        verify(blogPostServicePort).countPublishedPostsByCategoryId(ROOT_ID);
+        verify(blogPostServicePort).countPublishedPostsByCategoryId(CHILD_ID);
     }
 }
