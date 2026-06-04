@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getBlogs, createBlog, getBlogById, updateBlog, deleteBlog, restoreBlog, forceDeleteBlog, getBlogTags, getAllBlogTags, createBlogTag, deleteBlogTag, updateBlogTag, getBlogTypes } from '../../../api/blog.api';
+import { getBlogs, createBlog, getBlogById, updateBlog, deleteBlog, getBlogTags, getAllBlogTags, createBlogTag, deleteBlogTag, updateBlogTag, getBlogTypes } from '../../../api/blog.api';
 import { ApiResponse } from '../../../config/type';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 
@@ -103,28 +103,6 @@ export const useDeleteBlog = () => {
 
     return useMutation({
         mutationFn: deleteBlog,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOGS] });
-        },
-    });
-};
-
-export const useRestoreBlog = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: restoreBlog,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOGS] });
-        },
-    });
-};
-
-export const useForceDeleteBlog = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: forceDeleteBlog,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOGS] });
         },
