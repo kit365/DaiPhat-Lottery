@@ -4,9 +4,10 @@ import com.daiphat.coreapi.application.dto.request.blog.CreateBlogPostRequest;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
 import com.daiphat.coreapi.application.mapper.blog.BlogPostApplicationMapper;
 import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
-import com.daiphat.coreapi.application.port.out.blog.BlogCategoryRepositoryPort;
+import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
+import com.daiphat.coreapi.application.port.in.blog.BlogTagServicePort;
 import com.daiphat.coreapi.application.port.out.blog.BlogPostRepositoryPort;
-import com.daiphat.coreapi.application.port.out.blog.BlogTagRepositoryPort;
+import com.daiphat.coreapi.application.port.out.blog.BlogViewCachePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -57,10 +58,10 @@ class BlogPostServiceTest {
     private BlogPostRepositoryPort blogPostRepositoryPort;
 
     @Mock
-    private BlogCategoryRepositoryPort blogCategoryRepositoryPort;
+    private BlogCategoryServicePort blogCategoryServicePort;
 
     @Mock
-    private BlogTagRepositoryPort blogTagRepositoryPort;
+    private BlogTagServicePort blogTagServicePort;
 
     @Mock
     private BlogPostApplicationMapper blogPostApplicationMapper;
@@ -68,14 +69,18 @@ class BlogPostServiceTest {
     @Mock
     private StoragePort storagePort;
 
+    @Mock
+    private BlogViewCachePort blogViewCachePort;
+
     @BeforeEach
     void setUp() {
         blogPostService = new BlogPostService(
                 blogPostRepositoryPort,
-                blogCategoryRepositoryPort,
-                blogTagRepositoryPort,
+                blogCategoryServicePort,
+                blogTagServicePort,
                 blogPostApplicationMapper,
-                storagePort
+                storagePort,
+                blogViewCachePort
         );
     }
 
@@ -128,8 +133,8 @@ class BlogPostServiceTest {
                 .build();
 
         when(blogPostRepositoryPort.existsBySlug(DEFAULT_SLUG)).thenReturn(false);
-        when(blogCategoryRepositoryPort.findById(CATEGORY_ID)).thenReturn(Optional.of(category));
-        when(blogTagRepositoryPort.findAllByIds(Set.of(TAG_ID_1, TAG_ID_2))).thenReturn(tags);
+        when(blogCategoryServicePort.getCategoryModelById(CATEGORY_ID)).thenReturn(category);
+        when(blogTagServicePort.getTagModelsByIds(Set.of(TAG_ID_1, TAG_ID_2))).thenReturn(tags);
         when(blogPostApplicationMapper.toModel(request)).thenReturn(postModel);
         when(blogPostRepositoryPort.save(postModel)).thenReturn(savedModel);
         when(blogPostApplicationMapper.toResponse(savedModel)).thenReturn(expectedResponse);
@@ -202,7 +207,7 @@ class BlogPostServiceTest {
                 .build();
 
         when(blogPostRepositoryPort.existsBySlug(DEFAULT_SLUG)).thenReturn(false);
-        when(blogCategoryRepositoryPort.findById(CATEGORY_ID)).thenReturn(Optional.of(category));
+        when(blogCategoryServicePort.getCategoryModelById(CATEGORY_ID)).thenReturn(category);
         when(blogPostApplicationMapper.toModel(request)).thenReturn(postModel);
         when(blogPostRepositoryPort.save(postModel)).thenReturn(savedModel);
         when(blogPostApplicationMapper.toResponse(savedModel)).thenReturn(expectedResponse);
@@ -249,7 +254,8 @@ class BlogPostServiceTest {
                 .build();
 
         when(blogPostRepositoryPort.existsBySlug(DEFAULT_SLUG)).thenReturn(false);
-        when(blogCategoryRepositoryPort.findById(CATEGORY_ID)).thenReturn(Optional.empty());
+        when(blogCategoryServicePort.getCategoryModelById(CATEGORY_ID))
+                .thenThrow(new DomainException(ErrorCode.CATEGORY_NOT_FOUND));
 
         // WHEN & THEN
         assertThatThrownBy(() -> blogPostService.createPost(request))
@@ -274,9 +280,9 @@ class BlogPostServiceTest {
         BlogTagModel tag1 = BlogTagModel.builder().id(TAG_ID_1).build();
 
         when(blogPostRepositoryPort.existsBySlug(DEFAULT_SLUG)).thenReturn(false);
-        when(blogCategoryRepositoryPort.findById(CATEGORY_ID)).thenReturn(Optional.of(category));
+        when(blogCategoryServicePort.getCategoryModelById(CATEGORY_ID)).thenReturn(category);
         // Chỉ tìm thấy 1 trong 2 tag
-        when(blogTagRepositoryPort.findAllByIds(Set.of(TAG_ID_1, TAG_ID_2))).thenReturn(Set.of(tag1));
+        when(blogTagServicePort.getTagModelsByIds(Set.of(TAG_ID_1, TAG_ID_2))).thenReturn(Set.of(tag1));
 
         // WHEN & THEN
         assertThatThrownBy(() -> blogPostService.createPost(request))
@@ -399,20 +405,38 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("VIEW COUNT: Tăng lượt xem thành công khi bài viết tồn tại")
-    void incrementViewCount_success() {
+    @DisplayName("VIEW COUNT: Tăng lượt xem thành công khi bài viết tồn tại và chưa có trong cache")
+    void incrementViewCount_success_notInCache() {
         // GIVEN
         Long postId = 100L;
-        BlogPostModel post = BlogPostModel.builder().id(postId).title("Hot Post").build();
 
-        when(blogPostRepositoryPort.findById(postId)).thenReturn(Optional.of(post));
+        when(blogViewCachePort.hasViewCount(postId)).thenReturn(false);
+        when(blogPostRepositoryPort.existsById(postId)).thenReturn(true);
 
         // WHEN
         blogPostService.incrementViewCount(postId);
 
         // THEN
-        verify(blogPostRepositoryPort).findById(postId);
-        verify(blogPostRepositoryPort).incrementViewCount(postId);
+        verify(blogViewCachePort).hasViewCount(postId);
+        verify(blogPostRepositoryPort).existsById(postId);
+        verify(blogViewCachePort).incrementViewCount(postId);
+    }
+
+    @Test
+    @DisplayName("VIEW COUNT: Tăng lượt xem thành công và bỏ qua truy vấn DB khi đã có sẵn trong cache")
+    void incrementViewCount_success_alreadyInCache() {
+        // GIVEN
+        Long postId = 100L;
+
+        when(blogViewCachePort.hasViewCount(postId)).thenReturn(true);
+
+        // WHEN
+        blogPostService.incrementViewCount(postId);
+
+        // THEN
+        verify(blogViewCachePort).hasViewCount(postId);
+        verify(blogPostRepositoryPort, never()).existsById(anyLong());
+        verify(blogViewCachePort).incrementViewCount(postId);
     }
 
     @Test
@@ -421,7 +445,8 @@ class BlogPostServiceTest {
         // GIVEN
         Long postId = 100L;
 
-        when(blogPostRepositoryPort.findById(postId)).thenReturn(Optional.empty());
+        when(blogViewCachePort.hasViewCount(postId)).thenReturn(false);
+        when(blogPostRepositoryPort.existsById(postId)).thenReturn(false);
 
         // WHEN & THEN
         assertThatThrownBy(() -> blogPostService.incrementViewCount(postId))
@@ -429,8 +454,9 @@ class BlogPostServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.BLOG_NOT_FOUND);
 
-        verify(blogPostRepositoryPort).findById(postId);
-        verify(blogPostRepositoryPort, never()).incrementViewCount(anyLong());
+        verify(blogViewCachePort).hasViewCount(postId);
+        verify(blogPostRepositoryPort).existsById(postId);
+        verify(blogViewCachePort, never()).incrementViewCount(anyLong());
     }
 
     @Test
@@ -518,5 +544,20 @@ class BlogPostServiceTest {
 
         // THEN
         verify(blogPostRepositoryPort).clearCategoryForPosts(categoryIds);
+    }
+
+    @Test
+    @DisplayName("COUNT PUBLISHED POSTS: Đếm số bài viết công khai thành công")
+    void countPublishedPostsByCategoryId_success() {
+        // GIVEN
+        Long categoryId = 1L;
+        when(blogPostRepositoryPort.countPublishedPostsByCategoryId(categoryId)).thenReturn(15L);
+
+        // WHEN
+        long result = blogPostService.countPublishedPostsByCategoryId(categoryId);
+
+        // THEN
+        assertThat(result).isEqualTo(15L);
+        verify(blogPostRepositoryPort).countPublishedPostsByCategoryId(categoryId);
     }
 }
