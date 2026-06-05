@@ -15,6 +15,7 @@ import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { confirmAction, confirmDelete } from "../../../utils/swal";
 import { useDeleteBlog, useUpdateBlog } from "../hooks/useBlog";
+import { BLOG_STATUS } from "../../../../types/blogs.type";
 
 interface BlogListProps {
     blogs: any[];
@@ -39,13 +40,13 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
     const { mutate: deleteBlog } = useDeleteBlog();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [selectedBlogId, setSelectedBlogId] = useState<string | null>(null);
-    const [selectedBlogStatus, setSelectedBlogStatus] = useState<string>("draft");
+    const [selectedBlogStatus, setSelectedBlogStatus] = useState<string>(BLOG_STATUS.DRAFT);
     const { mutate: updateBlog } = useUpdateBlog();
 
     const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, id: string, status?: string) => {
         setAnchorEl(event.currentTarget);
         setSelectedBlogId(id);
-        setSelectedBlogStatus((status || "draft").toLowerCase());
+        setSelectedBlogStatus((status || BLOG_STATUS.DRAFT).toLowerCase());
     };
 
     const handleCloseMenu = () => {
@@ -81,25 +82,25 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
     };
 
     const STATUS_ACTIONS: Record<string, { value: string; label: string; color?: string; icon: "publish" | "schedule" | "draft" | "unpublish" }[]> = {
-        draft: [
-            { value: "published", label: "Đăng bài", color: "var(--palette-success-dark)", icon: "publish" },
-            { value: "scheduled", label: "Lên lịch", color: "var(--palette-info-dark)", icon: "schedule" },
+        [BLOG_STATUS.DRAFT]: [
+            { value: BLOG_STATUS.PUBLISHED, label: "Đăng bài", color: "var(--palette-success-dark)", icon: "publish" },
+            { value: BLOG_STATUS.SCHEDULED, label: "Lên lịch", color: "var(--palette-info-dark)", icon: "schedule" },
         ],
-        unpublished: [
-            { value: "published", label: "Đăng lại", color: "var(--palette-success-dark)", icon: "publish" },
-            { value: "scheduled", label: "Lên lịch", color: "var(--palette-info-dark)", icon: "schedule" },
+        [BLOG_STATUS.UNPUBLISHED]: [
+            { value: BLOG_STATUS.PUBLISHED, label: "Đăng lại", color: "var(--palette-success-dark)", icon: "publish" },
+            { value: BLOG_STATUS.SCHEDULED, label: "Lên lịch", color: "var(--palette-info-dark)", icon: "schedule" },
         ],
-        published: [{ value: "unpublished", label: "Gỡ bài xuống", color: "var(--palette-text-primary)", icon: "unpublish" }],
-        scheduled: [
-            { value: "published", label: "Đăng ngay", color: "var(--palette-success-dark)", icon: "publish" },
-            { value: "draft", label: "Hủy lịch", color: "var(--palette-warning-dark)", icon: "draft" },
+        [BLOG_STATUS.PUBLISHED]: [{ value: BLOG_STATUS.UNPUBLISHED, label: "Gỡ bài xuống", color: "var(--palette-text-primary)", icon: "unpublish" }],
+        [BLOG_STATUS.SCHEDULED]: [
+            { value: BLOG_STATUS.PUBLISHED, label: "Đăng ngay", color: "var(--palette-success-dark)", icon: "publish" },
+            { value: BLOG_STATUS.DRAFT, label: "Hủy lịch", color: "var(--palette-warning-dark)", icon: "draft" },
         ],
     };
 
     const handleChangeStatus = (newStatus: string) => {
         if (!selectedBlogId) return;
 
-        if (newStatus === "scheduled") {
+        if (newStatus === BLOG_STATUS.SCHEDULED) {
             navigate(`/${prefixAdmin}/blog/edit/${selectedBlogId}`);
             handleCloseMenu();
             return;
@@ -111,7 +112,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                     id: selectedBlogId,
                     data: {
                         status: newStatus,
-                        scheduledAt: newStatus === "published" || newStatus === "draft" || newStatus === "unpublished"
+                        scheduledAt: newStatus === BLOG_STATUS.PUBLISHED || newStatus === BLOG_STATUS.DRAFT || newStatus === BLOG_STATUS.UNPUBLISHED
                             ? null
                             : undefined,
                     }
@@ -127,7 +128,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
             handleCloseMenu();
         };
 
-        if (newStatus === "unpublished") {
+        if (newStatus === BLOG_STATUS.UNPUBLISHED) {
             confirmAction(
                 "Xác nhận gỡ bài?",
                 "Hành động này sẽ ẩn bài viết khỏi trang Khách hàng. Xác nhận gỡ?",
@@ -142,14 +143,14 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'published':
+            case BLOG_STATUS.PUBLISHED:
                 return { color: "#006C9C", bgColor: "#00B8D929", label: t("admin.blog.status.published") };
             case 'archived':
-            case 'unpublished':
+            case BLOG_STATUS.UNPUBLISHED:
                 return { color: "var(--palette-error-main)", bgColor: "var(--palette-error-main)29", label: "Đã gỡ xuống" };
-            case 'scheduled':
+            case BLOG_STATUS.SCHEDULED:
                 return { color: "var(--palette-info-dark)", bgColor: "var(--palette-info-main)29", label: "Hẹn giờ" };
-            case 'draft':
+            case BLOG_STATUS.DRAFT:
             default:
                 return { color: "#B76E00", bgColor: "#FFAB0029", label: t("admin.blog.status.draft") };
         }
@@ -215,8 +216,11 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
             width: 180,
             valueGetter: (value) => value ? new Date(value) : null,
             renderCell: (params) => {
-                if (!params.value) return null;
-                const dateObj = dayjs(params.value);
+                const status = (params.row.status || "").toLowerCase();
+                const scheduleTime = params.row.scheduledAt;
+                const displayValue = status === BLOG_STATUS.SCHEDULED && scheduleTime ? scheduleTime : params.value;
+                if (!displayValue) return null;
+                const dateObj = dayjs(displayValue);
                 if (!dateObj.isValid()) return null;
                 return (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: "4px" }}>
@@ -224,7 +228,9 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                             {dateObj.format('DD MMM, YYYY')}
                         </span>
                         <span style={{ fontSize: "0.75rem", color: "var(--palette-text-secondary)", textTransform: 'lowercase' }}>
-                            {dateObj.format('hh:mm A')}
+                            {status === BLOG_STATUS.SCHEDULED
+                                ? `dự kiến ${dateObj.format('HH:mm')}`
+                                : dateObj.format('hh:mm A')}
                         </span>
                     </Box>
                 );
@@ -560,7 +566,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                         </>
                     )}
 
-                    {selectedBlogStatus !== 'published' && (
+                    {selectedBlogStatus !== BLOG_STATUS.PUBLISHED && (
                         <MenuItem onClick={handleDelete} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1, color: 'error.main' }}>
                             <ListItemIcon sx={{ minWidth: '24px !important', mr: 1.5, color: 'error.main' }}>
                                 <DeleteIcon sx={{ width: 20, height: 20, mr: 0 }} />

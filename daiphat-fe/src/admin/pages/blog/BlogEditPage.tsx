@@ -6,6 +6,7 @@ import { Tiptap } from "../../components/layouts/titap/Tiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
 import { useBlogDetail, useUpdateBlog, useBlogTags, useBlogStatuses, useBlogTypes } from "./hooks/useBlog";
+import { BLOG_STATUS } from "../../../types/blogs.type";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { createBlogSchema, CreateBlogFormValues } from "../../schemas/blog.schema";
@@ -17,6 +18,12 @@ import { useParams } from "react-router-dom";
 import { useNestedBlogCategories } from "../blog-category/hooks/useBlogCategory";
 import { CategoryTreeSelectGeneric } from "../../components/ui/CategoryTreeSelectGeneric";
 import { confirmAction } from "../../utils/swal";
+
+const getMinScheduleValue = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+};
 
 export const BlogEditPage = () => {
     const { id } = useParams();
@@ -62,44 +69,61 @@ export const BlogEditPage = () => {
     const { data: blogTypes = [] } = useBlogTypes();
     const { mutate: update, isPending: isUpdating } = useUpdateBlog();
     const [isUploading, setIsUploading] = useState(false);
-    const currentStatus = (detailRes?.status || "draft").toLowerCase();
+    const currentStatus = (detailRes?.status || BLOG_STATUS.DRAFT).toLowerCase();
 
     const {
         control,
         handleSubmit,
         reset,
+        watch,
     } = useForm<CreateBlogFormValues>({
         resolver: zodResolver(createBlogSchema) as any,
         defaultValues: {
             name: "",
-            slug: "",
             description: "",
             content: "",
             avatar: "",
             category: [],
-            status: "draft",
+            status: BLOG_STATUS.DRAFT,
             type: "blog",
             tags: [],
             scheduledAt: null,
         },
     });
+    const selectedStatus = watch("status");
 
     useEffect(() => {
         if (detailRes) {
             reset({
                 name:        detailRes.name        || "",
-                slug:        detailRes.slug        || "",
                 description: detailRes.description || "",
                 content:     detailRes.content     || "",
                 avatar:      detailRes.avatar      || "",
                 category:    detailRes.category    || [],
-                status:      detailRes.status      || "draft",
+                status:      detailRes.status      || BLOG_STATUS.DRAFT,
                 type:        detailRes.type        || "blog",
                 tags:        detailRes.tags        || [],
                 scheduledAt: detailRes.scheduledAt || null,
             });
         }
     }, [detailRes, reset]);
+
+    const allowedStatuses = blogStatuses.filter((status) => {
+        const val = status.value;
+        if (currentStatus === BLOG_STATUS.DRAFT) {
+            return [BLOG_STATUS.DRAFT, BLOG_STATUS.PUBLISHED, BLOG_STATUS.SCHEDULED].includes(val as any);
+        }
+        if (currentStatus === BLOG_STATUS.SCHEDULED) {
+            return [BLOG_STATUS.SCHEDULED, BLOG_STATUS.PUBLISHED, BLOG_STATUS.DRAFT].includes(val as any);
+        }
+        if (currentStatus === BLOG_STATUS.PUBLISHED) {
+            return [BLOG_STATUS.PUBLISHED, BLOG_STATUS.UNPUBLISHED].includes(val as any);
+        }
+        if (currentStatus === BLOG_STATUS.UNPUBLISHED) {
+            return [BLOG_STATUS.UNPUBLISHED, BLOG_STATUS.PUBLISHED, BLOG_STATUS.SCHEDULED].includes(val as any);
+        }
+        return val === currentStatus;
+    });
 
     const submitForm = async (data: CreateBlogFormValues, targetStatus?: string) => {
         try {
@@ -127,7 +151,7 @@ export const BlogEditPage = () => {
             const nextStatus = targetStatus ?? currentStatus;
             const normalizedScheduledAt = data.scheduledAt || detailRes?.scheduledAt || null;
 
-            if (nextStatus === "scheduled" && !normalizedScheduledAt) {
+            if (nextStatus === BLOG_STATUS.SCHEDULED && !normalizedScheduledAt) {
                 toast.error("Vui lòng chọn thời gian đăng bài trước khi lên lịch.");
                 return;
             }
@@ -140,9 +164,8 @@ export const BlogEditPage = () => {
                 categoryId,
                 status:      nextStatus,
                 type:        data.type,
-                slug:        data.slug || detailRes?.slug || "",
                 tagIds:      data.tags || [],
-                scheduledAt: nextStatus === "scheduled" ? normalizedScheduledAt : null,
+                scheduledAt: nextStatus === BLOG_STATUS.SCHEDULED ? normalizedScheduledAt : null,
             };
 
             update({ id: id!, data: payload }, {
@@ -186,6 +209,53 @@ export const BlogEditPage = () => {
                 <CircularProgress color="inherit" />
             </Box>
         );
+    }
+
+    // Dynamic Button properties based on selectedStatus
+    let buttonLabel = "Cập nhật";
+    let loadingLabel = "Đang cập nhật...";
+    let targetStatus: string = selectedStatus;
+    let confirmBeforeSubmit = false;
+
+    if (selectedStatus === BLOG_STATUS.DRAFT) {
+        if (currentStatus === BLOG_STATUS.SCHEDULED) {
+            buttonLabel = "Hủy lịch";
+            loadingLabel = "Đang hủy lịch...";
+        } else {
+            buttonLabel = "Lưu nháp";
+            loadingLabel = "Đang lưu...";
+        }
+    } else if (selectedStatus === BLOG_STATUS.PUBLISHED) {
+        if (currentStatus === BLOG_STATUS.DRAFT) {
+            buttonLabel = "Đăng bài";
+            loadingLabel = "Đang đăng...";
+        } else if (currentStatus === BLOG_STATUS.SCHEDULED) {
+            buttonLabel = "Đăng ngay";
+            loadingLabel = "Đang đăng...";
+        } else if (currentStatus === BLOG_STATUS.UNPUBLISHED) {
+            buttonLabel = "Đăng lại";
+            loadingLabel = "Đang đăng...";
+        } else {
+            buttonLabel = "Cập nhật";
+            loadingLabel = "Đang cập nhật...";
+        }
+    } else if (selectedStatus === BLOG_STATUS.SCHEDULED) {
+        if (currentStatus === BLOG_STATUS.SCHEDULED) {
+            buttonLabel = "Lưu lịch";
+            loadingLabel = "Đang lưu lịch...";
+        } else {
+            buttonLabel = "Lên lịch";
+            loadingLabel = "Đang lưu lịch...";
+        }
+    } else if (selectedStatus === BLOG_STATUS.UNPUBLISHED) {
+        if (currentStatus === BLOG_STATUS.PUBLISHED) {
+            buttonLabel = "Gỡ bài";
+            loadingLabel = "Đang gỡ...";
+            confirmBeforeSubmit = true;
+        } else {
+            buttonLabel = "Lưu";
+            loadingLabel = "Đang lưu...";
+        }
     }
 
     return (
@@ -288,11 +358,10 @@ export const BlogEditPage = () => {
                                                 <InputLabel id="status-select-label">Trạng thái</InputLabel>
                                                 <Select
                                                     {...field}
-                                                    disabled
                                                     labelId="status-select-label"
                                                     label="Trạng thái"
                                                 >
-                                                    {blogStatuses.map((opt) => (
+                                                    {allowedStatuses.map((opt) => (
                                                         <MenuItem key={opt.value} value={opt.value}>
                                                             {opt.label}
                                                         </MenuItem>
@@ -328,32 +397,41 @@ export const BlogEditPage = () => {
                                     />
 
                                     {/* Category */}
-                                    <CategoryTreeSelectGeneric
-                                        control={control}
-                                        categories={blogCategories}
-                                        name="category"
-                                        label="Danh mục bài viết"
-                                        placeholder="Chọn danh mục"
-                                        multiple={true}
-                                    />
+                                    <Box
+                                        sx={{
+                                            gridColumn: selectedStatus !== BLOG_STATUS.SCHEDULED ? "span 2" : "span 1"
+                                        }}
+                                    >
+                                        <CategoryTreeSelectGeneric
+                                            control={control}
+                                            categories={blogCategories}
+                                            name="category"
+                                            label="Danh mục bài viết"
+                                            placeholder="Chọn danh mục"
+                                            multiple={true}
+                                        />
+                                    </Box>
 
                                     {/* Scheduled At */}
-                                    <Controller
-                                        name="scheduledAt"
-                                        control={control}
-                                        render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                value={field.value ?? ""}
-                                                label="Lên lịch đăng"
-                                                type="datetime-local"
-                                                fullWidth
-                                                InputLabelProps={{ shrink: true }}
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message || "Để trống nếu không lên lịch"}
-                                            />
-                                        )}
-                                    />
+                                    {selectedStatus === BLOG_STATUS.SCHEDULED && (
+                                        <Controller
+                                            name="scheduledAt"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    label="Lên lịch xuất bản"
+                                                    type="datetime-local"
+                                                    fullWidth
+                                                    InputLabelProps={{ shrink: true }}
+                                                    inputProps={{ min: getMinScheduleValue() }}
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message || "Chọn thời điểm bài viết tự động được xuất bản."}
+                                                />
+                                            )}
+                                        />
+                                    )}
 
                                     {/* Tags (span 2 cols) */}
                                     <Controller
@@ -396,112 +474,13 @@ export const BlogEditPage = () => {
                         </CollapsibleCard>
 
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                            {currentStatus === "draft" && (
-                                <>
-                                    <LoadingButton
-                                        type="button"
-                                        onClick={handleSubmitWithStatus("draft")}
-                                        loading={isUpdating || isUploading}
-                                        label="Lưu nháp"
-                                        loadingLabel="Đang lưu..."
-                                    />
-                                    <LoadingButton
-                                        type="button"
-                                        onClick={handleSubmitWithStatus("published")}
-                                        loading={isUpdating || isUploading}
-                                        label="Đăng bài"
-                                        loadingLabel="Đang đăng..."
-                                    />
-                                    <LoadingButton
-                                        type="button"
-                                        onClick={handleSubmitWithStatus("scheduled")}
-                                        loading={isUpdating || isUploading}
-                                        label="Lên lịch"
-                                        loadingLabel="Đang lưu lịch..."
-                                    />
-                                </>
-                            )}
-
-                            {currentStatus === "scheduled" && (
-                                <>
-                                    <LoadingButton
-                                        type="button"
-                                        onClick={handleSubmitWithStatus("scheduled")}
-                                        loading={isUpdating || isUploading}
-                                        label="Lưu lịch"
-                                        loadingLabel="Đang lưu lịch..."
-                                    />
-                                    <LoadingButton
-                                        type="button"
-                                        onClick={handleSubmitWithStatus("published")}
-                                        loading={isUpdating || isUploading}
-                                        label="Đăng ngay"
-                                        loadingLabel="Đang đăng..."
-                                    />
-                                    <LoadingButton
-                                        type="button"
-                                        onClick={handleSubmitWithStatus("draft")}
-                                        loading={isUpdating || isUploading}
-                                        label="Hủy lịch"
-                                        loadingLabel="Đang hủy lịch..."
-                                    />
-                                </>
-                            )}
-
-                            {currentStatus === "published" && (
-                                <>
-                                    <LoadingButton
-                                        type="button"
-                                        onClick={handleSubmitWithStatus("published")}
-                                        loading={isUpdating || isUploading}
-                                        label="Cập nhật"
-                                        loadingLabel="Đang cập nhật..."
-                                    />
-                                    <LoadingButton
-                                        type="button"
-                                        onClick={handleSubmitWithStatus("unpublished", true)}
-                                        loading={isUpdating || isUploading}
-                                        label="Gỡ bài"
-                                        loadingLabel="Đang gỡ..."
-                                    />
-                                </>
-                            )}
-
-                            {currentStatus === "unpublished" && (
-                                <>
-                                    <LoadingButton
-                                        type="button"
-                                        onClick={handleSubmitWithStatus("unpublished")}
-                                        loading={isUpdating || isUploading}
-                                        label="Lưu"
-                                        loadingLabel="Đang lưu..."
-                                    />
-                                    <LoadingButton
-                                        type="button"
-                                        onClick={handleSubmitWithStatus("published")}
-                                        loading={isUpdating || isUploading}
-                                        label="Đăng lại"
-                                        loadingLabel="Đang đăng..."
-                                    />
-                                    <LoadingButton
-                                        type="button"
-                                        onClick={handleSubmitWithStatus("scheduled")}
-                                        loading={isUpdating || isUploading}
-                                        label="Lên lịch"
-                                        loadingLabel="Đang lưu lịch..."
-                                    />
-                                </>
-                            )}
-
-                            {!["draft", "scheduled", "published", "unpublished"].includes(currentStatus) && (
-                                <LoadingButton
-                                    type="button"
-                                    onClick={handleSubmitWithStatus(currentStatus)}
-                                    loading={isUpdating || isUploading}
-                                    label="Cập nhật"
-                                    loadingLabel="Đang cập nhật..."
-                                />
-                            )}
+                            <LoadingButton
+                                type="button"
+                                onClick={handleSubmitWithStatus(targetStatus, confirmBeforeSubmit)}
+                                loading={isUpdating || isUploading}
+                                label={buttonLabel}
+                                loadingLabel={loadingLabel}
+                            />
                         </Box>
                     </Stack>
                 </form>

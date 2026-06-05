@@ -18,6 +18,7 @@ import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { getTabBadgeStyles } from "../../utils/badge";
+import { BLOG_STATUS } from "../../../types/blogs.type";
 
 // Styled component cho con số (Badge nhãn)
 const TabBadge = styled('span')(() => ({
@@ -99,10 +100,10 @@ export const BlogListPage = () => {
     };
 
     const statusFromTab =
-        tabStatus === 1 ? 'published' :
-        tabStatus === 2 ? 'draft' :
-        tabStatus === 3 ? 'scheduled' :
-        tabStatus === 4 ? 'unpublished' :
+        tabStatus === 1 ? BLOG_STATUS.PUBLISHED :
+        tabStatus === 2 ? BLOG_STATUS.DRAFT :
+        tabStatus === 3 ? BLOG_STATUS.SCHEDULED :
+        tabStatus === 4 ? BLOG_STATUS.UNPUBLISHED :
         undefined;
 
     const filters = {

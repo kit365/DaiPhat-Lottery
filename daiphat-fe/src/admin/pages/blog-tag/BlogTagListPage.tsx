@@ -29,7 +29,7 @@ import { prefixAdmin } from "../../constants/routes";
 import { useBlogTagsPaged, useCreateBlogTag, useUpdateBlogTag, useDeleteBlogTag } from "../blog/hooks/useBlog";
 import { DATA_GRID_LOCALE_VN } from '../blog-category/configs/localeText.config';
 import { dataGridCardStyles, dataGridContainerStyles, dataGridStyles } from '../blog-category/configs/styles.config';
-import { DeleteIcon, EditIcon, ThreeDotsIcon, SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../assets/icons";
+import { DeleteIcon, EditIcon, ThreeDotsIcon, SortAscendingIcon, SortDescendingIcon, UnsortedIcon, EyeIcon } from "../../assets/icons";
 import { confirmDelete } from "../../utils/swal";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
@@ -44,6 +44,8 @@ export const BlogTagListPage = () => {
     const [openDialog, setOpenDialog] = useState(false);
     const [editingTag, setEditingTag] = useState<{ id: string | number; name: string; slug: string } | null>(null);
     const [formValues, setFormValues] = useState({ name: '' });
+    const [openDetailDialog, setOpenDetailDialog] = useState(false);
+    const [detailTag, setDetailTag] = useState<any>(null);
 
     // Popover menu state
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -77,6 +79,14 @@ export const BlogTagListPage = () => {
         setEditingTag(null);
         setFormValues({ name: '' });
         setOpenDialog(true);
+    };
+
+    const handleOpenDetail = () => {
+        if (selectedTag) {
+            setDetailTag(selectedTag);
+            setOpenDetailDialog(true);
+            handleCloseMenu();
+        }
     };
 
     const handleOpenEdit = () => {
@@ -162,27 +172,6 @@ export const BlogTagListPage = () => {
             headerName: "Slug",
             flex: 1,
             minWidth: 200,
-        },
-        {
-            field: "createdAt",
-            headerName: "Thời gian tạo",
-            width: 200,
-            valueGetter: (value) => value ? new Date(value) : null,
-            renderCell: (params) => {
-                if (!params.value) return null;
-                const dateObj = dayjs(params.value);
-                if (!dateObj.isValid()) return null;
-                return (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: "4px" }}>
-                        <span style={{ fontSize: "0.875rem", color: "var(--palette-text-primary)", textTransform: 'capitalize' }}>
-                            {dateObj.format('DD MMM, YYYY')}
-                        </span>
-                        <span style={{ fontSize: "0.75rem", color: "var(--palette-text-secondary)", textTransform: 'lowercase' }}>
-                            {dateObj.format('hh:mm A')}
-                        </span>
-                    </Box>
-                );
-            }
         },
         {
             field: 'actions',
@@ -377,6 +366,93 @@ export const BlogTagListPage = () => {
                 </DialogActions>
             </Dialog>
 
+            {/* Detail Tag Dialog */}
+            <Dialog
+                open={openDetailDialog}
+                onClose={() => setOpenDetailDialog(false)}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: '16px',
+                        boxShadow: 'var(--customShadows-dialog)',
+                        p: 1
+                    }
+                }}
+            >
+                <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography component="span" sx={{ fontWeight: 700, fontSize: '1.125rem' }}>
+                        Chi tiết thẻ bài viết
+                    </Typography>
+                    <IconButton onClick={() => setOpenDetailDialog(false)} sx={{ color: 'text.secondary' }}>
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent dividers sx={{ border: 'none', px: 3, py: 2 }}>
+                    <Stack spacing={2}>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', alignItems: 'center' }}>
+                            <Typography sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.875rem' }}>ID:</Typography>
+                            <Typography sx={{ fontWeight: 600, fontSize: '0.875rem' }}>{detailTag?.id || '--'}</Typography>
+                        </Box>
+                        
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', alignItems: 'center' }}>
+                            <Typography sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.875rem' }}>Tên thẻ:</Typography>
+                            <Typography sx={{ fontWeight: 600, fontSize: '0.875rem' }}>{detailTag?.name || '--'}</Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', alignItems: 'center' }}>
+                            <Typography sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.875rem' }}>Slug:</Typography>
+                            <Typography sx={{ fontWeight: 500, fontSize: '0.875rem', fontFamily: 'monospace', bgcolor: 'rgba(0, 0, 0, 0.04)', px: 1, py: 0.5, borderRadius: '4px', width: 'fit-content' }}>
+                                {detailTag?.slug || '--'}
+                            </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', alignItems: 'center' }}>
+                            <Typography sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.875rem' }}>Người tạo:</Typography>
+                            <Typography sx={{ fontWeight: 500, fontSize: '0.875rem' }}>{detailTag?.createdBy || '--'}</Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', alignItems: 'center' }}>
+                            <Typography sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.875rem' }}>Thời gian tạo:</Typography>
+                            <Typography sx={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                                {detailTag?.createdAt ? dayjs(detailTag.createdAt).format('DD/MM/YYYY HH:mm:ss') : '--'}
+                            </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', alignItems: 'center' }}>
+                            <Typography sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.875rem' }}>Người sửa cuối:</Typography>
+                            <Typography sx={{ fontWeight: 500, fontSize: '0.875rem' }}>{detailTag?.lastModifiedBy || '--'}</Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', alignItems: 'center' }}>
+                            <Typography sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.875rem' }}>Thời gian sửa:</Typography>
+                            <Typography sx={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                                {detailTag?.updatedAt ? dayjs(detailTag.updatedAt).format('DD/MM/YYYY HH:mm:ss') : '--'}
+                            </Typography>
+                        </Box>
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ p: 3, justifyContent: 'flex-end' }}>
+                    <Button 
+                        onClick={() => setOpenDetailDialog(false)} 
+                        variant="contained"
+                        sx={{
+                            borderRadius: '8px',
+                            textTransform: 'none',
+                            px: 3,
+                            py: 1,
+                            bgcolor: 'var(--palette-text-primary, #1C252E)',
+                            color: 'var(--palette-common-white, #FFFFFF)',
+                            '&:hover': {
+                                bgcolor: 'rgba(28, 37, 46, 0.8)'
+                            }
+                        }}
+                    >
+                        Đóng
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
             {/* Action Popover Menu */}
             <Popover
                 anchorEl={anchorEl}
@@ -408,6 +484,12 @@ export const BlogTagListPage = () => {
                     },
                 }}
             >
+                <MenuItem onClick={handleOpenDetail} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
+                    <ListItemIcon sx={{ minWidth: '24px !important', mr: 1 }}>
+                        <EyeIcon sx={{ width: 20, height: 20 }} />
+                    </ListItemIcon>
+                    <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>Chi tiết</ListItemText>
+                </MenuItem>
                 <MenuItem onClick={handleOpenEdit} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
                     <ListItemIcon sx={{ minWidth: '24px !important', mr: 1 }}>
                         <EditIcon sx={{ width: 20, height: 20 }} />
