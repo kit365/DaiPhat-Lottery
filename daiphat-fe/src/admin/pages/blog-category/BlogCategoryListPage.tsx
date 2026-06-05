@@ -7,12 +7,11 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { BlogCategoryList } from "./sections/BlogCategoryList";
 import { useTranslation } from "react-i18next";
-import DeleteIcon from '@mui/icons-material/Delete';
 
 export const BlogCategoryListPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const [isTrash, setIsTrash] = useState(false);
+    const [isTrash] = useState(false);
 
     return (
         <>

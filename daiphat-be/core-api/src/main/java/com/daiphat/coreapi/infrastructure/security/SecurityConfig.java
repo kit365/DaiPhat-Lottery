@@ -18,6 +18,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.net.URI;
+import java.util.List;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -74,7 +77,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(authProperties.getCors().getAllowedOrigins());
+        configuration.setAllowedOrigins(resolveAllowedOrigins());
         configuration.setAllowedMethods(authProperties.getCors().getAllowedMethods());
         configuration.setAllowedHeaders(authProperties.getCors().getAllowedHeaders());
         configuration.setAllowCredentials(authProperties.getCors().isAllowCredentials());
@@ -83,5 +86,30 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private List<String> resolveAllowedOrigins() {
+        List<String> configuredOrigins = authProperties.getCors().getAllowedOrigins();
+        if (configuredOrigins != null && !configuredOrigins.isEmpty()) {
+            return configuredOrigins;
+        }
+
+        String frontendUrl = authProperties.getFrontendUrl();
+        if (frontendUrl == null || frontendUrl.isBlank()) {
+            return List.of("http://localhost:5173");
+        }
+
+        try {
+            URI uri = URI.create(frontendUrl);
+            if (uri.getScheme() != null && uri.getHost() != null) {
+                String origin = uri.getScheme() + "://" + uri.getHost()
+                        + (uri.getPort() > 0 ? ":" + uri.getPort() : "");
+                return List.of(origin);
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Fallback below if FRONTEND_URL is not a valid URI.
+        }
+
+        return List.of(frontendUrl);
     }
 }
