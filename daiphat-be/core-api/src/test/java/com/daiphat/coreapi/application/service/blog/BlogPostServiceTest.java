@@ -3,7 +3,6 @@ package com.daiphat.coreapi.application.service.blog;
 import com.daiphat.coreapi.application.dto.request.blog.CreateBlogPostRequest;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
 import com.daiphat.coreapi.application.mapper.blog.BlogPostApplicationMapper;
-import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
 import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
 import com.daiphat.coreapi.application.port.in.blog.BlogTagServicePort;
 import com.daiphat.coreapi.application.port.out.blog.BlogPostRepositoryPort;
@@ -52,7 +51,7 @@ class BlogPostServiceTest {
     private static final String STATUS_PUBLISHED = "PUBLISHED";
     private static final String POST_TYPE_BLOG = "blog";
 
-    private BlogPostServicePort blogPostService;
+    private BlogPostService blogPostService;
 
     @Mock
     private BlogPostRepositoryPort blogPostRepositoryPort;
@@ -338,7 +337,7 @@ class BlogPostServiceTest {
         // THEN
         assertThat(response).isNotNull();
         assertThat(response.getRecordList()).hasSize(1);
-        assertThat(response.getRecordList().get(0).title()).isEqualTo("Tech News");
+        assertThat(response.getRecordList().getFirst().title()).isEqualTo("Tech News");
         assertThat(response.getPagination().getTotalRecords()).isEqualTo(1);
         assertThat(response.getPagination().getCurrentPage()).isEqualTo(page);
     }
@@ -402,6 +401,63 @@ class BlogPostServiceTest {
                 any(Pageable.class), eq(search), eq(null), eq(null), eq(null), eq(null), eq(false)
         );
         verify(blogPostApplicationMapper, never()).toSummaryResponse(any());
+    }
+
+    @Test
+    @DisplayName("DETAIL: Lấy chi tiết bài viết thành công")
+    void getPostById_success() {
+        // GIVEN
+        Long postId = 1121L;
+        BlogPostModel post = BlogPostModel.builder()
+                .id(postId)
+                .title("Đại Phát ngày mới")
+                .slug("dai-phat-ngay-moi")
+                .summary("Bài viết chi tiết")
+                .content("<p>Nội dung chi tiết</p>")
+                .thumbnail(DEFAULT_THUMBNAIL)
+                .viewCount(18)
+                .build();
+
+        BlogPostResponse expectedResponse = BlogPostResponse.builder()
+                .id(postId)
+                .title("Đại Phát ngày mới")
+                .slug("dai-phat-ngay-moi")
+                .summary("Bài viết chi tiết")
+                .content("<p>Nội dung chi tiết</p>")
+                .thumbnail(DEFAULT_THUMBNAIL)
+                .viewCount(18)
+                .build();
+
+        when(blogPostRepositoryPort.findById(postId)).thenReturn(Optional.of(post));
+        when(blogPostApplicationMapper.toResponse(post)).thenReturn(expectedResponse);
+
+        // WHEN
+        BlogPostResponse response = blogPostService.getPostById(postId);
+
+        // THEN
+        assertThat(response).isNotNull();
+        assertThat(response).isEqualTo(expectedResponse);
+
+        verify(blogPostRepositoryPort).findById(postId);
+        verify(blogPostApplicationMapper).toResponse(post);
+        verifyNoMoreInteractions(blogPostRepositoryPort, blogPostApplicationMapper);
+    }
+
+    @Test
+    @DisplayName("DETAIL: Lấy chi tiết bài viết thất bại - Không tìm thấy bài viết")
+    void getPostById_notFound_throwsBlogNotFound() {
+        // GIVEN
+        Long postId = 9999L;
+        when(blogPostRepositoryPort.findById(postId)).thenReturn(Optional.empty());
+
+        // WHEN & THEN
+        assertThatThrownBy(() -> blogPostService.getPostById(postId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.BLOG_NOT_FOUND);
+
+        verify(blogPostRepositoryPort).findById(postId);
+        verify(blogPostApplicationMapper, never()).toResponse(any());
     }
 
     @Test

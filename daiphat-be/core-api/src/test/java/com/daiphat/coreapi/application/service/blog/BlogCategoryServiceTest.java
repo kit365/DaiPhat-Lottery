@@ -7,7 +7,7 @@ import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryTreeRespons
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryPublicResponse;
 import com.daiphat.coreapi.application.mapper.blog.BlogCategoryApplicationMapper;
 import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
-import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
+import com.daiphat.coreapi.application.port.in.blog.BlogPostCoordinationPort;
 import com.daiphat.coreapi.application.port.out.blog.BlogCategoryRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -75,7 +75,7 @@ class BlogCategoryServiceTest {
     private BlogCategoryApplicationMapper blogCategoryApplicationMapper;
 
     @Mock
-    private BlogPostServicePort blogPostServicePort;
+    private BlogPostCoordinationPort blogPostCoordinationPort;
 
     private BlogCategoryModel rootCategory;
     private BlogCategoryModel childCategory;
@@ -83,7 +83,7 @@ class BlogCategoryServiceTest {
 
     @BeforeEach
     void setUp() {
-        blogCategoryService = new BlogCategoryService(blogCategoryRepositoryPort, blogCategoryApplicationMapper, blogPostServicePort);
+        blogCategoryService = new BlogCategoryService(blogCategoryRepositoryPort, blogCategoryApplicationMapper, blogPostCoordinationPort);
 
         rootCategory = BlogCategoryModel.builder()
                 .id(ROOT_ID)
@@ -148,10 +148,10 @@ class BlogCategoryServiceTest {
         List<BlogCategoryTreeResponse> result = blogCategoryService.getNestedCategories();
 
         assertThat(result).hasSize(1);
-        BlogCategoryTreeResponse rootNode = result.get(0);
+        BlogCategoryTreeResponse rootNode = result.getFirst();
         assertThat(rootNode.id()).isEqualTo(ROOT_ID);
         assertThat(rootNode.children()).hasSize(1);
-        assertThat(rootNode.children().get(0).id()).isEqualTo(CHILD_ID);
+        assertThat(rootNode.children().getFirst().id()).isEqualTo(CHILD_ID);
     }
 
     @Test
@@ -355,7 +355,7 @@ class BlogCategoryServiceTest {
         assertThat(rootCategory.getStatus()).isEqualTo(CategoryStatus.INACTIVE);
         verify(blogCategoryRepositoryPort).save(rootCategory);
         verify(blogCategoryRepositoryPort).findAllByParentIdAndIsDeletedFalse(ROOT_ID);
-        verify(blogPostServicePort).clearCategoryForPosts(List.of(ROOT_ID));
+        verify(blogPostCoordinationPort).clearCategoryForPosts(List.of(ROOT_ID));
     }
 
     @Test
@@ -375,7 +375,7 @@ class BlogCategoryServiceTest {
         
         verify(blogCategoryRepositoryPort).save(rootCategory);
         verify(blogCategoryRepositoryPort).save(childCategory);
-        verify(blogPostServicePort).clearCategoryForPosts(List.of(ROOT_ID, CHILD_ID));
+        verify(blogPostCoordinationPort).clearCategoryForPosts(List.of(ROOT_ID, CHILD_ID));
     }
 
     @Test
@@ -394,7 +394,7 @@ class BlogCategoryServiceTest {
 
         verify(blogCategoryRepositoryPort).save(childCategory);
         verify(blogCategoryRepositoryPort, never()).save(rootCategory);
-        verify(blogPostServicePort).clearCategoryForPosts(List.of(CHILD_ID));
+        verify(blogPostCoordinationPort).clearCategoryForPosts(List.of(CHILD_ID));
     }
 
     @Test
@@ -406,7 +406,7 @@ class BlogCategoryServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CATEGORY_NOT_FOUND);
 
-        verify(blogPostServicePort, never()).clearCategoryForPosts(any());
+        verify(blogPostCoordinationPort, never()).clearCategoryForPosts(any());
     }
 
     @Test
@@ -421,7 +421,7 @@ class BlogCategoryServiceTest {
         assertThat(rootCategory.isDeleted()).isTrue();
         assertThat(rootCategory.getStatus()).isEqualTo(CategoryStatus.INACTIVE);
         verify(blogCategoryRepositoryPort).save(rootCategory);
-        verify(blogPostServicePort).clearCategoryForPosts(List.of(ROOT_ID));
+        verify(blogPostCoordinationPort).clearCategoryForPosts(List.of(ROOT_ID));
     }
 
     @Test
@@ -429,14 +429,14 @@ class BlogCategoryServiceTest {
     void getPublicCategories_success() {
         List<BlogCategoryModel> allCategories = List.of(rootCategory, childCategory);
         when(blogCategoryRepositoryPort.findAllByIsDeletedFalse()).thenReturn(allCategories);
-        when(blogPostServicePort.countPublishedPostsByCategoryId(ROOT_ID)).thenReturn(10L);
-        when(blogPostServicePort.countPublishedPostsByCategoryId(CHILD_ID)).thenReturn(5L);
+        when(blogPostCoordinationPort.countPublishedPostsByCategoryId(ROOT_ID)).thenReturn(10L);
+        when(blogPostCoordinationPort.countPublishedPostsByCategoryId(CHILD_ID)).thenReturn(5L);
 
         List<BlogCategoryPublicResponse> result = blogCategoryService.getPublicCategories();
 
         assertThat(result).hasSize(2);
 
-        BlogCategoryPublicResponse rootRes = result.get(0);
+        BlogCategoryPublicResponse rootRes = result.getFirst();
         assertThat(rootRes.id()).isEqualTo(ROOT_ID);
         assertThat(rootRes.name()).isEqualTo(ROOT_NAME);
         assertThat(rootRes.slug()).isEqualTo(ROOT_SLUG);
@@ -450,7 +450,7 @@ class BlogCategoryServiceTest {
         assertThat(childRes.postCount()).isEqualTo(5L);
 
         verify(blogCategoryRepositoryPort).findAllByIsDeletedFalse();
-        verify(blogPostServicePort).countPublishedPostsByCategoryId(ROOT_ID);
-        verify(blogPostServicePort).countPublishedPostsByCategoryId(CHILD_ID);
+        verify(blogPostCoordinationPort).countPublishedPostsByCategoryId(ROOT_ID);
+        verify(blogPostCoordinationPort).countPublishedPostsByCategoryId(CHILD_ID);
     }
 }
