@@ -32,4 +32,8 @@ public interface BlogPostRepositoryPort {
     void removeTagFromPosts(Long tagId);
 
     long countPublishedPostsByCategoryId(Long categoryId);
+
+    long countByStatus(String status);
+
+    long countAll();
 }

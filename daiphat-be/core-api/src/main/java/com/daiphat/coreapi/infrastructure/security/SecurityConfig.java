@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.security;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
+import com.daiphat.coreapi.application.config.AuthProperties;
 import com.daiphat.coreapi.infrastructure.security.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -17,9 +18,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-import java.util.List;
-
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -29,6 +27,7 @@ public class SecurityConfig {
     private static final String AUTH = ApiConstants.API_V1 + "/auth";
     private static final String PERMISSIONS = ApiConstants.API_V1 + "/permissions";
 
+    private final AuthProperties authProperties;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
@@ -75,11 +74,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://127.0.0.1:5173"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+        configuration.setAllowedOrigins(authProperties.getCors().getAllowedOrigins());
+        configuration.setAllowedMethods(authProperties.getCors().getAllowedMethods());
+        configuration.setAllowedHeaders(authProperties.getCors().getAllowedHeaders());
+        configuration.setAllowCredentials(authProperties.getCors().isAllowCredentials());
+        configuration.setMaxAge(authProperties.getCors().getMaxAge());
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

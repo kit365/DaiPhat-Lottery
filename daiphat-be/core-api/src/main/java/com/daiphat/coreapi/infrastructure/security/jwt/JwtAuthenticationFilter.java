@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.security.jwt;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
+import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.auth.TokenProviderPort;
 import com.daiphat.coreapi.domain.model.UserModel;
@@ -71,7 +72,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UserModel user = userLookupService.findByUsername(username)
                     .orElseThrow(() -> new NoSuchElementException("Token user not found"));
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    user,
+                    new AuthenticatedUserPrincipal(user.getId(), user.getUsername()),
                     null,
                     authorities(user)
             );

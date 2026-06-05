@@ -43,7 +43,7 @@ export const BlogTagListPage = () => {
     // Dialog state
     const [openDialog, setOpenDialog] = useState(false);
     const [editingTag, setEditingTag] = useState<{ id: string | number; name: string; slug: string } | null>(null);
-    const [formValues, setFormValues] = useState({ name: '', slug: '' });
+    const [formValues, setFormValues] = useState({ name: '' });
 
     // Popover menu state
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -75,14 +75,14 @@ export const BlogTagListPage = () => {
 
     const handleOpenCreate = () => {
         setEditingTag(null);
-        setFormValues({ name: '', slug: '' });
+        setFormValues({ name: '' });
         setOpenDialog(true);
     };
 
     const handleOpenEdit = () => {
         if (selectedTag) {
             setEditingTag(selectedTag);
-            setFormValues({ name: selectedTag.name, slug: selectedTag.slug });
+            setFormValues({ name: selectedTag.name });
             setOpenDialog(true);
             handleCloseMenu();
         }
@@ -117,7 +117,6 @@ export const BlogTagListPage = () => {
 
         const data = {
             name: formValues.name,
-            slug: formValues.slug || undefined
         };
 
         if (editingTag) {
@@ -335,13 +334,6 @@ export const BlogTagListPage = () => {
                             required
                             value={formValues.name}
                             onChange={(e) => setFormValues(prev => ({ ...prev, name: e.target.value }))}
-                        />
-                        <TextField
-                            label="Slug (Tùy chọn)"
-                            fullWidth
-                            value={formValues.slug}
-                            placeholder="Tự động tạo nếu để trống"
-                            onChange={(e) => setFormValues(prev => ({ ...prev, slug: e.target.value }))}
                         />
                     </Stack>
                 </DialogContent>

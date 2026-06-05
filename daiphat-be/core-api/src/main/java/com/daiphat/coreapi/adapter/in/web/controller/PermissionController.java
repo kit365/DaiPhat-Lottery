@@ -5,22 +5,16 @@ import com.daiphat.coreapi.application.dto.request.permission.PermissionRegistra
 import com.daiphat.coreapi.application.dto.response.auth.RoleResponse;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.port.in.auth.RoleServicePort;
-import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
-import com.daiphat.coreapi.domain.model.auth.PermissionModel;
-import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/permissions")
@@ -28,7 +22,6 @@ import java.util.stream.Collectors;
 public class PermissionController {
 
     private final RoleServicePort roleServicePort;
-    private final UserLookupServicePort userLookupService;
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('role:view', 'admin:view')")
@@ -92,22 +85,8 @@ public class PermissionController {
     @GetMapping("/users/{userId}")
     public ResponseEntity<ApiResponse<Set<String>>> getUserPermissions(@PathVariable UUID userId) {
         String msg = "Lấy quyền hạn người dùng thành công";
-        UserModel user = userLookupService.findActiveByIdOrThrow(userId);
-
-        if (user.getRole() == null || user.getRole().getPermissions() == null) {
-            return ResponseEntity.ok(ApiResponse.<Set<String>>builder()
-                    .data(Collections.emptySet())
-                    .message(msg)
-                    .build());
-        }
-
-        Set<String> permissions = user.getRole().getPermissions().stream()
-                .filter(Objects::nonNull)
-                .map(PermissionModel::getCode)
-                .collect(Collectors.toSet());
-
         return ResponseEntity.ok(ApiResponse.<Set<String>>builder()
-                .data(permissions)
+                .data(roleServicePort.getUserPermissionCodes(userId))
                 .message(msg)
                 .build());
     }

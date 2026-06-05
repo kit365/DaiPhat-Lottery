@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.adapter.in.web.controller.blogs;
 
 import com.daiphat.coreapi.application.dto.request.blog.CreateBlogPostRequest;
+import com.daiphat.coreapi.application.dto.request.blog.UpdateBlogPostRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostSummaryResponse;
@@ -13,7 +14,6 @@ import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.shared.util.SearchConstants;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
-import com.daiphat.coreapi.domain.model.enums.blog.PostStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -84,7 +84,7 @@ public class BlogPostController {
 
         return ApiResponse.success(
                 "Lấy danh sách bài viết công khai thành công",
-                blogPostServicePort.getPosts(page, limit, q, null, categoryId, null, PostStatus.PUBLISHED.getCode(), sortBy, direction, false)
+                blogPostServicePort.getPublicPosts(page, limit, q, categoryId, sortBy, direction)
         );
     }
 
@@ -112,6 +112,26 @@ public class BlogPostController {
                 blogPostServicePort.uploadImage(StorageUtils.toUploadRequest(file), folder));
     }
 
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('article:view')")
+    public ResponseEntity<ApiResponse<BlogPostResponse>> getPostById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.<BlogPostResponse>builder()
+                .data(blogPostServicePort.getPostById(id))
+                .message("Lấy chi tiết bài viết thành công")
+                .build());
+    }
+
+    @PatchMapping("/edit/{id}")
+    @PreAuthorize("hasAuthority('article:edit')")
+    public ResponseEntity<ApiResponse<BlogPostResponse>> updatePost(
+            @PathVariable Long id,
+            @RequestBody UpdateBlogPostRequest request) {
+        return ResponseEntity.ok(ApiResponse.<BlogPostResponse>builder()
+                .data(blogPostServicePort.updatePost(id, request))
+                .message("Cập nhật bài viết thành công")
+                .build());
+    }
 
     @PatchMapping("/{id}/view")
     public ApiResponse<Void> incrementView(@PathVariable Long id) {
