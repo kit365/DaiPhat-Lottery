@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.infrastructure.security;
 
-import com.daiphat.coreapi.application.port.out.PasswordHashPort;
+import com.daiphat.coreapi.application.port.out.auth.PasswordHashPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;

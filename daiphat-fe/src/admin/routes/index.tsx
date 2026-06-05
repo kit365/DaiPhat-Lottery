@@ -17,6 +17,7 @@ const ProviderEditPage = lazy(() => import("../pages/provider/ProviderEditPage")
 const BlogListPage = lazy(() => import("../pages/blog/BlogListPage").then(m => ({ default: m.BlogListPage })));
 const BlogCategoryListPage = lazy(() => import("../pages/blog-category/BlogCategoryListPage").then(m => ({ default: m.BlogCategoryListPage })));
 const BlogCategoryCreatePage = lazy(() => import("../pages/blog-category/BlogCategoryCreatePage").then(m => ({ default: m.BlogCategoryCreatePage })));
+const BlogTagListPage = lazy(() => import("../pages/blog-tag/BlogTagListPage").then(m => ({ default: m.BlogTagListPage })));
 const BlogCreatePage = lazy(() => import("../pages/blog/BlogCreatePage").then(m => ({ default: m.BlogCreatePage })));
 const BlogDetailPage = lazy(() => import("../pages/blog/BlogDetailPage").then(m => ({ default: m.BlogDetailPage })));
 const BlogEditPage = lazy(() => import("../pages/blog/BlogEditPage").then(m => ({ default: m.BlogEditPage })));
@@ -86,15 +87,15 @@ const NotificationListPage = lazy(() => import("../pages/notification/Notificati
 
 export const AdminRoutes = [
     { index: true, element: <Navigate to="/admin/dashboard" replace /> },
-    { path: "dashboard", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.VIEW}><DashboardPage /></PermissionGuard> },
+    { path: "dashboard", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.ANALYTICS}><DashboardPage /></PermissionGuard> },
     { path: "notifications", element: <NotificationListPage /> },
-    { path: "dashboard/system", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.VIEW}><SystemPage /></PermissionGuard> },
-    { path: "dashboard/ecommerce", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.VIEW}><EcommercePage /></PermissionGuard> },
-    { path: "dashboard/analytics", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.VIEW}><AnalyticsPage /></PermissionGuard> },
-    { path: "dashboard/statistics/general", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.VIEW}><GeneralStatisticsPage /></PermissionGuard> },
-    { path: "dashboard/statistics/orders", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.VIEW}><OrderStatisticsPage /></PermissionGuard> },
-    { path: "dashboard/statistics/ticketServices", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.VIEW}><TicketServiceStatisticsPage /></PermissionGuard> },
-    { path: "dashboard/statistics/staff", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.VIEW}><StaffStatisticsPage /></PermissionGuard> },
+    { path: "dashboard/system", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.SYSTEM}><SystemPage /></PermissionGuard> },
+    { path: "dashboard/ecommerce", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.ECOMMERCE}><EcommercePage /></PermissionGuard> },
+    { path: "dashboard/analytics", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.ANALYTICS}><AnalyticsPage /></PermissionGuard> },
+    { path: "dashboard/statistics/general", element: <PermissionGuard permission={PERMISSIONS.STATISTICS.REVENUE}><GeneralStatisticsPage /></PermissionGuard> },
+    { path: "dashboard/statistics/orders", element: <PermissionGuard permission={PERMISSIONS.STATISTICS.ORDER}><OrderStatisticsPage /></PermissionGuard> },
+    { path: "dashboard/statistics/ticketServices", element: <PermissionGuard permission={PERMISSIONS.STATISTICS.SERVICE}><TicketServiceStatisticsPage /></PermissionGuard> },
+    { path: "dashboard/statistics/staff", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.VIEW}><StaffStatisticsPage /></PermissionGuard> },
     { path: "ticket/list", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketListPage /></PermissionGuard> },
     { path: "ticket/create", element: <PermissionGuard permission={PERMISSIONS.TICKET.CREATE}><TicketCreatePage /></PermissionGuard> },
     { path: "ticket/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.EDIT}><TicketEditPage /></PermissionGuard> },
@@ -123,6 +124,7 @@ export const AdminRoutes = [
     { path: "blog-category/create", element: <PermissionGuard permission={PERMISSIONS.ARTICLE.CREATE}><BlogCategoryCreatePage /></PermissionGuard> },
     { path: "blog-category/edit/:id", element: <PermissionGuard permission={PERMISSIONS.ARTICLE.EDIT}><BlogCategoryEditPage /></PermissionGuard> },
     { path: "blog-category/detail/:id", element: <PermissionGuard permission={PERMISSIONS.ARTICLE.VIEW}><BlogCategoryEditPage /></PermissionGuard> },
+    { path: "blog-tag/list", element: <PermissionGuard permission={PERMISSIONS.ARTICLE.VIEW}><BlogTagListPage /></PermissionGuard> },
     { path: "coupon/list", element: <PermissionGuard permission={PERMISSIONS.COUPON.VIEW}><CouponListPage /></PermissionGuard> },
     { path: "coupon/create", element: <PermissionGuard permission={PERMISSIONS.COUPON.CREATE}><CouponCreatePage /></PermissionGuard> },
     { path: "coupon/edit/:id", element: <PermissionGuard permission={PERMISSIONS.COUPON.EDIT}><CouponEditPage /></PermissionGuard> },

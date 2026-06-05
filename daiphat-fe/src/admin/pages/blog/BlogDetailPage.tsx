@@ -1,342 +1,682 @@
 import {
     Box,
-    Button,
+    Card,
     Container,
-    IconButton,
-    Menu,
-    MenuItem,
+    Stack,
+    Grid,
+    Typography,
+    Chip,
+    Button,
+    CircularProgress,
+    Divider,
+    alpha,
+    Avatar,
     SpeedDial,
     SpeedDialAction,
     Tooltip,
-    Typography,
-    CircularProgress,
-    Stack,
-    Divider
-} from "@mui/material"
-import { prefixAdmin } from "../../constants/routes"
-import { ArrowIcon, EditIcon, GoLiveIcon, UploadIcon, DraftIcon, ArchivedIcon, ShareIcon, FacebookIcon, InstagramIcon } from "../../assets/icons"
-import { Link, useParams, useNavigate } from "react-router-dom"
-import { useState, useEffect } from "react"
-import { useBlogDetail, useUpdateBlog } from "./hooks/useBlog"
-import dayjs from "dayjs"
-import 'dayjs/locale/vi'
-import { toast } from "react-toastify"
+} from "@mui/material";
+import { Icon } from "@iconify/react";
+import { useNavigate, useParams } from "react-router-dom";
+import dayjs from "dayjs";
+import "dayjs/locale/vi";
+import { useBlogDetail, useBlogTypes, useDeleteBlog, useUpdateBlog } from "./hooks/useBlog";
+import { BLOG_STATUS, BlogStatus } from "../../../types/blogs.type";
+import { prefixAdmin } from "../../constants/routes";
+import { Breadcrumb } from "../../components/ui/Breadcrumb";
+import { Title } from "../../components/ui/Title";
+import { toast } from "react-toastify";
+import { useState } from "react";
+import { FacebookIcon, InstagramIcon, ShareIcon } from "../../assets/icons";
+import { confirmAction } from "../../utils/swal";
 
-type BlogStatus = "published" | "draft" | "archived"
+dayjs.locale("vi");
 
-const getItemStyle = (current: BlogStatus, value: BlogStatus) => ({
-    mb: "4px",
-    borderRadius: "var(--shape-borderRadius)",
-    fontWeight: current === value ? 600 : 400,
-    backgroundColor:
-        current === value
-            ? "rgba(145 158 171 / 16%)"
-            : "transparent",
-    gap: "calc(2 * var(--spacing))",
-    "&:hover": {
-        backgroundColor: "rgba(145 158 171 / 24%)"
-    }
-})
+// ─── Status config ──────────────────────────────────────────────────────────
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
+    [BLOG_STATUS.PUBLISHED]:   { label: "Đã xuất bản",  color: "var(--palette-success-dark)",  bg: "var(--palette-success-lighter)",  icon: "solar:check-circle-bold-duotone" },
+    [BLOG_STATUS.DRAFT]:       { label: "Bản nháp",     color: "var(--palette-warning-dark)",  bg: "var(--palette-warning-lighter)",  icon: "solar:document-text-bold-duotone" },
+    [BLOG_STATUS.UNPUBLISHED]: { label: "Đã gỡ xuống",  color: "var(--palette-error-dark)",    bg: "var(--palette-error-lighter)",    icon: "solar:archive-down-minimlistic-bold-duotone" },
+    archived:                  { label: "Đã gỡ xuống",  color: "var(--palette-error-dark)",    bg: "var(--palette-error-lighter)",    icon: "solar:archive-down-minimlistic-bold-duotone" },
+    [BLOG_STATUS.SCHEDULED]:   { label: "Đã lên lịch",  color: "var(--palette-info-dark)",     bg: "var(--palette-info-lighter)",     icon: "solar:calendar-bold-duotone" },
+};
 
+const getStatusConfig = (status: string) =>
+    STATUS_CONFIG[status?.toLowerCase()] ?? STATUS_CONFIG[BLOG_STATUS.DRAFT];
+
+// ─── InfoRow helper ──────────────────────────────────────────────────────────
+const InfoRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ py: 1.25 }}>
+        <Typography variant="body2" sx={{ color: "var(--palette-text-disabled)", flexShrink: 0, minWidth: 130 }}>
+            {label}
+        </Typography>
+        <Box sx={{ textAlign: "right", flex: 1 }}>{children}</Box>
+    </Stack>
+);
+
+// ─── Main component ──────────────────────────────────────────────────────────
 export const BlogDetailPage = () => {
-    const { id } = useParams();
+    const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-    const open = Boolean(anchorEl)
 
-    const { data: detailRes, isLoading, refetch } = useBlogDetail(id);
-    const { mutate: updateBlog } = useUpdateBlog();
+    const { data: blog, isLoading, refetch } = useBlogDetail(id);
+    const { data: blogTypes = [] } = useBlogTypes();
+    const { mutate: updateBlog, isPending: isUpdating } = useUpdateBlog();
+    const { mutate: deleteBlog, isPending: isDeleting } = useDeleteBlog();
 
-    // Status local để hiển thị khi chưa update xong hoặc để thao tác
-    const [status, setStatus] = useState<BlogStatus>("draft");
+    const [viewMode, setViewMode] = useState<"info" | "preview">("info");
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
-    useEffect(() => {
-        if (detailRes) {
-            setStatus(detailRes.status || "draft");
-        }
-    }, [detailRes]);
+    const status: BlogStatus = (blog?.status || BLOG_STATUS.DRAFT).toLowerCase();
+    const statusCfg = getStatusConfig(status);
+    const isPublished = status === BLOG_STATUS.PUBLISHED;
+    const isDraft = status === BLOG_STATUS.DRAFT;
+    const isScheduled = status === BLOG_STATUS.SCHEDULED;
+    const isUnpublished = status === BLOG_STATUS.UNPUBLISHED;
+    const canDelete = isDraft || isUnpublished;
+    const normalizedBlogType = typeof blog?.type === "string" ? blog.type.toLowerCase() : "";
+    const blogTypeLabel = blogTypes.find((type) => {
+        const value = typeof type.value === "string" ? type.value.toLowerCase() : "";
+        const code = typeof type.code === "string" ? type.code.toLowerCase() : "";
+        return value === normalizedBlogType || code === normalizedBlogType;
+    })?.label || blog?.type;
 
-    const handleOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
-        setAnchorEl(event.currentTarget)
-    }
+    // ── Handlers ────────────────────────────────────────────────────────────
+    const handlePublish = () => {
+        updateBlog(
+            { id: id!, data: { status: BLOG_STATUS.PUBLISHED, scheduledAt: null } },
+            {
+                onSuccess: (res) => {
+                    if (res.success) { toast.success("Đăng bài thành công"); refetch(); }
+                    else toast.error(res.message || "Không thể đăng bài");
+                },
+                onError: () => toast.error("Có lỗi xảy ra"),
+            }
+        );
+    };
 
-    const handleClose = () => {
-        setAnchorEl(null)
-    }
+    const handleMoveToDraft = () => {
+        updateBlog(
+            { id: id!, data: { status: BLOG_STATUS.DRAFT, scheduledAt: null } },
+            {
+                onSuccess: (res) => {
+                    if (res.success) { toast.success("Đã hủy lịch đăng"); refetch(); }
+                    else toast.error(res.message || "Không thể hủy lịch");
+                },
+                onError: () => toast.error("Có lỗi xảy ra"),
+            }
+        );
+    };
 
-    const handleChangeStatus = (value: BlogStatus) => {
-        if (value === status) {
-            handleClose();
+    const handleUnpublish = () => {
+        confirmAction(
+            "Xác nhận gỡ bài?",
+            "Hành động này sẽ ẩn bài viết khỏi trang Khách hàng. Xác nhận gỡ?",
+            () => {
+                updateBlog(
+                    { id: id!, data: { status: BLOG_STATUS.UNPUBLISHED, scheduledAt: null } },
+                    {
+                        onSuccess: (res) => {
+                            if (res.success) { toast.success("Đã gỡ bài xuống"); refetch(); }
+                            else toast.error(res.message || "Không thể gỡ bài");
+                        },
+                        onError: () => toast.error("Có lỗi xảy ra"),
+                    }
+                );
+            },
+            "warning"
+        );
+    };
+
+    const handleDelete = () => {
+        if (!confirmDelete) {
+            setConfirmDelete(true);
+            setTimeout(() => setConfirmDelete(false), 3000);
             return;
         }
-
-        // Gọi API update status
-        updateBlog({ id: id!, data: { status: value } }, {
-            onSuccess: (res) => {
-                if (res.success) {
-                    toast.success("Cập nhật trạng thái thành công");
-                    setStatus(value);
-                    refetch();
-                } else {
-                    toast.error(res.message);
-                }
+        deleteBlog(id!, {
+            onSuccess: (res: any) => {
+                if (res.success !== false) { toast.success("Đã xóa bài viết"); navigate(`/${prefixAdmin}/blog/list`); }
+                else toast.error(res.message || "Xóa thất bại");
             },
-            onError: () => toast.error("Có lỗi xảy ra")
+            onError: () => toast.error("Có lỗi khi xóa bài viết"),
         });
-        handleClose()
-    }
+    };
 
+    const goToScheduleEditor = () => {
+        navigate(`/${prefixAdmin}/blog/edit/${id}`);
+    };
+
+    // ── Loading / empty states ───────────────────────────────────────────────
     if (isLoading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
                 <CircularProgress color="inherit" />
             </Box>
         );
     }
 
-    const blog = detailRes;
-    if (!blog) return <Box sx={{ textAlign: 'center', py: 5 }}>Không tìm thấy bài viết</Box>;
+    if (!blog) {
+        return (
+            <Box sx={{ p: 6, textAlign: "center" }}>
+                <Icon icon="solar:document-broken-bold-duotone" width={64} color="var(--palette-text-disabled)" />
+                <Typography sx={{ mt: 2, color: "var(--palette-text-disabled)" }}>Không tìm thấy bài viết</Typography>
+                <Button variant="contained" onClick={() => navigate(`/${prefixAdmin}/blog/list`)}
+                    sx={{ mt: 3, textTransform: "none", borderRadius: "8px", bgcolor: "var(--palette-grey-800)" }}>
+                    Quay lại danh sách
+                </Button>
+            </Box>
+        );
+    }
 
-    return (
-        <>
-            <Container disableGutters maxWidth={false} sx={{ px: "40px" }}>
-                <Box sx={{ mb: "40px", gap: "12px", display: "flex", alignItems: 'flex-start' }}>
-                    {/* Back */}
+    const thumbnail = blog.avatar || blog.thumbnail || blog.featuredImage;
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Shared Header (always visible, both modes)
+    // ──────────────────────────────────────────────────────────────────────────
+    const header = (
+        <Box sx={{ mb: 4, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
+            <Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                    <Title title="Chi tiết bài viết" />
+                </Box>
+                <Box>
+                    <Breadcrumb
+                        items={[
+                            { label: "Dashboard", to: "/" },
+                            { label: "Bài viết", to: `/${prefixAdmin}/blog/list` },
+                            { label: blog.name || blog.title || "Chi tiết" },
+                        ]}
+                    />
+                </Box>
+            </Box>
+
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end" flexWrap="wrap">
+                <Button
+                    variant="outlined"
+                    startIcon={<Icon icon={viewMode === "info" ? "solar:eye-bold-duotone" : "solar:clipboard-list-bold-duotone"} width={16} />}
+                    onClick={() => setViewMode(viewMode === "info" ? "preview" : "info")}
+                    sx={{
+                        height: 36, fontWeight: 600, fontSize: "0.875rem", textTransform: "none",
+                        borderRadius: "8px", borderColor: (t) => alpha(t.palette.grey[500], 0.4),
+                        color: "var(--palette-text-secondary)",
+                        "&:hover": { borderColor: "var(--palette-text-primary)", bgcolor: (t) => alpha(t.palette.grey[500], 0.08) },
+                    }}
+                >
+                    {viewMode === "info" ? "Xem trước" : "Quản trị"}
+                </Button>
+
+                <Button
+                    variant="outlined"
+                    startIcon={<Icon icon="solar:pen-bold" width={16} />}
+                    onClick={() => navigate(`/${prefixAdmin}/blog/edit/${id}`)}
+                    sx={{
+                        height: 36, fontWeight: 600, fontSize: "0.875rem", textTransform: "none",
+                        borderRadius: "8px", borderColor: (t) => alpha(t.palette.grey[500], 0.4),
+                        color: "var(--palette-text-primary)",
+                        "&:hover": { borderColor: "var(--palette-text-primary)", bgcolor: (t) => alpha(t.palette.grey[500], 0.08) },
+                    }}
+                >
+                    Chỉnh sửa
+                </Button>
+
+                {(isDraft || isUnpublished) && (
                     <Button
-                        component={Link}
-                        to={`/${prefixAdmin}/blog/list`}
-                        color="inherit"
-                        startIcon={
-                            <ArrowIcon sx={{ rotate: "90deg", width: 16, height: 16 }} />
-                        }
-                        disableElevation
+                        variant="outlined"
+                        startIcon={<Icon icon="solar:calendar-bold-duotone" width={16} />}
+                        onClick={goToScheduleEditor}
                         sx={{
-                            fontWeight: 700,
-                            textTransform: "none",
-                            fontSize: "0.8125rem",
-                            borderRadius: "var(--shape-borderRadius)",
-                            "&:hover": {
-                                backgroundColor: "var(--palette-text-disabled)14"
-                            }
+                            height: 36, fontWeight: 600, fontSize: "0.875rem", textTransform: "none",
+                            borderRadius: "8px", borderColor: (t) => alpha(t.palette.grey[500], 0.4),
+                            color: "var(--palette-text-primary)",
+                            "&:hover": { borderColor: "var(--palette-text-primary)", bgcolor: (t) => alpha(t.palette.grey[500], 0.08) },
                         }}
                     >
-                        Quay lại
+                        Lên lịch
                     </Button>
+                )}
 
-                    <Box sx={{ flex: 1 }} />
+                {(isDraft || isUnpublished) && (
+                    <Button
+                        variant="contained"
+                        startIcon={<Icon icon="solar:play-circle-bold" width={16} />}
+                        onClick={handlePublish}
+                        disabled={isUpdating}
+                        sx={{
+                            height: 36, fontWeight: 700, fontSize: "0.875rem", textTransform: "none",
+                            borderRadius: "8px", bgcolor: "var(--palette-text-primary)",
+                            color: "var(--palette-common-white)",
+                            boxShadow: "none",
+                            "&:hover": { bgcolor: "var(--palette-grey-700)", boxShadow: "none" },
+                        }}
+                    >
+                        {isUnpublished ? "Đăng lại" : "Đăng bài"}
+                    </Button>
+                )}
 
-                    <Box sx={{ display: "flex", gap: "12px" }}>
-                        {/* Actions */}
-                        {status === 'published' && (
-                            <Tooltip title="Xem trực tiếp">
-                                <IconButton component={Link} to={`/blog/${blog.id}`} target="_blank">
-                                    <GoLiveIcon />
-                                </IconButton>
-                            </Tooltip>
-                        )}
-
-                        <Tooltip title="Chỉnh sửa">
-                            <IconButton onClick={() => navigate(`/${prefixAdmin}/blog/edit/${blog.id}`)}>
-                                <EditIcon sx={{ mr: 0, color: "var(--palette-text-secondary)" }} />
-                            </IconButton>
-                        </Tooltip>
-
-                        {/* Status Button */}
+                {isScheduled && (
+                    <>
                         <Button
                             variant="contained"
-                            color="inherit"
-                            disableElevation
-                            onClick={handleOpen}
-                            endIcon={<ArrowIcon />}
+                            startIcon={<Icon icon="solar:play-circle-bold" width={16} />}
+                            onClick={handlePublish}
+                            disabled={isUpdating}
                             sx={{
-                                textTransform: "none",
-                                fontWeight: 700,
-                                fontSize: "0.8125rem",
-                                backgroundColor: "var(--palette-text-primary)",
+                                height: 36, fontWeight: 700, fontSize: "0.875rem", textTransform: "none",
+                                borderRadius: "8px", bgcolor: "var(--palette-text-primary)",
                                 color: "var(--palette-common-white)",
-                                borderRadius: "var(--shape-borderRadius)",
-                                padding: "6px 12px",
-                                "&:hover": {
-                                    backgroundColor: "var(--palette-grey-700)",
-                                    boxShadow: "var(--customShadows-z8)"
-                                }
+                                boxShadow: "none",
+                                "&:hover": { bgcolor: "var(--palette-grey-700)", boxShadow: "none" },
                             }}
                         >
-                            {status === "published"
-                                ? "Xuất bản"
-                                : status === "draft"
-                                    ? "Bản nháp"
-                                    : "Đã lưu trữ"}
+                            Đăng ngay
                         </Button>
-                    </Box>
+                        <Button
+                            variant="outlined"
+                            startIcon={<Icon icon="solar:calendar-remove-bold-duotone" width={16} />}
+                            onClick={handleMoveToDraft}
+                            disabled={isUpdating}
+                            sx={{
+                                height: 36, fontWeight: 600, fontSize: "0.875rem", textTransform: "none",
+                                borderRadius: "8px", borderColor: (t) => alpha(t.palette.grey[500], 0.4),
+                                color: "var(--palette-text-primary)",
+                                "&:hover": { borderColor: "var(--palette-text-primary)", bgcolor: (t) => alpha(t.palette.grey[500], 0.08) },
+                            }}
+                        >
+                            Hủy lịch
+                        </Button>
+                    </>
+                )}
 
-                    {/* MENU */}
-                    <Menu
-                        anchorEl={anchorEl}
-                        open={open}
-                        onClose={handleClose}
-                        slotProps={{
-                            paper: {
-                                sx: {
-                                    borderRadius: "10px",
-                                    minWidth: 140,
-                                    boxShadow:
-                                        "0 0 2px 0 rgba(145 158 171 / 24%), -20px 20px 40px -4px rgba(145 158 171 / 24%)",
-                                    overflow: "visible",
-                                    mt: 1,
-                                    '& .MuiMenuItem-root': {
-                                        fontSize: '0.875rem'
-                                    }
-                                }
-                            }
-                        }}
-                        anchorOrigin={{
-                            vertical: 'bottom',
-                            horizontal: 'right',
-                        }}
-                        transformOrigin={{
-                            vertical: 'top',
-                            horizontal: 'right',
+                {isPublished && (
+                    <Button
+                        variant="outlined"
+                        startIcon={<Icon icon="solar:archive-down-minimlistic-bold-duotone" width={16} />}
+                        onClick={handleUnpublish}
+                        disabled={isUpdating}
+                        sx={{
+                            height: 36, fontWeight: 600, fontSize: "0.875rem", textTransform: "none",
+                            borderRadius: "8px", borderColor: (t) => alpha(t.palette.grey[500], 0.4),
+                            color: "var(--palette-text-primary)",
+                            "&:hover": { borderColor: "var(--palette-text-primary)", bgcolor: (t) => alpha(t.palette.grey[500], 0.08) },
                         }}
                     >
-                        <MenuItem
-                            dense
-                            sx={getItemStyle(status, "published")}
-                            onClick={() => handleChangeStatus("published")}
-                        >
-                            <UploadIcon sx={{ fontSize: "1.25rem" }} />
-                            Xuất bản
-                        </MenuItem>
+                        Gỡ bài xuống
+                    </Button>
+                )}
 
-                        <MenuItem
-                            dense
-                            sx={getItemStyle(status, "draft")}
-                            onClick={() => handleChangeStatus("draft")}
-                        >
-                            <DraftIcon />
-                            Bản nháp
-                        </MenuItem>
+                {canDelete && (
+                    <Button
+                        variant="outlined"
+                        startIcon={<Icon icon="solar:trash-bin-trash-bold" width={16} />}
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        sx={{
+                            height: 36, fontWeight: 600, fontSize: "0.875rem", textTransform: "none",
+                            borderRadius: "8px",
+                            borderColor: confirmDelete ? "var(--palette-error-main)" : (t) => alpha(t.palette.error.main, 0.36),
+                            color: "var(--palette-error-main)",
+                            bgcolor: confirmDelete ? (t) => alpha(t.palette.error.main, 0.08) : "transparent",
+                            "&:hover": { borderColor: "var(--palette-error-main)", bgcolor: (t) => alpha(t.palette.error.main, 0.08) },
+                        }}
+                    >
+                        {confirmDelete ? "Xác nhận xóa?" : "Xóa"}
+                    </Button>
+                )}
+            </Stack>
+        </Box>
+    );
 
-                        <MenuItem
-                            dense
-                            sx={getItemStyle(status, "archived")}
-                            onClick={() => handleChangeStatus("archived")}
-                        >
-                            <ArchivedIcon />
-                            Đã lưu trữ
-                        </MenuItem>
-                    </Menu>
-                </Box>
-            </Container>
+    // ──────────────────────────────────────────────────────────────────────────
+    // INFO VIEW — Admin dashboard layout
+    // ──────────────────────────────────────────────────────────────────────────
+    const infoView = (
+        <Grid container spacing={3}>
+            {/* Left */}
+            <Grid size={{ xs: 12, md: 8 }}>
+                <Stack spacing={3}>
+                    {/* Thumbnail + title card */}
+                    <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", overflow: "hidden", position: "relative" }}>
+                        {thumbnail ? (
+                            <Box
+                                sx={{
+                                    width: "100%",
+                                    height: 320,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    bgcolor: "#fff",
+                                }}
+                            >
+                                <Box component="img" src={thumbnail} alt={blog.name || blog.title}
+                                    sx={{ width: "100%", height: "100%", objectFit: "contain", display: "block", bgcolor: "#fff" }}
+                                    onError={(e: any) => { e.currentTarget.style.display = "none"; }}
+                                />
+                            </Box>
+                        ) : (
+                            <Box sx={{ width: "100%", height: 200, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "var(--palette-background-neutral)" }}>
+                                <Icon icon="solar:gallery-broken" width={64} color="var(--palette-text-disabled)" />
+                            </Box>
+                        )}
 
-            {/* Image + Title */}
+                        <Box sx={{ p: 3 }}>
+                            <Typography variant="h5" sx={{ fontWeight: 700, color: "var(--palette-text-primary)", lineHeight: 1.4, mb: 1 }}>
+                                {blog.name || blog.title}
+                            </Typography>
+                            {blog.description && (
+                                <Typography variant="body2" sx={{ color: "var(--palette-text-secondary)", fontStyle: "italic", lineHeight: 1.6 }}>
+                                    {blog.description}
+                                </Typography>
+                            )}
+                        </Box>
+                    </Card>
+
+                    {/* Content preview */}
+                    {blog.content && (
+                        <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", p: 3 }}>
+                            <Typography sx={{ fontSize: "1.0625rem", fontWeight: 700, mb: 2, color: "var(--palette-text-primary)" }}>
+                                Nội dung bài viết
+                            </Typography>
+                            <Divider sx={{ mb: 3, borderStyle: "dashed" }} />
+                            <Box sx={{
+                                color: "var(--palette-text-primary)",
+                                "& img": { borderRadius: "var(--shape-borderRadius-md)", my: 2, maxWidth: "100%" },
+                                "& p": { mb: 1.5, fontSize: "0.9375rem", lineHeight: 1.8 },
+                                "& h2": { fontSize: "1.375rem", fontWeight: 700, mt: 3, mb: 1.5 },
+                                "& h3": { fontSize: "1.125rem", fontWeight: 700, mt: 2.5, mb: 1 },
+                                "& ul, & ol": { pl: 3, mb: 1.5 },
+                                "& li": { mb: 0.75, fontSize: "0.9375rem" },
+                                "& blockquote": { borderLeft: "4px solid var(--palette-primary-main)", pl: 2, color: "var(--palette-text-secondary)", fontStyle: "italic", my: 2 },
+                            }}>
+                                <div dangerouslySetInnerHTML={{ __html: blog.content }} />
+                            </Box>
+                        </Card>
+                    )}
+                </Stack>
+            </Grid>
+
+            {/* Right sidebar */}
+            <Grid size={{ xs: 12, md: 4 }}>
+                <Stack spacing={3}>
+                    {/* Basic info card */}
+                    <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+                        <Typography sx={{ px: 3, pt: 3, pb: 2, fontSize: "1.0625rem", fontWeight: 700, color: "var(--palette-text-primary)" }}>
+                            Thông tin bài viết
+                        </Typography>
+                        <Divider sx={{ borderStyle: "dashed" }} />
+                        <Box sx={{ px: 3, py: 1 }}>
+                            <InfoRow label="Trạng thái">
+                                <Chip
+                                    icon={<Icon icon={statusCfg.icon} width={13} />}
+                                    label={statusCfg.label} size="small"
+                                    sx={{ fontWeight: 700, fontSize: "0.75rem", height: 24, borderRadius: "6px", color: statusCfg.color, bgcolor: statusCfg.bg, "& .MuiChip-icon": { color: statusCfg.color } }}
+                                />
+                            </InfoRow>
+                            <Divider sx={{ borderStyle: "dashed" }} />
+
+                            <InfoRow label="Danh mục">
+                                {blog.categoryRaw?.name ? (
+                                    <Chip label={blog.categoryRaw.name} size="small"
+                                        sx={{ fontWeight: 600, fontSize: "0.75rem", height: 24, borderRadius: "6px", color: "var(--palette-info-dark)", bgcolor: "var(--palette-info-lighter)" }} />
+                                ) : (
+                                    <Typography variant="body2" sx={{ color: "var(--palette-text-disabled)" }}>Chưa có danh mục</Typography>
+                                )}
+                            </InfoRow>
+                            <Divider sx={{ borderStyle: "dashed" }} />
+
+                            {blog.type && (
+                                <>
+                                    <InfoRow label="Loại bài viết">
+                                        <Typography variant="body2" sx={{ fontWeight: 600, color: "var(--palette-text-primary)" }}>{blogTypeLabel}</Typography>
+                                    </InfoRow>
+                                    <Divider sx={{ borderStyle: "dashed" }} />
+                                </>
+                            )}
+
+                            {blog.slug && (
+                                <>
+                                    <InfoRow label="Slug">
+                                        <Typography variant="caption" sx={{ color: "var(--palette-primary-dark)", bgcolor: "var(--palette-primary-lighter)", px: 1, py: 0.25, borderRadius: "4px", fontFamily: "monospace", wordBreak: "break-all" }}>
+                                            {blog.slug}
+                                        </Typography>
+                                    </InfoRow>
+                                    <Divider sx={{ borderStyle: "dashed" }} />
+                                </>
+                            )}
+
+                            <InfoRow label="Lượt xem">
+                                <Typography variant="body2" sx={{ fontWeight: 700, color: "var(--palette-text-primary)" }}>
+                                    {(blog.viewCount ?? 0).toLocaleString("vi-VN")}
+                                </Typography>
+                            </InfoRow>
+
+                            {blog.scheduledAt && (
+                                <>
+                                    <Divider sx={{ borderStyle: "dashed" }} />
+                                    <InfoRow label="Lên lịch đăng">
+                                        <Typography variant="body2" sx={{ fontWeight: 600, color: "var(--palette-info-dark)" }}>
+                                            {dayjs(blog.scheduledAt).format("DD/MM/YYYY HH:mm")}
+                                        </Typography>
+                                    </InfoRow>
+                                </>
+                            )}
+
+                            {blog.publishedAt && status !== BLOG_STATUS.SCHEDULED && (
+                                <>
+                                    <Divider sx={{ borderStyle: "dashed" }} />
+                                    <InfoRow label="Ngày xuất bản">
+                                        <Typography variant="body2" sx={{ fontWeight: 600, color: "var(--palette-success-dark)" }}>
+                                            {dayjs(blog.publishedAt).format("DD/MM/YYYY HH:mm")}
+                                        </Typography>
+                                    </InfoRow>
+                                </>
+                            )}
+                        </Box>
+                    </Card>
+
+                    {/* Timeline */}
+                    <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)" }}>
+                        <Typography sx={{ px: 3, pt: 3, pb: 2, fontSize: "1.0625rem", fontWeight: 700, color: "var(--palette-text-primary)" }}>Lịch sử</Typography>
+                        <Divider sx={{ borderStyle: "dashed" }} />
+                        <Stack spacing={0} sx={{ px: 3, py: 1 }}>
+                            <InfoRow label="Ngày tạo">
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: "var(--palette-text-primary)" }}>
+                                    {blog.createdAt ? dayjs(blog.createdAt).format("DD/MM/YYYY HH:mm") : "—"}
+                                </Typography>
+                            </InfoRow>
+                            <Divider sx={{ borderStyle: "dashed" }} />
+                            <InfoRow label="Cập nhật lần cuối">
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: "var(--palette-text-primary)" }}>
+                                    {blog.updatedAt ? dayjs(blog.updatedAt).format("DD/MM/YYYY HH:mm") : "—"}
+                                </Typography>
+                            </InfoRow>
+                        </Stack>
+                    </Card>
+
+                    {/* Author */}
+                    <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", p: 3 }}>
+                        <Typography sx={{ fontSize: "1.0625rem", fontWeight: 700, mb: 2, color: "var(--palette-text-primary)" }}>Tác giả</Typography>
+                        {blog.createdBy ? (
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <Avatar sx={{ width: 40, height: 40, bgcolor: "var(--palette-primary-main)", fontSize: "1rem", fontWeight: 700 }}>
+                                    {String(blog.createdBy)[0]?.toUpperCase()}
+                                </Avatar>
+                                <Box>
+                                    <Typography variant="body2" sx={{ fontWeight: 700, color: "var(--palette-text-primary)" }}>{blog.createdBy}</Typography>
+                                    {blog.lastModifiedBy && blog.lastModifiedBy !== blog.createdBy && (
+                                        <Typography variant="caption" sx={{ color: "var(--palette-text-disabled)", display: "block" }}>Sửa bởi: {blog.lastModifiedBy}</Typography>
+                                    )}
+                                </Box>
+                            </Stack>
+                        ) : (
+                            <Typography variant="body2" sx={{ color: "var(--palette-text-disabled)" }}>Chưa có thông tin tác giả</Typography>
+                        )}
+                    </Card>
+
+                    {/* Tags */}
+                    {Array.isArray(blog.tagsRaw) && blog.tagsRaw.length > 0 && (
+                        <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", p: 3 }}>
+                            <Typography sx={{ fontSize: "1.0625rem", fontWeight: 700, mb: 2, color: "var(--palette-text-primary)" }}>Thẻ bài viết</Typography>
+                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+                                {blog.tagsRaw.map((tag: any) => (
+                                    <Chip key={tag.id ?? tag} label={tag.name ?? tag} size="small"
+                                        sx={{ fontWeight: 600, fontSize: "0.75rem", height: 24, borderRadius: "6px", bgcolor: "var(--palette-background-neutral)", color: "var(--palette-text-secondary)" }} />
+                                ))}
+                            </Box>
+                        </Card>
+                    )}
+                </Stack>
+            </Grid>
+        </Grid>
+    );
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // PREVIEW VIEW — Magazine reader style (original design)
+    // ──────────────────────────────────────────────────────────────────────────
+    const previewView = (
+        <>
+            {/* Hero image with title overlay */}
             <Box
                 sx={{
-                    backgroundImage: `linear-gradient(0deg, rgba(20, 26, 33, 0.64), rgba(20, 26, 33, 0.64)), url("${blog.featuredImage || 'https://api-prod-minimal-v700.pages.dev/assets/images/cover/cover-3.webp'}")`,
+                    backgroundImage: `linear-gradient(0deg, rgba(20, 26, 33, 0.72), rgba(20, 26, 33, 0.40)), url("${thumbnail || 'https://api-prod-minimal-v700.pages.dev/assets/images/cover/cover-3.webp'}")`,
                     backgroundSize: "cover",
                     backgroundRepeat: "no-repeat",
                     backgroundPosition: "center center",
                     height: "480px",
                     overflow: "hidden",
+                    borderRadius: "var(--shape-borderRadius-lg)",
+                    position: "relative",
+                    mx: "-40px",
                 }}
             >
                 <Container sx={{ height: "100%", position: "relative" }}>
-                    <Stack sx={{ height: '100%', justifyContent: 'flex-end', pb: '80px' }}>
-                        <Typography sx={{ fontSize: "1.875rem", maxWidth: "720px", fontWeight: "700", zIndex: "9", color: "var(--palette-common-white)", lineHeight: "1.5" }}>
-                            {blog.title}
+                    <Stack sx={{ height: "100%", justifyContent: "flex-end", pb: "80px" }}>
+                        {/* Status badge in preview */}
+                        <Box sx={{ mb: 2 }}>
+                            <Chip
+                                icon={<Icon icon={statusCfg.icon} width={13} />}
+                                label={statusCfg.label}
+                                size="small"
+                                sx={{
+                                    fontWeight: 700, fontSize: "0.75rem", height: 24, borderRadius: "8px",
+                                    color: statusCfg.color, bgcolor: statusCfg.bg, px: 0.5,
+                                    backdropFilter: "blur(4px)",
+                                    "& .MuiChip-icon": { color: statusCfg.color },
+                                }}
+                            />
+                        </Box>
+                        <Typography sx={{ fontSize: "1.875rem", maxWidth: "720px", fontWeight: 700, zIndex: 9, color: "var(--palette-common-white)", lineHeight: 1.5 }}>
+                            {blog.name || blog.title}
                         </Typography>
-                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mt: 2, color: "var(--palette-common-white)", opacity: 0.8, fontSize: '0.875rem' }}>
-                            <Box component="span">
-                                {dayjs(blog.createdAt).locale('vi').format('DD MMM YYYY, HH:mm')}
-                            </Box>
+                        <Box sx={{ display: "flex", gap: 2, alignItems: "center", mt: 2, color: "var(--palette-common-white)", opacity: 0.8, fontSize: "0.875rem" }}>
+                            {blog.createdBy && <Box component="span" sx={{ fontWeight: 600 }}>{blog.createdBy}</Box>}
+                            {blog.createdBy && <Box component="span" sx={{ opacity: 0.5 }}>·</Box>}
+                            <Box component="span">{dayjs(blog.createdAt).locale("vi").format("DD MMM YYYY, HH:mm")}</Box>
+                            {blog.categoryRaw?.name && (
+                                <>
+                                    <Box component="span" sx={{ opacity: 0.5 }}>·</Box>
+                                    <Box component="span" sx={{ fontStyle: "italic" }}>{blog.categoryRaw.name}</Box>
+                                </>
+                            )}
                         </Box>
                     </Stack>
 
-                    <Box sx={{ position: "absolute", left: "0", bottom: "0", width: "100%" }}>
+                    {/* Share SpeedDial */}
+                    <Box sx={{ position: "absolute", left: 0, bottom: 0, width: "100%" }}>
                         <SpeedDial
-                            ariaLabel="Share post"
+                            ariaLabel="Chia sẻ"
                             direction="left"
                             icon={<ShareIcon />}
                             sx={{
-                                position: "absolute",
-                                bottom: "64px",
-                                right: "24px",
-                                zIndex: "1050",
-
-                                '& .MuiFab-root': {
-                                    width: "48px",
-                                    height: "48px",
-                                    backgroundColor: "var(--palette-primary-main)",
-
-                                    '& .MuiSvgIcon-root': {
-                                        color: "var(--palette-common-white)",
-                                        width: "1.25rem",
-                                        height: "1.25rem"
-                                    }
+                                position: "absolute", bottom: "64px", right: "24px", zIndex: 1050,
+                                "& .MuiFab-root": {
+                                    width: "48px", height: "48px", backgroundColor: "var(--palette-primary-main)",
+                                    "& .MuiSvgIcon-root": { color: "var(--palette-common-white)", width: "1.25rem", height: "1.25rem" },
                                 },
-                                '& .MuiSpeedDialAction-fab': {
-                                    width: "2.5rem",
-                                    height: "2.5rem",
-                                    boxShadow: "var(--customShadows-z8)",
-                                    backgroundColor: "var(--palette-background-paper)",
-                                    m: "8px",
-
-                                    '& svg': {
-                                        width: "1.25rem",
-                                        height: "1.25rem"
-                                    }
-                                }
+                                "& .MuiSpeedDialAction-fab": {
+                                    width: "2.5rem", height: "2.5rem", boxShadow: "var(--customShadows-z8)",
+                                    backgroundColor: "var(--palette-background-paper)", m: "8px",
+                                    "& svg": { width: "1.25rem", height: "1.25rem" },
+                                },
                             }}
                         >
-                            <SpeedDialAction
-                                icon={<FacebookIcon />}
-                                sx={{ transitionDelay: "120ms !important" }}
-                                slotProps={{
-                                    tooltip: {
-                                        title: "Facebook",
-                                    },
-                                }}
-                            />
-                            <SpeedDialAction
-                                icon={<InstagramIcon />}
-                                sx={{ transitionDelay: "90ms !important" }}
-                                slotProps={{
-                                    tooltip: {
-                                        title: "Instagram",
-                                    },
-                                }}
-                            />
+                            <SpeedDialAction icon={<FacebookIcon />} sx={{ transitionDelay: "120ms !important" }}
+                                slotProps={{ tooltip: { title: "Facebook" } }} />
+                            <SpeedDialAction icon={<InstagramIcon />} sx={{ transitionDelay: "90ms !important" }}
+                                slotProps={{ tooltip: { title: "Instagram" } }} />
                         </SpeedDial>
                     </Box>
-                </Container >
-            </Box >
+                </Container>
+            </Box>
 
-            {/* Content */}
-            <Container maxWidth="md" sx={{ mt: 8, mb: 10 }}>
-                <Typography variant="h6" sx={{ mb: 3, fontStyle: 'italic', opacity: 0.8, color: 'var(--palette-text-secondary)' }}>
-                    {blog.excerpt || blog.metaDescription}
-                </Typography>
+            {/* Article body */}
+            <Container maxWidth="md" sx={{ mt: 8, mb: 6 }}>
+                {/* Excerpt */}
+                {blog.description && (
+                    <Typography variant="h6" sx={{ mb: 3, fontStyle: "italic", opacity: 0.8, color: "var(--palette-text-secondary)" }}>
+                        {blog.description}
+                    </Typography>
+                )}
+
+                {/* Meta strip */}
+                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 3 }}>
+                    {blog.categoryRaw?.name && (
+                        <Chip label={blog.categoryRaw.name} size="small"
+                            sx={{ fontWeight: 600, fontSize: "0.75rem", height: 24, borderRadius: "6px", color: "var(--palette-info-dark)", bgcolor: "var(--palette-info-lighter)" }} />
+                    )}
+                    {Array.isArray(blog.tagsRaw) && blog.tagsRaw.map((tag: any) => (
+                        <Chip key={tag.id ?? tag} label={`#${tag.name ?? tag}`} size="small"
+                            sx={{ fontWeight: 600, fontSize: "0.75rem", height: 24, borderRadius: "6px", bgcolor: "var(--palette-background-neutral)", color: "var(--palette-text-secondary)" }} />
+                    ))}
+                </Stack>
 
                 <Divider sx={{ mb: 4 }} />
 
-                <Box className="prose lg:prose-xl" sx={{
-                    color: 'var(--palette-text-primary)',
-                    '& img': { borderRadius: "var(--shape-borderRadius-md)", my: 3 },
-                    '& p': { mb: 2, fontSize: '1rem', lineHeight: 1.8 },
-                    '& h2': { fontSize: '1.5rem', fontWeight: 700, mt: 4, mb: 2 },
-                    '& h3': { fontSize: '1.25rem', fontWeight: 700, mt: 3, mb: 2 },
-                    '& ul, & ol': { pl: 3, mb: 2 },
-                    '& li': { mb: 1, fontSize: '1rem' },
+                {/* HTML content */}
+                <Box sx={{
+                    color: "var(--palette-text-primary)",
+                    "& img": { borderRadius: "var(--shape-borderRadius-md)", my: 3, maxWidth: "100%" },
+                    "& p": { mb: 2, fontSize: "1rem", lineHeight: 1.8 },
+                    "& h2": { fontSize: "1.5rem", fontWeight: 700, mt: 4, mb: 2 },
+                    "& h3": { fontSize: "1.25rem", fontWeight: 700, mt: 3, mb: 2 },
+                    "& ul, & ol": { pl: 3, mb: 2 },
+                    "& li": { mb: 1, fontSize: "1rem" },
+                    "& blockquote": { borderLeft: "4px solid var(--palette-primary-main)", pl: 2, my: 3, color: "var(--palette-text-secondary)", fontStyle: "italic" },
+                    "& a": { color: "var(--palette-primary-main)", textDecoration: "underline" },
                 }}>
-                    <div dangerouslySetInnerHTML={{ __html: blog.content }} />
+                    <div dangerouslySetInnerHTML={{ __html: blog.content || "" }} />
                 </Box>
 
+                {/* Author strip */}
+                {blog.createdBy && (
+                    <>
+                        <Divider sx={{ mt: 6, mb: 4 }} />
+                        <Stack direction="row" spacing={2} alignItems="center">
+                            <Avatar sx={{ width: 48, height: 48, bgcolor: "var(--palette-primary-main)", fontSize: "1.125rem", fontWeight: 700 }}>
+                                {String(blog.createdBy)[0]?.toUpperCase()}
+                            </Avatar>
+                            <Box>
+                                <Typography variant="body2" sx={{ color: "var(--palette-text-disabled)", fontSize: "0.75rem" }}>Tác giả</Typography>
+                                <Typography variant="body1" sx={{ fontWeight: 700, color: "var(--palette-text-primary)" }}>{blog.createdBy}</Typography>
+                            </Box>
+                            <Box sx={{ flex: 1 }} />
+                            <Tooltip title="Lượt xem">
+                                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: "var(--palette-text-disabled)", fontSize: "0.875rem" }}>
+                                    <Icon icon="solar:eye-bold-duotone" width={18} />
+                                    <span>{(blog.viewCount ?? 0).toLocaleString("vi-VN")}</span>
+                                </Stack>
+                            </Tooltip>
+                        </Stack>
+                    </>
+                )}
             </Container>
         </>
+    );
 
-    )
-}
-
-
-
-
+    // ── Render ───────────────────────────────────────────────────────────────
+    return (
+        <>
+            {header}
+            {viewMode === "info" ? infoView : previewView}
+        </>
+    );
+};

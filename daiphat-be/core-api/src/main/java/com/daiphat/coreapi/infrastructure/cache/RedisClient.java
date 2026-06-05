@@ -6,6 +6,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -74,5 +75,17 @@ public class RedisClient {
             redisTemplate.expire(key, duration);
         }
         return result != null ? result : 0;
+    }
+
+    public void zadd(String key, Object value, double score) {
+        redisTemplate.opsForZSet().add(key, value, score);
+    }
+
+    public void zrem(String key, Object... values) {
+        redisTemplate.opsForZSet().remove(key, values);
+    }
+
+    public Set<Object> zrangeByScore(String key, double min, double max) {
+        return redisTemplate.opsForZSet().rangeByScore(key, min, max);
     }
 }

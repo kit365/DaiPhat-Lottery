@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -17,6 +18,10 @@ public class PageResponse<T> {
 
     @JsonView(Views.Public.class)
     private PaginationMetadata pagination;
+
+    /** Status counts for tab badges. Keyed by status code (e.g. "published", "draft"). */
+    @JsonView(Views.Public.class)
+    private Map<String, Long> statusCounts;
 
     @Data
     @Builder
@@ -34,5 +39,11 @@ public class PageResponse<T> {
 
         @JsonView(Views.Public.class)
         private int limit;
+
+        @JsonView(Views.Public.class)
+        private boolean isFirst;
+
+        @JsonView(Views.Public.class)
+        private boolean isLast;
     }
 }

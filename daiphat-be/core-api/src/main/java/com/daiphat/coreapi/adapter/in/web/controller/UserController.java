@@ -6,17 +6,15 @@ import com.daiphat.coreapi.application.dto.request.user.CreateUserRequest;
 import com.daiphat.coreapi.application.dto.request.user.ProfileSetupRequest;
 import com.daiphat.coreapi.application.dto.request.user.UpdateUserRequest;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
+import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.response.base.Views;
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.user.UserStatusResponse;
 import com.daiphat.coreapi.application.dto.response.user.UserResponse;
-import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.port.in.user.UserServicePort;
-import com.daiphat.coreapi.domain.exception.DomainException;
-import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.UserModel;
-import com.daiphat.coreapi.domain.model.enums.UserStatus;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.shared.util.SearchConstants;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.fasterxml.jackson.annotation.JsonView;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +25,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -62,7 +58,7 @@ public class UserController {
     @GetMapping("/me")
     @JsonView(Views.Me.class)
     public ApiResponse<UserResponse> getCurrentUser(
-            @AuthenticationPrincipal UserModel principal) {
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         
         log.debug("REST request to get profile for: {}", principal.getUsername());
         UserResponse response = userServicePort.getMyProfile(principal.getUsername());
@@ -73,16 +69,16 @@ public class UserController {
     @PreAuthorize("isAuthenticated()")
     @JsonView(Views.Me.class)
     public ApiResponse<UserResponse> uploadMyAvatar(
-            @AuthenticationPrincipal UserModel principal,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @RequestPart("file") MultipartFile file) {
         return ApiResponse.success("Cập nhật ảnh đại diện thành công.",
-                userServicePort.uploadAvatar(principal.getId(), toUploadRequest(file)));
+                userServicePort.uploadAvatar(principal.getId(), StorageUtils.toUploadRequest(file)));
     }
 
     @DeleteMapping("/me/avatar")
     @PreAuthorize("isAuthenticated()")
     @JsonView(Views.Me.class)
-    public ApiResponse<UserResponse> deleteMyAvatar(@AuthenticationPrincipal UserModel principal) {
+    public ApiResponse<UserResponse> deleteMyAvatar(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return ApiResponse.success("Đã xóa ảnh đại diện.",
                 userServicePort.deleteAvatar(principal.getId()));
     }
@@ -101,7 +97,7 @@ public class UserController {
             @PathVariable UUID id,
             @RequestPart("file") MultipartFile file) {
         return ApiResponse.success("Cập nhật ảnh đại diện thành công.",
-                userServicePort.uploadAvatar(id, toUploadRequest(file)));
+                userServicePort.uploadAvatar(id, StorageUtils.toUploadRequest(file)));
     }
 
     @DeleteMapping(ID_PATH + "/avatar")
@@ -123,7 +119,7 @@ public class UserController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('member:view', 'admin:view')")
     @JsonView(Views.Admin.class)
-    public ApiResponse<Object> getAll(
+    public ApiResponse<PageResponse<UserResponse>> getAll(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int limit,
             @RequestParam(required = false) String q,
@@ -141,7 +137,7 @@ public class UserController {
     @PostMapping("/setup-profile")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<Void> setupProfile(
-            @AuthenticationPrincipal UserModel principal,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @Valid @RequestBody ProfileSetupRequest request) {
         
         userServicePort.setupFirstTimeProfile(principal.getUsername(), request);
@@ -158,13 +154,7 @@ public class UserController {
     @GetMapping("/statuses")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<UserStatusResponse>> getStatuses() {
-        List<UserStatusResponse> statuses = Arrays.stream(UserStatus.values())
-                .map(status -> UserStatusResponse.builder()
-                        .code(status.getCode())
-                        .name(status.getLabel())
-                        .build())
-                .toList();
-        return ApiResponse.success(null, statuses);
+        return ApiResponse.success(null, userServicePort.getStatuses());
     }
 
     @PostMapping(ID_PATH + "/invite-staff")
@@ -184,16 +174,4 @@ public class UserController {
         return ApiResponse.success("Kích hoạt tài khoản nhân sự thành công.");
     }
 
-    private UploadRequest toUploadRequest(MultipartFile file) {
-        try {
-            return new UploadRequest(
-                    file.getBytes(),
-                    file.getOriginalFilename(),
-                    file.getContentType(),
-                    null
-            );
-        } catch (IOException e) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Cannot read uploaded image");
-        }
-    }
 }

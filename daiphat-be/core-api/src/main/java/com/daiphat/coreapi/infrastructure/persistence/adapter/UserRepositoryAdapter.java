@@ -4,9 +4,9 @@ import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
-import com.daiphat.coreapi.domain.model.enums.InviteStatus;
-import com.daiphat.coreapi.domain.model.enums.UserStatus;
-import com.daiphat.coreapi.infrastructure.persistence.entity.StaffInviteEntity;
+import com.daiphat.coreapi.domain.model.enums.user.InviteStatus;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
+import com.daiphat.coreapi.infrastructure.persistence.entity.user.StaffInviteEntity;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.UserPersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.RoleRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
@@ -89,6 +89,16 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     public Page<UserModel> findAll(Pageable pageable, String search, UserStatus status, List<String> roleIds) {
         return userRepository.findAll(UserSpecification.filterUsers(search, status, roleIds), pageable)
                 .map(userPersistenceMapper::toDomainWithRolePermissions);
+    }
+
+    @Override
+    public long countAll(String search, List<String> roleIds) {
+        return userRepository.count(UserSpecification.filterUsers(search, null, roleIds));
+    }
+
+    @Override
+    public long countByStatus(UserStatus status, String search, List<String> roleIds) {
+        return userRepository.count(UserSpecification.filterUsers(search, status, roleIds));
     }
 
     @Override

@@ -5,12 +5,14 @@ interface FormUploadSingleFileProps {
     name: string;
     control: Control<any>;
     disabled?: boolean;
+    useRawFile?: boolean;
 }
 
 export const FormUploadSingleFile = ({
     name,
     control,
     disabled,
+    useRawFile,
 }: FormUploadSingleFileProps) => {
     return (
         <Controller
@@ -22,6 +24,7 @@ export const FormUploadSingleFile = ({
                     onChange={field.onChange}
                     disabled={disabled}
                     error={fieldState.error?.message}
+                    useRawFile={useRawFile}
                 />
             )}
         />

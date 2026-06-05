@@ -32,7 +32,7 @@ export const getUsers = async (params?: BaseQueryParams): Promise<ApiResponse<Pa
                 limit: params?.limit || 10
             },
             statusCounts: {
-                all: result?.pagination?.totalRecords || recordList.length,
+                all: rawCounts.all ?? result?.pagination?.totalRecords ?? recordList.length,
                 ACTIVE: rawCounts.ACTIVE || rawCounts.active || 0,
                 INACTIVE: rawCounts.INACTIVE || rawCounts.inactive || 0,
                 PENDING: rawCounts.PENDING || rawCounts.pending || 0,

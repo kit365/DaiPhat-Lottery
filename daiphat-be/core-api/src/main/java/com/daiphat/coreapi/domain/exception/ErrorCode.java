@@ -70,7 +70,18 @@ public enum ErrorCode {
     SYNC_FAILED("SYS_005", "Đồng bộ dữ liệu thất bại.", HttpStatus.INTERNAL_SERVER_ERROR),
     INVALID_INPUT("SYS_006", "Dữ liệu nhập vào không hợp lệ.", HttpStatus.BAD_REQUEST),
     PASSWORD_CONFIRM_MISMATCH("AUTH_030", "Xác nhận mật khẩu không khớp", HttpStatus.BAD_REQUEST),
-    ACCESS_DENIED("AUTH_031", "Bạn không có quyền truy cập tài nguyên này.", HttpStatus.FORBIDDEN);
+    ACCESS_DENIED("AUTH_031", "Bạn không có quyền truy cập tài nguyên này.", HttpStatus.FORBIDDEN),
+    
+    // Blog Errors
+    BLOG_NOT_FOUND("BLG_001", "Bài viết không tồn tại.", HttpStatus.NOT_FOUND),
+    CATEGORY_NOT_FOUND("BLG_002", "Danh mục không tồn tại.", HttpStatus.NOT_FOUND),
+    TAG_NOT_FOUND("BLG_003", "Tag không tồn tại.", HttpStatus.NOT_FOUND),
+    SLUG_EXISTED("BLG_004", "Slug đã được sử dụng.", HttpStatus.BAD_REQUEST),
+    TAG_NAME_EXISTED("BLG_005", "Tên tag đã tồn tại.", HttpStatus.BAD_REQUEST),
+    CATEGORY_PARENT_INVALID("BLG_006", "Danh mục cha không thể là chính nó.", HttpStatus.BAD_REQUEST),
+    CATEGORY_PARENT_NOT_FOUND("BLG_007", "Danh mục cha không tồn tại.", HttpStatus.NOT_FOUND),
+    BLOG_SCHEDULED_AT_REQUIRED("BLG_008", "Bài viết hẹn giờ đăng phải có thời gian lên lịch.", HttpStatus.BAD_REQUEST),
+    BLOG_SCHEDULED_AT_FUTURE("BLG_009", "Thời gian lên lịch phải lớn hơn thời điểm hiện tại.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

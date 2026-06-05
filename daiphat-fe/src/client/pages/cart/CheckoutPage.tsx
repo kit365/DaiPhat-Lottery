@@ -38,7 +38,7 @@ export const CheckoutPage = () => {
             
             <main className="max-w-[1200px] mx-auto px-4 pt-28">
                 {/* Breadcrumb */}
-                <div className="flex items-center gap-2 text-[14px] text-[#637381] mb-6">
+                <div className="flex items-center gap-2 text-[13px] text-[#637381] mb-6">
                     <Link to="/" className="hover:text-[#BA0000] transition-colors">Trang chủ</Link>
                     <ChevronRight size={14} />
                     <Link to="/cart" className="hover:text-[#BA0000] transition-colors">Giỏ hàng</Link>
@@ -51,8 +51,8 @@ export const CheckoutPage = () => {
                         <i className="fa-solid fa-file-invoice-dollar text-[24px]"></i>
                     </div>
                     <div>
-                        <h1 className="text-[24px] font-bold text-[#212B36]">Thanh toán đơn hàng</h1>
-                        <p className="text-[#637381] text-[14px]">Xác nhận thông tin và hoàn tất thanh toán</p>
+                        <h1 className="text-[20px] lg:text-[22px] font-bold text-[#212B36]">Thanh toán đơn hàng</h1>
+                        <p className="text-[#637381] text-[13px]">Xác nhận thông tin và hoàn tất thanh toán</p>
                     </div>
                 </div>
 

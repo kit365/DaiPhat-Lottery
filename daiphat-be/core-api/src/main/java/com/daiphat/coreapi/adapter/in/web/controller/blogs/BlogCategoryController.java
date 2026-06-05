@@ -1,0 +1,116 @@
+package com.daiphat.coreapi.adapter.in.web.controller.blogs;
+
+import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
+import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
+import com.daiphat.coreapi.application.dto.request.blog.CreateBlogCategoryRequest;
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryTreeResponse;
+import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryPublicResponse;
+import com.daiphat.coreapi.application.dto.response.blog.CategoryStatusResponse;
+import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping(ApiConstants.API_V1 + "/blogs/categories")
+@RequiredArgsConstructor
+public class BlogCategoryController {
+
+    private static final String ID_PATH = "/{id}";
+    private static final String NESTED_PATH = "/nested";
+
+    private final BlogCategoryServicePort blogCategoryServicePort;
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('article:view')")
+    public ResponseEntity<ApiResponse<PageResponse<BlogCategoryResponse>>> getCategories(
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "limit", defaultValue = "10") int limit,
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "isTrash", defaultValue = "false") boolean isTrash) {
+
+        PageResponse<BlogCategoryResponse> response = blogCategoryServicePort.getCategories(page, limit, search, isTrash);
+        return ResponseEntity.ok(ApiResponse.<PageResponse<BlogCategoryResponse>>builder()
+                .data(response)
+                .message("Lấy danh sách danh mục thành công")
+                .build());
+    }
+
+    @GetMapping("/public")
+    public ResponseEntity<ApiResponse<List<BlogCategoryPublicResponse>>> getPublicCategories() {
+        List<BlogCategoryPublicResponse> response = blogCategoryServicePort.getPublicCategories();
+        return ResponseEntity.ok(ApiResponse.<List<BlogCategoryPublicResponse>>builder()
+                .data(response)
+                .message("Lấy danh sách danh mục công khai thành công")
+                .build());
+    }
+
+    @GetMapping(NESTED_PATH)
+    @PreAuthorize("hasAuthority('article:view')")
+    public ResponseEntity<ApiResponse<List<BlogCategoryTreeResponse>>> getNestedCategories() {
+        List<BlogCategoryTreeResponse> response = blogCategoryServicePort.getNestedCategories();
+        return ResponseEntity.ok(ApiResponse.<List<BlogCategoryTreeResponse>>builder()
+                .data(response)
+                .message("Lấy danh sách danh mục phân cấp thành công")
+                .build());
+    }
+
+    @GetMapping("/statuses")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<CategoryStatusResponse>>> getStatuses() {
+        return ResponseEntity.ok(ApiResponse.<List<CategoryStatusResponse>>builder()
+                .data(blogCategoryServicePort.getStatuses())
+                .message("Lấy danh sách trạng thái danh mục thành công")
+                .build());
+    }
+
+    @GetMapping(ID_PATH)
+    @PreAuthorize("hasAuthority('article:view')")
+    public ResponseEntity<ApiResponse<BlogCategoryResponse>> getCategoryById(@PathVariable(name = "id") Long id) {
+        BlogCategoryResponse response = blogCategoryServicePort.getCategoryById(id);
+        return ResponseEntity.ok(ApiResponse.<BlogCategoryResponse>builder()
+                .data(response)
+                .message("Lấy chi tiết danh mục thành công")
+                .build());
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAuthority('article:create')")
+    public ResponseEntity<ApiResponse<BlogCategoryResponse>> createCategory(
+            @Valid @RequestBody CreateBlogCategoryRequest request) {
+
+        BlogCategoryResponse response = blogCategoryServicePort.createCategory(request);
+        return ResponseEntity.ok(ApiResponse.<BlogCategoryResponse>builder()
+                .data(response)
+                .message("Tạo danh mục thành công")
+                .build());
+    }
+
+    @PatchMapping(ID_PATH)
+    @PreAuthorize("hasAuthority('article:edit')")
+    public ResponseEntity<ApiResponse<BlogCategoryResponse>> updateCategory(
+            @PathVariable(name = "id") Long id,
+            @Valid @RequestBody CreateBlogCategoryRequest request) {
+
+        BlogCategoryResponse response = blogCategoryServicePort.updateCategory(id, request);
+        return ResponseEntity.ok(ApiResponse.<BlogCategoryResponse>builder()
+                .data(response)
+                .message("Cập nhật danh mục thành công")
+                .build());
+    }
+
+    @DeleteMapping(ID_PATH)
+    @PreAuthorize("hasAuthority('article:delete')")
+    public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable(name = "id") Long id) {
+        blogCategoryServicePort.deleteCategory(id);
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .message("Xóa danh mục thành công")
+                .build());
+    }
+}

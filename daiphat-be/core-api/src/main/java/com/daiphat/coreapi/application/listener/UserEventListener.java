@@ -13,7 +13,7 @@ import com.daiphat.coreapi.application.event.StaffInviteEvent;
 import com.daiphat.coreapi.application.event.UserCreatedEvent;
 import com.daiphat.coreapi.application.event.UserRegisteredEvent;
 import com.daiphat.coreapi.application.port.in.mail.EmailServicePort;
-import com.daiphat.coreapi.domain.model.enums.EmailType;
+import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;

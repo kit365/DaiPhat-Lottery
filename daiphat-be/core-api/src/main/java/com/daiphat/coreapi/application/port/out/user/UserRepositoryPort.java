@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.application.port.out.user;
 
 import com.daiphat.coreapi.domain.model.UserModel;
-import com.daiphat.coreapi.domain.model.enums.UserStatus;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
@@ -31,6 +31,10 @@ public interface UserRepositoryPort {
     boolean existsById(UUID id);
 
     Page<UserModel> findAll(Pageable pageable, String search, UserStatus status, List<String> roleIds);
+
+    long countAll(String search, List<String> roleIds);
+
+    long countByStatus(UserStatus status, String search, List<String> roleIds);
 
     void deleteById(UUID id);
 
