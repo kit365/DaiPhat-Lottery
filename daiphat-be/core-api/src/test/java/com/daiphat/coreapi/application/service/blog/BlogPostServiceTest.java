@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.mapper.blog.BlogPostApplicationMapper;
 import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
 import com.daiphat.coreapi.application.port.in.blog.BlogTagServicePort;
 import com.daiphat.coreapi.application.port.out.blog.BlogPostRepositoryPort;
+import com.daiphat.coreapi.application.port.out.blog.BlogPostPublishQueuePort;
 import com.daiphat.coreapi.application.port.out.blog.BlogViewCachePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -25,7 +26,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.daiphat.coreapi.application.dto.request.blog.UpdateBlogPostRequest;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
@@ -71,6 +74,9 @@ class BlogPostServiceTest {
     @Mock
     private BlogViewCachePort blogViewCachePort;
 
+    @Mock
+    private BlogPostPublishQueuePort blogPostPublishQueuePort;
+
     @BeforeEach
     void setUp() {
         blogPostService = new BlogPostService(
@@ -79,7 +85,8 @@ class BlogPostServiceTest {
                 blogTagServicePort,
                 blogPostApplicationMapper,
                 storagePort,
-                blogViewCachePort
+                blogViewCachePort,
+                blogPostPublishQueuePort
         );
     }
 
@@ -241,6 +248,228 @@ class BlogPostServiceTest {
                 .isEqualTo(ErrorCode.SLUG_EXISTED);
 
         verify(blogPostRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CREATE: Tạo bài viết hẹn giờ thất bại khi thiếu scheduledAt")
+    void createPost_scheduledWithoutScheduledAt_throwsInvalidInput() {
+        CreateBlogPostRequest request = CreateBlogPostRequest.builder()
+                .categoryId(CATEGORY_ID)
+                .type(POST_TYPE_BLOG)
+                .title(DEFAULT_TITLE)
+                .slug(DEFAULT_SLUG)
+                .status("scheduled")
+                .build();
+
+        when(blogPostRepositoryPort.existsBySlug(DEFAULT_SLUG)).thenReturn(false);
+
+        assertThatThrownBy(() -> blogPostService.createPost(request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        verify(blogPostRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CREATE: Tạo bài viết hẹn giờ sẽ lưu publishedAt và scheduledAt cùng mốc thời gian")
+    void createPost_scheduled_setsPublishedAtAndScheduledAt() {
+        LocalDateTime futureTime = LocalDateTime.now().plusDays(1);
+        CreateBlogPostRequest request = CreateBlogPostRequest.builder()
+                .categoryId(CATEGORY_ID)
+                .type(POST_TYPE_BLOG)
+                .title(DEFAULT_TITLE)
+                .slug(DEFAULT_SLUG)
+                .status("scheduled")
+                .scheduledAt(futureTime)
+                .build();
+
+        BlogCategoryModel category = BlogCategoryModel.builder().id(CATEGORY_ID).name("Tech").build();
+        BlogPostModel postModel = BlogPostModel.builder()
+                .title(DEFAULT_TITLE)
+                .slug(DEFAULT_SLUG)
+                .build();
+        BlogPostModel savedModel = BlogPostModel.builder()
+                .id(1001L)
+                .title(DEFAULT_TITLE)
+                .slug(DEFAULT_SLUG)
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.SCHEDULED)
+                .scheduledAt(futureTime)
+                .publishedAt(futureTime)
+                .build();
+
+        when(blogPostRepositoryPort.existsBySlug(DEFAULT_SLUG)).thenReturn(false);
+        when(blogCategoryServicePort.getCategoryModelById(CATEGORY_ID)).thenReturn(category);
+        when(blogPostApplicationMapper.toModel(request)).thenReturn(postModel);
+        when(blogPostRepositoryPort.save(any(BlogPostModel.class))).thenReturn(savedModel);
+        when(blogPostApplicationMapper.toResponse(savedModel)).thenReturn(BlogPostResponse.builder().id(1001L).build());
+
+        blogPostService.createPost(request);
+
+        verify(blogPostRepositoryPort).save(argThat(model ->
+                model.getStatus() == com.daiphat.coreapi.domain.model.enums.blog.PostStatus.SCHEDULED
+                        && futureTime.equals(model.getScheduledAt())
+                        && futureTime.equals(model.getPublishedAt())
+        ));
+        verify(blogPostPublishQueuePort).schedulePost(1001L, futureTime);
+    }
+
+    @Test
+    @DisplayName("CREATE: Tạo bài viết thất bại khi chọn trạng thái unpublished")
+    void createPost_unpublished_throwsInvalidInput() {
+        CreateBlogPostRequest request = CreateBlogPostRequest.builder()
+                .categoryId(CATEGORY_ID)
+                .type(POST_TYPE_BLOG)
+                .title(DEFAULT_TITLE)
+                .slug(DEFAULT_SLUG)
+                .status("unpublished")
+                .build();
+
+        when(blogPostRepositoryPort.existsBySlug(DEFAULT_SLUG)).thenReturn(false);
+
+        assertThatThrownBy(() -> blogPostService.createPost(request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        verify(blogPostRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("UPDATE: Cập nhật bài viết thất bại khi slug đã thuộc bài khác")
+    void updatePost_duplicateSlug_throwsSlugExisted() {
+        BlogPostModel existingPost = BlogPostModel.builder()
+                .id(1L)
+                .slug("old-slug")
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.DRAFT)
+                .build();
+        UpdateBlogPostRequest request = UpdateBlogPostRequest.builder()
+                .slug("duplicated-slug")
+                .build();
+
+        when(blogPostRepositoryPort.findById(1L)).thenReturn(Optional.of(existingPost));
+        when(blogPostRepositoryPort.existsBySlugAndIdNot("duplicated-slug", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> blogPostService.updatePost(1L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.SLUG_EXISTED);
+
+        verify(blogPostRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("UPDATE: Rời trạng thái scheduled sẽ xóa lịch đăng cũ")
+    void updatePost_fromScheduledToPublished_clearsScheduledAt() {
+        LocalDateTime futureTime = LocalDateTime.now().plusDays(1);
+        BlogPostModel existingPost = BlogPostModel.builder()
+                .id(1L)
+                .slug("old-slug")
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.SCHEDULED)
+                .scheduledAt(futureTime)
+                .build();
+        BlogPostModel savedPost = BlogPostModel.builder()
+                .id(1L)
+                .slug("old-slug")
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.PUBLISHED)
+                .scheduledAt(null)
+                .build();
+        UpdateBlogPostRequest request = UpdateBlogPostRequest.builder()
+                .status("published")
+                .build();
+
+        when(blogPostRepositoryPort.findById(1L)).thenReturn(Optional.of(existingPost));
+        when(blogPostRepositoryPort.save(any(BlogPostModel.class))).thenReturn(savedPost);
+        when(blogPostApplicationMapper.toResponse(savedPost)).thenReturn(BlogPostResponse.builder().id(1L).build());
+
+        blogPostService.updatePost(1L, request);
+
+        verify(blogPostRepositoryPort).save(argThat(post ->
+                post.getStatus() == com.daiphat.coreapi.domain.model.enums.blog.PostStatus.PUBLISHED
+                        && post.getScheduledAt() == null
+        ));
+        verify(blogPostPublishQueuePort).cancelScheduledPost(1L);
+    }
+
+    @Test
+    @DisplayName("UPDATE: Không cho chuyển trực tiếp từ published sang scheduled")
+    void updatePost_publishedToScheduled_throwsInvalidInput() {
+        BlogPostModel existingPost = BlogPostModel.builder()
+                .id(1L)
+                .slug("published-post")
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.PUBLISHED)
+                .publishedAt(LocalDateTime.now().minusDays(1))
+                .build();
+        UpdateBlogPostRequest request = UpdateBlogPostRequest.builder()
+                .status("scheduled")
+                .scheduledAt(LocalDateTime.now().plusHours(2))
+                .build();
+
+        when(blogPostRepositoryPort.findById(1L)).thenReturn(Optional.of(existingPost));
+
+        assertThatThrownBy(() -> blogPostService.updatePost(1L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        verify(blogPostRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("UPDATE: Chuyển từ unpublished sang scheduled sẽ xóa publishedAt cũ")
+    void updatePost_unpublishedToScheduled_clearsPublishedAt() {
+        LocalDateTime oldPublishedAt = LocalDateTime.now().minusDays(5);
+        LocalDateTime futureTime = LocalDateTime.now().plusDays(1);
+        BlogPostModel existingPost = BlogPostModel.builder()
+                .id(1L)
+                .slug("old-slug")
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.UNPUBLISHED)
+                .publishedAt(oldPublishedAt)
+                .build();
+        BlogPostModel savedPost = BlogPostModel.builder()
+                .id(1L)
+                .slug("old-slug")
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.SCHEDULED)
+                .scheduledAt(futureTime)
+                .publishedAt(null)
+                .build();
+        UpdateBlogPostRequest request = UpdateBlogPostRequest.builder()
+                .status("scheduled")
+                .scheduledAt(futureTime)
+                .build();
+
+        when(blogPostRepositoryPort.findById(1L)).thenReturn(Optional.of(existingPost));
+        when(blogPostRepositoryPort.save(any(BlogPostModel.class))).thenReturn(savedPost);
+        when(blogPostApplicationMapper.toResponse(savedPost)).thenReturn(BlogPostResponse.builder().id(1L).build());
+
+        blogPostService.updatePost(1L, request);
+
+        verify(blogPostRepositoryPort).save(argThat(post ->
+                post.getStatus() == com.daiphat.coreapi.domain.model.enums.blog.PostStatus.SCHEDULED
+                        && post.getScheduledAt() != null
+                        && futureTime.equals(post.getPublishedAt())
+        ));
+    }
+
+    @Test
+    @DisplayName("SCHEDULER: Tự động publish các bài scheduled đã tới giờ")
+    void publishDueScheduledPosts_success() {
+        LocalDateTime now = LocalDateTime.now();
+        when(blogPostPublishQueuePort.getDuePosts(any(LocalDateTime.class))).thenReturn(Set.of(1L, 2L));
+        when(blogPostRepositoryPort.findDueScheduledPostIds(any(LocalDateTime.class))).thenReturn(List.of(2L, 3L));
+
+        BlogPostModel post1 = BlogPostModel.builder().id(1L).status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.SCHEDULED).build();
+        BlogPostModel post2 = BlogPostModel.builder().id(2L).status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.SCHEDULED).build();
+        BlogPostModel post3 = BlogPostModel.builder().id(3L).status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.SCHEDULED).build();
+
+        when(blogPostRepositoryPort.findById(1L)).thenReturn(Optional.of(post1));
+        when(blogPostRepositoryPort.findById(2L)).thenReturn(Optional.of(post2));
+        when(blogPostRepositoryPort.findById(3L)).thenReturn(Optional.of(post3));
+
+        int publishedCount = blogPostService.publishDueScheduledPosts();
+
+        assertThat(publishedCount).isEqualTo(3);
+        verify(blogPostPublishQueuePort).removePosts(Set.of(1L, 2L, 3L));
     }
 
     @Test
@@ -615,5 +844,27 @@ class BlogPostServiceTest {
         // THEN
         assertThat(result).isEqualTo(15L);
         verify(blogPostRepositoryPort).countPublishedPostsByCategoryId(categoryId);
+    }
+
+    @Test
+    @DisplayName("DELETE: Xóa mềm bài viết hẹn giờ thành công và hủy lịch")
+    void deletePost_scheduled_success() {
+        // GIVEN
+        Long postId = 100L;
+        BlogPostModel post = BlogPostModel.builder()
+                .id(postId)
+                .isDeleted(false)
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.SCHEDULED)
+                .build();
+
+        when(blogPostRepositoryPort.findById(postId)).thenReturn(Optional.of(post));
+
+        // WHEN
+        blogPostService.deletePost(postId);
+
+        // THEN
+        verify(blogPostRepositoryPort).findById(postId);
+        verify(blogPostRepositoryPort).save(argThat(model -> model.isDeleted() == true));
+        verify(blogPostPublishQueuePort).cancelScheduledPost(postId);
     }
 }

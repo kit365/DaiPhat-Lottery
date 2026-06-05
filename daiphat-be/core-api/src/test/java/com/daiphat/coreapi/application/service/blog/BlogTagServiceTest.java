@@ -82,14 +82,22 @@ class BlogTagServiceTest {
                 .slug(TAG2_SLUG)
                 .build();
 
-        tagResponse1 = new BlogTagResponse(TAG1_ID, TAG1_NAME, TAG1_SLUG);
+        tagResponse1 = BlogTagResponse.builder()
+                .id(TAG1_ID)
+                .name(TAG1_NAME)
+                .slug(TAG1_SLUG)
+                .build();
     }
 
     @Test
     void getAllTags_success() {
         when(blogTagRepositoryPort.findAll()).thenReturn(Arrays.asList(mockTag1, mockTag2));
         when(blogTagApplicationMapper.toResponse(mockTag1)).thenReturn(tagResponse1);
-        when(blogTagApplicationMapper.toResponse(mockTag2)).thenReturn(new BlogTagResponse(TAG2_ID, TAG2_NAME, TAG2_SLUG));
+        when(blogTagApplicationMapper.toResponse(mockTag2)).thenReturn(BlogTagResponse.builder()
+                .id(TAG2_ID)
+                .name(TAG2_NAME)
+                .slug(TAG2_SLUG)
+                .build());
 
         List<BlogTagResponse> result = blogTagService.getAllTags();
 
@@ -145,7 +153,11 @@ class BlogTagServiceTest {
                 .slug(NEW_TAG_SLUG)
                 .build();
 
-        BlogTagResponse expectedResponse = new BlogTagResponse(3L, NEW_TAG_NAME, NEW_TAG_SLUG);
+        BlogTagResponse expectedResponse = BlogTagResponse.builder()
+                .id(3L)
+                .name(NEW_TAG_NAME)
+                .slug(NEW_TAG_SLUG)
+                .build();
 
         when(blogTagRepositoryPort.save(any(BlogTagModel.class))).thenReturn(savedModel);
         when(blogTagApplicationMapper.toResponse(savedModel)).thenReturn(expectedResponse);
@@ -173,7 +185,11 @@ class BlogTagServiceTest {
                 .slug(CUSTOM_TAG_SLUG)
                 .build();
 
-        BlogTagResponse expectedResponse = new BlogTagResponse(3L, NEW_TAG_NAME, CUSTOM_TAG_SLUG);
+        BlogTagResponse expectedResponse = BlogTagResponse.builder()
+                .id(3L)
+                .name(NEW_TAG_NAME)
+                .slug(CUSTOM_TAG_SLUG)
+                .build();
 
         when(blogTagRepositoryPort.save(any(BlogTagModel.class))).thenReturn(savedModel);
         when(blogTagApplicationMapper.toResponse(savedModel)).thenReturn(expectedResponse);
@@ -220,7 +236,11 @@ class BlogTagServiceTest {
                 .slug(UPDATED_TAG_SLUG)
                 .build();
 
-        BlogTagResponse expectedResponse = new BlogTagResponse(TAG1_ID, UPDATED_TAG_NAME, UPDATED_TAG_SLUG);
+        BlogTagResponse expectedResponse = BlogTagResponse.builder()
+                .id(TAG1_ID)
+                .name(UPDATED_TAG_NAME)
+                .slug(UPDATED_TAG_SLUG)
+                .build();
 
         when(blogTagRepositoryPort.save(any(BlogTagModel.class))).thenReturn(savedModel);
         when(blogTagApplicationMapper.toResponse(savedModel)).thenReturn(expectedResponse);
