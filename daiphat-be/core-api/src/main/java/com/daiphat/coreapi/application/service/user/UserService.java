@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.request.user.ProfileSetupRequest;
 import com.daiphat.coreapi.application.dto.request.user.UpdateUserRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.user.UserResponse;
+import com.daiphat.coreapi.application.dto.response.user.UserStatusResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.event.StaffInviteEvent;
@@ -38,7 +39,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -145,6 +145,14 @@ public class UserService implements UserServicePort {
         return userLookupService.findByUsername(username)
                 .map(userApplicationMapper::mapToUserResponse)
                 .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserStatusResponse> getStatuses() {
+        return java.util.Arrays.stream(UserStatus.values())
+                .map(status -> new UserStatusResponse(status.getCode(), status.getLabel()))
+                .toList();
     }
 
     @Override
@@ -272,8 +280,10 @@ public class UserService implements UserServicePort {
         UUID currentUserId = null;
         try {
             var auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.getPrincipal() instanceof UserModel currentUser) {
-                currentUserId = currentUser.getId();
+            if (auth != null && auth.getName() != null && !auth.getName().isBlank()) {
+                currentUserId = userLookupService.findByUsername(auth.getName())
+                        .map(UserModel::getId)
+                        .orElse(null);
             }
         } catch (Exception e) {
             log.warn("Failed to get current user ID: {}", e.getMessage());

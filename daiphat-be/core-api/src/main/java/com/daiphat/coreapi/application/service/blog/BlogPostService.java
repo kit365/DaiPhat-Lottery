@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.blog;
 
 import com.daiphat.coreapi.application.dto.request.blog.CreateBlogPostRequest;
+import com.daiphat.coreapi.application.dto.request.blog.UpdateBlogPostRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostSummaryResponse;
@@ -11,6 +12,7 @@ import com.daiphat.coreapi.domain.model.enums.blog.PostStatus;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.mapper.blog.BlogPostApplicationMapper;
+import com.daiphat.coreapi.application.port.in.blog.BlogPostCoordinationPort;
 import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
 import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
 import com.daiphat.coreapi.application.port.in.blog.BlogTagServicePort;
@@ -34,13 +36,16 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
-public class BlogPostService implements BlogPostServicePort {
+public class BlogPostService implements BlogPostServicePort, BlogPostCoordinationPort {
 
     private final BlogPostRepositoryPort blogPostRepositoryPort;
     private final BlogCategoryServicePort blogCategoryServicePort;
@@ -97,6 +102,63 @@ public class BlogPostService implements BlogPostServicePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public BlogPostResponse getPostById(Long id) {
+        BlogPostModel post = blogPostRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.BLOG_NOT_FOUND));
+        return blogPostApplicationMapper.toResponse(post);
+    }
+
+    @Override
+    @Transactional
+    public BlogPostResponse updatePost(Long id, UpdateBlogPostRequest request) {
+        BlogPostModel post = blogPostRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.BLOG_NOT_FOUND));
+
+        // Patch only provided fields
+        if (request.title()     != null) post.setTitle(request.title());
+        if (request.slug()      != null) post.setSlug(request.slug());
+        if (request.summary()   != null) post.setSummary(request.summary());
+        if (request.content()   != null) post.setContent(request.content());
+        if (request.thumbnail() != null) post.setThumbnail(request.thumbnail());
+        if (request.scheduledAt() != null) post.setScheduledAt(request.scheduledAt());
+
+        if (request.type() != null) {
+            PostType newType = PostType.fromCode(request.type());
+            post.setType(newType);
+        }
+
+        if (request.status() != null) {
+            PostStatus newStatus = PostStatus.fromCode(request.status());
+            PostStatus oldStatus = post.getStatus();
+            post.setStatus(newStatus);
+            // Auto-set publishedAt on first publish
+            if (newStatus == PostStatus.PUBLISHED && oldStatus != PostStatus.PUBLISHED) {
+                post.setPublishedAt(LocalDateTime.now());
+            }
+        }
+
+        if (request.categoryId() != null) {
+            BlogCategoryModel category = blogCategoryServicePort.getCategoryModelById(request.categoryId());
+            post.setCategory(category);
+        }
+
+        if (request.tagIds() != null && !request.tagIds().isEmpty()) {
+            Set<BlogTagModel> tags = blogTagServicePort.getTagModelsByIds(request.tagIds());
+            if (tags.size() != request.tagIds().size()) {
+                throw new DomainException(ErrorCode.TAG_NOT_FOUND);
+            }
+            post.setTags(tags);
+        } else if (request.tagIds() != null) {
+            // Empty set means clear all tags
+            post.setTags(Collections.emptySet());
+        }
+
+        BlogPostModel saved = blogPostRepositoryPort.save(post);
+        return blogPostApplicationMapper.toResponse(saved);
+    }
+
+    @Override
     public StorageResult uploadImage(UploadRequest request, String folder) {
         StorageUtils.validateImageUpload(request);
 
@@ -138,6 +200,30 @@ public class BlogPostService implements BlogPostServicePort {
 
     @Override
     @Transactional(readOnly = true)
+    public PageResponse<BlogPostSummaryResponse> getPublicPosts(
+            int page,
+            int limit,
+            String search,
+            Long categoryId,
+            String sortBy,
+            String direction
+    ) {
+        return getPosts(
+                page,
+                limit,
+                search,
+                null,
+                categoryId,
+                null,
+                PostStatus.PUBLISHED.getCode(),
+                sortBy,
+                direction,
+                false
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<BlogPostSummaryResponse> getPosts(
             int page,
             int limit,
@@ -172,7 +258,16 @@ public class BlogPostService implements BlogPostServicePort {
                         .isFirst(postPage.isFirst())
                         .isLast(postPage.isLast())
                         .build())
+                .statusCounts(buildStatusCounts())
                 .build();
+    }
+
+    private Map<String, Long> buildStatusCounts() {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        counts.put("all", blogPostRepositoryPort.countAll());
+        Arrays.stream(PostStatus.values())
+                .forEach(status -> counts.put(status.getCode(), blogPostRepositoryPort.countByStatus(status.getCode())));
+        return counts;
     }
 
     /**

@@ -1,5 +1,7 @@
 package com.daiphat.coreapi.domain.model.enums.blog;
 
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -22,8 +24,8 @@ public enum PostType {
                 return type;
             }
         }
-        throw new com.daiphat.coreapi.domain.exception.DomainException(
-            com.daiphat.coreapi.domain.exception.ErrorCode.INVALID_INPUT,
+        throw new DomainException(
+            ErrorCode.INVALID_INPUT,
             "Loại bài viết không hợp lệ: " + code
         );
     }

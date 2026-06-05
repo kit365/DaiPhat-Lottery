@@ -1,5 +1,7 @@
 package com.daiphat.coreapi.domain.model.enums.user;
 
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -32,8 +34,8 @@ public enum UserStatus {
         try {
             return UserStatus.valueOf(raw.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new com.daiphat.coreapi.domain.exception.DomainException(
-                com.daiphat.coreapi.domain.exception.ErrorCode.INVALID_INPUT, 
+            throw new DomainException(
+                ErrorCode.INVALID_INPUT,
                 "Trạng thái không hợp lệ: " + raw
             );
         }

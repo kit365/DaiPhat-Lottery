@@ -1,18 +1,18 @@
 package com.daiphat.coreapi.application.service.blog;
 
 import com.daiphat.coreapi.application.dto.request.blog.CreateBlogTagRequest;
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogTagResponse;
 import com.daiphat.coreapi.application.mapper.blog.BlogTagApplicationMapper;
-import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
+import com.daiphat.coreapi.application.port.in.blog.BlogPostCoordinationPort;
 import com.daiphat.coreapi.application.port.in.blog.BlogTagServicePort;
 import com.daiphat.coreapi.application.port.out.blog.BlogTagRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.blogs.BlogTagModel;
-import com.daiphat.coreapi.application.dto.response.base.PageResponse;
-import com.daiphat.coreapi.shared.util.SlugUtils;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
+import com.daiphat.coreapi.shared.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,7 +28,7 @@ public class BlogTagService implements BlogTagServicePort {
 
     private final BlogTagRepositoryPort blogTagRepositoryPort;
     private final BlogTagApplicationMapper blogTagApplicationMapper;
-    private final BlogPostServicePort blogPostServicePort;
+    private final BlogPostCoordinationPort blogPostCoordinationPort;
 
     @Override
     @Transactional(readOnly = true)
@@ -127,7 +127,7 @@ public class BlogTagService implements BlogTagServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.TAG_NOT_FOUND));
         tag.setDeleted(true);
         blogTagRepositoryPort.save(tag);
-        blogPostServicePort.removeTagFromPosts(id);
+        blogPostCoordinationPort.removeTagFromPosts(id);
     }
 
     @Override

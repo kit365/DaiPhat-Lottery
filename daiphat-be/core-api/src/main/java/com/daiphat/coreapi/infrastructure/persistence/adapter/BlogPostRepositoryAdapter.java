@@ -91,4 +91,15 @@ public class BlogPostRepositoryAdapter implements BlogPostRepositoryPort {
     public long countPublishedPostsByCategoryId(Long categoryId) {
         return blogPostRepository.countByCategoryIdAndStatusAndIsDeletedFalse(categoryId, PostStatus.PUBLISHED);
     }
+
+    @Override
+    public long countByStatus(String status) {
+        PostStatus postStatus = PostStatus.fromCode(status);
+        return blogPostRepository.countByStatusAndIsDeletedFalse(postStatus);
+    }
+
+    @Override
+    public long countAll() {
+        return blogPostRepository.countByIsDeletedFalse();
+    }
 }

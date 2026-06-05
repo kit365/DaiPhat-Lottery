@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.response.auth.RoleResponse;
 import com.daiphat.coreapi.domain.model.auth.RoleModel;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -19,5 +20,6 @@ public interface RoleServicePort {
     void syncOperatorStaffPermissions();
     void initializeTestAccounts();
     List<PermissionItem> getAllPermissions();
-    void reorderPermissions(java.util.Map<String, Integer> positionMap);
+    Set<String> getUserPermissionCodes(UUID userId);
+    void reorderPermissions(Map<String, Integer> positionMap);
 }

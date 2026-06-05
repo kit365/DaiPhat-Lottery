@@ -2,6 +2,7 @@ package com.daiphat.coreapi.adapter.in.web.controller;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
+import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.auth.ChangePasswordRequest;
 import com.daiphat.coreapi.application.dto.request.auth.ForgotPasswordRequest;
 import com.daiphat.coreapi.application.dto.request.auth.GoogleLoginRequest;
@@ -17,7 +18,6 @@ import com.daiphat.coreapi.application.dto.response.auth.ForgotPasswordResponse;
 import com.daiphat.coreapi.application.dto.response.auth.PasswordPolicyResponse;
 import com.daiphat.coreapi.application.dto.response.auth.VerifyOtpResponse;
 import com.daiphat.coreapi.application.port.in.auth.AuthServicePort;
-import com.daiphat.coreapi.domain.model.UserModel;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -166,7 +166,7 @@ public class AuthController {
     @PostMapping("/change-password")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<Void> changePassword(
-            @AuthenticationPrincipal UserModel principal,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @Valid @RequestBody ChangePasswordRequest request) {
         authServicePort.changePassword(principal.getId(), request);
         return ApiResponse.success(MSG_CHANGE_PASSWORD_SUCCESS);

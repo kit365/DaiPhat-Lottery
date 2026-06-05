@@ -30,4 +30,8 @@ public interface BlogPostRepository extends JpaRepository<BlogPostEntity, Long>,
     List<BlogPostEntity> findByTagsId(Long tagId);
 
     long countByCategoryIdAndStatusAndIsDeletedFalse(Long categoryId, PostStatus status);
+
+    long countByStatusAndIsDeletedFalse(PostStatus status);
+
+    long countByIsDeletedFalse();
 }

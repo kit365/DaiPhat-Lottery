@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryTreeResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryPublicResponse;
+import com.daiphat.coreapi.application.dto.response.blog.CategoryStatusResponse;
 import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,9 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import com.daiphat.coreapi.application.dto.response.blog.CategoryStatusResponse;
-import com.daiphat.coreapi.domain.model.enums.blog.CategoryStatus;
-import java.util.Arrays;
 import java.util.List;
 
 @RestController
@@ -66,14 +64,8 @@ public class BlogCategoryController {
     @GetMapping("/statuses")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<CategoryStatusResponse>>> getStatuses() {
-        List<CategoryStatusResponse> statuses = Arrays.stream(CategoryStatus.values())
-                .map(status -> CategoryStatusResponse.builder()
-                        .code(status.getCode())
-                        .name(status.getLabel())
-                        .build())
-                .toList();
         return ResponseEntity.ok(ApiResponse.<List<CategoryStatusResponse>>builder()
-                .data(statuses)
+                .data(blogCategoryServicePort.getStatuses())
                 .message("Lấy danh sách trạng thái danh mục thành công")
                 .build());
     }
@@ -122,4 +114,3 @@ public class BlogCategoryController {
                 .build());
     }
 }
-
