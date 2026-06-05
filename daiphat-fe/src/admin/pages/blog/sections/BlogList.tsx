@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Box, ButtonBase, Card, Pagination, Stack, CircularProgress, Popover, MenuItem, ListItemIcon, ListItemText, Avatar } from "@mui/material";
+import { Box, ButtonBase, Card, Pagination, Stack, CircularProgress, Popover, MenuItem, ListItemIcon, ListItemText, Avatar, SvgIcon } from "@mui/material";
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { useTranslation } from "react-i18next";
 import { DeleteIcon, EditIcon, EyeIcon, ThreeDotsIcon, SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../assets/icons";
-import RestoreIcon from '@mui/icons-material/Restore';
 import { prefixAdmin } from "../../../constants/routes";
 import { DATA_GRID_LOCALE_VN } from '../../blog-category/configs/localeText.config';
 import { dataGridCardStyles, dataGridContainerStyles, dataGridStyles } from '../../blog-category/configs/styles.config';
@@ -14,8 +13,8 @@ import 'dayjs/locale/vi';
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import { confirmDelete } from "../../../utils/swal";
-import { useDeleteBlog, useRestoreBlog, useForceDeleteBlog } from "../hooks/useBlog";
+import { confirmAction, confirmDelete } from "../../../utils/swal";
+import { useDeleteBlog, useUpdateBlog } from "../hooks/useBlog";
 
 interface BlogListProps {
     blogs: any[];
@@ -40,10 +39,13 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
     const { mutate: deleteBlog } = useDeleteBlog();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [selectedBlogId, setSelectedBlogId] = useState<string | null>(null);
+    const [selectedBlogStatus, setSelectedBlogStatus] = useState<string>("draft");
+    const { mutate: updateBlog } = useUpdateBlog();
 
-    const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, id: string) => {
+    const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, id: string, status?: string) => {
         setAnchorEl(event.currentTarget);
         setSelectedBlogId(id);
+        setSelectedBlogStatus((status || "draft").toLowerCase());
     };
 
     const handleCloseMenu = () => {
@@ -78,12 +80,75 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
         }
     };
 
+    const STATUS_ACTIONS: Record<string, { value: string; label: string; color?: string; icon: "publish" | "schedule" | "draft" | "unpublish" }[]> = {
+        draft: [
+            { value: "published", label: "Đăng bài", color: "var(--palette-success-dark)", icon: "publish" },
+            { value: "scheduled", label: "Lên lịch", color: "var(--palette-info-dark)", icon: "schedule" },
+        ],
+        unpublished: [
+            { value: "published", label: "Đăng lại", color: "var(--palette-success-dark)", icon: "publish" },
+            { value: "scheduled", label: "Lên lịch", color: "var(--palette-info-dark)", icon: "schedule" },
+        ],
+        published: [{ value: "unpublished", label: "Gỡ bài xuống", color: "var(--palette-text-primary)", icon: "unpublish" }],
+        scheduled: [
+            { value: "published", label: "Đăng ngay", color: "var(--palette-success-dark)", icon: "publish" },
+            { value: "draft", label: "Hủy lịch", color: "var(--palette-warning-dark)", icon: "draft" },
+        ],
+    };
+
+    const handleChangeStatus = (newStatus: string) => {
+        if (!selectedBlogId) return;
+
+        if (newStatus === "scheduled") {
+            navigate(`/${prefixAdmin}/blog/edit/${selectedBlogId}`);
+            handleCloseMenu();
+            return;
+        }
+
+        const runUpdate = () => {
+            updateBlog(
+                {
+                    id: selectedBlogId,
+                    data: {
+                        status: newStatus,
+                        scheduledAt: newStatus === "published" || newStatus === "draft" || newStatus === "unpublished"
+                            ? null
+                            : undefined,
+                    }
+                },
+                {
+                    onSuccess: (res: any) => {
+                        if (res.success) toast.success("Đã đổi trạng thái thành công");
+                        else toast.error(res.message || "Đổi trạng thái thất bại");
+                    },
+                    onError: () => toast.error("Có lỗi xảy ra"),
+                }
+            );
+            handleCloseMenu();
+        };
+
+        if (newStatus === "unpublished") {
+            confirmAction(
+                "Xác nhận gỡ bài?",
+                "Hành động này sẽ ẩn bài viết khỏi trang Khách hàng. Xác nhận gỡ?",
+                runUpdate,
+                "warning"
+            );
+            return;
+        }
+
+        runUpdate();
+    };
+
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'published':
                 return { color: "#006C9C", bgColor: "#00B8D929", label: t("admin.blog.status.published") };
             case 'archived':
-                return { color: "var(--palette-error-main)", bgColor: "var(--palette-error-main)29", label: t("admin.blog.status.archived") };
+            case 'unpublished':
+                return { color: "var(--palette-error-main)", bgColor: "var(--palette-error-main)29", label: "Đã gỡ xuống" };
+            case 'scheduled':
+                return { color: "var(--palette-info-dark)", bgColor: "var(--palette-info-main)29", label: "Hẹn giờ" };
             case 'draft':
             default:
                 return { color: "#B76E00", bgColor: "#FFAB0029", label: t("admin.blog.status.draft") };
@@ -172,7 +237,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
             renderCell: (params) => {
                 const statusInfo = getStatusColor(params.row.status);
                 return (
-                    <span className="inline-flex items-center justify-center leading-1.5 min-w-[1.5rem] h-[1.5rem] text-[0.75rem] px-[6px] font-[700] rounded-[6px]"
+                    <span className="inline-flex items-center justify-center leading-1.5 min-w-[1.5rem] h-[1.5rem] text-[0.75rem] px-[6px] font-[700] rounded-[6px] cursor-default"
                         style={{
                             backgroundColor: statusInfo.bgColor,
                             color: statusInfo.color,
@@ -198,7 +263,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
             align: 'right',
             renderCell: (params) => (
                 <ButtonBase
-                    onClick={(e) => handleOpenMenu(e, params.row._id || params.row.id)}
+                    onClick={(e) => handleOpenMenu(e, params.row._id || params.row.id, params.row.status)}
                     sx={{
                         color: "var(--palette-text-secondary)",
                         p: "8px",
@@ -271,7 +336,6 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                 >
                     {currentData.map((blog: any) => {
                         const statusInfo = getStatusColor(blog.status);
-                        // Định dạng: 16/01/2026
                         const formattedDate = dayjs(blog.createdAt).format('DD/MM/YYYY');
 
                         return (
@@ -326,7 +390,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
 
                                     <Box sx={{ display: "flex", alignItems: "center" }}>
                                         <ButtonBase
-                                            onClick={(e) => handleOpenMenu(e, blog.id || blog._id)}
+                                            onClick={(e) => handleOpenMenu(e, blog.id || blog._id, blog.status)}
                                             sx={{
                                                 color: "var(--palette-text-secondary)",
                                                 p: "8px",
@@ -375,11 +439,11 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                                         flexShrink: 0,
                                     }}
                                 >
-                                    <span style={{ display: 'block', width: '100%', height: '100%', overflow: 'hidden', borderRadius: '12px', backgroundColor: 'var(--palette-background-neutral)' }}>
+                                    <span style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden', borderRadius: '12px', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
                                         <img
                                             src={blog.featuredImage || "https://api-prod-minimal-v700.pages.dev/assets/images/cover/cover-1.webp"}
                                             alt={blog.title}
-                                            style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'contain', display: 'block' }}
+                                            style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'contain', display: 'block', backgroundColor: '#fff' }}
                                             onError={(e) => {
                                                 (e.target as HTMLImageElement).src = "https://api-prod-minimal-v700.pages.dev/assets/images/cover/cover-1.webp";
                                             }}
@@ -432,7 +496,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                 PaperProps={{
                     sx: {
                         marginTop: "-8px",
-                        width: 140,
+                        width: 180,
                         boxShadow: '0 0 2px 0 rgba(145, 158, 171, 0.24), 0 20px 40px -4px rgba(145, 158, 171, 0.24)',
                         padding: '4px',
                         borderRadius: '10px',
@@ -458,23 +522,52 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                         navigate(`/${prefixAdmin}/blog/detail/${selectedBlogId}`);
                         handleCloseMenu();
                     }} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
-                        <ListItemIcon sx={{ minWidth: '24px !important', mr: 1 }}>
-                            <EyeIcon sx={{ width: 20, height: 20 }} />
+                        <ListItemIcon sx={{ minWidth: '24px !important', mr: 1.5 }}>
+                            <EyeIcon sx={{ width: 20, height: 20, mr: 0 }} />
                         </ListItemIcon>
                         <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.details")}</ListItemText>
                     </MenuItem>
                     <MenuItem onClick={handleEdit} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
-                        <ListItemIcon sx={{ minWidth: '24px !important', mr: 1 }}>
-                            <EditIcon sx={{ width: 20, height: 20 }} />
+                        <ListItemIcon sx={{ minWidth: '24px !important', mr: 1.5 }}>
+                            <EditIcon sx={{ width: 20, height: 20, mr: 0 }} />
                         </ListItemIcon>
                         <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.edit")}</ListItemText>
                     </MenuItem>
-                    <MenuItem onClick={handleDelete} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1, color: 'error.main' }}>
-                        <ListItemIcon sx={{ minWidth: '24px !important', mr: 1, color: 'error.main' }}>
-                            <DeleteIcon sx={{ width: 20, height: 20 }} />
-                        </ListItemIcon>
-                        <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.delete")}</ListItemText>
-                    </MenuItem>
+
+                    {(STATUS_ACTIONS[selectedBlogStatus] || []).length > 0 && (
+                        <>
+                            {(STATUS_ACTIONS[selectedBlogStatus] || []).map((action) => (
+                                <MenuItem
+                                    key={action.value}
+                                    onClick={() => handleChangeStatus(action.value)}
+                                    sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1, color: action.color || 'inherit' }}
+                                >
+                                    <ListItemIcon sx={{ minWidth: '24px !important', mr: 1.5, color: action.color || 'inherit' }}>
+                                        {action.icon === 'publish'
+                                            ? <SvgIcon viewBox="0 0 24 24" sx={{ width: 20, height: 20, mr: 0 }}><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></SvgIcon>
+                                            : action.icon === 'draft'
+                                            ? <SvgIcon viewBox="0 0 24 24" sx={{ width: 20, height: 20, mr: 0 }}><path d="M14.06 9.02l.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z"/></SvgIcon>
+                                            : action.icon === 'schedule'
+                                            ? <SvgIcon viewBox="0 0 24 24" sx={{ width: 20, height: 20, mr: 0 }}><path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h1V3a1 1 0 0 1 1-1zm12 8H5v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8zm-6-3a1 1 0 0 0-1 1v3.382l2.447 1.223a1 1 0 0 0 .894-1.788L14 10.118V8a1 1 0 0 0-1-1z"/></SvgIcon>
+                                            : <SvgIcon viewBox="0 0 24 24" sx={{ width: 20, height: 20, mr: 0 }}><path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27z"/></SvgIcon>
+                                        }
+                                    </ListItemIcon>
+                                    <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                                        {action.label}
+                                    </ListItemText>
+                                </MenuItem>
+                            ))}
+                        </>
+                    )}
+
+                    {selectedBlogStatus !== 'published' && (
+                        <MenuItem onClick={handleDelete} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1, color: 'error.main' }}>
+                            <ListItemIcon sx={{ minWidth: '24px !important', mr: 1.5, color: 'error.main' }}>
+                                <DeleteIcon sx={{ width: 20, height: 20, mr: 0 }} />
+                            </ListItemIcon>
+                            <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.delete")}</ListItemText>
+                        </MenuItem>
+                    )}
                 </>
             </Popover>
         </>

@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
+import { QUERY_KEYS } from '../../constants/queryKeys';
 import { getPublicCategories, getPublicPosts } from '../services/blogService';
 
 export const usePublicCategories = () => {
   return useQuery({
-    queryKey: ['public-blog-categories'],
+    queryKey: [QUERY_KEYS.PUBLIC_BLOG_CATEGORIES],
     queryFn: getPublicCategories,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -18,7 +21,10 @@ export const usePublicPosts = (params: {
   direction?: string;
 }) => {
   return useQuery({
-    queryKey: ['public-posts', params],
+    queryKey: [QUERY_KEYS.PUBLIC_BLOG_POSTS, params],
     queryFn: () => getPublicPosts(params),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 };

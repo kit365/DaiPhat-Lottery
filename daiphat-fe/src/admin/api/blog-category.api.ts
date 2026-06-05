@@ -4,6 +4,18 @@ import { ApiResponse } from '../config/type';
 
 const BASE_URL = '/blogs/categories';
 
+const generateSlug = (value: string): string => {
+    return value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+};
+
 /** Danh sách (flat) */
 export const getCategories = async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiApp.get(BASE_URL, { 
@@ -36,7 +48,7 @@ export const getNestedCategories = async (): Promise<ApiResponse<CategoryNode[]>
 export const createCategory = async (data: any): Promise<any> => {
     const payload = {
         name: data.name,
-        slug: data.slug || undefined,
+        slug: data.slug?.trim() || generateSlug(data.name || ''),
         parentId: data.parent || null,
         description: data.description || '',
         displayOrder: data.displayOrder || undefined,
@@ -67,7 +79,7 @@ export const getCategoryById = async (id: string | number): Promise<any> => {
 export const updateCategory = async (id: string | number, data: any): Promise<any> => {
     const payload = {
         name: data.name,
-        slug: data.slug || undefined,
+        slug: generateSlug(data.name || ''),
         parentId: data.parent || null,
         description: data.description || '',
         displayOrder: data.displayOrder || undefined,
@@ -117,4 +129,3 @@ export const getCategoryStatuses = async (): Promise<CategoryStatusOption[]> => 
         };
     });
 };
-

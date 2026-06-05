@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.domain.model.blogs;
 
+import com.daiphat.coreapi.domain.model.enums.blog.CategoryStatus;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,7 +18,7 @@ public class BlogCategoryModel {
     private String description;
     private Integer displayOrder;
     private boolean isDeleted;
-    private com.daiphat.coreapi.domain.model.enums.blog.CategoryStatus status;
+    private CategoryStatus status;
     private String avatar;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

@@ -54,7 +54,7 @@ export const BlogListPage = () => {
     const navigate = useNavigate();
     const [sortBy, setSortBy] = useState("latest");
 
-    const [tabStatus, setTabStatus] = useState(0); // 0: All, 1: Published, 2: Draft, 3: Unpublished
+    const [tabStatus, setTabStatus] = useState(0); // 0: All, 1: Published, 2: Draft, 3: Scheduled, 4: Unpublished
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -98,7 +98,12 @@ export const BlogListPage = () => {
         ]);
     };
 
-    const statusFromTab = tabStatus === 1 ? 'published' : tabStatus === 2 ? 'draft' : tabStatus === 3 ? 'unpublished' : undefined;
+    const statusFromTab =
+        tabStatus === 1 ? 'published' :
+        tabStatus === 2 ? 'draft' :
+        tabStatus === 3 ? 'scheduled' :
+        tabStatus === 4 ? 'unpublished' :
+        undefined;
 
     const filters = {
         page,
@@ -116,14 +121,13 @@ export const BlogListPage = () => {
     const blogs = data?.recordList || [];
     const pagination = data?.pagination || { totalRecords: 0 };
 
-    const counts = useMemo(() => {
-        return data?.statusCounts || {
-            all: 0,
-            published: 0,
-            draft: 0,
-            archived: 0,
-        };
-    }, [data]);
+    const counts = useMemo(() => ({
+        all: data?.statusCounts?.all ?? pagination.totalRecords ?? 0,
+        published: data?.statusCounts?.published ?? 0,
+        draft: data?.statusCounts?.draft ?? 0,
+        scheduled: data?.statusCounts?.scheduled ?? 0,
+        unpublished: data?.statusCounts?.unpublished ?? 0,
+    }), [data, pagination.totalRecords]);
 
     const sortOptions = [
         { value: 'latest', label: 'Mới nhất' },
@@ -225,10 +229,21 @@ export const BlogListPage = () => {
                         />
                         <Tab
                             disableRipple
+                            label="Lên lịch"
+                            icon={
+                                <TabBadge sx={getTabBadgeStyles('scheduled', tabStatus === 3)}>
+                                    {counts.scheduled}
+                                </TabBadge>
+                            }
+                            iconPosition="end"
+                            sx={tabStyle}
+                        />
+                        <Tab
+                            disableRipple
                             label="Gỡ xuống"
                             icon={
-                                <TabBadge sx={getTabBadgeStyles('error', tabStatus === 3)}>
-                                    {counts.archived}
+                                <TabBadge sx={getTabBadgeStyles('error', tabStatus === 4)}>
+                                    {counts.unpublished}
                                 </TabBadge>
                             }
                             iconPosition="end"
@@ -248,9 +263,19 @@ export const BlogListPage = () => {
                     
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                         {/* Filter danh mục – dạng cây */}
-                        <FormControl size="small" sx={{ minWidth: 180 }}>
+                        <FormControl sx={{ minWidth: 180 }}>
                             {!!categoryId && (
-                                <InputLabel sx={{ fontSize: '0.875rem' }} shrink>
+                                <InputLabel
+                                    sx={{
+                                        fontSize: '0.9375rem',
+                                        color: '#637381',
+                                        "&.MuiInputLabel-shrink": {
+                                            color: '#919eab',
+                                            fontWeight: 600,
+                                        },
+                                    }}
+                                    shrink
+                                >
                                     Danh mục
                                 </InputLabel>
                             )}
@@ -266,7 +291,7 @@ export const BlogListPage = () => {
                                         return (
                                             <span style={{
                                                 color: '#637381',
-                                                fontSize: '0.875rem',
+                                                fontSize: '0.9375rem',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 height: '100%',
@@ -289,9 +314,9 @@ export const BlogListPage = () => {
                                     return findCategoryName(nestedCategories || [], selected) || selected;
                                 }}
                                 sx={{
-                                    fontSize: '0.875rem',
-                                    borderRadius: 'var(--shape-borderRadius)',
-                                    '& .MuiSelect-select': { py: '8.5px', display: 'flex', alignItems: 'center' },
+                                    fontSize: '0.9375rem',
+                                    borderRadius: '8px',
+                                    '& .MuiSelect-select': { display: 'flex', alignItems: 'center' },
                                 }}
                             >
                                 <MenuItem value="" sx={{ fontSize: '0.875rem', fontStyle: 'italic', color: 'var(--palette-text-secondary)' }}>

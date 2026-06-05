@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.blog;
 
+import com.daiphat.coreapi.domain.model.enums.blog.CategoryStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -47,7 +48,7 @@ public class BlogCategoryEntity extends BaseEntity {
     @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
     @Builder.Default
-    private com.daiphat.coreapi.domain.model.enums.blog.CategoryStatus status = com.daiphat.coreapi.domain.model.enums.blog.CategoryStatus.ACTIVE;
+    private CategoryStatus status = CategoryStatus.ACTIVE;
 
     @Column(name = "avatar")
     private String avatar;

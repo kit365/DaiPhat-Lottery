@@ -2,6 +2,8 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
 import { useAuthStore } from "../stores/useAuthStore"
 import { API_PREFIX, API_VERSION } from "./api.constants"
 import { AppToast } from "../client/utils/toast.util"
+import Cookies from "js-cookie"
+import { STORAGE_KEYS } from "../constants/storage.constants"
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 const API_ROOT = `${BASE_URL}${API_PREFIX}${API_VERSION}`
@@ -31,6 +33,26 @@ interface PendingRequest {
 let isRefreshing = false;
 let failedQueue: PendingRequest[] = [];
 
+const clearAuthSession = () => {
+    const authStore = useAuthStore.getState();
+    authStore.logout();
+    Cookies.remove(STORAGE_KEYS.TOKEN, { path: "/" });
+    Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: "/" });
+};
+
+const persistAccessToken = (accessToken: string, expiresIn?: number) => {
+    const authStore = useAuthStore.getState();
+    authStore.set({
+        token: accessToken,
+        expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null
+    });
+
+    Cookies.set(STORAGE_KEYS.TOKEN, accessToken, {
+        expires: expiresIn ? expiresIn / 86400 : 7,
+        path: "/"
+    });
+};
+
 const processQueue = (error: any, token: string | null = null) => {
     failedQueue.forEach(prom => {
         if (error) {
@@ -49,7 +71,6 @@ apiApp.interceptors.response.use(
     },
     async (error: AxiosError) => {
         const { response } = error;
-        const authStore = useAuthStore.getState();
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
         if (response) {
@@ -59,7 +80,7 @@ apiApp.interceptors.response.use(
             if (status === 401 && originalRequest && !originalRequest._retry) {
                 // If the refresh request itself fails with 401, logout to prevent infinite loop
                 if (originalRequest.url?.includes('/auth/refresh-token')) {
-                    authStore.logout();
+                    clearAuthSession();
                     const isLoginPath = window.location.pathname.includes('/auth/login') || window.location.pathname.includes('/login');
                     if (isLoginPath) {
                         AppToast.error(message);
@@ -94,20 +115,20 @@ apiApp.interceptors.response.use(
                             const newAccessToken = data?.data?.accessToken || data?.data?.access_token;
                             const expiresIn = data?.data?.expiresIn || data?.data?.expires_in;
 
-                            if (newAccessToken && authStore.user) {
-                                authStore.login(authStore.user, newAccessToken, expiresIn);
+                            if (newAccessToken) {
+                                persistAccessToken(newAccessToken, expiresIn);
                                 processQueue(null, newAccessToken);
                                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                                 resolve(apiApp(originalRequest));
                             } else {
-                                authStore.logout();
+                                clearAuthSession();
                                 AppToast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
                                 reject(new Error("No access token returned"));
                             }
                         })
                         .catch((err) => {
                             processQueue(err, null);
-                            authStore.logout();
+                            clearAuthSession();
                             AppToast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
                             reject(err);
                         })
@@ -119,7 +140,7 @@ apiApp.interceptors.response.use(
 
             switch (status) {
                 case 401:
-                    authStore.logout();
+                    clearAuthSession();
                     const isLoginPath = window.location.pathname.includes('/auth/login') || window.location.pathname.includes('/login');
                     if (isLoginPath) {
                         AppToast.error(message);

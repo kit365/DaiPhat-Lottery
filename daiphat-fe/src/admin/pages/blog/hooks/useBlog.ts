@@ -42,8 +42,13 @@ export const useBlogs = (params?: any) => {
                     slug:          item.slug        || '',
                 })),
                 pagination,
-                // BE không trả về statusCounts – để 0 để tránh crash UI
-                statusCounts: { all: 0, published: 0, draft: 0, archived: 0 },
+                statusCounts: {
+                    all: data?.statusCounts?.all ?? pagination.totalRecords ?? 0,
+                    published: data?.statusCounts?.published ?? 0,
+                    draft: data?.statusCounts?.draft ?? 0,
+                    unpublished: data?.statusCounts?.unpublished ?? 0,
+                    scheduled: data?.statusCounts?.scheduled ?? 0,
+                },
             };
         },
     });
@@ -57,6 +62,8 @@ export const useCreateBlog = () => {
         mutationFn: createBlog,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOGS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_BLOG_POSTS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_BLOG_CATEGORIES] });
         },
     });
 };
@@ -70,6 +77,8 @@ export const useUpdateBlog = () => {
             if (response.success) {
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOGS] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOG_DETAIL] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_BLOG_POSTS] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_BLOG_CATEGORIES] });
             }
         },
     });
@@ -85,12 +94,38 @@ export const useBlogDetail = (id?: string | number) => {
             if (data) {
                 return {
                     ...data,
-                    id: data._id,
-                    title: data.name,
-                    excerpt: data.description,
-                    featuredImage: data.avatar,
-                    status: (data.status || 'draft').toLowerCase(),
-                    category: data.category || [],
+                    // ── Form-compatible aliases ─────────────────────────
+                    name:        data.title     || '',
+                    description: data.summary   || '',
+                    content:     data.content   || '',
+                    avatar:      data.thumbnail || '',
+                    status:      (data.status || 'draft').toLowerCase(),
+                    type:        data.type  || '',
+                    slug:        data.slug  || '',
+                    scheduledAt: data.scheduledAt || null,
+
+                    // ── Form category: id array for CategoryTreeSelect ──
+                    category: data.category
+                        ? [String(data.category.id)]
+                        : [],
+
+                    // ── Form tags: id array ─────────────────────────────
+                    tags: Array.isArray(data.tags)
+                        ? data.tags.map((t: any) => t.id ?? t)
+                        : [],
+
+                    // ── Detail-page raw objects ─────────────────────────
+                    categoryRaw: data.category || null,
+                    tagsRaw: Array.isArray(data.tags) ? data.tags : [],
+
+                    // ── Detail-page metadata ────────────────────────────
+                    viewCount:      data.viewCount      ?? 0,
+                    publishedAt:    data.publishedAt    || null,
+                    createdBy:      data.createdBy      || null,
+                    lastModifiedBy: data.lastModifiedBy || null,
+                    createdAt:      data.createdAt      || null,
+                    updatedAt:      data.updatedAt      || null,
+                    isDeleted:      data.isDeleted      ?? false,
                 };
             }
             return null;
@@ -105,6 +140,8 @@ export const useDeleteBlog = () => {
         mutationFn: deleteBlog,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOGS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_BLOG_POSTS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_BLOG_CATEGORIES] });
         },
     });
 };
