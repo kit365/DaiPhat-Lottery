@@ -111,20 +111,20 @@ class BlogCategoryServiceTest {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        rootResponse = new BlogCategoryResponse(
-                ROOT_ID,
-                null,
-                null,
-                ROOT_NAME,
-                ROOT_SLUG,
-                ROOT_DESC,
-                1,
-                false,
-                STATUS_ACTIVE,
-                ROOT_AVATAR,
-                LocalDateTime.now(),
-                LocalDateTime.now()
-        );
+        rootResponse = BlogCategoryResponse.builder()
+                .id(ROOT_ID)
+                .parentId(null)
+                .parentName(null)
+                .name(ROOT_NAME)
+                .slug(ROOT_SLUG)
+                .description(ROOT_DESC)
+                .displayOrder(1)
+                .isDeleted(false)
+                .status(STATUS_ACTIVE)
+                .avatar(ROOT_AVATAR)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
     }
 
     @Test
@@ -201,9 +201,20 @@ class BlogCategoryServiceTest {
                 .avatar(NEW_CAT_AVATAR)
                 .build();
 
-        BlogCategoryResponse expectedResponse = new BlogCategoryResponse(
-                3L, null, null, NEW_CAT_NAME, NEW_CAT_SLUG, NEW_CAT_DESC, 6, false, STATUS_ACTIVE, NEW_CAT_AVATAR, LocalDateTime.now(), LocalDateTime.now()
-        );
+        BlogCategoryResponse expectedResponse = BlogCategoryResponse.builder()
+                .id(3L)
+                .parentId(null)
+                .parentName(null)
+                .name(NEW_CAT_NAME)
+                .slug(NEW_CAT_SLUG)
+                .description(NEW_CAT_DESC)
+                .displayOrder(6)
+                .isDeleted(false)
+                .status(STATUS_ACTIVE)
+                .avatar(NEW_CAT_AVATAR)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
 
         when(blogCategoryRepositoryPort.save(any(BlogCategoryModel.class))).thenReturn(savedModel);
         when(blogCategoryApplicationMapper.toResponse(savedModel)).thenReturn(expectedResponse);
@@ -245,9 +256,20 @@ class BlogCategoryServiceTest {
                 .status(CategoryStatus.ACTIVE)
                 .build();
 
-        BlogCategoryResponse expectedResponse = new BlogCategoryResponse(
-                4L, ROOT_ID, ROOT_NAME, CUSTOM_CHILD_NAME, CUSTOM_CHILD_SLUG, CUSTOM_CHILD_DESC, 3, false, STATUS_ACTIVE, null, LocalDateTime.now(), LocalDateTime.now()
-        );
+        BlogCategoryResponse expectedResponse = BlogCategoryResponse.builder()
+                .id(4L)
+                .parentId(ROOT_ID)
+                .parentName(ROOT_NAME)
+                .name(CUSTOM_CHILD_NAME)
+                .slug(CUSTOM_CHILD_SLUG)
+                .description(CUSTOM_CHILD_DESC)
+                .displayOrder(3)
+                .isDeleted(false)
+                .status(STATUS_ACTIVE)
+                .avatar(null)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
 
         when(blogCategoryRepositoryPort.save(any(BlogCategoryModel.class))).thenReturn(savedModel);
         when(blogCategoryApplicationMapper.toResponse(savedModel)).thenReturn(expectedResponse);
@@ -313,9 +335,20 @@ class BlogCategoryServiceTest {
                 .avatar(UPDATED_CAT_AVATAR)
                 .build();
 
-        BlogCategoryResponse expectedResponse = new BlogCategoryResponse(
-                ROOT_ID, null, null, UPDATED_CAT_NAME, UPDATED_CAT_SLUG, UPDATED_CAT_DESC, 2, false, STATUS_ACTIVE, UPDATED_CAT_AVATAR, LocalDateTime.now(), LocalDateTime.now()
-        );
+        BlogCategoryResponse expectedResponse = BlogCategoryResponse.builder()
+                .id(ROOT_ID)
+                .parentId(null)
+                .parentName(null)
+                .name(UPDATED_CAT_NAME)
+                .slug(UPDATED_CAT_SLUG)
+                .description(UPDATED_CAT_DESC)
+                .displayOrder(2)
+                .isDeleted(false)
+                .status(STATUS_ACTIVE)
+                .avatar(UPDATED_CAT_AVATAR)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
 
         when(blogCategoryRepositoryPort.save(any(BlogCategoryModel.class))).thenReturn(savedModel);
         when(blogCategoryApplicationMapper.toResponse(savedModel)).thenReturn(expectedResponse);
