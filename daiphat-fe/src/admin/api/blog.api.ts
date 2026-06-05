@@ -36,13 +36,10 @@ export const getBlogs = async (params?: any): Promise<ApiResponse<any>> => {
 
 
 
-/** Lấy bài viết theo ID */
+/** Lấy chi tiết bài viết theo ID (dành cho admin) */
 export const getBlogById = async (id: string | number): Promise<any> => {
-    const blog = mockBlogs.find(b => b._id === id) || mockBlogs[0];
-    return {
-        success: true,
-        data: blog
-    };
+    const response = await apiApp.get(`${BASE_URL}/${id}`);
+    return response.data;
 };
 
 
@@ -68,7 +65,8 @@ export const createBlog = async (data: any): Promise<any> => {
         status: data.status,
         type: data.type,
         slug: data.slug || generateSlug(data.name || ''),
-        tagIds: data.tags || []
+        tagIds: data.tags || [],
+        scheduledAt: data.scheduledAt || null,
     };
     const response = await apiApp.post(BASE_URL, payload);
     return response.data;
@@ -78,8 +76,13 @@ export const createBlog = async (data: any): Promise<any> => {
 export const updateBlog = async (id: string | number, data: any): Promise<any> => {
     const payload = {
         ...data,
-        slug: data.slug || generateSlug(data.name || ''),
     };
+    if (!payload.slug && data.name) {
+        payload.slug = generateSlug(data.name);
+    }
+    if (!payload.slug) {
+        delete payload.slug;
+    }
     const response = await apiApp.patch(`${BASE_URL}/edit/${id}`, payload, withAuth());
     return response.data;
 };
@@ -110,7 +113,8 @@ export const mapStatusToFrontend = (status: string): string => {
     const statusMap: Record<string, string> = {
         'draft': 'DRAFT',
         'published': 'PUBLISHED',
-        'archived': 'ARCHIVED',
+        'unpublished': 'UNPUBLISHED',
+        'scheduled': 'SCHEDULED',
     };
     return statusMap[status] || 'DRAFT';
 };
@@ -135,7 +139,11 @@ export const getBlogTags = async (params?: any): Promise<ApiResponse<any>> => {
 
 /** Tạo tag */
 export const createBlogTag = async (data: { name: string; slug?: string }): Promise<any> => {
-    const response = await apiApp.post(`${BASE_URL}/tags`, data);
+    const payload = {
+        name: data.name,
+        slug: data.slug?.trim() || generateSlug(data.name || ''),
+    };
+    const response = await apiApp.post(`${BASE_URL}/tags`, payload);
     return response.data;
 };
 
@@ -147,7 +155,11 @@ export const deleteBlogTag = async (id: string | number): Promise<any> => {
 
 /** Cập nhật tag */
 export const updateBlogTag = async (id: string | number, data: { name: string; slug?: string }): Promise<any> => {
-    const response = await apiApp.patch(`${BASE_URL}/tags/${id}`, data);
+    const payload = {
+        name: data.name,
+        slug: generateSlug(data.name || ''),
+    };
+    const response = await apiApp.patch(`${BASE_URL}/tags/${id}`, payload);
     return response.data;
 };
 
@@ -217,6 +229,3 @@ export const getBlogStatuses = async (): Promise<BlogStatusOption[]> => {
         };
     });
 };
-
-
-

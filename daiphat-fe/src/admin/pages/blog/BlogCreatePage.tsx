@@ -61,6 +61,7 @@ export const BlogCreatePage = () => {
     const { data: blogTags = [], isLoading: isLoadingTags } = useBlogTags();
     const { data: blogTypes = [] } = useBlogTypes();
     const { data: blogStatuses = [] } = useBlogStatuses();
+    const creatableBlogStatuses = blogStatuses.filter((status) => status.value !== "unpublished");
     const { mutate: create, isPending } = useCreateBlog();
     const [isUploading, setIsUploading] = useState(false);
 
@@ -72,6 +73,7 @@ export const BlogCreatePage = () => {
         resolver: zodResolver(createBlogSchema) as any,
         defaultValues: {
             name: "",
+            slug: "",
             description: "",
             content: "",
             avatar: "",
@@ -79,6 +81,7 @@ export const BlogCreatePage = () => {
             status: "draft",
             type: "blog",
             tags: [],
+            scheduledAt: null,
         },
     });
 
@@ -225,7 +228,7 @@ export const BlogCreatePage = () => {
                                                     labelId="status-select-label"
                                                     label={t("admin.common.status")}
                                                 >
-                                                    {blogStatuses.map((opt) => (
+                                                    {creatableBlogStatuses.map((opt) => (
                                                         <MenuItem key={opt.value} value={opt.value}>
                                                             {opt.label}
                                                         </MenuItem>
@@ -264,6 +267,22 @@ export const BlogCreatePage = () => {
                                         label={t("admin.blog.fields.category")}
                                         placeholder={t("admin.blog.fields.select_category")}
                                         multiple={true}
+                                    />
+                                    <Controller
+                                        name="scheduledAt"
+                                        control={control}
+                                        render={({ field, fieldState }) => (
+                                            <TextField
+                                                {...field}
+                                                value={field.value ?? ""}
+                                                label="Lên lịch đăng"
+                                                type="datetime-local"
+                                                fullWidth
+                                                InputLabelProps={{ shrink: true }}
+                                                error={!!fieldState.error}
+                                                helperText={fieldState.error?.message || "Để trống nếu không lên lịch"}
+                                            />
+                                        )}
                                     />
                                     <Controller
                                         name="tags"

@@ -5,13 +5,15 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryTreeResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogCategoryPublicResponse;
+import com.daiphat.coreapi.application.dto.response.blog.CategoryStatusResponse;
 import com.daiphat.coreapi.application.mapper.blog.BlogCategoryApplicationMapper;
-import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
 import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
+import com.daiphat.coreapi.application.port.in.blog.BlogPostCoordinationPort;
 import com.daiphat.coreapi.application.port.out.blog.BlogCategoryRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.blogs.BlogCategoryModel;
+import com.daiphat.coreapi.domain.model.enums.blog.CategoryStatus;
 import lombok.RequiredArgsConstructor;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
@@ -21,9 +23,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.daiphat.coreapi.domain.model.enums.blog.CategoryStatus;
-
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -32,7 +33,7 @@ public class BlogCategoryService implements BlogCategoryServicePort {
 
     private final BlogCategoryRepositoryPort blogCategoryRepositoryPort;
     private final BlogCategoryApplicationMapper blogCategoryApplicationMapper;
-    private final BlogPostServicePort blogPostServicePort;
+    private final BlogPostCoordinationPort blogPostCoordinationPort;
 
     @Override
     @Transactional(readOnly = true)
@@ -65,6 +66,14 @@ public class BlogCategoryService implements BlogCategoryServicePort {
         return all.stream()
                 .filter(c -> c.getParent() == null)
                 .map(c -> buildTree(c, all))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryStatusResponse> getStatuses() {
+        return Arrays.stream(CategoryStatus.values())
+                .map(status -> new CategoryStatusResponse(status.getCode(), status.getLabel()))
                 .toList();
     }
 
@@ -182,7 +191,7 @@ public class BlogCategoryService implements BlogCategoryServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.CATEGORY_NOT_FOUND));
        List<Long> deletedCategoryIds = new ArrayList<>();
         softDeleteCategoryRecursively(category, deletedCategoryIds);
-        blogPostServicePort.clearCategoryForPosts(deletedCategoryIds);
+        blogPostCoordinationPort.clearCategoryForPosts(deletedCategoryIds);
     }
 
     private void softDeleteCategoryRecursively(BlogCategoryModel category, List<Long> deletedCategoryIds) {
@@ -208,7 +217,7 @@ public class BlogCategoryService implements BlogCategoryServicePort {
                         .name(c.getName())
                         .slug(c.getSlug())
                         .avatar(c.getAvatar())
-                        .postCount(blogPostServicePort.countPublishedPostsByCategoryId(c.getId()))
+                        .postCount(blogPostCoordinationPort.countPublishedPostsByCategoryId(c.getId()))
                         .build())
                 .toList();
     }

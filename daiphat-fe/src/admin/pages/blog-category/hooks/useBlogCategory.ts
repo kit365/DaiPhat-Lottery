@@ -32,6 +32,8 @@ export const useCreateBlogCategory = () => {
         mutationFn: createCategory,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOG_CATEGORIES] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_BLOG_CATEGORIES] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_BLOG_POSTS] });
         },
     });
 };
@@ -45,6 +47,8 @@ export const useUpdateBlogCategory = () => {
             if (response.success) {
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOG_CATEGORIES] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOG_CATEGORY_DETAIL] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_BLOG_CATEGORIES] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_BLOG_POSTS] });
             }
         },
     });
@@ -66,6 +70,8 @@ export const useDeleteBlogCategory = () => {
         mutationFn: deleteCategory,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.BLOG_CATEGORIES] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_BLOG_CATEGORIES] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PUBLIC_BLOG_POSTS] });
         },
     });
 };

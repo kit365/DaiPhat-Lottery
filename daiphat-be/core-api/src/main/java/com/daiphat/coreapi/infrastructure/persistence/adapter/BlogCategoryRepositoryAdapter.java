@@ -2,11 +2,15 @@ package com.daiphat.coreapi.infrastructure.persistence.adapter;
 
 import com.daiphat.coreapi.application.port.out.blog.BlogCategoryRepositoryPort;
 import com.daiphat.coreapi.domain.model.blogs.BlogCategoryModel;
+import com.daiphat.coreapi.infrastructure.persistence.entity.blog.BlogCategoryEntity;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.blog.BlogCategoryPersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.BlogCategoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -27,9 +31,9 @@ public class BlogCategoryRepositoryAdapter implements BlogCategoryRepositoryPort
     }
 
     @Override
-    public org.springframework.data.domain.Page<BlogCategoryModel> findAll(
-            org.springframework.data.domain.Pageable pageable, String search, boolean isDeleted) {
-        org.springframework.data.domain.Page<com.daiphat.coreapi.infrastructure.persistence.entity.blog.BlogCategoryEntity> entities;
+    public Page<BlogCategoryModel> findAll(
+            Pageable pageable, String search, boolean isDeleted) {
+        Page<BlogCategoryEntity> entities;
         if (search != null && !search.isBlank()) {
             entities = blogCategoryRepository.findAllByIsDeletedAndNameContainingIgnoreCase(isDeleted, search, pageable);
         } else {
@@ -39,7 +43,7 @@ public class BlogCategoryRepositoryAdapter implements BlogCategoryRepositoryPort
     }
 
     @Override
-    public java.util.List<BlogCategoryModel> findAllByIsDeletedFalse() {
+    public List<BlogCategoryModel> findAllByIsDeletedFalse() {
         return blogCategoryRepository.findAllByIsDeletedFalse().stream()
                 .map(blogCategoryPersistenceMapper::toDomain)
                 .toList();
@@ -66,7 +70,7 @@ public class BlogCategoryRepositoryAdapter implements BlogCategoryRepositoryPort
     }
 
     @Override
-    public java.util.List<BlogCategoryModel> findAllByParentIdAndIsDeletedFalse(Long parentId) {
+    public List<BlogCategoryModel> findAllByParentIdAndIsDeletedFalse(Long parentId) {
         return blogCategoryRepository.findAllByParentIdAndIsDeletedFalse(parentId).stream()
                 .map(blogCategoryPersistenceMapper::toDomain)
                 .toList();
