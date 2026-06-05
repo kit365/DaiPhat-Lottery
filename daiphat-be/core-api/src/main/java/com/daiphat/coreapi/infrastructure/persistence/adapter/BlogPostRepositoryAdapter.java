@@ -12,8 +12,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import com.daiphat.coreapi.infrastructure.persistence.entity.blog.BlogPostEntity;
 
 @Component
 @RequiredArgsConstructor
@@ -36,6 +38,11 @@ public class BlogPostRepositoryAdapter implements BlogPostRepositoryPort {
     @Override
     public boolean existsBySlug(String slug) {
         return blogPostRepository.existsBySlug(slug);
+    }
+
+    @Override
+    public boolean existsBySlugAndIdNot(String slug, Long id) {
+        return blogPostRepository.existsBySlugAndIdNot(slug, id);
     }
 
     @Override
@@ -101,5 +108,23 @@ public class BlogPostRepositoryAdapter implements BlogPostRepositoryPort {
     @Override
     public long countAll() {
         return blogPostRepository.countByIsDeletedFalse();
+    }
+
+    @Override
+    @Transactional
+    public int publishDueScheduledPosts(LocalDateTime now) {
+        return blogPostRepository.publishDueScheduledPosts(
+                PostStatus.SCHEDULED,
+                PostStatus.PUBLISHED,
+                now
+        );
+    }
+
+    @Override
+    public List<Long> findDueScheduledPostIds(LocalDateTime now) {
+        return blogPostRepository.findByStatusAndIsDeletedFalseAndScheduledAtLessThanEqual(PostStatus.SCHEDULED, now)
+                .stream()
+                .map(BlogPostEntity::getId)
+                .toList();
     }
 }

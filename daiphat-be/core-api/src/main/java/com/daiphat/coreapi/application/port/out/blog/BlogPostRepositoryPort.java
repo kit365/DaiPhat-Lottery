@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.port.out.blog;
 
 import com.daiphat.coreapi.domain.model.blogs.BlogPostModel;
+import java.time.LocalDateTime;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -11,6 +12,7 @@ public interface BlogPostRepositoryPort {
     BlogPostModel save(BlogPostModel post);
     Optional<BlogPostModel> findById(Long id);
     boolean existsBySlug(String slug);
+    boolean existsBySlugAndIdNot(String slug, Long id);
 
     Page<BlogPostModel> findAll(
             Pageable pageable,
@@ -36,4 +38,8 @@ public interface BlogPostRepositoryPort {
     long countByStatus(String status);
 
     long countAll();
+
+    int publishDueScheduledPosts(LocalDateTime now);
+
+    List<Long> findDueScheduledPostIds(LocalDateTime now);
 }

@@ -10,6 +10,8 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
 
+import java.time.LocalDateTime;
+
 @Mapper(
     componentModel = "spring",
     unmappedTargetPolicy = ReportingPolicy.IGNORE,
@@ -31,7 +33,19 @@ public interface BlogPostApplicationMapper {
     @Mapping(target = "updatedAt", ignore = true)
     BlogPostModel toModel(CreateBlogPostRequest request);
 
+    @Mapping(target = "scheduledAt", expression = "java(resolveScheduledAt(model))")
     BlogPostResponse toResponse(BlogPostModel model);
 
+    @Mapping(target = "scheduledAt", expression = "java(resolveScheduledAt(model))")
     BlogPostSummaryResponse toSummaryResponse(BlogPostModel model);
+
+    default LocalDateTime resolveScheduledAt(BlogPostModel model) {
+        if (model == null) {
+            return null;
+        }
+        if (model.getScheduledAt() != null) {
+            return model.getScheduledAt();
+        }
+        return model.getStatus() == PostStatus.SCHEDULED ? model.getPublishedAt() : null;
+    }
 }

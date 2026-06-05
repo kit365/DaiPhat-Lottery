@@ -92,6 +92,16 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
+    public long countAll(String search, List<String> roleIds) {
+        return userRepository.count(UserSpecification.filterUsers(search, null, roleIds));
+    }
+
+    @Override
+    public long countByStatus(UserStatus status, String search, List<String> roleIds) {
+        return userRepository.count(UserSpecification.filterUsers(search, status, roleIds));
+    }
+
+    @Override
     public void deleteById(UUID id) {
         userRepository.deleteById(id);
     }
