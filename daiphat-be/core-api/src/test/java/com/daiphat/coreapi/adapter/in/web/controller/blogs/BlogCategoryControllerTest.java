@@ -12,8 +12,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
-import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,6 +59,13 @@ class BlogCategoryControllerTest {
     @Test
     @DisplayName("GET /statuses: Lấy danh sách trạng thái danh mục thành công")
     void getStatuses_success() {
+        // GIVEN
+        List<CategoryStatusResponse> mockStatuses = List.of(
+                new CategoryStatusResponse("ACTIVE", "Hoạt động"),
+                new CategoryStatusResponse("INACTIVE", "Ngừng hoạt động")
+        );
+        when(blogCategoryServicePort.getStatuses()).thenReturn(mockStatuses);
+
         // WHEN
         ResponseEntity<ApiResponse<List<CategoryStatusResponse>>> responseEntity = blogCategoryController.getStatuses();
 
@@ -72,6 +77,7 @@ class BlogCategoryControllerTest {
         assertThat(body).isNotNull();
         assertThat(body.isSuccess()).isTrue();
         assertThat(body.getMessage()).isEqualTo("Lấy danh sách trạng thái danh mục thành công");
-        assertThat(body.getData()).isNotEmpty();
+        assertThat(body.getData()).isEqualTo(mockStatuses);
+        verify(blogCategoryServicePort).getStatuses();
     }
 }

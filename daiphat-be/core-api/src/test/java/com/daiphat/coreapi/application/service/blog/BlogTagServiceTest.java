@@ -4,7 +4,7 @@ import com.daiphat.coreapi.application.dto.request.blog.CreateBlogTagRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogTagResponse;
 import com.daiphat.coreapi.application.mapper.blog.BlogTagApplicationMapper;
-import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
+import com.daiphat.coreapi.application.port.in.blog.BlogPostCoordinationPort;
 import com.daiphat.coreapi.application.port.in.blog.BlogTagServicePort;
 import com.daiphat.coreapi.application.port.out.blog.BlogTagRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -60,7 +60,7 @@ class BlogTagServiceTest {
     private BlogTagApplicationMapper blogTagApplicationMapper;
 
     @Mock
-    private BlogPostServicePort blogPostServicePort;
+    private BlogPostCoordinationPort blogPostCoordinationPort;
 
     private BlogTagModel mockTag1;
     private BlogTagModel mockTag2;
@@ -68,7 +68,7 @@ class BlogTagServiceTest {
 
     @BeforeEach
     void setUp() {
-        blogTagService = new BlogTagService(blogTagRepositoryPort, blogTagApplicationMapper, blogPostServicePort);
+        blogTagService = new BlogTagService(blogTagRepositoryPort, blogTagApplicationMapper, blogPostCoordinationPort);
 
         mockTag1 = BlogTagModel.builder()
                 .id(TAG1_ID)
@@ -107,7 +107,7 @@ class BlogTagServiceTest {
         PageResponse<BlogTagResponse> result = blogTagService.getTags(1, 10, "General");
 
         assertThat(result.getRecordList()).hasSize(1);
-        assertThat(result.getRecordList().get(0).id()).isEqualTo(TAG1_ID);
+        assertThat(result.getRecordList().getFirst().id()).isEqualTo(TAG1_ID);
         assertThat(result.getPagination().getTotalRecords()).isEqualTo(1L);
     }
 
@@ -279,7 +279,7 @@ class BlogTagServiceTest {
 
         assertThat(mockTag1.isDeleted()).isTrue();
         verify(blogTagRepositoryPort).save(mockTag1);
-        verify(blogPostServicePort).removeTagFromPosts(TAG1_ID);
+        verify(blogPostCoordinationPort).removeTagFromPosts(TAG1_ID);
     }
 
     @Test
@@ -301,7 +301,7 @@ class BlogTagServiceTest {
 
         assertThat(mockTag1.isDeleted()).isTrue();
         verify(blogTagRepositoryPort).save(mockTag1);
-        verify(blogPostServicePort).removeTagFromPosts(TAG1_ID);
+        verify(blogPostCoordinationPort).removeTagFromPosts(TAG1_ID);
     }
 
     @Test
@@ -312,6 +312,6 @@ class BlogTagServiceTest {
 
         assertThat(mockTag1.isDeleted()).isTrue();
         verify(blogTagRepositoryPort).save(mockTag1);
-        verify(blogPostServicePort).removeTagFromPosts(TAG1_ID);
+        verify(blogPostCoordinationPort).removeTagFromPosts(TAG1_ID);
     }
 }
