@@ -2,6 +2,19 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getBlogs, createBlog, getBlogById, updateBlog, deleteBlog, getBlogTags, getAllBlogTags, createBlogTag, deleteBlogTag, updateBlogTag, getBlogTypes, getBlogStatuses } from '../../../api/blog.api';
 import { ApiResponse } from '../../../config/type';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
+import { BLOG_STATUS } from "../../../../types/blogs.type";
+
+const toDateTimeLocalValue = (value?: string | null) => {
+    if (!value) {
+        return null;
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+    return date.toISOString().slice(0, 16);
+};
 
 export const useBlogs = (params?: any) => {
     return useQuery({
@@ -34,12 +47,13 @@ export const useBlogs = (params?: any) => {
                     title:         item.title,
                     featuredImage: item.thumbnail || null,
                     viewCount:     item.viewCount  ?? 0,
-                    status:        (item.status || 'draft').toLowerCase(),
+                    status:        (item.status || BLOG_STATUS.DRAFT).toLowerCase(),
                     createdAt:     item.createdAt,
                     updatedAt:     item.updatedAt,
                     category:      item.category   || null,
                     tags:          item.tags        || [],
                     slug:          item.slug        || '',
+                    scheduledAt:   item.scheduledAt || ((item.status || '').toLowerCase() === BLOG_STATUS.SCHEDULED ? item.publishedAt : null) || null,
                 })),
                 pagination,
                 statusCounts: {
@@ -99,10 +113,12 @@ export const useBlogDetail = (id?: string | number) => {
                     description: data.summary   || '',
                     content:     data.content   || '',
                     avatar:      data.thumbnail || '',
-                    status:      (data.status || 'draft').toLowerCase(),
+                    status:      (data.status || BLOG_STATUS.DRAFT).toLowerCase(),
                     type:        data.type  || '',
                     slug:        data.slug  || '',
-                    scheduledAt: data.scheduledAt || null,
+                    scheduledAt: toDateTimeLocalValue(
+                        data.scheduledAt || (data.status === BLOG_STATUS.SCHEDULED ? data.publishedAt : null) || null
+                    ),
 
                     // ── Form category: id array for CategoryTreeSelect ──
                     category: data.category
@@ -233,9 +249,3 @@ export const useBlogStatuses = () => {
         staleTime: 5 * 60 * 1000,
     });
 };
-
-
-
-
-
-

@@ -16,5 +16,7 @@ public record BlogCategoryResponse(
     String status,
     String avatar,
     LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    LocalDateTime updatedAt,
+    String createdBy,
+    String lastModifiedBy
 ) {}

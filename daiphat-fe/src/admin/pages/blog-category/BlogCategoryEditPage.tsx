@@ -1,4 +1,4 @@
-import { Box, MenuItem, Stack, TextField, ThemeProvider, useTheme, CircularProgress } from "@mui/material";
+import { Box, MenuItem, Stack, TextField, ThemeProvider, useTheme, CircularProgress, Typography } from "@mui/material";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
@@ -16,10 +16,12 @@ import { toast } from "react-toastify";
 import { CategoryParentSelect } from "../../components/ui/CategoryTreeSelect";
 import { uploadBlogImage } from "../../api/blog.api";
 import { useParams } from "react-router-dom";
+import dayjs from "dayjs";
 
 export const BlogCategoryEditPage = () => {
     const { id } = useParams();
     const [expandedDetail, setExpandedDetail] = useState(true);
+    const [expandedHistory, setExpandedHistory] = useState(true);
 
     const toggle = (setter: Dispatch<SetStateAction<boolean>>) =>
         () => setter(prev => !prev);
@@ -182,6 +184,38 @@ export const BlogCategoryEditPage = () => {
                             </Stack>
                         </CollapsibleCard>
 
+                        {detailRes && (
+                            <CollapsibleCard
+                                title="Lịch sử hệ thống"
+                                subheader="Thông tin khởi tạo và cập nhật danh mục"
+                                expanded={expandedHistory}
+                                onToggle={toggle(setExpandedHistory)}
+                            >
+                                <Stack p="calc(3 * var(--spacing))" gap="calc(2.5 * var(--spacing))">
+                                    <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center' }}>
+                                        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Người tạo:</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>{detailRes.createdBy || 'SYSTEM'}</Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center' }}>
+                                        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Thời gian tạo:</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                            {detailRes.createdAt ? dayjs(detailRes.createdAt).format('DD/MM/YYYY HH:mm:ss') : '--'}
+                                        </Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center' }}>
+                                        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Người sửa cuối:</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>{detailRes.lastModifiedBy || 'SYSTEM'}</Typography>
+                                    </Box>
+                                    <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center' }}>
+                                        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Thời gian sửa cuối:</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                            {detailRes.updatedAt ? dayjs(detailRes.updatedAt).format('DD/MM/YYYY HH:mm:ss') : '--'}
+                                        </Typography>
+                                    </Box>
+                                </Stack>
+                            </CollapsibleCard>
+                        )}
+
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center" }}>
                             <Controller
                                 name="status"
@@ -217,6 +251,3 @@ export const BlogCategoryEditPage = () => {
         </>
     );
 };
-
-
-

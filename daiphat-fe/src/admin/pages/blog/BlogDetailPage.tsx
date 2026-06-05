@@ -20,6 +20,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
 import { useBlogDetail, useBlogTypes, useDeleteBlog, useUpdateBlog } from "./hooks/useBlog";
+import { BLOG_STATUS, BlogStatus } from "../../../types/blogs.type";
 import { prefixAdmin } from "../../constants/routes";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
@@ -31,18 +32,16 @@ import { confirmAction } from "../../utils/swal";
 dayjs.locale("vi");
 
 // ─── Status config ──────────────────────────────────────────────────────────
-type BlogStatus = "published" | "draft" | "unpublished" | "archived" | "scheduled" | string;
-
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-    published:   { label: "Đã xuất bản",  color: "var(--palette-success-dark)",  bg: "var(--palette-success-lighter)",  icon: "solar:check-circle-bold-duotone" },
-    draft:       { label: "Bản nháp",     color: "var(--palette-warning-dark)",  bg: "var(--palette-warning-lighter)",  icon: "solar:document-text-bold-duotone" },
-    unpublished: { label: "Đã gỡ xuống",  color: "var(--palette-error-dark)",    bg: "var(--palette-error-lighter)",    icon: "solar:archive-down-minimlistic-bold-duotone" },
-    archived:    { label: "Đã gỡ xuống",  color: "var(--palette-error-dark)",    bg: "var(--palette-error-lighter)",    icon: "solar:archive-down-minimlistic-bold-duotone" },
-    scheduled:   { label: "Đã lên lịch",  color: "var(--palette-info-dark)",     bg: "var(--palette-info-lighter)",     icon: "solar:calendar-bold-duotone" },
+    [BLOG_STATUS.PUBLISHED]:   { label: "Đã xuất bản",  color: "var(--palette-success-dark)",  bg: "var(--palette-success-lighter)",  icon: "solar:check-circle-bold-duotone" },
+    [BLOG_STATUS.DRAFT]:       { label: "Bản nháp",     color: "var(--palette-warning-dark)",  bg: "var(--palette-warning-lighter)",  icon: "solar:document-text-bold-duotone" },
+    [BLOG_STATUS.UNPUBLISHED]: { label: "Đã gỡ xuống",  color: "var(--palette-error-dark)",    bg: "var(--palette-error-lighter)",    icon: "solar:archive-down-minimlistic-bold-duotone" },
+    archived:                  { label: "Đã gỡ xuống",  color: "var(--palette-error-dark)",    bg: "var(--palette-error-lighter)",    icon: "solar:archive-down-minimlistic-bold-duotone" },
+    [BLOG_STATUS.SCHEDULED]:   { label: "Đã lên lịch",  color: "var(--palette-info-dark)",     bg: "var(--palette-info-lighter)",     icon: "solar:calendar-bold-duotone" },
 };
 
 const getStatusConfig = (status: string) =>
-    STATUS_CONFIG[status?.toLowerCase()] ?? STATUS_CONFIG.draft;
+    STATUS_CONFIG[status?.toLowerCase()] ?? STATUS_CONFIG[BLOG_STATUS.DRAFT];
 
 // ─── InfoRow helper ──────────────────────────────────────────────────────────
 const InfoRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -67,12 +66,12 @@ export const BlogDetailPage = () => {
     const [viewMode, setViewMode] = useState<"info" | "preview">("info");
     const [confirmDelete, setConfirmDelete] = useState(false);
 
-    const status: BlogStatus = (blog?.status || "draft").toLowerCase();
+    const status: BlogStatus = (blog?.status || BLOG_STATUS.DRAFT).toLowerCase();
     const statusCfg = getStatusConfig(status);
-    const isPublished = status === "published";
-    const isDraft = status === "draft";
-    const isScheduled = status === "scheduled";
-    const isUnpublished = status === "unpublished";
+    const isPublished = status === BLOG_STATUS.PUBLISHED;
+    const isDraft = status === BLOG_STATUS.DRAFT;
+    const isScheduled = status === BLOG_STATUS.SCHEDULED;
+    const isUnpublished = status === BLOG_STATUS.UNPUBLISHED;
     const canDelete = isDraft || isUnpublished;
     const normalizedBlogType = typeof blog?.type === "string" ? blog.type.toLowerCase() : "";
     const blogTypeLabel = blogTypes.find((type) => {
@@ -84,7 +83,7 @@ export const BlogDetailPage = () => {
     // ── Handlers ────────────────────────────────────────────────────────────
     const handlePublish = () => {
         updateBlog(
-            { id: id!, data: { status: "published", scheduledAt: null } },
+            { id: id!, data: { status: BLOG_STATUS.PUBLISHED, scheduledAt: null } },
             {
                 onSuccess: (res) => {
                     if (res.success) { toast.success("Đăng bài thành công"); refetch(); }
@@ -97,7 +96,7 @@ export const BlogDetailPage = () => {
 
     const handleMoveToDraft = () => {
         updateBlog(
-            { id: id!, data: { status: "draft", scheduledAt: null } },
+            { id: id!, data: { status: BLOG_STATUS.DRAFT, scheduledAt: null } },
             {
                 onSuccess: (res) => {
                     if (res.success) { toast.success("Đã hủy lịch đăng"); refetch(); }
@@ -114,7 +113,7 @@ export const BlogDetailPage = () => {
             "Hành động này sẽ ẩn bài viết khỏi trang Khách hàng. Xác nhận gỡ?",
             () => {
                 updateBlog(
-                    { id: id!, data: { status: "unpublished", scheduledAt: null } },
+                    { id: id!, data: { status: BLOG_STATUS.UNPUBLISHED, scheduledAt: null } },
                     {
                         onSuccess: (res) => {
                             if (res.success) { toast.success("Đã gỡ bài xuống"); refetch(); }
@@ -461,7 +460,7 @@ export const BlogDetailPage = () => {
                                 </>
                             )}
 
-                            {blog.publishedAt && (
+                            {blog.publishedAt && status !== BLOG_STATUS.SCHEDULED && (
                                 <>
                                     <Divider sx={{ borderStyle: "dashed" }} />
                                     <InfoRow label="Ngày xuất bản">

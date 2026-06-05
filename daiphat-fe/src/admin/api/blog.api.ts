@@ -76,20 +76,18 @@ export const createBlog = async (data: any): Promise<any> => {
 export const updateBlog = async (id: string | number, data: any): Promise<any> => {
     const payload = {
         ...data,
+        slug: generateSlug(data.title || data.name || data.slug || ''),
     };
-    if (!payload.slug && data.name) {
-        payload.slug = generateSlug(data.name);
-    }
     if (!payload.slug) {
         delete payload.slug;
     }
-    const response = await apiApp.patch(`${BASE_URL}/edit/${id}`, payload, withAuth());
+    const response = await apiApp.patch(`${BASE_URL}/edit/${id}`, payload);
     return response.data;
 };
 
 /** Xóa bài viết */
 export const deleteBlog = async (id: string | number): Promise<any> => {
-    const response = await apiApp.delete(`${BASE_URL}/${id}`, withAuth());
+    const response = await apiApp.delete(`${BASE_URL}/${id}`);
     return response.data;
 };
 // --- Helper functions ---
@@ -161,15 +159,6 @@ export const updateBlogTag = async (id: string | number, data: { name: string; s
     };
     const response = await apiApp.patch(`${BASE_URL}/tags/${id}`, payload);
     return response.data;
-};
-
-const withAuth = () => {
-    const token = localStorage.getItem("token") || "";
-    return {
-        headers: {
-            Authorization: `Bearer ${token}`
-        }
-    };
 };
 
 export const uploadBlogImage = async (file: File, folder: 'blog-content' | 'category' = 'blog-content'): Promise<ApiResponse<{ publicId: string; url: string }>> => {
