@@ -29,9 +29,9 @@ import com.daiphat.coreapi.domain.model.auth.InviteData;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.shared.util.AuthUtils;
-import com.daiphat.coreapi.shared.util.SearchConstants;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.PageableUtils;
+import com.daiphat.coreapi.shared.util.StatusCountKeys;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +46,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -150,7 +153,7 @@ public class UserService implements UserServicePort {
     @Override
     @Transactional(readOnly = true)
     public List<UserStatusResponse> getStatuses() {
-        return java.util.Arrays.stream(UserStatus.values())
+        return Arrays.stream(UserStatus.values())
                 .map(status -> new UserStatusResponse(status.getCode(), status.getLabel()))
                 .toList();
     }
@@ -191,7 +194,19 @@ public class UserService implements UserServicePort {
                         .isFirst(userPage.isFirst())
                         .isLast(userPage.isLast())
                         .build())
+                .statusCounts(buildStatusCounts(search, roleIds))
                 .build();
+    }
+
+    private Map<String, Long> buildStatusCounts(String search, List<String> roleIds) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        counts.put(StatusCountKeys.ALL, userRepositoryPort.countAll(search, roleIds));
+        Arrays.stream(UserStatus.values())
+                .forEach(status -> counts.put(
+                        status.getCode(),
+                        userRepositoryPort.countByStatus(status, search, roleIds)
+                ));
+        return counts;
     }
 
     @Override

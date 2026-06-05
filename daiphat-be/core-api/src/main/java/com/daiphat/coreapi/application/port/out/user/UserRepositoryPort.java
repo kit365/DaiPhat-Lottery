@@ -32,6 +32,10 @@ public interface UserRepositoryPort {
 
     Page<UserModel> findAll(Pageable pageable, String search, UserStatus status, List<String> roleIds);
 
+    long countAll(String search, List<String> roleIds);
+
+    long countByStatus(UserStatus status, String search, List<String> roleIds);
+
     void deleteById(UUID id);
 
     Optional<String> findStaffInviteTokenByEmail(String email);

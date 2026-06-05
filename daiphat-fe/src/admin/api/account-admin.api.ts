@@ -47,7 +47,7 @@ export const getAccounts = async (params?: BaseQueryParams): Promise<ApiResponse
                 limit: params?.limit || 10
             },
             statusCounts: {
-                all: result?.pagination?.totalRecords || recordList.length,
+                all: statusCounts.all ?? result?.pagination?.totalRecords ?? recordList.length,
                 ACTIVE: statusCounts.ACTIVE || statusCounts.active || 0,
                 INACTIVE: statusCounts.INACTIVE || statusCounts.inactive || 0,
                 PENDING: statusCounts.PENDING || statusCounts.pending || 0,

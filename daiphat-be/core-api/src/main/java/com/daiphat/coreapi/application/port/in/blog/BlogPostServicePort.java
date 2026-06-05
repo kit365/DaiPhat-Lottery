@@ -44,4 +44,6 @@ public interface BlogPostServicePort {
     void incrementViewCount(Long id);
 
     void deletePost(Long id);
+
+    int publishDueScheduledPosts();
 }
