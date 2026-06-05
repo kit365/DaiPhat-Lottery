@@ -14,9 +14,16 @@ import { createBlogSchema, CreateBlogFormValues } from "../../schemas/blog.schem
 import { FormUploadSingleFile } from "../../components/upload/FormUploadSingleFile"
 import { toast } from "react-toastify"
 import { prefixAdmin } from "../../constants/routes"
+import { BLOG_STATUS } from "../../../types/blogs.type";
 
 import { useNestedBlogCategories } from "../blog-category/hooks/useBlogCategory";
 import { CategoryTreeSelectGeneric } from "../../components/ui/CategoryTreeSelectGeneric";
+
+const getMinScheduleValue = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+};
 
 export const BlogCreatePage = () => {
     const { t } = useTranslation();
@@ -69,6 +76,7 @@ export const BlogCreatePage = () => {
         control,
         handleSubmit,
         reset,
+        watch,
     } = useForm<CreateBlogFormValues>({
         resolver: zodResolver(createBlogSchema) as any,
         defaultValues: {
@@ -84,6 +92,7 @@ export const BlogCreatePage = () => {
             scheduledAt: null,
         },
     });
+    const selectedStatus = watch("status");
 
     const onSubmit = async (data: CreateBlogFormValues) => {
         try {
@@ -103,7 +112,8 @@ export const BlogCreatePage = () => {
             const payload = {
                 ...data,
                 avatar: imageUrl,
-                category: JSON.stringify(data.category)
+                category: JSON.stringify(data.category),
+                scheduledAt: data.status === BLOG_STATUS.SCHEDULED ? data.scheduledAt : null
             };
 
             create(payload, {
@@ -260,30 +270,39 @@ export const BlogCreatePage = () => {
                                             </FormControl>
                                         )}
                                     />
-                                    <CategoryTreeSelectGeneric
-                                        control={control}
-                                        categories={blogCategories}
-                                        name="category"
-                                        label={t("admin.blog.fields.category")}
-                                        placeholder={t("admin.blog.fields.select_category")}
-                                        multiple={true}
-                                    />
-                                    <Controller
-                                        name="scheduledAt"
-                                        control={control}
-                                        render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                value={field.value ?? ""}
-                                                label="Lên lịch đăng"
-                                                type="datetime-local"
-                                                fullWidth
-                                                InputLabelProps={{ shrink: true }}
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message || "Để trống nếu không lên lịch"}
-                                            />
-                                        )}
-                                    />
+                                    <Box
+                                        sx={{
+                                            gridColumn: selectedStatus !== BLOG_STATUS.SCHEDULED ? "span 2" : "span 1"
+                                        }}
+                                    >
+                                        <CategoryTreeSelectGeneric
+                                            control={control}
+                                            categories={blogCategories}
+                                            name="category"
+                                            label={t("admin.blog.fields.category")}
+                                            placeholder={t("admin.blog.fields.select_category")}
+                                            multiple={true}
+                                        />
+                                    </Box>
+                                    {selectedStatus === BLOG_STATUS.SCHEDULED && (
+                                        <Controller
+                                            name="scheduledAt"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    label="Lên lịch xuất bản"
+                                                    type="datetime-local"
+                                                    fullWidth
+                                                    InputLabelProps={{ shrink: true }}
+                                                    inputProps={{ min: getMinScheduleValue() }}
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message || "Chọn thời điểm bài viết tự động được xuất bản."}
+                                                />
+                                            )}
+                                        />
+                                    )}
                                     <Controller
                                         name="tags"
                                         control={control}
@@ -297,6 +316,7 @@ export const BlogCreatePage = () => {
                                                 onChange={(_e, newValue) => {
                                                     field.onChange(newValue.map((tag: any) => tag.id));
                                                 }}
+                                                sx={{ gridColumn: "span 2" }}
                                                 renderInput={(params) => (
                                                     <TextField
                                                         {...params}
@@ -336,6 +356,3 @@ export const BlogCreatePage = () => {
         </>
     )
 }
-
-
-

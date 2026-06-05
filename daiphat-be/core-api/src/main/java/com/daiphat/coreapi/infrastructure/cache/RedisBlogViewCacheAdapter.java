@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.cache;
 
 import com.daiphat.coreapi.application.port.out.blog.BlogViewCachePort;
+import com.daiphat.coreapi.application.port.out.blog.keys.BlogCacheKeyGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -17,8 +18,8 @@ public class RedisBlogViewCacheAdapter implements BlogViewCachePort {
 
     private final RedisTemplate<String, Object> redisTemplate;
 
-    private static final String VIEW_KEY = "blog:post:views";
-    private static final String SYNC_KEY = "blog:post:views:sync";
+    private static final String VIEW_KEY = BlogCacheKeyGenerator.postViews();
+    private static final String SYNC_KEY = BlogCacheKeyGenerator.postViewsSync();
 
     @Override
     public void incrementViewCount(Long id) {

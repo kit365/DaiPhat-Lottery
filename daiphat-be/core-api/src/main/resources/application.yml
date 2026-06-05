@@ -31,6 +31,8 @@ springdoc:
     display-request-duration: true
 
 daiphat:
+  blog:
+    schedule-publish-rate-ms: ${BLOG_SCHEDULE_PUBLISH_RATE_MS:60000}
   storage:
     cloudinary:
       cloud-name: ${CLOUDINARY_CLOUD_NAME}
