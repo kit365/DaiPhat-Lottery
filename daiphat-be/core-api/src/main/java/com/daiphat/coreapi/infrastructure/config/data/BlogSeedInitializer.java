@@ -8,6 +8,7 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.BlogCategoryRep
 import com.daiphat.coreapi.infrastructure.persistence.repository.BlogPostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
 
+@ConditionalOnProperty(value = "daiphat.blog.seed.enabled", havingValue = "true")
 @Component
 @RequiredArgsConstructor
 @Slf4j

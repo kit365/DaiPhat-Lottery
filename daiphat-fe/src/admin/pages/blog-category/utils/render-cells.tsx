@@ -153,7 +153,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 }
 
 // Actions
-export const getRenderActionsCell = (isTrash: boolean) => (params: GridRenderCellParams) => {
+export const getRenderActionsCell = (_isTrash: boolean) => (params: GridRenderCellParams) => {
     const navigate = useNavigate();
     const { mutate: deleteCategory } = useDeleteBlogCategory();
     const _id = params.row._id || params.row.id;

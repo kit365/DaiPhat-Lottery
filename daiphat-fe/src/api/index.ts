@@ -96,7 +96,8 @@ apiApp.interceptors.response.use(
                     })
                     .then(token => {
                         if (token) {
-                            originalRequest.headers.Authorization = `Bearer ${token}`;
+                            originalRequest._retry = true;
+                            delete originalRequest.headers.Authorization;
                             return apiApp(originalRequest);
                         }
                         return Promise.reject(error);

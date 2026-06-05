@@ -47,8 +47,6 @@ export const BlogCategoryCreatePage = () => {
         data: nestedCategories = [],
     } = useNestedBlogCategories();
 
-    console.log(nestedCategories);
-
     // Tạo
     const { mutate: create, isPending } = useCreateBlogCategory();
     const [isUploading, setIsUploading] = useState(false);
@@ -81,7 +79,7 @@ export const BlogCategoryCreatePage = () => {
                             name: "",
                             description: "",
                             parent: "",
-                            status: "active",
+                            status: "ACTIVE",
                             avatar: "",
                         });
                     } else {
