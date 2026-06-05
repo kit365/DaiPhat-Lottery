@@ -1,6 +1,5 @@
 package com.daiphat.coreapi.infrastructure.config;
 
-import com.daiphat.coreapi.domain.model.UserModel;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -23,8 +22,8 @@ public class AuditorAwareImpl implements AuditorAware<String> {
         }
 
         Object principal = authentication.getPrincipal();
-        if (principal instanceof UserModel userModel) {
-            return Optional.ofNullable(userModel.getUsername());
+        if (principal instanceof java.security.Principal securityPrincipal) {
+            return Optional.ofNullable(securityPrincipal.getName());
         }
 
         return Optional.ofNullable(authentication.getName());

@@ -1,8 +1,8 @@
 package com.daiphat.coreapi.application.port.out.auth;
 
 import com.daiphat.coreapi.application.dto.request.permission.PermissionItem;
-import com.daiphat.coreapi.domain.model.RoleModel;
-import com.daiphat.coreapi.domain.model.PermissionModel;
+import com.daiphat.coreapi.domain.model.auth.RoleModel;
+import com.daiphat.coreapi.domain.model.auth.PermissionModel;
 
 import java.util.Collection;
 import java.util.List;

@@ -5,20 +5,27 @@ import com.daiphat.coreapi.application.dto.request.permission.PermissionRegistra
 import com.daiphat.coreapi.application.dto.response.auth.RoleResponse;
 import com.daiphat.coreapi.application.mapper.RoleApplicationMapper;
 import com.daiphat.coreapi.application.port.in.auth.RoleServicePort;
+import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.auth.RoleRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.PermissionModel;
-import com.daiphat.coreapi.domain.model.RoleModel;
-import com.daiphat.coreapi.domain.model.enums.PermissionConstants;
-import com.daiphat.coreapi.domain.model.enums.RoleConstants;
+import com.daiphat.coreapi.domain.model.auth.PermissionModel;
+import com.daiphat.coreapi.domain.model.auth.RoleModel;
+import com.daiphat.coreapi.domain.model.enums.auth.PermissionConstants;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.application.config.AuthProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +33,8 @@ public class RoleService implements RoleServicePort {
 
     private final RoleRepositoryPort roleRepositoryPort;
     private final RoleApplicationMapper roleApplicationMapper;
+    private final AuthProperties authProperties;
+    private final UserLookupServicePort userLookupServicePort;
 
     @Override
     public RoleModel getDefaultRole() {
@@ -44,8 +53,8 @@ public class RoleService implements RoleServicePort {
         return roleRepositoryPort.findAll().stream()
                 .filter(role -> !role.getCode().equals(RoleConstants.ADMIN)
                         && !role.getCode().equals(RoleConstants.ROLE_MEMBER))
-                .sorted(java.util.Comparator.comparing(RoleModel::getName, 
-                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .sorted(Comparator.comparing(RoleModel::getName,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
                 .map(roleApplicationMapper::toResponse)
                 .toList();
     }
@@ -60,7 +69,7 @@ public class RoleService implements RoleServicePort {
 
         Set<PermissionModel> permissions = permissionCodes.stream()
                 .map(code -> PermissionModel.builder().code(code).build())
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
 
         role.setPermissions(permissions);
         return roleApplicationMapper.toResponse(roleRepositoryPort.save(role));
@@ -83,6 +92,19 @@ public class RoleService implements RoleServicePort {
 
     @Override
     @Transactional
+    public void syncOperatorStaffPermissions() {
+        RoleModel role = roleRepositoryPort.findByCode(RoleConstants.ROLE_STAFF_OPERATOR)
+                .orElse(null);
+        if (role != null && (role.getPermissions() == null || role.getPermissions().isEmpty())) {
+            Set<String> permissionCodes = authProperties.getDefaultOperatorPermissions();
+            if (permissionCodes != null && !permissionCodes.isEmpty()) {
+                roleRepositoryPort.assignPermissionsToRole(RoleConstants.ROLE_STAFF_OPERATOR, permissionCodes);
+            }
+        }
+    }
+
+    @Override
+    @Transactional
     public void initializeTestAccounts() {
         // Disabled to prevent overwriting manual database changes on restart
     }
@@ -91,9 +113,9 @@ public class RoleService implements RoleServicePort {
     public List<PermissionItem> getAllPermissions() {
         return roleRepositoryPort.findAllPermissions().stream()
                 .filter(p -> !p.getCode().startsWith(PermissionConstants.ROLE))
-                .sorted(java.util.Comparator.comparing(
+                .sorted(Comparator.comparing(
                         PermissionModel::getPosition,
-                        java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
+                        Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(p -> PermissionItem.builder()
                         .code(p.getCode())
                         .name(p.getName())
@@ -106,7 +128,21 @@ public class RoleService implements RoleServicePort {
 
     @Override
     @Transactional
-    public void reorderPermissions(java.util.Map<String, Integer> positionMap) {
+    public void reorderPermissions(Map<String, Integer> positionMap) {
         roleRepositoryPort.updatePermissionPositions(positionMap);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<String> getUserPermissionCodes(UUID userId) {
+        RoleModel role = userLookupServicePort.findActiveByIdOrThrow(userId).getRole();
+        if (role == null || role.getPermissions() == null) {
+            return Collections.emptySet();
+        }
+
+        return role.getPermissions().stream()
+                .filter(Objects::nonNull)
+                .map(PermissionModel::getCode)
+                .collect(Collectors.toSet());
     }
 }

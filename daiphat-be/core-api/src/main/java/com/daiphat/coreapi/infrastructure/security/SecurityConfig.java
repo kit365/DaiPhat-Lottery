@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.security;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
+import com.daiphat.coreapi.application.config.AuthProperties;
 import com.daiphat.coreapi.infrastructure.security.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -17,7 +18,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
+import java.net.URI;
 import java.util.List;
 
 @Configuration
@@ -29,6 +30,7 @@ public class SecurityConfig {
     private static final String AUTH = ApiConstants.API_V1 + "/auth";
     private static final String PERMISSIONS = ApiConstants.API_V1 + "/permissions";
 
+    private final AuthProperties authProperties;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
@@ -59,7 +61,12 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 AUTH + "/verify-email",
-                                AUTH + "/password-policy"
+                                AUTH + "/password-policy",
+                                ApiConstants.API_V1 + "/blogs/public",
+                                ApiConstants.API_V1 + "/blogs/categories/public"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.PATCH,
+                                ApiConstants.API_V1 + "/blogs/*/view"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -70,14 +77,39 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://127.0.0.1:5173"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+        configuration.setAllowedOrigins(resolveAllowedOrigins());
+        configuration.setAllowedMethods(authProperties.getCors().getAllowedMethods());
+        configuration.setAllowedHeaders(authProperties.getCors().getAllowedHeaders());
+        configuration.setAllowCredentials(authProperties.getCors().isAllowCredentials());
+        configuration.setMaxAge(authProperties.getCors().getMaxAge());
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private List<String> resolveAllowedOrigins() {
+        List<String> configuredOrigins = authProperties.getCors().getAllowedOrigins();
+        if (configuredOrigins != null && !configuredOrigins.isEmpty()) {
+            return configuredOrigins;
+        }
+
+        String frontendUrl = authProperties.getFrontendUrl();
+        if (frontendUrl == null || frontendUrl.isBlank()) {
+            return List.of("http://localhost:5173");
+        }
+
+        try {
+            URI uri = URI.create(frontendUrl);
+            if (uri.getScheme() != null && uri.getHost() != null) {
+                String origin = uri.getScheme() + "://" + uri.getHost()
+                        + (uri.getPort() > 0 ? ":" + uri.getPort() : "");
+                return List.of(origin);
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Fallback below if FRONTEND_URL is not a valid URI.
+        }
+
+        return List.of(frontendUrl);
     }
 }

@@ -12,9 +12,9 @@ export const createCategorySchema = z.object({
 
     parent: z.string().optional(),
 
-    status: z.enum(["active", "inactive"]),
+    status: z.string().min(1, "Vui lòng chọn trạng thái"),
 
-    avatar: z.string().min(1, "Vui lòng chọn hình ảnh"),
+    avatar: z.any().optional(),
 });
 
 export type CreateCategoryFormValues = z.infer<typeof createCategorySchema>;

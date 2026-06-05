@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.mapper;
 
-import com.daiphat.coreapi.domain.model.RoleModel;
-import com.daiphat.coreapi.infrastructure.persistence.entity.RoleEntity;
+import com.daiphat.coreapi.domain.model.auth.RoleModel;
+import com.daiphat.coreapi.infrastructure.persistence.entity.auth.RoleEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;

@@ -46,6 +46,7 @@ export const ROUTES = {
             LIST: `/${prefixAdmin}/blog/list`,
             DETAIL: `/${prefixAdmin}/blog/detail/`,
             CATEGORIES: `/${prefixAdmin}/blog-category/list`,
+            TAGS: `/${prefixAdmin}/blog-tag/list`,
         },
         ORDERS: {
             LIST: `/${prefixAdmin}/order/list`,

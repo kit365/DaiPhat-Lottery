@@ -189,8 +189,8 @@ export const ProfilePage = () => {
                             {/* Title & Description */}
                             {activeTabObj.id !== 'overview' && (
                                 <div>
-                                    <h1 className="text-[28px] font-bold text-[#212B36] mb-1">{activeTabObj.label}</h1>
-                                    <p className="text-[#637381] text-[15px]">Quản lý thông tin cá nhân và tài khoản của bạn</p>
+                                    <h1 className="text-[20px] lg:text-[22px] font-bold text-[#212B36] mb-1">{activeTabObj.label}</h1>
+                                    <p className="text-[#637381] text-[13px]">Quản lý thông tin cá nhân và tài khoản của bạn</p>
                                 </div>
                             )}
 

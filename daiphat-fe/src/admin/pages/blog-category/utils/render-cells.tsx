@@ -2,7 +2,7 @@ import { Avatar, Box, Link, ListItemText } from "@mui/material";
 import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from "@mui/x-data-grid";
 import { DeleteIcon, EditIcon, EyeIcon } from "../../../assets/icons/index";
 import { COLORS } from "../configs/constants";
-import { useDeleteBlogCategory, useForceDeleteBlogCategory, useRestoreBlogCategory } from "../hooks/useBlogCategory";
+import { useDeleteBlogCategory } from "../hooks/useBlogCategory";
 import { useNavigate } from "react-router-dom";
 import { prefixAdmin } from "../../../constants/routes";
 import { toast } from "react-toastify";
@@ -129,7 +129,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
     let bg = "var(--palette-info-lighter)";
     let text = "var(--palette-info-dark)";
 
-    if (status === 'active') {
+    if (status && status.toUpperCase() === 'ACTIVE') {
         label = "Hoạt động";
         bg = "var(--palette-info-lighter)";
         text = "var(--palette-info-dark)";
@@ -153,23 +153,19 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 }
 
 // Actions
-export const getRenderActionsCell = (isTrash: boolean) => (params: GridRenderCellParams) => {
+export const getRenderActionsCell = (_isTrash: boolean) => (params: GridRenderCellParams) => {
     const navigate = useNavigate();
     const { mutate: deleteCategory } = useDeleteBlogCategory();
-    const { mutate: forceDeleteCategory } = useForceDeleteBlogCategory();
-    const { mutate: restoreCategory } = useRestoreBlogCategory();
-    const _id = params.row._id;
+    const _id = params.row._id || params.row.id;
 
     const handleEdit = () => {
         navigate(`/${prefixAdmin}/blog-category/edit/${_id}`);
     };
 
     const handleDelete = () => {
-        const message = isTrash ? "Bạn có chắc chắn muốn xóa vĩnh viễn danh mục này?" : "Bạn có chắc chắn muốn xóa danh mục này?";
-        const action = isTrash ? forceDeleteCategory : deleteCategory;
-
+        const message = "Bạn có chắc chắn muốn xóa danh mục này?";
         confirmDelete(message, () => {
-            action(_id, {
+            deleteCategory(_id, {
                 onSuccess: (res: any) => {
                     if (res.success) {
                         toast.success("Xóa danh mục thành công");
@@ -181,72 +177,39 @@ export const getRenderActionsCell = (isTrash: boolean) => (params: GridRenderCel
         });
     };
 
-    const handleRestore = () => {
-        restoreCategory(_id, {
-            onSuccess: (res: any) => {
-                if (res.success) {
-                    toast.success("Khôi phục danh mục thành công");
-                } else {
-                    toast.error(res.message);
-                }
-            }
-        });
-    };
-
     return (
         <GridActionsCell {...params}>
-            {!isTrash ? (
-                <>
-                    <GridActionsCellItem
-                        icon={<EyeIcon />}
-                        label="Chi tiết"
-                        showInMenu
-                        {...({
-                            sx: {
-                                '& .MuiTypography-root': {
-                                    fontSize: '0.8125rem',
-                                    fontWeight: "600"
-                                },
-                            },
-                        } as any)}
-                        onClick={() => navigate(`/${prefixAdmin}/blog-category/detail/${_id}`)}
-                    />
-                    <GridActionsCellItem
-                        icon={<EditIcon />}
-                        label="Chỉnh sửa"
-                        showInMenu
-                        {...({
-                            sx: {
-                                '& .MuiTypography-root': {
-                                    fontSize: '0.8125rem',
-                                    fontWeight: "600"
-                                },
-                            },
-                        } as any)}
-                        onClick={handleEdit}
-                    />
-                </>
-            ) : (
-                <GridActionsCellItem
-                    icon={<EyeIcon />} // Should be restore icon ideally, reusing EyeIcon briefly or I can import RestoreIcon
-                    label="Khôi phục"
-                    showInMenu
-                    {...({
-                        sx: {
-                            '& .MuiTypography-root': {
-                                fontSize: '0.8125rem',
-                                fontWeight: "600",
-                                color: "var(--palette-info-main)"
-                            },
+            <GridActionsCellItem
+                icon={<EyeIcon />}
+                label="Chi tiết"
+                showInMenu
+                {...({
+                    sx: {
+                        '& .MuiTypography-root': {
+                            fontSize: '0.8125rem',
+                            fontWeight: "600"
                         },
-                    } as any)}
-                    onClick={handleRestore}
-                />
-            )}
+                    },
+                } as any)}
+                onClick={() => navigate(`/${prefixAdmin}/blog-category/detail/${_id}`)}
+            />
+            <GridActionsCellItem
+                icon={<EditIcon />}
+                label="Chỉnh sửa"
+                showInMenu
+                {...({
+                    sx: {
+                        '& .MuiTypography-root': {
+                            fontSize: '0.8125rem',
+                            fontWeight: "600"
+                        },
+                    },
+                } as any)}
+                onClick={handleEdit}
+            />
             <GridActionsCellItem
                 icon={<DeleteIcon />}
-                // Update label dynamically based on isTrash
-                label={isTrash ? "Xóa vĩnh viễn" : "Xóa"}
+                label="Xóa"
                 showInMenu
                 {...({
                     sx: {

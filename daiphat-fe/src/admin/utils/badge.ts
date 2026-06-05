@@ -73,6 +73,10 @@ export const STATUS_TO_VARIANT_MAP: Record<string, BadgeColorVariant> = {
     draft: 'neutral',
     ARCHIVED: 'neutral',
     archived: 'neutral',
+    UNPUBLISHED: 'error',
+    unpublished: 'error',
+    SCHEDULED: 'info',
+    scheduled: 'info',
     DELETED: 'neutral',
     deleted: 'neutral',
 };

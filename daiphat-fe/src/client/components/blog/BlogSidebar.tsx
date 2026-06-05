@@ -1,120 +1,208 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { usePublicCategories, usePublicPosts } from '../../hooks/useClientBlog';
 
-const CATEGORIES = [
-  { id: 'all', name: 'Tất cả tin tức', icon: 'fa-solid fa-border-all', count: 128 },
-  { id: 'result', name: 'Kết quả & Thống kê', icon: 'fa-solid fa-chart-simple', count: 45 },
-  { id: 'exp', name: 'Kinh nghiệm chơi số', icon: 'fa-solid fa-lightbulb', count: 38 },
-  { id: 'event', name: 'Sự kiện & Khuyến mãi', icon: 'fa-solid fa-calendar-check', count: 28 },
-  { id: 'news', name: 'Tin tức Đại Phát', icon: 'fa-regular fa-newspaper', count: 17 },
-  { id: 'tips', name: 'Bí quyết', icon: 'fa-solid fa-link', count: 32 }
-];
+const formatViews = (views: number) => {
+  if (views >= 1000) {
+    return `${(views / 1000).toFixed(1)}K lượt xem`;
+  }
+  return `${views} lượt xem`;
+};
 
-export const BlogCategoryWidget = ({ activeCategoryName = 'Tất cả tin tức' }: { activeCategoryName?: string }) => {
+export const BlogCategoryWidget = ({ 
+  activeCategoryName = 'Tất cả bài viết', 
+  activeCategoryId, 
+  hideCount = false 
+}: { 
+  activeCategoryName?: string, 
+  activeCategoryId?: string | number, 
+  hideCount?: boolean 
+}) => {
+  const { data: categories = [], isLoading } = usePublicCategories();
+
+  // Tạo thêm mục virtual "Tất cả bài viết" ở đầu
+  const totalCount = categories.reduce((sum, cat) => sum + (cat.postCount || 0), 0);
+  const items = [
+    { id: 'all', name: 'Tất cả bài viết', slug: 'all', icon: 'fa-regular fa-newspaper', count: totalCount },
+    ...categories.map(cat => ({
+      id: cat.id.toString(),
+      name: cat.name,
+      slug: cat.slug,
+      icon: cat.avatar || 'fa-regular fa-newspaper', // sử dụng trường avatar lưu font awesome class
+      count: cat.postCount
+    }))
+  ];
+
   return (
     <div className="bg-white rounded-xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] mb-6">
-      <h3 className="text-[17px] font-bold text-[#212B36] mb-4">Danh mục tin tức</h3>
-      <ul className="flex flex-col gap-2">
-        {CATEGORIES.map((cat) => {
-          const isActive = cat.name === activeCategoryName;
-          return (
-            <li key={cat.id}>
-              <Link 
-                to="/blogs" 
-                className={`flex items-center justify-between px-4 py-3 rounded-lg transition-colors group ${
-                  isActive ? 'bg-[#FFF4F4] text-[#BA0000]' : 'hover:bg-[#FAFBFC] text-[#454F5B]'
-                }`}
-              >
-                <div className={`flex items-center gap-3 text-[14px] ${isActive ? 'font-semibold' : 'font-medium group-hover:text-[#212B36]'}`}>
-                  <i className={`${cat.icon} w-4 text-center ${isActive ? '' : 'text-[#919EAB]'}`}></i> {cat.name}
-                </div>
-                <span className={`${isActive ? 'bg-white text-[#BA0000]' : 'bg-[#F4F6F8] text-[#637381]'} text-[11px] font-bold px-2 py-0.5 rounded`}>
-                  {cat.count}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      <h3 className="text-[17px] font-bold text-[#212B36] mb-4">Danh mục bài viết</h3>
+      {isLoading ? (
+        <div className="py-4 text-center text-[14px] text-[#919EAB]">Đang tải danh mục...</div>
+      ) : (
+        <ul className="flex flex-col">
+          {items.map((cat, index) => {
+            const isActive = cat.name === activeCategoryName || 
+                             activeCategoryId === cat.id || 
+                             (cat.slug === 'all' && (!activeCategoryId || activeCategoryId === 'all') && (activeCategoryName === 'Tất cả bài viết'));
+            const isLast = index === items.length - 1;
+            return (
+              <li key={cat.id} className={isLast ? '' : 'border-b border-[#F4F6F8]'}>
+                <Link
+                  to={cat.slug === 'all' ? '/blogs' : `/blogs?category=${cat.slug}`}
+                  className={`flex items-center justify-between px-4 py-2.5 rounded-lg transition-colors group ${isActive ? 'bg-[#FFF4F4] text-[#ee1314]' : 'hover:bg-[#FAFBFC] text-[#454F5B]'
+                    }`}
+                >
+                  <div className={`flex items-center gap-3 text-[14px] ${isActive ? 'font-semibold' : 'font-medium group-hover:text-[#212B36]'}`}>
+                    <i className={`${cat.icon} w-4 text-center ${isActive ? '' : 'text-[#919EAB]'}`}></i> {cat.name}
+                  </div>
+                  {!hideCount && (
+                    <span className={`${isActive ? 'text-[#ee1314]' : 'text-[#637381]'} text-[13px]`}>
+                      {cat.count}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 };
 
 export const BlogFeaturedWidget = () => {
   const navigate = useNavigate();
+  const { data: featuredData, isLoading } = usePublicPosts({
+    page: 1,
+    limit: 6,
+    sortBy: 'viewCount',
+    direction: 'desc'
+  });
 
-  const handleNavigate = () => {
-    navigate('/blogs/detail');
-    window.scrollTo(0, 0);
-  };
+  const featuredPosts = featuredData?.recordList || [];
 
   return (
     <div className="bg-white rounded-xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
       <h3 className="text-[17px] font-bold text-[#212B36] mb-5">Bài viết nổi bật</h3>
-      <div className="flex flex-col gap-4">
-        {/* Small Post 1 */}
-        <div className="flex gap-3 group cursor-pointer" onClick={handleNavigate}>
-          <img src="/assets/img/blog/blog-post-1.jpg" alt="post" className="w-[84px] h-[64px] rounded-lg object-cover shrink-0" />
-          <div className="flex flex-col justify-center">
-            <h4 className="text-[13px] font-semibold text-[#212B36] leading-[1.4] mb-1.5 group-hover:text-[#BA0000] transition-colors line-clamp-2">
-              Kết quả xổ số hôm nay 08/05/2025 - Kiên Giang 2K2
-            </h4>
-            <div className="flex items-center justify-between text-[11px] text-[#919EAB]">
-              <span>08/05/2025</span>
-              <span className="flex items-center gap-1"><i className="fa-regular fa-eye"></i> 10.256</span>
-            </div>
+      <div className="flex flex-col">
+        {isLoading ? (
+          <div className="py-4 text-center text-[13px] text-[#919EAB]">Đang tải...</div>
+        ) : featuredPosts.length === 0 ? (
+          <div className="py-4 text-center text-[13px] text-[#919EAB]">Không có bài viết nổi bật.</div>
+        ) : (
+          featuredPosts.map((post, index) => {
+            const isLast = index === featuredPosts.length - 1;
+            return (
+              <div 
+                key={post.id} 
+                className={`flex gap-3 group cursor-pointer ${isLast ? '' : 'border-b border-[#F4F6F8] pb-3 mb-3'}`} 
+                onClick={() => {
+                  navigate(`/blogs/detail/${post.id}`);
+                  window.scrollTo(0, 0);
+                }}
+              >
+                <img 
+                  src={post.thumbnail || '/assets/img/blog/blog-post-1.jpg'} 
+                  alt={post.title} 
+                  className="w-[84px] h-[64px] rounded-lg object-cover shrink-0" 
+                  style={{ objectFit: 'cover' }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/assets/img/blog/blog-post-1.jpg';
+                  }}
+                />
+                <div className="flex flex-col justify-center">
+                  <h4 className="text-[13px] font-semibold text-[#212B36] leading-[1.4] mb-1.5 group-hover:text-[#ee1314] transition-colors line-clamp-2">
+                    {post.title}
+                  </h4>
+                  <div className="flex items-center text-[11px] text-[#919EAB]">
+                    <span>{formatViews(post.viewCount)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+};
+
+export const BuyTicketBanner = () => (
+  <Link
+    to="/buy-ticket"
+    className="block mt-6 rounded-xl overflow-hidden shadow-[0_2px_12px_rgb(0,0,0,0.03)] group relative aspect-[1448/1086]"
+  >
+    <div
+      className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+      style={{ backgroundImage: 'url("https://i.ibb.co/q3rWD00G/75b31416-13ed-49ce-8708-b4861fc96198.png")' }}
+    ></div>
+
+    <div className="relative z-10 p-6 flex flex-col h-full w-[85%]">
+      <h3 className="text-[16px] font-black text-[#452B22] leading-[1.1] uppercase mb-0.5 whitespace-nowrap">
+        MUA VÉ SỐ<br />
+        <span className="text-[#ee1314] text-[26px]">ONLINE</span>
+      </h3>
+      <p className="text-[9px] font-bold text-[#452B22] mb-3 opacity-90 whitespace-nowrap">
+        Nhanh chóng <span className="text-[#ee1314]">•</span> An toàn <span className="text-[#ee1314]">•</span> Minh bạch
+      </p>
+
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start gap-2.5">
+          <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#FFF0E6]">
+            <i className="fa-solid fa-hand-pointer text-[#ee1314] text-[9px]"></i>
+          </div>
+          <div className="min-w-0">
+            <h4 className="text-[10px] font-bold text-[#212B36] leading-tight mb-0.5 whitespace-nowrap">Chọn số dễ dàng</h4>
+            <p className="text-[8px] text-[#454F5B] leading-tight whitespace-nowrap">Tìm và chọn số yêu thích nhanh chóng</p>
           </div>
         </div>
-        {/* Small Post 2 */}
-        <div className="flex gap-3 group cursor-pointer" onClick={handleNavigate}>
-          <img src="/assets/img/blog/blog-post-2.jpg" alt="post" className="w-[84px] h-[64px] rounded-lg object-cover shrink-0" />
-          <div className="flex flex-col justify-center">
-            <h4 className="text-[13px] font-semibold text-[#212B36] leading-[1.4] mb-1.5 group-hover:text-[#BA0000] transition-colors line-clamp-2">
-              Thống kê lô gan Kiên Giang 2K2 trong 30 ngày qua
-            </h4>
-            <div className="flex items-center justify-between text-[11px] text-[#919EAB]">
-              <span>07/05/2025</span>
-              <span className="flex items-center gap-1"><i className="fa-regular fa-eye"></i> 8.213</span>
-            </div>
+
+        <div className="flex items-start gap-2.5">
+          <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#FFF0E6]">
+            <i className="fa-regular fa-clock text-[#ee1314] text-[9px]"></i>
+          </div>
+          <div className="min-w-0">
+            <h4 className="text-[10px] font-bold text-[#212B36] leading-tight mb-0.5 whitespace-nowrap">Theo dõi kết quả tự động</h4>
+            <p className="text-[8px] text-[#454F5B] leading-tight whitespace-nowrap">Cập nhật kết quả nhanh chóng, chính xác</p>
           </div>
         </div>
-        {/* Small Post 3 */}
-        <div className="flex gap-3 group cursor-pointer" onClick={handleNavigate}>
-          <img src="/assets/img/blog/blog-post-3.jpg" alt="post" className="w-[84px] h-[64px] rounded-lg object-cover shrink-0" />
-          <div className="flex flex-col justify-center">
-            <h4 className="text-[13px] font-semibold text-[#212B36] leading-[1.4] mb-1.5 group-hover:text-[#BA0000] transition-colors line-clamp-2">
-              Cách nuôi số đẹp hiệu quả từ cao thủ
-            </h4>
-            <div className="flex items-center justify-between text-[11px] text-[#919EAB]">
-              <span>06/05/2025</span>
-              <span className="flex items-center gap-1"><i className="fa-regular fa-eye"></i> 6.987</span>
-            </div>
+
+        <div className="flex items-start gap-2.5">
+          <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-[#FFF0E6]">
+            <i className="fa-solid fa-shield-halved text-[#ee1314] text-[9px]"></i>
           </div>
-        </div>
-        {/* Small Post 4 */}
-        <div className="flex gap-3 group cursor-pointer" onClick={handleNavigate}>
-          <img src="/assets/img/blog/blog-post-4.jpg" alt="post" className="w-[84px] h-[64px] rounded-lg object-cover shrink-0" />
-          <div className="flex flex-col justify-center">
-            <h4 className="text-[13px] font-semibold text-[#212B36] leading-[1.4] mb-1.5 group-hover:text-[#BA0000] transition-colors line-clamp-2">
-              Khuyến mãi nạp lần đầu tặng ngay 10%
-            </h4>
-            <div className="flex items-center justify-between text-[11px] text-[#919EAB]">
-              <span>05/05/2025</span>
-              <span className="flex items-center gap-1"><i className="fa-regular fa-eye"></i> 5.643</span>
-            </div>
+          <div className="min-w-0">
+            <h4 className="text-[10px] font-bold text-[#212B36] leading-tight mb-0.5 whitespace-nowrap">Quản lý vé mọi lúc</h4>
+            <p className="text-[8px] text-[#454F5B] leading-tight whitespace-nowrap">Lưu trữ và quản lý vé tiện lợi, an toàn</p>
           </div>
         </div>
       </div>
-      
-      <button 
-        className="w-full flex items-center justify-center gap-2 mt-6 py-3 bg-[#FFF4F4] text-[#BA0000] rounded-lg text-[14px] font-bold hover:bg-[#FFE5E5] transition-colors"
-        onClick={() => {
-          navigate('/blogs');
-          window.scrollTo(0, 0);
-        }}
-      >
-        Xem tất cả tin tức <i className="fa-solid fa-arrow-right"></i>
+
+      <button className="mt-3 bg-[#ee1314] text-white px-3 py-1.5 rounded-lg text-[10px] font-bold group-hover:bg-[#cc0000] transition-colors flex items-center gap-1.5 shadow-md shadow-[#ee1314]/30 w-fit">
+        <i className="fa-solid fa-ticket"></i> Mua vé ngay <i className="fa-solid fa-arrow-right"></i>
       </button>
+    </div>
+  </Link>
+);
+
+export const RightSidebarBlog = ({ 
+  activeCategoryName = 'Tất cả bài viết', 
+  activeCategoryId, 
+  hideCategoryCount = false 
+}: { 
+  activeCategoryName?: string, 
+  activeCategoryId?: string | number, 
+  hideCategoryCount?: boolean 
+}) => {
+  return (
+    <div className="w-full lg:w-[340px] shrink-0">
+      <BlogCategoryWidget 
+        activeCategoryName={activeCategoryName} 
+        activeCategoryId={activeCategoryId} 
+        hideCount={hideCategoryCount} 
+      />
+      <BlogFeaturedWidget />
+      <BuyTicketBanner />
     </div>
   );
 };

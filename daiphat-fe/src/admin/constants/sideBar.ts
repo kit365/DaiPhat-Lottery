@@ -49,6 +49,7 @@ export const menuManagementData = [
         children: [
             { id: "list", label: "Danh sách bài viết", tKey: "admin.sidebar.blog_list", path: ROUTES.ADMIN.BLOGS.LIST, permission: PERMISSIONS.ARTICLE.VIEW },
             { id: "category", label: "Danh mục bài viết", tKey: "admin.sidebar.blog_category", path: ROUTES.ADMIN.BLOGS.CATEGORIES, permission: PERMISSIONS.ARTICLE.VIEW },
+            { id: "tag", label: "Thẻ bài viết", tKey: "admin.sidebar.blog_tag", path: ROUTES.ADMIN.BLOGS.TAGS, permission: PERMISSIONS.ARTICLE.VIEW },
         ]
     },
     {

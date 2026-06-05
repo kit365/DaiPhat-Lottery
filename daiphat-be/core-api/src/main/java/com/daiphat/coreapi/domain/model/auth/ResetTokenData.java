@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.domain.model.auth;
 
-import com.daiphat.coreapi.domain.model.enums.PasswordResetStatus;
+import com.daiphat.coreapi.domain.model.enums.auth.PasswordResetStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

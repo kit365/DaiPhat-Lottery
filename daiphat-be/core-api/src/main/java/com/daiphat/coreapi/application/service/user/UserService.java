@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.request.user.ProfileSetupRequest;
 import com.daiphat.coreapi.application.dto.request.user.UpdateUserRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.user.UserResponse;
+import com.daiphat.coreapi.application.dto.response.user.UserStatusResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.event.StaffInviteEvent;
@@ -15,26 +16,29 @@ import com.daiphat.coreapi.application.mapper.UserApplicationMapper;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserValidationServicePort;
-import com.daiphat.coreapi.application.port.out.PasswordHashPort;
-import com.daiphat.coreapi.application.port.out.StoragePort;
+import com.daiphat.coreapi.application.port.out.auth.PasswordHashPort;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.auth.InviteCachePort;
 import com.daiphat.coreapi.application.port.out.auth.RoleRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.RoleModel;
+import com.daiphat.coreapi.domain.model.auth.RoleModel;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.auth.InviteData;
-import com.daiphat.coreapi.domain.model.enums.RoleConstants;
-import com.daiphat.coreapi.domain.model.enums.UserStatus;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.shared.util.AuthUtils;
-import com.daiphat.coreapi.shared.util.SearchConstants;
+import com.daiphat.coreapi.shared.util.SortUtils;
+import com.daiphat.coreapi.shared.util.PageableUtils;
+import com.daiphat.coreapi.shared.util.StatusCountKeys;
+import com.daiphat.coreapi.shared.util.StorageUtils;
+import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -42,7 +46,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -50,8 +57,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class UserService implements UserServicePort {
-
-    private static final String PROFILE_IMAGE_FOLDER = "profiles";
 
     private final UserRepositoryPort userRepositoryPort;
     private final UserApplicationMapper userApplicationMapper;
@@ -147,6 +152,14 @@ public class UserService implements UserServicePort {
 
     @Override
     @Transactional(readOnly = true)
+    public List<UserStatusResponse> getStatuses() {
+        return Arrays.stream(UserStatus.values())
+                .map(status -> new UserStatusResponse(status.getCode(), status.getLabel()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<UserResponse> getAll() {
         return userRepositoryPort.findAll().stream()
                 .map(userApplicationMapper::mapToUserResponse)
@@ -158,12 +171,10 @@ public class UserService implements UserServicePort {
     public PageResponse<UserResponse> getAll(int page, int size, String search, String status, List<String> roleIds, String sortBy, String direction) {
         UserStatus userStatus = UserStatus.fromFilter(status);
 
-        Sort sort = direction.equalsIgnoreCase(SearchConstants.SORT_ASC)
-                ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
+        Sort sort = SortUtils.createSort(sortBy, direction);
 
         Page<UserModel> userPage = userRepositoryPort.findAll(
-                PageRequest.of(page - 1, size, sort),
+                PageableUtils.of(page, size, sort),
                 search,
                 userStatus,
                 roleIds
@@ -180,8 +191,22 @@ public class UserService implements UserServicePort {
                         .totalPages(userPage.getTotalPages())
                         .currentPage(page)
                         .limit(size)
+                        .isFirst(userPage.isFirst())
+                        .isLast(userPage.isLast())
                         .build())
+                .statusCounts(buildStatusCounts(search, roleIds))
                 .build();
+    }
+
+    private Map<String, Long> buildStatusCounts(String search, List<String> roleIds) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        counts.put(StatusCountKeys.ALL, userRepositoryPort.countAll(search, roleIds));
+        Arrays.stream(UserStatus.values())
+                .forEach(status -> counts.put(
+                        status.getCode(),
+                        userRepositoryPort.countByStatus(status, search, roleIds)
+                ));
+        return counts;
     }
 
     @Override
@@ -215,14 +240,14 @@ public class UserService implements UserServicePort {
     @Transactional
     public UserResponse uploadAvatar(UUID id, UploadRequest request) {
         UserModel user = userLookupService.findByIdOrThrow(id);
-        validateImageUpload(request);
+        StorageUtils.validateImageUpload(request);
 
         String oldPublicId = user.getImagePublicId();
         StorageResult result = storagePort.upload(new UploadRequest(
                 request.data(),
                 request.fileName(),
                 request.contentType(),
-                PROFILE_IMAGE_FOLDER
+                StorageFolderConstants.PROFILE_IMAGE_FOLDER
         ));
 
         if (oldPublicId != null && !oldPublicId.isBlank()) {
@@ -270,8 +295,10 @@ public class UserService implements UserServicePort {
         UUID currentUserId = null;
         try {
             var auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.getPrincipal() instanceof UserModel currentUser) {
-                currentUserId = currentUser.getId();
+            if (auth != null && auth.getName() != null && !auth.getName().isBlank()) {
+                currentUserId = userLookupService.findByUsername(auth.getName())
+                        .map(UserModel::getId)
+                        .orElse(null);
             }
         } catch (Exception e) {
             log.warn("Failed to get current user ID: {}", e.getMessage());
@@ -370,12 +397,4 @@ public class UserService implements UserServicePort {
         }
     }
 
-    private void validateImageUpload(UploadRequest request) {
-        if (request == null || request.data() == null || request.data().length == 0) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Image file is required");
-        }
-        if (request.contentType() == null || !request.contentType().startsWith("image/")) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Only image files are allowed");
-        }
-    }
 }

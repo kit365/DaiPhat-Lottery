@@ -3,6 +3,9 @@ package com.daiphat.coreapi.application.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 
@@ -11,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 public class AuthProperties {
     @Value("${FRONTEND_URL:http://localhost:5173}")
     private String frontendUrl;
+    private Set<String> defaultOperatorPermissions = new java.util.HashSet<>();
     private VerificationPaths verificationPaths = new VerificationPaths();
     private Lockout lockout = new Lockout();
     private Cache cache = new Cache();
@@ -18,6 +22,7 @@ public class AuthProperties {
     private Email email = new Email();
     private PasswordPolicy passwordPolicy = new PasswordPolicy();
     private Cookie cookie = new Cookie();
+    private Cors cors = new Cors();
 
     @Data
     public static class VerificationPaths {
@@ -32,6 +37,15 @@ public class AuthProperties {
         private boolean secure = true;
         private String sameSite = "Lax";
         private String path = null;
+    }
+
+    @Data
+    public static class Cors {
+        private List<String> allowedOrigins = new ArrayList<>();
+        private List<String> allowedMethods = List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS");
+        private List<String> allowedHeaders = List.of("*");
+        private boolean allowCredentials = true;
+        private long maxAge = 3600L;
     }
 
     @Data

@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.request.user.ProfileSetupRequest;
 import com.daiphat.coreapi.application.dto.request.user.UpdateUserRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.user.UserResponse;
+import com.daiphat.coreapi.application.dto.response.user.UserStatusResponse;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public interface UserServicePort {
     UserResponse getById(UUID id);
     UserResponse getByUsername(String username);
     UserResponse getMyProfile(String username);
+    List<UserStatusResponse> getStatuses();
     List<UserResponse> getAll();
     PageResponse<UserResponse> getAll(int page, int size, String search, String status, List<String> roleIds, String sortBy, String direction);
     void delete(UUID id);

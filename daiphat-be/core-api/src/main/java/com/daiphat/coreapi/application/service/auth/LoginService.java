@@ -10,11 +10,11 @@ import com.daiphat.coreapi.application.mapper.AuthApplicationMapper;
 import com.daiphat.coreapi.application.port.in.auth.LoginServicePort;
 import com.daiphat.coreapi.application.port.in.auth.RoleServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
-import com.daiphat.coreapi.application.port.out.PasswordHashPort;
-import com.daiphat.coreapi.application.port.out.RemoteFilePort;
-import com.daiphat.coreapi.application.port.out.RefreshTokenStorePort;
-import com.daiphat.coreapi.application.port.out.StoragePort;
-import com.daiphat.coreapi.application.port.out.TokenProviderPort;
+import com.daiphat.coreapi.application.port.out.auth.PasswordHashPort;
+import com.daiphat.coreapi.application.port.out.file.RemoteFilePort;
+import com.daiphat.coreapi.application.port.out.auth.RefreshTokenStorePort;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
+import com.daiphat.coreapi.application.port.out.auth.TokenProviderPort;
 import com.daiphat.coreapi.application.port.out.auth.GoogleOAuthPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -22,11 +22,12 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.auth.AuthToken;
 import com.daiphat.coreapi.domain.model.auth.OAuthUserInfo;
-import com.daiphat.coreapi.domain.model.enums.UserStatus;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 
 import java.time.Duration;
 
@@ -34,8 +35,6 @@ import java.time.Duration;
 @RequiredArgsConstructor
 @Slf4j
 public class LoginService implements LoginServicePort {
-
-    private static final String PROFILE_IMAGE_FOLDER = "profiles";
 
     private final UserLookupServicePort userLookupService;
     private final UserRepositoryPort userRepositoryPort;
@@ -176,7 +175,7 @@ public class LoginService implements LoginServicePort {
                     avatar.data(),
                     avatar.fileName(),
                     avatar.contentType(),
-                    PROFILE_IMAGE_FOLDER
+                    StorageFolderConstants.PROFILE_IMAGE_FOLDER
             ));
             user.replaceAvatar(uploaded.publicId(), uploaded.url());
         } catch (RuntimeException e) {
