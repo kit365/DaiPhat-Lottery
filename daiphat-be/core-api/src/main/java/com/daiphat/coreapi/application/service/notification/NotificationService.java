@@ -83,6 +83,33 @@ public class NotificationService implements NotificationServicePort {
 
     @Override
     @Transactional
+    public NotificationModel deleteMyReadNotification(UUID userId, Long notificationId) {
+        NotificationModel notification = findNotificationOrThrow(notificationId);
+
+        if (!userId.equals(notification.getUserId())) {
+            throw new DomainException(ErrorCode.ACCESS_DENIED);
+        }
+
+        if (!notification.isRead()) {
+            throw new DomainException(ErrorCode.NOTIFICATION_DELETE_REQUIRES_READ);
+        }
+
+        if (!notification.isDeleted()) {
+            notification.softDelete();
+            return notificationRepositoryPort.save(notification);
+        }
+
+        return notification;
+    }
+
+    @Override
+    @Transactional
+    public void deleteAllMyReadNotifications(UUID userId) {
+        notificationRepositoryPort.softDeleteAllReadByUserId(userId);
+    }
+
+    @Override
+    @Transactional
     public void archiveAuthEmailNotification(UUID userId, String token) {
         notificationRepositoryPort.findLatestByContext(
                         userId,

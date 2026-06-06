@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -82,5 +83,10 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryPort
     @Override
     public int markAllAsReadByUserId(UUID userId) {
         return notificationRepository.markAllAsReadByUserId(userId);
+    }
+
+    @Override
+    public int softDeleteAllReadByUserId(UUID userId) {
+        return notificationRepository.softDeleteAllReadByUserId(userId, LocalDateTime.now());
     }
 }

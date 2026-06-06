@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 public interface NotificationRepository extends JpaRepository<NotificationEntity, Long> {
@@ -40,4 +41,14 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
               and notification.deletedAt is null
             """)
     int markAllAsReadByUserId(@Param("userId") UUID userId);
+
+    @Modifying
+    @Query("""
+            update NotificationEntity notification
+            set notification.deletedAt = :deletedAt
+            where notification.user.id = :userId
+              and notification.read = true
+              and notification.deletedAt is null
+            """)
+    int softDeleteAllReadByUserId(@Param("userId") UUID userId, @Param("deletedAt") LocalDateTime deletedAt);
 }

@@ -9,6 +9,7 @@ import com.daiphat.coreapi.application.port.in.notification.NotificationServiceP
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -50,6 +51,16 @@ public class NotificationController {
         return ApiResponse.success("Đã đánh dấu thông báo là đã đọc.");
     }
 
+    @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> deleteMyReadNotification(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @PathVariable Long id
+    ) {
+        notificationServicePort.deleteMyReadNotification(principal.getId(), id);
+        return ApiResponse.success("Đã xóa thông báo đã đọc.");
+    }
+
     @PatchMapping("/read-all")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<Void> markAllMyNotificationsAsRead(
@@ -57,6 +68,15 @@ public class NotificationController {
     ) {
         notificationServicePort.markAllMyNotificationsAsRead(principal.getId());
         return ApiResponse.success("Đã đánh dấu tất cả thông báo là đã đọc.");
+    }
+
+    @DeleteMapping("/read-all")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> deleteAllMyReadNotifications(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        notificationServicePort.deleteAllMyReadNotifications(principal.getId());
+        return ApiResponse.success("Đã xóa tất cả thông báo đã đọc.");
     }
 
     @GetMapping(ApiConstants.ADMIN + "/me")

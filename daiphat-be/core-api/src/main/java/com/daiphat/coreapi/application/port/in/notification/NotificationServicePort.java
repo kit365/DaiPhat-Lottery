@@ -17,6 +17,10 @@ public interface NotificationServicePort {
 
     void markAllMyNotificationsAsRead(UUID userId);
 
+    NotificationModel deleteMyReadNotification(UUID userId, Long notificationId);
+
+    void deleteAllMyReadNotifications(UUID userId);
+
     void archiveAuthEmailNotification(UUID userId, String token);
 
     PageResponse<NotificationResponse> getMyNotifications(UUID userId, int page, int limit);

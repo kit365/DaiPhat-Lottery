@@ -32,4 +32,6 @@ public interface NotificationRepositoryPort {
     long countByUserIdAndType(UUID userId, NotificationType type);
 
     int markAllAsReadByUserId(UUID userId);
+
+    int softDeleteAllReadByUserId(UUID userId);
 }
