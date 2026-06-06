@@ -10,6 +10,8 @@ import com.daiphat.coreapi.infrastructure.persistence.mapper.notification.Notifi
 import com.daiphat.coreapi.infrastructure.persistence.repository.NotificationRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -46,7 +48,7 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryPort
             String referenceId
     ) {
         return notificationRepository
-                .findFirstByUserIdAndChannelAndTypeAndReferenceTypeAndReferenceIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+                .findFirstByUser_IdAndChannelAndTypeAndReferenceTypeAndReferenceIdAndDeletedAtIsNullOrderByCreatedAtDesc(
                         userId,
                         channel,
                         type,
@@ -54,5 +56,26 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryPort
                         referenceId
                 )
                 .map(notificationPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Page<NotificationModel> findByUserId(UUID userId, Pageable pageable) {
+        return notificationRepository.findByUser_IdAndDeletedAtIsNullOrderByCreatedAtDesc(userId, pageable)
+                .map(notificationPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public long countAllByUserId(UUID userId) {
+        return notificationRepository.countByUser_IdAndDeletedAtIsNull(userId);
+    }
+
+    @Override
+    public long countUnreadByUserId(UUID userId) {
+        return notificationRepository.countByUser_IdAndReadFalseAndDeletedAtIsNull(userId);
+    }
+
+    @Override
+    public long countByUserIdAndType(UUID userId, NotificationType type) {
+        return notificationRepository.countByUser_IdAndTypeAndDeletedAtIsNull(userId, type);
     }
 }
