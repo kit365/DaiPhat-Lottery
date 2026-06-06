@@ -20,7 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class NotificationController {
 
     private static final String DEFAULT_PAGE = "1";
-    private static final String DEFAULT_LIMIT = "4";
+    private static final String DEFAULT_CUSTOMER_LIMIT = "4";
+    private static final String DEFAULT_ADMIN_LIMIT = "5";
 
     private final NotificationServicePort notificationServicePort;
 
@@ -29,11 +30,24 @@ public class NotificationController {
     public ApiResponse<PageResponse<NotificationResponse>> getMyNotifications(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
-            @RequestParam(defaultValue = DEFAULT_LIMIT) int limit
+            @RequestParam(defaultValue = DEFAULT_CUSTOMER_LIMIT) int limit
     ) {
         return ApiResponse.success(
                 null,
                 notificationServicePort.getMyNotifications(principal.getId(), page, limit)
+        );
+    }
+
+    @GetMapping(ApiConstants.ADMIN + "/me")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<PageResponse<NotificationResponse>> getMyAdminNotifications(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_ADMIN_LIMIT) int limit
+    ) {
+        return ApiResponse.success(
+                null,
+                notificationServicePort.getMyAdminNotifications(principal.getId(), page, limit)
         );
     }
 }

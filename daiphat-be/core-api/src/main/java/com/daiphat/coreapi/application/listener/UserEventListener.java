@@ -13,6 +13,7 @@ import com.daiphat.coreapi.application.event.StaffInviteEvent;
 import com.daiphat.coreapi.application.event.UserCreatedEvent;
 import com.daiphat.coreapi.application.event.UserEmailVerifiedEvent;
 import com.daiphat.coreapi.application.event.UserRegisteredEvent;
+import com.daiphat.coreapi.application.event.UserWelcomeEvent;
 import com.daiphat.coreapi.application.port.in.mail.EmailServicePort;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.domain.model.enums.email.EmailType;
@@ -74,22 +75,16 @@ public class UserEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleUserEmailVerified(UserEmailVerifiedEvent event) {
-        final String inAppTitle = "Xác thực tài khoản thành công";
-        final String inAppContent = "Tài khoản của bạn đã được xác thực thành công. Chào mừng bạn đến với Đại Phát.";
-
         log.info("Handling UserEmailVerifiedEvent for recipient: {}", event.email());
         notificationService.archiveAuthEmailNotification(event.userId(), event.token());
+        createWelcomeInAppNotification(event.userId());
+    }
 
-        NotificationModel inAppNotification = NotificationModel.builder()
-                .userId(event.userId())
-                .title(inAppTitle)
-                .content(inAppContent)
-                .type(NotificationType.AUTH)
-                .channel(NotificationChannel.IN_APP)
-                .referenceType(NotificationReferenceType.AUTH)
-                .build();
-        inAppNotification.markAsSent();
-        notificationService.createNotification(inAppNotification);
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleUserWelcome(UserWelcomeEvent event) {
+        log.info("Handling UserWelcomeEvent for recipient: {}", event.email());
+        createWelcomeInAppNotification(event.userId());
     }
 
     @Async
@@ -175,5 +170,21 @@ public class UserEventListener {
         } catch (Exception e) {
             log.error("Failed to dispatch staff invite email for {}: {}", event.email(), e.getMessage());
         }
+    }
+
+    private void createWelcomeInAppNotification(java.util.UUID userId) {
+        final String inAppTitle = "Xác thực tài khoản thành công";
+        final String inAppContent = "Tài khoản của bạn đã được xác thực thành công. Chào mừng bạn đến với Đại Phát.";
+
+        NotificationModel inAppNotification = NotificationModel.builder()
+                .userId(userId)
+                .title(inAppTitle)
+                .content(inAppContent)
+                .type(NotificationType.AUTH)
+                .channel(NotificationChannel.IN_APP)
+                .referenceType(NotificationReferenceType.AUTH)
+                .build();
+        inAppNotification.markAsSent();
+        notificationService.createNotification(inAppNotification);
     }
 }

@@ -79,6 +79,16 @@ public class NotificationService implements NotificationServicePort {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<NotificationResponse> getMyNotifications(UUID userId, int page, int limit) {
+        return getNotificationsForUser(userId, page, limit);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<NotificationResponse> getMyAdminNotifications(UUID userId, int page, int limit) {
+        return getNotificationsForUser(userId, page, limit);
+    }
+
+    private PageResponse<NotificationResponse> getNotificationsForUser(UUID userId, int page, int limit) {
         int resolvedPage = Math.max(page, 1);
         int resolvedLimit = Math.max(limit, 1);
         Page<NotificationModel> notificationPage = notificationRepositoryPort.findByUserId(
