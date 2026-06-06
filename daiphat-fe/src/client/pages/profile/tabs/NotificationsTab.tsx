@@ -1,204 +1,266 @@
-import React, { useState } from 'react';
+import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Bell, Newspaper, ShieldCheck, Check, Trash2 } from "lucide-react";
+import { useNotifications } from "../../../hooks/useNotifications";
+import { NotificationResponse, NOTIFICATION_TYPE } from "../../../../types/notifications.type";
+import { getNotificationPath } from "../../../utils/notification.util";
+
+const formatDateTime = (value?: string) => {
+    if (!value) return "";
+
+    const date = new Date(value);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+
+    const isToday = date.getDate() === now.getDate() &&
+                    date.getMonth() === now.getMonth() &&
+                    date.getFullYear() === now.getFullYear();
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = date.getDate() === yesterday.getDate() &&
+                        date.getMonth() === yesterday.getMonth() &&
+                        date.getFullYear() === yesterday.getFullYear();
+
+    const timeStr = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+
+    if (diffMins < 1) return "Vừa xong";
+    if (diffMins < 60) return `${diffMins} phút trước`;
+
+    if (isToday) {
+        if (diffHours < 4) return `${diffHours} giờ trước`;
+        return `Hôm nay, ${timeStr}`;
+    }
+
+    if (isYesterday) {
+        return `Hôm qua, ${timeStr}`;
+    }
+
+    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}, ${timeStr}`;
+};
+
+const getTypeMeta = (type: NotificationResponse["type"]) => {
+    switch (type) {
+        case NOTIFICATION_TYPE.AUTH:
+            return {
+                icon: ShieldCheck,
+                iconWrapperClass: "bg-[#F0F5FF] text-[#2065D1]",
+                actionLabel: "Bảo mật",
+            };
+        case NOTIFICATION_TYPE.BLOG:
+            return {
+                icon: Newspaper,
+                iconWrapperClass: "bg-[#ECFDF5] text-[#1CD162]",
+                actionLabel: "Bài viết",
+            };
+        default:
+            return {
+                icon: Bell,
+                iconWrapperClass: "bg-[#FFF4F4] text-[#ee1314]",
+                actionLabel: "Hệ thống",
+            };
+    }
+};
 
 export const NotificationsTab = () => {
-    const [activeTab, setActiveTab] = useState('Tất cả');
-    const tabs = ['Tất cả', 'Vé của tôi', 'Kết quả', 'Hệ thống'];
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+    const loadMoreRef = useRef<HTMLDivElement | null>(null);
+    const {
+        notifications: allNotifications,
+        unreadCount,
+        totalCount,
+        isLoading,
+        isFetchingNextPage,
+        hasNextPage,
+        fetchNextPage,
+    } = useNotifications(7);
+
+    const notifications = useMemo(
+        () => activeTab === 'unread'
+            ? allNotifications.filter((notification) => !notification.isRead)
+            : allNotifications,
+        [activeTab, allNotifications]
+    );
+
+    useEffect(() => {
+        if (activeTab !== 'all') {
+            return;
+        }
+
+        const root = scrollContainerRef.current;
+        const target = loadMoreRef.current;
+
+        if (!root || !target || !hasNextPage) {
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const [entry] = entries;
+
+                if (entry?.isIntersecting && !isFetchingNextPage) {
+                    fetchNextPage();
+                }
+            },
+            {
+                root,
+                rootMargin: "160px 0px",
+                threshold: 0.1,
+            }
+        );
+
+        observer.observe(target);
+
+        return () => observer.disconnect();
+    }, [activeTab, fetchNextPage, hasNextPage, isFetchingNextPage]);
 
     return (
-        <div className="flex flex-col gap-6">
-            {/* Summary Boxes */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white rounded-2xl p-5 flex items-center gap-4 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] cursor-pointer hover:border-[#ee1314] transition-colors">
-                    <div className="w-12 h-12 rounded-[14px] bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center text-[20px] shrink-0">
-                        <i className="fa-regular fa-bell"></i>
-                    </div>
-                    <div>
-                        <p className="text-[12px] font-medium text-[#637381] mb-0.5">Tất cả</p>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-[20px] font-black text-[#212B36]">24</span>
-                            <span className="text-[12px] text-[#637381]">thông báo</span>
-                        </div>
-                    </div>
+        <div className="flex flex-col">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
+                <div>
+                    <h2 className="text-[24px] font-bold text-[#212B36] font-client-display mb-1">Thông báo</h2>
+                    <p className="text-[14px] text-[#637381]">Xem các thông báo của bạn</p>
                 </div>
-
-                <div className="bg-white rounded-2xl p-5 flex items-center gap-4 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] cursor-pointer hover:border-[#1CD162] transition-colors">
-                    <div className="w-12 h-12 rounded-[14px] bg-[#E4F8ED] text-[#1CD162] flex items-center justify-center text-[20px] shrink-0">
-                        <i className="fa-regular fa-envelope"></i>
-                    </div>
-                    <div>
-                        <p className="text-[12px] font-medium text-[#637381] mb-0.5">Chưa đọc</p>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-[20px] font-black text-[#212B36]">5</span>
-                            <span className="text-[12px] text-[#637381]">thông báo</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-2xl p-5 flex items-center gap-4 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] cursor-pointer hover:border-[#FFB020] transition-colors">
-                    <div className="w-12 h-12 rounded-[14px] bg-[#FFF9F3] text-[#FFB020] flex items-center justify-center text-[20px] shrink-0">
-                        <i className="fa-solid fa-trophy"></i>
-                    </div>
-                    <div>
-                        <p className="text-[12px] font-medium text-[#637381] mb-0.5">Trúng thưởng</p>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-[20px] font-black text-[#212B36]">2</span>
-                            <span className="text-[12px] text-[#637381]">thông báo</span>
-                        </div>
-                    </div>
+                <div className="flex items-center gap-3">
+                    <button className="flex items-center gap-2 px-4 py-2 text-[14px] font-medium text-[#212B36] border border-[#E5E8EB] rounded-xl hover:bg-slate-50 transition-colors bg-white cursor-pointer">
+                        <Trash2 size={16} className="text-[#637381]" /> Xóa tất cả
+                    </button>
+                    <button className="flex items-center gap-2 px-4 py-2 text-[14px] font-medium text-[#ee1314] border border-[#ffcdcd] rounded-xl hover:bg-[#FFF4F4] transition-colors bg-white cursor-pointer">
+                        <Check size={16} strokeWidth={2.5} /> Đánh dấu tất cả đã đọc
+                    </button>
                 </div>
             </div>
 
-            {/* Main Content */}
-            <div className="bg-white border border-[#E5E8EB] rounded-2xl shadow-[0_2px_12px_rgb(0,0,0,0.03)] overflow-hidden">
-                {/* Filters */}
-                <div className="p-4 border-b border-[#E5E8EB]">
-                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
-                        <div className="flex items-center gap-1 overflow-x-auto w-full lg:w-auto scrollbar-hide">
-                            {tabs.map(tab => (
-                                <button 
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    className={`px-4 py-2 text-[13px] font-bold whitespace-nowrap rounded-lg transition-colors ${activeTab === tab ? 'text-[#ee1314] bg-[#FFF4F4]' : 'text-[#637381] hover:bg-[#F4F6F8]'}`}
+            {/* Tabs */}
+            <div className="flex gap-6 border-b border-[#E5E8EB] mb-6">
+                <button
+                    className={`pb-3 text-[15px] font-bold border-b-2 transition-colors cursor-pointer ${activeTab === 'all' ? 'border-[#ee1314] text-[#ee1314]' : 'border-transparent text-[#637381] hover:text-[#212B36]'}`}
+                    onClick={() => setActiveTab('all')}
+                >
+                    Tất cả
+                </button>
+                <button
+                    className={`pb-3 text-[15px] font-bold border-b-2 transition-colors cursor-pointer ${activeTab === 'unread' ? 'border-[#ee1314] text-[#ee1314]' : 'border-transparent text-[#637381] hover:text-[#212B36]'}`}
+                    onClick={() => setActiveTab('unread')}
+                >
+                    Chưa đọc ({unreadCount})
+                </button>
+            </div>
+
+
+
+            {/* List */}
+            <div
+                ref={scrollContainerRef}
+                className="flex flex-col gap-4 max-h-[640px] overflow-y-auto pr-1"
+            >
+                {isLoading ? (
+                    <div className="flex flex-col gap-4">
+                        {Array.from({ length: 7 }).map((_, index) => (
+                            <div
+                                key={index}
+                                className="rounded-2xl border border-[#E5E8EB] p-4 animate-pulse"
+                            >
+                                <div className="flex gap-4">
+                                    <div className="w-11 h-11 rounded-full bg-[#F4F6F8] shrink-0"></div>
+                                    <div className="flex-1">
+                                        <div className="h-4 bg-[#F4F6F8] rounded w-1/2 mb-2"></div>
+                                        <div className="h-3 bg-[#F4F6F8] rounded w-full mb-2"></div>
+                                        <div className="h-3 bg-[#F4F6F8] rounded w-1/3"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : notifications.length > 0 ? (
+                    <div className="flex flex-col gap-4">
+                        {notifications.map((notification) => {
+                            const meta = getTypeMeta(notification.type);
+                            const IconComp = meta.icon;
+                            const path = getNotificationPath(notification);
+
+                            return (
+                                <div
+                                    key={notification.notificationId}
+                                    onClick={() => {
+                                        if (path) {
+                                            navigate(path);
+                                        }
+                                    }}
+                                    className={`rounded-2xl border p-4 transition-colors ${
+                                        notification.isRead
+                                            ? "bg-white border-[#E5E8EB] opacity-[0.65]"
+                                            : "bg-[#FFF9F9] border-[#FFE5E5]"
+                                    } ${path ? "cursor-pointer hover:shadow-sm" : ""}`}
                                 >
-                                    {tab}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="flex items-center gap-3 w-full lg:w-auto">
-                            <select className="flex-1 lg:flex-none px-3 py-2 border border-[#E5E8EB] rounded-lg text-[13px] text-[#212B36] font-medium outline-none bg-white min-w-[120px]">
-                                <option>Chưa đọc</option>
-                                <option>Tất cả</option>
-                            </select>
-                            <div className="relative flex-1 lg:flex-none">
-                                <select className="w-full pl-3 pr-8 py-2 border border-[#E5E8EB] rounded-lg text-[13px] text-[#212B36] font-medium outline-none bg-white min-w-[130px] appearance-none">
-                                    <option>Tháng 3/2025</option>
-                                </select>
-                                <i className="fa-regular fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-[#919EAB] pointer-events-none text-[13px]"></i>
-                            </div>
-                        </div>
-                    </div>
+                                    <div className="flex flex-col md:flex-row md:items-start gap-4 relative pl-4">
+                                        {/* Unread indicator dot */}
+                                        {!notification.isRead && (
+                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#ee1314]"></div>
+                                        )}
 
-                    {/* Actions */}
-                    <div className="flex items-center justify-end gap-3 pt-2">
-                        <button className="flex items-center gap-2 px-3 py-1.5 border border-[#E5E8EB] rounded-lg text-[12px] font-bold text-[#637381] hover:bg-slate-50 transition-colors">
-                            <i className="fa-solid fa-check text-[14px]"></i> Đánh dấu tất cả đã đọc
-                        </button>
-                        <button className="flex items-center gap-2 px-3 py-1.5 border border-[#FFE5E5] rounded-lg text-[12px] font-bold text-[#ee1314] hover:bg-[#FFF4F4] transition-colors">
-                            <i className="fa-regular fa-trash-can text-[13px]"></i> Xóa đã đọc
-                        </button>
-                    </div>
-                </div>
+                                        <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${meta.iconWrapperClass}`}>
+                                            <IconComp size={20} strokeWidth={2} />
+                                        </div>
 
-                {/* Notifications List (Timeline layout) */}
-                <div className="p-6">
-                    <div className="relative border-l-2 border-[#F4F6F8] ml-3 pl-8 pb-4">
-                        
-                        {/* Hôm nay */}
-                        <div className="absolute w-3 h-3 bg-[#ee1314] rounded-full -left-[7px] top-1"></div>
-                        <h3 className="text-[14px] font-black text-[#212B36] mb-4">Hôm nay</h3>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                                <h4 className="text-[14px] font-bold text-[#212B36]">{notification.title}</h4>
+                                                <span className="bg-[#F4F6F8] text-[#637381] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                                    {meta.actionLabel}
+                                                </span>
+                                            </div>
 
-                        <div className="flex flex-col gap-4 mb-8">
-                            {/* Card 1: Trúng thưởng */}
-                            <div className="relative bg-[#FFF4F4] border border-[#FFE5E5] rounded-xl p-4 flex flex-col md:flex-row items-start gap-4 hover:shadow-sm transition-shadow cursor-pointer">
-                                {/* Dot on timeline (virtual, we use absolute positioning if we want, but in design it's part of the line. We can just use the line dots for the day headers) */}
-                                <div className="absolute w-2 h-2 bg-[#ee1314] rounded-full -left-[37.5px] top-8"></div>
+                                            <p className="text-[13px] text-[#454F5B] leading-relaxed">
+                                                {notification.content}
+                                            </p>
+                                        </div>
 
-                                <div className="w-12 h-12 rounded-full bg-white text-[#FFB020] flex items-center justify-center text-[20px] shrink-0 shadow-sm border border-[#FFE5E5]">
-                                    <i className="fa-solid fa-trophy"></i>
-                                </div>
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h4 className="text-[14px] font-bold text-[#212B36]">Chúc mừng! Bạn đã trúng thưởng</h4>
-                                        <span className="bg-white border border-[#ee1314] text-[#ee1314] text-[9px] font-bold px-1.5 py-0.5 rounded-full">MỚI</span>
-                                    </div>
-                                    <p className="text-[13px] text-[#454F5B] mb-0.5">Vé số Đồng Nai - Mã vé: <span className="font-semibold">CZ438008</span></p>
-                                    <p className="text-[13px] text-[#454F5B]">Giá trị giải thưởng: <span className="text-[#ee1314] font-bold">215.000đ</span></p>
-                                </div>
-                                <div className="flex flex-col items-end gap-3 mt-1 md:mt-0 w-full md:w-auto">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-[12px] text-[#637381]">13/03/2025 - 18:05</span>
-                                        <div className="w-2 h-2 bg-[#ee1314] rounded-full"></div>
-                                    </div>
-                                    <button className="px-4 py-1.5 border border-[#ee1314] text-[#ee1314] text-[12px] font-bold rounded-lg hover:bg-[#ee1314] hover:text-white transition-colors">
-                                        Xem chi tiết <i className="fa-solid fa-chevron-right text-[10px] ml-1"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Card 2: Kết quả */}
-                            <div className="relative bg-white border border-[#E5E8EB] rounded-xl p-4 flex flex-col md:flex-row items-start gap-4 hover:shadow-sm transition-shadow cursor-pointer">
-                                <div className="absolute w-2 h-2 bg-[#1CD162] rounded-full -left-[37.5px] top-8"></div>
-
-                                <div className="w-12 h-12 rounded-full bg-[#E4F8ED] text-[#1CD162] flex items-center justify-center text-[20px] shrink-0">
-                                    <i className="fa-solid fa-bullseye"></i>
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="text-[14px] font-bold text-[#212B36] mb-1">Kết quả xổ số TP. Hồ Chí Minh đã có</h4>
-                                    <p className="text-[13px] text-[#454F5B] mb-0.5">Kỳ quay: 13/03/2025</p>
-                                    <p className="text-[13px] text-[#454F5B]">Số trúng: <span className="text-[#1CD162] font-bold">458120</span></p>
-                                </div>
-                                <div className="flex flex-col items-end gap-3 mt-1 md:mt-0 w-full md:w-auto">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-[12px] text-[#637381]">13/03/2025 - 16:45</span>
-                                        <div className="w-2 h-2 bg-[#ee1314] rounded-full"></div>
-                                    </div>
-                                    <button className="px-4 py-1.5 border border-[#1CD162] text-[#1CD162] text-[12px] font-bold rounded-lg hover:bg-[#1CD162] hover:text-white transition-colors">
-                                        Xem kết quả <i className="fa-solid fa-chevron-right text-[10px] ml-1"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Hôm qua */}
-                        <div className="absolute w-3 h-3 bg-[#919EAB] rounded-full -left-[7px] top-[260px] md:top-[225px]"></div>
-                        <h3 className="text-[14px] font-black text-[#637381] mb-4 mt-8">Hôm qua</h3>
-
-                        <div className="flex flex-col gap-4">
-                            {/* Card 3: Thanh toán */}
-                            <div className="relative bg-white border border-[#E5E8EB] rounded-xl p-4 flex flex-col md:flex-row items-center gap-4 hover:shadow-sm transition-shadow cursor-pointer">
-                                <div className="absolute w-2 h-2 bg-[#2065D1] rounded-full -left-[37.5px] top-1/2 -translate-y-1/2"></div>
-                                
-                                <div className="w-10 h-10 rounded-full bg-[#F0F5FF] text-[#2065D1] flex items-center justify-center text-[16px] shrink-0">
-                                    <i className="fa-solid fa-receipt"></i>
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="text-[14px] font-bold text-[#212B36]">Thanh toán thành công</h4>
-                                    <div className="flex items-center gap-3 text-[13px] text-[#637381] mt-0.5">
-                                        <span>Đơn hàng: <span className="font-semibold text-[#212B36]">J4604844</span></span>
-                                        <span>Giá trị: <span className="font-semibold text-[#212B36]">990.000đ</span></span>
+                                        <div className="md:text-right md:shrink-0 flex md:flex-col items-center md:items-end gap-2 md:gap-1 text-[12px]">
+                                            <span className="text-[#637381]">
+                                                {formatDateTime(notification.createdAt)}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3 text-[#637381]">
-                                    <span className="text-[12px]">12/03/2025 - 16:37</span>
-                                    <i className="fa-solid fa-chevron-right text-[12px] opacity-50"></i>
-                                </div>
-                            </div>
+                            );
+                        })}
 
-                            {/* Card 4: Bảo mật */}
-                            <div className="relative bg-white border border-[#E5E8EB] rounded-xl p-4 flex flex-col md:flex-row items-center gap-4 hover:shadow-sm transition-shadow cursor-pointer">
-                                <div className="absolute w-2 h-2 bg-[#9E5FFF] rounded-full -left-[37.5px] top-1/2 -translate-y-1/2"></div>
-                                
-                                <div className="w-10 h-10 rounded-full bg-[#F8F5FF] text-[#9E5FFF] flex items-center justify-center text-[16px] shrink-0">
-                                    <i className="fa-solid fa-shield-halved"></i>
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="text-[14px] font-bold text-[#212B36]">Xác thực email thành công</h4>
-                                    <p className="text-[13px] text-[#637381] mt-0.5">Tài khoản của bạn đã được bảo mật tốt hơn</p>
-                                </div>
-                                <div className="flex items-center gap-3 text-[#637381]">
-                                    <span className="text-[12px]">12/03/2025 - 09:21</span>
-                                    <i className="fa-solid fa-chevron-right text-[12px] opacity-50"></i>
-                                </div>
+                        {activeTab === 'all' && hasNextPage && (
+                            <div
+                                ref={loadMoreRef}
+                                className="text-center text-[13px] text-[#919EAB] font-medium pt-2"
+                            >
+                                Cuộn xuống để xem các thông báo trước đó
                             </div>
+                        )}
+
+                        {isFetchingNextPage && (
+                            <div className="text-center text-[13px] font-medium text-[#637381] py-4">
+                                Đang tải thêm thông báo...
+                            </div>
+                        )}
+
+                        {!hasNextPage && (
+                            <div className="text-center text-[13px] text-[#919EAB] font-medium pt-4">
+                                Không còn thông báo nào khác
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="text-center py-12">
+                        <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center">
+                            <Bell size={24} strokeWidth={2} />
                         </div>
-
+                        <p className="text-[15px] font-bold text-[#212B36] mb-1">Bạn chưa có thông báo nào</p>
+                        <p className="text-[13px] text-[#637381]">Khi có cập nhật mới từ hệ thống, chúng sẽ xuất hiện tại đây.</p>
                     </div>
-                    
-                    {/* Empty state / End of list */}
-                    <div className="text-center mt-8">
-                        <p className="text-[13px] text-[#919EAB] font-medium">Không còn thông báo nào khác</p>
-                    </div>
-                </div>
+                )}
             </div>
         </div>
     );

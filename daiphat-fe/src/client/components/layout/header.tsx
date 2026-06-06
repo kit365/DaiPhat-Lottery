@@ -11,7 +11,9 @@ import { ProfileSetupModal } from "../../components/auth/ProfileSetupModal";
 import { VerifyModal } from "../../components/auth/VerifyModal";
 import { ForgotPasswordModal } from "../../components/auth/ForgotPasswordModal";
 import { BottomNav } from "./BottomNav";
+import { NotificationDropdown } from "./NotificationDropdown";
 import { useAuth } from "../../hooks/useAuth";
+import { useNotifications } from "../../hooks/useNotifications";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { AppToast as toast } from "../../utils/toast.util";
 
@@ -39,6 +41,7 @@ export const Header = () => {
   const location = useLocation();
   const cartItems = useCartStore(state => state.items);
   const removeCartItem = useCartStore(state => state.removeItem);
+  const { unreadCount } = useNotifications(4);
 
   // Removed mandatory DP-32 Setup Enforcement auto-trigger
 
@@ -213,10 +216,20 @@ export const Header = () => {
                     </div>
                   </div>
 
-                  <button className="relative text-[#505050] hover:text-[#ee1314] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer">
-                    <Bell size={22} strokeWidth={2} />
-                    <span className="absolute top-0 right-0 w-4 h-4 bg-[#ee1314] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">3</span>
-                  </button>
+                  <div className="relative group">
+                    <button 
+                      onClick={() => navigate('/profile/notifications')}
+                      className="relative text-[#505050] hover:text-[#ee1314] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer"
+                    >
+                      <Bell size={22} strokeWidth={2} />
+                      {unreadCount > 0 && (
+                        <span className="absolute top-0 right-0 min-w-4 h-4 px-1 bg-[#ee1314] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                    </button>
+                    <NotificationDropdown />
+                  </div>
                 </div>
 
                 {/* User */}
