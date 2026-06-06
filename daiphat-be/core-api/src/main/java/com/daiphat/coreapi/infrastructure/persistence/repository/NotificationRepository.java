@@ -7,6 +7,9 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.notification.Notifi
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -27,4 +30,14 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
     long countByUser_IdAndReadFalseAndDeletedAtIsNull(UUID userId);
 
     long countByUser_IdAndTypeAndDeletedAtIsNull(UUID userId, NotificationType type);
+
+    @Modifying
+    @Query("""
+            update NotificationEntity notification
+            set notification.read = true
+            where notification.user.id = :userId
+              and notification.read = false
+              and notification.deletedAt is null
+            """)
+    int markAllAsReadByUserId(@Param("userId") UUID userId);
 }

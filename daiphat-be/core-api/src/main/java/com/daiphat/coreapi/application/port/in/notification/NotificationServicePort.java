@@ -13,6 +13,10 @@ public interface NotificationServicePort {
 
     NotificationModel markAsFailed(Long notificationId);
 
+    NotificationModel markMyNotificationAsRead(UUID userId, Long notificationId);
+
+    void markAllMyNotificationsAsRead(UUID userId);
+
     void archiveAuthEmailNotification(UUID userId, String token);
 
     PageResponse<NotificationResponse> getMyNotifications(UUID userId, int page, int limit);

@@ -30,4 +30,6 @@ public interface NotificationRepositoryPort {
     long countUnreadByUserId(UUID userId);
 
     long countByUserIdAndType(UUID userId, NotificationType type);
+
+    int markAllAsReadByUserId(UUID userId);
 }
