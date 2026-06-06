@@ -4,7 +4,7 @@ import com.daiphat.coreapi.application.port.out.blog.BlogCategoryRepositoryPort;
 import com.daiphat.coreapi.domain.model.blogs.BlogCategoryModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.blog.BlogCategoryEntity;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.blog.BlogCategoryPersistenceMapper;
-import com.daiphat.coreapi.infrastructure.persistence.repository.BlogCategoryRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.blogs.BlogCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

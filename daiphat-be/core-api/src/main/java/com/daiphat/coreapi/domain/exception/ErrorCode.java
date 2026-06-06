@@ -71,6 +71,7 @@ public enum ErrorCode {
     INVALID_INPUT("SYS_006", "Dữ liệu nhập vào không hợp lệ.", HttpStatus.BAD_REQUEST),
     PASSWORD_CONFIRM_MISMATCH("AUTH_030", "Xác nhận mật khẩu không khớp", HttpStatus.BAD_REQUEST),
     ACCESS_DENIED("AUTH_031", "Bạn không có quyền truy cập tài nguyên này.", HttpStatus.FORBIDDEN),
+
     
     // Blog Errors
     BLOG_NOT_FOUND("BLG_001", "Bài viết không tồn tại.", HttpStatus.NOT_FOUND),
@@ -81,7 +82,14 @@ public enum ErrorCode {
     CATEGORY_PARENT_INVALID("BLG_006", "Danh mục cha không thể là chính nó.", HttpStatus.BAD_REQUEST),
     CATEGORY_PARENT_NOT_FOUND("BLG_007", "Danh mục cha không tồn tại.", HttpStatus.NOT_FOUND),
     BLOG_SCHEDULED_AT_REQUIRED("BLG_008", "Bài viết hẹn giờ đăng phải có thời gian lên lịch.", HttpStatus.BAD_REQUEST),
-    BLOG_SCHEDULED_AT_FUTURE("BLG_009", "Thời gian lên lịch phải lớn hơn thời điểm hiện tại.", HttpStatus.BAD_REQUEST);
+    BLOG_SCHEDULED_AT_FUTURE("BLG_009", "Thời gian lên lịch phải lớn hơn thời điểm hiện tại.", HttpStatus.BAD_REQUEST),
+
+    // Lottery Errors
+    // Lottery Product Errors
+    LOTTERY_PRODUCT_NOT_FOUND("LT_001", "Sản phẩm vé số không tồn tại.", HttpStatus.NOT_FOUND),
+    LOTTERY_PRODUCT_NAME_EXISTED("LT_002", "Tên sản phẩm vé số đã tồn tại.", HttpStatus.BAD_REQUEST),
+    LOTTERY_PRODUCT_INVALID_STATUS("LT_003", "Trạng thái sản phẩm không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    LOTTERY_PRODUCT_INSUFFICIENT_INVENTORY("LT_004", "Tồn kho không đủ.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

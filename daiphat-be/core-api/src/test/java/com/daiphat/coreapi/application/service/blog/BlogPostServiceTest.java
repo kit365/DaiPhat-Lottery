@@ -266,7 +266,7 @@ class BlogPostServiceTest {
         assertThatThrownBy(() -> blogPostService.createPost(request))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+                .isEqualTo(ErrorCode.BLOG_SCHEDULED_AT_REQUIRED);
 
         verify(blogPostRepositoryPort, never()).save(any());
     }
@@ -478,6 +478,8 @@ class BlogPostServiceTest {
         // GIVEN
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
                 .categoryId(CATEGORY_ID)
+                .type(POST_TYPE_BLOG)
+                .status(STATUS_PUBLISHED)
                 .slug(DEFAULT_SLUG)
                 .build();
 
@@ -500,6 +502,8 @@ class BlogPostServiceTest {
         // GIVEN
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
                 .categoryId(CATEGORY_ID)
+                .type(POST_TYPE_BLOG)
+                .status(STATUS_PUBLISHED)
                 .slug(DEFAULT_SLUG)
                 .tagIds(Set.of(TAG_ID_1, TAG_ID_2))
                 .build();

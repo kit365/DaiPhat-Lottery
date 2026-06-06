@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.persistence.repository;
+package com.daiphat.coreapi.infrastructure.persistence.repository.blogs;
 
 import com.daiphat.coreapi.infrastructure.persistence.entity.blog.BlogTagEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
