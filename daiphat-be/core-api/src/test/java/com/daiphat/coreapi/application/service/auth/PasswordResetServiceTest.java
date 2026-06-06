@@ -9,6 +9,7 @@ import com.daiphat.coreapi.application.dto.response.auth.VerifyOtpResponse;
 import com.daiphat.coreapi.application.event.AdminResetPasswordOtpEvent;
 import com.daiphat.coreapi.application.event.AdminResetPasswordSuccessEvent;
 import com.daiphat.coreapi.application.event.ForgotPasswordEvent;
+import com.daiphat.coreapi.application.event.UserPasswordChangedEvent;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
@@ -152,6 +153,7 @@ class PasswordResetServiceTest extends AuthTestBase {
         verify(userRepositoryPort).save(user);
         verify(refreshTokenStorePort).delete(DEFAULT_USER_ID);
         verify(passwordResetCachePort).deleteResetTokenData(RESET_TOKEN);
+        verify(eventPublisher).publishEvent(any(UserPasswordChangedEvent.class));
     }
 
     @Test
@@ -221,6 +223,7 @@ class PasswordResetServiceTest extends AuthTestBase {
         assertThat(user.getPassword()).isEqualTo("encoded-new");
         verify(userRepositoryPort).save(user);
         verify(refreshTokenStorePort).delete(DEFAULT_USER_ID);
+        verify(eventPublisher).publishEvent(any(UserPasswordChangedEvent.class));
     }
 
     @Test
