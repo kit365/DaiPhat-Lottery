@@ -7,13 +7,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Value;
-
 @Data
 @ConfigurationProperties(prefix = "daiphat.auth")
 public class AuthProperties {
-    @Value("${FRONTEND_URL:http://localhost:5173}")
-    private String frontendUrl;
+    private String frontendUrl = "http://localhost:5173";
     private Set<String> defaultOperatorPermissions = new java.util.HashSet<>();
     private VerificationPaths verificationPaths = new VerificationPaths();
     private Lockout lockout = new Lockout();

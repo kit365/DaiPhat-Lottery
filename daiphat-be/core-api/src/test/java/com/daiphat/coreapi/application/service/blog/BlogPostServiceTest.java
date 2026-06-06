@@ -272,8 +272,8 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("CREATE: Tạo bài viết hẹn giờ sẽ lưu publishedAt và scheduledAt cùng mốc thời gian")
-    void createPost_scheduled_setsPublishedAtAndScheduledAt() {
+    @DisplayName("CREATE: Tạo bài viết hẹn giờ sẽ lưu publishedAt làm mốc xuất bản chính")
+    void createPost_scheduled_setsPublishedAtAsSourceOfTruth() {
         LocalDateTime futureTime = LocalDateTime.now().plusDays(1);
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
                 .categoryId(CATEGORY_ID)
@@ -308,7 +308,7 @@ class BlogPostServiceTest {
 
         verify(blogPostRepositoryPort).save(argThat(model ->
                 model.getStatus() == com.daiphat.coreapi.domain.model.enums.blog.PostStatus.SCHEDULED
-                        && futureTime.equals(model.getScheduledAt())
+                        && model.getScheduledAt() == null
                         && futureTime.equals(model.getPublishedAt())
         ));
         verify(blogPostPublishQueuePort).schedulePost(1001L, futureTime);
@@ -446,7 +446,7 @@ class BlogPostServiceTest {
 
         verify(blogPostRepositoryPort).save(argThat(post ->
                 post.getStatus() == com.daiphat.coreapi.domain.model.enums.blog.PostStatus.SCHEDULED
-                        && post.getScheduledAt() != null
+                        && post.getScheduledAt() == null
                         && futureTime.equals(post.getPublishedAt())
         ));
     }
