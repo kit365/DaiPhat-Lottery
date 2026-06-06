@@ -1,5 +1,7 @@
 package com.daiphat.coreapi.application.service.notification;
 
+import com.daiphat.coreapi.application.dto.response.notification.NotificationResponse;
+import com.daiphat.coreapi.application.mapper.notification.NotificationApplicationMapper;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.application.port.out.notification.NotificationRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -15,8 +17,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,9 +47,12 @@ class NotificationServiceTest {
     @Mock
     private NotificationRepositoryPort notificationRepositoryPort;
 
+    @Mock
+    private NotificationApplicationMapper notificationApplicationMapper;
+
     @BeforeEach
     void setUp() {
-        notificationService = new NotificationService(notificationRepositoryPort);
+        notificationService = new NotificationService(notificationRepositoryPort, notificationApplicationMapper);
     }
 
     @Test
@@ -118,7 +127,6 @@ class NotificationServiceTest {
         verify(notificationRepositoryPort, never()).save(any());
     }
 
-    @Test
     void markAsFailed_success() {
         NotificationModel existing = NotificationModel.builder()
                 .notificationId(NOTIFICATION_ID)
@@ -192,5 +200,93 @@ class NotificationServiceTest {
         notificationService.archiveAuthEmailNotification(USER_ID, TOKEN);
 
         verify(notificationRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    void getMyNotifications_success_returnsNewestPageWithCounts() {
+        NotificationModel newest = NotificationModel.builder()
+                .notificationId(2L)
+                .userId(USER_ID)
+                .title("Bài viết mới đã được đăng")
+                .content("Một bài viết mới vừa được xuất bản.")
+                .type(NotificationType.BLOG)
+                .status(NotificationStatus.SENT)
+                .createdAt(LocalDateTime.now())
+                .build();
+        NotificationModel older = NotificationModel.builder()
+                .notificationId(1L)
+                .userId(USER_ID)
+                .title("Xác thực tài khoản thành công")
+                .content("Chào mừng bạn đến với Đại Phát.")
+                .type(NotificationType.AUTH)
+                .status(NotificationStatus.SENT)
+                .createdAt(LocalDateTime.now().minusHours(1))
+                .build();
+
+        Page<NotificationModel> notificationPage = new PageImpl<>(List.of(newest, older));
+
+        NotificationResponse newestResponse = NotificationResponse.builder()
+                .notificationId(2L)
+                .userId(USER_ID)
+                .title(newest.getTitle())
+                .content(newest.getContent())
+                .isRead(false)
+                .type(NotificationType.BLOG)
+                .status(NotificationStatus.SENT)
+                .createdAt(newest.getCreatedAt())
+                .build();
+        NotificationResponse olderResponse = NotificationResponse.builder()
+                .notificationId(1L)
+                .userId(USER_ID)
+                .title(older.getTitle())
+                .content(older.getContent())
+                .isRead(true)
+                .type(NotificationType.AUTH)
+                .status(NotificationStatus.SENT)
+                .createdAt(older.getCreatedAt())
+                .build();
+
+        when(notificationRepositoryPort.findByUserId(eq(USER_ID), any(Pageable.class))).thenReturn(notificationPage);
+        when(notificationRepositoryPort.countAllByUserId(USER_ID)).thenReturn(6L);
+        when(notificationRepositoryPort.countUnreadByUserId(USER_ID)).thenReturn(2L);
+        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.AUTH)).thenReturn(3L);
+        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.BLOG)).thenReturn(2L);
+        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.SYSTEM)).thenReturn(1L);
+        when(notificationApplicationMapper.toResponse(newest)).thenReturn(newestResponse);
+        when(notificationApplicationMapper.toResponse(older)).thenReturn(olderResponse);
+
+        var result = notificationService.getMyNotifications(USER_ID, 1, 4);
+
+        assertThat(result.getRecordList()).hasSize(2);
+        assertThat(result.getRecordList().get(0).notificationId()).isEqualTo(2L);
+        assertThat(result.getStatusCounts())
+                .containsEntry("all", 6L)
+                .containsEntry("unread", 2L)
+                .containsEntry("auth", 3L)
+                .containsEntry("blog", 2L)
+                .containsEntry("system", 1L);
+        assertThat(result.getPagination().getCurrentPage()).isEqualTo(1);
+        assertThat(result.getPagination().getLimit()).isEqualTo(4);
+    }
+
+    @Test
+    void getMyNotifications_withInvalidPageAndLimit_normalizesToOne() {
+        Page<NotificationModel> notificationPage = new PageImpl<>(List.of());
+
+        when(notificationRepositoryPort.findByUserId(eq(USER_ID), any(Pageable.class))).thenReturn(notificationPage);
+        when(notificationRepositoryPort.countAllByUserId(USER_ID)).thenReturn(0L);
+        when(notificationRepositoryPort.countUnreadByUserId(USER_ID)).thenReturn(0L);
+        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.AUTH)).thenReturn(0L);
+        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.BLOG)).thenReturn(0L);
+        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.SYSTEM)).thenReturn(0L);
+
+        var result = notificationService.getMyNotifications(USER_ID, 0, 0);
+
+        assertThat(result.getPagination().getCurrentPage()).isEqualTo(1);
+        assertThat(result.getPagination().getLimit()).isEqualTo(1);
+        assertThat(result.getRecordList()).isEmpty();
+        assertThat(result.getStatusCounts())
+                .containsEntry("all", 0L)
+                .containsEntry("unread", 0L);
     }
 }
