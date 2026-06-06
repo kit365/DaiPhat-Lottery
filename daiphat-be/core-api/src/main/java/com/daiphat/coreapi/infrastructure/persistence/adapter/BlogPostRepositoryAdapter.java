@@ -3,7 +3,7 @@ package com.daiphat.coreapi.infrastructure.persistence.adapter;
 import com.daiphat.coreapi.application.port.out.blog.BlogPostRepositoryPort;
 import com.daiphat.coreapi.domain.model.blogs.BlogPostModel;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.blog.BlogPostPersistenceMapper;
-import com.daiphat.coreapi.infrastructure.persistence.repository.BlogPostRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.blogs.BlogPostRepository;
 import com.daiphat.coreapi.infrastructure.persistence.specification.BlogPostSpecification;
 import com.daiphat.coreapi.domain.model.enums.blog.PostStatus;
 import lombok.RequiredArgsConstructor;

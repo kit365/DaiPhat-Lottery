@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.persistence.repository;
+package com.daiphat.coreapi.infrastructure.persistence.repository.blogs;
 
 import com.daiphat.coreapi.infrastructure.persistence.entity.blog.BlogPostEntity;
 import com.daiphat.coreapi.domain.model.enums.blog.PostStatus;
