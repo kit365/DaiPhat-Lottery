@@ -2,6 +2,7 @@ export const QUERY_KEYS = {
     // Auth
     AUTH_ME: 'admin-me',
     CLIENT_ME: 'client-me',
+    CLIENT_NOTIFICATIONS: 'client-notifications',
 
     // Admin / Staff
     ACCOUNTS_ADMIN: 'accounts-admin',
