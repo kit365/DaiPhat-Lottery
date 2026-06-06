@@ -65,10 +65,12 @@ export const getNotifications = async (params: GetNotificationsParams = {}): Pro
 };
 
 export const markAsRead = async (id: string) => {
+    await apiApp.patch(`/notifications/${id}/read`);
     return { success: true };
 };
 
 export const markAllAsRead = async () => {
+    await apiApp.patch('/notifications/read-all');
     return { success: true };
 };
 
