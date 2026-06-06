@@ -86,4 +86,56 @@ class NotificationControllerTest {
         assertThat(response.getData()).isEqualTo(serviceResponse);
         verify(notificationServicePort).getMyNotifications(USER_ID, 2, 4);
     }
+
+    @Test
+    @DisplayName("GET /notifications/admin/me: Lấy danh sách thông báo của admin thành công")
+    void getMyAdminNotifications_success() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "operator01");
+        PageResponse<NotificationResponse> serviceResponse = PageResponse.<NotificationResponse>builder()
+                .recordList(Collections.emptyList())
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(0)
+                        .totalPages(0)
+                        .currentPage(1)
+                        .limit(5)
+                        .isFirst(true)
+                        .isLast(true)
+                        .build())
+                .build();
+
+        when(notificationServicePort.getMyAdminNotifications(USER_ID, 1, 5)).thenReturn(serviceResponse);
+
+        ApiResponse<PageResponse<NotificationResponse>> response =
+                notificationController.getMyAdminNotifications(principal, 1, 5);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData()).isEqualTo(serviceResponse);
+        verify(notificationServicePort).getMyAdminNotifications(USER_ID, 1, 5);
+    }
+
+    @Test
+    @DisplayName("GET /notifications/admin/me: Truyền page và limit từ request xuống service")
+    void getMyAdminNotifications_forwardsCustomPagingParams() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "operator01");
+        PageResponse<NotificationResponse> serviceResponse = PageResponse.<NotificationResponse>builder()
+                .recordList(Collections.emptyList())
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(15)
+                        .totalPages(3)
+                        .currentPage(2)
+                        .limit(5)
+                        .isFirst(false)
+                        .isLast(false)
+                        .build())
+                .build();
+
+        when(notificationServicePort.getMyAdminNotifications(USER_ID, 2, 5)).thenReturn(serviceResponse);
+
+        ApiResponse<PageResponse<NotificationResponse>> response =
+                notificationController.getMyAdminNotifications(principal, 2, 5);
+
+        assertThat(response.getData()).isEqualTo(serviceResponse);
+        verify(notificationServicePort).getMyAdminNotifications(USER_ID, 2, 5);
+    }
 }
