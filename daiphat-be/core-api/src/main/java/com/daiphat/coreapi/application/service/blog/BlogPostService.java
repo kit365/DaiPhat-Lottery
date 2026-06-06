@@ -121,7 +121,7 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
         BlogPostModel savedPost = blogPostRepositoryPort.save(postModel);
 
         if (savedPost.getStatus() == PostStatus.SCHEDULED) {
-            blogPostPublishQueuePort.schedulePost(savedPost.getId(), savedPost.getScheduledAt());
+            blogPostPublishQueuePort.schedulePost(savedPost.getId(), savedPost.getPublishedAt());
         }
 
         return blogPostApplicationMapper.toResponse(savedPost);
@@ -190,7 +190,7 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
         BlogPostModel saved = blogPostRepositoryPort.save(post);
 
         if (saved.getStatus() == PostStatus.SCHEDULED) {
-            blogPostPublishQueuePort.schedulePost(saved.getId(), saved.getScheduledAt());
+            blogPostPublishQueuePort.schedulePost(saved.getId(), saved.getPublishedAt());
         } else if (currentStatus == PostStatus.SCHEDULED) {
             blogPostPublishQueuePort.cancelScheduledPost(saved.getId());
         }
@@ -221,8 +221,9 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
         for (Long postId : allDueIds) {
             blogPostRepositoryPort.findById(postId).ifPresent(post -> {
                 if (post.getStatus() == PostStatus.SCHEDULED && !post.isDeleted()) {
+                    LocalDateTime publishAt = resolveCurrentScheduleTime(post);
                     post.setStatus(PostStatus.PUBLISHED);
-                    post.setPublishedAt(post.getScheduledAt() != null ? post.getScheduledAt() : now);
+                    post.setPublishedAt(publishAt != null ? publishAt : now);
                     post.setScheduledAt(null);
                     blogPostRepositoryPort.save(post);
                     publishedCount[0]++;
@@ -273,7 +274,7 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
             PostStatus currentStatus
     ) {
         if (nextStatus == PostStatus.SCHEDULED) {
-            post.setScheduledAt(normalizedScheduledAt);
+            post.setScheduledAt(null);
             post.setPublishedAt(normalizedScheduledAt);
             return;
         }
@@ -293,10 +294,10 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
     }
 
     private LocalDateTime resolveCurrentScheduleTime(BlogPostModel post) {
-        if (post.getScheduledAt() != null) {
-            return post.getScheduledAt();
+        if (post.getPublishedAt() != null) {
+            return post.getPublishedAt();
         }
-        return post.getStatus() == PostStatus.SCHEDULED ? post.getPublishedAt() : null;
+        return post.getScheduledAt();
     }
 
     private LocalDateTime normalizeScheduledAt(PostStatus status, LocalDateTime scheduledAt) {
