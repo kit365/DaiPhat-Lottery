@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Newspaper, ShieldCheck, Check, Trash2 } from "lucide-react";
 import {
+    useDeleteAllMyReadNotifications,
     useMarkAllMyNotificationsAsRead,
     useMarkMyNotificationAsRead,
     useNotifications
@@ -76,7 +77,6 @@ export const NotificationsTab = () => {
     const {
         notifications: allNotifications,
         unreadCount,
-        totalCount,
         isLoading,
         isFetchingNextPage,
         hasNextPage,
@@ -84,6 +84,7 @@ export const NotificationsTab = () => {
     } = useNotifications(7);
     const { mutate: markMyNotificationAsRead } = useMarkMyNotificationAsRead();
     const { mutate: markAllMyNotificationsAsRead } = useMarkAllMyNotificationsAsRead();
+    const { mutate: deleteAllMyReadNotifications } = useDeleteAllMyReadNotifications();
 
     const notifications = useMemo(
         () => activeTab === 'unread'
@@ -133,8 +134,11 @@ export const NotificationsTab = () => {
                     <p className="text-[14px] text-[#637381]">Xem các thông báo của bạn</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 text-[14px] font-medium text-[#212B36] border border-[#E5E8EB] rounded-xl hover:bg-slate-50 transition-colors bg-white cursor-pointer">
-                        <Trash2 size={16} className="text-[#637381]" /> Xóa tất cả
+                    <button
+                        onClick={() => deleteAllMyReadNotifications()}
+                        className="flex items-center gap-2 px-4 py-2 text-[14px] font-medium text-[#212B36] border border-[#E5E8EB] rounded-xl hover:bg-slate-50 transition-colors bg-white cursor-pointer"
+                    >
+                        <Trash2 size={16} className="text-[#637381]" /> Xóa đã đọc
                     </button>
                     <button
                         onClick={() => markAllMyNotificationsAsRead()}

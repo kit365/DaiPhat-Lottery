@@ -29,3 +29,7 @@ export const markMyNotificationAsRead = async (notificationId: number): Promise<
 export const markAllMyNotificationsAsRead = async (): Promise<void> => {
     await apiApp.patch("/notifications/read-all");
 };
+
+export const deleteAllMyReadNotifications = async (): Promise<void> => {
+    await apiApp.delete("/notifications/read-all");
+};
