@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 import { QUERY_KEYS } from "../../constants/queryKeys";
 import { useAuthStore } from "../../stores/useAuthStore";
 import {
+    deleteAllMyReadNotifications,
     getMyNotifications,
     markAllMyNotificationsAsRead,
     markMyNotificationAsRead
@@ -69,6 +70,18 @@ export const useMarkAllMyNotificationsAsRead = () => {
 
     return useMutation({
         mutationFn: () => markAllMyNotificationsAsRead(),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS, token] });
+        },
+    });
+};
+
+export const useDeleteAllMyReadNotifications = () => {
+    const queryClient = useQueryClient();
+    const token = useAuthStore((state) => state.token);
+
+    return useMutation({
+        mutationFn: () => deleteAllMyReadNotifications(),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS, token] });
         },

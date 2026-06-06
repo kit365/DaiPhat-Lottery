@@ -83,9 +83,11 @@ export const archiveAllNotifications = async () => {
 };
 
 export const deleteNotification = async (id: string) => {
+    await apiApp.delete(`/notifications/${id}`);
     return { success: true };
 };
 
 export const deleteAllNotifications = async () => {
+    await apiApp.delete('/notifications/read-all');
     return { success: true };
 };

@@ -101,7 +101,7 @@ export const NotificationListPage = () => {
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <Button
                         onClick={() => {
-                            confirmAction("Xóa tất cả thông báo?", "Hành động này sẽ xóa vĩnh viễn tất cả thông báo.", () => {
+                            confirmAction("Xóa tất cả thông báo đã đọc?", "Hành động này sẽ xóa các thông báo đã đọc khỏi danh sách.", () => {
                                 deleteAllNotifications();
                             }, "warning");
                         }}
@@ -122,7 +122,7 @@ export const NotificationListPage = () => {
                         variant="contained"
                         startIcon={<Icon icon="solar:trash-bin-trash-bold" />}
                     >
-                        Xóa tất cả
+                        Xóa đã đọc
                     </Button>
                     <Button
                         onClick={() => markAllAsRead()}
@@ -291,11 +291,21 @@ export const NotificationListPage = () => {
                                         </Tooltip>
                                     )}
 
-                                    <Tooltip title="Xóa">
-                                        <IconButton size="small" sx={{ color: 'var(--palette-error-main)', bgcolor: 'rgba(255, 86, 48, 0.08)' }} onClick={() => deleteNotification(item._id)}>
-                                            <Icon icon="solar:trash-bin-trash-bold" width={20} />
-                                        </IconButton>
-                                    </Tooltip>
+                                    {item.status === 'read' && (
+                                        <Tooltip title="Xóa">
+                                            <IconButton
+                                                size="small"
+                                                sx={{ color: 'var(--palette-error-main)', bgcolor: 'rgba(255, 86, 48, 0.08)' }}
+                                                onClick={() => {
+                                                    confirmAction("Xóa thông báo đã đọc?", "Thông báo này sẽ được xóa khỏi danh sách.", () => {
+                                                        deleteNotification(item._id);
+                                                    }, "warning");
+                                                }}
+                                            >
+                                                <Icon icon="solar:trash-bin-trash-bold" width={20} />
+                                            </IconButton>
+                                        </Tooltip>
+                                    )}
                                 </Stack>
                             </ListItem>
                         ))}

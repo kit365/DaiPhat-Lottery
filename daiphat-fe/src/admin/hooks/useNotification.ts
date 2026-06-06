@@ -78,6 +78,7 @@ export const useDeleteNotification = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_NOTIFICATIONS] });
+            toast.success("Đã xóa thông báo đã đọc");
         }
     });
 };
@@ -91,7 +92,7 @@ export const useDeleteAllNotifications = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_NOTIFICATIONS] });
-            toast.success("Đã xóa tất cả thông báo");
+            toast.success("Đã xóa tất cả thông báo đã đọc");
         }
     });
 };

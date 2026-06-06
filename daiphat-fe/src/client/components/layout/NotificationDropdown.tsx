@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bell, ChevronRight, Newspaper, ShieldCheck, MoreHorizontal, Check, Settings, Trash2 } from "lucide-react";
 import {
+  useDeleteAllMyReadNotifications,
   useMarkAllMyNotificationsAsRead,
   useMarkMyNotificationAsRead,
   useNotifications
@@ -74,6 +75,7 @@ export const NotificationDropdown = () => {
   } = useNotifications(4);
   const { mutate: markMyNotificationAsRead } = useMarkMyNotificationAsRead();
   const { mutate: markAllMyNotificationsAsRead } = useMarkAllMyNotificationsAsRead();
+  const { mutate: deleteAllMyReadNotifications } = useDeleteAllMyReadNotifications();
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -138,7 +140,7 @@ export const NotificationDropdown = () => {
               e.stopPropagation();
               setIsMenuOpen(!isMenuOpen);
             }}
-            className="p-1.5 text-[#637381] hover:text-[#212B36] hover:bg-slate-100 rounded-full transition-colors"
+            className="p-1.5 text-[#637381] hover:text-[#212B36] hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
           >
             <MoreHorizontal size={20} />
           </button>
@@ -163,9 +165,12 @@ export const NotificationDropdown = () => {
               <div className="h-px bg-[#E5E8EB] my-1.5"></div>
               <button
                 className="w-full px-4 py-2 text-left text-[14px] text-[#ee1314] hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={() => {
+                  deleteAllMyReadNotifications();
+                  setIsMenuOpen(false);
+                }}
               >
-                <Trash2 size={16} /> Xóa tất cả thông báo
+                <Trash2 size={16} /> Xóa thông báo đã đọc
               </button>
             </div>
           )}
