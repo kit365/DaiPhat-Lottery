@@ -103,6 +103,20 @@ class NotificationControllerTest {
     }
 
     @Test
+    @DisplayName("DELETE /notifications/{id}: Xóa thông báo đã đọc thành công")
+    void deleteMyReadNotification_success() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        when(notificationServicePort.deleteMyReadNotification(USER_ID, 10L)).thenReturn(null);
+
+        ApiResponse<Void> response = notificationController.deleteMyReadNotification(principal, 10L);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Đã xóa thông báo đã đọc.");
+        verify(notificationServicePort).deleteMyReadNotification(USER_ID, 10L);
+    }
+
+    @Test
     @DisplayName("PATCH /notifications/read-all: Đánh dấu tất cả thông báo là đã đọc thành công")
     void markAllMyNotificationsAsRead_success() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
@@ -114,6 +128,20 @@ class NotificationControllerTest {
         assertThat(response.isSuccess()).isTrue();
         assertThat(response.getMessage()).isEqualTo("Đã đánh dấu tất cả thông báo là đã đọc.");
         verify(notificationServicePort).markAllMyNotificationsAsRead(USER_ID);
+    }
+
+    @Test
+    @DisplayName("DELETE /notifications/read-all: Xóa tất cả thông báo đã đọc thành công")
+    void deleteAllMyReadNotifications_success() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        doNothing().when(notificationServicePort).deleteAllMyReadNotifications(USER_ID);
+
+        ApiResponse<Void> response = notificationController.deleteAllMyReadNotifications(principal);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Đã xóa tất cả thông báo đã đọc.");
+        verify(notificationServicePort).deleteAllMyReadNotifications(USER_ID);
     }
 
     @Test

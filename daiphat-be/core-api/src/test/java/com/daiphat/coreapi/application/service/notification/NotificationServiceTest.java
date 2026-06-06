@@ -201,6 +201,81 @@ class NotificationServiceTest {
         verify(notificationRepositoryPort).markAllAsReadByUserId(USER_ID);
     }
 
+    @Test
+    void deleteMyReadNotification_success() {
+        NotificationModel existing = NotificationModel.builder()
+                .notificationId(NOTIFICATION_ID)
+                .userId(USER_ID)
+                .read(true)
+                .status(NotificationStatus.SENT)
+                .build();
+
+        when(notificationRepositoryPort.findById(NOTIFICATION_ID)).thenReturn(Optional.of(existing));
+        when(notificationRepositoryPort.save(existing)).thenReturn(existing);
+
+        NotificationModel result = notificationService.deleteMyReadNotification(USER_ID, NOTIFICATION_ID);
+
+        assertThat(result.isDeleted()).isTrue();
+        verify(notificationRepositoryPort).save(existing);
+    }
+
+    @Test
+    void deleteMyReadNotification_unread_throwsDeleteRequiresRead() {
+        NotificationModel existing = NotificationModel.builder()
+                .notificationId(NOTIFICATION_ID)
+                .userId(USER_ID)
+                .read(false)
+                .build();
+
+        when(notificationRepositoryPort.findById(NOTIFICATION_ID)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> notificationService.deleteMyReadNotification(USER_ID, NOTIFICATION_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.NOTIFICATION_DELETE_REQUIRES_READ);
+
+        verify(notificationRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    void deleteMyReadNotification_wrongOwner_throwsAccessDenied() {
+        NotificationModel existing = NotificationModel.builder()
+                .notificationId(NOTIFICATION_ID)
+                .userId(UUID.fromString("99999999-9999-9999-9999-999999999999"))
+                .read(true)
+                .build();
+
+        when(notificationRepositoryPort.findById(NOTIFICATION_ID)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> notificationService.deleteMyReadNotification(USER_ID, NOTIFICATION_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ACCESS_DENIED);
+
+        verify(notificationRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    void deleteMyReadNotification_notFound_throwsNotificationNotFound() {
+        when(notificationRepositoryPort.findById(NOTIFICATION_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> notificationService.deleteMyReadNotification(USER_ID, NOTIFICATION_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
+
+        verify(notificationRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    void deleteAllMyReadNotifications_success() {
+        when(notificationRepositoryPort.softDeleteAllReadByUserId(USER_ID)).thenReturn(3);
+
+        notificationService.deleteAllMyReadNotifications(USER_ID);
+
+        verify(notificationRepositoryPort).softDeleteAllReadByUserId(USER_ID);
+    }
+
     void markAsFailed_success() {
         NotificationModel existing = NotificationModel.builder()
                 .notificationId(NOTIFICATION_ID)
