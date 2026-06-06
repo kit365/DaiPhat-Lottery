@@ -127,6 +127,80 @@ class NotificationServiceTest {
         verify(notificationRepositoryPort, never()).save(any());
     }
 
+    @Test
+    void markMyNotificationAsRead_success() {
+        NotificationModel existing = NotificationModel.builder()
+                .notificationId(NOTIFICATION_ID)
+                .userId(USER_ID)
+                .read(false)
+                .status(NotificationStatus.SENT)
+                .build();
+
+        when(notificationRepositoryPort.findById(NOTIFICATION_ID)).thenReturn(Optional.of(existing));
+        when(notificationRepositoryPort.save(existing)).thenReturn(existing);
+
+        NotificationModel result = notificationService.markMyNotificationAsRead(USER_ID, NOTIFICATION_ID);
+
+        assertThat(result.isRead()).isTrue();
+        verify(notificationRepositoryPort).save(existing);
+    }
+
+    @Test
+    void markMyNotificationAsRead_alreadyRead_doesNotSaveAgain() {
+        NotificationModel existing = NotificationModel.builder()
+                .notificationId(NOTIFICATION_ID)
+                .userId(USER_ID)
+                .read(true)
+                .status(NotificationStatus.SENT)
+                .build();
+
+        when(notificationRepositoryPort.findById(NOTIFICATION_ID)).thenReturn(Optional.of(existing));
+
+        NotificationModel result = notificationService.markMyNotificationAsRead(USER_ID, NOTIFICATION_ID);
+
+        assertThat(result.isRead()).isTrue();
+        verify(notificationRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    void markMyNotificationAsRead_wrongOwner_throwsAccessDenied() {
+        NotificationModel existing = NotificationModel.builder()
+                .notificationId(NOTIFICATION_ID)
+                .userId(UUID.fromString("99999999-9999-9999-9999-999999999999"))
+                .read(false)
+                .build();
+
+        when(notificationRepositoryPort.findById(NOTIFICATION_ID)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> notificationService.markMyNotificationAsRead(USER_ID, NOTIFICATION_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ACCESS_DENIED);
+
+        verify(notificationRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    void markMyNotificationAsRead_notFound_throwsNotificationNotFound() {
+        when(notificationRepositoryPort.findById(NOTIFICATION_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> notificationService.markMyNotificationAsRead(USER_ID, NOTIFICATION_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
+
+        verify(notificationRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    void markAllMyNotificationsAsRead_success() {
+        when(notificationRepositoryPort.markAllAsReadByUserId(USER_ID)).thenReturn(4);
+
+        notificationService.markAllMyNotificationsAsRead(USER_ID);
+
+        verify(notificationRepositoryPort).markAllAsReadByUserId(USER_ID);
+    }
+
     void markAsFailed_success() {
         NotificationModel existing = NotificationModel.builder()
                 .notificationId(NOTIFICATION_ID)

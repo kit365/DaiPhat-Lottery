@@ -18,6 +18,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doNothing;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("NotificationController Unit Tests")
@@ -85,6 +86,34 @@ class NotificationControllerTest {
 
         assertThat(response.getData()).isEqualTo(serviceResponse);
         verify(notificationServicePort).getMyNotifications(USER_ID, 2, 4);
+    }
+
+    @Test
+    @DisplayName("PATCH /notifications/{id}/read: Đánh dấu đã đọc thành công")
+    void markMyNotificationAsRead_success() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        doNothing().when(notificationServicePort).markMyNotificationAsRead(USER_ID, 10L);
+
+        ApiResponse<Void> response = notificationController.markMyNotificationAsRead(principal, 10L);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Đã đánh dấu thông báo là đã đọc.");
+        verify(notificationServicePort).markMyNotificationAsRead(USER_ID, 10L);
+    }
+
+    @Test
+    @DisplayName("PATCH /notifications/read-all: Đánh dấu tất cả thông báo là đã đọc thành công")
+    void markAllMyNotificationsAsRead_success() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        doNothing().when(notificationServicePort).markAllMyNotificationsAsRead(USER_ID);
+
+        ApiResponse<Void> response = notificationController.markAllMyNotificationsAsRead(principal);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Đã đánh dấu tất cả thông báo là đã đọc.");
+        verify(notificationServicePort).markAllMyNotificationsAsRead(USER_ID);
     }
 
     @Test
