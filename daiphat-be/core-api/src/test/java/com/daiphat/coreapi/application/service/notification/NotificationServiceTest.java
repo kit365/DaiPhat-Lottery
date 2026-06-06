@@ -289,4 +289,50 @@ class NotificationServiceTest {
                 .containsEntry("all", 0L)
                 .containsEntry("unread", 0L);
     }
+
+    @Test
+    void getMyAdminNotifications_success_returnsNewestPageWithCounts() {
+        NotificationModel newest = NotificationModel.builder()
+                .notificationId(5L)
+                .userId(USER_ID)
+                .title("Bài viết mới dành cho nội bộ")
+                .content("Một bài viết mới vừa được xuất bản cho quản trị viên.")
+                .type(NotificationType.BLOG)
+                .status(NotificationStatus.SENT)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        Page<NotificationModel> notificationPage = new PageImpl<>(List.of(newest));
+        NotificationResponse newestResponse = NotificationResponse.builder()
+                .notificationId(5L)
+                .userId(USER_ID)
+                .title(newest.getTitle())
+                .content(newest.getContent())
+                .isRead(false)
+                .type(NotificationType.BLOG)
+                .status(NotificationStatus.SENT)
+                .createdAt(newest.getCreatedAt())
+                .build();
+
+        when(notificationRepositoryPort.findByUserId(eq(USER_ID), any(Pageable.class))).thenReturn(notificationPage);
+        when(notificationRepositoryPort.countAllByUserId(USER_ID)).thenReturn(9L);
+        when(notificationRepositoryPort.countUnreadByUserId(USER_ID)).thenReturn(4L);
+        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.AUTH)).thenReturn(2L);
+        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.BLOG)).thenReturn(5L);
+        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.SYSTEM)).thenReturn(2L);
+        when(notificationApplicationMapper.toResponse(newest)).thenReturn(newestResponse);
+
+        var result = notificationService.getMyAdminNotifications(USER_ID, 1, 5);
+
+        assertThat(result.getRecordList()).hasSize(1);
+        assertThat(result.getRecordList().get(0).notificationId()).isEqualTo(5L);
+        assertThat(result.getStatusCounts())
+                .containsEntry("all", 9L)
+                .containsEntry("unread", 4L)
+                .containsEntry("auth", 2L)
+                .containsEntry("blog", 5L)
+                .containsEntry("system", 2L);
+        assertThat(result.getPagination().getCurrentPage()).isEqualTo(1);
+        assertThat(result.getPagination().getLimit()).isEqualTo(5);
+    }
 }

@@ -16,4 +16,6 @@ public interface NotificationServicePort {
     void archiveAuthEmailNotification(UUID userId, String token);
 
     PageResponse<NotificationResponse> getMyNotifications(UUID userId, int page, int limit);
+
+    PageResponse<NotificationResponse> getMyAdminNotifications(UUID userId, int page, int limit);
 }
