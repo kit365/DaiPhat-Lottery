@@ -81,7 +81,10 @@ public enum ErrorCode {
     CATEGORY_PARENT_INVALID("BLG_006", "Danh mục cha không thể là chính nó.", HttpStatus.BAD_REQUEST),
     CATEGORY_PARENT_NOT_FOUND("BLG_007", "Danh mục cha không tồn tại.", HttpStatus.NOT_FOUND),
     BLOG_SCHEDULED_AT_REQUIRED("BLG_008", "Bài viết hẹn giờ đăng phải có thời gian lên lịch.", HttpStatus.BAD_REQUEST),
-    BLOG_SCHEDULED_AT_FUTURE("BLG_009", "Thời gian lên lịch phải lớn hơn thời điểm hiện tại.", HttpStatus.BAD_REQUEST);
+    BLOG_SCHEDULED_AT_FUTURE("BLG_009", "Thời gian lên lịch phải lớn hơn thời điểm hiện tại.", HttpStatus.BAD_REQUEST),
+
+    // Notification Errors
+    NOTIFICATION_NOT_FOUND("NTF_001", "Thông báo không tồn tại.", HttpStatus.NOT_FOUND);
 
     private final String code;
     private final String message;

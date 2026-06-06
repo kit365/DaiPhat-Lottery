@@ -1,0 +1,23 @@
+package com.daiphat.coreapi.application.port.out.notification;
+
+import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
+
+import java.util.Optional;
+import java.util.UUID;
+
+public interface NotificationRepositoryPort {
+    NotificationModel save(NotificationModel notification);
+
+    Optional<NotificationModel> findById(Long notificationId);
+
+    Optional<NotificationModel> findLatestByContext(
+            UUID userId,
+            NotificationChannel channel,
+            NotificationType type,
+            NotificationReferenceType referenceType,
+            String referenceId
+    );
+}
