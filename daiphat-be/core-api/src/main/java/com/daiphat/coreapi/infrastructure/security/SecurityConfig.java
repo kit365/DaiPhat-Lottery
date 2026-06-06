@@ -107,7 +107,7 @@ public class SecurityConfig {
                 return List.of(origin);
             }
         } catch (IllegalArgumentException ignored) {
-            // Fallback below if FRONTEND_URL is not a valid URI.
+            // Fallback below if frontendUrl is not a valid URI.
         }
 
         return List.of(frontendUrl);

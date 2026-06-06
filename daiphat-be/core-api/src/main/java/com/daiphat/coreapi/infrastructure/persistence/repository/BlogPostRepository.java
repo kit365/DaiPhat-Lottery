@@ -57,5 +57,19 @@ public interface BlogPostRepository extends JpaRepository<BlogPostEntity, Long>,
             @Param("now") LocalDateTime now
     );
 
-    List<BlogPostEntity> findByStatusAndIsDeletedFalseAndScheduledAtLessThanEqual(PostStatus status, LocalDateTime now);
+    @Query("""
+            SELECT p.id
+            FROM BlogPostEntity p
+            WHERE p.status = :status
+              AND p.isDeleted = false
+              AND (
+                    (p.publishedAt IS NOT NULL AND p.publishedAt <= :now)
+                    OR
+                    (p.publishedAt IS NULL AND p.scheduledAt IS NOT NULL AND p.scheduledAt <= :now)
+              )
+            """)
+    List<Long> findDueScheduledPostIds(
+            @Param("status") PostStatus status,
+            @Param("now") LocalDateTime now
+    );
 }
