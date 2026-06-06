@@ -60,6 +60,29 @@ public class NotificationService implements NotificationServicePort {
 
     @Override
     @Transactional
+    public NotificationModel markMyNotificationAsRead(UUID userId, Long notificationId) {
+        NotificationModel notification = findNotificationOrThrow(notificationId);
+
+        if (!userId.equals(notification.getUserId())) {
+            throw new DomainException(ErrorCode.ACCESS_DENIED);
+        }
+
+        if (!notification.isRead()) {
+            notification.markAsRead();
+            return notificationRepositoryPort.save(notification);
+        }
+
+        return notification;
+    }
+
+    @Override
+    @Transactional
+    public void markAllMyNotificationsAsRead(UUID userId) {
+        notificationRepositoryPort.markAllAsReadByUserId(userId);
+    }
+
+    @Override
+    @Transactional
     public void archiveAuthEmailNotification(UUID userId, String token) {
         notificationRepositoryPort.findLatestByContext(
                         userId,

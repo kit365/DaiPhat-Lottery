@@ -9,10 +9,12 @@ import com.daiphat.coreapi.application.port.in.notification.NotificationServiceP
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/notifications")
@@ -36,6 +38,25 @@ public class NotificationController {
                 null,
                 notificationServicePort.getMyNotifications(principal.getId(), page, limit)
         );
+    }
+
+    @PatchMapping("/{id}/read")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> markMyNotificationAsRead(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @PathVariable Long id
+    ) {
+        notificationServicePort.markMyNotificationAsRead(principal.getId(), id);
+        return ApiResponse.success("Đã đánh dấu thông báo là đã đọc.");
+    }
+
+    @PatchMapping("/read-all")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> markAllMyNotificationsAsRead(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        notificationServicePort.markAllMyNotificationsAsRead(principal.getId());
+        return ApiResponse.success("Đã đánh dấu tất cả thông báo là đã đọc.");
     }
 
     @GetMapping(ApiConstants.ADMIN + "/me")

@@ -78,4 +78,9 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryPort
     public long countByUserIdAndType(UUID userId, NotificationType type) {
         return notificationRepository.countByUser_IdAndTypeAndDeletedAtIsNull(userId, type);
     }
+
+    @Override
+    public int markAllAsReadByUserId(UUID userId) {
+        return notificationRepository.markAllAsReadByUserId(userId);
+    }
 }
