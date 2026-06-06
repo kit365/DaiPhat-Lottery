@@ -12,7 +12,10 @@ export default defineConfig({
     proxy: {
       "/api": {
         target: "http://localhost:8080",
-        changeOrigin: true
+        changeOrigin: true,
+        // Rewrite cookie domain so browser accepts HttpOnly cookies (e.g. refresh_token)
+        // set by the backend on port 8080, when running on localhost:5173
+        cookieDomainRewrite: "localhost"
       }
     },
     host: true,

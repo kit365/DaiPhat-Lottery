@@ -1,7 +1,11 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QUERY_KEYS } from "../../constants/queryKeys";
 import { useAuthStore } from "../../stores/useAuthStore";
-import { getMyNotifications } from "../services/notificationService";
+import {
+    getMyNotifications,
+    markAllMyNotificationsAsRead,
+    markMyNotificationAsRead
+} from "../services/notificationService";
 
 const DEFAULT_LIMIT = 4;
 
@@ -45,4 +49,28 @@ export const useNotifications = (limit: number = DEFAULT_LIMIT) => {
         systemCount,
         remainingCount,
     };
+};
+
+export const useMarkMyNotificationAsRead = () => {
+    const queryClient = useQueryClient();
+    const token = useAuthStore((state) => state.token);
+
+    return useMutation({
+        mutationFn: (notificationId: number) => markMyNotificationAsRead(notificationId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS, token] });
+        },
+    });
+};
+
+export const useMarkAllMyNotificationsAsRead = () => {
+    const queryClient = useQueryClient();
+    const token = useAuthStore((state) => state.token);
+
+    return useMutation({
+        mutationFn: () => markAllMyNotificationsAsRead(),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS, token] });
+        },
+    });
 };

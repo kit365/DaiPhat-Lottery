@@ -1,7 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Newspaper, ShieldCheck, Check, Trash2 } from "lucide-react";
-import { useNotifications } from "../../../hooks/useNotifications";
+import {
+    useMarkAllMyNotificationsAsRead,
+    useMarkMyNotificationAsRead,
+    useNotifications
+} from "../../../hooks/useNotifications";
 import { NotificationResponse, NOTIFICATION_TYPE } from "../../../../types/notifications.type";
 import { getNotificationPath } from "../../../utils/notification.util";
 
@@ -78,6 +82,8 @@ export const NotificationsTab = () => {
         hasNextPage,
         fetchNextPage,
     } = useNotifications(7);
+    const { mutate: markMyNotificationAsRead } = useMarkMyNotificationAsRead();
+    const { mutate: markAllMyNotificationsAsRead } = useMarkAllMyNotificationsAsRead();
 
     const notifications = useMemo(
         () => activeTab === 'unread'
@@ -130,7 +136,10 @@ export const NotificationsTab = () => {
                     <button className="flex items-center gap-2 px-4 py-2 text-[14px] font-medium text-[#212B36] border border-[#E5E8EB] rounded-xl hover:bg-slate-50 transition-colors bg-white cursor-pointer">
                         <Trash2 size={16} className="text-[#637381]" /> Xóa tất cả
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 text-[14px] font-medium text-[#ee1314] border border-[#ffcdcd] rounded-xl hover:bg-[#FFF4F4] transition-colors bg-white cursor-pointer">
+                    <button
+                        onClick={() => markAllMyNotificationsAsRead()}
+                        className="flex items-center gap-2 px-4 py-2 text-[14px] font-medium text-[#ee1314] border border-[#ffcdcd] rounded-xl hover:bg-[#FFF4F4] transition-colors bg-white cursor-pointer"
+                    >
                         <Check size={16} strokeWidth={2.5} /> Đánh dấu tất cả đã đọc
                     </button>
                 </div>
@@ -188,6 +197,9 @@ export const NotificationsTab = () => {
                                 <div
                                     key={notification.notificationId}
                                     onClick={() => {
+                                        if (!notification.isRead) {
+                                            markMyNotificationAsRead(notification.notificationId);
+                                        }
                                         if (path) {
                                             navigate(path);
                                         }
@@ -196,7 +208,7 @@ export const NotificationsTab = () => {
                                         notification.isRead
                                             ? "bg-white border-[#E5E8EB] opacity-[0.65]"
                                             : "bg-[#FFF9F9] border-[#FFE5E5]"
-                                    } ${path ? "cursor-pointer hover:shadow-sm" : ""}`}
+                                    } cursor-pointer hover:shadow-sm`}
                                 >
                                     <div className="flex flex-col md:flex-row md:items-start gap-4 relative pl-4">
                                         {/* Unread indicator dot */}
