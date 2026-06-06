@@ -11,9 +11,15 @@ import com.daiphat.coreapi.application.event.AdminResetPasswordSuccessEvent;
 import com.daiphat.coreapi.application.event.ForgotPasswordEvent;
 import com.daiphat.coreapi.application.event.StaffInviteEvent;
 import com.daiphat.coreapi.application.event.UserCreatedEvent;
+import com.daiphat.coreapi.application.event.UserEmailVerifiedEvent;
 import com.daiphat.coreapi.application.event.UserRegisteredEvent;
 import com.daiphat.coreapi.application.port.in.mail.EmailServicePort;
+import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.domain.model.enums.email.EmailType;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
+import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -27,12 +33,29 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class UserEventListener {
 
     private final EmailServicePort emailService;
+    private final NotificationServicePort notificationService;
     private final AuthProperties authProperties;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleUserRegistered(UserRegisteredEvent event) {
+        final String emailTitle = "Email xác thực tài khoản đã được gửi";
+        final String emailContent = "Chúng tôi đã gửi email xác thực tài khoản đến "
+                + event.email()
+                + ". Vui lòng kiểm tra hộp thư của bạn.";
+
         log.info("Handling UserRegisteredEvent for recipient: {}", event.email());
+        NotificationModel emailNotification = NotificationModel.builder()
+                .userId(event.userId())
+                .title(emailTitle)
+                .content(emailContent)
+                .type(NotificationType.AUTH)
+                .channel(NotificationChannel.EMAIL)
+                .referenceId(event.token())
+                .referenceType(NotificationReferenceType.AUTH)
+                .build();
+        emailNotification = notificationService.createNotification(emailNotification);
+
         try {
             UserVerificationContext emailContext = UserVerificationContext.builder()
                     .fullName(event.fullName())
@@ -41,9 +64,32 @@ public class UserEventListener {
                     .build();
 
             emailService.sendEmail(EmailType.WELCOME_VERIFY, event.email(), emailContext);
+            notificationService.markAsSent(emailNotification.getNotificationId());
         } catch (Exception e) {
+            notificationService.markAsFailed(emailNotification.getNotificationId());
             log.error("Failed to dispatch verification email for {}: {}", event.email(), e.getMessage());
         }
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleUserEmailVerified(UserEmailVerifiedEvent event) {
+        final String inAppTitle = "Xác thực tài khoản thành công";
+        final String inAppContent = "Tài khoản của bạn đã được xác thực thành công. Chào mừng bạn đến với Đại Phát.";
+
+        log.info("Handling UserEmailVerifiedEvent for recipient: {}", event.email());
+        notificationService.archiveAuthEmailNotification(event.userId(), event.token());
+
+        NotificationModel inAppNotification = NotificationModel.builder()
+                .userId(event.userId())
+                .title(inAppTitle)
+                .content(inAppContent)
+                .type(NotificationType.AUTH)
+                .channel(NotificationChannel.IN_APP)
+                .referenceType(NotificationReferenceType.AUTH)
+                .build();
+        inAppNotification.markAsSent();
+        notificationService.createNotification(inAppNotification);
     }
 
     @Async
