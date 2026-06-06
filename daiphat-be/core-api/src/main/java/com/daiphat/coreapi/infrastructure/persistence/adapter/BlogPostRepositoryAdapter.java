@@ -5,8 +5,8 @@ import com.daiphat.coreapi.domain.model.blogs.BlogPostModel;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.blog.BlogPostPersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.BlogPostRepository;
 import com.daiphat.coreapi.infrastructure.persistence.specification.BlogPostSpecification;
-import lombok.RequiredArgsConstructor;
 import com.daiphat.coreapi.domain.model.enums.blog.PostStatus;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import com.daiphat.coreapi.infrastructure.persistence.entity.blog.BlogPostEntity;
 
 @Component
 @RequiredArgsConstructor
@@ -122,9 +121,6 @@ public class BlogPostRepositoryAdapter implements BlogPostRepositoryPort {
 
     @Override
     public List<Long> findDueScheduledPostIds(LocalDateTime now) {
-        return blogPostRepository.findByStatusAndIsDeletedFalseAndScheduledAtLessThanEqual(PostStatus.SCHEDULED, now)
-                .stream()
-                .map(BlogPostEntity::getId)
-                .toList();
+        return blogPostRepository.findDueScheduledPostIds(PostStatus.SCHEDULED, now);
     }
 }
