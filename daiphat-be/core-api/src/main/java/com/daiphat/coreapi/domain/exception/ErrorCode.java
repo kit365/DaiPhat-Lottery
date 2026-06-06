@@ -84,7 +84,8 @@ public enum ErrorCode {
     BLOG_SCHEDULED_AT_FUTURE("BLG_009", "Thời gian lên lịch phải lớn hơn thời điểm hiện tại.", HttpStatus.BAD_REQUEST),
 
     // Notification Errors
-    NOTIFICATION_NOT_FOUND("NTF_001", "Thông báo không tồn tại.", HttpStatus.NOT_FOUND);
+    NOTIFICATION_NOT_FOUND("NTF_001", "Thông báo không tồn tại.", HttpStatus.NOT_FOUND),
+    NOTIFICATION_DELETE_REQUIRES_READ("NTF_002", "Chỉ có thể xóa thông báo đã đọc.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;
