@@ -5,10 +5,8 @@ import lombok.Builder;
 import java.util.UUID;
 
 @Builder
-public record AdminResetPasswordSuccessEvent(
+public record UserPasswordChangedEvent(
         UUID userId,
-        String email,
-        String fullName,
-        String password
+        String email
 ) {
 }

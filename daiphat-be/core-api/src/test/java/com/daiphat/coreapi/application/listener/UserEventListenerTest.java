@@ -1,0 +1,206 @@
+package com.daiphat.coreapi.application.listener;
+
+import com.daiphat.coreapi.application.config.AuthProperties;
+import com.daiphat.coreapi.application.dto.request.mail.AdminResetPasswordSuccessContext;
+import com.daiphat.coreapi.application.dto.request.mail.ForgotPasswordContext;
+import com.daiphat.coreapi.application.event.AdminResetPasswordOtpEvent;
+import com.daiphat.coreapi.application.event.AdminResetPasswordSuccessEvent;
+import com.daiphat.coreapi.application.event.ForgotPasswordEvent;
+import com.daiphat.coreapi.application.port.in.mail.EmailServicePort;
+import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
+import com.daiphat.coreapi.domain.model.enums.email.EmailType;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
+import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+@DisplayName("UserEventListener Unit Tests")
+class UserEventListenerTest {
+
+    private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final Long NOTIFICATION_ID = 99L;
+    private static final String EMAIL = "tuankiet@daiphat.com";
+    private static final String OTP = "123456";
+
+    @Mock
+    private EmailServicePort emailService;
+
+    @Mock
+    private NotificationServicePort notificationService;
+
+    private UserEventListener userEventListener;
+
+    @BeforeEach
+    void setUp() {
+        AuthProperties authProperties = new AuthProperties();
+        userEventListener = new UserEventListener(emailService, notificationService, authProperties);
+    }
+
+    @Test
+    void handleForgotPassword_success_createsEmailNotificationAndMarksSent() {
+        ForgotPasswordEvent event = ForgotPasswordEvent.builder()
+                .userId(USER_ID)
+                .email(EMAIL)
+                .otp(OTP)
+                .build();
+        when(notificationService.createNotification(any(NotificationModel.class)))
+                .thenAnswer(invocation -> {
+                    NotificationModel notification = invocation.getArgument(0);
+                    notification.setNotificationId(NOTIFICATION_ID);
+                    return notification;
+                });
+
+        userEventListener.handleForgotPassword(event);
+
+        ArgumentCaptor<NotificationModel> captor = ArgumentCaptor.forClass(NotificationModel.class);
+        verify(notificationService).createNotification(captor.capture());
+        NotificationModel notification = captor.getValue();
+        assertThat(notification.getUserId()).isEqualTo(USER_ID);
+        assertThat(notification.getTitle()).isEqualTo("Mã OTP đổi mật khẩu đã được gửi");
+        assertThat(notification.getReferenceId()).isEqualTo(OTP);
+        assertThat(notification.getChannel()).isEqualTo(NotificationChannel.EMAIL);
+        assertThat(notification.getType()).isEqualTo(NotificationType.AUTH);
+        assertThat(notification.getReferenceType()).isEqualTo(NotificationReferenceType.AUTH);
+        verify(emailService).sendEmail(eq(EmailType.FORGOT_PW_OTP), eq(EMAIL), any(ForgotPasswordContext.class));
+        verify(notificationService).markAsSent(NOTIFICATION_ID);
+        verify(notificationService, never()).markAsFailed(any());
+    }
+
+    @Test
+    void handleForgotPassword_fail_marksFailed() {
+        ForgotPasswordEvent event = ForgotPasswordEvent.builder()
+                .userId(USER_ID)
+                .email(EMAIL)
+                .otp(OTP)
+                .build();
+        when(notificationService.createNotification(any(NotificationModel.class)))
+                .thenAnswer(invocation -> {
+                    NotificationModel notification = invocation.getArgument(0);
+                    notification.setNotificationId(NOTIFICATION_ID);
+                    return notification;
+                });
+        doThrow(new RuntimeException("mail fail"))
+                .when(emailService).sendEmail(eq(EmailType.FORGOT_PW_OTP), eq(EMAIL), any(ForgotPasswordContext.class));
+
+        userEventListener.handleForgotPassword(event);
+
+        verify(notificationService).markAsFailed(NOTIFICATION_ID);
+        verify(notificationService, never()).markAsSent(any());
+    }
+
+    @Test
+    void handleAdminResetPasswordOtp_success_createsEmailNotificationAndMarksSent() {
+        AdminResetPasswordOtpEvent event = AdminResetPasswordOtpEvent.builder()
+                .userId(USER_ID)
+                .email(EMAIL)
+                .fullName("Kiet Ngo")
+                .otp(OTP)
+                .build();
+        when(notificationService.createNotification(any(NotificationModel.class)))
+                .thenAnswer(invocation -> {
+                    NotificationModel notification = invocation.getArgument(0);
+                    notification.setNotificationId(NOTIFICATION_ID);
+                    return notification;
+                });
+
+        userEventListener.handleAdminResetPasswordOtp(event);
+
+        ArgumentCaptor<NotificationModel> captor = ArgumentCaptor.forClass(NotificationModel.class);
+        verify(notificationService).createNotification(captor.capture());
+        NotificationModel notification = captor.getValue();
+        assertThat(notification.getTitle()).isEqualTo("Mã OTP đặt lại mật khẩu đã được gửi");
+        assertThat(notification.getReferenceId()).isEqualTo(OTP);
+        verify(emailService).sendEmail(eq(EmailType.ADMIN_RESET_PASSWORD_OTP), eq(EMAIL), any(ForgotPasswordContext.class));
+        verify(notificationService).markAsSent(NOTIFICATION_ID);
+    }
+
+    @Test
+    void handleAdminResetPasswordOtp_fail_marksFailed() {
+        AdminResetPasswordOtpEvent event = AdminResetPasswordOtpEvent.builder()
+                .userId(USER_ID)
+                .email(EMAIL)
+                .fullName("Kiet Ngo")
+                .otp(OTP)
+                .build();
+        when(notificationService.createNotification(any(NotificationModel.class)))
+                .thenAnswer(invocation -> {
+                    NotificationModel notification = invocation.getArgument(0);
+                    notification.setNotificationId(NOTIFICATION_ID);
+                    return notification;
+                });
+        doThrow(new RuntimeException("mail fail"))
+                .when(emailService).sendEmail(eq(EmailType.ADMIN_RESET_PASSWORD_OTP), eq(EMAIL), any(ForgotPasswordContext.class));
+
+        userEventListener.handleAdminResetPasswordOtp(event);
+
+        verify(notificationService).markAsFailed(NOTIFICATION_ID);
+        verify(notificationService, never()).markAsSent(any());
+    }
+
+    @Test
+    void handleAdminResetPasswordSuccess_success_createsEmailNotificationAndMarksSent() {
+        AdminResetPasswordSuccessEvent event = AdminResetPasswordSuccessEvent.builder()
+                .userId(USER_ID)
+                .email(EMAIL)
+                .fullName("Kiet Ngo")
+                .password("TempPass123!")
+                .build();
+        when(notificationService.createNotification(any(NotificationModel.class)))
+                .thenAnswer(invocation -> {
+                    NotificationModel notification = invocation.getArgument(0);
+                    notification.setNotificationId(NOTIFICATION_ID);
+                    return notification;
+                });
+
+        userEventListener.handleAdminResetPasswordSuccess(event);
+
+        ArgumentCaptor<NotificationModel> captor = ArgumentCaptor.forClass(NotificationModel.class);
+        verify(notificationService).createNotification(captor.capture());
+        NotificationModel notification = captor.getValue();
+        assertThat(notification.getTitle()).isEqualTo("Mật khẩu mới đã được gửi");
+        assertThat(notification.getReferenceId()).isNull();
+        verify(emailService).sendEmail(eq(EmailType.ADMIN_RESET_PASSWORD_SUCCESS), eq(EMAIL), any(AdminResetPasswordSuccessContext.class));
+        verify(notificationService).markAsSent(NOTIFICATION_ID);
+    }
+
+    @Test
+    void handleAdminResetPasswordSuccess_fail_marksFailed() {
+        AdminResetPasswordSuccessEvent event = AdminResetPasswordSuccessEvent.builder()
+                .userId(USER_ID)
+                .email(EMAIL)
+                .fullName("Kiet Ngo")
+                .password("TempPass123!")
+                .build();
+        when(notificationService.createNotification(any(NotificationModel.class)))
+                .thenAnswer(invocation -> {
+                    NotificationModel notification = invocation.getArgument(0);
+                    notification.setNotificationId(NOTIFICATION_ID);
+                    return notification;
+                });
+        doThrow(new RuntimeException("mail fail"))
+                .when(emailService).sendEmail(eq(EmailType.ADMIN_RESET_PASSWORD_SUCCESS), eq(EMAIL), any(AdminResetPasswordSuccessContext.class));
+
+        userEventListener.handleAdminResetPasswordSuccess(event);
+
+        verify(notificationService).markAsFailed(NOTIFICATION_ID);
+        verify(notificationService, never()).markAsSent(any());
+    }
+}
