@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bell, ChevronRight, Newspaper, ShieldCheck, MoreHorizontal, Check, Settings, Trash2 } from "lucide-react";
-import { useNotifications } from "../../hooks/useNotifications";
+import {
+  useMarkAllMyNotificationsAsRead,
+  useMarkMyNotificationAsRead,
+  useNotifications
+} from "../../hooks/useNotifications";
 import { NotificationResponse, NOTIFICATION_TYPE } from "../../../types/notifications.type";
 import { getNotificationPath } from "../../utils/notification.util";
 import {
@@ -68,6 +72,8 @@ export const NotificationDropdown = () => {
     fetchNextPage,
     remainingCount,
   } = useNotifications(4);
+  const { mutate: markMyNotificationAsRead } = useMarkMyNotificationAsRead();
+  const { mutate: markAllMyNotificationsAsRead } = useMarkAllMyNotificationsAsRead();
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -141,7 +147,10 @@ export const NotificationDropdown = () => {
             <div className="absolute top-full right-0 mt-1 w-[240px] bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.15)] border border-[#E5E8EB] py-1.5 z-[1200]">
               <button
                 className="w-full px-4 py-2 text-left text-[14px] text-[#212B36] hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={() => {
+                  markAllMyNotificationsAsRead();
+                  setIsMenuOpen(false);
+                }}
               >
                 <Check size={16} className="text-[#637381]" /> Đánh dấu tất cả đã đọc
               </button>
@@ -192,12 +201,15 @@ export const NotificationDropdown = () => {
                 <div
                   key={notification.notificationId}
                   onClick={() => {
+                    if (!notification.isRead) {
+                      markMyNotificationAsRead(notification.notificationId);
+                    }
                     if (path) {
                       navigate(path);
                     }
                   }}
                   className={`relative flex gap-3 p-3 rounded-xl transition-colors hover:bg-slate-50 ${!notification.isRead ? "bg-[#FFF9F9]" : "bg-white opacity-[0.65]"
-                    } ${path ? "cursor-pointer" : ""}`}
+                    } cursor-pointer`}
                 >
                   <div className="w-2 flex justify-center pt-3.5 shrink-0">
                     {!notification.isRead && (
