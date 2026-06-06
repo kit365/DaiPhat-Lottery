@@ -12,6 +12,11 @@ import { VerifyModal } from "../../components/auth/VerifyModal";
 import { ForgotPasswordModal } from "../../components/auth/ForgotPasswordModal";
 import { BottomNav } from "./BottomNav";
 import { NotificationDropdown } from "./NotificationDropdown";
+import {
+  HEADER_DROPDOWN_ACTION_CLASS,
+  HEADER_DROPDOWN_ITEM_TITLE_CLASS,
+  HEADER_DROPDOWN_TITLE_CLASS,
+} from "./headerDropdown.constants";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { Skeleton } from "../../../components/ui/Skeleton";
@@ -153,8 +158,8 @@ export const Header = () => {
                     {/* Cart Dropdown */}
                     <div className="absolute top-full right-0 mt-2 w-[360px] bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-[#E5E8EB] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100]">
                       <div className="p-4 flex items-center justify-between border-b border-[#E5E8EB]">
-                        <h4 className="font-bold text-[#212B36] text-[15px]">Giỏ hàng <span className="text-[#ee1314]">({cartItems.length})</span></h4>
-                        <span className="text-[13px] text-[#637381] cursor-pointer hover:text-[#ee1314]" onClick={() => navigate('/cart')}>Xem giỏ hàng</span>
+                        <h4 className={HEADER_DROPDOWN_TITLE_CLASS}>Giỏ hàng <span className="text-[#ee1314]">({cartItems.length})</span></h4>
+                        <span className={`${HEADER_DROPDOWN_ACTION_CLASS} cursor-pointer hover:text-[#ee1314]`} onClick={() => navigate('/cart')}>Xem giỏ hàng</span>
                       </div>
                       <div className="max-h-[320px] overflow-y-auto p-2">
                         {(() => {
@@ -172,7 +177,7 @@ export const Header = () => {
                               <div className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer" onClick={() => navigate('/cart')}>
                                 <div className="flex items-start justify-between mb-1">
                                     <div>
-                                        <div className="text-[13px] font-bold text-[#212B36] truncate">{item.province}</div>
+                                        <div className={`${HEADER_DROPDOWN_ITEM_TITLE_CLASS} truncate`}>{item.province}</div>
                                         <div className="text-[11px] text-[#637381] mt-0.5">
                                             {item.time} • {item.date ? item.date.split(',')[0] : 'Hôm nay'}
                                         </div>

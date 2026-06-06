@@ -4,6 +4,11 @@ import { Bell, ChevronRight, Newspaper, ShieldCheck, MoreHorizontal, Check, Sett
 import { useNotifications } from "../../hooks/useNotifications";
 import { NotificationResponse, NOTIFICATION_TYPE } from "../../../types/notifications.type";
 import { getNotificationPath } from "../../utils/notification.util";
+import {
+  HEADER_DROPDOWN_ACTION_CLASS,
+  HEADER_DROPDOWN_ITEM_TITLE_CLASS,
+  HEADER_DROPDOWN_TITLE_CLASS,
+} from "./headerDropdown.constants";
 
 const formatRelativeTime = (value?: string) => {
   if (!value) {
@@ -16,6 +21,9 @@ const formatRelativeTime = (value?: string) => {
   const rtf = new Intl.RelativeTimeFormat("vi", { numeric: "auto" });
 
   const absoluteMinutes = Math.abs(diffInMinutes);
+  if (absoluteMinutes < 1) {
+    return "Vừa xong";
+  }
   if (absoluteMinutes < 60) {
     return rtf.format(diffInMinutes, "minute");
   }
@@ -109,7 +117,7 @@ export const NotificationDropdown = () => {
     <div className="absolute top-full right-0 mt-2 w-[400px] bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-[#E5E8EB] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100]">
       <div className="p-4 flex items-center justify-between border-b border-[#E5E8EB]">
         <div className="flex items-center gap-2">
-          <h4 className="font-bold text-[#212B36] text-[20px] font-client-display">Thông báo</h4>
+          <h4 className={HEADER_DROPDOWN_TITLE_CLASS}>Thông báo</h4>
           {unreadCount > 0 && (
             <span className="bg-[#ee1314] text-white text-[12px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center">
               {unreadCount}
@@ -204,7 +212,7 @@ export const NotificationDropdown = () => {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="text-[14.5px] font-bold text-[#212B36] mb-0.5 line-clamp-1">
+                    <div className={`${HEADER_DROPDOWN_ITEM_TITLE_CLASS} mb-0.5 line-clamp-1`}>
                       {notification.title}
                     </div>
                     <div className="text-[13px] text-[#505050] mb-1.5 leading-snug line-clamp-2">
@@ -243,7 +251,7 @@ export const NotificationDropdown = () => {
       <div className="p-3 border-t border-[#E5E8EB] flex justify-center">
         <Link
           to="/profile/notifications"
-          className="flex items-center gap-1 py-1 text-[14px] font-bold text-[#ee1314] hover:underline transition-colors"
+          className={`flex items-center gap-1 py-1 font-bold text-[#ee1314] hover:underline transition-colors ${HEADER_DROPDOWN_ACTION_CLASS}`}
         >
           Xem tất cả thông báo <ChevronRight size={16} />
         </Link>
