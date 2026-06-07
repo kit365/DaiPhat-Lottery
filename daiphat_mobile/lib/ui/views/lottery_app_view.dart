@@ -23,6 +23,46 @@ class LotteryTicket {
   });
 }
 
+class AppNotification {
+  final String title;
+  final String description;
+  final String time;
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackground;
+  final bool unread;
+
+  const AppNotification({
+    required this.title,
+    required this.description,
+    required this.time,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackground,
+    this.unread = false,
+  });
+
+  AppNotification copyWith({
+    String? title,
+    String? description,
+    String? time,
+    IconData? icon,
+    Color? iconColor,
+    Color? iconBackground,
+    bool? unread,
+  }) {
+    return AppNotification(
+      title: title ?? this.title,
+      description: description ?? this.description,
+      time: time ?? this.time,
+      icon: icon ?? this.icon,
+      iconColor: iconColor ?? this.iconColor,
+      iconBackground: iconBackground ?? this.iconBackground,
+      unread: unread ?? this.unread,
+    );
+  }
+}
+
 const _tickets = [
   LotteryTicket(
     province: 'Kiên Giang',
@@ -54,6 +94,51 @@ const _tickets = [
   ),
 ];
 
+const _notifications = [
+  AppNotification(
+    title: 'Kết quả xổ số TP. Hồ Chí Minh đã có',
+    description: 'Vé 123456 của bạn đã có kết quả. Nhấn để xem chi tiết.',
+    time: '2 phút trước',
+    icon: Icons.emoji_events_outlined,
+    iconColor: _red,
+    iconBackground: Color(0xFFFFF1F1),
+    unread: true,
+  ),
+  AppNotification(
+    title: 'Nhắc giờ mở thưởng',
+    description: 'Kỳ quay TP. Hồ Chí Minh sẽ bắt đầu lúc 16:15.',
+    time: '10 phút trước',
+    icon: Icons.alarm,
+    iconColor: _red,
+    iconBackground: Color(0xFFFFF1F1),
+    unread: true,
+  ),
+  AppNotification(
+    title: 'Đơn hàng đã thanh toán',
+    description: 'Đơn hàng DP24052400123 đã thanh toán thành công.',
+    time: 'Hôm nay, 09:30',
+    icon: Icons.receipt_long_outlined,
+    iconColor: Color(0xFF32A852),
+    iconBackground: Color(0xFFEFFAF2),
+  ),
+  AppNotification(
+    title: 'Ưu đãi mua vé',
+    description: 'Nhập mã MAYMAN để nhận ưu đãi.',
+    time: 'Hôm qua',
+    icon: Icons.card_giftcard_outlined,
+    iconColor: Color(0xFFFF8A00),
+    iconBackground: Color(0xFFFFF4E8),
+  ),
+  AppNotification(
+    title: 'Thanh toán thành công',
+    description: 'Giao dịch 300.000đ đã được thanh toán thành công.',
+    time: '23/05/2024, 14:20',
+    icon: Icons.account_balance_wallet_outlined,
+    iconColor: Color(0xFF2892FF),
+    iconBackground: Color(0xFFEDF5FF),
+  ),
+];
+
 class LotteryAppView extends StatefulWidget {
   const LotteryAppView({super.key});
 
@@ -65,6 +150,20 @@ class _LotteryAppViewState extends State<LotteryAppView> {
   int _index = 0;
 
   void _openTab(int index) => setState(() => _index = index);
+
+  void _openNotifications() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NotificationScreen(
+          currentIndex: _index,
+          onSelectTab: (index) {
+            Navigator.of(context).pop();
+            _openTab(index);
+          },
+        ),
+      ),
+    );
+  }
 
   void _openTicket(LotteryTicket ticket) {
     Navigator.of(context).push(
@@ -83,7 +182,11 @@ class _LotteryAppViewState extends State<LotteryAppView> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomeScreen(onTabSelected: _openTab, onOpenResults: () => _openTab(2)),
+      HomeScreen(
+        onTabSelected: _openTab,
+        onOpenResults: () => _openTab(2),
+        onOpenNotifications: _openNotifications,
+      ),
       TicketListScreen(
         onTicketTap: _openTicket,
         onOpenCart: () => _openTab(3),
@@ -146,11 +249,13 @@ class _LotteryAppViewState extends State<LotteryAppView> {
 class HomeScreen extends StatelessWidget {
   final ValueChanged<int> onTabSelected;
   final VoidCallback onOpenResults;
+  final VoidCallback onOpenNotifications;
 
   const HomeScreen({
     super.key,
     required this.onTabSelected,
     required this.onOpenResults,
+    required this.onOpenNotifications,
   });
 
   @override
@@ -166,7 +271,7 @@ class HomeScreen extends StatelessWidget {
               const Expanded(child: BrandText()),
               IconButton(
                 tooltip: 'Thông báo',
-                onPressed: () {},
+                onPressed: onOpenNotifications,
                 icon: const Icon(Icons.notifications_none),
               ),
             ],
@@ -703,6 +808,418 @@ class AccountScreen extends StatelessWidget {
           'Tài khoản',
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
         ),
+      ),
+    );
+  }
+}
+
+class NotificationScreen extends StatefulWidget {
+  final int currentIndex;
+  final ValueChanged<int> onSelectTab;
+
+  const NotificationScreen({
+    super.key,
+    required this.currentIndex,
+    required this.onSelectTab,
+  });
+
+  @override
+  State<NotificationScreen> createState() => _NotificationScreenState();
+}
+
+class _NotificationScreenState extends State<NotificationScreen> {
+  late List<AppNotification> _items;
+  bool _selectionMode = false;
+  final Set<int> _selectedIndexes = <int>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _items = List<AppNotification>.from(_notifications);
+  }
+
+  void _markAllAsRead() {
+    setState(() {
+      _items = [for (final item in _items) item.copyWith(unread: false)];
+      _selectionMode = false;
+      _selectedIndexes.clear();
+    });
+  }
+
+  void _handleDeleteAction() {
+    if (!_selectionMode) {
+      setState(() {
+        _selectionMode = true;
+      });
+      return;
+    }
+
+    if (_selectedIndexes.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _items = [
+        for (var i = 0; i < _items.length; i++)
+          if (!_selectedIndexes.contains(i)) _items[i],
+      ];
+      _selectionMode = false;
+      _selectedIndexes.clear();
+    });
+  }
+
+  void _toggleSelection(int index) {
+    if (!_selectionMode) {
+      return;
+    }
+
+    setState(() {
+      if (_selectedIndexes.contains(index)) {
+        _selectedIndexes.remove(index);
+      } else {
+        _selectedIndexes.add(index);
+      }
+    });
+  }
+
+  void _deleteSingle(int index) {
+    setState(() {
+      _items.removeAt(index);
+      _selectedIndexes
+        ..remove(index)
+        ..removeWhere((value) => value >= _items.length);
+    });
+  }
+
+  void _markRead(int index) {
+    setState(() {
+      _items[index] = _items[index].copyWith(unread: false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F6F7),
+      appBar: AppBar(
+        title: const Text('Thông báo'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: [
+          IconButton(
+            onPressed: _markAllAsRead,
+            icon: const Icon(Icons.notifications_none),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _TopActionButton(
+                    icon: Icons.mark_email_read_outlined,
+                    label: 'Đọc tất cả',
+                    onPressed: _markAllAsRead,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _TopActionButton(
+                    icon: Icons.delete_outline,
+                    label: _selectionMode ? 'Xóa đã chọn' : 'Chọn để xóa',
+                    filled: true,
+                    onPressed: _handleDeleteAction,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              itemCount: _items.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final item = _items[index];
+                final selected = _selectedIndexes.contains(index);
+                return _NotificationCard(
+                  item: item,
+                  showCheckbox: _selectionMode,
+                  selected: selected,
+                  onTapCheckbox: () => _toggleSelection(index),
+                  onTapDelete: () => _deleteSingle(index),
+                  onTapMarkRead: () => _markRead(index),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 10,
+        height: 70,
+        selectedIndex: widget.currentIndex,
+        onDestinationSelected: widget.onSelectTab,
+        indicatorColor: _softRed,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home, color: _red),
+            label: 'Trang chủ',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.storefront_outlined),
+            selectedIcon: Icon(Icons.storefront, color: _red),
+            label: 'Mua vé số',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.confirmation_number_outlined),
+            selectedIcon: Icon(Icons.confirmation_number, color: _red),
+            label: 'Dò vé',
+          ),
+          NavigationDestination(
+            icon: Badge(
+              label: Text('4'),
+              child: Icon(Icons.shopping_cart_outlined),
+            ),
+            selectedIcon: Badge(
+              label: Text('4'),
+              child: Icon(Icons.shopping_cart, color: _red),
+            ),
+            label: 'Giỏ hàng',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person, color: _red),
+            label: 'Tài khoản',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  final bool filled;
+
+  const _TopActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.filled = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: filled
+          ? FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: _red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: onPressed,
+              icon: Icon(icon, size: 18),
+              label: Text(label),
+            )
+          : OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _red,
+                side: const BorderSide(color: _red),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: onPressed,
+              icon: Icon(icon, size: 18),
+              label: Text(label),
+            ),
+    );
+  }
+}
+
+class _NotificationCard extends StatelessWidget {
+  final AppNotification item;
+  final bool showCheckbox;
+  final bool selected;
+  final VoidCallback onTapCheckbox;
+  final VoidCallback onTapDelete;
+  final VoidCallback onTapMarkRead;
+
+  const _NotificationCard({
+    required this.item,
+    required this.showCheckbox,
+    required this.selected,
+    required this.onTapCheckbox,
+    required this.onTapDelete,
+    required this.onTapMarkRead,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF0E8E8)),
+        boxShadow: _shadow,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 4,
+            height: 110,
+            decoration: BoxDecoration(
+              color: item.unread ? _red : Colors.transparent,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                bottomLeft: Radius.circular(18),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (showCheckbox) ...[
+                    GestureDetector(
+                      onTap: onTapCheckbox,
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        margin: const EdgeInsets.only(top: 8, right: 10),
+                        decoration: BoxDecoration(
+                          color: selected ? _red : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: selected ? _red : const Color(0xFFC9C9C9),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: selected
+                            ? const Icon(
+                                Icons.check,
+                                color: Colors.white,
+                                size: 15,
+                              )
+                            : null,
+                      ),
+                    ),
+                  ],
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: item.iconBackground,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(item.icon, color: item.iconColor, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.title,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: item.unread
+                                      ? FontWeight.w900
+                                      : FontWeight.w800,
+                                  color: item.unread
+                                      ? _ink
+                                      : const Color(0xFF3B3B3B),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            if (item.unread)
+                              Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.only(top: 5),
+                                decoration: const BoxDecoration(
+                                  color: _red,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.description,
+                          style: const TextStyle(
+                            color: Color(0xFF555555),
+                            fontSize: 13,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          item.time,
+                          style: const TextStyle(
+                            color: Color(0xFF8F8F8F),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    icon: Icon(
+                      Icons.more_vert,
+                      color: item.unread ? _ink : const Color(0xFFAAAAAA),
+                    ),
+                    onSelected: (value) {
+                      if (value == 'read') {
+                        onTapMarkRead();
+                      }
+                      if (value == 'delete') {
+                        onTapDelete();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      if (item.unread)
+                        const PopupMenuItem<String>(
+                          value: 'read',
+                          child: Text('Đánh dấu đã đọc'),
+                        ),
+                      const PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Text('Xóa thông báo'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
