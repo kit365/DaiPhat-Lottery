@@ -237,7 +237,7 @@ export const BlogListPage = () => {
                             </Link>
                           )}
                           <h3 className="text-[18px] font-bold text-[#212B36] leading-[1.4] mb-2">
-                            <Link to={`/blogs/detail/${post.id}`} className="hover:text-[#ee1314] transition-colors">{post.title}</Link>
+                            <Link to={`/blogs/detail/${post.slug}`} className="hover:text-[#ee1314] transition-colors">{post.title}</Link>
                           </h3>
                           <p className="text-[14px] text-[#637381] leading-relaxed mb-4 line-clamp-2">
                             {post.summary}
@@ -245,7 +245,7 @@ export const BlogListPage = () => {
                           <div className="flex items-center gap-5 text-[13px] text-[#919EAB] mt-auto">
                             <span className="flex items-center gap-1.5"><i className="fa-regular fa-calendar"></i> {formatDate(post.publishedAt)}</span>
                             <span className="flex items-center gap-1.5"><i className="fa-regular fa-eye"></i> {formatViews(post.viewCount)}</span>
-                            <Link to={`/blogs/detail/${post.id}`} className="ml-auto text-[#ee1314] font-semibold hover:underline">Đọc tiếp <i className="fa-solid fa-arrow-right text-[12px] ml-1"></i></Link>
+                            <Link to={`/blogs/detail/${post.slug}`} className="ml-auto text-[#ee1314] font-semibold hover:underline">Đọc tiếp <i className="fa-solid fa-arrow-right text-[12px] ml-1"></i></Link>
                           </div>
                         </div>
                       </div>
