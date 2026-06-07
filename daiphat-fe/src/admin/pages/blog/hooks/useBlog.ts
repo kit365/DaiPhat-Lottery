@@ -114,7 +114,7 @@ export const useBlogDetail = (id?: string | number) => {
                     content:     data.content   || '',
                     avatar:      data.thumbnail || '',
                     status:      (data.status || BLOG_STATUS.DRAFT).toLowerCase(),
-                    type:        data.type  || '',
+                    type:        (data.type  || '').toLowerCase(),
                     slug:        data.slug  || '',
                     scheduledAt: toDateTimeLocalValue(
                         data.scheduledAt || (data.status === BLOG_STATUS.SCHEDULED ? data.publishedAt : null) || null
