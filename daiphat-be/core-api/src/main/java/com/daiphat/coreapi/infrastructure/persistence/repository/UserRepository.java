@@ -38,6 +38,9 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID>, JpaSpec
     @EntityGraph(attributePaths = {"role", "role.permissions"})
     List<UserEntity> findAll();
 
+    @EntityGraph(attributePaths = {"role", "role.permissions"})
+    List<UserEntity> findAllByRole_CodeIn(List<String> roleCodes);
+
     @Override
     @EntityGraph(attributePaths = {"role", "role.permissions"})
     Page<UserEntity> findAll(Specification<UserEntity> spec, Pageable pageable);

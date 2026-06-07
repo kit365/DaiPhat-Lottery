@@ -22,12 +22,17 @@ import {
     useNotifications,
     useMarkAsRead,
     useMarkAllAsRead,
-    useArchiveAllNotifications,
 } from "../../hooks/useNotification";
 import { useStaffTasks, useUpdateTicketServiceOrderStatus } from "../../pages/ticket-service-order/hooks/useTicketServiceOrderManagement";
 import { confirmAction } from "../../utils/swal";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { ROUTES, prefixAdmin } from "../../constants/routes";
+import { ROUTES } from "../../constants/routes";
+import {
+    getAdminNotificationAccentColor,
+    getAdminNotificationCategoryLabel,
+    getAdminNotificationIcon,
+    getAdminNotificationPath
+} from "../../utils/notification.util";
 import { toast } from "react-toastify";
 import { Card, Avatar } from "@mui/material"; // Removed duplicate Tooltip here
 import dayjs from "dayjs";
@@ -62,7 +67,6 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
     const { data: res } = useNotifications();
     const { mutate: markAsRead } = useMarkAsRead();
     const { mutate: markAllAsRead } = useMarkAllAsRead();
-    const { mutate: archiveAllNotifications } = useArchiveAllNotifications();
 
     const allNotifications = res?.data || [];
     // Only show non-archived notifications in All/Unread
@@ -81,6 +85,12 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
     const handleClickItem = (item: any) => {
         if (item.status === 'unread') {
             markAsRead(item._id);
+        }
+        const path = getAdminNotificationPath(item);
+        if (path) {
+            navigate(path);
+            handleClose();
+            return;
         }
         // Ưu tiên navigate theo ticketServiceOrderId trong metadata
         if (item.metadata?.ticketServiceOrderId) {
@@ -442,15 +452,9 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
                                             }}
                                         >
                                             <Icon
-                                                icon={
-                                                    item.type === 'overrun' ? "solar:danger-bold-duotone" :
-                                                        item.type === 'ticketServiceOrder' ? "solar:calendar-mark-bold-duotone" :
-                                                            item.type === 'boarding' ? "solar:home-bold-duotone" :
-                                                                "solar:bell-bold-duotone"
-                                                }
+                                                icon={getAdminNotificationIcon(item)}
                                                 width={24}
-                                                color={item.type === 'overrun' ? "#FF5630" :
-                                                    item.type === 'boarding' ? "#FFAB00" : "#00B8D9"}
+                                                color={getAdminNotificationAccentColor(item)}
                                             />
                                         </Box>
                                     </ListItemAvatar>
@@ -478,10 +482,7 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
                                                 </Typography>
                                                 <Box sx={{ width: 2, height: 2, borderRadius: '50%', bgcolor: 'text.disabled' }} />
                                                 <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                                                    {item.type === 'order' ? 'Đơn hàng' :
-                                                        item.type === 'ticketServiceOrder' ? 'Dịch vụ' :
-                                                            item.type === 'boarding' ? 'Khách sạn' :
-                                                                item.type === 'overrun' ? 'Hệ thống' : 'Thông báo'}
+                                                    {getAdminNotificationCategoryLabel(item)}
                                                 </Typography>
                                             </Stack>
                                         }
