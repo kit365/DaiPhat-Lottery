@@ -7,6 +7,7 @@ import { QUERY_KEYS } from "../../constants/queryKeys";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 5;
+const ADMIN_NOTIFICATION_REFETCH_INTERVAL_MS = 30_000;
 
 export const useNotifications = (params?: api.GetNotificationsParams) => {
     const limit = params?.limit ?? DEFAULT_LIMIT;
@@ -15,6 +16,9 @@ export const useNotifications = (params?: api.GetNotificationsParams) => {
         queryKey: [QUERY_KEYS.ADMIN_NOTIFICATIONS, limit],
         queryFn: ({ pageParam = DEFAULT_PAGE }) => api.getNotifications({ ...params, page: pageParam, limit }),
         initialPageParam: DEFAULT_PAGE,
+        refetchInterval: ADMIN_NOTIFICATION_REFETCH_INTERVAL_MS,
+        refetchIntervalInBackground: false,
+        refetchOnWindowFocus: true,
         getNextPageParam: (lastPage) => {
             if (lastPage.pagination?.isLast) {
                 return undefined;
