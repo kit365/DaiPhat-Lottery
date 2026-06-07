@@ -29,11 +29,20 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import 'dayjs/locale/vi';
 import { Title } from "../../components/ui/Title";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
+import { useNavigate } from "react-router-dom";
+import {
+    getAdminNotificationAccentBackground,
+    getAdminNotificationAccentColor,
+    getAdminNotificationCategoryLabel,
+    getAdminNotificationIcon,
+    getAdminNotificationPath
+} from "../../utils/notification.util";
 
 dayjs.extend(relativeTime);
 dayjs.locale('vi');
 
 export const NotificationListPage = () => {
+    const navigate = useNavigate();
     const [tab, setTab] = useState("all");
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -219,9 +228,20 @@ export const NotificationListPage = () => {
                         }}
                     >
                     <List disablePadding>
-                        {displayNotifications.map((item: any) => (
+                        {displayNotifications.map((item: any) => {
+                            const path = getAdminNotificationPath(item);
+
+                            return (
                             <ListItem
                                 key={item._id}
+                                onClick={() => {
+                                    if (item.status === 'unread') {
+                                        markAsRead(item._id);
+                                    }
+                                    if (path) {
+                                        navigate(path);
+                                    }
+                                }}
                                 sx={{
                                     py: 2.5,
                                     px: 3,
@@ -229,6 +249,7 @@ export const NotificationListPage = () => {
                                     bgcolor: item.status === 'unread' ? 'rgba(0, 184, 217, 0.04)' : 'transparent',
                                     opacity: item.status === 'read' ? 0.65 : 1,
                                     transition: 'background-color 0.2s',
+                                    cursor: path || item.status === 'unread' ? 'pointer' : 'default',
                                     '&:hover': {
                                         bgcolor: 'rgba(145, 158, 171, 0.08)',
                                         '& .item-actions': { opacity: 1 }
@@ -236,22 +257,17 @@ export const NotificationListPage = () => {
                                 }}
                             >
                                 <ListItemAvatar sx={{ mr: 2 }}>
-                                    <Avatar
+                                        <Avatar
                                         sx={{
                                             width: 48,
                                             height: 48,
-                                            bgcolor: item.type === 'overrun' ? 'rgba(255, 86, 48, 0.12)' :
-                                                item.type === 'ticketServiceOrder' ? 'rgba(0, 184, 217, 0.12)' : 'rgba(145, 158, 171, 0.12)'
+                                            bgcolor: getAdminNotificationAccentBackground(item)
                                         }}
                                     >
                                         <Icon
-                                            icon={
-                                                item.type === 'overrun' ? "solar:danger-bold-duotone" :
-                                                    item.type === 'ticketServiceOrder' ? "solar:calendar-mark-bold-duotone" :
-                                                        "solar:bell-bold-duotone"
-                                            }
+                                            icon={getAdminNotificationIcon(item)}
                                             width={24}
-                                            color={item.type === 'overrun' ? "#FF5630" : "#00B8D9"}
+                                            color={getAdminNotificationAccentColor(item)}
                                         />
                                     </Avatar>
                                 </ListItemAvatar>
@@ -273,10 +289,7 @@ export const NotificationListPage = () => {
                                                 </Stack>
                                                 <Box component="span" sx={{ color: 'text.disabled', fontSize: '10px' }}>•</Box>
                                                 <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                                                    {item.type === 'order' ? 'Đơn hàng' :
-                                                        item.type === 'ticketServiceOrder' ? 'Dịch vụ' :
-                                                            item.type === 'boarding' ? 'Đặt phòng' :
-                                                                item.type === 'overrun' ? 'Hệ thống' : 'Thông báo'}
+                                                    {getAdminNotificationCategoryLabel(item)}
                                                 </Typography>
                                             </Stack>
                                         </Box>
@@ -285,7 +298,7 @@ export const NotificationListPage = () => {
                                 <Stack direction="row" spacing={1} className="item-actions" sx={{ opacity: 0.4, transition: 'opacity 0.2s', ml: 2 }}>
                                     {item.status === 'unread' && (
                                         <Tooltip title="Đã đọc">
-                                            <IconButton size="small" sx={{ color: 'var(--palette-info-main)', bgcolor: 'rgba(0, 184, 217, 0.08)' }} onClick={() => markAsRead(item._id)}>
+                                            <IconButton size="small" sx={{ color: 'var(--palette-info-main)', bgcolor: 'rgba(0, 184, 217, 0.08)' }} onClick={(event) => { event.stopPropagation(); markAsRead(item._id); }}>
                                                 <Icon icon="eva:checkmark-fill" width={20} />
                                             </IconButton>
                                         </Tooltip>
@@ -296,7 +309,8 @@ export const NotificationListPage = () => {
                                             <IconButton
                                                 size="small"
                                                 sx={{ color: 'var(--palette-error-main)', bgcolor: 'rgba(255, 86, 48, 0.08)' }}
-                                                onClick={() => {
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
                                                     confirmAction("Xóa thông báo đã đọc?", "Thông báo này sẽ được xóa khỏi danh sách.", () => {
                                                         deleteNotification(item._id);
                                                     }, "warning");
@@ -308,7 +322,8 @@ export const NotificationListPage = () => {
                                     )}
                                 </Stack>
                             </ListItem>
-                        ))}
+                            );
+                        })}
                         {hasNextPage && (
                             <Box
                                 ref={loadMoreRef}

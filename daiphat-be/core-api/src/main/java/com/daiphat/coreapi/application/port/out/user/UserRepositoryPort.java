@@ -20,6 +20,8 @@ public interface UserRepositoryPort {
 
     List<UserModel> findAll();
 
+    List<UserModel> findAllByRoleCodes(List<String> roleCodes);
+
     UserModel save(UserModel user);
 
     boolean existsByUsername(String username);
