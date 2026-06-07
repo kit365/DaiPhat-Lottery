@@ -11,12 +11,22 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Repository
 public interface BlogPostRepository extends JpaRepository<BlogPostEntity, Long>,
         JpaSpecificationExecutor<BlogPostEntity> {
     boolean existsBySlug(String slug);
     boolean existsBySlugAndIdNot(String slug, Long id);
+    Optional<BlogPostEntity> findBySlugAndStatusAndIsDeletedFalse(String slug, PostStatus status);
+    Page<BlogPostEntity> findByCategoryIdAndStatusAndIsDeletedFalseAndIdNot(
+            Long categoryId,
+            PostStatus status,
+            Long excludedPostId,
+            Pageable pageable
+    );
 
 
     @Modifying
