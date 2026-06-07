@@ -103,7 +103,7 @@ export const useAuth = () => {
             }
         },
         onError: (error: any) => {
-            const message = error.response?.data?.message || "";
+            const message = error.response?.data?.message || "Tên đăng nhập hoặc mật khẩu không đúng.";
             const isUnverifiedEmail =
                 message.includes("Email chưa được xác thực") ||
                 message.includes("Tài khoản chưa được kích hoạt");
@@ -112,6 +112,7 @@ export const useAuth = () => {
                 setPendingVerificationIdentifier(loginForm.getValues("username"));
             } else {
                 setPendingVerificationIdentifier(null);
+                AppToast.error(message);
             }
         }
     });

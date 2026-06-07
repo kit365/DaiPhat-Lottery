@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.storage;
+package com.daiphat.coreapi.infrastructure.persistence.adapter.storage;
 
 import com.daiphat.coreapi.application.port.out.file.RemoteFilePort;
 import com.daiphat.coreapi.domain.exception.DomainException;

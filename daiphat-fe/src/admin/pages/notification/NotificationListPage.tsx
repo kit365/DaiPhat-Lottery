@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Box,
     Card,
@@ -19,39 +19,80 @@ import { Icon } from "@iconify/react";
 import {
     useNotifications,
     useMarkAsRead,
-    useArchiveNotification,
     useDeleteNotification,
     useMarkAllAsRead,
-    useArchiveAllNotifications
+    useDeleteAllNotifications
 } from "../../hooks/useNotification";
+import { confirmAction } from "../../utils/swal";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import 'dayjs/locale/vi';
 import { Title } from "../../components/ui/Title";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
+import { useNavigate } from "react-router-dom";
+import {
+    getAdminNotificationAccentBackground,
+    getAdminNotificationAccentColor,
+    getAdminNotificationCategoryLabel,
+    getAdminNotificationIcon,
+    getAdminNotificationPath
+} from "../../utils/notification.util";
 
 dayjs.extend(relativeTime);
 dayjs.locale('vi');
 
 export const NotificationListPage = () => {
+    const navigate = useNavigate();
     const [tab, setTab] = useState("all");
-    const { data: res, isLoading } = useNotifications();
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+    const loadMoreRef = useRef<HTMLDivElement | null>(null);
+    const {
+        notifications,
+        totalCount,
+        unreadCount,
+        isLoading,
+        isFetchingNextPage,
+        hasNextPage,
+        fetchNextPage,
+    } = useNotifications({ limit: 5 });
     const { mutate: markAsRead } = useMarkAsRead();
-    const { mutate: archiveNotification } = useArchiveNotification();
     const { mutate: deleteNotification } = useDeleteNotification();
     const { mutate: markAllAsRead } = useMarkAllAsRead();
-    const { mutate: archiveAllNotifications } = useArchiveAllNotifications();
+    const { mutate: deleteAllNotifications } = useDeleteAllNotifications();
 
-    const notifications = res?.data || [];
+    const unreadNotifications = useMemo(
+        () => notifications.filter((n: any) => n.status === 'unread'),
+        [notifications]
+    );
+    const displayNotifications = tab === "unread" ? unreadNotifications : notifications;
 
-    const activeNotifications = notifications.filter((n: any) => n.status !== 'archived');
-    const unreadNotifications = notifications.filter((n: any) => n.status === 'unread');
-    const archivedNotifications = notifications.filter((n: any) => n.status === 'archived');
+    useEffect(() => {
+        const root = scrollContainerRef.current;
+        const target = loadMoreRef.current;
 
-    let displayNotifications = [];
-    if (tab === "all") displayNotifications = activeNotifications;
-    else if (tab === "unread") displayNotifications = unreadNotifications;
-    else displayNotifications = archivedNotifications;
+        if (!root || !target || !hasNextPage) {
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const [entry] = entries;
+
+                if (entry?.isIntersecting && !isFetchingNextPage) {
+                    fetchNextPage();
+                }
+            },
+            {
+                root,
+                rootMargin: '160px 0px',
+                threshold: 0.1,
+            }
+        );
+
+        observer.observe(target);
+
+        return () => observer.disconnect();
+    }, [fetchNextPage, hasNextPage, isFetchingNextPage, tab, displayNotifications.length]);
 
     return (
         <>
@@ -67,6 +108,31 @@ export const NotificationListPage = () => {
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
+                    <Button
+                        onClick={() => {
+                            confirmAction("Xóa tất cả thông báo đã đọc?", "Hành động này sẽ xóa các thông báo đã đọc khỏi danh sách.", () => {
+                                deleteAllNotifications();
+                            }, "warning");
+                        }}
+                        sx={{
+                            background: 'rgba(255, 86, 48, 0.12)',
+                            color: 'var(--palette-error-main)',
+                            minHeight: "2.25rem",
+                            fontWeight: 700,
+                            fontSize: "0.875rem",
+                            px: 2,
+                            borderRadius: "var(--shape-borderRadius)",
+                            textTransform: "none",
+                            boxShadow: "none",
+                            "&:hover": {
+                                background: 'rgba(255, 86, 48, 0.24)',
+                            }
+                        }}
+                        variant="contained"
+                        startIcon={<Icon icon="solar:trash-bin-trash-bold" />}
+                    >
+                        Xóa đã đọc
+                    </Button>
                     <Button
                         onClick={() => markAllAsRead()}
                         sx={{
@@ -87,27 +153,6 @@ export const NotificationListPage = () => {
                         startIcon={<Icon icon="eva:done-all-fill" />}
                     >
                         Đánh dấu đã đọc tất cả
-                    </Button>
-                    <Button
-                        onClick={() => archiveAllNotifications()}
-                        sx={{
-                            background: 'rgba(255, 171, 0, 0.16)',
-                            color: 'var(--palette-warning-main)',
-                            minHeight: "2.25rem",
-                            fontWeight: 700,
-                            fontSize: "0.875rem",
-                            px: 2,
-                            borderRadius: "var(--shape-borderRadius)",
-                            textTransform: "none",
-                            boxShadow: "none",
-                            "&:hover": {
-                                background: 'rgba(255, 171, 0, 0.24)',
-                            }
-                        }}
-                        variant="contained"
-                        startIcon={<Icon icon="solar:archive-bold-duotone" />}
-                    >
-                        Lưu trữ tất cả
                     </Button>
                 </div>
             </div>
@@ -138,7 +183,7 @@ export const NotificationListPage = () => {
                                     color: tab === 'all' ? 'white' : '#637381',
                                     px: 1, py: 0.2, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700
                                 }}>
-                                    {activeNotifications.length}
+                                    {totalCount}
                                 </Box>
                             </Stack>
                         }
@@ -155,30 +200,14 @@ export const NotificationListPage = () => {
                                     color: tab === 'unread' ? 'white' : '#006C9C',
                                     px: 1, py: 0.2, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700
                                 }}>
-                                    {unreadNotifications.length}
+                                    {unreadCount}
                                 </Box>
                             </Stack>
                         }
                         value="unread"
                         sx={{ textTransform: 'none', minHeight: 48, minWidth: 100 }}
                     />
-                    <Tab
-                        disableRipple
-                        label={
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Lưu trữ</Typography>
-                                <Box sx={{
-                                    bgcolor: tab === 'archived' ? '#22C55E' : 'rgba(34, 197, 94, 0.16)',
-                                    color: tab === 'archived' ? 'white' : '#118D57',
-                                    px: 1, py: 0.2, borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700
-                                }}>
-                                    {archivedNotifications.length}
-                                </Box>
-                            </Stack>
-                        }
-                        value="archived"
-                        sx={{ textTransform: 'none', minHeight: 48, minWidth: 100 }}
-                    />
+
                 </Tabs>
 
                 {isLoading ? (
@@ -191,16 +220,36 @@ export const NotificationListPage = () => {
                         <Typography variant="body2" color="text.disabled">Không có thông báo nào</Typography>
                     </Box>
                 ) : (
+                    <Box
+                        ref={scrollContainerRef}
+                        sx={{
+                            maxHeight: '680px',
+                            overflowY: 'auto',
+                        }}
+                    >
                     <List disablePadding>
-                        {displayNotifications.map((item: any) => (
+                        {displayNotifications.map((item: any) => {
+                            const path = getAdminNotificationPath(item);
+
+                            return (
                             <ListItem
                                 key={item._id}
+                                onClick={() => {
+                                    if (item.status === 'unread') {
+                                        markAsRead(item._id);
+                                    }
+                                    if (path) {
+                                        navigate(path);
+                                    }
+                                }}
                                 sx={{
                                     py: 2.5,
                                     px: 3,
                                     borderBottom: (theme) => `solid 1px ${theme.palette.divider}`,
                                     bgcolor: item.status === 'unread' ? 'rgba(0, 184, 217, 0.04)' : 'transparent',
+                                    opacity: item.status === 'read' ? 0.65 : 1,
                                     transition: 'background-color 0.2s',
+                                    cursor: path || item.status === 'unread' ? 'pointer' : 'default',
                                     '&:hover': {
                                         bgcolor: 'rgba(145, 158, 171, 0.08)',
                                         '& .item-actions': { opacity: 1 }
@@ -208,22 +257,17 @@ export const NotificationListPage = () => {
                                 }}
                             >
                                 <ListItemAvatar sx={{ mr: 2 }}>
-                                    <Avatar
+                                        <Avatar
                                         sx={{
                                             width: 48,
                                             height: 48,
-                                            bgcolor: item.type === 'overrun' ? 'rgba(255, 86, 48, 0.12)' :
-                                                item.type === 'ticketServiceOrder' ? 'rgba(0, 184, 217, 0.12)' : 'rgba(145, 158, 171, 0.12)'
+                                            bgcolor: getAdminNotificationAccentBackground(item)
                                         }}
                                     >
                                         <Icon
-                                            icon={
-                                                item.type === 'overrun' ? "solar:danger-bold-duotone" :
-                                                    item.type === 'ticketServiceOrder' ? "solar:calendar-mark-bold-duotone" :
-                                                        "solar:bell-bold-duotone"
-                                            }
+                                            icon={getAdminNotificationIcon(item)}
                                             width={24}
-                                            color={item.type === 'overrun' ? "#FF5630" : "#00B8D9"}
+                                            color={getAdminNotificationAccentColor(item)}
                                         />
                                     </Avatar>
                                 </ListItemAvatar>
@@ -245,10 +289,7 @@ export const NotificationListPage = () => {
                                                 </Stack>
                                                 <Box component="span" sx={{ color: 'text.disabled', fontSize: '10px' }}>•</Box>
                                                 <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                                                    {item.type === 'order' ? 'Đơn hàng' :
-                                                        item.type === 'ticketServiceOrder' ? 'Dịch vụ' :
-                                                            item.type === 'boarding' ? 'Đặt phòng' :
-                                                                item.type === 'overrun' ? 'Hệ thống' : 'Thông báo'}
+                                                    {getAdminNotificationCategoryLabel(item)}
                                                 </Typography>
                                             </Stack>
                                         </Box>
@@ -257,27 +298,54 @@ export const NotificationListPage = () => {
                                 <Stack direction="row" spacing={1} className="item-actions" sx={{ opacity: 0.4, transition: 'opacity 0.2s', ml: 2 }}>
                                     {item.status === 'unread' && (
                                         <Tooltip title="Đã đọc">
-                                            <IconButton size="small" sx={{ color: 'var(--palette-info-main)', bgcolor: 'rgba(0, 184, 217, 0.08)' }} onClick={() => markAsRead(item._id)}>
+                                            <IconButton size="small" sx={{ color: 'var(--palette-info-main)', bgcolor: 'rgba(0, 184, 217, 0.08)' }} onClick={(event) => { event.stopPropagation(); markAsRead(item._id); }}>
                                                 <Icon icon="eva:checkmark-fill" width={20} />
                                             </IconButton>
                                         </Tooltip>
                                     )}
-                                    {item.status !== 'archived' && (
-                                        <Tooltip title="Lưu trữ">
-                                            <IconButton size="small" sx={{ color: 'var(--palette-warning-main)', bgcolor: 'rgba(255, 171, 0, 0.08)' }} onClick={() => archiveNotification(item._id)}>
-                                                <Icon icon="solar:archive-bold-duotone" width={20} />
+
+                                    {item.status === 'read' && (
+                                        <Tooltip title="Xóa">
+                                            <IconButton
+                                                size="small"
+                                                sx={{ color: 'var(--palette-error-main)', bgcolor: 'rgba(255, 86, 48, 0.08)' }}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    confirmAction("Xóa thông báo đã đọc?", "Thông báo này sẽ được xóa khỏi danh sách.", () => {
+                                                        deleteNotification(item._id);
+                                                    }, "warning");
+                                                }}
+                                            >
+                                                <Icon icon="solar:trash-bin-trash-bold" width={20} />
                                             </IconButton>
                                         </Tooltip>
                                     )}
-                                    <Tooltip title="Xóa">
-                                        <IconButton size="small" sx={{ color: 'var(--palette-error-main)', bgcolor: 'rgba(255, 86, 48, 0.08)' }} onClick={() => deleteNotification(item._id)}>
-                                            <Icon icon="solar:trash-bin-trash-bold" width={20} />
-                                        </IconButton>
-                                    </Tooltip>
                                 </Stack>
                             </ListItem>
-                        ))}
+                            );
+                        })}
+                        {hasNextPage && (
+                            <Box
+                                ref={loadMoreRef}
+                                sx={{
+                                    py: 2,
+                                    textAlign: 'center',
+                                    color: 'text.secondary',
+                                    fontSize: '0.875rem',
+                                }}
+                            >
+                                Cuộn xuống để xem các thông báo trước đó
+                            </Box>
+                        )}
+                        {isFetchingNextPage && (
+                            <Box sx={{ py: 2, textAlign: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    Đang tải thêm thông báo...
+                                </Typography>
+                            </Box>
+                        )}
                     </List>
+                    </Box>
                 )}
             </Card>
         </>

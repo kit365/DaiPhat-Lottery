@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.request.auth.GoogleLoginRequest;
 import com.daiphat.coreapi.application.dto.request.auth.LoginRequest;
 import com.daiphat.coreapi.application.dto.request.auth.RefreshTokenRequest;
 import com.daiphat.coreapi.application.dto.response.auth.AuthResponse;
+import com.daiphat.coreapi.application.event.UserWelcomeEvent;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.port.out.file.RemoteFilePort;
@@ -46,7 +47,8 @@ class LoginServiceTest extends AuthTestBase {
                 remoteFilePort,
                 tokenProviderPort,
                 refreshTokenStorePort,
-                authApplicationMapper
+                authApplicationMapper,
+                eventPublisher
         );
     }
 
@@ -235,6 +237,37 @@ class LoginServiceTest extends AuthTestBase {
         assertThat(userCaptor.getValue().getEmail()).isEqualTo(googleUser.email());
         assertThat(userCaptor.getValue().isEmailVerified()).isTrue();
         assertThat(userCaptor.getValue().getImagePublicId()).isEqualTo("profiles/google");
+        verify(eventPublisher).publishEvent(any(UserWelcomeEvent.class));
+        verify(refreshTokenStorePort).save(DEFAULT_USER_ID, REFRESH_TOKEN, Duration.ofSeconds(604800));
+    }
+
+    @Test
+    @DisplayName("GOOGLE-LOGIN: Không gửi lại thông báo chào mừng nếu user Google đã active và verified")
+    void loginWithGoogle_existingVerifiedUser_doesNotPublishWelcomeEvent() {
+        GoogleLoginRequest request = new GoogleLoginRequest("code", null, null, "http://localhost/callback", null);
+        OAuthUserInfo googleUser = new OAuthUserInfo(
+                UUID.randomUUID(),
+                "google-user",
+                DEFAULT_EMAIL,
+                "Kiet",
+                "Ngo",
+                null,
+                "google"
+        );
+        UserModel existingUser = activeUser();
+
+        when(googleOAuthPort.verify(request)).thenReturn(googleUser);
+        when(userRepositoryPort.findByEmail(googleUser.email())).thenReturn(Optional.of(existingUser));
+        when(userRepositoryPort.save(existingUser)).thenReturn(existingUser);
+        when(tokenProviderPort.generateAccessToken(existingUser)).thenReturn(ACCESS_TOKEN);
+        when(tokenProviderPort.generateRefreshToken(existingUser)).thenReturn(REFRESH_TOKEN);
+        when(tokenProviderPort.getAccessTokenTtlSeconds()).thenReturn(3600L);
+        when(tokenProviderPort.getRefreshTokenTtlSeconds()).thenReturn(604800L);
+        when(authApplicationMapper.toResponse(any(AuthToken.class))).thenReturn(AuthResponse.builder().accessToken(ACCESS_TOKEN).build());
+
+        loginService.loginWithGoogle(request);
+
+        verify(eventPublisher, never()).publishEvent(any(UserWelcomeEvent.class));
         verify(refreshTokenStorePort).save(DEFAULT_USER_ID, REFRESH_TOKEN, Duration.ofSeconds(604800));
     }
 
