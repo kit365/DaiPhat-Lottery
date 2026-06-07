@@ -246,6 +246,155 @@ class PasswordResetServiceTest extends AuthTestBase {
     }
 
 
+    @Test
+    @DisplayName("TC-FGT-007-ALT: Đổi mật khẩu thất bại - Token không ở trạng thái VERIFIED")
+    void resetPassword_statusNotVerified_throws() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .resetToken(RESET_TOKEN)
+                .newPassword("Newpass1")
+                .confirmPassword("Newpass1")
+                .build();
+        ResetTokenData data = ResetTokenData.builder()
+                .email(DEFAULT_EMAIL)
+                .status(PasswordResetStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .build();
+        when(passwordResetCachePort.getResetTokenData(RESET_TOKEN)).thenReturn(Optional.of(data));
+
+        assertThatThrownBy(() -> passwordResetService.resetPassword(request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.RESET_TOKEN_INVALID);
+    }
+
+    @Test
+    @DisplayName("TC-FGT-007-ALT: Đổi mật khẩu thất bại - Mật khẩu chứa email")
+    void resetPassword_containsEmail_throws() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .resetToken(RESET_TOKEN)
+                .newPassword("pass_" + DEFAULT_EMAIL)
+                .confirmPassword("pass_" + DEFAULT_EMAIL)
+                .build();
+        when(passwordResetCachePort.getResetTokenData(RESET_TOKEN)).thenReturn(Optional.of(verifiedResetToken()));
+
+        assertThatThrownBy(() -> passwordResetService.resetPassword(request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PASSWORD_CONTAINS_EMAIL);
+    }
+
+    @Test
+    @DisplayName("TC-FGT-007-ALT: Đổi mật khẩu thất bại - User không tồn tại")
+    void resetPassword_userNotFound_throws() {
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .resetToken(RESET_TOKEN)
+                .newPassword("Newpass1")
+                .confirmPassword("Newpass1")
+                .build();
+        when(passwordResetCachePort.getResetTokenData(RESET_TOKEN)).thenReturn(Optional.of(verifiedResetToken()));
+        when(userRepositoryPort.findByEmail(DEFAULT_EMAIL)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> passwordResetService.resetPassword(request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.EMAIL_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("ADMIN: Xác nhận reset mật khẩu - Thất bại do quá số lần thử")
+    void confirmPasswordReset_maxAttempts_throws() {
+        UserModel user = activeUser();
+        when(userLookupService.findActiveByIdOrThrow(DEFAULT_USER_ID)).thenReturn(user);
+        when(otpCachePort.getOtpAttemptCount(DEFAULT_EMAIL)).thenReturn(3);
+
+        assertThatThrownBy(() -> passwordResetService.confirmPasswordReset(DEFAULT_USER_ID, DEFAULT_OTP))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.OTP_MAX_ATTEMPTS_EXCEEDED);
+
+        verify(otpCachePort).deleteOtp(DEFAULT_EMAIL);
+        verify(otpCachePort).resetOtpAttemptCount(DEFAULT_EMAIL);
+    }
+
+    @Test
+    @DisplayName("ADMIN: Xác nhận reset mật khẩu - Thất bại do sai OTP")
+    void confirmPasswordReset_wrongOtp_throws() {
+        UserModel user = activeUser();
+        when(userLookupService.findActiveByIdOrThrow(DEFAULT_USER_ID)).thenReturn(user);
+        when(otpCachePort.getOtpAttemptCount(DEFAULT_EMAIL)).thenReturn(0);
+        when(otpCachePort.getOtp(DEFAULT_EMAIL)).thenReturn(Optional.of(DEFAULT_OTP));
+
+        assertThatThrownBy(() -> passwordResetService.confirmPasswordReset(DEFAULT_USER_ID, "999999"))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.OTP_INVALID);
+
+        verify(otpCachePort).incrementOtpAttempt(DEFAULT_EMAIL, Duration.ofSeconds(300));
+    }
+
+    @Test
+    @DisplayName("USER: Đổi mật khẩu cá nhân thất bại - Mật khẩu mới null")
+    void changePassword_nullNewPassword_throws() {
+        UserModel user = activeUser();
+        when(userLookupService.findActiveByIdOrThrow(DEFAULT_USER_ID)).thenReturn(user);
+        ChangePasswordRequest request = ChangePasswordRequest.builder()
+                .currentPassword(DEFAULT_PASSWORD)
+                .newPassword(null)
+                .confirmPassword(null)
+                .build();
+
+        assertThatThrownBy(() -> passwordResetService.changePassword(DEFAULT_USER_ID, request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PASSWORD_CONFIRM_MISMATCH);
+    }
+
+    @Test
+    @DisplayName("USER: Đổi mật khẩu cá nhân thất bại - User chưa có mật khẩu local")
+    void changePassword_nullCurrentPassword_throws() {
+        UserModel user = activeUser();
+        user.setPassword(null);
+        when(userLookupService.findActiveByIdOrThrow(DEFAULT_USER_ID)).thenReturn(user);
+        ChangePasswordRequest request = ChangePasswordRequest.builder()
+                .currentPassword(DEFAULT_PASSWORD)
+                .newPassword("Newpass1")
+                .confirmPassword("Newpass1")
+                .build();
+
+        assertThatThrownBy(() -> passwordResetService.changePassword(DEFAULT_USER_ID, request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_CREDENTIALS);
+    }
+
+    @Test
+    @DisplayName("USER: Đổi mật khẩu cá nhân thất bại - Mật khẩu mới chứa username")
+    void changePassword_newPasswordContainsUsername_throws() {
+        UserModel user = activeUser();
+        when(userLookupService.findActiveByIdOrThrow(DEFAULT_USER_ID)).thenReturn(user);
+        when(passwordHashPort.matches(DEFAULT_PASSWORD, ENCODED_PASSWORD)).thenReturn(true);
+        ChangePasswordRequest request = ChangePasswordRequest.builder()
+                .currentPassword(DEFAULT_PASSWORD)
+                .newPassword("pass_" + DEFAULT_USERNAME)
+                .confirmPassword("pass_" + DEFAULT_USERNAME)
+                .build();
+
+        assertThatThrownBy(() -> passwordResetService.changePassword(DEFAULT_USER_ID, request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PASSWORD_CONTAINS_EMAIL);
+    }
+
+    @Test
+    @DisplayName("POLICY: Lấy thông tin Password Policy thành công")
+    void getPasswordPolicy_returnsExpectedPolicy() {
+        com.daiphat.coreapi.application.dto.response.auth.PasswordPolicyResponse policy = passwordResetService.getPasswordPolicy();
+        
+        assertThat(policy.getMinLength()).isEqualTo(6);
+        assertThat(policy.getMaxLength()).isEqualTo(100);
+        assertThat(policy.getRequirements()).hasSize(4);
+    }
+
     /* =========================================================================
      * COMMENTED OUT TESTS: Các tính năng cũ chưa có hoặc đã thay đổi trong Monolith
      * (Giữ lại làm tài liệu tham khảo cho tương lai)

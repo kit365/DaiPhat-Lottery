@@ -15,6 +15,8 @@ import java.util.List;
 public interface BlogPostServicePort {
     BlogPostResponse createPost(CreateBlogPostRequest request);
     BlogPostResponse getPostById(Long id);
+    BlogPostResponse getPublicPostBySlug(String slug);
+    List<BlogPostSummaryResponse> getRelatedPublicPosts(String slug, int limit);
     BlogPostResponse updatePost(Long id, UpdateBlogPostRequest request);
     StorageResult uploadImage(UploadRequest request, String folder);
     List<BlogPostTypeResponse> getBlogTypes();
