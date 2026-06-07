@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.service.blog;
 
 import com.daiphat.coreapi.application.dto.request.blog.CreateBlogPostRequest;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
+import com.daiphat.coreapi.application.event.BlogPostPublishedEvent;
 import com.daiphat.coreapi.application.mapper.blog.BlogPostApplicationMapper;
 import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
 import com.daiphat.coreapi.application.port.in.blog.BlogTagServicePort;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import com.daiphat.coreapi.application.dto.request.blog.UpdateBlogPostRequest;
 
 import java.time.LocalDateTime;
@@ -77,6 +79,9 @@ class BlogPostServiceTest {
     @Mock
     private BlogPostPublishQueuePort blogPostPublishQueuePort;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     @BeforeEach
     void setUp() {
         blogPostService = new BlogPostService(
@@ -86,7 +91,8 @@ class BlogPostServiceTest {
                 blogPostApplicationMapper,
                 storagePort,
                 blogViewCachePort,
-                blogPostPublishQueuePort
+                blogPostPublishQueuePort,
+                eventPublisher
         );
     }
 
@@ -152,6 +158,7 @@ class BlogPostServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.id()).isEqualTo(999L);
         assertThat(response.title()).isEqualTo(DEFAULT_TITLE);
+        verify(eventPublisher).publishEvent(any(BlogPostPublishedEvent.class));
         
         verify(blogPostRepositoryPort).save(argThat(model -> 
             DEFAULT_SLUG.equals(model.getSlug()) &&
@@ -389,6 +396,7 @@ class BlogPostServiceTest {
                         && post.getScheduledAt() == null
         ));
         verify(blogPostPublishQueuePort).cancelScheduledPost(1L);
+        verify(eventPublisher).publishEvent(any(BlogPostPublishedEvent.class));
     }
 
     @Test
@@ -470,6 +478,7 @@ class BlogPostServiceTest {
 
         assertThat(publishedCount).isEqualTo(3);
         verify(blogPostPublishQueuePort).removePosts(Set.of(1L, 2L, 3L));
+        verify(eventPublisher, times(3)).publishEvent(any(BlogPostPublishedEvent.class));
     }
 
     @Test
