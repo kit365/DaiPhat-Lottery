@@ -35,7 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("Core NotificationService Unit Tests")
+@DisplayName("[DP-80] Core NotificationService Unit Tests")
 class NotificationServiceTest {
 
     private static final Long NOTIFICATION_ID = 1L;
@@ -128,6 +128,7 @@ class NotificationServiceTest {
     }
 
     @Test
+    @DisplayName("[DP-426][DP-429] Đánh dấu thông báo đã đọc thành công")
     void markMyNotificationAsRead_success() {
         NotificationModel existing = NotificationModel.builder()
                 .notificationId(NOTIFICATION_ID)
@@ -146,6 +147,7 @@ class NotificationServiceTest {
     }
 
     @Test
+    @DisplayName("[DP-426][DP-429] Bỏ qua nếu thông báo đã đọc")
     void markMyNotificationAsRead_alreadyRead_doesNotSaveAgain() {
         NotificationModel existing = NotificationModel.builder()
                 .notificationId(NOTIFICATION_ID)
@@ -163,6 +165,7 @@ class NotificationServiceTest {
     }
 
     @Test
+    @DisplayName("[DP-426][DP-429] Báo lỗi nếu không phải owner đánh dấu đọc")
     void markMyNotificationAsRead_wrongOwner_throwsAccessDenied() {
         NotificationModel existing = NotificationModel.builder()
                 .notificationId(NOTIFICATION_ID)
@@ -181,6 +184,7 @@ class NotificationServiceTest {
     }
 
     @Test
+    @DisplayName("[DP-426][DP-429] Báo lỗi nếu thông báo không tồn tại (đọc)")
     void markMyNotificationAsRead_notFound_throwsNotificationNotFound() {
         when(notificationRepositoryPort.findById(NOTIFICATION_ID)).thenReturn(Optional.empty());
 
@@ -193,6 +197,7 @@ class NotificationServiceTest {
     }
 
     @Test
+    @DisplayName("[DP-426][DP-429] Đánh dấu tất cả thông báo đã đọc thành công")
     void markAllMyNotificationsAsRead_success() {
         when(notificationRepositoryPort.markAllAsReadByUserId(USER_ID)).thenReturn(4);
 
@@ -202,6 +207,7 @@ class NotificationServiceTest {
     }
 
     @Test
+    @DisplayName("[DP-433][DP-436] Xóa thông báo đã đọc thành công")
     void deleteMyReadNotification_success() {
         NotificationModel existing = NotificationModel.builder()
                 .notificationId(NOTIFICATION_ID)
@@ -220,6 +226,7 @@ class NotificationServiceTest {
     }
 
     @Test
+    @DisplayName("[DP-433][DP-436] Báo lỗi nếu xóa thông báo chưa đọc")
     void deleteMyReadNotification_unread_throwsDeleteRequiresRead() {
         NotificationModel existing = NotificationModel.builder()
                 .notificationId(NOTIFICATION_ID)
@@ -238,6 +245,7 @@ class NotificationServiceTest {
     }
 
     @Test
+    @DisplayName("[DP-433][DP-436] Báo lỗi nếu không phải owner xóa thông báo")
     void deleteMyReadNotification_wrongOwner_throwsAccessDenied() {
         NotificationModel existing = NotificationModel.builder()
                 .notificationId(NOTIFICATION_ID)
@@ -256,6 +264,7 @@ class NotificationServiceTest {
     }
 
     @Test
+    @DisplayName("[DP-433][DP-436] Báo lỗi nếu thông báo không tồn tại (xóa)")
     void deleteMyReadNotification_notFound_throwsNotificationNotFound() {
         when(notificationRepositoryPort.findById(NOTIFICATION_ID)).thenReturn(Optional.empty());
 
@@ -268,6 +277,7 @@ class NotificationServiceTest {
     }
 
     @Test
+    @DisplayName("[DP-433][DP-436] Xóa tất cả thông báo đã đọc thành công")
     void deleteAllMyReadNotifications_success() {
         when(notificationRepositoryPort.softDeleteAllReadByUserId(USER_ID)).thenReturn(3);
 
@@ -440,6 +450,7 @@ class NotificationServiceTest {
     }
 
     @Test
+    @DisplayName("[DP-416][DP-422] Lấy danh sách thông báo của admin thành công")
     void getMyAdminNotifications_success_returnsNewestPageWithCounts() {
         NotificationModel newest = NotificationModel.builder()
                 .notificationId(5L)

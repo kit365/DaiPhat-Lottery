@@ -50,6 +50,7 @@ class BlogEventListenerTest {
     }
 
     @Test
+    @DisplayName("[DP-448] Gửi thông báo khi bài viết được publish thành công")
     void handleBlogPostPublished_success_notifiesActiveAdminsAndOperators() {
         BlogPostPublishedEvent event = BlogPostPublishedEvent.builder()
                 .postId(88L)
@@ -89,6 +90,7 @@ class BlogEventListenerTest {
     }
 
     @Test
+    @DisplayName("[DP-448] Bỏ qua user bị khóa khi gửi thông báo bài viết")
     void handleBlogPostPublished_skipsInactiveOperators() {
         BlogPostPublishedEvent event = BlogPostPublishedEvent.builder()
                 .postId(88L)
@@ -109,6 +111,7 @@ class BlogEventListenerTest {
     }
 
     @Test
+    @DisplayName("[DP-448] Không làm gì nếu không có admin/operator nào")
     void handleBlogPostPublished_noOperators_doesNothing() {
         BlogPostPublishedEvent event = BlogPostPublishedEvent.builder()
                 .postId(88L)
