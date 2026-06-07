@@ -88,6 +88,25 @@ public class BlogPostController {
         );
     }
 
+    @GetMapping("/public/{slug}")
+    public ApiResponse<BlogPostResponse> getPublicPostBySlug(@PathVariable String slug) {
+        return ApiResponse.success(
+                "Lấy chi tiết bài viết công khai thành công",
+                blogPostServicePort.getPublicPostBySlug(slug)
+        );
+    }
+
+    @GetMapping("/public/{slug}/related")
+    public ApiResponse<List<BlogPostSummaryResponse>> getRelatedPublicPosts(
+            @PathVariable String slug,
+            @RequestParam(defaultValue = "4") int limit
+    ) {
+        return ApiResponse.success(
+                "Lấy danh sách bài viết liên quan thành công",
+                blogPostServicePort.getRelatedPublicPosts(slug, limit)
+        );
+    }
+
     @PostMapping
     @PreAuthorize("hasAuthority('article:create')")
     public ResponseEntity<ApiResponse<BlogPostResponse>> createPost(
