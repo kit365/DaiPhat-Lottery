@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.request.auth.RefreshTokenRequest;
 import com.daiphat.coreapi.application.dto.response.auth.AuthResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
+import com.daiphat.coreapi.application.event.UserWelcomeEvent;
 import com.daiphat.coreapi.application.mapper.AuthApplicationMapper;
 import com.daiphat.coreapi.application.port.in.auth.LoginServicePort;
 import com.daiphat.coreapi.application.port.in.auth.RoleServicePort;
@@ -26,6 +27,7 @@ import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 
@@ -46,6 +48,7 @@ public class LoginService implements LoginServicePort {
     private final TokenProviderPort tokenProviderPort;
     private final RefreshTokenStorePort refreshTokenStorePort;
     private final AuthApplicationMapper authApplicationMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -71,11 +74,16 @@ public class LoginService implements LoginServicePort {
     public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
         OAuthUserInfo googleUser = googleOAuthPort.verify(request);
 
-        UserModel user = userRepositoryPort.findByEmail(googleUser.email())
+        GoogleLoginResult loginResult = userRepositoryPort.findByEmail(googleUser.email())
                 .map(existing -> synchronizeGoogleUser(existing, googleUser))
                 .orElseGet(() -> provisionGoogleUser(googleUser));
 
+        UserModel user = loginResult.user();
+
         user.validateLoginEligibility();
+        if (loginResult.shouldSendWelcome()) {
+            publishWelcomeEvent(user);
+        }
         return issueTokensAndStoreRefreshToken(user);
     }
 
@@ -136,7 +144,7 @@ public class LoginService implements LoginServicePort {
         return authApplicationMapper.toResponse(token);
     }
 
-    private UserModel provisionGoogleUser(OAuthUserInfo googleUser) {
+    private GoogleLoginResult provisionGoogleUser(OAuthUserInfo googleUser) {
         UserModel user = UserModel.builder()
                 .username(googleUser.email())
                 .email(googleUser.email())
@@ -145,10 +153,12 @@ public class LoginService implements LoginServicePort {
                 .build();
         user.onboardOAuthUser(roleService.getDefaultRole());
         addAvatarIfPresent(user, googleUser.avatarUrl());
-        return userRepositoryPort.save(user);
+        return new GoogleLoginResult(userRepositoryPort.save(user), true);
     }
 
-    private UserModel synchronizeGoogleUser(UserModel user, OAuthUserInfo googleUser) {
+    private GoogleLoginResult synchronizeGoogleUser(UserModel user, OAuthUserInfo googleUser) {
+        boolean shouldSendWelcome = false;
+
         if (isBlank(user.getFirstName()) && !isBlank(googleUser.firstName())) {
             user.setFirstName(googleUser.firstName());
         }
@@ -157,12 +167,22 @@ public class LoginService implements LoginServicePort {
         }
         if (!user.isEmailVerified()) {
             user.markEmailVerified();
+            shouldSendWelcome = true;
         }
         if (user.getStatus() == UserStatus.PENDING) {
             user.activate();
+            shouldSendWelcome = true;
         }
         addAvatarIfPresent(user, googleUser.avatarUrl());
-        return userRepositoryPort.save(user);
+        return new GoogleLoginResult(userRepositoryPort.save(user), shouldSendWelcome);
+    }
+
+    private void publishWelcomeEvent(UserModel user) {
+        eventPublisher.publishEvent(UserWelcomeEvent.builder()
+                .userId(user.getId())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .build());
     }
 
     private void addAvatarIfPresent(UserModel user, String avatarUrl) {
@@ -189,5 +209,8 @@ public class LoginService implements LoginServicePort {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private record GoogleLoginResult(UserModel user, boolean shouldSendWelcome) {
     }
 }

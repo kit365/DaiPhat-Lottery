@@ -11,6 +11,7 @@ import com.daiphat.coreapi.application.dto.response.auth.VerifyOtpResponse;
 import com.daiphat.coreapi.application.event.AdminResetPasswordOtpEvent;
 import com.daiphat.coreapi.application.event.AdminResetPasswordSuccessEvent;
 import com.daiphat.coreapi.application.event.ForgotPasswordEvent;
+import com.daiphat.coreapi.application.event.UserPasswordChangedEvent;
 import com.daiphat.coreapi.application.port.in.auth.PasswordResetServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.auth.PasswordHashPort;
@@ -66,13 +67,14 @@ public class PasswordResetService implements PasswordResetServicePort {
     @Transactional
     public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
         String email = request.getEmail();
-        userRepositoryPort.findByEmail(email)
+        UserModel user = userRepositoryPort.findByEmail(email)
                 .orElseThrow(() -> new DomainException(ErrorCode.EMAIL_NOT_FOUND));
 
         String otp = generateOtp();
         otpCachePort.saveOtp(email, otp, Duration.ofSeconds(otpTtlSeconds));
         
         eventPublisher.publishEvent(ForgotPasswordEvent.builder()
+                .userId(user.getId())
                 .email(email)
                 .otp(otp)
                 .build());
@@ -149,6 +151,10 @@ public class PasswordResetService implements PasswordResetServicePort {
         userRepositoryPort.save(user);
         refreshTokenStorePort.delete(user.getId());
         passwordResetCachePort.deleteResetTokenData(request.getResetToken());
+        eventPublisher.publishEvent(UserPasswordChangedEvent.builder()
+                .userId(user.getId())
+                .email(user.getEmail())
+                .build());
     }
 
     @Override
@@ -160,6 +166,7 @@ public class PasswordResetService implements PasswordResetServicePort {
         otpCachePort.saveOtp(user.getEmail(), otp, Duration.ofSeconds(otpTtlSeconds));
 
         eventPublisher.publishEvent(AdminResetPasswordOtpEvent.builder()
+                .userId(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .otp(otp)
@@ -197,6 +204,7 @@ public class PasswordResetService implements PasswordResetServicePort {
         otpCachePort.resetOtpAttemptCount(user.getEmail());
 
         eventPublisher.publishEvent(AdminResetPasswordSuccessEvent.builder()
+                .userId(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .password(temporaryPassword)
@@ -226,6 +234,10 @@ public class PasswordResetService implements PasswordResetServicePort {
         user.unlockAccount();
         userRepositoryPort.save(user);
         refreshTokenStorePort.delete(user.getId());
+        eventPublisher.publishEvent(UserPasswordChangedEvent.builder()
+                .userId(user.getId())
+                .email(user.getEmail())
+                .build());
     }
 
     @Override

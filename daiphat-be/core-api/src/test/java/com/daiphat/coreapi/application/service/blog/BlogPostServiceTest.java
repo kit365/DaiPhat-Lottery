@@ -27,6 +27,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import com.daiphat.coreapi.application.dto.request.blog.UpdateBlogPostRequest;
+import org.springframework.context.ApplicationEventPublisher;
+import com.daiphat.coreapi.application.event.BlogPostPublishedEvent;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -77,6 +79,9 @@ class BlogPostServiceTest {
     @Mock
     private BlogPostPublishQueuePort blogPostPublishQueuePort;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     @BeforeEach
     void setUp() {
         blogPostService = new BlogPostService(
@@ -86,7 +91,8 @@ class BlogPostServiceTest {
                 blogPostApplicationMapper,
                 storagePort,
                 blogViewCachePort,
-                blogPostPublishQueuePort
+                blogPostPublishQueuePort,
+                eventPublisher
         );
     }
 
@@ -126,6 +132,7 @@ class BlogPostServiceTest {
                 .summary(DEFAULT_SUMMARY)
                 .content(DEFAULT_CONTENT)
                 .thumbnail(DEFAULT_THUMBNAIL)
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.PUBLISHED)
                 .category(category)
                 .tags(tags)
                 .build();
@@ -152,6 +159,8 @@ class BlogPostServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.id()).isEqualTo(999L);
         assertThat(response.title()).isEqualTo(DEFAULT_TITLE);
+
+        verify(eventPublisher).publishEvent(any(BlogPostPublishedEvent.class));
 
         verify(blogPostRepositoryPort).save(argThat(model ->
             DEFAULT_SLUG.equals(model.getSlug()) &&
@@ -389,6 +398,7 @@ class BlogPostServiceTest {
                         && post.getScheduledAt() == null
         ));
         verify(blogPostPublishQueuePort).cancelScheduledPost(1L);
+        verify(eventPublisher).publishEvent(any(BlogPostPublishedEvent.class));
     }
 
     @Test
@@ -465,11 +475,13 @@ class BlogPostServiceTest {
         when(blogPostRepositoryPort.findById(1L)).thenReturn(Optional.of(post1));
         when(blogPostRepositoryPort.findById(2L)).thenReturn(Optional.of(post2));
         when(blogPostRepositoryPort.findById(3L)).thenReturn(Optional.of(post3));
+        when(blogPostRepositoryPort.save(any(BlogPostModel.class))).thenAnswer(i -> i.getArgument(0));
 
         int publishedCount = blogPostService.publishDueScheduledPosts();
 
         assertThat(publishedCount).isEqualTo(3);
         verify(blogPostPublishQueuePort).removePosts(Set.of(1L, 2L, 3L));
+        verify(eventPublisher, times(3)).publishEvent(any(BlogPostPublishedEvent.class));
     }
 
     @Test

@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.mail;
+package com.daiphat.coreapi.infrastructure.persistence.adapter.mail;
 
 import com.daiphat.coreapi.application.port.out.mail.MailPort;
 import jakarta.mail.MessagingException;
