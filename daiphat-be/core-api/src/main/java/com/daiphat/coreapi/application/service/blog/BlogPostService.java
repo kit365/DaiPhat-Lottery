@@ -136,6 +136,36 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public BlogPostResponse getPublicPostBySlug(String slug) {
+        BlogPostModel post = blogPostRepositoryPort.findPublishedBySlug(slug)
+                .orElseThrow(() -> new DomainException(ErrorCode.BLOG_NOT_FOUND));
+        return blogPostApplicationMapper.toResponse(post);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BlogPostSummaryResponse> getRelatedPublicPosts(String slug, int limit) {
+        BlogPostModel currentPost = blogPostRepositoryPort.findPublishedBySlug(slug)
+                .orElseThrow(() -> new DomainException(ErrorCode.BLOG_NOT_FOUND));
+
+        if (currentPost.getCategory() == null || currentPost.getCategory().getId() == null) {
+            return Collections.emptyList();
+        }
+
+        int normalizedLimit = Math.max(1, limit);
+        Pageable pageable = PageableUtils.of(1, normalizedLimit, SortUtils.byCreatedAtDesc());
+
+        return blogPostRepositoryPort.findRelatedPublishedPosts(
+                        currentPost.getCategory().getId(),
+                        currentPost.getId(),
+                        pageable
+                ).stream()
+                .map(blogPostApplicationMapper::toSummaryResponse)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public BlogPostResponse updatePost(Long id, UpdateBlogPostRequest request) {
         BlogPostModel post = blogPostRepositoryPort.findById(id)
