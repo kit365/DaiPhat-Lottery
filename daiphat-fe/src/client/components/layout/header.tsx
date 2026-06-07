@@ -11,7 +11,14 @@ import { ProfileSetupModal } from "../../components/auth/ProfileSetupModal";
 import { VerifyModal } from "../../components/auth/VerifyModal";
 import { ForgotPasswordModal } from "../../components/auth/ForgotPasswordModal";
 import { BottomNav } from "./BottomNav";
+import { NotificationDropdown } from "./NotificationDropdown";
+import {
+  HEADER_DROPDOWN_ACTION_CLASS,
+  HEADER_DROPDOWN_ITEM_TITLE_CLASS,
+  HEADER_DROPDOWN_TITLE_CLASS,
+} from "./headerDropdown.constants";
 import { useAuth } from "../../hooks/useAuth";
+import { useNotifications } from "../../hooks/useNotifications";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { AppToast as toast } from "../../utils/toast.util";
 
@@ -39,6 +46,7 @@ export const Header = () => {
   const location = useLocation();
   const cartItems = useCartStore(state => state.items);
   const removeCartItem = useCartStore(state => state.removeItem);
+  const { unreadCount } = useNotifications(4);
 
   // Removed mandatory DP-32 Setup Enforcement auto-trigger
 
@@ -150,8 +158,8 @@ export const Header = () => {
                     {/* Cart Dropdown */}
                     <div className="absolute top-full right-0 mt-2 w-[360px] bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-[#E5E8EB] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100]">
                       <div className="p-4 flex items-center justify-between border-b border-[#E5E8EB]">
-                        <h4 className="font-bold text-[#212B36] text-[15px]">Giỏ hàng <span className="text-[#ee1314]">({cartItems.length})</span></h4>
-                        <span className="text-[13px] text-[#637381] cursor-pointer hover:text-[#ee1314]" onClick={() => navigate('/cart')}>Xem giỏ hàng</span>
+                        <h4 className={HEADER_DROPDOWN_TITLE_CLASS}>Giỏ hàng <span className="text-[#ee1314]">({cartItems.length})</span></h4>
+                        <span className={`${HEADER_DROPDOWN_ACTION_CLASS} cursor-pointer hover:text-[#ee1314]`} onClick={() => navigate('/cart')}>Xem giỏ hàng</span>
                       </div>
                       <div className="max-h-[320px] overflow-y-auto p-2">
                         {(() => {
@@ -169,7 +177,7 @@ export const Header = () => {
                               <div className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer" onClick={() => navigate('/cart')}>
                                 <div className="flex items-start justify-between mb-1">
                                     <div>
-                                        <div className="text-[13px] font-bold text-[#212B36] truncate">{item.province}</div>
+                                        <div className={`${HEADER_DROPDOWN_ITEM_TITLE_CLASS} truncate`}>{item.province}</div>
                                         <div className="text-[11px] text-[#637381] mt-0.5">
                                             {item.time} • {item.date ? item.date.split(',')[0] : 'Hôm nay'}
                                         </div>
@@ -213,10 +221,20 @@ export const Header = () => {
                     </div>
                   </div>
 
-                  <button className="relative text-[#505050] hover:text-[#ee1314] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer">
-                    <Bell size={22} strokeWidth={2} />
-                    <span className="absolute top-0 right-0 w-4 h-4 bg-[#ee1314] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">3</span>
-                  </button>
+                  <div className="relative group">
+                    <button 
+                      onClick={() => navigate('/profile/notifications')}
+                      className="relative text-[#505050] hover:text-[#ee1314] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer"
+                    >
+                      <Bell size={22} strokeWidth={2} />
+                      {unreadCount > 0 && (
+                        <span className="absolute top-0 right-0 min-w-4 h-4 px-1 bg-[#ee1314] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
+                    </button>
+                    <NotificationDropdown />
+                  </div>
                 </div>
 
                 {/* User */}

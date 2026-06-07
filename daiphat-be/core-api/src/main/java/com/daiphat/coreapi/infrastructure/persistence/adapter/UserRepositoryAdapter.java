@@ -61,6 +61,13 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
+    public List<UserModel> findAllByRoleCodes(List<String> roleCodes) {
+        return userRepository.findAllByRole_CodeIn(roleCodes).stream()
+                .map(userPersistenceMapper::toDomainWithRolePermissions)
+                .toList();
+    }
+
+    @Override
     public UserModel save(UserModel user) {
         return userPersistenceMapper.toDomain(userRepository.save(userPersistenceMapper.toEntity(user)));
     }
