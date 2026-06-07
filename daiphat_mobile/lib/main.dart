@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'data/services/auth_api_service.dart';
+
 import 'data/repositories/auth_repository.dart';
+import 'data/services/auth_api_service.dart';
 import 'ui/viewmodels/login_viewmodel.dart';
-import 'ui/views/login_view.dart';
+import 'ui/views/lottery_app_view.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Load environment variables
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: '.env');
 
-  // Initialize Data Layer
   final authApiService = AuthApiService();
   final authRepository = AuthRepository(authApiService);
-
-  // Initialize UI Layer (ViewModel)
   final loginViewModel = LoginViewModel(authRepository);
 
   runApp(DaiPhatMobileApp(loginViewModel: loginViewModel));
@@ -32,10 +28,26 @@ class DaiPhatMobileApp extends StatelessWidget {
       title: 'DaiPhat Mobile',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFE90000),
+          primary: const Color(0xFFE90000),
+        ),
+        scaffoldBackgroundColor: const Color(0xFFFFFBFA),
+        fontFamily: 'Roboto',
         useMaterial3: true,
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+          foregroundColor: Colors.white,
+          backgroundColor: Color(0xFFE90000),
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
-      home: LoginView(viewModel: loginViewModel),
+      home: const LotteryAppView(),
     );
   }
 }

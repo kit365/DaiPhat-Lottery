@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:daiphat_mobile/main.dart';
 import 'package:daiphat_mobile/data/services/auth_api_service.dart';
@@ -15,8 +15,25 @@ void main() {
 
     await tester.pumpWidget(DaiPhatMobileApp(loginViewModel: loginViewModel));
 
-    // Verify that login screen is displayed.
-    expect(find.text('Login'), findsWidgets);
-    expect(find.byType(TextFormField), findsNWidgets(2));
+    // Verify that the main lottery app is displayed.
+    expect(find.text('ĐẠI PHÁT'), findsOneWidget);
+    expect(find.text('Trang chủ'), findsWidgets);
+    expect(find.text('Mua vé số'), findsWidgets);
+
+    await tester.tap(find.text('Dò vé').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Kết quả xổ số'), findsOneWidget);
+
+    await tester.tap(find.text('Mua vé số').last);
+    await tester.pumpAndSettle();
+    expect(find.text('123456'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('ticket-123456')));
+    await tester.pumpAndSettle();
+    expect(find.text('Chi tiết vé'), findsOneWidget);
+
+    await tester.tap(find.text('Thanh toán ngay'));
+    await tester.pumpAndSettle();
+    expect(find.text('Giỏ hàng (4)'), findsOneWidget);
   });
 }
