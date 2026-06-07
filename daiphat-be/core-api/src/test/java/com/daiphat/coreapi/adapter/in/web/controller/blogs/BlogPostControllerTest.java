@@ -81,6 +81,49 @@ class BlogPostControllerTest {
     }
 
     @Test
+    @DisplayName("[DP-314] GET /public/{slug}: Lấy chi tiết bài viết công khai thành công")
+    void getPublicPostBySlug_success() {
+        BlogPostResponse expectedResponse = BlogPostResponse.builder()
+                .id(1121L)
+                .title("Bài viết công khai")
+                .slug("bai-viet-cong-khai")
+                .status("published")
+                .build();
+
+        when(blogPostServicePort.getPublicPostBySlug("bai-viet-cong-khai")).thenReturn(expectedResponse);
+
+        ApiResponse<BlogPostResponse> response = blogPostController.getPublicPostBySlug("bai-viet-cong-khai");
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Lấy chi tiết bài viết công khai thành công");
+        assertThat(response.getData()).isEqualTo(expectedResponse);
+        verify(blogPostServicePort).getPublicPostBySlug("bai-viet-cong-khai");
+    }
+
+    @Test
+    @DisplayName("[DP-314] GET /public/{slug}/related: Lấy danh sách bài viết liên quan thành công")
+    void getRelatedPublicPosts_success() {
+        List<BlogPostSummaryResponse> expectedResponse = List.of(
+                BlogPostSummaryResponse.builder()
+                        .id(1122L)
+                        .title("Bài viết liên quan")
+                        .slug("bai-viet-lien-quan")
+                        .build()
+        );
+
+        when(blogPostServicePort.getRelatedPublicPosts("bai-viet-cong-khai", 4)).thenReturn(expectedResponse);
+
+        ApiResponse<List<BlogPostSummaryResponse>> response = blogPostController.getRelatedPublicPosts("bai-viet-cong-khai", 4);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Lấy danh sách bài viết liên quan thành công");
+        assertThat(response.getData()).isEqualTo(expectedResponse);
+        verify(blogPostServicePort).getRelatedPublicPosts("bai-viet-cong-khai", 4);
+    }
+
+    @Test
     @DisplayName("GET /statuses: Lấy danh sách trạng thái bài viết thành công")
     void getBlogStatuses_success() {
         // GIVEN
