@@ -1,30 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'core/theme/app_theme.dart';
-import 'core/router/app_router.dart';
+
+import 'data/repositories/auth_repository.dart';
+import 'data/services/auth_api_service.dart';
+import 'ui/viewmodels/login_viewmodel.dart';
+import 'ui/views/lottery_app_view.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Load environment variables
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: '.env');
 
-  runApp(const ProviderScope(child: DaiPhatMobileApp()));
+  final authApiService = AuthApiService();
+  final authRepository = AuthRepository(authApiService);
+  final loginViewModel = LoginViewModel(authRepository);
+
+  runApp(DaiPhatMobileApp(loginViewModel: loginViewModel));
 }
 
-class DaiPhatMobileApp extends ConsumerWidget {
-  const DaiPhatMobileApp({super.key});
+class DaiPhatMobileApp extends StatelessWidget {
+  final LoginViewModel loginViewModel;
+
+  const DaiPhatMobileApp({super.key, required this.loginViewModel});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(routerProvider);
-
-    return MaterialApp.router(
+  Widget build(BuildContext context) {
+    return MaterialApp(
       title: 'ĐẠI PHÁT Mobile',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      routerConfig: router,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFE90000),
+          primary: const Color(0xFFE90000),
+        ),
+        scaffoldBackgroundColor: const Color(0xFFFFFBFA),
+        fontFamily: 'Roboto',
+        useMaterial3: true,
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+          foregroundColor: Colors.white,
+          backgroundColor: Color(0xFFE90000),
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      home: const LotteryAppView(),
     );
   }
 }
