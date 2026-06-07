@@ -32,13 +32,18 @@ import { AuthInitializer } from './components/auth/AuthInitializer';
 
 import './styles/client.css'; // New Client Theme
 
+import { Footer } from './client/components/layout/Footer';
+
 // --- Theme Layout Components ---
 
 const ClientThemeLayout = () => (
-  <div className="client-theme min-h-screen text-inherit font-inherit">
-    <Suspense fallback={<LoadingSpinner />}>
-      <Outlet />
-    </Suspense>
+  <div className="client-theme min-h-screen text-inherit font-inherit flex flex-col">
+    <div className="flex-1 flex flex-col">
+      <Suspense fallback={<LoadingSpinner />}>
+        <Outlet />
+      </Suspense>
+    </div>
+    <Footer />
   </div>
 );
 
