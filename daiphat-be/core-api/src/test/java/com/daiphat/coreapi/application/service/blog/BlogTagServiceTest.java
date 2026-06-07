@@ -30,7 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("Core BlogTagService Unit Tests")
+@DisplayName("[DP-168] Core BlogTagService Unit Tests")
 class BlogTagServiceTest {
 
     private static final Long TAG1_ID = 1L;
@@ -174,6 +174,33 @@ class BlogTagServiceTest {
     }
 
     @Test
+    void createTag_withNullSlug_success() {
+        CreateBlogTagRequest request = new CreateBlogTagRequest(NEW_TAG_NAME, null);
+        when(blogTagRepositoryPort.existsBySlug(NEW_TAG_SLUG)).thenReturn(false);
+        when(blogTagRepositoryPort.existsByName(NEW_TAG_NAME)).thenReturn(false);
+
+        BlogTagModel savedModel = BlogTagModel.builder()
+                .id(3L)
+                .name(NEW_TAG_NAME)
+                .slug(NEW_TAG_SLUG)
+                .build();
+
+        BlogTagResponse expectedResponse = BlogTagResponse.builder()
+                .id(3L)
+                .name(NEW_TAG_NAME)
+                .slug(NEW_TAG_SLUG)
+                .build();
+
+        when(blogTagRepositoryPort.save(any(BlogTagModel.class))).thenReturn(savedModel);
+        when(blogTagApplicationMapper.toResponse(savedModel)).thenReturn(expectedResponse);
+
+        BlogTagResponse result = blogTagService.createTag(request);
+
+        assertThat(result).isNotNull();
+        assertThat(result.slug()).isEqualTo(NEW_TAG_SLUG);
+    }
+
+    @Test
     void createTag_withCustomSlug_success() {
         CreateBlogTagRequest request = new CreateBlogTagRequest(NEW_TAG_NAME, CUSTOM_TAG_SLUG);
         when(blogTagRepositoryPort.existsBySlug(CUSTOM_TAG_SLUG)).thenReturn(false);
@@ -256,6 +283,36 @@ class BlogTagServiceTest {
     }
 
     @Test
+    void updateTag_withNullSlug_success() {
+        CreateBlogTagRequest request = new CreateBlogTagRequest(UPDATED_TAG_NAME, null);
+        when(blogTagRepositoryPort.findById(TAG1_ID)).thenReturn(Optional.of(mockTag1));
+        
+        String generatedSlug = "updated-tag-name"; // SlugUtils.toSlug("Updated Tag Name")
+        when(blogTagRepositoryPort.existsBySlugAndIdNot(generatedSlug, TAG1_ID)).thenReturn(false);
+        when(blogTagRepositoryPort.existsByNameAndIdNot(UPDATED_TAG_NAME, TAG1_ID)).thenReturn(false);
+
+        BlogTagModel savedModel = BlogTagModel.builder()
+                .id(TAG1_ID)
+                .name(UPDATED_TAG_NAME)
+                .slug(generatedSlug)
+                .build();
+
+        BlogTagResponse expectedResponse = BlogTagResponse.builder()
+                .id(TAG1_ID)
+                .name(UPDATED_TAG_NAME)
+                .slug(generatedSlug)
+                .build();
+
+        when(blogTagRepositoryPort.save(any(BlogTagModel.class))).thenReturn(savedModel);
+        when(blogTagApplicationMapper.toResponse(savedModel)).thenReturn(expectedResponse);
+
+        BlogTagResponse result = blogTagService.updateTag(TAG1_ID, request);
+
+        assertThat(result).isNotNull();
+        assertThat(result.slug()).isEqualTo(generatedSlug);
+    }
+
+    @Test
     void updateTag_notFound_throwsTagNotFound() {
         CreateBlogTagRequest request = new CreateBlogTagRequest(DUMMY_TAG_NAME, DUMMY_TAG_SLUG);
         when(blogTagRepositoryPort.findById(99L)).thenReturn(Optional.empty());
@@ -333,5 +390,17 @@ class BlogTagServiceTest {
         assertThat(mockTag1.isDeleted()).isTrue();
         verify(blogTagRepositoryPort).save(mockTag1);
         verify(blogPostCoordinationPort).removeTagFromPosts(TAG1_ID);
+    }
+
+    @Test
+    void getTagModelsByIds_success() {
+        java.util.Set<Long> ids = java.util.Set.of(TAG1_ID, TAG2_ID);
+        java.util.Set<BlogTagModel> models = java.util.Set.of(mockTag1, mockTag2);
+        when(blogTagRepositoryPort.findAllByIds(ids)).thenReturn(models);
+
+        java.util.Set<BlogTagModel> result = blogTagService.getTagModelsByIds(ids);
+
+        assertThat(result).hasSize(2);
+        assertThat(result).containsExactlyInAnyOrder(mockTag1, mockTag2);
     }
 }
