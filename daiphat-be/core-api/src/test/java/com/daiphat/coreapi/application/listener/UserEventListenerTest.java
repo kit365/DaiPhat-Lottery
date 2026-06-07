@@ -6,11 +6,14 @@ import com.daiphat.coreapi.application.dto.request.mail.ForgotPasswordContext;
 import com.daiphat.coreapi.application.event.AdminResetPasswordOtpEvent;
 import com.daiphat.coreapi.application.event.AdminResetPasswordSuccessEvent;
 import com.daiphat.coreapi.application.event.ForgotPasswordEvent;
+import com.daiphat.coreapi.application.event.UserEmailVerifiedEvent;
+import com.daiphat.coreapi.application.event.UserPasswordChangedEvent;
 import com.daiphat.coreapi.application.port.in.mail.EmailServicePort;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationStatus;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
 import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +33,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.argThat;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UserEventListener Unit Tests")
@@ -156,6 +160,7 @@ class UserEventListenerTest {
     }
 
     @Test
+    @DisplayName("[DP-444] Xử lý sự kiện admin reset mật khẩu thành công (tạo email notification)")
     void handleAdminResetPasswordSuccess_success_createsEmailNotificationAndMarksSent() {
         AdminResetPasswordSuccessEvent event = AdminResetPasswordSuccessEvent.builder()
                 .userId(USER_ID)
@@ -182,6 +187,7 @@ class UserEventListenerTest {
     }
 
     @Test
+    @DisplayName("[DP-444] Đánh dấu thất bại nếu gửi email admin reset mật khẩu bị lỗi")
     void handleAdminResetPasswordSuccess_fail_marksFailed() {
         AdminResetPasswordSuccessEvent event = AdminResetPasswordSuccessEvent.builder()
                 .userId(USER_ID)
@@ -202,5 +208,47 @@ class UserEventListenerTest {
 
         verify(notificationService).markAsFailed(NOTIFICATION_ID);
         verify(notificationService, never()).markAsSent(any());
+    }
+
+    @Test
+    @DisplayName("[DP-440] Xử lý sự kiện xác thực email thành công (tạo thông báo in-app và archive email auth)")
+    void handleUserEmailVerified_success_archivesEmailAndCreatesWelcomeInApp() {
+        UserEmailVerifiedEvent event = UserEmailVerifiedEvent.builder()
+                .userId(USER_ID)
+                .email(EMAIL)
+                .fullName("John Doe")
+                .token("test-token")
+                .build();
+
+        userEventListener.handleUserEmailVerified(event);
+
+        verify(notificationService).archiveAuthEmailNotification(USER_ID, "test-token");
+
+        verify(notificationService).createNotification(argThat(notification ->
+                notification.getUserId().equals(USER_ID) &&
+                "Xác thực tài khoản thành công".equals(notification.getTitle()) &&
+                NotificationType.AUTH.equals(notification.getType()) &&
+                NotificationChannel.IN_APP.equals(notification.getChannel()) &&
+                NotificationStatus.SENT.equals(notification.getStatus())
+        ));
+    }
+
+    @Test
+    @DisplayName("[DP-444] Xử lý sự kiện đổi mật khẩu thành công (tạo thông báo in-app)")
+    void handleUserPasswordChanged_success_createsInAppNotificationAndMarksSent() {
+        UserPasswordChangedEvent event = UserPasswordChangedEvent.builder()
+                .userId(USER_ID)
+                .email(EMAIL)
+                .build();
+
+        userEventListener.handleUserPasswordChanged(event);
+
+        verify(notificationService).createNotification(argThat(notification ->
+                notification.getUserId().equals(USER_ID) &&
+                "Mật khẩu đã được cập nhật".equals(notification.getTitle()) &&
+                NotificationType.AUTH.equals(notification.getType()) &&
+                NotificationChannel.IN_APP.equals(notification.getChannel()) &&
+                NotificationStatus.SENT.equals(notification.getStatus())
+        ));
     }
 }

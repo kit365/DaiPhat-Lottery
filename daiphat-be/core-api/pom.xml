@@ -182,11 +182,10 @@
                 <version>0.8.12</version>
                 <configuration>
                     <includes>
-                        <!-- Chỉ tính coverage cho các class liên quan đến blog mà bạn đang làm -->
                         <include>com/daiphat/coreapi/application/service/blog/**</include>
                         <include>com/daiphat/coreapi/infrastructure/cache/**</include>
-                        <!-- Bổ sung thêm auth theo yêu cầu -->
                         <include>com/daiphat/coreapi/application/service/auth/**</include>
+                        <include>com/daiphat/coreapi/application/service/notification/**</include>
                     </includes>
                 </configuration>
                 <executions>

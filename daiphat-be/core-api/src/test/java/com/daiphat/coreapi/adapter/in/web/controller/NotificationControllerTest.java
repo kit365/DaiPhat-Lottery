@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doNothing;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("NotificationController Unit Tests")
+@DisplayName("[DP-80] NotificationController Unit Tests")
 class NotificationControllerTest {
 
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -89,10 +89,10 @@ class NotificationControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /notifications/{id}/read: Đánh dấu đã đọc thành công")
+    @DisplayName("[DP-426][DP-429] PATCH /notifications/{id}/read: Đánh dấu đã đọc thành công")
     void markMyNotificationAsRead_success() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
-        doNothing().when(notificationServicePort).markMyNotificationAsRead(USER_ID, 10L);
+        when(notificationServicePort.markMyNotificationAsRead(USER_ID, 10L)).thenReturn(null);
 
         ApiResponse<Void> response = notificationController.markMyNotificationAsRead(principal, 10L);
 
@@ -103,7 +103,7 @@ class NotificationControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /notifications/{id}: Xóa thông báo đã đọc thành công")
+    @DisplayName("[DP-433][DP-436] DELETE /notifications/{id}: Xóa thông báo đã đọc thành công")
     void deleteMyReadNotification_success() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         when(notificationServicePort.deleteMyReadNotification(USER_ID, 10L)).thenReturn(null);
@@ -117,7 +117,7 @@ class NotificationControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /notifications/read-all: Đánh dấu tất cả thông báo là đã đọc thành công")
+    @DisplayName("[DP-426][DP-429] PATCH /notifications/read-all: Đánh dấu tất cả thông báo là đã đọc thành công")
     void markAllMyNotificationsAsRead_success() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         doNothing().when(notificationServicePort).markAllMyNotificationsAsRead(USER_ID);
@@ -131,7 +131,7 @@ class NotificationControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /notifications/read-all: Xóa tất cả thông báo đã đọc thành công")
+    @DisplayName("[DP-433][DP-436] DELETE /notifications/read-all: Xóa tất cả thông báo đã đọc thành công")
     void deleteAllMyReadNotifications_success() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         doNothing().when(notificationServicePort).deleteAllMyReadNotifications(USER_ID);
@@ -145,7 +145,7 @@ class NotificationControllerTest {
     }
 
     @Test
-    @DisplayName("GET /notifications/admin/me: Lấy danh sách thông báo của admin thành công")
+    @DisplayName("[DP-416][DP-422] GET /notifications/admin/me: Lấy danh sách thông báo của admin thành công")
     void getMyAdminNotifications_success() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "operator01");
         PageResponse<NotificationResponse> serviceResponse = PageResponse.<NotificationResponse>builder()
@@ -172,7 +172,7 @@ class NotificationControllerTest {
     }
 
     @Test
-    @DisplayName("GET /notifications/admin/me: Truyền page và limit từ request xuống service")
+    @DisplayName("[DP-416][DP-422] GET /notifications/admin/me: Truyền page và limit từ request xuống service")
     void getMyAdminNotifications_forwardsCustomPagingParams() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "operator01");
         PageResponse<NotificationResponse> serviceResponse = PageResponse.<NotificationResponse>builder()
