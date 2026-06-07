@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'data/services/auth_api_service.dart';
-import 'data/repositories/auth_repository.dart';
-import 'ui/viewmodels/login_viewmodel.dart';
-import 'ui/views/login_view.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/theme/app_theme.dart';
+import 'core/router/app_router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,31 +10,21 @@ Future<void> main() async {
   // Load environment variables
   await dotenv.load(fileName: ".env");
 
-  // Initialize Data Layer
-  final authApiService = AuthApiService();
-  final authRepository = AuthRepository(authApiService);
-
-  // Initialize UI Layer (ViewModel)
-  final loginViewModel = LoginViewModel(authRepository);
-
-  runApp(DaiPhatMobileApp(loginViewModel: loginViewModel));
+  runApp(const ProviderScope(child: DaiPhatMobileApp()));
 }
 
-class DaiPhatMobileApp extends StatelessWidget {
-  final LoginViewModel loginViewModel;
-
-  const DaiPhatMobileApp({super.key, required this.loginViewModel});
+class DaiPhatMobileApp extends ConsumerWidget {
+  const DaiPhatMobileApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'DaiPhat Mobile',
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
+
+    return MaterialApp.router(
+      title: 'ĐẠI PHÁT Mobile',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: LoginView(viewModel: loginViewModel),
+      theme: AppTheme.lightTheme,
+      routerConfig: router,
     );
   }
 }
