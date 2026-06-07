@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.storage;
+package com.daiphat.coreapi.infrastructure.persistence.adapter.storage;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;

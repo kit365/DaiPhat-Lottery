@@ -4,6 +4,8 @@ import { ApiResponse } from '../../../config/type';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 import { BLOG_STATUS } from "../../../../types/blogs.type";
 
+const BLOG_ADMIN_REFETCH_INTERVAL_MS = 30_000;
+
 const toDateTimeLocalValue = (value?: string | null) => {
     if (!value) {
         return null;
@@ -20,6 +22,9 @@ export const useBlogs = (params?: any) => {
     return useQuery({
         queryKey: [QUERY_KEYS.BLOGS, params],
         queryFn: () => getBlogs(params),
+        refetchInterval: BLOG_ADMIN_REFETCH_INTERVAL_MS,
+        refetchIntervalInBackground: false,
+        refetchOnWindowFocus: true,
         select: (res: ApiResponse<any>) => {
             const data = res.data;
             let records: any[] = [];
@@ -103,6 +108,9 @@ export const useBlogDetail = (id?: string | number) => {
         queryKey: [QUERY_KEYS.BLOG_DETAIL, id],
         queryFn: () => getBlogById(id!),
         enabled: !!id,
+        refetchInterval: BLOG_ADMIN_REFETCH_INTERVAL_MS,
+        refetchIntervalInBackground: false,
+        refetchOnWindowFocus: true,
         select: (res: any) => {
             const data = res.data || res;
             if (data) {
