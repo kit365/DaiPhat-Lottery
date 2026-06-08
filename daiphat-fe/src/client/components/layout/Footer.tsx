@@ -4,20 +4,20 @@ import { ChevronRight, Phone, Mail, MapPin, ShieldCheck, Lock, HeadphonesIcon } 
 
 export const Footer = () => {
   return (
-    <footer className="relative bg-[#Fdfdfd] pt-16 pb-[160px] overflow-hidden border-t border-red-50 mt-12">
+    <footer className="relative bg-[#Fdfdfd] pt-16 overflow-hidden border-t border-red-50">
       {/* Background image from user */}
-      <div className="absolute inset-0 pointer-events-none z-0 opacity-100" 
-           style={{
-             backgroundImage: "url('https://cdn.phototourl.com/free/2026-06-07-98422aba-75e7-49a6-ab69-6ed30ab67386.png')",
-             backgroundSize: '100% auto',
-             backgroundPosition: 'bottom center',
-             backgroundRepeat: 'no-repeat'
-           }}
+      <div className="absolute inset-0 pointer-events-none z-0 opacity-100"
+        style={{
+          backgroundImage: "url('https://cdn.phototourl.com/free/2026-06-07-98422aba-75e7-49a6-ab69-6ed30ab67386.png')",
+          backgroundSize: '100% auto',
+          backgroundPosition: 'bottom center',
+          backgroundRepeat: 'no-repeat'
+        }}
       />
-      
+
       <div className="container mx-auto px-4 relative z-10 max-w-[1440px]">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 xl:gap-12 mb-16">
-          
+
           {/* Column 1: About Company */}
           <div className="lg:col-span-2 flex flex-col space-y-6 pr-4">
             <div className="flex items-center gap-2">
@@ -27,7 +27,7 @@ export const Footer = () => {
                 <span className="text-[#F5A623] text-[10px] font-bold tracking-widest uppercase whitespace-nowrap">TÀI LỘC - MAY MẮN - THỊNH VƯỢNG</span>
               </div>
             </div>
-            
+
             <p className="text-slate-600 text-[13px] leading-relaxed">
               Đại Phát - Hệ thống xổ số kiến thiết uy tín hàng đầu Việt Nam. Nhanh chóng, minh bạch, bảo mật và luôn đồng hành cùng bạn trên hành trình may mắn.
             </p>
@@ -115,7 +115,7 @@ export const Footer = () => {
                 </div>
                 <div>
                   <h4 className="text-[14px] font-bold text-[#102937]">Tầng 5, 123 Lý Chính Thắng,</h4>
-                  <p className="text-[12px] text-slate-500">P. Võ Thị Sáu, Q.3, TP.HCM<br/>Trụ sở chính</p>
+                  <p className="text-[12px] text-slate-500">P. Võ Thị Sáu, Q.3, TP.HCM<br />Trụ sở chính</p>
                 </div>
               </li>
             </ul>
@@ -124,10 +124,7 @@ export const Footer = () => {
         </div>
       </div>
 
-      {/* Centered Copyright */}
-      <div className="absolute bottom-6 left-0 right-0 text-center text-[13px] font-medium text-slate-500 z-10">
-        © 2024 Đại Phát. All rights reserved.
-      </div>
+
     </footer>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Header } from "../components/layout/header";
-import { PartnerLogos } from "../components/layout/PartnerLogos";
+
 import { useAuthStore } from "../../stores/useAuthStore";
 import { LeftSidebar } from "../components/home/LeftSidebar";
 import { HomeSidebar } from "../components/home/HomeSidebar";
@@ -156,9 +156,7 @@ export const HomePage = () => {
           />
         </div>
 
-        <div className="max-w-[1240px] mx-auto px-6 py-10 lg:py-16">
-          <PartnerLogos />
-        </div>
+
       </main>
     </div>
   );
