@@ -41,16 +41,11 @@ export const LoginPage = () => {
             <div className="relative z-10 flex-1 flex flex-col lg:flex-row w-full max-w-[1440px] mx-auto h-full">
 
                 {/* Header Logo (Mobile & Desktop) */}
-                <div className="absolute top-6 left-6 lg:top-8 lg:left-12 flex items-center gap-3 cursor-pointer z-20" onClick={() => navigate("/")}>
-                    <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white rounded-full flex items-center justify-center shadow-md">
-                        <img src="/assets/images/logo.png" alt="Logo" className="w-6 h-6 lg:w-8 lg:h-8 object-contain" onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.parentElement!.innerHTML = '<span class="text-[#D32F2F] font-bold text-xl">ĐP</span>';
-                        }} />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-lg lg:text-xl sm:text-2xl font-black text-[#D32F2F] tracking-tight uppercase">Đại Phát</span>
-                        <span className="text-[8px] lg:text-[9px] sm:text-[10px] font-bold text-[#FFB300] uppercase tracking-widest mt-[-2px]">Tài Lộc - May Mắn - Thịnh Vượng</span>
+                <div className="absolute top-6 left-6 lg:top-8 lg:left-12 flex items-center gap-2.5 cursor-pointer z-20 font-client-display transition-transform hover:scale-[1.02]" onClick={() => navigate("/")}>
+                    <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Đại Phát Logo" className="w-[42px] h-[42px] lg:w-[48px] lg:h-[48px] object-contain" />
+                    <div className="flex flex-col justify-center">
+                        <span className="text-[20px] lg:text-[24px] tracking-tight font-client-display font-black text-[#ee1314] leading-none mb-1">ĐẠI PHÁT</span>
+                        <span className="text-[8.5px] lg:text-[10px] font-bold text-[#F59E0B] leading-none uppercase tracking-wider whitespace-nowrap">Tài lộc - May mắn - Thịnh vượng</span>
                     </div>
                 </div>
 

@@ -34,7 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("Core BlogCategoryService Unit Tests")
+@DisplayName("[DP-168] Core BlogCategoryService Unit Tests")
 class BlogCategoryServiceTest {
 
     private static final Long ROOT_ID = 1L;
@@ -177,6 +177,30 @@ class BlogCategoryServiceTest {
     }
 
     @Test
+    void getCategoryModelById_success() {
+        when(blogCategoryRepositoryPort.findById(ROOT_ID)).thenReturn(Optional.of(rootCategory));
+        BlogCategoryModel result = blogCategoryService.getCategoryModelById(ROOT_ID);
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(ROOT_ID);
+    }
+
+    @Test
+    void getCategoryModelById_notFound_throwsException() {
+        when(blogCategoryRepositoryPort.findById(99L)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> blogCategoryService.getCategoryModelById(99L))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CATEGORY_NOT_FOUND);
+    }
+
+    @Test
+    void getStatuses_success() {
+        List<com.daiphat.coreapi.application.dto.response.blog.CategoryStatusResponse> result = blogCategoryService.getStatuses();
+        assertThat(result).isNotEmpty();
+        assertThat(result).extracting("code").contains("ACTIVE", "INACTIVE");
+    }
+
+    @Test
     void createCategory_withoutParentAndDisplayOrder_success() {
         CreateBlogCategoryRequest request = new CreateBlogCategoryRequest(
                 NEW_CAT_NAME,
@@ -230,6 +254,46 @@ class BlogCategoryServiceTest {
             category.getParent() == null &&
             NEW_CAT_AVATAR.equals(category.getAvatar())
         ));
+    }
+
+    @Test
+    void createCategory_withNullSlug_success() {
+        CreateBlogCategoryRequest request = new CreateBlogCategoryRequest(NEW_CAT_NAME, null, null, null, 1, STATUS_ACTIVE, null);
+        when(blogCategoryRepositoryPort.existsBySlug(NEW_CAT_SLUG)).thenReturn(false);
+        when(blogCategoryRepositoryPort.save(any(BlogCategoryModel.class))).thenReturn(rootCategory);
+        when(blogCategoryApplicationMapper.toResponse(any())).thenReturn(rootResponse);
+
+        BlogCategoryResponse result = blogCategoryService.createCategory(request);
+        assertThat(result).isNotNull();
+        verify(blogCategoryRepositoryPort).save(argThat(category -> NEW_CAT_SLUG.equals(category.getSlug())));
+    }
+
+    @Test
+    void createCategory_withParentAndNullDisplayOrder_success() {
+        CreateBlogCategoryRequest request = new CreateBlogCategoryRequest(
+                CUSTOM_CHILD_NAME,
+                CUSTOM_CHILD_SLUG,
+                ROOT_ID,
+                CUSTOM_CHILD_DESC,
+                null,
+                STATUS_ACTIVE,
+                null
+        );
+
+        when(blogCategoryRepositoryPort.existsBySlug(CUSTOM_CHILD_SLUG)).thenReturn(false);
+        when(blogCategoryRepositoryPort.findById(ROOT_ID)).thenReturn(Optional.of(rootCategory));
+        when(blogCategoryRepositoryPort.findMaxDisplayOrderByParentId(ROOT_ID)).thenReturn(10);
+        
+        BlogCategoryModel savedModel = BlogCategoryModel.builder()
+                .id(4L)
+                .displayOrder(11)
+                .build();
+        when(blogCategoryRepositoryPort.save(any(BlogCategoryModel.class))).thenReturn(savedModel);
+        when(blogCategoryApplicationMapper.toResponse(savedModel)).thenReturn(rootResponse);
+
+        blogCategoryService.createCategory(request);
+
+        verify(blogCategoryRepositoryPort).save(argThat(category -> category.getDisplayOrder() == 11));
     }
 
     @Test
@@ -362,6 +426,39 @@ class BlogCategoryServiceTest {
             UPDATED_CAT_NAME.equals(category.getName()) &&
             UPDATED_CAT_SLUG.equals(category.getSlug()) &&
             UPDATED_CAT_AVATAR.equals(category.getAvatar())
+        ));
+    }
+
+    @Test
+    void updateCategory_withNullSlugAndNullDisplayOrder_success() {
+        CreateBlogCategoryRequest request = new CreateBlogCategoryRequest(
+                UPDATED_CAT_NAME,
+                null,
+                null,
+                UPDATED_CAT_DESC,
+                null,
+                STATUS_ACTIVE,
+                null
+        );
+
+        when(blogCategoryRepositoryPort.findById(ROOT_ID)).thenReturn(Optional.of(rootCategory));
+        String generatedSlug = "updated-root-name"; // SlugUtils.toSlug(UPDATED_CAT_NAME)
+        when(blogCategoryRepositoryPort.existsBySlugAndIdNot(generatedSlug, ROOT_ID)).thenReturn(false);
+
+        BlogCategoryModel savedModel = BlogCategoryModel.builder()
+                .id(ROOT_ID)
+                .displayOrder(rootCategory.getDisplayOrder())
+                .slug(generatedSlug)
+                .build();
+
+        when(blogCategoryRepositoryPort.save(any(BlogCategoryModel.class))).thenReturn(savedModel);
+        when(blogCategoryApplicationMapper.toResponse(savedModel)).thenReturn(rootResponse);
+
+        blogCategoryService.updateCategory(ROOT_ID, request);
+
+        verify(blogCategoryRepositoryPort).save(argThat(category -> 
+            generatedSlug.equals(category.getSlug()) &&
+            category.getDisplayOrder() == rootCategory.getDisplayOrder()
         ));
     }
 

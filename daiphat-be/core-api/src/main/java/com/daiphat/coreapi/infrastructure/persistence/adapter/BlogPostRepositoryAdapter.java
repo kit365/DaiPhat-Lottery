@@ -35,6 +35,25 @@ public class BlogPostRepositoryAdapter implements BlogPostRepositoryPort {
     }
 
     @Override
+    public Optional<BlogPostModel> findPublishedBySlug(String slug) {
+        return blogPostRepository.findBySlugAndStatusAndIsDeletedFalse(slug, PostStatus.PUBLISHED)
+                .map(blogPostPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public List<BlogPostModel> findRelatedPublishedPosts(Long categoryId, Long excludedPostId, Pageable pageable) {
+        return blogPostRepository.findByCategoryIdAndStatusAndIsDeletedFalseAndIdNot(
+                        categoryId,
+                        PostStatus.PUBLISHED,
+                        excludedPostId,
+                        pageable
+                )
+                .stream()
+                .map(blogPostPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public boolean existsBySlug(String slug) {
         return blogPostRepository.existsBySlug(slug);
     }

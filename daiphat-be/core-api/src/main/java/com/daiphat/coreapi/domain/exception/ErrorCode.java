@@ -89,7 +89,11 @@ public enum ErrorCode {
     LOTTERY_PRODUCT_NOT_FOUND("LT_001", "Sản phẩm vé số không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_PRODUCT_NAME_EXISTED("LT_002", "Tên sản phẩm vé số đã tồn tại.", HttpStatus.BAD_REQUEST),
     LOTTERY_PRODUCT_INVALID_STATUS("LT_003", "Trạng thái sản phẩm không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
-    LOTTERY_PRODUCT_INSUFFICIENT_INVENTORY("LT_004", "Tồn kho không đủ.", HttpStatus.BAD_REQUEST);
+    LOTTERY_PRODUCT_INSUFFICIENT_INVENTORY("LT_004", "Tồn kho không đủ.", HttpStatus.BAD_REQUEST),
+
+    // Notification Errors
+    NOTIFICATION_NOT_FOUND("NTF_001", "Thông báo không tồn tại.", HttpStatus.NOT_FOUND),
+    NOTIFICATION_DELETE_REQUIRES_READ("NTF_002", "Chỉ có thể xóa thông báo đã đọc.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

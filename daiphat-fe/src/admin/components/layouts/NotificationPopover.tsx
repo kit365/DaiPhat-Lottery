@@ -22,12 +22,17 @@ import {
     useNotifications,
     useMarkAsRead,
     useMarkAllAsRead,
-    useArchiveAllNotifications,
 } from "../../hooks/useNotification";
 import { useStaffTasks, useUpdateTicketServiceOrderStatus } from "../../pages/ticket-service-order/hooks/useTicketServiceOrderManagement";
 import { confirmAction } from "../../utils/swal";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { ROUTES, prefixAdmin } from "../../constants/routes";
+import { ROUTES } from "../../constants/routes";
+import {
+    getAdminNotificationAccentColor,
+    getAdminNotificationCategoryLabel,
+    getAdminNotificationIcon,
+    getAdminNotificationPath
+} from "../../utils/notification.util";
 import { toast } from "react-toastify";
 import { Card, Avatar } from "@mui/material"; // Removed duplicate Tooltip here
 import dayjs from "dayjs";
@@ -62,7 +67,6 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
     const { data: res } = useNotifications();
     const { mutate: markAsRead } = useMarkAsRead();
     const { mutate: markAllAsRead } = useMarkAllAsRead();
-    const { mutate: archiveAllNotifications } = useArchiveAllNotifications();
 
     const allNotifications = res?.data || [];
     // Only show non-archived notifications in All/Unread
@@ -81,6 +85,12 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
     const handleClickItem = (item: any) => {
         if (item.status === 'unread') {
             markAsRead(item._id);
+        }
+        const path = getAdminNotificationPath(item);
+        if (path) {
+            navigate(path);
+            handleClose();
+            return;
         }
         // Ưu tiên navigate theo ticketServiceOrderId trong metadata
         if (item.metadata?.ticketServiceOrderId) {
@@ -198,14 +208,7 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
                             </IconButton>
                         </Tooltip>
 
-                        <Tooltip title="Lưu trữ tất cả">
-                            <IconButton
-                                sx={{ color: 'text.secondary' }}
-                                onClick={() => archiveAllNotifications()}
-                            >
-                                <Icon icon="solar:archive-bold-duotone" width={20} />
-                            </IconButton>
-                        </Tooltip>
+
 
                         <Tooltip title="Đóng">
                             <IconButton onClick={handleClose}>
@@ -389,54 +392,7 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
                             />
                         ) : undefined}
                     />
-                    <Tab
-                        disableRipple
-                        label={
-                            <Box sx={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'center', zIndex: 1 }}>
-                                <Stack direction="row" alignItems="center" spacing={1}>
-                                    <Typography variant="subtitle2" sx={{ fontSize: '0.875rem', fontWeight: tab === 'archived' ? 700 : 600 }}>Lưu trữ</Typography>
-                                    <Box sx={{
-                                        bgcolor: tab === 'archived' ? '#22C55E' : 'rgba(34, 197, 94, 0.16)',
-                                        color: tab === 'archived' ? 'white' : '#118D57',
-                                        px: 0.8,
-                                        py: 0.2,
-                                        borderRadius: '6px',
-                                        fontSize: '0.75rem',
-                                        fontWeight: 700,
-                                        transition: 'all 0.2s'
-                                    }}>
-                                        {archivedNotifications.length}
-                                    </Box>
-                                </Stack>
-                            </Box>
-                        }
-                        value="archived"
-                        sx={{
-                            height: 34,
-                            minHeight: 34,
-                            px: '16px',
-                            borderRadius: '8px',
-                            textTransform: 'none',
-                            fontFamily: '"Public Sans Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                            fontSize: '0.875rem',
-                            fontWeight: 500,
-                            lineHeight: 1.57143,
-                            color: tab === 'archived' ? 'var(--palette-text-primary)' : 'var(--palette-text-secondary)',
-                            flex: '1 1 0px',
-                            opacity: 1,
-                            position: 'relative',
-                            overflow: 'hidden',
-                            '&.Mui-selected': { color: 'var(--palette-text-primary)' }
-                        }}
-                        icon={tab === 'archived' ? (
-                            <motion.div
-                                layoutId="notif-tab-pill"
-                                className="absolute inset-0 bg-white shadow-sm z-0"
-                                style={{ borderRadius: '8px' }}
-                                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                            />
-                        ) : undefined}
-                    />
+
                 </Tabs>
 
                 <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
@@ -457,6 +413,7 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
                                         alignItems: 'flex-start',
                                         borderBottom: 'dashed 1px var(--palette-divider)',
                                         bgcolor: item.status === 'unread' ? 'rgba(145, 158, 171, 0.04)' : 'transparent',
+                                        opacity: item.status === 'read' ? 0.65 : 1,
                                         transition: 'background-color 150ms cubic-bezier(0.4, 0, 0.2, 1)',
                                         '&:hover': { bgcolor: 'rgba(145, 158, 171, 0.08)' }
                                     }}
@@ -495,15 +452,9 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
                                             }}
                                         >
                                             <Icon
-                                                icon={
-                                                    item.type === 'overrun' ? "solar:danger-bold-duotone" :
-                                                        item.type === 'ticketServiceOrder' ? "solar:calendar-mark-bold-duotone" :
-                                                            item.type === 'boarding' ? "solar:home-bold-duotone" :
-                                                                "solar:bell-bold-duotone"
-                                                }
+                                                icon={getAdminNotificationIcon(item)}
                                                 width={24}
-                                                color={item.type === 'overrun' ? "#FF5630" :
-                                                    item.type === 'boarding' ? "#FFAB00" : "#00B8D9"}
+                                                color={getAdminNotificationAccentColor(item)}
                                             />
                                         </Box>
                                     </ListItemAvatar>
@@ -531,10 +482,7 @@ export const NotificationPopover = ({ onMouseEnter, onMouseLeave, isHovered, lay
                                                 </Typography>
                                                 <Box sx={{ width: 2, height: 2, borderRadius: '50%', bgcolor: 'text.disabled' }} />
                                                 <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                                                    {item.type === 'order' ? 'Đơn hàng' :
-                                                        item.type === 'ticketServiceOrder' ? 'Dịch vụ' :
-                                                            item.type === 'boarding' ? 'Khách sạn' :
-                                                                item.type === 'overrun' ? 'Hệ thống' : 'Thông báo'}
+                                                    {getAdminNotificationCategoryLabel(item)}
                                                 </Typography>
                                             </Stack>
                                         }

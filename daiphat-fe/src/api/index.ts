@@ -5,7 +5,11 @@ import { AppToast } from "../client/utils/toast.util"
 import Cookies from "js-cookie"
 import { STORAGE_KEYS } from "../constants/storage.constants"
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+// In dev (npm run dev), use empty BASE_URL so requests go through Vite proxy.
+// This makes them same-origin → browser sends HttpOnly cookies (incl. refresh_token).
+// In production, VITE_API_BASE_URL is set to the actual backend URL.
+const isDev = import.meta.env.DEV;
+const BASE_URL = isDev ? "" : (import.meta.env.VITE_API_BASE_URL || "");
 const API_ROOT = `${BASE_URL}${API_PREFIX}${API_VERSION}`
 
 const apiApp = axios.create({
@@ -78,14 +82,16 @@ apiApp.interceptors.response.use(
             const message = (response.data as any)?.message || "Đã có lỗi xảy ra từ máy chủ!";
 
             if (status === 401 && originalRequest && !originalRequest._retry) {
-                // If the refresh request itself fails with 401, logout to prevent infinite loop
-                if (originalRequest.url?.includes('/auth/refresh-token')) {
-                    clearAuthSession();
-                    const isLoginPath = window.location.pathname.includes('/auth/login') || window.location.pathname.includes('/login');
-                    if (isLoginPath) {
-                        AppToast.error(message);
-                    } else {
-                        AppToast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+                // Skip refresh logic for auth endpoints (login, refresh-token itself)
+                const isAuthEndpoint = 
+                    originalRequest.url?.includes('/auth/login') ||
+                    originalRequest.url?.includes('/auth/refresh-token');
+
+                if (isAuthEndpoint) {
+                    // For login endpoint: just show the real error from backend
+                    // Don't clear session, don't redirect, don't show "session expired"
+                    if (originalRequest.url?.includes('/auth/refresh-token')) {
+                        clearAuthSession();
                     }
                     return Promise.reject(error);
                 }
@@ -140,15 +146,17 @@ apiApp.interceptors.response.use(
             }
 
             switch (status) {
-                case 401:
-                    clearAuthSession();
-                    const isLoginPath = window.location.pathname.includes('/auth/login') || window.location.pathname.includes('/login');
-                    if (isLoginPath) {
-                        AppToast.error(message);
-                    } else {
+                case 401: {
+                    // Don't clear session or show session expired for auth endpoints
+                    const isAuthEndpoint = 
+                        originalRequest?.url?.includes('/auth/login') ||
+                        originalRequest?.url?.includes('/auth/refresh-token');
+                    if (!isAuthEndpoint) {
+                        clearAuthSession();
                         AppToast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
                     }
                     break;
+                }
                 case 403:
                     AppToast.error(message);
                     break;

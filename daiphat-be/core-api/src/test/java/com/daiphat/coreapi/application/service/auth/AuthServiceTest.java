@@ -120,4 +120,15 @@ class AuthServiceTest extends AuthTestBase {
         verify(passwordResetServicePort).confirmPasswordReset(DEFAULT_USER_ID, DEFAULT_OTP);
         verify(passwordResetServicePort).changePassword(DEFAULT_USER_ID, changeRequest);
     }
+
+    @Test
+    void getPasswordPolicy_delegatesToPasswordResetService() {
+        com.daiphat.coreapi.application.dto.response.auth.PasswordPolicyResponse expected = com.daiphat.coreapi.application.dto.response.auth.PasswordPolicyResponse.builder().minLength(8).maxLength(20).build();
+        when(passwordResetServicePort.getPasswordPolicy()).thenReturn(expected);
+
+        com.daiphat.coreapi.application.dto.response.auth.PasswordPolicyResponse actual = authService.getPasswordPolicy();
+
+        assertThat(actual).isSameAs(expected);
+        verify(passwordResetServicePort).getPasswordPolicy();
+    }
 }
