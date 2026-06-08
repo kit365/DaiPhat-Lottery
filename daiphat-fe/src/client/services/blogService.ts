@@ -51,3 +51,26 @@ export const getPublicPosts = async (params: {
   const response = await apiApp.get('/blogs/public', { params });
   return response.data.data;
 };
+
+export interface PublicPostDetail extends PublicPost {
+  content: string;
+  tags: {
+    id: number;
+    name: string;
+    slug: string;
+  }[];
+}
+
+export const getPublicPostBySlug = async (slug: string): Promise<PublicPostDetail> => {
+  const response = await apiApp.get(`/blogs/public/${slug}`);
+  return response.data.data;
+};
+
+export const getRelatedPublicPosts = async (slug: string, limit: number = 4): Promise<PublicPost[]> => {
+  const response = await apiApp.get(`/blogs/public/${slug}/related`, { params: { limit } });
+  return response.data.data;
+};
+
+export const incrementPostView = async (id: number): Promise<void> => {
+  await apiApp.patch(`/blogs/${id}/view`);
+};

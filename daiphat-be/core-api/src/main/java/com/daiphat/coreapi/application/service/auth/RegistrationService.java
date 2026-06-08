@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.auth;
 
 import com.daiphat.coreapi.application.dto.request.user.UserRegistrationRequest;
+import com.daiphat.coreapi.application.event.UserEmailVerifiedEvent;
 import com.daiphat.coreapi.application.event.UserRegisteredEvent;
 import com.daiphat.coreapi.application.mapper.UserApplicationMapper;
 import com.daiphat.coreapi.application.port.in.auth.RegistrationServicePort;
@@ -59,6 +60,7 @@ public class RegistrationService implements RegistrationServicePort {
                 Duration.ofSeconds(verificationTokenTtlSeconds)
         );
         eventPublisher.publishEvent(UserRegisteredEvent.builder()
+                .userId(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .token(verificationToken)
@@ -76,6 +78,12 @@ public class RegistrationService implements RegistrationServicePort {
         if (!user.isEmailVerified()) {
             user.activate();
             userRepositoryPort.save(user);
+            eventPublisher.publishEvent(UserEmailVerifiedEvent.builder()
+                    .userId(user.getId())
+                    .email(user.getEmail())
+                    .fullName(user.getFullName())
+                    .token(token)
+                    .build());
         }
         verificationCachePort.deleteVerificationToken(token);
     }
@@ -95,6 +103,7 @@ public class RegistrationService implements RegistrationServicePort {
                 Duration.ofSeconds(verificationTokenTtlSeconds)
         );
         eventPublisher.publishEvent(UserRegisteredEvent.builder()
+                .userId(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .token(verificationToken)

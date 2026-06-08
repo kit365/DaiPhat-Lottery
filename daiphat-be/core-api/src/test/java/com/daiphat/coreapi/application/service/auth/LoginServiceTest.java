@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.request.auth.GoogleLoginRequest;
 import com.daiphat.coreapi.application.dto.request.auth.LoginRequest;
 import com.daiphat.coreapi.application.dto.request.auth.RefreshTokenRequest;
 import com.daiphat.coreapi.application.dto.response.auth.AuthResponse;
+import com.daiphat.coreapi.application.event.UserWelcomeEvent;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.port.out.file.RemoteFilePort;
@@ -46,7 +47,8 @@ class LoginServiceTest extends AuthTestBase {
                 remoteFilePort,
                 tokenProviderPort,
                 refreshTokenStorePort,
-                authApplicationMapper
+                authApplicationMapper,
+                eventPublisher
         );
     }
 
@@ -235,9 +237,150 @@ class LoginServiceTest extends AuthTestBase {
         assertThat(userCaptor.getValue().getEmail()).isEqualTo(googleUser.email());
         assertThat(userCaptor.getValue().isEmailVerified()).isTrue();
         assertThat(userCaptor.getValue().getImagePublicId()).isEqualTo("profiles/google");
+        verify(eventPublisher).publishEvent(any(UserWelcomeEvent.class));
         verify(refreshTokenStorePort).save(DEFAULT_USER_ID, REFRESH_TOKEN, Duration.ofSeconds(604800));
     }
 
+    @Test
+    @DisplayName("GOOGLE-LOGIN: Không gửi lại thông báo chào mừng nếu user Google đã active và verified")
+    void loginWithGoogle_existingVerifiedUser_doesNotPublishWelcomeEvent() {
+        GoogleLoginRequest request = new GoogleLoginRequest("code", null, null, "http://localhost/callback", null);
+        OAuthUserInfo googleUser = new OAuthUserInfo(
+                UUID.randomUUID(),
+                "google-user",
+                DEFAULT_EMAIL,
+                "Kiet",
+                "Ngo",
+                null,
+                "google"
+        );
+        UserModel existingUser = activeUser();
+
+        when(googleOAuthPort.verify(request)).thenReturn(googleUser);
+        when(userRepositoryPort.findByEmail(googleUser.email())).thenReturn(Optional.of(existingUser));
+        when(userRepositoryPort.save(existingUser)).thenReturn(existingUser);
+        when(tokenProviderPort.generateAccessToken(existingUser)).thenReturn(ACCESS_TOKEN);
+        when(tokenProviderPort.generateRefreshToken(existingUser)).thenReturn(REFRESH_TOKEN);
+        when(tokenProviderPort.getAccessTokenTtlSeconds()).thenReturn(3600L);
+        when(tokenProviderPort.getRefreshTokenTtlSeconds()).thenReturn(604800L);
+        when(authApplicationMapper.toResponse(any(AuthToken.class))).thenReturn(AuthResponse.builder().accessToken(ACCESS_TOKEN).build());
+
+        loginService.loginWithGoogle(request);
+
+        verify(eventPublisher, never()).publishEvent(any(UserWelcomeEvent.class));
+        verify(refreshTokenStorePort).save(DEFAULT_USER_ID, REFRESH_TOKEN, Duration.ofSeconds(604800));
+    }
+
+    @Test
+    @DisplayName("TC-LOGIN-017-ALT: Refresh Token is null or blank")
+    void refreshToken_nullOrBlank_throwsUnauthorized() {
+        assertThatThrownBy(() -> loginService.refreshToken(new RefreshTokenRequest(null)))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+
+        assertThatThrownBy(() -> loginService.refreshToken(new RefreshTokenRequest("   ")))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("TC-LOGIN-017-ALT: Refresh Token parsing fails")
+    void refreshToken_parsingFails_throwsExpired() {
+        when(tokenProviderPort.extractUsernameFromRefreshToken(REFRESH_TOKEN)).thenThrow(new RuntimeException("invalid token"));
+
+        assertThatThrownBy(() -> loginService.refreshToken(new RefreshTokenRequest(REFRESH_TOKEN)))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.REFRESH_TOKEN_EXPIRED);
+    }
+
+    @Test
+    @DisplayName("TC-LOGIN-017-ALT: Refresh Token user not found")
+    void refreshToken_userNotFound_throwsInvalidCredentials() {
+        when(tokenProviderPort.extractUsernameFromRefreshToken(REFRESH_TOKEN)).thenReturn(DEFAULT_USERNAME);
+        when(userLookupService.findByUsername(DEFAULT_USERNAME)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> loginService.refreshToken(new RefreshTokenRequest(REFRESH_TOKEN)))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_CREDENTIALS);
+    }
+
+    @Test
+    @DisplayName("GOOGLE-LOGIN: Đồng bộ tài khoản Google khi đã tồn tại")
+    void loginWithGoogle_existingUser_synchronizesAndIssuesTokens() {
+        GoogleLoginRequest request = new GoogleLoginRequest("code", null, null, "http://localhost/callback", null);
+        OAuthUserInfo googleUser = new OAuthUserInfo(
+                UUID.randomUUID(),
+                "google-user",
+                "existing@daiphat.com",
+                "NewFirst",
+                "NewLast",
+                "https://example.test/avatar.png",
+                "google"
+        );
+        UserModel existingUser = activeUser();
+        existingUser.setEmail("existing@daiphat.com");
+        existingUser.setFirstName("");
+        existingUser.setLastName(null);
+        existingUser.setEmailVerified(false);
+        existingUser.setStatus(UserStatus.PENDING);
+        existingUser.setImagePublicId("");
+
+        when(googleOAuthPort.verify(request)).thenReturn(googleUser);
+        when(userRepositoryPort.findByEmail(googleUser.email())).thenReturn(Optional.of(existingUser));
+        when(remoteFilePort.download(googleUser.avatarUrl()))
+                .thenReturn(new RemoteFilePort.RemoteFile("image".getBytes(), "avatar.png", "image/png"));
+        when(storagePort.upload(any())).thenReturn(new StorageResult("profiles/google2", "https://cdn.test/google2.png"));
+        when(userRepositoryPort.save(any(UserModel.class))).thenReturn(existingUser);
+        
+        when(tokenProviderPort.generateAccessToken(existingUser)).thenReturn(ACCESS_TOKEN);
+        when(tokenProviderPort.generateRefreshToken(existingUser)).thenReturn(REFRESH_TOKEN);
+        when(tokenProviderPort.getAccessTokenTtlSeconds()).thenReturn(3600L);
+        when(tokenProviderPort.getRefreshTokenTtlSeconds()).thenReturn(604800L);
+        when(authApplicationMapper.toResponse(any(AuthToken.class))).thenReturn(AuthResponse.builder().accessToken(ACCESS_TOKEN).build());
+
+        loginService.loginWithGoogle(request);
+
+        verify(userRepositoryPort).save(existingUser);
+        assertThat(existingUser.getFirstName()).isEqualTo("NewFirst");
+        assertThat(existingUser.getLastName()).isEqualTo("NewLast");
+        assertThat(existingUser.isEmailVerified()).isTrue();
+        assertThat(existingUser.getStatus()).isEqualTo(UserStatus.ACTIVE);
+        assertThat(existingUser.getImagePublicId()).isEqualTo("profiles/google2");
+    }
+
+    @Test
+    @DisplayName("GOOGLE-LOGIN: Upload avatar thất bại không làm lỗi quá trình login")
+    void loginWithGoogle_uploadAvatarFails_ignoresException() {
+        GoogleLoginRequest request = new GoogleLoginRequest("code", null, null, "http://localhost/callback", null);
+        OAuthUserInfo googleUser = new OAuthUserInfo(
+                UUID.randomUUID(),
+                "google-user",
+                "fail@daiphat.com",
+                "First",
+                "Last",
+                "https://example.test/fail.png",
+                "google"
+        );
+        UserModel user = activeUser();
+        user.setImagePublicId(null);
+
+        when(googleOAuthPort.verify(request)).thenReturn(googleUser);
+        when(userRepositoryPort.findByEmail(googleUser.email())).thenReturn(Optional.of(user));
+        when(remoteFilePort.download(googleUser.avatarUrl())).thenThrow(new RuntimeException("Download failed"));
+        when(userRepositoryPort.save(any(UserModel.class))).thenReturn(user);
+        when(tokenProviderPort.generateAccessToken(user)).thenReturn(ACCESS_TOKEN);
+        when(tokenProviderPort.generateRefreshToken(user)).thenReturn(REFRESH_TOKEN);
+        when(tokenProviderPort.getAccessTokenTtlSeconds()).thenReturn(3600L);
+        when(tokenProviderPort.getRefreshTokenTtlSeconds()).thenReturn(604800L);
+        when(authApplicationMapper.toResponse(any(AuthToken.class))).thenReturn(AuthResponse.builder().accessToken(ACCESS_TOKEN).build());
+
+        // Should not throw
+        loginService.loginWithGoogle(request);
+    }
 
     /* =========================================================================
      * COMMENTED OUT TESTS: Các tính năng cũ chưa có hoặc đã thay đổi trong Monolith

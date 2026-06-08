@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface BlogPostRepositoryPort {
     BlogPostModel save(BlogPostModel post);
     Optional<BlogPostModel> findById(Long id);
+    Optional<BlogPostModel> findPublishedBySlug(String slug);
+    List<BlogPostModel> findRelatedPublishedPosts(Long categoryId, Long excludedPostId, Pageable pageable);
     boolean existsBySlug(String slug);
     boolean existsBySlugAndIdNot(String slug, Long id);
 

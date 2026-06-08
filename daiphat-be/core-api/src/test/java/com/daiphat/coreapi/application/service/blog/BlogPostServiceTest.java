@@ -27,6 +27,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import com.daiphat.coreapi.application.dto.request.blog.UpdateBlogPostRequest;
+import org.springframework.context.ApplicationEventPublisher;
+import com.daiphat.coreapi.application.event.BlogPostPublishedEvent;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -39,7 +41,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("Core BlogPostService - Create API Unit Tests")
+@DisplayName("[DP-168] Core BlogPostService Unit Tests")
 class BlogPostServiceTest {
 
     private static final Long CATEGORY_ID = 10L;
@@ -77,6 +79,9 @@ class BlogPostServiceTest {
     @Mock
     private BlogPostPublishQueuePort blogPostPublishQueuePort;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     @BeforeEach
     void setUp() {
         blogPostService = new BlogPostService(
@@ -86,12 +91,13 @@ class BlogPostServiceTest {
                 blogPostApplicationMapper,
                 storagePort,
                 blogViewCachePort,
-                blogPostPublishQueuePort
+                blogPostPublishQueuePort,
+                eventPublisher
         );
     }
 
     @Test
-    @DisplayName("CREATE: Tạo bài viết thành công với đầy đủ thông tin hợp lệ")
+    @DisplayName("[DP-302] CREATE: Tạo bài viết thành công với đầy đủ thông tin hợp lệ")
     void createPost_success() {
         // GIVEN
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
@@ -126,6 +132,7 @@ class BlogPostServiceTest {
                 .summary(DEFAULT_SUMMARY)
                 .content(DEFAULT_CONTENT)
                 .thumbnail(DEFAULT_THUMBNAIL)
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.PUBLISHED)
                 .category(category)
                 .tags(tags)
                 .build();
@@ -152,8 +159,10 @@ class BlogPostServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.id()).isEqualTo(999L);
         assertThat(response.title()).isEqualTo(DEFAULT_TITLE);
-        
-        verify(blogPostRepositoryPort).save(argThat(model -> 
+
+        verify(eventPublisher).publishEvent(any(BlogPostPublishedEvent.class));
+
+        verify(blogPostRepositoryPort).save(argThat(model ->
             DEFAULT_SLUG.equals(model.getSlug()) &&
             model.getCategory() == category &&
             model.getTags() == tags
@@ -161,7 +170,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("CREATE: Tạo bài viết thành công với nội dung content cực dài (500 lần lặp)")
+    @DisplayName("[DP-302] CREATE: Tạo bài viết thành công với nội dung content cực dài (500 lần lặp)")
     void createPost_success_withVeryLongContent() {
         // GIVEN
         StringBuilder contentBuilder = new StringBuilder();
@@ -232,7 +241,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("CREATE: Tạo bài viết thất bại - Slug đã tồn tại")
+    @DisplayName("[DP-302] CREATE: Tạo bài viết thất bại - Slug đã tồn tại")
     void createPost_duplicateSlug_throwsSlugExisted() {
         // GIVEN
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
@@ -251,8 +260,8 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("CREATE: Tạo bài viết hẹn giờ thất bại khi thiếu scheduledAt")
-    void createPost_scheduledWithoutScheduledAt_throwsInvalidInput() {
+    @DisplayName("[DP-302] CREATE: Tạo bài viết hẹn giờ thất bại khi thiếu scheduledAt")
+    void createPost_scheduledWithoutScheduledAt_throwsScheduledAtRequired() {
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
                 .categoryId(CATEGORY_ID)
                 .type(POST_TYPE_BLOG)
@@ -272,7 +281,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("CREATE: Tạo bài viết hẹn giờ sẽ lưu publishedAt làm mốc xuất bản chính")
+    @DisplayName("[DP-302] CREATE: Tạo bài viết hẹn giờ sẽ lưu publishedAt làm mốc xuất bản chính")
     void createPost_scheduled_setsPublishedAtAsSourceOfTruth() {
         LocalDateTime futureTime = LocalDateTime.now().plusDays(1);
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
@@ -315,7 +324,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("CREATE: Tạo bài viết thất bại khi chọn trạng thái unpublished")
+    @DisplayName("[DP-302] CREATE: Tạo bài viết thất bại khi chọn trạng thái unpublished")
     void createPost_unpublished_throwsInvalidInput() {
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
                 .categoryId(CATEGORY_ID)
@@ -336,7 +345,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("UPDATE: Cập nhật bài viết thất bại khi slug đã thuộc bài khác")
+    @DisplayName("[DP-320] UPDATE: Cập nhật bài viết thất bại khi slug đã thuộc bài khác")
     void updatePost_duplicateSlug_throwsSlugExisted() {
         BlogPostModel existingPost = BlogPostModel.builder()
                 .id(1L)
@@ -359,7 +368,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("UPDATE: Rời trạng thái scheduled sẽ xóa lịch đăng cũ")
+    @DisplayName("[DP-320] UPDATE: Rời trạng thái scheduled sẽ xóa lịch đăng cũ")
     void updatePost_fromScheduledToPublished_clearsScheduledAt() {
         LocalDateTime futureTime = LocalDateTime.now().plusDays(1);
         BlogPostModel existingPost = BlogPostModel.builder()
@@ -389,10 +398,11 @@ class BlogPostServiceTest {
                         && post.getScheduledAt() == null
         ));
         verify(blogPostPublishQueuePort).cancelScheduledPost(1L);
+        verify(eventPublisher).publishEvent(any(BlogPostPublishedEvent.class));
     }
 
     @Test
-    @DisplayName("UPDATE: Không cho chuyển trực tiếp từ published sang scheduled")
+    @DisplayName("[DP-320] UPDATE: Không cho chuyển trực tiếp từ published sang scheduled")
     void updatePost_publishedToScheduled_throwsInvalidInput() {
         BlogPostModel existingPost = BlogPostModel.builder()
                 .id(1L)
@@ -416,7 +426,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("UPDATE: Chuyển từ unpublished sang scheduled sẽ xóa publishedAt cũ")
+    @DisplayName("[DP-320] UPDATE: Chuyển từ unpublished sang scheduled sẽ xóa publishedAt cũ")
     void updatePost_unpublishedToScheduled_clearsPublishedAt() {
         LocalDateTime oldPublishedAt = LocalDateTime.now().minusDays(5);
         LocalDateTime futureTime = LocalDateTime.now().plusDays(1);
@@ -452,7 +462,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("SCHEDULER: Tự động publish các bài scheduled đã tới giờ")
+    @DisplayName("[DP-322] SCHEDULER: Tự động publish các bài scheduled đã tới giờ (có merge dedup ID từ Redis và DB)")
     void publishDueScheduledPosts_success() {
         LocalDateTime now = LocalDateTime.now();
         when(blogPostPublishQueuePort.getDuePosts(any(LocalDateTime.class))).thenReturn(Set.of(1L, 2L));
@@ -465,15 +475,17 @@ class BlogPostServiceTest {
         when(blogPostRepositoryPort.findById(1L)).thenReturn(Optional.of(post1));
         when(blogPostRepositoryPort.findById(2L)).thenReturn(Optional.of(post2));
         when(blogPostRepositoryPort.findById(3L)).thenReturn(Optional.of(post3));
+        when(blogPostRepositoryPort.save(any(BlogPostModel.class))).thenAnswer(i -> i.getArgument(0));
 
         int publishedCount = blogPostService.publishDueScheduledPosts();
 
         assertThat(publishedCount).isEqualTo(3);
         verify(blogPostPublishQueuePort).removePosts(Set.of(1L, 2L, 3L));
+        verify(eventPublisher, times(3)).publishEvent(any(BlogPostPublishedEvent.class));
     }
 
     @Test
-    @DisplayName("CREATE: Tạo bài viết thất bại - Danh mục không tồn tại")
+    @DisplayName("[DP-302] CREATE: Tạo bài viết thất bại - Danh mục không tồn tại")
     void createPost_categoryNotFound_throwsCategoryNotFound() {
         // GIVEN
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
@@ -481,6 +493,7 @@ class BlogPostServiceTest {
                 .type(POST_TYPE_BLOG)
                 .status(STATUS_PUBLISHED)
                 .slug(DEFAULT_SLUG)
+                .status(STATUS_PUBLISHED)
                 .build();
 
         when(blogPostRepositoryPort.existsBySlug(DEFAULT_SLUG)).thenReturn(false);
@@ -497,7 +510,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("CREATE: Tạo bài viết thất bại - Tag được truyền vào không tồn tại")
+    @DisplayName("[DP-302] CREATE: Tạo bài viết thất bại - Tag được truyền vào không tồn tại")
     void createPost_tagNotFound_throwsTagNotFound() {
         // GIVEN
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
@@ -505,6 +518,7 @@ class BlogPostServiceTest {
                 .type(POST_TYPE_BLOG)
                 .status(STATUS_PUBLISHED)
                 .slug(DEFAULT_SLUG)
+                .status(STATUS_PUBLISHED)
                 .tagIds(Set.of(TAG_ID_1, TAG_ID_2))
                 .build();
 
@@ -526,7 +540,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("LIST: Lấy danh sách bài viết thành công với đầy đủ tham số bộ lọc")
+    @DisplayName("[DP-305, DP-311] LIST: Lấy danh sách bài viết thành công với đầy đủ tham số bộ lọc")
     void getPosts_success_withFilters() {
         // GIVEN
         int page = 1;
@@ -576,7 +590,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("LIST: Lấy danh sách bài viết thành công khi sortBy rỗng - Fallback về sort mặc định")
+    @DisplayName("[DP-305, DP-311] LIST: Lấy danh sách bài viết thành công khi sortBy rỗng - Fallback về sort mặc định")
     void getPosts_success_withDefaultFilters() {
         // GIVEN
         int page = 1;
@@ -607,7 +621,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("LIST: Lấy danh sách bài viết thành công khi không có dữ liệu khớp bộ lọc - Trả về danh sách rỗng")
+    @DisplayName("[DP-305, DP-311] LIST: Lấy danh sách bài viết thành công khi không có dữ liệu khớp bộ lọc - Trả về danh sách rỗng")
     void getPosts_success_emptyList() {
         // GIVEN
         int page = 1;
@@ -637,7 +651,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("DETAIL: Lấy chi tiết bài viết thành công")
+    @DisplayName("[DP-314] DETAIL: Lấy chi tiết bài viết thành công")
     void getPostById_success() {
         // GIVEN
         Long postId = 1121L;
@@ -677,7 +691,99 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("DETAIL: Lấy chi tiết bài viết thất bại - Không tìm thấy bài viết")
+    @DisplayName("[DP-317] PUBLIC DETAIL: Lấy chi tiết bài viết công khai theo slug thành công")
+    void getPublicPostBySlug_success() {
+        BlogPostModel post = BlogPostModel.builder()
+                .id(1121L)
+                .title("Bài viết công khai")
+                .slug("bai-viet-cong-khai")
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.PUBLISHED)
+                .build();
+        BlogPostResponse expectedResponse = BlogPostResponse.builder()
+                .id(1121L)
+                .title("Bài viết công khai")
+                .slug("bai-viet-cong-khai")
+                .status("published")
+                .build();
+
+        when(blogPostRepositoryPort.findPublishedBySlug("bai-viet-cong-khai")).thenReturn(Optional.of(post));
+        when(blogPostApplicationMapper.toResponse(post)).thenReturn(expectedResponse);
+
+        BlogPostResponse response = blogPostService.getPublicPostBySlug("bai-viet-cong-khai");
+
+        assertThat(response).isEqualTo(expectedResponse);
+        verify(blogPostRepositoryPort).findPublishedBySlug("bai-viet-cong-khai");
+    }
+
+    @Test
+    @DisplayName("[DP-317] PUBLIC DETAIL: Lấy chi tiết bài viết công khai theo slug thất bại khi không tồn tại")
+    void getPublicPostBySlug_notFound_throwsBlogNotFound() {
+        when(blogPostRepositoryPort.findPublishedBySlug("missing-post")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> blogPostService.getPublicPostBySlug("missing-post"))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.BLOG_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("[DP-317] PUBLIC DETAIL: Lấy bài viết liên quan cùng danh mục và loại trừ bài hiện tại")
+    void getRelatedPublicPosts_success() {
+        BlogCategoryModel category = BlogCategoryModel.builder().id(CATEGORY_ID).name("Tin tức").build();
+        BlogPostModel currentPost = BlogPostModel.builder()
+                .id(1121L)
+                .slug("bai-viet-hien-tai")
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.PUBLISHED)
+                .category(category)
+                .build();
+        BlogPostModel relatedPost = BlogPostModel.builder()
+                .id(1122L)
+                .title("Bài viết liên quan")
+                .slug("bai-viet-lien-quan")
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.PUBLISHED)
+                .category(category)
+                .build();
+        BlogPostSummaryResponse expectedSummary = BlogPostSummaryResponse.builder()
+                .id(1122L)
+                .title("Bài viết liên quan")
+                .slug("bai-viet-lien-quan")
+                .build();
+
+        when(blogPostRepositoryPort.findPublishedBySlug("bai-viet-hien-tai")).thenReturn(Optional.of(currentPost));
+        when(blogPostRepositoryPort.findRelatedPublishedPosts(eq(CATEGORY_ID), eq(1121L), any(Pageable.class)))
+                .thenReturn(List.of(relatedPost));
+        when(blogPostApplicationMapper.toSummaryResponse(relatedPost)).thenReturn(expectedSummary);
+
+        List<BlogPostSummaryResponse> response = blogPostService.getRelatedPublicPosts("bai-viet-hien-tai", 4);
+
+        assertThat(response).containsExactly(expectedSummary);
+        verify(blogPostRepositoryPort).findRelatedPublishedPosts(
+                eq(CATEGORY_ID),
+                eq(1121L),
+                argThat(pageable -> pageable.getPageSize() == 4)
+        );
+    }
+
+    @Test
+    @DisplayName("[DP-317] PUBLIC DETAIL: Lấy bài viết liên quan trả về rỗng khi bài hiện tại không có danh mục")
+    void getRelatedPublicPosts_withoutCategory_returnsEmptyList() {
+        BlogPostModel currentPost = BlogPostModel.builder()
+                .id(1121L)
+                .slug("bai-viet-khong-danh-muc")
+                .status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.PUBLISHED)
+                .category(null)
+                .build();
+
+        when(blogPostRepositoryPort.findPublishedBySlug("bai-viet-khong-danh-muc")).thenReturn(Optional.of(currentPost));
+
+        List<BlogPostSummaryResponse> response = blogPostService.getRelatedPublicPosts("bai-viet-khong-danh-muc", 4);
+
+        assertThat(response).isEmpty();
+        verify(blogPostRepositoryPort, never()).findRelatedPublishedPosts(anyLong(), anyLong(), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("[DP-314] DETAIL: Lấy chi tiết bài viết thất bại - Không tìm thấy bài viết")
     void getPostById_notFound_throwsBlogNotFound() {
         // GIVEN
         Long postId = 9999L;
@@ -694,7 +800,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("VIEW COUNT: Tăng lượt xem thành công khi bài viết tồn tại và chưa có trong cache")
+    @DisplayName("[DP-317] VIEW COUNT: Tăng lượt xem thành công khi bài viết tồn tại và chưa có trong cache")
     void incrementViewCount_success_notInCache() {
         // GIVEN
         Long postId = 100L;
@@ -712,7 +818,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("VIEW COUNT: Tăng lượt xem thành công và bỏ qua truy vấn DB khi đã có sẵn trong cache")
+    @DisplayName("[DP-317] VIEW COUNT: Tăng lượt xem thành công và bỏ qua truy vấn DB khi đã có sẵn trong cache")
     void incrementViewCount_success_alreadyInCache() {
         // GIVEN
         Long postId = 100L;
@@ -729,7 +835,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("VIEW COUNT: Tăng lượt xem thất bại - Bài viết không tồn tại ném lỗi BLOG_NOT_FOUND")
+    @DisplayName("[DP-317] VIEW COUNT: Tăng lượt xem thất bại - Bài viết không tồn tại ném lỗi BLOG_NOT_FOUND")
     void incrementViewCount_notFound_throwsBlogNotFound() {
         // GIVEN
         Long postId = 100L;
@@ -749,7 +855,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("DELETE: Xóa mềm bài viết thành công")
+    @DisplayName("[DP-308] DELETE: Xóa mềm bài viết thành công")
     void deletePost_success() {
         // GIVEN
         Long postId = 100L;
@@ -766,7 +872,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("DELETE: Xóa bài viết thất bại - Không tìm thấy bài viết")
+    @DisplayName("[DP-308] DELETE: Xóa bài viết thất bại - Không tìm thấy bài viết")
     void deletePost_notFound_throwsBlogNotFound() {
         // GIVEN
         Long postId = 100L;
@@ -783,8 +889,8 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("DELETE: Xóa bài viết đã bị xóa trước đó - idempotent")
-    void deletePost_alreadyDeleted_success() {
+    @DisplayName("[DP-308] DELETE: Xóa bài viết đã bị xóa trước đó - idempotent")
+    void deletePost_alreadyDeleted_idempotent() {
         // GIVEN
         Long postId = 100L;
         BlogPostModel post = BlogPostModel.builder().id(postId).isDeleted(true).build();
@@ -851,7 +957,7 @@ class BlogPostServiceTest {
     }
 
     @Test
-    @DisplayName("DELETE: Xóa mềm bài viết hẹn giờ thành công và hủy lịch")
+    @DisplayName("[DP-308] DELETE: Xóa mềm bài viết hẹn giờ thành công và hủy lịch")
     void deletePost_scheduled_success() {
         // GIVEN
         Long postId = 100L;
@@ -870,5 +976,106 @@ class BlogPostServiceTest {
         verify(blogPostRepositoryPort).findById(postId);
         verify(blogPostRepositoryPort).save(argThat(model -> model.isDeleted() == true));
         verify(blogPostPublishQueuePort).cancelScheduledPost(postId);
+    }
+
+    @Test
+    void getBlogStatuses_success() {
+        List<com.daiphat.coreapi.application.dto.response.blog.BlogPostStatusResponse> result = blogPostService.getBlogStatuses();
+        assertThat(result).isNotEmpty();
+    }
+
+    @Test
+    void getBlogTypes_success() {
+        List<com.daiphat.coreapi.application.dto.response.blog.BlogPostTypeResponse> result = blogPostService.getBlogTypes();
+        assertThat(result).isNotEmpty();
+    }
+
+    @Test
+    void uploadImage_success() {
+        com.daiphat.coreapi.application.dto.storage.UploadRequest request = new com.daiphat.coreapi.application.dto.storage.UploadRequest(
+                new byte[]{1, 2, 3}, "test.png", "image/png", null
+        );
+        com.daiphat.coreapi.application.dto.storage.StorageResult result = new com.daiphat.coreapi.application.dto.storage.StorageResult("id1", "http://image.url");
+        when(storagePort.upload(any())).thenReturn(result);
+
+        com.daiphat.coreapi.application.dto.storage.StorageResult actual = blogPostService.uploadImage(request, "blog_category");
+        assertThat(actual.url()).isEqualTo("http://image.url");
+    }
+
+    @Test
+    void removeTagFromPosts_success() {
+        blogPostService.removeTagFromPosts(1L);
+        verify(blogPostRepositoryPort).removeTagFromPosts(1L);
+    }
+
+    @Test
+    void getPublicPosts_success() {
+        org.springframework.data.domain.Page<BlogPostModel> pageMock = new org.springframework.data.domain.PageImpl<>(List.of());
+        when(blogPostRepositoryPort.findAll(any(org.springframework.data.domain.Pageable.class), any(), any(), any(), any(), any(), eq(false))).thenReturn(pageMock);
+
+        PageResponse<com.daiphat.coreapi.application.dto.response.blog.BlogPostSummaryResponse> result =
+            blogPostService.getPublicPosts(1, 10, "search", 1L, "title", "ASC");
+
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    void updatePost_slugExisted_throwsSlugExisted() {
+        UpdateBlogPostRequest request = UpdateBlogPostRequest.builder().slug("new-slug").build();
+        when(blogPostRepositoryPort.findById(1L)).thenReturn(Optional.of(BlogPostModel.builder().build()));
+        when(blogPostRepositoryPort.existsBySlugAndIdNot("new-slug", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> blogPostService.updatePost(1L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.SLUG_EXISTED);
+    }
+
+    @Test
+    void updatePost_transitionNotAllowed_throwsException() {
+        UpdateBlogPostRequest request = UpdateBlogPostRequest.builder().status("UNPUBLISHED").build();
+        BlogPostModel postDraft = BlogPostModel.builder().id(2L).status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.DRAFT).build();
+        when(blogPostRepositoryPort.findById(2L)).thenReturn(Optional.of(postDraft));
+
+        assertThatThrownBy(() -> blogPostService.updatePost(2L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    void updatePost_tagsNotFound_throwsException() {
+        UpdateBlogPostRequest request = UpdateBlogPostRequest.builder().tagIds(java.util.Set.of(1L, 2L)).build();
+        BlogPostModel post = BlogPostModel.builder().id(1L).status(com.daiphat.coreapi.domain.model.enums.blog.PostStatus.DRAFT).build();
+        when(blogPostRepositoryPort.findById(1L)).thenReturn(Optional.of(post));
+        when(blogTagServicePort.getTagModelsByIds(any())).thenReturn(java.util.Set.of());
+
+        assertThatThrownBy(() -> blogPostService.updatePost(1L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.TAG_NOT_FOUND);
+    }
+
+    @Test
+    void getPosts_invalidSortBy_usesDefault() {
+        org.springframework.data.domain.Page<BlogPostModel> pageMock = new org.springframework.data.domain.PageImpl<>(List.of());
+        when(blogPostRepositoryPort.findAll(any(), any(), any(), any(), any(), any(), anyBoolean())).thenReturn(pageMock);
+
+        blogPostService.getPosts(1, 10, null, null, null, null, null, "invalid-sort", "DESC", false);
+
+        verify(blogPostRepositoryPort).findAll(argThat(pageable ->
+            pageable.getSort().iterator().next().getProperty().equals(com.daiphat.coreapi.shared.util.SearchConstants.DEFAULT_SORT_BY)
+        ), any(), any(), any(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    void publishDueScheduledPosts_postNotFound_ignores() {
+        when(blogPostPublishQueuePort.getDuePosts(any())).thenReturn(java.util.Set.of(1L));
+        when(blogPostRepositoryPort.findDueScheduledPostIds(any())).thenReturn(List.of());
+        when(blogPostRepositoryPort.findById(1L)).thenReturn(Optional.empty());
+
+        int count = blogPostService.publishDueScheduledPosts();
+        assertThat(count).isEqualTo(0);
+        verify(blogPostPublishQueuePort).removePosts(java.util.Set.of(1L));
     }
 }
