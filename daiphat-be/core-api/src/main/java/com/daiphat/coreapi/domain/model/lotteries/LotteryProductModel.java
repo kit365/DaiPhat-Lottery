@@ -28,7 +28,6 @@ public class LotteryProductModel {
     private Integer numberLength;
     private Integer minNumber;
     private Integer maxNumber;
-    private Integer digitCount;
 
     // Giá & Tồn kho
     private BigDecimal price;
@@ -56,10 +55,10 @@ public class LotteryProductModel {
     @Builder.Default
     private Integer displayOrder = 0;
 
-    // Audit (từ BaseEntity, map thủ công)
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
+    private String lastModifiedBy;
 
     // ---- Business methods ----
 
@@ -83,6 +82,22 @@ public class LotteryProductModel {
 
     public void deactivate() {
         this.status = LotteryProductStatus.INACTIVE;
+    }
+
+    public void increaseInventory(int amount) {
+        if (amount <= 0) {
+            return;
+        }
+        int current = this.inventoryCount != null ? this.inventoryCount : 0;
+        this.inventoryCount = current + amount;
+    }
+
+    public void decreaseInventory(int amount) {
+        if (amount <= 0) {
+            return;
+        }
+        int current = this.inventoryCount != null ? this.inventoryCount : 0;
+        this.inventoryCount = Math.max(0, current - amount);
     }
 
     public boolean isAvailable() {

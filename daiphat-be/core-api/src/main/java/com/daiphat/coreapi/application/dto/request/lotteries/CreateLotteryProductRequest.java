@@ -10,7 +10,6 @@ import java.time.LocalDate;
 
 @Builder
 public record CreateLotteryProductRequest(
-
         @NotBlank(message = "Tên sản phẩm không được để trống")
         String name,
 
@@ -24,13 +23,10 @@ public record CreateLotteryProductRequest(
         Integer numberLength,
         Integer minNumber,
         Integer maxNumber,
-        Integer digitCount,
 
         @NotNull(message = "Giá không được để trống")
         @DecimalMin(value = "0", inclusive = false, message = "Giá phải lớn hơn 0")
         BigDecimal price,
-
-        Integer inventoryCount,
 
         // Lịch quay
         String drawSchedule,
