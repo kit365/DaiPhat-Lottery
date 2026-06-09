@@ -62,7 +62,7 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ClientForgotPasswordPage />} />
           <Route path="/blogs" element={<BlogListPage />} />
-          <Route path="/blogs/detail" element={<BlogDetailPage />} />
+          <Route path="/blogs/detail/:slug" element={<BlogDetailPage />} />
 
           {/* Mapping Common Routes into Client Theme */}
           {CommonRoutes.map(({ path, element }: any) => (

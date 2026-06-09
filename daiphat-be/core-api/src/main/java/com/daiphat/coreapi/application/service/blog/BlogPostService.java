@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostSummaryResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostTypeResponse;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostStatusResponse;
+import com.daiphat.coreapi.application.event.BlogPostPublishedEvent;
 import com.daiphat.coreapi.domain.model.enums.blog.PostType;
 import com.daiphat.coreapi.domain.model.enums.blog.PostStatus;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
@@ -35,6 +36,7 @@ import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
@@ -69,6 +71,7 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
     private final StoragePort storagePort;
     private final BlogViewCachePort blogViewCachePort;
     private final BlogPostPublishQueuePort blogPostPublishQueuePort;
+    private final ApplicationEventPublisher eventPublisher;
 
     public BlogPostService(
             BlogPostRepositoryPort blogPostRepositoryPort,
@@ -77,7 +80,8 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
             BlogPostApplicationMapper blogPostApplicationMapper,
             StoragePort storagePort,
             BlogViewCachePort blogViewCachePort,
-            @Lazy BlogPostPublishQueuePort blogPostPublishQueuePort
+            @Lazy BlogPostPublishQueuePort blogPostPublishQueuePort,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.blogPostRepositoryPort = blogPostRepositoryPort;
         this.blogCategoryServicePort = blogCategoryServicePort;
@@ -86,6 +90,7 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
         this.storagePort = storagePort;
         this.blogViewCachePort = blogViewCachePort;
         this.blogPostPublishQueuePort = blogPostPublishQueuePort;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -122,6 +127,8 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
 
         if (savedPost.getStatus() == PostStatus.SCHEDULED) {
             blogPostPublishQueuePort.schedulePost(savedPost.getId(), savedPost.getPublishedAt());
+        } else if (savedPost.getStatus() == PostStatus.PUBLISHED) {
+            publishBlogPostNotification(savedPost);
         }
 
         return blogPostApplicationMapper.toResponse(savedPost);
@@ -133,6 +140,36 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
         BlogPostModel post = blogPostRepositoryPort.findById(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.BLOG_NOT_FOUND));
         return blogPostApplicationMapper.toResponse(post);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BlogPostResponse getPublicPostBySlug(String slug) {
+        BlogPostModel post = blogPostRepositoryPort.findPublishedBySlug(slug)
+                .orElseThrow(() -> new DomainException(ErrorCode.BLOG_NOT_FOUND));
+        return blogPostApplicationMapper.toResponse(post);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BlogPostSummaryResponse> getRelatedPublicPosts(String slug, int limit) {
+        BlogPostModel currentPost = blogPostRepositoryPort.findPublishedBySlug(slug)
+                .orElseThrow(() -> new DomainException(ErrorCode.BLOG_NOT_FOUND));
+
+        if (currentPost.getCategory() == null || currentPost.getCategory().getId() == null) {
+            return Collections.emptyList();
+        }
+
+        int normalizedLimit = Math.max(1, limit);
+        Pageable pageable = PageableUtils.of(1, normalizedLimit, SortUtils.byCreatedAtDesc());
+
+        return blogPostRepositoryPort.findRelatedPublishedPosts(
+                        currentPost.getCategory().getId(),
+                        currentPost.getId(),
+                        pageable
+                ).stream()
+                .map(blogPostApplicationMapper::toSummaryResponse)
+                .toList();
     }
 
     @Override
@@ -195,6 +232,10 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
             blogPostPublishQueuePort.cancelScheduledPost(saved.getId());
         }
 
+        if (saved.getStatus() == PostStatus.PUBLISHED && currentStatus != PostStatus.PUBLISHED) {
+            publishBlogPostNotification(saved);
+        }
+
         return blogPostApplicationMapper.toResponse(saved);
     }
 
@@ -225,7 +266,8 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
                     post.setStatus(PostStatus.PUBLISHED);
                     post.setPublishedAt(publishAt != null ? publishAt : now);
                     post.setScheduledAt(null);
-                    blogPostRepositoryPort.save(post);
+                    BlogPostModel savedPost = blogPostRepositoryPort.save(post);
+                    publishBlogPostNotification(savedPost);
                     publishedCount[0]++;
                 }
             });
@@ -311,6 +353,13 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
             throw new DomainException(ErrorCode.BLOG_SCHEDULED_AT_FUTURE);
         }
         return scheduledAt;
+    }
+
+    private void publishBlogPostNotification(BlogPostModel post) {
+        eventPublisher.publishEvent(BlogPostPublishedEvent.builder()
+                .postId(post.getId())
+                .title(post.getTitle())
+                .build());
     }
 
     @Override

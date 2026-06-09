@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.auth;
+package com.daiphat.coreapi.infrastructure.persistence.adapter.auth;
 
 import com.daiphat.coreapi.application.dto.request.permission.PermissionItem;
 import com.daiphat.coreapi.application.port.out.auth.RoleRepositoryPort;

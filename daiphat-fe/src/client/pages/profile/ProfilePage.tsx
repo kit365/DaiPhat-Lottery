@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Header } from "../../../client/components/layout/header";
 import { useAuth } from "../../hooks/useAuth";
 import { useAuthStore } from "../../../stores/useAuthStore";
+import { useNotifications } from "../../hooks/useNotifications";
 
 type TabId = 'overview' | 'info' | 'address' | 'tickets' | 'history' | 'notifications' | 'settings' | 'favorites';
 
@@ -27,6 +28,7 @@ const TABS: TabConfig[] = [
 export const ProfilePage = () => {
     const { user, isUserLoading, handleUploadAvatar, uploadAvatarMutation } = useAuth();
     const { token, openLoginModal } = useAuthStore();
+    const { unreadCount } = useNotifications(4);
     const location = useLocation();
     const navigate = useNavigate();
     const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +43,13 @@ export const ProfilePage = () => {
     if (isUserLoading || !user) return null;
 
     // Find the active tab based on the current pathname
-    const activeTabObj = TABS.find(t => location.pathname.startsWith(t.path)) || TABS[0];
+    const tabs = TABS.map((tab) =>
+        tab.id === "notifications"
+            ? { ...tab, badge: unreadCount > 0 ? unreadCount : undefined }
+            : tab
+    );
+
+    const activeTabObj = tabs.find(t => location.pathname.startsWith(t.path)) || tabs[0];
     const avatarSrc = user.avatar || user.avatarUrl;
     const isUploadingAvatar = uploadAvatarMutation.isPending;
 
@@ -126,7 +134,7 @@ export const ProfilePage = () => {
                                 {/* Navigation Menu */}
                                 <div className="pb-4 pt-2 flex flex-col flex-1">
                                     <nav className="flex flex-col gap-1 flex-1">
-                                        {TABS.map((tab) => {
+                                        {tabs.map((tab) => {
                                             const isActive = location.pathname.startsWith(tab.path);
                                             return (
                                                 <Link
@@ -186,13 +194,6 @@ export const ProfilePage = () => {
                         {/* Main Content Area */}
                         <div className="flex-1 min-w-0 flex flex-col gap-6">
 
-                            {/* Title & Description */}
-                            {activeTabObj.id !== 'overview' && (
-                                <div>
-                                    <h1 className="text-[20px] lg:text-[22px] font-bold text-[#212B36] mb-1">{activeTabObj.label}</h1>
-                                    <p className="text-[#637381] text-[13px]">Quản lý thông tin cá nhân và tài khoản của bạn</p>
-                                </div>
-                            )}
 
                             {/* Dynamic Content */}
                             <div className="mt-2">

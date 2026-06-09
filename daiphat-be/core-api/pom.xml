@@ -177,11 +177,39 @@
                 </configuration>
             </plugin>
             <plugin>
+<<<<<<< HEAD
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>-Dnet.bytebuddy.experimental=true</argLine>
                 </configuration>
+=======
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <configuration>
+                    <includes>
+                        <include>com/daiphat/coreapi/application/service/blog/**</include>
+                        <include>com/daiphat/coreapi/infrastructure/cache/**</include>
+                        <include>com/daiphat/coreapi/application/service/auth/**</include>
+                        <include>com/daiphat/coreapi/application/service/notification/**</include>
+                    </includes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+>>>>>>> 154e06eb398856a3a0e6d7675948a20fc71b05a9
             </plugin>
         </plugins>
     </build>

@@ -16,7 +16,7 @@ import {
     Tooltip,
 } from "@mui/material";
 import { Icon } from "@iconify/react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
 import { useBlogDetail, useBlogTypes, useDeleteBlog, useUpdateBlog } from "./hooks/useBlog";
@@ -28,6 +28,7 @@ import { toast } from "react-toastify";
 import { useState } from "react";
 import { FacebookIcon, InstagramIcon, ShareIcon } from "../../assets/icons";
 import { confirmAction } from "../../utils/swal";
+import { RightSidebarBlog } from "../../../client/components/blog/BlogSidebar";
 
 dayjs.locale("vi");
 
@@ -63,7 +64,6 @@ export const BlogDetailPage = () => {
     const { mutate: updateBlog, isPending: isUpdating } = useUpdateBlog();
     const { mutate: deleteBlog, isPending: isDeleting } = useDeleteBlog();
 
-    const [viewMode, setViewMode] = useState<"info" | "preview">("info");
     const [confirmDelete, setConfirmDelete] = useState(false);
 
     const status: BlogStatus = (blog?.status || BLOG_STATUS.DRAFT).toLowerCase();
@@ -193,8 +193,8 @@ export const BlogDetailPage = () => {
             <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end" flexWrap="wrap">
                 <Button
                     variant="outlined"
-                    startIcon={<Icon icon={viewMode === "info" ? "solar:eye-bold-duotone" : "solar:clipboard-list-bold-duotone"} width={16} />}
-                    onClick={() => setViewMode(viewMode === "info" ? "preview" : "info")}
+                    startIcon={<Icon icon="solar:eye-bold-duotone" width={16} />}
+                    onClick={() => window.open(`/blogs/detail/${blog.slug}?previewId=${id}`, '_blank')}
                     sx={{
                         height: 36, fontWeight: 600, fontSize: "0.875rem", textTransform: "none",
                         borderRadius: "8px", borderColor: (t) => alpha(t.palette.grey[500], 0.4),
@@ -202,7 +202,7 @@ export const BlogDetailPage = () => {
                         "&:hover": { borderColor: "var(--palette-text-primary)", bgcolor: (t) => alpha(t.palette.grey[500], 0.08) },
                     }}
                 >
-                    {viewMode === "info" ? "Xem trước" : "Quản trị"}
+                    Xem trước
                 </Button>
 
                 <Button
@@ -529,154 +529,11 @@ export const BlogDetailPage = () => {
         </Grid>
     );
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // PREVIEW VIEW — Magazine reader style (original design)
-    // ──────────────────────────────────────────────────────────────────────────
-    const previewView = (
-        <>
-            {/* Hero image with title overlay */}
-            <Box
-                sx={{
-                    backgroundImage: `linear-gradient(0deg, rgba(20, 26, 33, 0.72), rgba(20, 26, 33, 0.40)), url("${thumbnail || 'https://api-prod-minimal-v700.pages.dev/assets/images/cover/cover-3.webp'}")`,
-                    backgroundSize: "cover",
-                    backgroundRepeat: "no-repeat",
-                    backgroundPosition: "center center",
-                    height: "480px",
-                    overflow: "hidden",
-                    borderRadius: "var(--shape-borderRadius-lg)",
-                    position: "relative",
-                    mx: "-40px",
-                }}
-            >
-                <Container sx={{ height: "100%", position: "relative" }}>
-                    <Stack sx={{ height: "100%", justifyContent: "flex-end", pb: "80px" }}>
-                        {/* Status badge in preview */}
-                        <Box sx={{ mb: 2 }}>
-                            <Chip
-                                icon={<Icon icon={statusCfg.icon} width={13} />}
-                                label={statusCfg.label}
-                                size="small"
-                                sx={{
-                                    fontWeight: 700, fontSize: "0.75rem", height: 24, borderRadius: "8px",
-                                    color: statusCfg.color, bgcolor: statusCfg.bg, px: 0.5,
-                                    backdropFilter: "blur(4px)",
-                                    "& .MuiChip-icon": { color: statusCfg.color },
-                                }}
-                            />
-                        </Box>
-                        <Typography sx={{ fontSize: "1.875rem", maxWidth: "720px", fontWeight: 700, zIndex: 9, color: "var(--palette-common-white)", lineHeight: 1.5 }}>
-                            {blog.name || blog.title}
-                        </Typography>
-                        <Box sx={{ display: "flex", gap: 2, alignItems: "center", mt: 2, color: "var(--palette-common-white)", opacity: 0.8, fontSize: "0.875rem" }}>
-                            {blog.createdBy && <Box component="span" sx={{ fontWeight: 600 }}>{blog.createdBy}</Box>}
-                            {blog.createdBy && <Box component="span" sx={{ opacity: 0.5 }}>·</Box>}
-                            <Box component="span">{dayjs(blog.createdAt).locale("vi").format("DD MMM YYYY, HH:mm")}</Box>
-                            {blog.categoryRaw?.name && (
-                                <>
-                                    <Box component="span" sx={{ opacity: 0.5 }}>·</Box>
-                                    <Box component="span" sx={{ fontStyle: "italic" }}>{blog.categoryRaw.name}</Box>
-                                </>
-                            )}
-                        </Box>
-                    </Stack>
-
-                    {/* Share SpeedDial */}
-                    <Box sx={{ position: "absolute", left: 0, bottom: 0, width: "100%" }}>
-                        <SpeedDial
-                            ariaLabel="Chia sẻ"
-                            direction="left"
-                            icon={<ShareIcon />}
-                            sx={{
-                                position: "absolute", bottom: "64px", right: "24px", zIndex: 1050,
-                                "& .MuiFab-root": {
-                                    width: "48px", height: "48px", backgroundColor: "var(--palette-primary-main)",
-                                    "& .MuiSvgIcon-root": { color: "var(--palette-common-white)", width: "1.25rem", height: "1.25rem" },
-                                },
-                                "& .MuiSpeedDialAction-fab": {
-                                    width: "2.5rem", height: "2.5rem", boxShadow: "var(--customShadows-z8)",
-                                    backgroundColor: "var(--palette-background-paper)", m: "8px",
-                                    "& svg": { width: "1.25rem", height: "1.25rem" },
-                                },
-                            }}
-                        >
-                            <SpeedDialAction icon={<FacebookIcon />} sx={{ transitionDelay: "120ms !important" }}
-                                slotProps={{ tooltip: { title: "Facebook" } }} />
-                            <SpeedDialAction icon={<InstagramIcon />} sx={{ transitionDelay: "90ms !important" }}
-                                slotProps={{ tooltip: { title: "Instagram" } }} />
-                        </SpeedDial>
-                    </Box>
-                </Container>
-            </Box>
-
-            {/* Article body */}
-            <Container maxWidth="md" sx={{ mt: 8, mb: 6 }}>
-                {/* Excerpt */}
-                {blog.description && (
-                    <Typography variant="h6" sx={{ mb: 3, fontStyle: "italic", opacity: 0.8, color: "var(--palette-text-secondary)" }}>
-                        {blog.description}
-                    </Typography>
-                )}
-
-                {/* Meta strip */}
-                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 3 }}>
-                    {blog.categoryRaw?.name && (
-                        <Chip label={blog.categoryRaw.name} size="small"
-                            sx={{ fontWeight: 600, fontSize: "0.75rem", height: 24, borderRadius: "6px", color: "var(--palette-info-dark)", bgcolor: "var(--palette-info-lighter)" }} />
-                    )}
-                    {Array.isArray(blog.tagsRaw) && blog.tagsRaw.map((tag: any) => (
-                        <Chip key={tag.id ?? tag} label={`#${tag.name ?? tag}`} size="small"
-                            sx={{ fontWeight: 600, fontSize: "0.75rem", height: 24, borderRadius: "6px", bgcolor: "var(--palette-background-neutral)", color: "var(--palette-text-secondary)" }} />
-                    ))}
-                </Stack>
-
-                <Divider sx={{ mb: 4 }} />
-
-                {/* HTML content */}
-                <Box sx={{
-                    color: "var(--palette-text-primary)",
-                    "& img": { borderRadius: "var(--shape-borderRadius-md)", my: 3, maxWidth: "100%" },
-                    "& p": { mb: 2, fontSize: "1rem", lineHeight: 1.8 },
-                    "& h2": { fontSize: "1.5rem", fontWeight: 700, mt: 4, mb: 2 },
-                    "& h3": { fontSize: "1.25rem", fontWeight: 700, mt: 3, mb: 2 },
-                    "& ul, & ol": { pl: 3, mb: 2 },
-                    "& li": { mb: 1, fontSize: "1rem" },
-                    "& blockquote": { borderLeft: "4px solid var(--palette-primary-main)", pl: 2, my: 3, color: "var(--palette-text-secondary)", fontStyle: "italic" },
-                    "& a": { color: "var(--palette-primary-main)", textDecoration: "underline" },
-                }}>
-                    <div dangerouslySetInnerHTML={{ __html: blog.content || "" }} />
-                </Box>
-
-                {/* Author strip */}
-                {blog.createdBy && (
-                    <>
-                        <Divider sx={{ mt: 6, mb: 4 }} />
-                        <Stack direction="row" spacing={2} alignItems="center">
-                            <Avatar sx={{ width: 48, height: 48, bgcolor: "var(--palette-primary-main)", fontSize: "1.125rem", fontWeight: 700 }}>
-                                {String(blog.createdBy)[0]?.toUpperCase()}
-                            </Avatar>
-                            <Box>
-                                <Typography variant="body2" sx={{ color: "var(--palette-text-disabled)", fontSize: "0.75rem" }}>Tác giả</Typography>
-                                <Typography variant="body1" sx={{ fontWeight: 700, color: "var(--palette-text-primary)" }}>{blog.createdBy}</Typography>
-                            </Box>
-                            <Box sx={{ flex: 1 }} />
-                            <Tooltip title="Lượt xem">
-                                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: "var(--palette-text-disabled)", fontSize: "0.875rem" }}>
-                                    <Icon icon="solar:eye-bold-duotone" width={18} />
-                                    <span>{(blog.viewCount ?? 0).toLocaleString("vi-VN")}</span>
-                                </Stack>
-                            </Tooltip>
-                        </Stack>
-                    </>
-                )}
-            </Container>
-        </>
-    );
-
     // ── Render ───────────────────────────────────────────────────────────────
     return (
         <>
             {header}
-            {viewMode === "info" ? infoView : previewView}
+            {infoView}
         </>
     );
 };
