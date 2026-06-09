@@ -5,6 +5,7 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryProductModel;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductStatus;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries.LotteryProductPersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lottery.LotteryProductRepository;
+import com.daiphat.coreapi.infrastructure.persistence.specification.LotteryProductSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,8 +38,10 @@ public class LotteryProductRepositoryAdapter implements LotteryProductRepository
     @Override
     public Page<LotteryProductModel> findAll(Pageable pageable, String search,
                                              LotteryProductStatus status, String type) {
-        // Tạm thời findAll, sẽ thêm Specification sau khi có nhu cầu filter
-        return lotteryProductRepository.findAll(pageable)
+        return lotteryProductRepository.findAll(
+                        LotteryProductSpecification.filter(search, status, type),
+                        pageable
+                )
                 .map(lotteryProductPersistenceMapper::toDomain);
     }
 

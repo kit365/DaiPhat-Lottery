@@ -17,7 +17,6 @@ public record LotteryProductResponse(
         Integer numberLength,
         Integer minNumber,
         Integer maxNumber,
-        Integer digitCount,
         BigDecimal price,
         Integer inventoryCount,
         String drawSchedule,
