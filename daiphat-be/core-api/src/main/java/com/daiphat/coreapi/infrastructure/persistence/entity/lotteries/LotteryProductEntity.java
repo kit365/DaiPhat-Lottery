@@ -48,9 +48,6 @@ public class LotteryProductEntity extends BaseEntity {
     @Column(name = "max_number")
     private Integer maxNumber;
 
-    @Column(name = "digit_count")
-    private Integer digitCount;
-
     // Giá & Tồn kho
     @Column(nullable = false, precision = 15, scale = 0)
     private BigDecimal price;
@@ -72,7 +69,7 @@ public class LotteryProductEntity extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private LotteryProductStatus status = LotteryProductStatus.DRAFT;
+    private LotteryProductStatus status = LotteryProductStatus.ACTIVE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by")
