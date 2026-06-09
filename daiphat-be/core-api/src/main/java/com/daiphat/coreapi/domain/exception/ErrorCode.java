@@ -95,17 +95,10 @@ public enum ErrorCode {
     LOTTERY_PRODUCT_INVALID_STATUS("LT_003", "Trạng thái sản phẩm không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
     LOTTERY_PRODUCT_INSUFFICIENT_INVENTORY("LT_004", "Tồn kho không đủ.", HttpStatus.BAD_REQUEST),
     PRIZE_STRUCTURE_NOT_FOUND("LT_005", "Cấu trúc giải thưởng không tồn tại.", HttpStatus.NOT_FOUND),
-<<<<<<< Updated upstream
     LOTTERY_TICKET_NOT_FOUND("LT_006", "Vé số không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_TICKET_INVALID_STATUS("LT_007", "Trạng thái vé số không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_SERIAL_EXISTED("LT_008", "Số sê-ri vé số đã tồn tại trong hệ thống.", HttpStatus.BAD_REQUEST),
     PRIZE_STRUCTURE_DUPLICATE_CODE("LT_009", "Mã giải thưởng bị trùng trong cùng sản phẩm.", HttpStatus.BAD_REQUEST);
-=======
-    PRIZE_STRUCTURE_DUPLICATE_CODE("LT_009", "Mã giải thưởng bị trùng trong cùng sản phẩm.", HttpStatus.BAD_REQUEST),
-    LOTTERY_TICKET_NOT_FOUND("LT_006", "Vé số không tồn tại.", HttpStatus.NOT_FOUND),
-    LOTTERY_TICKET_INVALID_STATUS("LT_007", "Trạng thái vé số không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
-    LOTTERY_TICKET_SERIAL_EXISTED("LT_008", "Số sê-ri vé số đã tồn tại trong hệ thống.", HttpStatus.BAD_REQUEST);
->>>>>>> Stashed changes
 
     private final String code;
     private final String message;
