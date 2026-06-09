@@ -25,7 +25,7 @@ class DaiPhatMobileApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'DaiPhat Mobile',
+      title: 'ĐẠI PHÁT Mobile',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
