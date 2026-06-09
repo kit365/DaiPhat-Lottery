@@ -3,7 +3,7 @@ package com.daiphat.coreapi.infrastructure.persistence.adapter;
 import com.daiphat.coreapi.application.port.out.blog.BlogTagRepositoryPort;
 import com.daiphat.coreapi.domain.model.blogs.BlogTagModel;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.blog.BlogTagPersistenceMapper;
-import com.daiphat.coreapi.infrastructure.persistence.repository.BlogTagRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.blogs.BlogTagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
