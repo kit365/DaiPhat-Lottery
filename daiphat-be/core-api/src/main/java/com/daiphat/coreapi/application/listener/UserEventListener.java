@@ -11,9 +11,17 @@ import com.daiphat.coreapi.application.event.AdminResetPasswordSuccessEvent;
 import com.daiphat.coreapi.application.event.ForgotPasswordEvent;
 import com.daiphat.coreapi.application.event.StaffInviteEvent;
 import com.daiphat.coreapi.application.event.UserCreatedEvent;
+import com.daiphat.coreapi.application.event.UserEmailVerifiedEvent;
+import com.daiphat.coreapi.application.event.UserPasswordChangedEvent;
 import com.daiphat.coreapi.application.event.UserRegisteredEvent;
+import com.daiphat.coreapi.application.event.UserWelcomeEvent;
 import com.daiphat.coreapi.application.port.in.mail.EmailServicePort;
+import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.domain.model.enums.email.EmailType;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
+import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
+import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -21,18 +29,37 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.util.UUID;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class UserEventListener {
 
     private final EmailServicePort emailService;
+    private final NotificationServicePort notificationService;
     private final AuthProperties authProperties;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleUserRegistered(UserRegisteredEvent event) {
+        final String emailTitle = "Email xác thực tài khoản đã được gửi";
+        final String emailContent = "Chúng tôi đã gửi email xác thực tài khoản đến "
+                + event.email()
+                + ". Vui lòng kiểm tra hộp thư của bạn.";
+
         log.info("Handling UserRegisteredEvent for recipient: {}", event.email());
+        NotificationModel emailNotification = NotificationModel.builder()
+                .userId(event.userId())
+                .title(emailTitle)
+                .content(emailContent)
+                .type(NotificationType.AUTH)
+                .channel(NotificationChannel.EMAIL)
+                .referenceId(event.token())
+                .referenceType(NotificationReferenceType.AUTH)
+                .build();
+        emailNotification = notificationService.createNotification(emailNotification);
+
         try {
             UserVerificationContext emailContext = UserVerificationContext.builder()
                     .fullName(event.fullName())
@@ -41,59 +68,120 @@ public class UserEventListener {
                     .build();
 
             emailService.sendEmail(EmailType.WELCOME_VERIFY, event.email(), emailContext);
+            notificationService.markAsSent(emailNotification.getNotificationId());
         } catch (Exception e) {
+            notificationService.markAsFailed(emailNotification.getNotificationId());
             log.error("Failed to dispatch verification email for {}: {}", event.email(), e.getMessage());
         }
     }
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleForgotPassword(ForgotPasswordEvent event) {
-        log.info("Handling ForgotPasswordEvent for recipient: {}", event.email());
-        try {
-            ForgotPasswordContext emailContext = ForgotPasswordContext.builder()
-                    .email(event.email())
-                    .otp(event.otp())
-                    .build();
+    public void handleUserEmailVerified(UserEmailVerifiedEvent event) {
+        log.info("Handling UserEmailVerifiedEvent for recipient: {}", event.email());
+        notificationService.archiveAuthEmailNotification(event.userId(), event.token());
+        createWelcomeInAppNotification(event.userId());
+    }
 
-            emailService.sendEmail(EmailType.FORGOT_PW_OTP, event.email(), emailContext);
-        } catch (Exception e) {
-            log.error("Failed to dispatch forgot password email for {}: {}", event.email(), e.getMessage());
-        }
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleUserWelcome(UserWelcomeEvent event) {
+        log.info("Handling UserWelcomeEvent for recipient: {}", event.email());
+        createWelcomeInAppNotification(event.userId());
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleUserPasswordChanged(UserPasswordChangedEvent event) {
+        final String inAppTitle = "Mật khẩu đã được cập nhật";
+        final String inAppContent = "Mật khẩu tài khoản của bạn đã được thay đổi thành công.";
+
+        log.info("Handling UserPasswordChangedEvent for recipient: {}", event.email());
+
+        NotificationModel inAppNotification = NotificationModel.builder()
+                .userId(event.userId())
+                .title(inAppTitle)
+                .content(inAppContent)
+                .type(NotificationType.AUTH)
+                .channel(NotificationChannel.IN_APP)
+                .referenceType(NotificationReferenceType.AUTH)
+                .build();
+        inAppNotification.markAsSent();
+        notificationService.createNotification(inAppNotification);
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleForgotPassword(ForgotPasswordEvent event) {
+        final String emailTitle = "Mã OTP đổi mật khẩu đã được gửi";
+        final String emailContent = "Chúng tôi đã gửi mã OTP đổi mật khẩu đến " + event.email() + ".";
+
+        log.info("Handling ForgotPasswordEvent for recipient: {}", event.email());
+        ForgotPasswordContext emailContext = ForgotPasswordContext.builder()
+                .email(event.email())
+                .otp(event.otp())
+                .build();
+
+        dispatchEmailNotification(
+                event.userId(),
+                emailTitle,
+                emailContent,
+                event.otp(),
+                EmailType.FORGOT_PW_OTP,
+                event.email(),
+                emailContext,
+                "Failed to dispatch forgot password email for {}: {}"
+        );
     }
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleAdminResetPasswordOtp(AdminResetPasswordOtpEvent event) {
-        log.info("Handling AdminResetPasswordOtpEvent for recipient: {}", event.email());
-        try {
-            ForgotPasswordContext emailContext = ForgotPasswordContext.builder()
-                    .email(event.email())
-                    .otp(event.otp())
-                    .build();
+        final String emailTitle = "Mã OTP đặt lại mật khẩu đã được gửi";
+        final String emailContent = "Chúng tôi đã gửi mã OTP đặt lại mật khẩu đến " + event.email() + ".";
 
-            emailService.sendEmail(EmailType.ADMIN_RESET_PASSWORD_OTP, event.email(), emailContext);
-        } catch (Exception e) {
-            log.error("Failed to dispatch admin reset OTP email for {}: {}", event.email(), e.getMessage());
-        }
+        log.info("Handling AdminResetPasswordOtpEvent for recipient: {}", event.email());
+        ForgotPasswordContext emailContext = ForgotPasswordContext.builder()
+                .email(event.email())
+                .otp(event.otp())
+                .build();
+
+        dispatchEmailNotification(
+                event.userId(),
+                emailTitle,
+                emailContent,
+                event.otp(),
+                EmailType.ADMIN_RESET_PASSWORD_OTP,
+                event.email(),
+                emailContext,
+                "Failed to dispatch admin reset OTP email for {}: {}"
+        );
     }
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleAdminResetPasswordSuccess(AdminResetPasswordSuccessEvent event) {
-        log.info("Handling AdminResetPasswordSuccessEvent for recipient: {}", event.email());
-        try {
-            AdminResetPasswordSuccessContext emailContext = AdminResetPasswordSuccessContext.builder()
-                    .email(event.email())
-                    .fullName(event.fullName())
-                    .password(event.password())
-                    .loginUrl(authProperties.getFrontendUrl() + authProperties.getVerificationPaths().getLoginPath())
-                    .build();
+        final String emailTitle = "Mật khẩu mới đã được gửi";
+        final String emailContent = "Chúng tôi đã gửi mật khẩu mới cho tài khoản " + event.email() + ".";
 
-            emailService.sendEmail(EmailType.ADMIN_RESET_PASSWORD_SUCCESS, event.email(), emailContext);
-        } catch (Exception e) {
-            log.error("Failed to dispatch admin reset success email for {}: {}", event.email(), e.getMessage());
-        }
+        log.info("Handling AdminResetPasswordSuccessEvent for recipient: {}", event.email());
+        AdminResetPasswordSuccessContext emailContext = AdminResetPasswordSuccessContext.builder()
+                .email(event.email())
+                .fullName(event.fullName())
+                .password(event.password())
+                .loginUrl(authProperties.getFrontendUrl() + authProperties.getVerificationPaths().getLoginPath())
+                .build();
+
+        dispatchEmailNotification(
+                event.userId(),
+                emailTitle,
+                emailContent,
+                null,
+                EmailType.ADMIN_RESET_PASSWORD_SUCCESS,
+                event.email(),
+                emailContext,
+                "Failed to dispatch admin reset success email for {}: {}"
+        );
     }
 
     @Async
@@ -128,6 +216,52 @@ public class UserEventListener {
             emailService.sendEmail(EmailType.STAFF_INVITE, event.email(), emailContext);
         } catch (Exception e) {
             log.error("Failed to dispatch staff invite email for {}: {}", event.email(), e.getMessage());
+        }
+    }
+
+    private void createWelcomeInAppNotification(UUID userId) {
+        final String inAppTitle = "Xác thực tài khoản thành công";
+        final String inAppContent = "Tài khoản của bạn đã được xác thực thành công. Chào mừng bạn đến với Đại Phát.";
+
+        NotificationModel inAppNotification = NotificationModel.builder()
+                .userId(userId)
+                .title(inAppTitle)
+                .content(inAppContent)
+                .type(NotificationType.AUTH)
+                .channel(NotificationChannel.IN_APP)
+                .referenceType(NotificationReferenceType.AUTH)
+                .build();
+        inAppNotification.markAsSent();
+        notificationService.createNotification(inAppNotification);
+    }
+
+    private void dispatchEmailNotification(
+            UUID userId,
+            String emailTitle,
+            String emailContent,
+            String referenceId,
+            EmailType emailType,
+            String recipientEmail,
+            Object emailContext,
+            String errorLogTemplate
+    ) {
+        NotificationModel emailNotification = NotificationModel.builder()
+                .userId(userId)
+                .title(emailTitle)
+                .content(emailContent)
+                .type(NotificationType.AUTH)
+                .channel(NotificationChannel.EMAIL)
+                .referenceId(referenceId)
+                .referenceType(NotificationReferenceType.AUTH)
+                .build();
+        emailNotification = notificationService.createNotification(emailNotification);
+
+        try {
+            emailService.sendEmail(emailType, recipientEmail, emailContext);
+            notificationService.markAsSent(emailNotification.getNotificationId());
+        } catch (Exception e) {
+            notificationService.markAsFailed(emailNotification.getNotificationId());
+            log.error(errorLogTemplate, recipientEmail, e.getMessage());
         }
     }
 }

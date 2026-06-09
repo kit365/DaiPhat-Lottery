@@ -196,6 +196,29 @@ class RegistrationServiceTest extends AuthTestBase {
     }
 
 
+    @Test
+    @DisplayName("TC-REG-013-ALT: Xác minh email thất bại - Không tìm thấy email")
+    void verifyEmail_fail_emailNotFound() {
+        when(verificationCachePort.getEmailByVerificationToken(RESET_TOKEN)).thenReturn(Optional.of(DEFAULT_EMAIL));
+        when(userRepositoryPort.findByEmail(DEFAULT_EMAIL)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> registrationService.verifyEmail(RESET_TOKEN))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.EMAIL_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("TC-REG-020-ALT: Gửi lại email xác thực - Email không tồn tại")
+    void resendVerificationEmail_fail_emailNotFound() {
+        when(userRepositoryPort.findByUsernameOrEmail(DEFAULT_EMAIL)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> registrationService.resendVerificationEmail(DEFAULT_EMAIL))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.EMAIL_NOT_FOUND);
+    }
+
     /* =========================================================================
      * COMMENTED OUT TESTS: Các tính năng cũ chưa có hoặc đã thay đổi trong Monolith
      * (Giữ lại làm tài liệu tham khảo cho tương lai)
