@@ -28,4 +28,5 @@ public interface UserServicePort {
     UserResponse deleteAvatar(UUID id);
     void inviteStaff(String id, InviteStaffRequest request);
     void acceptInvite(AcceptInviteRequest request);
+    void updateFcmToken(UUID userId, String fcmToken);
 }

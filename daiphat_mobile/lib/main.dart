@@ -13,10 +13,29 @@ import 'ui/viewmodels/login_viewmodel.dart';
 import 'ui/viewmodels/register_viewmodel.dart';
 import 'ui/viewmodels/forgot_password_viewmodel.dart';
 import 'ui/viewmodels/profile_viewmodel.dart';
+import 'ui/viewmodels/notification_viewmodel.dart';
+import 'data/services/notification_api_service.dart';
+import 'data/repositories/notification_repository.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
+import 'core/services/notification_service.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  print('Handling a background message: ${message.messageId}');
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  await NotificationService().init();
 
   final documentsDirectory = await getApplicationDocumentsDirectory();
   final cookieJar = PersistCookieJar(
@@ -37,11 +56,16 @@ Future<void> main() async {
   final forgotPasswordViewModel = ForgotPasswordViewModel(authRepository);
   final profileViewModel = ProfileViewModel(authRepository);
 
+  final notificationApiService = NotificationApiService(apiClient);
+  final notificationRepository = NotificationRepository(notificationApiService);
+  final notificationViewModel = NotificationViewModel(notificationRepository);
+
   final router = createAppRouter(
     loginViewModel: loginViewModel,
     registerViewModel: registerViewModel,
     forgotPasswordViewModel: forgotPasswordViewModel,
     profileViewModel: profileViewModel,
+    notificationViewModel: notificationViewModel,
   );
 
   runApp(ProviderScope(child: DaiPhatMobileApp(router: router)));
