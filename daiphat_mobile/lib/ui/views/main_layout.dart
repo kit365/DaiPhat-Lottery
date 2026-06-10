@@ -3,8 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../viewmodels/login_viewmodel.dart';
+import 'blog/blog_screen.dart';
 
-class MainLayout extends StatelessWidget {
+class MainLayout extends StatefulWidget {
   final LoginViewModel loginViewModel;
   final Widget child;
 
@@ -15,99 +16,167 @@ class MainLayout extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _calculateSelectedIndex(context),
-          onTap: (int idx) => _onItemTapped(idx, context),
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.surface,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textSecondary,
-          selectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
-          unselectedLabelStyle: const TextStyle(fontSize: 12),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Trang chủ',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.confirmation_number_outlined),
-              activeIcon: Icon(Icons.confirmation_number),
-              label: 'Mua vé',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.emoji_events_outlined),
-              activeIcon: Icon(Icons.emoji_events),
-              label: 'Kết quả',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history_outlined),
-              activeIcon: Icon(Icons.history),
-              label: 'Lịch sử',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Cá nhân',
-            ),
-          ],
-        ),
-      ),
+  State<MainLayout> createState() => _MainLayoutState();
+}
+
+class _MainLayoutState extends State<MainLayout> {
+  // PageView: page 0 = Blog, page 1 = main shell
+  late final PageController _pageController;
+  bool _onBlogPage = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: 1);
+    _pageController.addListener(_onPageChanged);
+  }
+
+  void _onPageChanged() {
+    final page = _pageController.page ?? 1.0;
+    final isBlog = page < 0.5;
+    if (isBlog != _onBlogPage) {
+      setState(() => _onBlogPage = isBlog);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.removeListener(_onPageChanged);
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _goToBlog() {
+    _pageController.animateToPage(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
     );
   }
 
-  static int _calculateSelectedIndex(BuildContext context) {
-    final String location = GoRouterState.of(context).uri.path;
-    if (location.startsWith(AppRoute.buyTicket.path)) {
-      return 1;
-    }
-    if (location.startsWith('/results')) {
-      return 2;
-    }
-    if (location.startsWith('/history')) {
-      return 3;
-    }
-    if (location.startsWith(AppRoute.profile.path)) {
-      return 4;
-    }
-    return 0;
+  void _goToMain() {
+    _pageController.animateToPage(
+      1,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
-  void _onItemTapped(int index, BuildContext context) {
+  // Returns nav index: 0 = Blog, 1 = Home, 2 = Buy, 3 = Results, 4 = History, 5 = Profile
+  int _getNavIndex(BuildContext context) {
+    if (_onBlogPage) return 0;
+    final String location = GoRouterState.of(context).uri.path;
+    if (location.startsWith(AppRoute.buyTicket.path)) return 2;
+    if (location.startsWith('/results')) return 3;
+    if (location.startsWith('/history')) return 4;
+    if (location.startsWith(AppRoute.profile.path)) return 5;
+    return 1; // Home
+  }
+
+  void _onNavTap(int index, BuildContext context) {
     switch (index) {
       case 0:
-        context.go(AppRoute.home.path);
+        _goToBlog();
         break;
       case 1:
-        context.go(AppRoute.buyTicket.path);
+        _goToMain();
+        context.go(AppRoute.home.path);
         break;
       case 2:
+        _goToMain();
+        context.go(AppRoute.buyTicket.path);
         break;
       case 3:
+        _goToMain();
         break;
       case 4:
-        if (loginViewModel.isAuthenticated) {
+        _goToMain();
+        break;
+      case 5:
+        _goToMain();
+        if (widget.loginViewModel.isAuthenticated) {
           context.go(AppRoute.profile.path);
         } else {
           context.go(AppRoute.login.path);
         }
         break;
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final navIndex = _getNavIndex(context);
+
+    return Scaffold(
+      body: PageView(
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(),
+        children: [
+          // Page 0: Blog
+          BlogScreen(
+            onBack: () {
+              _goToMain();
+              context.go(AppRoute.home.path);
+            },
+          ),
+          // Page 1: Main shell (home, buy ticket, profile, etc.)
+          widget.child,
+        ],
+      ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x12000000),
+              blurRadius: 12,
+              offset: Offset(0, -3),
+            ),
+          ],
+        ),
+        child: NavigationBar(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          height: 70,
+          selectedIndex: navIndex,
+          onDestinationSelected: (i) => _onNavTap(i, context),
+          indicatorColor: const Color(0xFFFFF0F0),
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.article_outlined),
+              selectedIcon: Icon(Icons.article, color: AppColors.primary),
+              label: 'Tin tức',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home, color: AppColors.primary),
+              label: 'Trang chủ',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.confirmation_number_outlined),
+              selectedIcon: Icon(Icons.confirmation_number, color: AppColors.primary),
+              label: 'Mua vé',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.emoji_events_outlined),
+              selectedIcon: Icon(Icons.emoji_events, color: AppColors.primary),
+              label: 'Kết quả',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.history_outlined),
+              selectedIcon: Icon(Icons.history, color: AppColors.primary),
+              label: 'Lịch sử',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person, color: AppColors.primary),
+              label: 'Cá nhân',
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

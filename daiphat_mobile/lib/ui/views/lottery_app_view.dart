@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'blog/blog_screen.dart';
 
 const _red = Color(0xFFE90000);
 const _softRed = Color(0xFFFFF0F0);
@@ -147,9 +148,48 @@ class LotteryAppView extends StatefulWidget {
 }
 
 class _LotteryAppViewState extends State<LotteryAppView> {
+  // Tab index within the main (non-blog) shell
   int _index = 0;
 
+  // PageView: page 0 = Blog, page 1 = main app
+  late final PageController _pageController;
+  bool _onBlogPage = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start on main app page (index 1)
+    _pageController = PageController(initialPage: 1);
+    _pageController.addListener(() {
+      final page = _pageController.page ?? 1.0;
+      final isBlog = page < 0.5;
+      if (isBlog != _onBlogPage) setState(() => _onBlogPage = isBlog);
+    });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   void _openTab(int index) => setState(() => _index = index);
+
+  void _goToBlog() {
+    _pageController.animateToPage(
+      0,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _goToMain() {
+    _pageController.animateToPage(
+      1,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeInOut,
+    );
+  }
 
   void _openNotifications() {
     Navigator.of(context).push(
@@ -181,7 +221,7 @@ class _LotteryAppViewState extends State<LotteryAppView> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
+    final mainPages = [
       HomeScreen(
         onTabSelected: _openTab,
         onOpenResults: () => _openTab(2),
@@ -197,50 +237,90 @@ class _LotteryAppViewState extends State<LotteryAppView> {
       const AccountScreen(),
     ];
 
+    // Combined nav destinations: Blog + main 5
+    const destinations = [
+      NavigationDestination(
+        icon: Icon(Icons.article_outlined),
+        selectedIcon: Icon(Icons.article, color: _red),
+        label: 'Tin tức',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.home_outlined),
+        selectedIcon: Icon(Icons.home, color: _red),
+        label: 'Trang chủ',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.storefront_outlined),
+        selectedIcon: Icon(Icons.storefront, color: _red),
+        label: 'Mua vé số',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.confirmation_number_outlined),
+        selectedIcon: Icon(Icons.confirmation_number, color: _red),
+        label: 'Dò vé',
+      ),
+      NavigationDestination(
+        icon: Badge(
+          label: Text('4'),
+          child: Icon(Icons.shopping_cart_outlined),
+        ),
+        selectedIcon: Badge(
+          label: Text('4'),
+          child: Icon(Icons.shopping_cart, color: _red),
+        ),
+        label: 'Giỏ hàng',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.person_outline),
+        selectedIcon: Icon(Icons.person, color: _red),
+        label: 'Tài khoản',
+      ),
+    ];
+
+    // Nav index: 0 = Blog, 1..5 = main tabs 0..4
+    final navIndex = _onBlogPage ? 0 : _index + 1;
+
     return Scaffold(
-      body: IndexedStack(index: _index, children: pages),
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 10,
-        height: 70,
-        selectedIndex: _index,
-        onDestinationSelected: _openTab,
-        indicatorColor: _softRed,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home, color: _red),
-            label: 'Trang chủ',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.storefront_outlined),
-            selectedIcon: Icon(Icons.storefront, color: _red),
-            label: 'Mua vé số',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.confirmation_number_outlined),
-            selectedIcon: Icon(Icons.confirmation_number, color: _red),
-            label: 'Dò vé',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              label: Text('4'),
-              child: Icon(Icons.shopping_cart_outlined),
-            ),
-            selectedIcon: Badge(
-              label: Text('4'),
-              child: Icon(Icons.shopping_cart, color: _red),
-            ),
-            label: 'Giỏ hàng',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person, color: _red),
-            label: 'Tài khoản',
+      body: PageView(
+        controller: _pageController,
+        // Disable swipe on inner pages to avoid conflicts (only allow from edge)
+        physics: const BouncingScrollPhysics(),
+        children: [
+          BlogScreen(onBack: _goToMain),
+          Scaffold(
+            body: IndexedStack(index: _index, children: mainPages),
           ),
         ],
+      ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 12,
+              offset: Offset(0, -3),
+            ),
+          ],
+        ),
+        child: NavigationBar(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          height: 70,
+          selectedIndex: navIndex,
+          onDestinationSelected: (i) {
+            if (i == 0) {
+              _goToBlog();
+            } else {
+              _goToMain();
+              _openTab(i - 1);
+            }
+          },
+          indicatorColor: _softRed,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: destinations,
+        ),
       ),
     );
   }
@@ -1299,8 +1379,8 @@ class BrandText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return const Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           'ĐẠI PHÁT',
@@ -1310,6 +1390,7 @@ class BrandText extends StatelessWidget {
             fontWeight: FontWeight.w900,
           ),
         ),
+        SizedBox(width: 8),
         Text(
           'DaiPhat-Lottery-Platform',
           style: TextStyle(
