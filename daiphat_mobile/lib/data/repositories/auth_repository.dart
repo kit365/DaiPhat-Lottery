@@ -100,4 +100,8 @@ class AuthRepository {
       _currentUser = updatedUser;
     }
   }
+
+  Future<void> updateFcmToken(String token) {
+    return _apiService.updateFcmToken(token);
+  }
 }

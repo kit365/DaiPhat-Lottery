@@ -49,6 +49,9 @@ dependencies:
   dio_cookie_manager: ^3.4.0
   path_provider: ^2.1.5
   image_picker: ^1.2.2
+  firebase_core: ^4.10.0
+  firebase_messaging: ^16.3.0
+  flutter_local_notifications: ^22.0.0
 
 dev_dependencies:
   flutter_test:
@@ -60,6 +63,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -102,3 +106,11 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logo_launcher.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/logo_launcher.png"
+  min_sdk_android: 21

@@ -5,7 +5,10 @@ import 'package:shimmer/shimmer.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../viewmodels/home_viewmodel.dart';
 import '../../../data/models/lottery_result.dart';
-
+import 'package:go_router/go_router.dart';
+import '../../../core/router/app_routes.dart';
+import '../../viewmodels/login_viewmodel.dart';
+import '../../viewmodels/notification_viewmodel.dart';
 
 
 // ─── Mock data ────────────────────────────────────────────────
@@ -40,7 +43,9 @@ const _lotoRows = [
 //  ROOT WIDGET
 // ═══════════════════════════════════════════════════════════
 class HomeView extends ConsumerWidget {
-  const HomeView({super.key});
+  final LoginViewModel loginViewModel;
+  final NotificationViewModel notificationViewModel;
+  const HomeView({super.key, required this.loginViewModel, required this.notificationViewModel});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -48,7 +53,7 @@ class HomeView extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.pageBg,
       body: homeState.when(
-        data: (results) => _HomeContent(results: results),
+        data: (results) => _HomeContent(results: results, loginViewModel: loginViewModel, notificationViewModel: notificationViewModel),
         loading: _buildSkeleton,
         error: (e, _) => Center(child: Text('Lỗi: $e')),
       ),
@@ -79,7 +84,9 @@ class HomeView extends ConsumerWidget {
 // ═══════════════════════════════════════════════════════════
 class _HomeContent extends StatefulWidget {
   final List<LotteryResult> results;
-  const _HomeContent({required this.results});
+  final LoginViewModel loginViewModel;
+  final NotificationViewModel notificationViewModel;
+  const _HomeContent({required this.results, required this.loginViewModel, required this.notificationViewModel});
   @override
   State<_HomeContent> createState() => _HomeContentState();
 }
@@ -89,6 +96,16 @@ class _HomeContentState extends State<_HomeContent> {
   final Set<String> _selProvinces = {};
   DateTime _date = DateTime.now();
   final _allProvinces = ['TP. HCM', 'Đồng Tháp', 'Cà Mau', 'Bình Phước'];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.loginViewModel.isAuthenticated) {
+        widget.notificationViewModel.fetchNotifications(refresh: true);
+      }
+    });
+  }
 
   String get _dateStr =>
       '${_date.day.toString().padLeft(2,'0')}/${_date.month.toString().padLeft(2,'0')}/${_date.year}';
@@ -133,7 +150,7 @@ class _HomeContentState extends State<_HomeContent> {
         ),
 
         SafeArea(child: CustomScrollView(slivers: [
-          SliverToBoxAdapter(child: _header()),
+          SliverToBoxAdapter(child: _header(context)),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
           SliverToBoxAdapter(child: _titleAndDate()),
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
@@ -156,14 +173,15 @@ class _HomeContentState extends State<_HomeContent> {
   }
 
   // ─── Header ────────────────────────────────────────────────
-  Widget _header() => Padding(
+  Widget _header(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     child: Row(children: [
-      Container(
-        width: 44, height: 44,
-        decoration: BoxDecoration(shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.1), blurRadius: 8, offset: const Offset(0, 2))]),
-        child: ClipOval(child: Image.asset('assets/images/login_logo.jpg', fit: BoxFit.cover)),
+      SizedBox(
+        width: 52, height: 52,
+        child: Transform.scale(
+          scale: 1.2,
+          child: Image.asset('assets/images/logoApp.png', fit: BoxFit.contain),
+        ),
       ),
       const SizedBox(width: 10),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -172,14 +190,28 @@ class _HomeContentState extends State<_HomeContent> {
       ]),
       const Spacer(),
       _iconBtn(Icons.calendar_month_outlined),
-      const SizedBox(width: 8),
-      Stack(children: [
-        _iconBtn(Icons.notifications_outlined),
-        Positioned(right: 6, top: 6, child: Container(
-          width: 8, height: 8,
-          decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 1.5)),
-        )),
-      ]),
+      if (widget.loginViewModel.isAuthenticated) ...[
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: () => context.pushNamed(AppRoute.notifications.name),
+          child: Stack(children: [
+            _iconBtn(Icons.notifications_outlined),
+            ListenableBuilder(
+              listenable: widget.notificationViewModel,
+              builder: (context, _) {
+                if (widget.notificationViewModel.unreadCount == 0) return const SizedBox.shrink();
+                return Positioned(
+                  right: 6, top: 6, 
+                  child: Container(
+                    width: 8, height: 8,
+                    decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 1.5)),
+                  )
+                );
+              }
+            ),
+          ]),
+        ),
+      ],
     ]),
   );
 
