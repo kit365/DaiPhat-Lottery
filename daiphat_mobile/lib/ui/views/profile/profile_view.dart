@@ -233,7 +233,7 @@ class ProfileView extends StatelessWidget {
                       ),
                       
                       // Empty space to not overlap with Than Tai too much text
-                      const SizedBox(width: 80), 
+                      const SizedBox(width: 100), 
                     ],
                   );
                 },
@@ -243,9 +243,9 @@ class ProfileView extends StatelessWidget {
 
           // Than Tai Image - Positioned after card to overlap it
           Positioned(
-            right: -35,
-            top: topPadding + 65,
-            height: 180,
+            right: -25,
+            top: topPadding + 85,
+            height: 140,
             child: Image.asset(
               'assets/images/thantai.png',
               fit: BoxFit.fitHeight,

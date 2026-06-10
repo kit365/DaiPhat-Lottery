@@ -496,3 +496,4 @@ class NotificationServiceTest {
         assertThat(result.getPagination().getLimit()).isEqualTo(5);
     }
 }
+

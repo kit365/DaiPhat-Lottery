@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.event.AdminResetPasswordOtpEvent;
 import com.daiphat.coreapi.application.event.AdminResetPasswordSuccessEvent;
 import com.daiphat.coreapi.application.event.ForgotPasswordEvent;
 import com.daiphat.coreapi.application.event.StaffInviteEvent;
+import com.daiphat.coreapi.application.dto.notification.FcmPushData;
 import com.daiphat.coreapi.application.event.UserCreatedEvent;
 import com.daiphat.coreapi.application.event.UserEmailVerifiedEvent;
 import com.daiphat.coreapi.application.event.UserPasswordChangedEvent;
@@ -17,6 +18,9 @@ import com.daiphat.coreapi.application.event.UserRegisteredEvent;
 import com.daiphat.coreapi.application.event.UserWelcomeEvent;
 import com.daiphat.coreapi.application.port.in.mail.EmailServicePort;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
+import com.daiphat.coreapi.application.port.out.notification.FcmPushPort;
+import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
+import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
@@ -39,6 +43,8 @@ public class UserEventListener {
     private final EmailServicePort emailService;
     private final NotificationServicePort notificationService;
     private final AuthProperties authProperties;
+    private final FcmPushPort fcmPushPort;
+    private final UserRepositoryPort userRepositoryPort;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -107,7 +113,8 @@ public class UserEventListener {
                 .referenceType(NotificationReferenceType.AUTH)
                 .build();
         inAppNotification.markAsSent();
-        notificationService.createNotification(inAppNotification);
+        NotificationModel saved = notificationService.createNotification(inAppNotification);
+        sendPushNotificationToUser(saved);
     }
 
     @Async
@@ -232,7 +239,22 @@ public class UserEventListener {
                 .referenceType(NotificationReferenceType.AUTH)
                 .build();
         inAppNotification.markAsSent();
-        notificationService.createNotification(inAppNotification);
+        NotificationModel saved = notificationService.createNotification(inAppNotification);
+        sendPushNotificationToUser(saved);
+    }
+
+    private void sendPushNotificationToUser(NotificationModel notification) {
+        userRepositoryPort.findById(notification.getUserId()).ifPresent(user -> {
+            if (user.getFcmToken() != null && !user.getFcmToken().trim().isEmpty()) {
+                FcmPushData data = FcmPushData.builder()
+                        .notificationId(notification.getNotificationId())
+                        .type(notification.getType() != null ? notification.getType().name() : null)
+                        .referenceId(notification.getReferenceId())
+                        .referenceType(notification.getReferenceType() != null ? notification.getReferenceType().name() : null)
+                        .build();
+                fcmPushPort.sendPushNotification(user.getFcmToken(), notification.getTitle(), notification.getContent(), data);
+            }
+        });
     }
 
     private void dispatchEmailNotification(
