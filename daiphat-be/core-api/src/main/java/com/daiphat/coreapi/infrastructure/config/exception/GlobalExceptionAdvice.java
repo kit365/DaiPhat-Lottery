@@ -62,8 +62,9 @@ public class GlobalExceptionAdvice {
     ) {
         log.error("Data integrity violation: {}", exception.getMessage());
         ErrorCode errorCode = ErrorCode.INVALID_INPUT;
+        String message = resolveDataIntegrityMessage(exception);
 
-        return ResponseEntity.status(errorCode.getStatus()).body(ApiResponse.error(errorCode.getMessage()));
+        return ResponseEntity.status(errorCode.getStatus()).body(ApiResponse.error(message));
     }
 
     @ExceptionHandler(Exception.class)
@@ -72,5 +73,25 @@ public class GlobalExceptionAdvice {
         ErrorCode errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
 
         return ResponseEntity.status(errorCode.getStatus()).body(ApiResponse.error(errorCode.getMessage()));
+    }
+
+    private String resolveDataIntegrityMessage(DataIntegrityViolationException exception) {
+        String rawMessage = exception.getMostSpecificCause() != null
+                ? exception.getMostSpecificCause().getMessage()
+                : exception.getMessage();
+        if (rawMessage == null) {
+            return ErrorCode.INVALID_INPUT.getMessage();
+        }
+
+        if (rawMessage.contains("uq_lottery_tickets_serial_number")
+                || rawMessage.contains("uk_lottery_tickets_serial_number")) {
+            return "Hệ thống vẫn đang áp dụng ràng buộc serial_number cũ trong cơ sở dữ liệu. Hãy chạy migration mới để chuyển sang ràng buộc tổ hợp 4 trường.";
+        }
+
+        if (rawMessage.contains("uk_lottery_ticket_product_serial_numbers_draw_date")) {
+            return "Vé số với productId, serialNumber, numbers và drawDate này đã tồn tại trong hệ thống.";
+        }
+
+        return ErrorCode.INVALID_INPUT.getMessage();
     }
 }

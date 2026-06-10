@@ -17,7 +17,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <lombok.version>1.18.30</lombok.version>
+        <lombok.version>1.18.46</lombok.version>
         <mapstruct.version>1.6.3</mapstruct.version>
     </properties>
 
@@ -110,6 +110,15 @@
             <version>0.12.6</version>
             <scope>runtime</scope>
         </dependency>
+
+        <!-- Firebase -->
+        <!-- Firebase Admin SDK -->
+        <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>9.3.0</version>
+        </dependency>
+
         <dependency>
             <groupId>com.cloudinary</groupId>
             <artifactId>cloudinary-http5</artifactId>
@@ -177,6 +186,13 @@
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>@{argLine} -Dnet.bytebuddy.experimental=true</argLine>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.12</version>
@@ -186,6 +202,7 @@
                         <include>com/daiphat/coreapi/infrastructure/cache/**</include>
                         <include>com/daiphat/coreapi/application/service/auth/**</include>
                         <include>com/daiphat/coreapi/application/service/notification/**</include>
+                        <include>com/daiphat/coreapi/application/service/lotteries/**</include>
                     </includes>
                 </configuration>
                 <executions>

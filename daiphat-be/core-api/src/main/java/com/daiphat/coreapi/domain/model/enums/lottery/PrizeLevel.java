@@ -1,0 +1,22 @@
+package com.daiphat.coreapi.domain.model.enums.lottery;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
+public enum PrizeLevel {
+    SPECIAL("Giải Đặc Biệt"),
+    JACKPOT("Giải Jackpot"),
+    JACKPOT2("Giải Jackpot 2"),
+    FIRST("Giải Nhất"),
+    SECOND("Giải Nhì"),
+    THIRD("Giải Ba"),
+    FOURTH("Giải Tư"),
+    FIFTH("Giải Năm"),
+    SIXTH("Giải Sáu"),
+    SEVENTH("Giải Bảy"),
+    EIGHTH("Giải Tám");
+
+    private final String displayName;
+}

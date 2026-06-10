@@ -61,6 +61,9 @@ public class UserEntity extends BaseEntity {
     @Column(length = 20)
     private String status;
 
+    @Column(name = "fcm_token", length = 255)
+    private String fcmToken;
+
     // Security & Compliance flags
     @Column(name = "is_email_verified", nullable = false)
     @Builder.Default
