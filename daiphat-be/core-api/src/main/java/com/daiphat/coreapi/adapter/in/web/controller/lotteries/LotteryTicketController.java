@@ -47,11 +47,15 @@ public class LotteryTicketController {
     }
 
     @GetMapping(ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
-    @JsonView(Views.Admin.class)
-    public ApiResponse<LotteryTicketResponse> getById(@PathVariable UUID id) {
+    @PreAuthorize("hasAnyAuthority('ticket:view') or hasAuthority('ROLE_MEMBER')")
+    public MappingJacksonValue getById(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to get lottery ticket: {}", id);
-        return ApiResponse.success(null, lotteryTicketServicePort.getById(id));
+        ApiResponse<LotteryTicketResponse> apiResponse = ApiResponse.success(null, lotteryTicketServicePort.getById(id));
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
+        mappingJacksonValue.setSerializationView(resolveLotteryTicketView(principal));
+        return mappingJacksonValue;
     }
 
     @GetMapping
@@ -72,7 +76,7 @@ public class LotteryTicketController {
 
         ApiResponse<PageResponse<LotteryTicketResponse>> apiResponse = ApiResponse.success(null, response);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
-        mappingJacksonValue.setSerializationView(resolveLotteryTicketListView(principal));
+        mappingJacksonValue.setSerializationView(resolveLotteryTicketView(principal));
         return mappingJacksonValue;
     }
 
@@ -114,7 +118,7 @@ public class LotteryTicketController {
         return ApiResponse.success("Cập nhật trạng thái vé số thành công.", response);
     }
 
-    private Class<?> resolveLotteryTicketListView(AuthenticatedUserPrincipal principal) {
+    private Class<?> resolveLotteryTicketView(AuthenticatedUserPrincipal principal) {
         if (principal == null || SecurityContextHolder.getContext().getAuthentication() == null) {
             return Views.Public.class;
         }
