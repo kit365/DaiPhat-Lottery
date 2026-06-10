@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.persistence.repository.lottery;
+package com.daiphat.coreapi.infrastructure.persistence.repository.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;

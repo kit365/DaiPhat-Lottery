@@ -4,7 +4,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryProductReposito
 import com.daiphat.coreapi.domain.model.lotteries.LotteryProductModel;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductStatus;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries.LotteryProductPersistenceMapper;
-import com.daiphat.coreapi.infrastructure.persistence.repository.lottery.LotteryProductRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryProductRepository;
 import com.daiphat.coreapi.infrastructure.persistence.specification.LotteryProductSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

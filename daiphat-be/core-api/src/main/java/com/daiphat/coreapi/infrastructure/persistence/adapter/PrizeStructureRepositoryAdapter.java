@@ -4,7 +4,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureReposito
 import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.PrizeStructureEntity;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries.PrizeStructurePersistenceMapper;
-import com.daiphat.coreapi.infrastructure.persistence.repository.lottery.PrizeStructureRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.PrizeStructureRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
