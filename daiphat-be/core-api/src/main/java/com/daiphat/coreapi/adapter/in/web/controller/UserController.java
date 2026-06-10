@@ -5,6 +5,7 @@ import com.daiphat.coreapi.application.dto.request.InviteStaffRequest;
 import com.daiphat.coreapi.application.dto.request.user.CreateUserRequest;
 import com.daiphat.coreapi.application.dto.request.user.ProfileSetupRequest;
 import com.daiphat.coreapi.application.dto.request.user.UpdateUserRequest;
+import com.daiphat.coreapi.application.dto.request.user.UpdateFcmTokenRequest;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.response.base.Views;
@@ -16,6 +17,7 @@ import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.shared.util.SearchConstants;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.fasterxml.jackson.annotation.JsonView;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +38,7 @@ public class UserController {
     private static final String DEFAULT_PAGE = "1";
     private static final String DEFAULT_LIMIT = "10";
     private static final String ID_PATH = "/{id}";
+    private static final String ME_PATH = "/me";
 
     private final UserServicePort userServicePort;
 
@@ -55,7 +58,7 @@ public class UserController {
         return ApiResponse.success("Cập nhật người dùng thành công.");
     }
 
-    @GetMapping("/me")
+    @GetMapping(ME_PATH)
     @JsonView(Views.Me.class)
     public ApiResponse<UserResponse> getCurrentUser(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
@@ -65,7 +68,7 @@ public class UserController {
         return ApiResponse.success(null, response);
     }
 
-    @PostMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = ME_PATH + "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("isAuthenticated()")
     @JsonView(Views.Me.class)
     public ApiResponse<UserResponse> uploadMyAvatar(
@@ -75,7 +78,7 @@ public class UserController {
                 userServicePort.uploadAvatar(principal.getId(), StorageUtils.toUploadRequest(file)));
     }
 
-    @DeleteMapping("/me/avatar")
+    @DeleteMapping(ME_PATH + "/avatar")
     @PreAuthorize("isAuthenticated()")
     @JsonView(Views.Me.class)
     public ApiResponse<UserResponse> deleteMyAvatar(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
@@ -172,6 +175,17 @@ public class UserController {
             @Valid @RequestBody AcceptInviteRequest request) {
         userServicePort.acceptInvite(request);
         return ApiResponse.success("Kích hoạt tài khoản nhân sự thành công.");
+    }
+
+    @PostMapping(ME_PATH + "/fcm-token")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Update FCM Token", description = "Update the Firebase Cloud Messaging registration token for the authenticated user")
+    public ApiResponse<Void> updateFcmToken(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody UpdateFcmTokenRequest request
+    ) {
+        userServicePort.updateFcmToken(principal.getId(), request.getFcmToken());
+        return ApiResponse.success("FCM token updated successfully");
     }
 
 }

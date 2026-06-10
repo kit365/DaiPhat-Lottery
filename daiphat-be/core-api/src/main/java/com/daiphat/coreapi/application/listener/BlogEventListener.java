@@ -1,7 +1,9 @@
 package com.daiphat.coreapi.application.listener;
 
 import com.daiphat.coreapi.application.event.BlogPostPublishedEvent;
+import com.daiphat.coreapi.application.dto.notification.FcmPushData;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
+import com.daiphat.coreapi.application.port.out.notification.FcmPushPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
@@ -30,6 +32,7 @@ public class BlogEventListener {
 
     private final UserRepositoryPort userRepositoryPort;
     private final NotificationServicePort notificationService;
+    private final FcmPushPort fcmPushPort;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -52,7 +55,17 @@ public class BlogEventListener {
                             .referenceType(NotificationReferenceType.BLOG_POST)
                             .build();
                     notification.markAsSent();
-                    notificationService.createNotification(notification);
+                    NotificationModel saved = notificationService.createNotification(notification);
+                    
+                    if (user.getFcmToken() != null && !user.getFcmToken().trim().isEmpty()) {
+                        FcmPushData data = FcmPushData.builder()
+                                .notificationId(saved.getNotificationId())
+                                .type(saved.getType() != null ? saved.getType().name() : null)
+                                .referenceId(saved.getReferenceId())
+                                .referenceType(saved.getReferenceType() != null ? saved.getReferenceType().name() : null)
+                                .build();
+                        fcmPushPort.sendPushNotification(user.getFcmToken(), saved.getTitle(), saved.getContent(), data);
+                    }
                 });
     }
 }

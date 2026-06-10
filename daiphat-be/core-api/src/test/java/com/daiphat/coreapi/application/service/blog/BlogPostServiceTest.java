@@ -490,6 +490,8 @@ class BlogPostServiceTest {
         // GIVEN
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
                 .categoryId(CATEGORY_ID)
+                .type(POST_TYPE_BLOG)
+                .status(STATUS_PUBLISHED)
                 .slug(DEFAULT_SLUG)
                 .status(STATUS_PUBLISHED)
                 .build();
@@ -513,6 +515,8 @@ class BlogPostServiceTest {
         // GIVEN
         CreateBlogPostRequest request = CreateBlogPostRequest.builder()
                 .categoryId(CATEGORY_ID)
+                .type(POST_TYPE_BLOG)
+                .status(STATUS_PUBLISHED)
                 .slug(DEFAULT_SLUG)
                 .status(STATUS_PUBLISHED)
                 .tagIds(Set.of(TAG_ID_1, TAG_ID_2))
