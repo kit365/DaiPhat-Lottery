@@ -62,32 +62,32 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
-  // Returns nav index: 0 = Blog, 1 = Home, 2 = Buy, 3 = Results, 4 = History, 5 = Profile
+  // Returns nav index: 0 = Home, 1 = Buy, 2 = Results, 3 = Blog, 4 = History, 5 = Profile
   int _getNavIndex(BuildContext context) {
-    if (_onBlogPage) return 0;
+    if (_onBlogPage) return 3;
     final String location = GoRouterState.of(context).uri.path;
-    if (location.startsWith(AppRoute.buyTicket.path)) return 2;
-    if (location.startsWith('/results')) return 3;
+    if (location.startsWith(AppRoute.buyTicket.path)) return 1;
+    if (location.startsWith('/results')) return 2;
     if (location.startsWith('/history')) return 4;
     if (location.startsWith(AppRoute.profile.path)) return 5;
-    return 1; // Home
+    return 0; // Home
   }
 
   void _onNavTap(int index, BuildContext context) {
     switch (index) {
       case 0:
-        _goToBlog();
-        break;
-      case 1:
         _goToMain();
         context.go(AppRoute.home.path);
         break;
-      case 2:
+      case 1:
         _goToMain();
         context.go(AppRoute.buyTicket.path);
         break;
-      case 3:
+      case 2:
         _goToMain();
+        break;
+      case 3:
+        _goToBlog();
         break;
       case 4:
         _goToMain();
@@ -145,11 +145,6 @@ class _MainLayoutState extends State<MainLayout> {
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           destinations: const [
             NavigationDestination(
-              icon: Icon(Icons.article_outlined),
-              selectedIcon: Icon(Icons.article, color: AppColors.primary),
-              label: 'Tin tức',
-            ),
-            NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home, color: AppColors.primary),
               label: 'Trang chủ',
@@ -163,6 +158,11 @@ class _MainLayoutState extends State<MainLayout> {
               icon: Icon(Icons.emoji_events_outlined),
               selectedIcon: Icon(Icons.emoji_events, color: AppColors.primary),
               label: 'Kết quả',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.article_outlined),
+              selectedIcon: Icon(Icons.article, color: AppColors.primary),
+              label: 'Tin tức',
             ),
             NavigationDestination(
               icon: Icon(Icons.history_outlined),
