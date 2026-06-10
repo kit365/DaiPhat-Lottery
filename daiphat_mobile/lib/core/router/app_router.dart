@@ -15,9 +15,11 @@ import '../../ui/views/main_layout.dart';
 import '../../ui/views/profile/profile_view.dart';
 import '../../ui/views/profile/profile_edit_view.dart';
 import '../../ui/views/profile/profile_detail_view.dart';
+import '../../ui/views/notification/notification_view.dart';
+import '../../ui/viewmodels/notification_viewmodel.dart';
 import 'app_routes.dart';
 
-final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 GoRouter createAppRouter({
@@ -25,9 +27,10 @@ GoRouter createAppRouter({
   required RegisterViewModel registerViewModel,
   required ForgotPasswordViewModel forgotPasswordViewModel,
   required ProfileViewModel profileViewModel,
+  required NotificationViewModel notificationViewModel,
 }) {
   return GoRouter(
-    navigatorKey: _rootNavigatorKey,
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoute.home.path,
     routes: [
       ShellRoute(
@@ -35,17 +38,18 @@ GoRouter createAppRouter({
         builder: (context, state, child) =>
             MainLayout(loginViewModel: loginViewModel, child: child),
         routes: [
-          _route(AppRoute.home, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel),
-          _route(AppRoute.buyTicket, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel),
-          _route(AppRoute.profile, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel),
+          _route(AppRoute.home, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
+          _route(AppRoute.buyTicket, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
+          _route(AppRoute.profile, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
         ],
       ),
-      _route(AppRoute.login, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel),
-      _route(AppRoute.register, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel),
-      _route(AppRoute.forgotPassword, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel),
-      _route(AppRoute.cart, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel),
-      _route(AppRoute.profileEdit, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel),
-      _route(AppRoute.profileDetail, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel),
+      _route(AppRoute.login, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
+      _route(AppRoute.register, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
+      _route(AppRoute.forgotPassword, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
+      _route(AppRoute.cart, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
+      _route(AppRoute.profileEdit, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
+      _route(AppRoute.profileDetail, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
+      _route(AppRoute.notifications, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
     ],
   );
 }
@@ -56,12 +60,13 @@ GoRoute _route(
   RegisterViewModel registerViewModel,
   ForgotPasswordViewModel forgotPasswordViewModel,
   ProfileViewModel profileViewModel,
+  NotificationViewModel notificationViewModel,
 ) {
   return GoRoute(
-    parentNavigatorKey: route.usesRootNavigator ? _rootNavigatorKey : null,
+    parentNavigatorKey: route.usesRootNavigator ? rootNavigatorKey : null,
     path: route.path,
     name: route.name,
-    builder: (context, state) => _buildRoute(route, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel),
+    builder: (context, state) => _buildRoute(route, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
   );
 }
 
@@ -71,10 +76,11 @@ Widget _buildRoute(
   RegisterViewModel registerViewModel,
   ForgotPasswordViewModel forgotPasswordViewModel,
   ProfileViewModel profileViewModel,
+  NotificationViewModel notificationViewModel,
 ) {
   switch (route) {
     case AppRoute.home:
-      return const HomeView();
+      return HomeView(loginViewModel: loginViewModel, notificationViewModel: notificationViewModel);
     case AppRoute.login:
       return LoginView(viewModel: loginViewModel);
     case AppRoute.register:
@@ -91,5 +97,7 @@ Widget _buildRoute(
       return ProfileEditView(viewModel: profileViewModel);
     case AppRoute.profileDetail:
       return ProfileDetailView(viewModel: profileViewModel);
+    case AppRoute.notifications:
+      return NotificationView(viewModel: notificationViewModel);
   }
 }

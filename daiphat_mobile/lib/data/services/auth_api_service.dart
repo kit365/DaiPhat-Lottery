@@ -136,4 +136,13 @@ class AuthApiService {
     
     return apiResponse.data!;
   }
+
+  Future<void> updateFcmToken(String token) async {
+    final response = await _apiClient.post(
+      '$_baseUsers/me/fcm-token',
+      data: {'fcmToken': token},
+    );
+    final apiResponse = ApiResponse.fromJson(response, null);
+    if (!apiResponse.isSuccess) throw ApiException(apiResponse.message);
+  }
 }

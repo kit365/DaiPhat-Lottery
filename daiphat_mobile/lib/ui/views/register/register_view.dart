@@ -70,7 +70,7 @@ class _RegisterViewState extends State<RegisterView> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đăng ký thành công! Vui lòng đăng nhập.'), backgroundColor: AppColors.success),
+        const SnackBar(content: Text('Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.'), backgroundColor: AppColors.success),
       );
       context.go(AppRoute.login.path);
     } else {
