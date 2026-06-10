@@ -3,13 +3,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Phone, Lock, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { X, Phone, Lock, CheckCircle2, Eye, EyeOff, ShieldCheck, User } from "lucide-react";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { userService } from "../../../admin/pages/authen/services/user.service";
 import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
-import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 import { AppToast as toast } from "../../utils/toast.util";
 import { useQueryClient } from "@tanstack/react-query";
+import { Checkbox } from "../ui/Checkbox";
 
 // Type for form data
 type SetupFormData = {
@@ -24,7 +24,6 @@ export const ProfileSetupModal: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
     
     const queryClient = useQueryClient();
     const { usePasswordPolicy } = useForgotPassword();
@@ -82,9 +81,6 @@ export const ProfileSetupModal: React.FC = () => {
         }
     }, [user, isProfileSetupModalOpen, reset]);
 
-    const passwordValue = watch("password");
-    const isEditingPassword = !!(passwordValue && passwordValue.length > 0);
-
     const onSubmit = async (data: SetupFormData) => {
         setIsSubmitting(true);
         try {
@@ -133,7 +129,7 @@ export const ProfileSetupModal: React.FC = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-[#0f172a]/60 backdrop-blur-md"
+                    className="absolute inset-0 bg-[#0f172a]/60 backdrop-blur-sm"
                     onClick={() => {}} // Block clicking outside to close for mandatory setup
                 />
 
@@ -142,190 +138,148 @@ export const ProfileSetupModal: React.FC = () => {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                    className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[96vh] sm:max-h-[90vh] flex flex-col"
+                    className="relative w-full max-w-[460px] bg-white rounded-3xl shadow-2xl p-6 sm:p-8 flex flex-col"
                 >
+                    {/* Close button */}
+                    <button 
+                        onClick={closeAuthModals}
+                        className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                    >
+                        <X size={20} strokeWidth={2.5} />
+                    </button>
+
                     {/* Header */}
-                    <div className="px-6 sm:px-8 pt-8 sm:pt-10 pb-5 sm:pb-6 text-center overflow-y-auto">
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#FF6262]/10 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-5 shadow-inner">
-                            <CheckCircle2 className="text-[#FF6262]" size={28} strokeWidth={2.5} />
+                    <div className="text-center mb-6">
+                        <div className="relative w-24 h-24 mx-auto mb-4">
+                            {/* Decorative background lines (fireworks mockup) */}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-30">
+                                <svg width="100%" height="100%" viewBox="0 0 100 100">
+                                    <path d="M50 10 L50 20 M50 80 L50 90 M10 50 L20 50 M80 50 L90 50 M22 22 L29 29 M71 71 L78 78 M22 78 L29 71 M71 22 L78 29" stroke="#ee1314" strokeWidth="2" strokeLinecap="round" />
+                                </svg>
+                            </div>
+                            
+                            {/* The circle and user icon */}
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-16 h-16 bg-[#FFF0F0] rounded-full flex items-center justify-center">
+                                    <User className="text-[#ee1314]" size={32} strokeWidth={2.5} fill="#ee1314" />
+                                </div>
+                            </div>
+                            {/* Checkmark badge */}
+                            <div className="absolute bottom-2 right-2 bg-white rounded-full p-0.5 shadow-sm">
+                                <CheckCircle2 className="text-[#ee1314]" size={20} strokeWidth={2.5} fill="white" />
+                            </div>
                         </div>
-                        <h2 className="text-2xl sm:text-3xl font-black text-[#102937] tracking-tight">Hoàn tất hồ sơ</h2>
-                        <p className="text-slate-500 mt-1 sm:mt-2 font-medium text-xs sm:text-base leading-relaxed">
-                            Chào mừng {user?.fullName || user?.username}! Bổ sung thông tin để bắt đầu trải nghiệm
+                        <h2 className="text-xl font-bold text-[#212B36] mb-2">Hoàn tất thông tin tài khoản</h2>
+                        <p className="text-[13px] text-slate-500 leading-relaxed max-w-[320px] mx-auto">
+                            Vui lòng bổ sung thông tin để bảo mật và sử dụng đầy đủ tính năng
                         </p>
                     </div>
 
-                    {/* Form container to allow scrolling of form fields on very small screens */}
-                    <div className="overflow-y-auto flex-1 scrollbar-hide">
-                        <form 
-                            onSubmit={handleSubmit(
-                                onSubmit, 
-                                (err) => console.error("Validation Errors:", err)
-                            )} 
-                            className="px-6 sm:px-8 pb-10 space-y-4 sm:space-y-5"
-                        >
-                        {/* Phone Number - Only show if not exists */}
+                    {/* Form container */}
+                    <form 
+                        onSubmit={handleSubmit(
+                            onSubmit, 
+                            (err) => console.error("Validation Errors:", err)
+                        )} 
+                        className="space-y-4"
+                    >
+                        {/* Phone Number */}
                         {!(user?.phone || user?.phoneNumber) && (
-                            <div className="flex flex-col gap-1.5 focus-within:z-10">
-                                <label className="text-[13px] font-black uppercase tracking-wider text-slate-400 ml-1">Số điện thoại</label>
-                                <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#FF6262] transition-colors">
-                                        <Phone size={18} strokeWidth={2.5} />
+                            <div>
+                                <div className="relative">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                        <Phone size={18} strokeWidth={2} />
                                     </div>
                                     <input
                                         {...register("phoneNumber")}
                                         type="text"
-                                        placeholder="0912 345 678"
-                                        className={`w-full h-11 pl-12 pr-5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium outline-none transition-all ${
-                                            errors.phoneNumber ? "border-[#FF6262]/50 focus:border-[#FF6262]" : "focus:bg-white focus:border-[#FF6262] focus:shadow-md"
+                                        placeholder="Số điện thoại"
+                                        className={`w-full h-12 pl-11 pr-4 bg-white border rounded-xl text-[14px] font-medium outline-none transition-all ${
+                                            errors.phoneNumber ? "border-red-500" : "border-slate-200 focus:border-[#ee1314] focus:ring-1 focus:ring-[#ee1314]"
                                         }`}
                                     />
                                 </div>
                                 {errors.phoneNumber && (
-                                    <p className="text-[#FF6262] text-[11.5px] font-bold mt-1 ml-1">{errors.phoneNumber.message}</p>
+                                    <p className="text-red-500 text-[11.5px] mt-1 ml-1 font-medium">{errors.phoneNumber.message}</p>
                                 )}
                             </div>
                         )}
 
-                        {/* Password Section */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="flex flex-col gap-1.5 focus-within:z-10">
-                                <label className="text-[13px] font-black uppercase tracking-wider text-slate-400 ml-1">Mật khẩu mới</label>
-                                <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#FF6262] transition-colors">
-                                        <Lock size={18} strokeWidth={2.5} />
-                                    </div>
-                                    <input
-                                        {...register("password")}
-                                        type={showPassword ? "text" : "password"}
-                                        placeholder="Tối thiểu 8 ký tự"
-                                        onFocus={() => setIsPasswordFocused(true)}
-                                        onBlur={() => setIsPasswordFocused(false)}
-                                        className={`w-full h-11 pl-11 pr-10 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium outline-none transition-all ${
-                                            errors.password ? "border-[#FF6262]/50 focus:border-[#FF6262]" : "focus:bg-white focus:border-[#FF6262] focus:shadow-md"
-                                        }`}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#102937] transition-colors"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                    >
-                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    </button>
+                        {/* Password */}
+                        <div>
+                            <div className="relative">
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                    <Lock size={18} strokeWidth={2} />
                                 </div>
+                                <input
+                                    {...register("password")}
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Mật khẩu mới"
+                                    className={`w-full h-12 pl-11 pr-10 bg-white border rounded-xl text-[14px] font-medium outline-none transition-all ${
+                                        errors.password ? "border-red-500" : "border-slate-200 focus:border-[#ee1314] focus:ring-1 focus:ring-[#ee1314]"
+                                    }`}
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
-                            <div className="flex flex-col gap-1.5">
-                                <label className={`text-[13px] font-black uppercase tracking-wider ml-1 transition-colors ${isEditingPassword ? "text-slate-400" : "text-slate-300"}`}>
-                                    Xác nhận
-                                </label>
-                                <div className="relative group">
-                                    <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isEditingPassword ? "text-slate-400 group-focus-within:text-[#FF6262]" : "text-slate-300"}`}>
-                                        <Lock size={18} strokeWidth={2.5} />
-                                    </div>
-                                    <input
-                                        {...register("confirmPassword")}
-                                        type={showConfirmPassword ? "text" : "password"}
-                                        placeholder="Nhập lại mật khẩu"
-                                        disabled={!isEditingPassword}
-                                        className={`w-full h-11 pl-11 pr-10 rounded-xl text-[14px] font-medium transition-all outline-none border ${
-                                            !isEditingPassword 
-                                                ? "bg-slate-50 border-slate-50 cursor-not-allowed opacity-40" 
-                                                : errors.confirmPassword 
-                                                    ? "bg-slate-50 border-[#FF6262]/50 focus:border-[#FF6262]" 
-                                                    : "bg-slate-50 border-slate-100 focus:bg-white focus:border-[#FF6262] focus:shadow-md"
-                                        }`}
-                                    />
-                                    {isEditingPassword && (
-                                        <button
-                                            type="button"
-                                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#102937] transition-colors"
-                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                        >
-                                            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
+                            {errors.password && (
+                                <p className="text-red-500 text-[11.5px] mt-1 ml-1 font-medium">{errors.password.message}</p>
+                            )}
                         </div>
 
-                        {/* Password Rules checklist from Backend */}
-                        {passwordPolicy && (
-                            <div className="px-1">
-                                <PasswordStrengthMeter 
-                                    password={passwordValue} 
-                                    policy={passwordPolicy} 
-                                    isFocused={isPasswordFocused}
+                        {/* Confirm Password */}
+                        <div>
+                            <div className="relative">
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                    <Lock size={18} strokeWidth={2} />
+                                </div>
+                                <input
+                                    {...register("confirmPassword")}
+                                    type={showConfirmPassword ? "text" : "password"}
+                                    placeholder="Xác nhận mật khẩu"
+                                    className={`w-full h-12 pl-11 pr-10 bg-white border rounded-xl text-[14px] font-medium outline-none transition-all ${
+                                        errors.confirmPassword ? "border-red-500" : "border-slate-200 focus:border-[#ee1314] focus:ring-1 focus:ring-[#ee1314]"
+                                    }`}
                                 />
+                                <button
+                                    type="button"
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                >
+                                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
-                        )}
-                        
-                        {errors.confirmPassword && isEditingPassword && (
-                            <p className="text-[#FF6262] text-[11.5px] font-bold mt-1 ml-1">{errors.confirmPassword.message}</p>
-                        )}
+                            {errors.confirmPassword && (
+                                <p className="text-red-500 text-[11.5px] mt-1 ml-1 font-medium">{errors.confirmPassword.message}</p>
+                            )}
+                        </div>
 
-                        {/* Terms - Shown during setup for user confirmation */}
-                        <div className="mt-3">
-                                <label className="flex items-start gap-4 cursor-pointer group select-none">
-                                    <div className="relative mt-0.5">
-                                        <input
-                                            {...register("agreedToTerms")}
-                                            type="checkbox"
-                                            className="sr-only"
-                                        />
-                                        <motion.div
-                                            initial={false}
-                                            animate={{
-                                                backgroundColor: watch("agreedToTerms") ? "#FF6262" : "#f8fafc",
-                                                borderColor: watch("agreedToTerms") ? "#FF6262" : "#e2e8f0"
-                                            }}
-                                            transition={{ duration: 0.2 }}
-                                            className="w-5 h-5 border-2 rounded-md flex items-center justify-center shadow-sm group-hover:border-[#FF6262]/50 transition-colors"
-                                        >
-                                            <svg
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                className="w-3.5 h-3.5 text-white"
-                                                stroke="currentColor"
-                                                strokeWidth="4"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            >
-                                                <motion.path
-                                                    d="M20 6L9 17L4 12"
-                                                    initial={false}
-                                                    animate={{ pathLength: watch("agreedToTerms") ? 1 : 0 }}
-                                                    transition={{ 
-                                                        type: "spring", 
-                                                        stiffness: 300, 
-                                                        damping: 20 
-                                                    }}
-                                                />
-                                            </svg>
-                                        </motion.div>
-                                    </div>
-                                    <span className="text-sm font-bold text-slate-500 leading-snug pt-0.5">
-                                        Tôi đồng ý với <span className="text-[#FF6262] hover:underline cursor-pointer">điều khoản sử dụng</span> & chính sách bảo mật của Đại Phát.
-                                    </span>
-                                </label>
-                                <AnimatePresence>
-                                    {errors.agreedToTerms && (
-                                        <motion.p 
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -10 }}
-                                            className="text-[#FF6262] text-[11.5px] font-bold mt-2 ml-1"
-                                        >
-                                            {errors.agreedToTerms.message}
-                                        </motion.p>
-                                    )}
-                                </AnimatePresence>
-                            </div>
+                        {/* Terms */}
+                        <div className="pt-2">
+                            <label className="flex items-center gap-2.5 cursor-pointer group">
+                                <Checkbox
+                                    {...register("agreedToTerms")}
+                                    checked={watch("agreedToTerms")}
+                                />
+                                <span className="text-[13px] text-slate-500 leading-snug whitespace-nowrap">
+                                    Tôi đồng ý với <span className="text-[#ee1314] font-medium hover:underline">Điều khoản sử dụng</span> và <span className="text-[#ee1314] font-medium hover:underline">Chính sách bảo mật</span>
+                                </span>
+                            </label>
+                            {errors.agreedToTerms && (
+                                <p className="text-red-500 text-[11.5px] mt-1.5 ml-1 font-medium">{errors.agreedToTerms.message}</p>
+                            )}
+                        </div>
 
                         {/* Submit */}
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full h-12 bg-[#FF6262] text-white font-black text-lg rounded-xl shadow-lg shadow-[#FF6262]/26 transition-all hover:scale-[1.01] hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:pointer-events-none cursor-pointer mt-6"
+                            className="w-full h-12 mt-6 bg-[#d91d1e] text-white font-bold text-[15px] rounded-xl transition-all hover:bg-[#b91819] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
                         >
                             {isSubmitting ? (
                                 <div className="flex items-center justify-center gap-2">
@@ -333,11 +287,16 @@ export const ProfileSetupModal: React.FC = () => {
                                     <span>Đang xử lý...</span>
                                 </div>
                             ) : (
-                                "Hoàn tất thiết lập"
+                                "Hoàn tất"
                             )}
                         </button>
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-center gap-1.5 pt-4 pb-2 text-slate-500 text-[12px]">
+                            <ShieldCheck size={14} />
+                            <span>Thông tin của bạn được bảo mật tuyệt đối</span>
+                        </div>
                     </form>
-                    </div>
                 </motion.div>
             </div>
         </AnimatePresence>
