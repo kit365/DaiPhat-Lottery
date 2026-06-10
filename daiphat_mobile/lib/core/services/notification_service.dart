@@ -14,14 +14,21 @@ class NotificationService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
-  Future<void> init() async {
-    // 1. Request Permission
+  Future<void> requestPermission() async {
+    // 1. Request Permission for FCM
     await _firebaseMessaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
+    
+    // Request permission for local notifications (Android 13+)
+    await _localNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+  }
 
+  Future<void> init() async {
     // 2. Initialize Local Notifications (For Foreground popup)
     const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(

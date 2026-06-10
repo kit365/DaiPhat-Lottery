@@ -52,6 +52,18 @@ Future<void> main() async {
   );
   await authRepository.restoreSession();
 
+  // Tự động đồng bộ FCM Token lên backend nếu đã đăng nhập sẵn
+  if (authRepository.isAuthenticated) {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await authRepository.updateFcmToken(token);
+        print('✅ Đồng bộ FCM Token lên Backend thành công!');
+      }
+    } catch (e) {
+      print('❌ Lỗi đồng bộ FCM Token: $e');
+    }
+  }
   final loginViewModel = LoginViewModel(authRepository);
   final registerViewModel = RegisterViewModel(authRepository);
   final forgotPasswordViewModel = ForgotPasswordViewModel(authRepository);
