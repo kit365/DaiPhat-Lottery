@@ -32,6 +32,8 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+stitch_zip/
+
 
 # Symbolication related
 app.*.symbols

@@ -7,7 +7,7 @@ class AppColors {
   static const Color goldDark = Color(0xFFF9A826);
 
   // Backgrounds & Surfaces
-  static const Color pageBg = Color(0xFFFAFAFA);
+  static const Color pageBg = Color(0xFFFDF9F9);
   static const Color surface = Colors.white;
   static const Color rowOdd = Color(0xFFF8FAFC);
   static const Color rowEven = Colors.white;

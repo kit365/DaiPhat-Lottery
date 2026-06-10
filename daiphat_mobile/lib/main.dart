@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'core/network/api_client.dart';
+import 'core/providers/api_providers.dart';
 import 'core/router/app_router.dart';
 import 'core/storage/auth_token_storage.dart';
 import 'data/repositories/auth_repository.dart';
@@ -51,6 +52,18 @@ Future<void> main() async {
   );
   await authRepository.restoreSession();
 
+  // Tự động đồng bộ FCM Token lên backend nếu đã đăng nhập sẵn
+  if (authRepository.isAuthenticated) {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await authRepository.updateFcmToken(token);
+        print('✅ Đồng bộ FCM Token lên Backend thành công!');
+      }
+    } catch (e) {
+      print('❌ Lỗi đồng bộ FCM Token: $e');
+    }
+  }
   final loginViewModel = LoginViewModel(authRepository);
   final registerViewModel = RegisterViewModel(authRepository);
   final forgotPasswordViewModel = ForgotPasswordViewModel(authRepository);
@@ -68,7 +81,14 @@ Future<void> main() async {
     notificationViewModel: notificationViewModel,
   );
 
-  runApp(ProviderScope(child: DaiPhatMobileApp(router: router)));
+  runApp(
+    ProviderScope(
+      overrides: [
+        apiClientProvider.overrideWithValue(apiClient),
+      ],
+      child: DaiPhatMobileApp(router: router),
+    ),
+  );
 }
 
 class DaiPhatMobileApp extends StatelessWidget {

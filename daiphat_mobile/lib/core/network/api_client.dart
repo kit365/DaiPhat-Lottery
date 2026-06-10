@@ -149,7 +149,6 @@ class ApiClient {
       throw const ApiException('Không thể kết nối đến máy chủ.');
     }
   }
-
   Map<String, dynamic> _normalizeResponse(Map<String, dynamic>? responseData) {
     return responseData ?? <String, dynamic>{};
   }
