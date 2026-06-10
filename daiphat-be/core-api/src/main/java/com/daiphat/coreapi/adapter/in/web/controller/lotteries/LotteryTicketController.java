@@ -6,13 +6,18 @@ import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.base.Views;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.fasterxml.jackson.annotation.JsonView;
+import org.springframework.http.converter.json.MappingJacksonValue;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -43,14 +48,15 @@ public class LotteryTicketController {
 
     @GetMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @JsonView(Views.Admin.class)
     public ApiResponse<LotteryTicketResponse> getById(@PathVariable UUID id) {
         log.info("REST request to get lottery ticket: {}", id);
         return ApiResponse.success(null, lotteryTicketServicePort.getById(id));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
-    public ApiResponse<PageResponse<LotteryTicketResponse>> getAll(
+    @PreAuthorize("hasAnyAuthority('ticket:view') or hasAuthority('ROLE_MEMBER')")
+    public MappingJacksonValue getAll(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
             @RequestParam(required = false) UUID productId,
@@ -58,11 +64,16 @@ public class LotteryTicketController {
             @RequestParam(required = false) String drawDate,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false) String direction) {
+            @RequestParam(required = false) String direction,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getAll(
                 page, size, productId, status, drawDate, search, sortBy, direction);
-        return ApiResponse.success(null, response);
+
+        ApiResponse<PageResponse<LotteryTicketResponse>> apiResponse = ApiResponse.success(null, response);
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
+        mappingJacksonValue.setSerializationView(resolveLotteryTicketListView(principal));
+        return mappingJacksonValue;
     }
 
     @PutMapping(ID_PATH)
@@ -101,5 +112,23 @@ public class LotteryTicketController {
         log.info("REST request to change lottery ticket status: {} to {}", id, status);
         LotteryTicketResponse response = lotteryTicketServicePort.changeStatus(id, status);
         return ApiResponse.success("Cập nhật trạng thái vé số thành công.", response);
+    }
+
+    private Class<?> resolveLotteryTicketListView(AuthenticatedUserPrincipal principal) {
+        if (principal == null || SecurityContextHolder.getContext().getAuthentication() == null) {
+            return Views.Public.class;
+        }
+
+        boolean isMemberOnly = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .anyMatch(RoleConstants.ROLE_MEMBER::equals)
+                && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .noneMatch(authority -> RoleConstants.ADMIN.equals(authority)
+                        || RoleConstants.ROLE_STAFF_OPERATOR.equals(authority)
+                        || RoleConstants.ROLE_STREET_AGENT.equals(authority)
+                        || "ticket:view".equals(authority));
+
+        return isMemberOnly ? Views.Public.class : Views.Admin.class;
     }
 }
