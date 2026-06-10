@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'blog_data.dart';
+import '../../viewmodels/blog_viewmodel.dart';
 import 'blog_post.dart';
 
 const _primary = Color(0xFFEE1314);
@@ -13,39 +14,95 @@ const _surface = Colors.white;
 const _pageBg = Color(0xFFFDFAF9);
 const _tagBg = Color(0xFFF3F3FC);
 
-class BlogDetailScreen extends StatelessWidget {
+class BlogDetailScreen extends ConsumerWidget {
   const BlogDetailScreen({
     super.key,
-    required this.post,
-    this.related = relatedPosts,
+    required this.slug,
   });
 
-  final BlogPost post;
-  final List<BlogPost> related;
+  final String slug;
 
-  void _openPost(BuildContext context, BlogPost item) {
+  void _openPost(BuildContext context, WidgetRef ref, BlogPost item) {
+    if (item.slug == null || item.slug!.isEmpty) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => BlogDetailScreen(post: item),
+        builder: (_) => BlogDetailScreen(slug: item.slug!),
       ),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detailState = ref.watch(blogDetailProvider(slug));
+
     return Scaffold(
       backgroundColor: _pageBg,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _buildAppBar(context)),
-            SliverToBoxAdapter(child: _buildHeroImage()),
-            SliverToBoxAdapter(child: _buildArticleHeader()),
-            SliverToBoxAdapter(child: _buildBody()),
-            if (post.tags.isNotEmpty) SliverToBoxAdapter(child: _buildTags()),
-            SliverToBoxAdapter(child: _buildRelatedSection(context)),
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
-          ],
+        child: detailState.when(
+          data: (data) => CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: _buildAppBar(context)),
+              SliverToBoxAdapter(child: _buildHeroImage(data.post)),
+              SliverToBoxAdapter(child: _buildArticleHeader(data.post)),
+              SliverToBoxAdapter(child: _buildBody(data.post)),
+              if (data.post.tags.isNotEmpty)
+                SliverToBoxAdapter(child: _buildTags(data.post)),
+              SliverToBoxAdapter(
+                child: _buildRelatedSection(context, ref, data.post, data.related),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 32)),
+            ],
+          ),
+          loading: () => Column(
+            children: [
+              _buildAppBar(context),
+              const Expanded(
+                child: Center(
+                  child: CircularProgressIndicator(color: _primary),
+                ),
+              ),
+            ],
+          ),
+          error: (error, _) => Column(
+            children: [
+              _buildAppBar(context),
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Không thể tải bài viết',
+                          style: GoogleFonts.barlow(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: _ink,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          error.toString(),
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.publicSans(
+                            fontSize: 14,
+                            color: _secondary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: () => ref.invalidate(blogDetailProvider(slug)),
+                          style: FilledButton.styleFrom(backgroundColor: _primary),
+                          child: const Text('Thử lại'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -80,7 +137,7 @@ class BlogDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeroImage() {
+  Widget _buildHeroImage(BlogPost post) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: ClipRRect(
@@ -100,7 +157,7 @@ class BlogDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildArticleHeader() {
+  Widget _buildArticleHeader(BlogPost post) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Column(
@@ -169,7 +226,7 @@ class BlogDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(BlogPost post) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Column(
@@ -192,7 +249,7 @@ class BlogDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTags() {
+  Widget _buildTags(BlogPost post) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
       child: Wrap(
@@ -221,8 +278,13 @@ class BlogDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRelatedSection(BuildContext context) {
-    final items = related.where((p) => p.title != post.title).take(2).toList();
+  Widget _buildRelatedSection(
+    BuildContext context,
+    WidgetRef ref,
+    BlogPost post,
+    List<BlogPost> related,
+  ) {
+    final items = related.where((p) => p.slug != post.slug).take(2).toList();
     if (items.isEmpty) return const SizedBox.shrink();
 
     return Padding(
@@ -243,7 +305,7 @@ class BlogDetailScreen extends StatelessWidget {
             children: [
               for (var i = 0; i < items.length; i++) ...[
                 if (i > 0) const SizedBox(width: 12),
-                Expanded(child: _buildRelatedCard(context, items[i])),
+                Expanded(child: _buildRelatedCard(context, ref, items[i])),
               ],
             ],
           ),
@@ -252,9 +314,9 @@ class BlogDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRelatedCard(BuildContext context, BlogPost item) {
+  Widget _buildRelatedCard(BuildContext context, WidgetRef ref, BlogPost item) {
     return GestureDetector(
-      onTap: () => _openPost(context, item),
+      onTap: () => _openPost(context, ref, item),
       child: Container(
         decoration: BoxDecoration(
           color: _surface,
