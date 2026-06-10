@@ -153,7 +153,7 @@ export const BlogListPage = () => {
   const totalPages = pagination?.totalPages || 1;
 
   return (
-    <div className="min-h-screen bg-[#fdfafa] font-['Inter',sans-serif] pb-20">
+    <div className="min-h-screen bg-[#fdfafa] font-['Inter',sans-serif]">
       <Header />
 
       <main className="pt-[80px]">
