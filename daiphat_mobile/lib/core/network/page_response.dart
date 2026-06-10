@@ -22,15 +22,17 @@ class PageResponse<T> {
         ? json['data'] as Map<String, dynamic>
         : json;
 
-    final List<dynamic> itemsJson = source['items'] ?? source['content'] ?? [];
+    final pagination = source['pagination'] as Map<String, dynamic>?;
+    final List<dynamic> itemsJson =
+        source['recordList'] ?? source['items'] ?? source['content'] ?? [];
     final List<T> items = itemsJson.map((item) => fromJsonT(item)).toList();
 
     return PageResponse<T>(
       items: items,
-      totalPages: source['totalPages'] ?? 1,
-      totalElements: source['totalElements'] ?? items.length,
-      pageSize: source['pageSize'] ?? items.length,
-      pageNumber: source['pageNumber'] ?? source['currentPage'] ?? 1,
+      totalPages: pagination?['totalPages'] ?? source['totalPages'] ?? 1,
+      totalElements: pagination?['totalRecords'] ?? source['totalElements'] ?? items.length,
+      pageSize: pagination?['limit'] ?? source['pageSize'] ?? items.length,
+      pageNumber: pagination?['currentPage'] ?? source['pageNumber'] ?? source['currentPage'] ?? 1,
     );
   }
 }
