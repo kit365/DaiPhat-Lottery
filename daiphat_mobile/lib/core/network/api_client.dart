@@ -131,6 +131,24 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> delete(
+    String path, {
+    Object? data,
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    try {
+      final response = await _dio.delete<Map<String, dynamic>>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+      );
+      return _normalizeResponse(response.data);
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    } catch (_) {
+      throw const ApiException('Không thể kết nối đến máy chủ.');
+    }
+  }
   Map<String, dynamic> _normalizeResponse(Map<String, dynamic>? responseData) {
     return responseData ?? <String, dynamic>{};
   }
