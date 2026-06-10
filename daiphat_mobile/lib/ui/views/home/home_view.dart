@@ -156,7 +156,7 @@ class _HomeContentState extends State<_HomeContent> {
   }
 
   // ─── Header ────────────────────────────────────────────────
-  Widget _header() => Padding(
+Widget _header() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     child: Row(children: [
       Container(
@@ -166,20 +166,43 @@ class _HomeContentState extends State<_HomeContent> {
         child: ClipOval(child: Image.asset('assets/images/login_logo.jpg', fit: BoxFit.cover)),
       ),
       const SizedBox(width: 10),
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('ĐẠI PHÁT', style: GoogleFonts.barlow(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryDark, height: 1.1)),
-        Text('XỔ SỐ - MAY MẮN - THỊNH VƯỢNG', style: GoogleFonts.publicSans(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.goldDark)),
-      ]),
+      // Đổi Row thành Column ở đây
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start, // Căn lề trái cho 2 dòng chữ
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('ĐẠI PHÁT', style: GoogleFonts.barlow(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryDark, height: 1.1)),
+          const SizedBox(height: 2), // Đổi width thành height cho khoảng cách dọc
+          Text('XỔ SỐ - MAY MẮN - THỊNH VƯỢNG', style: GoogleFonts.publicSans(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.goldDark)),
+        ],
+      ),
       const Spacer(),
-      _iconBtn(Icons.calendar_month_outlined),
-      const SizedBox(width: 8),
-      Stack(children: [
-        _iconBtn(Icons.notifications_outlined),
-        Positioned(right: 6, top: 6, child: Container(
-          width: 8, height: 8,
-          decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 1.5)),
-        )),
-      ]),
+      Container(
+        height: 40,
+        width: 160,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFDBD1D2),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.04), blurRadius: 10, offset: const Offset(0, 2))],
+        ),
+        child: Row(children: [
+          const Icon(Icons.search, color: AppColors.textMuted, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Tìm kiếm...',
+                hintStyle: GoogleFonts.publicSans(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textMuted),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                isDense: true,
+              ),
+              style: GoogleFonts.publicSans(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textMain),
+            ),
+          ),
+        ]),
+      ),
     ]),
   );
 
@@ -258,7 +281,7 @@ class _HomeContentState extends State<_HomeContent> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: isSel ? AppColors.primary : Colors.white,
+          color: isSel ? AppColors.primary : const Color(0xFFDBD1D2),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: isSel ? AppColors.primary : AppColors.cardBorder),
           boxShadow: isSel
