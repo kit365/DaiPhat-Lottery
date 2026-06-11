@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -163,6 +164,24 @@ class BlogDetailScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (post.category.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: _goldLight,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                post.category,
+                style: GoogleFonts.publicSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: _primary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           Text(
             post.title,
             style: GoogleFonts.barlow(
@@ -214,6 +233,22 @@ class BlogDetailScreen extends ConsumerWidget {
                             color: _secondary,
                           ),
                         ),
+                        if (post.viewCount > 0) ...[
+                          const SizedBox(width: 12),
+                          const Icon(
+                            Icons.visibility_outlined,
+                            size: 14,
+                            color: _secondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${post.viewCount}',
+                            style: GoogleFonts.publicSans(
+                              fontSize: 13,
+                              color: _secondary,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -221,12 +256,80 @@ class BlogDetailScreen extends ConsumerWidget {
               ),
             ],
           ),
+          if (post.excerpt.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              post.excerpt,
+              style: GoogleFonts.publicSans(
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
+                color: _secondary,
+                height: 1.6,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildBody(BlogPost post) {
+    if (post.htmlContent.trim().isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+        child: Html(
+          data: post.htmlContent,
+          style: {
+            'body': Style(
+              margin: Margins.zero,
+              padding: HtmlPaddings.zero,
+              fontSize: FontSize(16),
+              lineHeight: const LineHeight(1.6),
+              color: _ink,
+              fontFamily: GoogleFonts.publicSans().fontFamily,
+            ),
+            'p': Style(margin: Margins.only(bottom: 16)),
+            'h1': Style(
+              fontFamily: GoogleFonts.barlow().fontFamily,
+              fontSize: FontSize(26),
+              fontWeight: FontWeight.w700,
+              color: _ink,
+            ),
+            'h2': Style(
+              fontFamily: GoogleFonts.barlow().fontFamily,
+              fontSize: FontSize(22),
+              fontWeight: FontWeight.w700,
+              color: _ink,
+            ),
+            'h3': Style(
+              fontFamily: GoogleFonts.barlow().fontFamily,
+              fontSize: FontSize(18),
+              fontWeight: FontWeight.w700,
+              color: _ink,
+            ),
+            'ul': Style(margin: Margins.only(bottom: 16, left: 8)),
+            'ol': Style(margin: Margins.only(bottom: 16, left: 8)),
+            'li': Style(margin: Margins.only(bottom: 8)),
+            'a': Style(
+              color: _primary,
+              textDecoration: TextDecoration.underline,
+            ),
+            'strong': Style(fontWeight: FontWeight.w700),
+            'img': Style(
+              width: Width(double.infinity),
+              margin: Margins.only(top: 12, bottom: 12),
+            ),
+            'blockquote': Style(
+              margin: Margins.only(bottom: 16),
+              padding: HtmlPaddings.only(left: 12, top: 8, bottom: 8),
+              border: Border(left: BorderSide(color: _primary, width: 3)),
+              backgroundColor: _goldLight,
+            ),
+          },
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Column(
@@ -284,7 +387,7 @@ class BlogDetailScreen extends ConsumerWidget {
     BlogPost post,
     List<BlogPost> related,
   ) {
-    final items = related.where((p) => p.slug != post.slug).take(2).toList();
+    final items = related.where((p) => p.slug != post.slug).take(4).toList();
     if (items.isEmpty) return const SizedBox.shrink();
 
     return Padding(
@@ -301,11 +404,11 @@ class BlogDetailScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
+          Column(
             children: [
               for (var i = 0; i < items.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
-                Expanded(child: _buildRelatedCard(context, ref, items[i])),
+                if (i > 0) const SizedBox(height: 12),
+                _buildRelatedCard(context, ref, items[i]),
               ],
             ],
           ),
@@ -330,11 +433,11 @@ class BlogDetailScreen extends ConsumerWidget {
           ],
         ),
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            AspectRatio(
-              aspectRatio: 4 / 3,
+            SizedBox(
+              width: 108,
+              height: 108,
               child: Image.network(
                 item.imageUrl,
                 fit: BoxFit.cover,
@@ -344,18 +447,34 @@ class BlogDetailScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                item.title,
-                style: GoogleFonts.barlow(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: _ink,
-                  height: 1.3,
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      item.title,
+                      style: GoogleFonts.barlow(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _ink,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      item.date,
+                      style: GoogleFonts.publicSans(
+                        fontSize: 12,
+                        color: _secondary,
+                      ),
+                    ),
+                  ],
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
