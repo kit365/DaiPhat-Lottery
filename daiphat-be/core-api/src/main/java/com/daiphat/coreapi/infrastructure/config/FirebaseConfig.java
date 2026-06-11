@@ -30,6 +30,12 @@ public class FirebaseConfig {
 
     @PostConstruct
     public void initialize() {
+        if (projectId == null || projectId.isBlank()
+                || privateKey == null || privateKey.isBlank()
+                || clientEmail == null || clientEmail.isBlank()) {
+            System.out.println("Firebase credentials not configured, skipping Firebase initialization.");
+            return;
+        }
         try {
             if (FirebaseApp.getApps().isEmpty()) {
                 String formattedPrivateKey = privateKey.replace("\\n", "\n");

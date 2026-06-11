@@ -42,11 +42,14 @@ class BlogEventListenerTest {
     @Mock
     private NotificationServicePort notificationService;
 
+    @Mock
+    private com.daiphat.coreapi.application.port.out.notification.FcmPushPort fcmPushPort;
+
     private BlogEventListener blogEventListener;
 
     @BeforeEach
     void setUp() {
-        blogEventListener = new BlogEventListener(userRepositoryPort, notificationService);
+        blogEventListener = new BlogEventListener(userRepositoryPort, notificationService, fcmPushPort);
     }
 
     @Test

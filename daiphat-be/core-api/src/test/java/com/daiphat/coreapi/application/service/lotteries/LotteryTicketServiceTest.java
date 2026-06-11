@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.service.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplicationMapper;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryProductRepositoryPort;
@@ -22,16 +23,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -800,6 +804,568 @@ class LotteryTicketServiceTest {
                 .thenReturn(false);
 
         assertThatThrownBy(() -> lotteryTicketService.update(TICKET_ID, request))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+
+        verify(lotteryTicketRepositoryPort, never()).save(any());
+    }
+
+    // ============================================================
+    // GET BY ID TESTS (DP-325)
+    // ============================================================
+
+    @Test
+    @DisplayName("[DP-325] GET_BY_ID: Lấy chi tiết vé số thành công với đầy đủ thông tin")
+    void getById_success_returnsTicketDetails() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
+
+        LotteryTicketResponse response = lotteryTicketService.getById(TICKET_ID);
+
+        assertThat(response).isNotNull();
+        assertThat(response.id()).isEqualTo(TICKET_ID);
+        assertThat(response.productId()).isEqualTo(PRODUCT_ID);
+        assertThat(response.productName()).isEqualTo(PRODUCT_NAME);
+        assertThat(response.ticketImg()).isEqualTo(TICKET_IMAGE);
+        assertThat(response.serialNumber()).isEqualTo(SERIAL_NUMBER);
+        assertThat(response.numbers()).isEqualTo(NUMBERS);
+        assertThat(response.status()).isEqualTo(STATUS_IN_STOCK);
+        assertThat(response.batchCode()).isEqualTo(BATCH_CODE);
+        assertThat(response.importedById()).isEqualTo(IMPORTED_BY_ID);
+        assertThat(response.verified()).isFalse();
+
+        verify(lotteryTicketRepositoryPort).findById(TICKET_ID);
+        verify(lotteryProductRepositoryPort).findById(PRODUCT_ID);
+    }
+
+    @Test
+    @DisplayName("[DP-325] GET_BY_ID: Lấy chi tiết vé số thất bại khi vé không tồn tại")
+    void getById_notFound_throwsLotteryTicketNotFound() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> lotteryTicketService.getById(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
+
+        verify(lotteryTicketRepositoryPort).findById(TICKET_ID);
+        verify(lotteryProductRepositoryPort, never()).findById(any());
+    }
+
+    // ============================================================
+    // GET ALL TESTS (DP-325)
+    // ============================================================
+
+    @Test
+    @DisplayName("[DP-325] GET_ALL: Lấy danh sách vé số thành công với phân trang")
+    void getAll_success_returnsPaginatedTickets() {
+        Page<LotteryTicketModel> ticketPage = new PageImpl<>(
+                List.of(existingModel, savedModel),
+                PageRequest.of(0, 10),
+                2
+        );
+
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), eq(PRODUCT_ID), any(), any(), any()))
+                .thenReturn(ticketPage);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
+        when(lotteryTicketApplicationMapper.toResponse(savedModel)).thenReturn(mappedResponse);
+
+        PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
+                1, 10, PRODUCT_ID, null, null, null, "createdAt", "desc"
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRecordList()).hasSize(2);
+        assertThat(response.getPagination().getTotalRecords()).isEqualTo(2);
+        assertThat(response.getPagination().getCurrentPage()).isEqualTo(1);
+        assertThat(response.getPagination().getLimit()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("[DP-325] GET_ALL: Lấy danh sách vé số với bộ lọc status")
+    void getAll_withStatusFilter_returnsFilteredTickets() {
+        Page<LotteryTicketModel> ticketPage = new PageImpl<>(
+                List.of(existingModel),
+                PageRequest.of(0, 10),
+                1
+        );
+
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), eq(PRODUCT_ID), eq(LotteryTicketStatus.IN_STOCK), any(), any()))
+                .thenReturn(ticketPage);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
+
+        PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
+                1, 10, PRODUCT_ID, "IN_STOCK", null, null, null, null
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRecordList()).hasSize(1);
+        assertThat(response.getRecordList().getFirst().status()).isEqualTo(STATUS_IN_STOCK);
+    }
+
+    @Test
+    @DisplayName("[DP-325] GET_ALL: Lấy danh sách vé số với bộ lọc drawDate")
+    void getAll_withDrawDateFilter_returnsFilteredTickets() {
+        LocalDate drawDate = LocalDate.now();
+        Page<LotteryTicketModel> ticketPage = new PageImpl<>(
+                List.of(existingModel),
+                PageRequest.of(0, 10),
+                1
+        );
+
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), eq(drawDate), any()))
+                .thenReturn(ticketPage);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
+
+        PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
+                1, 10, null, null, drawDate.toString(), null, null, null
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRecordList()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("[DP-325] GET_ALL: Lấy danh sách vé số với bộ lọc search")
+    void getAll_withSearchFilter_returnsFilteredTickets() {
+        Page<LotteryTicketModel> ticketPage = new PageImpl<>(
+                List.of(existingModel),
+                PageRequest.of(0, 10),
+                1
+        );
+
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), eq("123")))
+                .thenReturn(ticketPage);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
+
+        PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
+                1, 10, null, null, null, "123", null, null
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRecordList()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("[DP-325] GET_ALL: Lấy danh sách vé số không có kết quả trả về empty page")
+    void getAll_noResults_returnsEmptyPage() {
+        Page<LotteryTicketModel> emptyPage = new PageImpl<>(
+                List.of(),
+                PageRequest.of(0, 10),
+                0
+        );
+
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any()))
+                .thenReturn(emptyPage);
+
+        PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
+                1, 10, PRODUCT_ID, "RESERVED", null, null, null, null
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRecordList()).isEmpty();
+        assertThat(response.getPagination().getTotalRecords()).isEqualTo(0);
+        assertThat(response.getPagination().getTotalPages()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("[DP-325] GET_ALL: Lấy danh sách vé số với sort direction asc")
+    void getAll_withAscendingSort_returnsSortedTickets() {
+        Page<LotteryTicketModel> ticketPage = new PageImpl<>(
+                List.of(existingModel),
+                PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "drawDate")),
+                1
+        );
+
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any()))
+                .thenReturn(ticketPage);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
+
+        PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
+                1, 10, null, null, null, null, "drawDate", "asc"
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRecordList()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("[DP-325] GET_ALL: Lấy danh sách vé số với status không hợp lệ bỏ qua filter")
+    void getAll_withInvalidStatus_ignoresFilter() {
+        Page<LotteryTicketModel> ticketPage = new PageImpl<>(
+                List.of(existingModel),
+                PageRequest.of(0, 10),
+                1
+        );
+
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), eq(null), any(), any()))
+                .thenReturn(ticketPage);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
+
+        PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
+                1, 10, null, "INVALID_STATUS", null, null, null, null
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRecordList()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("[DP-325] GET_ALL: Lấy danh sách vé số với drawDate không hợp lệ bỏ qua filter")
+    void getAll_withInvalidDrawDate_ignoresFilter() {
+        Page<LotteryTicketModel> ticketPage = new PageImpl<>(
+                List.of(existingModel),
+                PageRequest.of(0, 10),
+                1
+        );
+
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), eq(null), any()))
+                .thenReturn(ticketPage);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
+
+        PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
+                1, 10, null, null, "invalid-date-format", null, null, null
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRecordList()).hasSize(1);
+    }
+
+    // ============================================================
+    // DELETE TESTS (DP-325)
+    // ============================================================
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số thành công và giảm tồn kho")
+    void delete_success_decreasesInventory() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        assertThat(productModel.getInventoryCount()).isEqualTo(9);
+        verify(lotteryTicketRepositoryPort).deleteById(TICKET_ID);
+        verify(lotteryProductRepositoryPort).save(productModel);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số thất bại khi vé không tồn tại")
+    void delete_notFound_throwsLotteryTicketNotFound() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
+
+        verify(lotteryTicketRepositoryPort, never()).deleteById(any());
+        verify(lotteryProductRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số đã bán không giảm tồn kho")
+    void delete_soldTicket_doesNotDecreaseInventory() {
+        existingModel.setStatus(LotteryTicketStatus.SOLD_ONLINE);
+        productModel.setInventoryCount(10);
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        assertThat(productModel.getInventoryCount()).isEqualTo(10);
+        verify(lotteryTicketRepositoryPort).deleteById(TICKET_ID);
+        verify(lotteryProductRepositoryPort, never()).save(any());
+    }
+
+    // ============================================================
+    // VERIFY TESTS (DP-325)
+    // ============================================================
+
+    @Test
+    @DisplayName("[DP-325] VERIFY: Xác minh vé số thành công")
+    void verify_success_setsVerifiedFields() {
+        UUID verifierId = UUID.fromString("66666666-6666-6666-6666-666666666666");
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .productName(PRODUCT_NAME)
+                .serialNumber(SERIAL_NUMBER)
+                .numbers(NUMBERS)
+                .verified(true)
+                .verifiedById(verifierId)
+                .verifiedAt(LocalDateTime.now())
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
+
+        LotteryTicketResponse response = lotteryTicketService.verify(TICKET_ID, verifierId);
+
+        assertThat(response).isNotNull();
+        assertThat(response.verified()).isTrue();
+        assertThat(response.verifiedById()).isEqualTo(verifierId);
+        assertThat(existingModel.getVerifiedById()).isEqualTo(verifierId);
+        assertThat(existingModel.isVerified()).isTrue();
+
+        verify(lotteryTicketRepositoryPort).save(existingModel);
+    }
+
+    @Test
+    @DisplayName("[DP-325] VERIFY: Xác minh vé số thất bại khi vé không tồn tại")
+    void verify_notFound_throwsLotteryTicketNotFound() {
+        UUID verifierId = UUID.fromString("66666666-6666-6666-6666-666666666666");
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> lotteryTicketService.verify(TICKET_ID, verifierId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
+
+        verify(lotteryTicketRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-325] VERIFY: Xác minh vé số đã được xác minh trước đó thất bại")
+    void verify_alreadyVerified_throwsException() {
+        UUID originalVerifierId = UUID.fromString("77777777-7777-7777-7777-777777777777");
+        existingModel.setVerified(true);
+        existingModel.setVerifiedById(originalVerifierId);
+        existingModel.setVerifiedAt(LocalDateTime.now().minusDays(1));
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+
+        UUID newVerifierId = UUID.fromString("88888888-8888-8888-8888-888888888888");
+        assertThatThrownBy(() -> lotteryTicketService.verify(TICKET_ID, newVerifierId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        verify(lotteryTicketRepositoryPort, never()).save(any());
+    }
+
+    // ============================================================
+    // CHANGE STATUS TESTS (DP-325)
+    // ============================================================
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái sang RESERVED thành công")
+    void changeStatus_toReserved_success() {
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status("RESERVED")
+                .statusDisplayName("Đã giữ chỗ")
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
+
+        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "RESERVED");
+
+        assertThat(response).isNotNull();
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.RESERVED);
+
+        verify(lotteryTicketRepositoryPort).save(existingModel);
+    }
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái sang SOLD_ONLINE thành công và giảm tồn kho")
+    void changeStatus_toSoldOnline_successAndDecreasesInventory() {
+        productModel.setInventoryCount(10);
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status("SOLD_ONLINE")
+                .statusDisplayName("Đã bán online")
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
+
+        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "SOLD_ONLINE");
+
+        assertThat(response).isNotNull();
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_ONLINE);
+        assertThat(productModel.getInventoryCount()).isEqualTo(9);
+
+        verify(lotteryTicketRepositoryPort).save(existingModel);
+        verify(lotteryProductRepositoryPort).save(productModel);
+    }
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái từ IN_STOCK sang SOLD_OFFLINE thành công")
+    void changeStatus_fromInStockToSoldOffline_success() {
+        productModel.setInventoryCount(10);
+
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status("SOLD_OFFLINE")
+                .statusDisplayName("Đã bán offline")
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
+
+        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "SOLD_OFFLINE");
+
+        assertThat(response).isNotNull();
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_OFFLINE);
+        assertThat(productModel.getInventoryCount()).isEqualTo(9);
+
+        verify(lotteryProductRepositoryPort).save(productModel);
+    }
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái từ RESERVED sang SOLD_ONLINE thành công")
+    void changeStatus_fromReservedToSoldOnline_success() {
+        existingModel.setStatus(LotteryTicketStatus.RESERVED);
+        productModel.setInventoryCount(10);
+
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status("SOLD_ONLINE")
+                .statusDisplayName("Đã bán online")
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
+
+        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "SOLD_ONLINE");
+
+        assertThat(response).isNotNull();
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_ONLINE);
+        assertThat(productModel.getInventoryCount()).isEqualTo(9);
+
+        verify(lotteryProductRepositoryPort).save(productModel);
+    }
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái từ RESERVED về IN_STOCK không hợp lệ")
+    void changeStatus_fromReservedToInStock_invalidStatus() {
+        existingModel.setStatus(LotteryTicketStatus.RESERVED);
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.changeStatus(TICKET_ID, "IN_STOCK"))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+
+        verify(lotteryTicketRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái sang DAMAGED thành công")
+    void changeStatus_toDamaged_success() {
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status("DAMAGED")
+                .statusDisplayName("Đã hỏng")
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
+
+        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "DAMAGED");
+
+        assertThat(response).isNotNull();
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.DAMAGED);
+    }
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái sang EXPIRED thành công")
+    void changeStatus_toExpired_success() {
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status("EXPIRED")
+                .statusDisplayName("Đã hết hạn")
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
+
+        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "EXPIRED");
+
+        assertThat(response).isNotNull();
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.EXPIRED);
+    }
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái thất bại khi vé không tồn tại")
+    void changeStatus_notFound_throwsLotteryTicketNotFound() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> lotteryTicketService.changeStatus(TICKET_ID, "RESERVED"))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
+
+        verify(lotteryTicketRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái thất bại khi status null")
+    void changeStatus_nullStatus_throwsInvalidInput() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.changeStatus(TICKET_ID, null))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        verify(lotteryTicketRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái thất bại khi status rỗng")
+    void changeStatus_blankStatus_throwsInvalidInput() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.changeStatus(TICKET_ID, "   "))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        verify(lotteryTicketRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái thất bại khi status không hợp lệ")
+    void changeStatus_invalidStatus_throwsLotteryTicketInvalidStatus() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.changeStatus(TICKET_ID, "INVALID_STATUS"))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);

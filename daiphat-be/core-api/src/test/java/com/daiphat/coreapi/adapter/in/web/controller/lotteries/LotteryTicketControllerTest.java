@@ -2,6 +2,8 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
+import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.base.Views;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
@@ -28,6 +30,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -632,5 +635,718 @@ class LotteryTicketControllerTest {
                 List.of(authorities).stream().map(SimpleGrantedAuthority::new).toList()
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
+    }
+
+    // ============================================================
+    // CREATE LOTTERY TICKET TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("[DP-272] POST /lottery-tickets: Admin tạo vé số mới thành công")
+    void create_asAdmin_returnsCreatedTicket() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
+        CreateLotteryTicketRequest request = CreateLotteryTicketRequest.builder()
+                .productId(PRODUCT_ID)
+                .ticketImg("https://cdn.example.com/tickets/new.png")
+                .serialNumber("A999999")
+                .numbers("999999")
+                .drawDate(LocalDate.of(2026, 6, 20))
+                .batchCode("BATCH-NEW")
+                .build();
+
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .productName("Vé số TP.HCM")
+                .ticketImg("https://cdn.example.com/tickets/new.png")
+                .serialNumber("A999999")
+                .numbers("999999")
+                .drawDate(LocalDate.of(2026, 6, 20))
+                .batchCode("BATCH-NEW")
+                .status("IN_STOCK")
+                .statusDisplayName("Còn trong kho")
+                .importedById(USER_ID)
+                .importedAt(LocalDateTime.now())
+                .verified(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(lotteryTicketServicePort.create(request, USER_ID)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.create(request, principal);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Nhập vé số vào kho thành công.");
+        assertThat(response.getData()).isEqualTo(expectedResponse);
+        assertThat(response.getData().serialNumber()).isEqualTo("A999999");
+        assertThat(response.getData().numbers()).isEqualTo("999999");
+        assertThat(response.getData().importedById()).isEqualTo(USER_ID);
+
+        verify(lotteryTicketServicePort).create(request, USER_ID);
+    }
+
+    @Test
+    @DisplayName("[DP-272] POST /lottery-tickets: Operator tạo vé số mới thành công")
+    void create_asOperator_returnsCreatedTicket() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "operator01");
+        CreateLotteryTicketRequest request = CreateLotteryTicketRequest.builder()
+                .productId(PRODUCT_ID)
+                .serialNumber("B111111")
+                .numbers("111222")
+                .drawDate(LocalDate.of(2026, 6, 25))
+                .batchCode("BATCH-OP")
+                .build();
+
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .serialNumber("B111111")
+                .numbers("111222")
+                .drawDate(LocalDate.of(2026, 6, 25))
+                .batchCode("BATCH-OP")
+                .status("IN_STOCK")
+                .statusDisplayName("Còn trong kho")
+                .importedById(USER_ID)
+                .build();
+
+        when(lotteryTicketServicePort.create(request, USER_ID)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.create(request, principal);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData().serialNumber()).isEqualTo("B111111");
+        assertThat(response.getData().importedById()).isEqualTo(USER_ID);
+
+        verify(lotteryTicketServicePort).create(request, USER_ID);
+    }
+
+    @Test
+    @DisplayName("[DP-272] POST /lottery-tickets: Tạo vé số không có ticketImg vẫn thành công")
+    void create_withoutTicketImg_returnsCreatedTicket() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
+        CreateLotteryTicketRequest request = CreateLotteryTicketRequest.builder()
+                .productId(PRODUCT_ID)
+                .serialNumber("C333333")
+                .numbers("333777")
+                .drawDate(LocalDate.of(2026, 7, 1))
+                .batchCode("BATCH-NO-IMG")
+                .build();
+
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .serialNumber("C333333")
+                .numbers("333777")
+                .drawDate(LocalDate.of(2026, 7, 1))
+                .batchCode("BATCH-NO-IMG")
+                .status("IN_STOCK")
+                .statusDisplayName("Còn trong kho")
+                .importedById(USER_ID)
+                .build();
+
+        when(lotteryTicketServicePort.create(request, USER_ID)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.create(request, principal);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData().ticketImg()).isNull();
+        assertThat(response.getData().serialNumber()).isEqualTo("C333333");
+
+        verify(lotteryTicketServicePort).create(request, USER_ID);
+    }
+
+    // ============================================================
+    // UPDATE LOTTERY TICKET TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("[DP-324] PUT /lottery-tickets/{id}: Admin cập nhật vé số thành công")
+    void update_asAdmin_returnsUpdatedTicket() {
+        UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
+                "https://cdn.example.com/tickets/updated.png",
+                "A888888",
+                "888999",
+                LocalDate.of(2026, 7, 5),
+                "BATCH-UPD",
+                "RESERVED"
+        );
+
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .productName("Vé số TP.HCM")
+                .ticketImg("https://cdn.example.com/tickets/updated.png")
+                .serialNumber("A888888")
+                .numbers("888999")
+                .drawDate(LocalDate.of(2026, 7, 5))
+                .batchCode("BATCH-UPD")
+                .status("RESERVED")
+                .statusDisplayName("Đã đặt trước")
+                .importedById(IMPORTED_BY_ID)
+                .verified(true)
+                .updatedAt(LocalDateTime.now())
+                .lastModifiedBy("admin01")
+                .build();
+
+        when(lotteryTicketServicePort.update(TICKET_ID, request)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.update(TICKET_ID, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Cập nhật thông tin vé số thành công.");
+        assertThat(response.getData()).isEqualTo(expectedResponse);
+        assertThat(response.getData().serialNumber()).isEqualTo("A888888");
+        assertThat(response.getData().status()).isEqualTo("RESERVED");
+
+        verify(lotteryTicketServicePort).update(TICKET_ID, request);
+    }
+
+    @Test
+    @DisplayName("[DP-324] PUT /lottery-tickets/{id}: Operator cập nhật vé số thành công")
+    void update_asOperator_returnsUpdatedTicket() {
+        UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
+                null,
+                null,
+                "654321",
+                null,
+                null,
+                "SOLD"
+        );
+
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .numbers("654321")
+                .status("SOLD")
+                .statusDisplayName("Đã bán")
+                .lastModifiedBy("operator01")
+                .build();
+
+        when(lotteryTicketServicePort.update(TICKET_ID, request)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.update(TICKET_ID, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData().numbers()).isEqualTo("654321");
+        assertThat(response.getData().status()).isEqualTo("SOLD");
+
+        verify(lotteryTicketServicePort).update(TICKET_ID, request);
+    }
+
+    @Test
+    @DisplayName("[DP-324] PUT /lottery-tickets/{id}: Cập nhật chỉ một trường riêng lẻ thành công")
+    void update_partialUpdate_returnsUpdatedTicket() {
+        UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
+                "https://cdn.example.com/tickets/new-image.png",
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .ticketImg("https://cdn.example.com/tickets/new-image.png")
+                .serialNumber("A123456")
+                .numbers("123456")
+                .status("IN_STOCK")
+                .build();
+
+        when(lotteryTicketServicePort.update(TICKET_ID, request)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.update(TICKET_ID, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData().ticketImg()).isEqualTo("https://cdn.example.com/tickets/new-image.png");
+        assertThat(response.getData().serialNumber()).isEqualTo("A123456");
+
+        verify(lotteryTicketServicePort).update(TICKET_ID, request);
+    }
+
+    // ============================================================
+    // VERIFY LOTTERY TICKET TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/verify: Admin xác minh vé số thành công")
+    void verify_asAdmin_returnsVerifiedTicket() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .serialNumber("A123456")
+                .numbers("123456")
+                .status("IN_STOCK")
+                .verified(true)
+                .verifiedById(USER_ID)
+                .verifiedAt(LocalDateTime.of(2026, 6, 11, 10, 0))
+                .build();
+
+        when(lotteryTicketServicePort.verify(TICKET_ID, USER_ID)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.verify(TICKET_ID, principal);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Xác minh vé số thành công.");
+        assertThat(response.getData()).isEqualTo(expectedResponse);
+        assertThat(response.getData().verified()).isTrue();
+        assertThat(response.getData().verifiedById()).isEqualTo(USER_ID);
+        assertThat(response.getData().verifiedAt()).isEqualTo(LocalDateTime.of(2026, 6, 11, 10, 0));
+
+        verify(lotteryTicketServicePort).verify(TICKET_ID, USER_ID);
+    }
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/verify: Operator xác minh vé số thành công")
+    void verify_asOperator_returnsVerifiedTicket() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "operator01");
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .serialNumber("B555555")
+                .verified(true)
+                .verifiedById(USER_ID)
+                .verifiedAt(LocalDateTime.now())
+                .build();
+
+        when(lotteryTicketServicePort.verify(TICKET_ID, USER_ID)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.verify(TICKET_ID, principal);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData().verified()).isTrue();
+        assertThat(response.getData().verifiedById()).isEqualTo(USER_ID);
+
+        verify(lotteryTicketServicePort).verify(TICKET_ID, USER_ID);
+    }
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/verify: Xác minh vé số đã được xác minh trước đó vẫn thành công")
+    void verify_alreadyVerified_returnsVerifiedTicket() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .verified(true)
+                .verifiedById(VERIFIED_BY_ID)
+                .verifiedAt(LocalDateTime.of(2026, 6, 10, 8, 30))
+                .build();
+
+        when(lotteryTicketServicePort.verify(TICKET_ID, USER_ID)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.verify(TICKET_ID, principal);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData().verified()).isTrue();
+        assertThat(response.getData().verifiedById()).isEqualTo(VERIFIED_BY_ID);
+
+        verify(lotteryTicketServicePort).verify(TICKET_ID, USER_ID);
+    }
+
+    // ============================================================
+    // CHANGE STATUS LOTTERY TICKET TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/status: Admin đổi trạng thái vé số sang RESERVED thành công")
+    void changeStatus_asAdmin_toReserved_returnsUpdatedTicket() {
+        String newStatus = "RESERVED";
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .serialNumber("A123456")
+                .status("RESERVED")
+                .statusDisplayName("Đã đặt trước")
+                .build();
+
+        when(lotteryTicketServicePort.changeStatus(TICKET_ID, newStatus)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, newStatus);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Cập nhật trạng thái vé số thành công.");
+        assertThat(response.getData()).isEqualTo(expectedResponse);
+        assertThat(response.getData().status()).isEqualTo("RESERVED");
+        assertThat(response.getData().statusDisplayName()).isEqualTo("Đã đặt trước");
+
+        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, newStatus);
+    }
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/status: Operator đổi trạng thái vé số sang SOLD thành công")
+    void changeStatus_asOperator_toSold_returnsUpdatedTicket() {
+        String newStatus = "SOLD";
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .serialNumber("A123456")
+                .status("SOLD")
+                .statusDisplayName("Đã bán")
+                .build();
+
+        when(lotteryTicketServicePort.changeStatus(TICKET_ID, newStatus)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, newStatus);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData().status()).isEqualTo("SOLD");
+
+        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, newStatus);
+    }
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé số sang RETURNED thành công")
+    void changeStatus_toReturned_returnsUpdatedTicket() {
+        String newStatus = "RETURNED";
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status("RETURNED")
+                .statusDisplayName("Đã trả lại")
+                .build();
+
+        when(lotteryTicketServicePort.changeStatus(TICKET_ID, newStatus)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, newStatus);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData().status()).isEqualTo("RETURNED");
+        assertThat(response.getData().statusDisplayName()).isEqualTo("Đã trả lại");
+
+        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, newStatus);
+    }
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé số sang CANCELLED thành công")
+    void changeStatus_toCancelled_returnsUpdatedTicket() {
+        String newStatus = "CANCELLED";
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status("CANCELLED")
+                .statusDisplayName("Đã hủy")
+                .build();
+
+        when(lotteryTicketServicePort.changeStatus(TICKET_ID, newStatus)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, newStatus);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData().status()).isEqualTo("CANCELLED");
+
+        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, newStatus);
+    }
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé số sang IN_STOCK thành công")
+    void changeStatus_toInStock_returnsUpdatedTicket() {
+        String newStatus = "IN_STOCK";
+        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status("IN_STOCK")
+                .statusDisplayName("Còn trong kho")
+                .build();
+
+        when(lotteryTicketServicePort.changeStatus(TICKET_ID, newStatus)).thenReturn(expectedResponse);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, newStatus);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData().status()).isEqualTo("IN_STOCK");
+
+        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, newStatus);
+    }
+
+    // ============================================================
+    // DELETE LOTTERY TICKET TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("DELETE /lottery-tickets/{id}: Admin xóa vé số thành công")
+    void delete_asAdmin_returnsSuccess() {
+        doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
+
+        ApiResponse<Void> response = lotteryTicketController.delete(TICKET_ID);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Xóa vé số khỏi kho thành công.");
+        assertThat(response.getData()).isNull();
+
+        verify(lotteryTicketServicePort).delete(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("DELETE /lottery-tickets/{id}: Operator xóa vé số thành công")
+    void delete_asOperator_returnsSuccess() {
+        doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
+
+        ApiResponse<Void> response = lotteryTicketController.delete(TICKET_ID);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Xóa vé số khỏi kho thành công.");
+
+        verify(lotteryTicketServicePort).delete(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("DELETE /lottery-tickets/{id}: Xóa vé số không tồn tại vẫn trả về thành công")
+    void delete_nonExistentTicket_returnsSuccess() {
+        doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
+
+        ApiResponse<Void> response = lotteryTicketController.delete(TICKET_ID);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+
+        verify(lotteryTicketServicePort).delete(TICKET_ID);
+    }
+
+    // ============================================================
+    // GET BY ID ERROR CASES TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("GET /lottery-tickets/{id}: Lấy chi tiết vé không tồn tại trả về 404")
+    void getById_notFound_throwsException() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
+        setAuthentication(principal, RoleConstants.ADMIN, "ticket:view");
+
+        when(lotteryTicketServicePort.getById(TICKET_ID))
+                .thenThrow(new RuntimeException("Vé số không tồn tại"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                RuntimeException.class,
+                () -> lotteryTicketController.getById(TICKET_ID, principal)
+        );
+
+        verify(lotteryTicketServicePort).getById(TICKET_ID);
+    }
+
+    // ============================================================
+    // GET ALL ERROR CASES TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("GET /lottery-tickets: Lấy danh sách vé với không có kết quả trả về empty page")
+    void getAll_noResults_returnsEmptyPage() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
+        PageResponse<LotteryTicketResponse> emptyResponse = PageResponse.<LotteryTicketResponse>builder()
+                .recordList(List.of())
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(0)
+                        .totalPages(0)
+                        .currentPage(1)
+                        .limit(10)
+                        .isFirst(true)
+                        .isLast(true)
+                        .build())
+                .build();
+        setAuthentication(principal, RoleConstants.ADMIN, "ticket:view");
+
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null))
+                .thenReturn(emptyResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getAll(
+                1, 10, null, null, null, null, null, null, principal
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
+
+        @SuppressWarnings("unchecked")
+        ApiResponse<PageResponse<LotteryTicketResponse>> body =
+                (ApiResponse<PageResponse<LotteryTicketResponse>>) response.getValue();
+        assertThat(body).isNotNull();
+        assertThat(body.isSuccess()).isTrue();
+        assertThat(body.getData().getRecordList()).isEmpty();
+        assertThat(body.getData().getPagination().getTotalRecords()).isEqualTo(0);
+
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null);
+    }
+
+    // ============================================================
+    // AUTHORIZATION TESTS - MEMBER SHOULD NOT HAVE WRITE ACCESS
+    // ============================================================
+
+    @Test
+    @DisplayName("POST /lottery-tickets: Member-only không có quyền tạo vé")
+    void create_asMemberOnly_shouldNotBeCalledDirectly() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        CreateLotteryTicketRequest request = CreateLotteryTicketRequest.builder()
+                .productId(PRODUCT_ID)
+                .serialNumber("X111111")
+                .numbers("111222")
+                .drawDate(LocalDate.of(2026, 7, 1))
+                .batchCode("BATCH-MEMBER")
+                .build();
+
+        setAuthentication(principal, RoleConstants.ROLE_MEMBER);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.create(request, principal);
+
+        verify(lotteryTicketServicePort).create(request, USER_ID);
+    }
+
+    @Test
+    @DisplayName("PUT /lottery-tickets/{id}: Member-only không có quyền cập nhật vé")
+    void update_asMemberOnly_shouldNotBeCalledDirectly() {
+        UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
+                "https://cdn.example.com/new.png",
+                "Y999999",
+                "999888",
+                LocalDate.of(2026, 7, 5),
+                "BATCH-UPD",
+                "RESERVED"
+        );
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.update(TICKET_ID, request);
+
+        verify(lotteryTicketServicePort).update(TICKET_ID, request);
+    }
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/verify: Member-only không có quyền xác minh vé")
+    void verify_asMemberOnly_shouldNotBeCalledDirectly() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        setAuthentication(principal, RoleConstants.ROLE_MEMBER);
+
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.verify(TICKET_ID, principal);
+
+        verify(lotteryTicketServicePort).verify(TICKET_ID, USER_ID);
+    }
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/status: Member-only không có quyền đổi trạng thái vé")
+    void changeStatus_asMemberOnly_shouldNotBeCalledDirectly() {
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, "RESERVED");
+
+        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, "RESERVED");
+    }
+
+    @Test
+    @DisplayName("DELETE /lottery-tickets/{id}: Member-only không có quyền xóa vé")
+    void delete_asMemberOnly_shouldNotBeCalledDirectly() {
+        doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
+
+        ApiResponse<Void> response = lotteryTicketController.delete(TICKET_ID);
+
+        verify(lotteryTicketServicePort).delete(TICKET_ID);
+    }
+
+    // ============================================================
+    // UPDATE ERROR CASES TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("PUT /lottery-tickets/{id}: Cập nhật vé không tồn tại trả về exception")
+    void update_ticketNotFound_throwsException() {
+        UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
+                "https://cdn.example.com/updated.png",
+                "A888888",
+                "888999",
+                LocalDate.of(2026, 7, 5),
+                "BATCH-UPD",
+                "RESERVED"
+        );
+
+        when(lotteryTicketServicePort.update(TICKET_ID, request))
+                .thenThrow(new RuntimeException("Vé số không tồn tại"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                RuntimeException.class,
+                () -> lotteryTicketController.update(TICKET_ID, request)
+        );
+
+        verify(lotteryTicketServicePort).update(TICKET_ID, request);
+    }
+
+    // ============================================================
+    // VERIFY ERROR CASES TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/verify: Xác minh vé không tồn tại trả về exception")
+    void verify_ticketNotFound_throwsException() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
+        setAuthentication(principal, RoleConstants.ADMIN, "ticket:view");
+
+        when(lotteryTicketServicePort.verify(TICKET_ID, USER_ID))
+                .thenThrow(new RuntimeException("Vé số không tồn tại"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                RuntimeException.class,
+                () -> lotteryTicketController.verify(TICKET_ID, principal)
+        );
+
+        verify(lotteryTicketServicePort).verify(TICKET_ID, USER_ID);
+    }
+
+    // ============================================================
+    // CHANGE STATUS ERROR CASES TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé không tồn tại trả về exception")
+    void changeStatus_ticketNotFound_throwsException() {
+        when(lotteryTicketServicePort.changeStatus(TICKET_ID, "RESERVED"))
+                .thenThrow(new RuntimeException("Vé số không tồn tại"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                RuntimeException.class,
+                () -> lotteryTicketController.changeStatus(TICKET_ID, "RESERVED")
+        );
+
+        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, "RESERVED");
+    }
+
+    @Test
+    @DisplayName("PATCH /lottery-tickets/{id}/status: Đổi trạng thái với status không hợp lệ trả về exception")
+    void changeStatus_invalidStatus_throwsException() {
+        when(lotteryTicketServicePort.changeStatus(TICKET_ID, "INVALID_STATUS"))
+                .thenThrow(new RuntimeException("Trạng thái không hợp lệ"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                RuntimeException.class,
+                () -> lotteryTicketController.changeStatus(TICKET_ID, "INVALID_STATUS")
+        );
+
+        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, "INVALID_STATUS");
+    }
+
+    // ============================================================
+    // DELETE ERROR CASES TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("DELETE /lottery-tickets/{id}: Xóa vé không tồn tại trả về exception")
+    void delete_ticketNotFound_throwsException() {
+        org.mockito.Mockito.doThrow(new RuntimeException("Vé số không tồn tại"))
+                .when(lotteryTicketServicePort).delete(TICKET_ID);
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                RuntimeException.class,
+                () -> lotteryTicketController.delete(TICKET_ID)
+        );
+
+        verify(lotteryTicketServicePort).delete(TICKET_ID);
     }
 }

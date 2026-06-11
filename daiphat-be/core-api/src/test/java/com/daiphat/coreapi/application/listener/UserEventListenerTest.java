@@ -10,6 +10,8 @@ import com.daiphat.coreapi.application.event.UserEmailVerifiedEvent;
 import com.daiphat.coreapi.application.event.UserPasswordChangedEvent;
 import com.daiphat.coreapi.application.port.in.mail.EmailServicePort;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
+import com.daiphat.coreapi.application.port.out.notification.FcmPushPort;
+import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
@@ -50,12 +52,20 @@ class UserEventListenerTest {
     @Mock
     private NotificationServicePort notificationService;
 
+    @Mock
+    private AuthProperties authProperties;
+
+    @Mock
+    private FcmPushPort fcmPushPort;
+
+    @Mock
+    private UserRepositoryPort userRepositoryPort;
+
     private UserEventListener userEventListener;
 
     @BeforeEach
     void setUp() {
-        AuthProperties authProperties = new AuthProperties();
-        userEventListener = new UserEventListener(emailService, notificationService, authProperties);
+        userEventListener = new UserEventListener(emailService, notificationService, authProperties, fcmPushPort, userRepositoryPort);
     }
 
     @Test

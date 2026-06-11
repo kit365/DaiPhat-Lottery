@@ -15,8 +15,8 @@ spring:
       max-file-size: ${CORE_MULTIPART_MAX_FILE_SIZE:5MB}
       max-request-size: ${CORE_MULTIPART_MAX_REQUEST_SIZE:5MB}
   google:
-    client-id: ${GOOGLE_CLIENT_ID}
-    client-secret: ${GOOGLE_CLIENT_SECRET}
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
     token-url: https://oauth2.googleapis.com/token
     token-info-url: https://oauth2.googleapis.com/tokeninfo
     user-info-url: https://www.googleapis.com/oauth2/v3/userinfo
@@ -32,18 +32,18 @@ springdoc:
 
 daiphat:
   firebase:
-    project-id: ${FIREBASE_PROJECT_ID}
-    private-key-id: ${FIREBASE_PRIVATE_KEY_ID}
-    private-key: ${FIREBASE_PRIVATE_KEY}
-    client-email: ${FIREBASE_CLIENT_EMAIL}
-    client-id: ${FIREBASE_CLIENT_ID}
+    project-id: ${FIREBASE_PROJECT_ID:daiphat-lottery}
+    private-key-id: ${FIREBASE_PRIVATE_KEY_ID:}
+    private-key: ${FIREBASE_PRIVATE_KEY:}
+    client-email: ${FIREBASE_CLIENT_EMAIL:}
+    client-id: ${FIREBASE_CLIENT_ID:}
   blog:
     schedule-publish-rate-ms: ${BLOG_SCHEDULE_PUBLISH_RATE_MS:60000}
   storage:
     cloudinary:
-      cloud-name: ${CLOUDINARY_CLOUD_NAME}
-      api-key: ${CLOUDINARY_API_KEY}
-      api-secret: ${CLOUDINARY_API_SECRET}
+      cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+      api-key: ${CLOUDINARY_API_KEY:}
+      api-secret: ${CLOUDINARY_API_SECRET:}
       root-folder: ${CLOUDINARY_ROOT_FOLDER:daiphat}
   auth:
     default-operator-permissions:
@@ -86,7 +86,7 @@ daiphat:
         last-name: ${AUTH_SEED_OPERATOR_LAST_NAME:}
     jwt:
       issuer: ${AUTH_JWT_ISSUER:daiphat}
-      secret: ${AUTH_JWT_SECRET}
+      secret: ${AUTH_JWT_SECRET:default-dev-secret-change-in-production-min-32-chars}
       access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS:900}
       refresh-token-ttl-seconds: ${AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS:604800}
     cookie:
@@ -116,3 +116,6 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    mail:
+      enabled: false

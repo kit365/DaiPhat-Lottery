@@ -48,6 +48,7 @@ public class CloudinaryStorageAdapter implements StoragePort {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private StorageResult uploadInternal(UploadRequest request, String publicId, boolean overwrite) {
         validateRequest(request);
 
@@ -62,7 +63,8 @@ public class CloudinaryStorageAdapter implements StoragePort {
         }
 
         try {
-            Map<?, ?> result = cloudinary.uploader().upload(request.data(), options);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = (Map<String, Object>) cloudinary.uploader().upload(request.data(), options);
             return new StorageResult(
                     (String) result.get("public_id"),
                     (String) result.get("secure_url")
