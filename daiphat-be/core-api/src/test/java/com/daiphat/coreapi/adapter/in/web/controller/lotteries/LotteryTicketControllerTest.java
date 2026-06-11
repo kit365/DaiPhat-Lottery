@@ -638,6 +638,424 @@ class LotteryTicketControllerTest {
     }
 
     // ============================================================
+    // MEMBER VIEW ERROR CASES TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("GET /lottery-tickets/{id}: Member xem chi tiết vé không tồn tại trả về exception")
+    void getById_asMember_notFound_throwsException() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        setAuthentication(principal, RoleConstants.ROLE_MEMBER);
+
+        when(lotteryTicketServicePort.getById(TICKET_ID))
+                .thenThrow(new RuntimeException("Vé số không tồn tại"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                RuntimeException.class,
+                () -> lotteryTicketController.getById(TICKET_ID, principal)
+        );
+
+        verify(lotteryTicketServicePort).getById(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("GET /lottery-tickets: Member xem danh sách vé không có kết quả trả về empty page")
+    void getAll_asMember_noResults_returnsEmptyPage() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        PageResponse<LotteryTicketResponse> emptyResponse = PageResponse.<LotteryTicketResponse>builder()
+                .recordList(List.of())
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(0)
+                        .totalPages(0)
+                        .currentPage(1)
+                        .limit(10)
+                        .isFirst(true)
+                        .isLast(true)
+                        .build())
+                .build();
+        setAuthentication(principal, RoleConstants.ROLE_MEMBER);
+
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null))
+                .thenReturn(emptyResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getAll(
+                1, 10, null, null, null, null, null, null, principal
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
+
+        @SuppressWarnings("unchecked")
+        ApiResponse<PageResponse<LotteryTicketResponse>> body =
+                (ApiResponse<PageResponse<LotteryTicketResponse>>) response.getValue();
+        assertThat(body).isNotNull();
+        assertThat(body.isSuccess()).isTrue();
+        assertThat(body.getData().getRecordList()).isEmpty();
+        assertThat(body.getData().getPagination().getTotalRecords()).isEqualTo(0);
+
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null);
+    }
+
+    // ============================================================
+    // MEMBER VIEW FIELD VALIDATION TESTS
+    // ============================================================
+
+    @Test
+    @DisplayName("GET /lottery-tickets/{id}: Member xem chi tiết vé KHÔNG chứa các admin-only fields")
+    void getById_asMember_doesNotContainAdminFields() throws Exception {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        LotteryTicketResponse fullResponse = buildTicketResponse();
+        setAuthentication(principal, RoleConstants.ROLE_MEMBER);
+
+        when(lotteryTicketServicePort.getById(TICKET_ID)).thenReturn(fullResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getById(TICKET_ID, principal);
+
+        String json = OBJECT_MAPPER
+                .writerWithView(Views.Public.class)
+                .writeValueAsString(response.getValue());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseMap = OBJECT_MAPPER.readValue(json, Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) responseMap.get("data");
+
+        assertThat(data).doesNotContainKeys(
+                "batchCode",
+                "importedById",
+                "importedAt",
+                "verified",
+                "verifiedById",
+                "verifiedAt",
+                "returnedAt",
+                "createdAt",
+                "updatedAt",
+                "createdBy",
+                "lastModifiedBy"
+        );
+
+        verify(lotteryTicketServicePort).getById(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("GET /lottery-tickets/{id}: Member xem chi tiết vé CHỈ chứa 9 public fields")
+    void getById_asMember_containsOnlyPublicFields() throws Exception {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        LotteryTicketResponse fullResponse = buildTicketResponse();
+        setAuthentication(principal, RoleConstants.ROLE_MEMBER);
+
+        when(lotteryTicketServicePort.getById(TICKET_ID)).thenReturn(fullResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getById(TICKET_ID, principal);
+
+        String json = OBJECT_MAPPER
+                .writerWithView(Views.Public.class)
+                .writeValueAsString(response.getValue());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseMap = OBJECT_MAPPER.readValue(json, Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) responseMap.get("data");
+
+        assertThat(data).containsOnlyKeys(
+                "id",
+                "productId",
+                "productName",
+                "ticketImg",
+                "serialNumber",
+                "numbers",
+                "drawDate",
+                "status",
+                "statusDisplayName"
+        );
+        assertThat(data).hasSize(9);
+
+        verify(lotteryTicketServicePort).getById(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("GET /lottery-tickets: Member xem danh sách mỗi record CHỈ chứa 9 public fields")
+    void getAll_asMember_eachRecordHasOnlyPublicFields() throws Exception {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
+        setAuthentication(principal, RoleConstants.ROLE_MEMBER);
+
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null))
+                .thenReturn(serviceResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getAll(
+                1, 10, null, null, null, null, null, null, principal
+        );
+
+        String json = OBJECT_MAPPER
+                .writerWithView(Views.Public.class)
+                .writeValueAsString(response.getValue());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseMap = OBJECT_MAPPER.readValue(json, Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) responseMap.get("data");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> recordList = (List<Map<String, Object>>) data.get("recordList");
+
+        assertThat(recordList).hasSize(1);
+        Map<String, Object> firstRecord = recordList.getFirst();
+
+        assertThat(firstRecord).containsOnlyKeys(
+                "id",
+                "productId",
+                "productName",
+                "ticketImg",
+                "serialNumber",
+                "numbers",
+                "drawDate",
+                "status",
+                "statusDisplayName"
+        );
+        assertThat(firstRecord).hasSize(9);
+        assertThat(firstRecord).doesNotContainKey("batchCode");
+        assertThat(firstRecord).doesNotContainKey("verified");
+        assertThat(firstRecord).doesNotContainKey("importedById");
+
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null);
+    }
+
+    @Test
+    @DisplayName("GET /lottery-tickets: Member xem danh sách với pagination metadata đúng")
+    void getAll_asMember_paginationMetadataCorrect() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        PageResponse<LotteryTicketResponse> serviceResponse = PageResponse.<LotteryTicketResponse>builder()
+                .recordList(List.of(buildTicketResponse()))
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(50)
+                        .totalPages(5)
+                        .currentPage(3)
+                        .limit(10)
+                        .isFirst(false)
+                        .isLast(false)
+                        .build())
+                .build();
+        setAuthentication(principal, RoleConstants.ROLE_MEMBER);
+
+        when(lotteryTicketServicePort.getAll(3, 10, null, null, null, null, null, null))
+                .thenReturn(serviceResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getAll(
+                3, 10, null, null, null, null, null, null, principal
+        );
+
+        assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
+
+        @SuppressWarnings("unchecked")
+        ApiResponse<PageResponse<LotteryTicketResponse>> body =
+                (ApiResponse<PageResponse<LotteryTicketResponse>>) response.getValue();
+        assertThat(body.getData().getPagination().getTotalRecords()).isEqualTo(50);
+        assertThat(body.getData().getPagination().getTotalPages()).isEqualTo(5);
+        assertThat(body.getData().getPagination().getCurrentPage()).isEqualTo(3);
+        assertThat(body.getData().getPagination().getLimit()).isEqualTo(10);
+        assertThat(body.getData().getPagination().isFirst()).isFalse();
+        assertThat(body.getData().getPagination().isLast()).isFalse();
+
+        verify(lotteryTicketServicePort).getAll(3, 10, null, null, null, null, null, null);
+    }
+
+    @Test
+    @DisplayName("GET /lottery-tickets/{id}: Member có ticket:view vẫn thấy admin fields khi serialize")
+    void getById_asMemberWithTicketView_showsAdminFieldsInSerialization() throws Exception {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member-operator01");
+        LotteryTicketResponse fullResponse = buildTicketResponse();
+        setAuthentication(principal, RoleConstants.ROLE_MEMBER, "ticket:view");
+
+        when(lotteryTicketServicePort.getById(TICKET_ID)).thenReturn(fullResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getById(TICKET_ID, principal);
+
+        assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
+
+        String json = OBJECT_MAPPER
+                .writerWithView(Views.Admin.class)
+                .writeValueAsString(response.getValue());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseMap = OBJECT_MAPPER.readValue(json, Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) responseMap.get("data");
+
+        assertThat(data).containsKeys(
+                "batchCode",
+                "importedById",
+                "verified",
+                "createdAt",
+                "updatedAt",
+                "createdBy",
+                "lastModifiedBy"
+        );
+
+        verify(lotteryTicketServicePort).getById(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("GET /lottery-tickets/{id}: Street Agent xem chi tiết vé dùng Admin view")
+    void getById_asStreetAgent_returnsAdminView() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "streetAgent01");
+        LotteryTicketResponse expectedResponse = buildTicketResponse();
+        setAuthentication(principal, RoleConstants.ROLE_STREET_AGENT);
+
+        when(lotteryTicketServicePort.getById(TICKET_ID)).thenReturn(expectedResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getById(TICKET_ID, principal);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
+
+        @SuppressWarnings("unchecked")
+        ApiResponse<LotteryTicketResponse> body = (ApiResponse<LotteryTicketResponse>) response.getValue();
+        assertThat(body).isNotNull();
+        assertThat(body.isSuccess()).isTrue();
+        assertThat(body.getData()).isEqualTo(expectedResponse);
+        assertThat(body.getData().productId()).isEqualTo(PRODUCT_ID);
+        assertThat(body.getData().batchCode()).isEqualTo("BATCH-01");
+
+        verify(lotteryTicketServicePort).getById(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("GET /lottery-tickets: Street Agent xem danh sách vé dùng Admin view")
+    void getAll_asStreetAgent_returnsAdminView() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "streetAgent01");
+        PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
+        setAuthentication(principal, RoleConstants.ROLE_STREET_AGENT);
+
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null))
+                .thenReturn(serviceResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getAll(
+                1, 10, null, null, null, null, null, null, principal
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
+
+        @SuppressWarnings("unchecked")
+        ApiResponse<PageResponse<LotteryTicketResponse>> body =
+                (ApiResponse<PageResponse<LotteryTicketResponse>>) response.getValue();
+        assertThat(body).isNotNull();
+        assertThat(body.isSuccess()).isTrue();
+        assertThat(body.getData()).isEqualTo(serviceResponse);
+
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null);
+    }
+
+    @Test
+    @DisplayName("GET /lottery-tickets/{id}: Street Agent có ticket:view vẫn dùng Admin view")
+    void getById_asStreetAgentWithTicketView_returnsAdminView() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "streetAgent01");
+        LotteryTicketResponse expectedResponse = buildTicketResponse();
+        setAuthentication(principal, RoleConstants.ROLE_STREET_AGENT, "ticket:view");
+
+        when(lotteryTicketServicePort.getById(TICKET_ID)).thenReturn(expectedResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getById(TICKET_ID, principal);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
+
+        verify(lotteryTicketServicePort).getById(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("GET /lottery-tickets/{id}: Anonymous user (null principal) vẫn dùng public view")
+    void getById_asAnonymousUser_returnsPublicView() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        LotteryTicketResponse expectedResponse = buildTicketResponse();
+        setAuthentication(principal, RoleConstants.ROLE_MEMBER);
+
+        when(lotteryTicketServicePort.getById(TICKET_ID)).thenReturn(expectedResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getById(TICKET_ID, principal);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
+
+        @SuppressWarnings("unchecked")
+        ApiResponse<LotteryTicketResponse> body = (ApiResponse<LotteryTicketResponse>) response.getValue();
+        assertThat(body).isNotNull();
+        assertThat(body.isSuccess()).isTrue();
+        assertThat(body.getData()).isEqualTo(expectedResponse);
+
+        verify(lotteryTicketServicePort).getById(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("GET /lottery-tickets: Member xem danh sách với filter status và search")
+    void getAll_asMember_withStatusAndSearchFilter() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
+        setAuthentication(principal, RoleConstants.ROLE_MEMBER);
+
+        when(lotteryTicketServicePort.getAll(1, 10, PRODUCT_ID, "IN_STOCK", "2026-06-10", "123", "drawDate", "asc"))
+                .thenReturn(serviceResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getAll(
+                1, 10, PRODUCT_ID, "IN_STOCK", "2026-06-10", "123", "drawDate", "asc", principal
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
+
+        verify(lotteryTicketServicePort).getAll(1, 10, PRODUCT_ID, "IN_STOCK", "2026-06-10", "123", "drawDate", "asc");
+    }
+
+    @Test
+    @DisplayName("GET /lottery-tickets: Member xem danh sách với nhiều bản ghi")
+    void getAll_asMember_withMultipleRecords() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        List<LotteryTicketResponse> records = List.of(
+                buildTicketResponse(),
+                LotteryTicketResponse.builder()
+                        .id(UUID.fromString("66666666-6666-6666-6666-666666666666"))
+                        .productId(PRODUCT_ID)
+                        .productName("Vé số Hà Nội")
+                        .serialNumber("B777777")
+                        .numbers("654321")
+                        .drawDate(LocalDate.of(2026, 6, 15))
+                        .status("IN_STOCK")
+                        .statusDisplayName("Còn trong kho")
+                        .build()
+        );
+        PageResponse<LotteryTicketResponse> serviceResponse = PageResponse.<LotteryTicketResponse>builder()
+                .recordList(records)
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(2)
+                        .totalPages(1)
+                        .currentPage(1)
+                        .limit(10)
+                        .isFirst(true)
+                        .isLast(true)
+                        .build())
+                .build();
+        setAuthentication(principal, RoleConstants.ROLE_MEMBER);
+
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null))
+                .thenReturn(serviceResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getAll(
+                1, 10, null, null, null, null, null, null, principal
+        );
+
+        assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
+
+        @SuppressWarnings("unchecked")
+        ApiResponse<PageResponse<LotteryTicketResponse>> body =
+                (ApiResponse<PageResponse<LotteryTicketResponse>>) response.getValue();
+        assertThat(body.getData().getRecordList()).hasSize(2);
+        assertThat(body.getData().getRecordList().get(0).numbers()).isEqualTo("123456");
+        assertThat(body.getData().getRecordList().get(1).numbers()).isEqualTo("654321");
+
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null);
+    }
+
+    // ============================================================
     // CREATE LOTTERY TICKET TESTS
     // ============================================================
 
