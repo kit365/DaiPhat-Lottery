@@ -6,9 +6,13 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum MatchFrom {
-    LAST("Khớp từ cuối"),
-    EXACT("Khớp toàn bộ"),
-    ANY("Khớp bất kỳ");
+    EXACT("Toàn bộ 6 số"),
+    LAST_5("5 số cuối"),
+    LAST_4("4 số cuối"),
+    LAST_3("3 số cuối"),
+    LAST_2("2 số cuối"),
+    ANY("Bất kỳ"),
+    MISS_ONE_DIGIT("Sai 1 chữ số");
 
     private final String displayName;
 }

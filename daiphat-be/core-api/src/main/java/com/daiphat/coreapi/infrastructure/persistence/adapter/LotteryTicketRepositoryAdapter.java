@@ -36,6 +36,17 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
 
     @Override
     public Optional<LotteryTicketModel> findById(UUID id) {
+        Specification<LotteryTicketEntity> spec = (root, query, cb) -> {
+            Predicate idEqual = cb.equal(root.get("id"), id);
+            Predicate notDeleted = cb.isNull(root.get("deletedAt"));
+            return cb.and(idEqual, notDeleted);
+        };
+        return lotteryTicketRepository.findOne(spec)
+                .map(lotteryTicketPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Optional<LotteryTicketModel> findByIdIncludingDeleted(UUID id) {
         return lotteryTicketRepository.findById(id)
                 .map(lotteryTicketPersistenceMapper::toDomain);
     }
@@ -47,6 +58,10 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
 
         Specification<LotteryTicketEntity> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+
+            // Exclude deleted records
+            predicates.add(cb.isNull(root.get("deletedAt")));
+
             if (productId != null) {
                 predicates.add(cb.equal(root.get("product").get("id"), productId));
             }
@@ -66,6 +81,15 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+
+        return lotteryTicketRepository.findAll(spec, pageable)
+                .map(lotteryTicketPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Page<LotteryTicketModel> findAllDeleted(Pageable pageable) {
+        Specification<LotteryTicketEntity> spec = (root, query, cb) ->
+                cb.isNotNull(root.get("deletedAt"));
 
         return lotteryTicketRepository.findAll(spec, pageable)
                 .map(lotteryTicketPersistenceMapper::toDomain);

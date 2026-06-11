@@ -16,7 +16,8 @@ public enum PrizeLevel {
     FIFTH("Giải Năm"),
     SIXTH("Giải Sáu"),
     SEVENTH("Giải Bảy"),
-    EIGHTH("Giải Tám");
+    EIGHTH("Giải Tám"),
+    CONSOLATION("Giải Khuyến Khích");
 
     private final String displayName;
 }

@@ -150,10 +150,14 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     @Override
     @Transactional
     public void delete(UUID id) {
-        log.info("Deleting lottery ticket with id: {}", id);
+        log.info("Soft deleting lottery ticket with id: {}", id);
 
         LotteryTicketModel model = lotteryTicketRepositoryPort.findById(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+
+        if (model.isDeleted()) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND, "Vé số đã bị xóa trước đó.");
+        }
 
         if (model.countsTowardInventory()) {
             LotteryProductModel product = lotteryProductRepositoryPort.findById(model.getProductId())
@@ -161,7 +165,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             adjustProductInventory(product, -1);
         }
 
-        lotteryTicketRepositoryPort.deleteById(id);
+        model.softDelete();
+        lotteryTicketRepositoryPort.save(model);
     }
 
     @Override
@@ -212,6 +217,53 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
         return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void restore(UUID id) {
+        log.info("Restoring lottery ticket with id: {}", id);
+
+        LotteryTicketModel model = lotteryTicketRepositoryPort.findByIdIncludingDeleted(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+
+        if (!model.isDeleted()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Vé số chưa bị xóa.");
+        }
+
+        model.setDeletedAt(null);
+        model.setStatus(LotteryTicketStatus.IN_STOCK);
+
+        if (model.countsTowardInventory()) {
+            LotteryProductModel product = lotteryProductRepositoryPort.findById(model.getProductId())
+                    .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
+            adjustProductInventory(product, 1);
+        }
+
+        lotteryTicketRepositoryPort.save(model);
+        log.info("Lottery ticket restored with id: {}", id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<LotteryTicketResponse> getAllDeleted(int page, int size) {
+        log.info("Getting all deleted lottery tickets, page: {}, size: {}", page, size);
+
+        PageRequest pageable = PageRequest.of(Math.max(0, page - 1), size, Sort.by(Sort.Direction.DESC, "deletedAt"));
+
+        Page<LotteryTicketResponse> resultPage = lotteryTicketRepositoryPort
+                .findAllDeleted(pageable)
+                .map(this::mapToResponse);
+
+        return PageResponse.<LotteryTicketResponse>builder()
+                .recordList(resultPage.getContent())
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(resultPage.getTotalElements())
+                        .totalPages(resultPage.getTotalPages())
+                        .currentPage(page)
+                        .limit(size)
+                        .build())
+                .build();
     }
 
     private LotteryTicketResponse mapToResponse(LotteryTicketModel model) {

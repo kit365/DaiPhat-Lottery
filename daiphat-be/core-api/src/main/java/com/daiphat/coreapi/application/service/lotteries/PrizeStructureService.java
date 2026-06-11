@@ -79,7 +79,7 @@ public class PrizeStructureService implements PrizeStructureServicePort {
             Map<UUID, PrizeStructureModel> existingById) {
         try {
             PrizeStructureModel model = request.id() != null
-                    ? mergeWithExisting(request, productId, existingById)
+                    ? mergeWithExisting(request, productId, productRegion, existingById)
                     : prizeStructureApplicationMapper.toModel(request);
             model.setProductId(productId);
             model.applyProductDefaults(productRegion);
@@ -94,13 +94,27 @@ public class PrizeStructureService implements PrizeStructureServicePort {
     private PrizeStructureModel mergeWithExisting(
             PrizeStructureRequest request,
             UUID productId,
+            String productRegion,
             Map<UUID, PrizeStructureModel> existingById) {
         PrizeStructureModel existing = existingById.get(request.id());
-        if (existing == null || !productId.equals(existing.getProductId())) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Cấu trúc giải thưởng không tồn tại để cập nhật.");
+
+        if (existing == null) {
+            PrizeStructureModel model = prizeStructureApplicationMapper.toModel(request);
+            model.setId(null);
+            model.setProductId(productId);
+            model.applyProductDefaults(productRegion);
+            return model;
         }
 
-        PrizeStructureModel merged = PrizeStructureModel.builder()
+        if (!productId.equals(existing.getProductId())) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Cấu trúc giải thưởng không thuộc sản phẩm này.");
+        }
+
+        return mergeModels(request, existing);
+    }
+
+    private PrizeStructureModel mergeModels(PrizeStructureRequest request, PrizeStructureModel existing) {
+        return PrizeStructureModel.builder()
                 .id(existing.getId())
                 .productId(existing.getProductId())
                 .region(request.region() != null ? request.region() : existing.getRegion())
@@ -125,7 +139,6 @@ public class PrizeStructureService implements PrizeStructureServicePort {
                 .createdBy(existing.getCreatedBy())
                 .lastModifiedBy(existing.getLastModifiedBy())
                 .build();
-        return merged;
     }
 
     private void validateUniquePrizeCodes(List<PrizeStructureModel> models) {

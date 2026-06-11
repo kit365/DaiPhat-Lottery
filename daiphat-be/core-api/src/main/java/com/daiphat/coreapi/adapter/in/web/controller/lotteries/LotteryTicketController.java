@@ -117,6 +117,29 @@ public class LotteryTicketController {
         LotteryTicketResponse response = lotteryTicketServicePort.changeStatus(id, status);
         return ApiResponse.success("Cập nhật trạng thái vé số thành công.", response);
     }
+
+    @PostMapping(ID_PATH + "/restore")
+    @PreAuthorize("hasAnyAuthority('ticket:delete')")
+    public ApiResponse<Void> restore(@PathVariable UUID id) {
+        log.info("REST request to restore lottery ticket: {}", id);
+        lotteryTicketServicePort.restore(id);
+        return ApiResponse.success("Khôi phục vé số thành công.");
+    }
+
+    @GetMapping("/trash")
+    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    public MappingJacksonValue getAllDeleted(
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_LIMIT) int size) {
+        log.info("REST request to query deleted lottery tickets page: {}, size: {}", page, size);
+        PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getAllDeleted(page, size);
+
+        ApiResponse<PageResponse<LotteryTicketResponse>> apiResponse = ApiResponse.success(null, response);
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
+        mappingJacksonValue.setSerializationView(Views.Admin.class);
+        return mappingJacksonValue;
+    }
+
     private Class<?> resolveLotteryTicketView(AuthenticatedUserPrincipal principal) {
         if (principal == null || SecurityContextHolder.getContext().getAuthentication() == null) {
             return Views.Public.class;

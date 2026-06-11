@@ -11,6 +11,7 @@ spring:
   flyway:
     enabled: true
     out-of-order: true
+    validate-on-migrate: false
   data:
     redis:
       host: localhost

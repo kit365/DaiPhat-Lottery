@@ -80,10 +80,14 @@ public class PrizeStructureModel {
         if (matchFrom == null) {
             throw new DomainException(ErrorCode.INVALID_INPUT, "Quy tắc so khớp không hợp lệ.");
         }
-        if (!isOnly && productRegion != null && region != null
+        if (!isOnly && region != null && productRegion != null
                 && !region.equalsIgnoreCase(productRegion)) {
             throw new DomainException(ErrorCode.INVALID_INPUT,
-                    "Cấu trúc giải dùng chung miền phải có region trùng với sản phẩm.");
+                    "Giải thưởng dùng chung phải có region trùng với sản phẩm hoặc không được set region.");
+        }
+        if (!isOnly && region != null && productRegion == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT,
+                    "Giải thưởng dùng chung không được set region khi sản phẩm không có region.");
         }
 
         validateMatchDigits();

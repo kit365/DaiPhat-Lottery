@@ -24,4 +24,8 @@ public interface LotteryTicketServicePort {
     LotteryTicketResponse verify(UUID id, UUID verifierId);
 
     LotteryTicketResponse changeStatus(UUID id, String status);
+
+    void restore(UUID id);
+
+    PageResponse<LotteryTicketResponse> getAllDeleted(int page, int size);
 }

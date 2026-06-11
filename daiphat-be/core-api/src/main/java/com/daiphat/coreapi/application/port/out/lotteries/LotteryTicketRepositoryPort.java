@@ -16,6 +16,8 @@ public interface LotteryTicketRepositoryPort {
 
     Optional<LotteryTicketModel> findById(UUID id);
 
+    Optional<LotteryTicketModel> findByIdIncludingDeleted(UUID id);
+
     Page<LotteryTicketModel> findAll(Pageable pageable, UUID productId, LotteryTicketStatus status,
                                      LocalDate drawDate, String search);
 
@@ -26,4 +28,6 @@ public interface LotteryTicketRepositoryPort {
     boolean existsByUniqueFieldsAndIdNot(UUID productId, String serialNumber, String numbers, LocalDate drawDate, UUID id);
 
     long countByProductIdAndStatuses(UUID productId, Collection<LotteryTicketStatus> statuses);
+
+    Page<LotteryTicketModel> findAllDeleted(Pageable pageable);
 }

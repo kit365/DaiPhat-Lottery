@@ -37,6 +37,8 @@ public class LotteryTicketModel {
     private LocalDateTime verifiedAt;
     private LocalDateTime returnedAt;
 
+    private LocalDateTime deletedAt;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
@@ -102,6 +104,14 @@ public class LotteryTicketModel {
     public boolean countsTowardInventory() {
         return this.status == LotteryTicketStatus.IN_STOCK
                 || this.status == LotteryTicketStatus.RESERVED;
+    }
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 
     private void ensureStatus(LotteryTicketStatus expectedStatus, String message) {

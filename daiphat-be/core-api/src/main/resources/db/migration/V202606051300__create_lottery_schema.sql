@@ -1,3 +1,8 @@
+-- ============================================================================
+-- LOTTERY MODULE SCHEMA
+-- Contains: lottery_products, prize_structures, lottery_tickets
+-- ============================================================================
+
 -- lottery_products
 CREATE TABLE IF NOT EXISTS lottery_products (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -102,12 +107,60 @@ CREATE TABLE IF NOT EXISTS lottery_tickets (
     CONSTRAINT fk_lottery_tickets_imported_by
         FOREIGN KEY (imported_by) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT fk_lottery_tickets_verified_by
-        FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT uq_lottery_tickets_serial_number UNIQUE (serial_number)
+        FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_product_id ON lottery_tickets(product_id);
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_status     ON lottery_tickets(status);
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_numbers    ON lottery_tickets(numbers);
-CREATE INDEX IF NOT EXISTS idx_lottery_tickets_draw_date  ON lottery_tickets(draw_date);
-CREATE INDEX IF NOT EXISTS idx_lottery_tickets_batch_code ON lottery_tickets(batch_code);
+CREATE INDEX IF NOT EXISTS idx_lottery_tickets_draw_date   ON lottery_tickets(draw_date);
+CREATE INDEX IF NOT EXISTS idx_lottery_tickets_batch_code  ON lottery_tickets(batch_code);
+
+-- ============================================================================
+-- LOTTERY MODULE SCHEMA UPDATES
+-- ============================================================================
+
+-- 1. UPDATE UNIQUE CONSTRAINT FOR LOTTERY TICKETS
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'uq_lottery_tickets_serial_number'
+    ) THEN
+        ALTER TABLE lottery_tickets DROP CONSTRAINT uq_lottery_tickets_serial_number;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'uk_lottery_tickets_serial_number'
+    ) THEN
+        ALTER TABLE lottery_tickets DROP CONSTRAINT uk_lottery_tickets_serial_number;
+    END IF;
+END
+$$;
+
+DROP INDEX IF EXISTS uq_lottery_tickets_serial_number;
+DROP INDEX IF EXISTS uk_lottery_tickets_serial_number;
+DROP INDEX IF EXISTS lottery_tickets_serial_number_key;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'uk_lottery_ticket_product_serial_numbers_draw_date'
+    ) THEN
+        ALTER TABLE lottery_tickets
+            ADD CONSTRAINT uk_lottery_ticket_product_serial_numbers_draw_date
+                UNIQUE (product_id, serial_number, numbers, draw_date);
+    END IF;
+END
+$$;
+
+-- 2. ADD DELETED_AT COLUMN FOR SOFT DELETE
+ALTER TABLE lottery_tickets ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL;
+ALTER TABLE lottery_products ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL;
+ALTER TABLE prize_structures ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL;
+
+CREATE INDEX IF NOT EXISTS idx_lottery_tickets_deleted_at ON lottery_tickets(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_lottery_products_deleted_at ON lottery_products(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_prize_structures_deleted_at ON prize_structures(deleted_at);
