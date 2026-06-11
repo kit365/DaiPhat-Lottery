@@ -108,6 +108,7 @@ class BlogRepository {
       category: post.category?.name ?? 'Tất cả bài viết',
       viewCount: post.viewCount,
       bodyParagraphs: _parseHtmlToParagraphs(post.summary),
+      htmlContent: '',
       tags: post.category != null
           ? ['#${post.category!.name.replaceAll(' ', '')}']
           : const [],
@@ -128,6 +129,7 @@ class BlogRepository {
       category: post.category?.name ?? 'Tất cả bài viết',
       viewCount: post.viewCount,
       bodyParagraphs: paragraphs.isNotEmpty ? paragraphs : [post.summary],
+      htmlContent: post.content,
       tags: post.tags.map((tag) => '#${tag.name}').toList(),
     );
   }
