@@ -10,6 +10,7 @@ class BlogPost {
   final String category;
   final int viewCount;
   final List<String> bodyParagraphs;
+  final String htmlContent;
   final List<String> tags;
 
   const BlogPost({
@@ -24,6 +25,7 @@ class BlogPost {
     required this.category,
     this.viewCount = 0,
     required this.bodyParagraphs,
+    this.htmlContent = '',
     this.tags = const [],
   });
 }
