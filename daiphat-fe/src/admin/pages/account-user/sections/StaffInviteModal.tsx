@@ -1,26 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
     Button,
-    Stack,
     Typography,
-    IconButton,
     Box,
-    Divider,
-    Select,
-    MenuItem,
-    FormControl,
-    InputLabel,
-    CircularProgress
+    Stack,
+    IconButton
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
-import { useInviteStaff } from '../hooks/useAccountUser';
-import { AppToast as toast } from "../../../../client/utils/toast.util";
-import { RoleEnum } from '../configs/constants';
+import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
+import { AppToast as toast } from '../../../../client/utils/toast.util';
 
 interface StaffInviteModalProps {
     open: boolean;
@@ -28,24 +20,11 @@ interface StaffInviteModalProps {
     user: { id: string; fullName: string; email: string } | null;
 }
 
-export const StaffInviteModal: React.FC<StaffInviteModalProps> = ({ open, onClose, user }) => {
-    const [roleCode, setRoleCode] = useState<string>(RoleEnum.STAFF_OPERATOR);
-    const { mutate: inviteStaff, isPending } = useInviteStaff();
-
-    const handleSubmit = () => {
-        if (!user) return;
-        inviteStaff(
-            { id: user.id, roleCode },
-            {
-                onSuccess: () => {
-                    toast.success(`Đã gửi lời mời làm nhân viên cho ${user.fullName} thành công!`);
-                    onClose();
-                },
-                onError: (error: any) => {
-                    toast.error(error.response?.data?.message || "Không thể gửi lời mời làm nhân viên");
-                }
-            }
-        );
+export const StaffInviteModal = ({ open, onClose, user }: StaffInviteModalProps) => {
+    const handleInvite = () => {
+        // Mock success
+        toast.success(`Đã gửi lời mời làm nhân viên đến ${user?.email}`);
+        onClose();
     };
 
     return (
@@ -71,87 +50,52 @@ export const StaffInviteModal: React.FC<StaffInviteModalProps> = ({ open, onClos
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center',
-                        bgcolor: 'rgba(255, 98, 98, 0.12)',
-                        color: '#FF6262'
+                        bgcolor: 'rgba(255, 171, 0, 0.12)',
+                        color: 'var(--palette-warning-main)'
                     }}>
-                        <AssignmentIndIcon />
+                        <SupervisorAccountIcon />
                     </Box>
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>Mời làm nhân viên</Typography>
                 </Stack>
-                <IconButton
-                    aria-label="close"
-                    onClick={onClose}
-                    sx={{
-                        color: (theme) => theme.palette.grey[500],
-                    }}
-                >
+                <IconButton aria-label="close" onClick={onClose} sx={{ color: (theme) => theme.palette.grey[500] }}>
                     <CloseIcon />
                 </IconButton>
             </DialogTitle>
 
             <DialogContent>
-                <Typography variant="body2" sx={{ mb: 3, color: 'var(--palette-text-secondary)', lineHeight: 1.6 }}>
-                    Hệ thống sẽ gửi email mời tham gia làm nhân viên cho người dùng <span style={{ fontWeight: 700, color: '#102937' }}>{user?.fullName}</span> ({user?.email}).
-                </Typography>
-
-                <Stack spacing={2.5}>
-                    <FormControl fullWidth sx={{
-                        '& .MuiOutlinedInput-root': {
-                            borderRadius: '12px',
-                            '&:hover fieldset': {
-                                borderColor: '#FF6262',
-                            },
-                            '&.Mui-focused fieldset': {
-                                borderColor: '#FF6262',
-                            }
-                        },
-                        '& .MuiInputLabel-root.Mui-focused': {
-                            color: '#FF6262',
-                        }
-                    }}>
-                        <InputLabel id="role-select-label">Vai trò nhân viên</InputLabel>
-                        <Select
-                            labelId="role-select-label"
-                            value={roleCode}
-                            label="Vai trò nhân viên"
-                            onChange={(e) => setRoleCode(e.target.value)}
-                        >
-                            <MenuItem value={RoleEnum.STAFF_OPERATOR}>Nhân viên vận hành</MenuItem>
-                        </Select>
-                    </FormControl>
-                </Stack>
+                <Box sx={{ mt: 1, textAlign: 'center' }}>
+                    <Typography variant="body1" sx={{ color: 'var(--palette-text-secondary)', mb: 2 }}>
+                        Bạn có chắc chắn muốn gửi lời mời nâng cấp quyền nhân viên cho tài khoản này?
+                    </Typography>
+                    {user && (
+                        <Box sx={{ p: 2, bgcolor: 'var(--palette-background-neutral)', borderRadius: '12px' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{user.fullName}</Typography>
+                            <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)' }}>{user.email}</Typography>
+                        </Box>
+                    )}
+                </Box>
             </DialogContent>
 
-            <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
-
             <DialogActions sx={{ p: 2.5 }}>
-                <Button 
-                    onClick={onClose} 
-                    disabled={isPending}
-                    sx={{ 
-                        color: 'var(--palette-text-primary)',
-                        fontWeight: 700,
-                        px: 3
-                    }}
-                >
+                <Button onClick={onClose} sx={{ color: 'var(--palette-text-primary)', fontWeight: 700, px: 3 }}>
                     Hủy
                 </Button>
                 <Button 
                     variant="contained" 
-                    onClick={handleSubmit}
-                    disabled={isPending}
+                    onClick={handleInvite}
                     sx={{ 
-                        bgcolor: '#FF6262',
+                        bgcolor: 'var(--palette-warning-main)',
+                        color: 'var(--palette-grey-800)',
                         borderRadius: '10px',
                         fontWeight: 700,
                         px: 3,
-                        boxShadow: '0 10px 15px -3px rgba(255, 98, 98, 0.26)',
+                        boxShadow: 'var(--customShadows-warning)',
                         '&:hover': {
-                            bgcolor: '#ef4444',
+                            bgcolor: 'var(--palette-warning-dark)',
                         }
                     }}
                 >
-                    {isPending ? <CircularProgress size={24} color="inherit" /> : "Gửi lời mời"}
+                    Gửi lời mời
                 </Button>
             </DialogActions>
         </Dialog>

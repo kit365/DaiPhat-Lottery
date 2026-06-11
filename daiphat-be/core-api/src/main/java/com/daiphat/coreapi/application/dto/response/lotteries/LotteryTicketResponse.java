@@ -31,4 +31,3 @@ public record LotteryTicketResponse(
         @JsonView(Views.Admin.class) String createdBy,
         @JsonView(Views.Admin.class) String lastModifiedBy
 ) {}
-

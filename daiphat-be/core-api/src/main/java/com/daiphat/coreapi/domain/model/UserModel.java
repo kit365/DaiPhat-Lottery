@@ -29,6 +29,7 @@ public class UserModel {
     private String zodiac;
     private String fortune;
     private Integer age;
+    private String fcmToken;
 
     // Security & Compliance flags
     private boolean emailVerified;
@@ -190,5 +191,9 @@ public class UserModel {
         this.hasPassword = false;
         this.emailVerified = true;
         this.agreedToTerms = false;
+    }
+
+    public void updateFcmToken(String token) {
+        this.fcmToken = token;
     }
 }

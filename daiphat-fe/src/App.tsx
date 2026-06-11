@@ -23,6 +23,7 @@ import { BuyTicketPage } from './client/pages/buy-ticket/BuyTicketPage';
 import { LoginPage } from './client/pages/auth/LoginPage';
 import { RegisterPage } from './client/pages/auth/RegisterPage';
 import { ForgotPasswordPage as ClientForgotPasswordPage } from './client/pages/auth/ForgotPasswordPage';
+import { NotFoundPage } from './client/pages/NotFoundPage';
 
 import { ROUTES } from './admin/constants/routes';
 import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
@@ -32,13 +33,18 @@ import { AuthInitializer } from './components/auth/AuthInitializer';
 
 import './styles/client.css'; // New Client Theme
 
+import { Footer } from './client/components/layout/Footer';
+
 // --- Theme Layout Components ---
 
 const ClientThemeLayout = () => (
-  <div className="client-theme min-h-screen text-inherit font-inherit">
-    <Suspense fallback={<LoadingSpinner />}>
-      <Outlet />
-    </Suspense>
+  <div className="client-theme min-h-screen text-inherit font-inherit flex flex-col">
+    <div className="flex-1 flex flex-col">
+      <Suspense fallback={<LoadingSpinner />}>
+        <Outlet />
+      </Suspense>
+    </div>
+    <Footer />
   </div>
 );
 
@@ -90,7 +96,7 @@ function App() {
             <Route index element={<ProfileDashboardPage />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
 
         </Route>
 
@@ -132,7 +138,7 @@ function App() {
         </Route>
 
         {/* Global Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   )

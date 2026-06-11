@@ -117,7 +117,6 @@ public class LotteryTicketController {
         LotteryTicketResponse response = lotteryTicketServicePort.changeStatus(id, status);
         return ApiResponse.success("Cập nhật trạng thái vé số thành công.", response);
     }
-
     private Class<?> resolveLotteryTicketView(AuthenticatedUserPrincipal principal) {
         if (principal == null || SecurityContextHolder.getContext().getAuthentication() == null) {
             return Views.Public.class;
