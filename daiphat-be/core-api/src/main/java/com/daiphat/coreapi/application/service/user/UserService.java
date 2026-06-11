@@ -356,6 +356,18 @@ public class UserService implements UserServicePort {
         log.info("User {} successfully accepted invite and assigned role {}", user.getEmail(), inviteData.role());
     }
 
+    @Override
+    @Transactional
+    public void updateFcmToken(UUID userId, String fcmToken) {
+        UserModel user = userRepositoryPort.findById(userId)
+                .orElseThrow(() -> new DomainException(ErrorCode.USER_NOT_FOUND));
+
+        user.updateFcmToken(fcmToken);
+        userRepositoryPort.save(user);
+
+        log.info("Successfully updated FCM token for userId: {}", userId);
+    }
+
     private void assignRoleToUser(UserModel user, String roleCode) {
         if (roleCode == null || roleCode.isBlank()) {
             return;
