@@ -1041,26 +1041,134 @@ class LotteryTicketServiceTest {
     }
 
     // ============================================================
-    // DELETE TESTS (DP-325)
+    // DELETE TESTS (DP-325) - COMPREHENSIVE
     // ============================================================
 
     @Test
-    @DisplayName("[DP-325] DELETE: Xóa vé số thành công và giảm tồn kho")
-    void delete_success_decreasesInventory() {
+    @DisplayName("[DP-325] DELETE: Xóa vé số IN_STOCK thành công và giảm tồn kho đúng 1 đơn vị")
+    void delete_inStockTicket_success_decreasesInventoryByOne() {
+        int initialInventory = 10;
+        productModel.setInventoryCount(initialInventory);
+
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
 
         lotteryTicketService.delete(TICKET_ID);
 
-        assertThat(productModel.getInventoryCount()).isEqualTo(9);
-        verify(lotteryTicketRepositoryPort).deleteById(TICKET_ID);
+        assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory - 1);
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
         verify(lotteryProductRepositoryPort).save(productModel);
     }
 
     @Test
-    @DisplayName("[DP-325] DELETE: Xóa vé số thất bại khi vé không tồn tại")
-    void delete_notFound_throwsLotteryTicketNotFound() {
+    @DisplayName("[DP-325] DELETE: Xóa vé số RESERVED thành công và giảm tồn kho")
+    void delete_reservedTicket_success_decreasesInventory() {
+        existingModel.setStatus(LotteryTicketStatus.RESERVED);
+        int initialInventory = 15;
+        productModel.setInventoryCount(initialInventory);
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory - 1);
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+        verify(lotteryProductRepositoryPort).save(productModel);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số RETURNED_TO_ISSUER không giảm tồn kho (không tính vào kho)")
+    void delete_returnedToIssuerTicket_success_doesNotDecreaseInventory() {
+        existingModel.setStatus(LotteryTicketStatus.RETURNED_TO_ISSUER);
+        int initialInventory = 10;
+        productModel.setInventoryCount(initialInventory);
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+        verify(lotteryProductRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số SOLD_ONLINE không giảm tồn kho (đã bán)")
+    void delete_soldOnlineTicket_success_doesNotDecreaseInventory() {
+        existingModel.setStatus(LotteryTicketStatus.SOLD_ONLINE);
+        int initialInventory = 10;
+        productModel.setInventoryCount(initialInventory);
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+        verify(lotteryProductRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số SOLD_OFFLINE không giảm tồn kho (đã bán offline)")
+    void delete_soldOfflineTicket_success_doesNotDecreaseInventory() {
+        existingModel.setStatus(LotteryTicketStatus.SOLD_OFFLINE);
+        int initialInventory = 10;
+        productModel.setInventoryCount(initialInventory);
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+        verify(lotteryProductRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số DAMAGED không giảm tồn kho (đã hỏng)")
+    void delete_damagedTicket_success_doesNotDecreaseInventory() {
+        existingModel.setStatus(LotteryTicketStatus.DAMAGED);
+        int initialInventory = 10;
+        productModel.setInventoryCount(initialInventory);
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+        verify(lotteryProductRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số EXPIRED không giảm tồn kho (đã hết hạn)")
+    void delete_expiredTicket_success_doesNotDecreaseInventory() {
+        existingModel.setStatus(LotteryTicketStatus.EXPIRED);
+        int initialInventory = 10;
+        productModel.setInventoryCount(initialInventory);
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+        verify(lotteryProductRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số thất bại khi vé không tồn tại - ném DomainException LOTTERY_TICKET_NOT_FOUND")
+    void delete_ticketNotFound_throwsLotteryTicketNotFound() {
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
@@ -1068,23 +1176,202 @@ class LotteryTicketServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
 
-        verify(lotteryTicketRepositoryPort, never()).deleteById(any());
+        verify(lotteryTicketRepositoryPort, never()).save(any());
         verify(lotteryProductRepositoryPort, never()).save(any());
     }
 
     @Test
-    @DisplayName("[DP-325] DELETE: Xóa vé số đã bán không giảm tồn kho")
-    void delete_soldTicket_doesNotDecreaseInventory() {
-        existingModel.setStatus(LotteryTicketStatus.SOLD_ONLINE);
-        productModel.setInventoryCount(10);
-
+    @DisplayName("[DP-325] DELETE: Xóa vé số thất bại khi product không tồn tại - ném DomainException")
+    void delete_productNotFound_throwsDomainException() {
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND);
+
+        verify(lotteryTicketRepositoryPort, never()).save(any());
+        verify(lotteryProductRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số khi tồn kho đang là 0 vẫn thành công - save product được gọi")
+    void delete_whenInventoryIsZero_success_callsSaveProduct() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
 
         lotteryTicketService.delete(TICKET_ID);
 
-        assertThat(productModel.getInventoryCount()).isEqualTo(10);
-        verify(lotteryTicketRepositoryPort).deleteById(TICKET_ID);
-        verify(lotteryProductRepositoryPort, never()).save(any());
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+        verify(lotteryProductRepositoryPort).save(any(LotteryProductModel.class));
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số khi tồn kho là null không gây NullPointerException - save product được gọi")
+    void delete_whenInventoryIsNull_success_callsSaveProduct() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+        verify(lotteryProductRepositoryPort).save(any(LotteryProductModel.class));
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số với id khác nhau gọi đúng id")
+    void delete_withDifferentIds_callsCorrectId() {
+        UUID differentTicketId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        LotteryTicketModel differentTicket = LotteryTicketModel.builder()
+                .id(differentTicketId)
+                .productId(PRODUCT_ID)
+                .status(LotteryTicketStatus.IN_STOCK)
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(differentTicketId)).thenReturn(Optional.of(differentTicket));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(differentTicket);
+
+        lotteryTicketService.delete(differentTicketId);
+
+        verify(lotteryTicketRepositoryPort).findById(differentTicketId);
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số soft delete - gọi softDelete() trên model và save()")
+    void delete_callsSoftDeleteAndSave() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số khi tồn kho là giá trị lớn hoạt động đúng")
+    void delete_withLargeInventory_success() {
+        int initialInventory = 100000;
+        productModel.setInventoryCount(initialInventory);
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory - 1);
+        verify(lotteryProductRepositoryPort).save(productModel);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số đã verify thành công (chỉ status IN_STOCK mới tính inventory)")
+    void delete_verifiedTicket_stillDecreasesInventoryIfInStock() {
+        existingModel.setVerified(true);
+        existingModel.setVerifiedById(UUID.fromString("55555555-5555-5555-5555-555555555555"));
+        existingModel.setVerifiedAt(LocalDateTime.now().minusDays(1));
+        int initialInventory = 10;
+        productModel.setInventoryCount(initialInventory);
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory - 1);
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số có đầy đủ thông tin (serial, numbers, batch) thành công")
+    void delete_ticketWithFullDetails_success() {
+        existingModel.setSerialNumber("AB123456");
+        existingModel.setNumbers("12345");
+        existingModel.setBatchCode("BATCH-001");
+        existingModel.setTicketImg("https://cdn.example.com/ticket.png");
+        int initialInventory = 10;
+        productModel.setInventoryCount(initialInventory);
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory - 1);
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số khi product inventory chưa được set - save product được gọi")
+    void delete_productWithUninitializedInventory_callsSave() {
+        LotteryProductModel uninitializedProduct = LotteryProductModel.builder()
+                .id(PRODUCT_ID)
+                .name(PRODUCT_NAME)
+                .inventoryCount(null)
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(uninitializedProduct));
+        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(uninitializedProduct);
+        when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
+
+        lotteryTicketService.delete(TICKET_ID);
+
+        verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
+        verify(lotteryProductRepositoryPort).save(any(LotteryProductModel.class));
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số thất bại khi repository ném DataAccessException khi save product")
+    void delete_repositoryThrowsDataAccessExceptionOnProductSave_propagates() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DataAccessResourceFailureException("Database error"))
+                .when(lotteryProductRepositoryPort).save(any());
+
+        assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
+                .isInstanceOf(org.springframework.dao.DataAccessResourceFailureException.class);
+
+        verify(lotteryTicketRepositoryPort).findById(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số không tồn tại khi findById ném exception")
+    void delete_findByIdThrowsException_propagates() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID))
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Connection lost"));
+
+        assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
+                .isInstanceOf(org.springframework.dao.DataAccessResourceFailureException.class);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Xóa vé số đã bị soft delete trước đó ném DomainException")
+    void delete_alreadySoftDeleted_throwsDomainException() {
+        existingModel.setDeletedAt(LocalDateTime.now().minusDays(1));
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
+
+        verify(lotteryTicketRepositoryPort, never()).save(any());
     }
 
     // ============================================================

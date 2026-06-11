@@ -1493,52 +1493,6 @@ class LotteryTicketControllerTest {
     }
 
     // ============================================================
-    // DELETE LOTTERY TICKET TESTS
-    // ============================================================
-
-    @Test
-    @DisplayName("DELETE /lottery-tickets/{id}: Admin xóa vé số thành công")
-    void delete_asAdmin_returnsSuccess() {
-        doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
-
-        ApiResponse<Void> response = lotteryTicketController.delete(TICKET_ID);
-
-        assertThat(response).isNotNull();
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getMessage()).isEqualTo("Xóa vé số khỏi kho thành công.");
-        assertThat(response.getData()).isNull();
-
-        verify(lotteryTicketServicePort).delete(TICKET_ID);
-    }
-
-    @Test
-    @DisplayName("DELETE /lottery-tickets/{id}: Operator xóa vé số thành công")
-    void delete_asOperator_returnsSuccess() {
-        doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
-
-        ApiResponse<Void> response = lotteryTicketController.delete(TICKET_ID);
-
-        assertThat(response).isNotNull();
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getMessage()).isEqualTo("Xóa vé số khỏi kho thành công.");
-
-        verify(lotteryTicketServicePort).delete(TICKET_ID);
-    }
-
-    @Test
-    @DisplayName("DELETE /lottery-tickets/{id}: Xóa vé số không tồn tại vẫn trả về thành công")
-    void delete_nonExistentTicket_returnsSuccess() {
-        doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
-
-        ApiResponse<Void> response = lotteryTicketController.delete(TICKET_ID);
-
-        assertThat(response).isNotNull();
-        assertThat(response.isSuccess()).isTrue();
-
-        verify(lotteryTicketServicePort).delete(TICKET_ID);
-    }
-
-    // ============================================================
     // GET BY ID ERROR CASES TESTS
     // ============================================================
 
@@ -1661,8 +1615,8 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /lottery-tickets/{id}: Member-only không có quyền xóa vé")
-    void delete_asMemberOnly_shouldNotBeCalledDirectly() {
+    @DisplayName("DELETE /lottery-tickets/{id}: Member-only gọi delete (authorization được xử lý ở tầng security)")
+    void delete_byMemberOnly_callsServiceAnyway() {
         doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
 
         ApiResponse<Void> response = lotteryTicketController.delete(TICKET_ID);
@@ -1751,12 +1705,100 @@ class LotteryTicketControllerTest {
     }
 
     // ============================================================
-    // DELETE ERROR CASES TESTS
+    // DELETE LOTTERY TICKET - SUCCESS CASES
     // ============================================================
 
     @Test
-    @DisplayName("DELETE /lottery-tickets/{id}: Xóa vé không tồn tại trả về exception")
-    void delete_ticketNotFound_throwsException() {
+    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Admin xóa vé số thành công và trả về message chuẩn")
+    void delete_asAdmin_returnsSuccessWithCorrectMessage() {
+        doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
+
+        ApiResponse<Void> response = lotteryTicketController.delete(TICKET_ID);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Xóa vé số khỏi kho thành công.");
+        assertThat(response.getData()).isNull();
+
+        verify(lotteryTicketServicePort).delete(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Operator xóa vé số thành công")
+    void delete_asOperator_returnsSuccess() {
+        doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
+
+        ApiResponse<Void> response = lotteryTicketController.delete(TICKET_ID);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Xóa vé số khỏi kho thành công.");
+
+        verify(lotteryTicketServicePort).delete(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Street Agent xóa vé số thành công")
+    void delete_asStreetAgent_returnsSuccess() {
+        doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
+
+        ApiResponse<Void> response = lotteryTicketController.delete(TICKET_ID);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+
+        verify(lotteryTicketServicePort).delete(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Gọi đúng method với đúng ticket ID")
+    void delete_callsServiceWithCorrectId() {
+        UUID specificTicketId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        doNothing().when(lotteryTicketServicePort).delete(specificTicketId);
+
+        lotteryTicketController.delete(specificTicketId);
+
+        verify(lotteryTicketServicePort).delete(specificTicketId);
+    }
+
+    // ============================================================
+    // DELETE LOTTERY TICKET - ERROR CASES
+    // ============================================================
+
+    @Test
+    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Xóa vé không tồn tại ném DomainException NOT_FOUND")
+    void delete_ticketNotFound_throwsDomainException() {
+        org.mockito.Mockito.doThrow(new com.daiphat.coreapi.domain.exception.DomainException(
+                com.daiphat.coreapi.domain.exception.ErrorCode.LOTTERY_TICKET_NOT_FOUND))
+                .when(lotteryTicketServicePort).delete(TICKET_ID);
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.daiphat.coreapi.domain.exception.DomainException.class,
+                () -> lotteryTicketController.delete(TICKET_ID)
+        );
+
+        verify(lotteryTicketServicePort).delete(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Xóa vé đã bị xóa trước đó ném DomainException")
+    void delete_alreadyDeleted_throwsDomainException() {
+        org.mockito.Mockito.doThrow(new com.daiphat.coreapi.domain.exception.DomainException(
+                com.daiphat.coreapi.domain.exception.ErrorCode.LOTTERY_TICKET_NOT_FOUND,
+                "Vé số đã bị xóa trước đó."))
+                .when(lotteryTicketServicePort).delete(TICKET_ID);
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.daiphat.coreapi.domain.exception.DomainException.class,
+                () -> lotteryTicketController.delete(TICKET_ID)
+        );
+
+        verify(lotteryTicketServicePort).delete(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Xóa vé không tồn tại ném RuntimeException generic")
+    void delete_ticketNotFound_throwsRuntimeException() {
         org.mockito.Mockito.doThrow(new RuntimeException("Vé số không tồn tại"))
                 .when(lotteryTicketServicePort).delete(TICKET_ID);
 
@@ -1766,5 +1808,34 @@ class LotteryTicketControllerTest {
         );
 
         verify(lotteryTicketServicePort).delete(TICKET_ID);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Xóa vé khi service throw DataAccessException")
+    void delete_repositoryThrowsDataAccessException_propagatesException() {
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DataAccessResourceFailureException("Database connection failed"))
+                .when(lotteryTicketServicePort).delete(TICKET_ID);
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessResourceFailureException.class,
+                () -> lotteryTicketController.delete(TICKET_ID)
+        );
+
+        verify(lotteryTicketServicePort).delete(TICKET_ID);
+    }
+
+    // ============================================================
+    // DELETE LOTTERY TICKET - AUTHORIZATION CASES
+    // ============================================================
+
+    @Test
+    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Anonymous user vẫn có thể gọi delete (authorization ở tầng security)")
+    void delete_byAnonymous_callsService() {
+        doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
+
+        ApiResponse<Void> response = lotteryTicketController.delete(TICKET_ID);
+
+        verify(lotteryTicketServicePort).delete(TICKET_ID);
+        assertThat(response).isNotNull();
     }
 }
