@@ -1,4 +1,16 @@
-enum AppRoute { home, login, register, forgotPassword, buyTicket, cart, profile, profileEdit, profileDetail, notifications }
+enum AppRoute {
+  home,
+  login,
+  register,
+  forgotPassword,
+  buyTicket,
+  cart,
+  checkout,
+  profile,
+  profileEdit,
+  profileDetail,
+  notifications,
+}
 
 extension AppRouteDefinition on AppRoute {
   String get path {
@@ -15,6 +27,8 @@ extension AppRouteDefinition on AppRoute {
         return '/buy-ticket';
       case AppRoute.cart:
         return '/cart';
+      case AppRoute.checkout:
+        return '/checkout';
       case AppRoute.profile:
         return '/profile';
       case AppRoute.profileEdit:
@@ -40,6 +54,8 @@ extension AppRouteDefinition on AppRoute {
         return 'buy_ticket';
       case AppRoute.cart:
         return 'cart';
+      case AppRoute.checkout:
+        return 'checkout';
       case AppRoute.profile:
         return 'profile';
       case AppRoute.profileEdit:
@@ -57,6 +73,7 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.register:
       case AppRoute.forgotPassword:
       case AppRoute.cart:
+      case AppRoute.checkout:
         return true;
       case AppRoute.profileEdit:
       case AppRoute.profileDetail:
