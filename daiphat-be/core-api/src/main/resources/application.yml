@@ -52,6 +52,7 @@ daiphat:
       - "provider:view"
       - "provider:create"
       - "provider:edit"
+      - "ticket:view"
     seed:
       admin:
         username: ${AUTH_SEED_ADMIN_USERNAME:}
