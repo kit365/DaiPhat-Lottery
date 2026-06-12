@@ -6,10 +6,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
-
 @Builder
 public record LotteryProductResponse(
-        UUID id,
+        Long id,
         String name,
         String province,
         String region,

@@ -5,20 +5,18 @@ import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryProduc
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryProductResponse;
 
-import java.util.UUID;
-
 public interface LotteryProductServicePort {
 
     LotteryProductResponse create(CreateLotteryProductRequest request);
 
-    LotteryProductResponse getById(UUID id);
+    LotteryProductResponse getById(Long id);
 
     PageResponse<LotteryProductResponse> getAll(
             int page, int size, String search,
             String status, String type,
             String sortBy, String direction);
 
-    LotteryProductResponse update(UUID id, UpdateLotteryProductRequest request);
+    LotteryProductResponse update(Long id, UpdateLotteryProductRequest request);
 
-    void delete(UUID id);
+    void delete(Long id);
 }

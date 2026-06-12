@@ -11,10 +11,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
-
 @Component
 @RequiredArgsConstructor
 public class LotteryProductRepositoryAdapter implements LotteryProductRepositoryPort {
@@ -30,8 +29,9 @@ public class LotteryProductRepositoryAdapter implements LotteryProductRepository
     }
 
     @Override
-    public Optional<LotteryProductModel> findById(UUID id) {
+    public Optional<LotteryProductModel> findById(Long id) {
         return lotteryProductRepository.findById(id)
+                .filter(entity -> entity.getDeletedAt() == null)
                 .map(lotteryProductPersistenceMapper::toDomain);
     }
 
@@ -48,22 +48,23 @@ public class LotteryProductRepositoryAdapter implements LotteryProductRepository
     @Override
     public List<LotteryProductModel> findAll() {
         return lotteryProductRepository.findAll().stream()
+                .filter(entity -> entity.getDeletedAt() == null)
                 .map(lotteryProductPersistenceMapper::toDomain)
                 .toList();
     }
 
     @Override
-    public void deleteById(UUID id) {
-        lotteryProductRepository.deleteById(id);
+    public void deleteById(Long id) {
+        lotteryProductRepository.findById(id).ifPresent(entity -> {
+            entity.setDeletedAt(LocalDateTime.now());
+            lotteryProductRepository.save(entity);
+        });
     }
 
     @Override
     public boolean existsByName(String name) {
-        return lotteryProductRepository.existsByName(name);
+        return lotteryProductRepository.existsByNameAndDeletedAtIsNull(name);
     }
 
-    @Override
-    public boolean existsByNameAndIdNot(String name, UUID id) {
-        return lotteryProductRepository.existsByNameAndIdNot(name, id);
-    }
+
 }

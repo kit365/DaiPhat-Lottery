@@ -6,17 +6,20 @@ import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.base.Views;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
 
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/lottery-tickets")
@@ -42,33 +45,42 @@ public class LotteryTicketController {
     }
 
     @GetMapping(ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
-    public ApiResponse<LotteryTicketResponse> getById(@PathVariable UUID id) {
+    @PreAuthorize("hasAnyAuthority('ticket:view') or hasAuthority('ROLE_MEMBER')")
+    public MappingJacksonValue getById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to get lottery ticket: {}", id);
-        return ApiResponse.success(null, lotteryTicketServicePort.getById(id));
+        ApiResponse<LotteryTicketResponse> apiResponse = ApiResponse.success(null, lotteryTicketServicePort.getById(id));
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
+        mappingJacksonValue.setSerializationView(resolveLotteryTicketView(principal));
+        return mappingJacksonValue;
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
-    public ApiResponse<PageResponse<LotteryTicketResponse>> getAll(
+    @PreAuthorize("hasAnyAuthority('ticket:view') or hasAuthority('ROLE_MEMBER')")
+    public MappingJacksonValue getAll(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
-            @RequestParam(required = false) UUID productId,
+            @RequestParam(required = false) Long stationId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String drawDate,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false) String direction) {
+            @RequestParam(required = false) String direction,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getAll(
-                page, size, productId, status, drawDate, search, sortBy, direction);
-        return ApiResponse.success(null, response);
+                page, size, stationId, status, drawDate, search, sortBy, direction);
+        ApiResponse<PageResponse<LotteryTicketResponse>> apiResponse = ApiResponse.success(null, response);
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
+        mappingJacksonValue.setSerializationView(resolveLotteryTicketView(principal));
+        return mappingJacksonValue;
     }
 
     @PutMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:edit')")
     public ApiResponse<LotteryTicketResponse> update(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @Valid @RequestBody UpdateLotteryTicketRequest request) {
         log.info("REST request to update lottery ticket: {}", id);
         LotteryTicketResponse response = lotteryTicketServicePort.update(id, request);
@@ -77,7 +89,7 @@ public class LotteryTicketController {
 
     @DeleteMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:delete')")
-    public ApiResponse<Void> delete(@PathVariable UUID id) {
+    public ApiResponse<Void> delete(@PathVariable Long id) {
         log.info("REST request to delete lottery ticket: {}", id);
         lotteryTicketServicePort.delete(id);
         return ApiResponse.success("Xóa vé số khỏi kho thành công.");
@@ -86,7 +98,7 @@ public class LotteryTicketController {
     @PatchMapping(ID_PATH + "/verify")
     @PreAuthorize("hasAnyAuthority('ticket:edit')")
     public ApiResponse<LotteryTicketResponse> verify(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to verify lottery ticket: {} by user: {}", id, principal.getUsername());
         LotteryTicketResponse response = lotteryTicketServicePort.verify(id, principal.getId());
@@ -96,10 +108,50 @@ public class LotteryTicketController {
     @PatchMapping(ID_PATH + "/status")
     @PreAuthorize("hasAnyAuthority('ticket:edit')")
     public ApiResponse<LotteryTicketResponse> changeStatus(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @RequestParam String status) {
         log.info("REST request to change lottery ticket status: {} to {}", id, status);
         LotteryTicketResponse response = lotteryTicketServicePort.changeStatus(id, status);
         return ApiResponse.success("Cập nhật trạng thái vé số thành công.", response);
+    }
+
+    @PostMapping(ID_PATH + "/restore")
+    @PreAuthorize("hasAnyAuthority('ticket:delete')")
+    public ApiResponse<Void> restore(@PathVariable Long id) {
+        log.info("REST request to restore lottery ticket: {}", id);
+        lotteryTicketServicePort.restore(id);
+        return ApiResponse.success("Khôi phục vé số thành công.");
+    }
+
+    @GetMapping("/trash")
+    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    public MappingJacksonValue getAllDeleted(
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_LIMIT) int size) {
+        log.info("REST request to query deleted lottery tickets page: {}, size: {}", page, size);
+        PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getAllDeleted(page, size);
+
+        ApiResponse<PageResponse<LotteryTicketResponse>> apiResponse = ApiResponse.success(null, response);
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
+        mappingJacksonValue.setSerializationView(Views.Admin.class);
+        return mappingJacksonValue;
+    }
+
+    private Class<?> resolveLotteryTicketView(AuthenticatedUserPrincipal principal) {
+        if (principal == null || SecurityContextHolder.getContext().getAuthentication() == null) {
+            return Views.Public.class;
+        }
+
+        boolean isMemberOnly = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(RoleConstants.ROLE_MEMBER::equals)
+                && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .noneMatch(authority -> RoleConstants.ADMIN.equals(authority)
+                        || RoleConstants.ROLE_STAFF_OPERATOR.equals(authority)
+                        || RoleConstants.ROLE_STREET_AGENT.equals(authority)
+                        || "ticket:view".equals(authority));
+
+        return isMemberOnly ? Views.Public.class : Views.Admin.class;
     }
 }

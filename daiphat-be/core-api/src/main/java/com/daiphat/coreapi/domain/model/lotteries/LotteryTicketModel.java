@@ -16,8 +16,8 @@ import java.util.UUID;
 @Builder
 public class LotteryTicketModel {
 
-    private UUID id;
-    private UUID productId;
+    private Long id;
+    private Long productId;
     private String ticketImg;
     private String serialNumber;
     private String numbers;
@@ -37,6 +37,8 @@ public class LotteryTicketModel {
     private LocalDateTime verifiedAt;
     private LocalDateTime returnedAt;
 
+    private LocalDateTime deletedAt;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
@@ -53,25 +55,25 @@ public class LotteryTicketModel {
     }
 
     public void reserve() {
-        ensureStatus(LotteryTicketStatus.IN_STOCK, "Chỉ có thể giữ chỗ vé ở trạng thái IN_STOCK.");
+        ensureStatus(LotteryTicketStatus.IN_STOCK);
         this.status = LotteryTicketStatus.RESERVED;
     }
 
     public void sellOnline() {
-        ensureStatusIn("Chỉ có thể bán online vé ở trạng thái IN_STOCK hoặc RESERVED.",
+        ensureStatusIn(
                 LotteryTicketStatus.IN_STOCK,
                 LotteryTicketStatus.RESERVED);
         this.status = LotteryTicketStatus.SOLD_ONLINE;
     }
 
     public void sellOffline() {
-        ensureStatus(LotteryTicketStatus.IN_STOCK, "Chỉ có thể bán offline vé ở trạng thái IN_STOCK.");
+        ensureStatus(LotteryTicketStatus.IN_STOCK);
         this.status = LotteryTicketStatus.SOLD_OFFLINE;
     }
 
     public void verify(UUID verifierId) {
         if (this.verified) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Vé số đã được xác minh trước đó.");
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_ALREADY_VERIFIED);
         }
         this.verified = true;
         this.verifiedById = verifierId;
@@ -79,21 +81,20 @@ public class LotteryTicketModel {
     }
 
     public void returnToIssuer() {
-        ensureStatus(LotteryTicketStatus.IN_STOCK,
-                "Chỉ có thể trả vé về nhà đài khi vé vẫn còn trong kho.");
+        ensureStatus(LotteryTicketStatus.IN_STOCK);
         this.status = LotteryTicketStatus.RETURNED_TO_ISSUER;
         this.returnedAt = LocalDateTime.now();
     }
 
     public void damage() {
         if (isSold()) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS, "Không thể báo hỏng vé đã bán.");
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
         this.status = LotteryTicketStatus.DAMAGED;
     }
 
     public void expire() {
-        ensureStatusIn("Chỉ có thể đánh dấu hết hạn vé ở trạng thái IN_STOCK hoặc RESERVED.",
+        ensureStatusIn(
                 LotteryTicketStatus.IN_STOCK,
                 LotteryTicketStatus.RESERVED);
         this.status = LotteryTicketStatus.EXPIRED;
@@ -104,19 +105,27 @@ public class LotteryTicketModel {
                 || this.status == LotteryTicketStatus.RESERVED;
     }
 
-    private void ensureStatus(LotteryTicketStatus expectedStatus, String message) {
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
+    }
+
+    private void ensureStatus(LotteryTicketStatus expectedStatus) {
         if (this.status != expectedStatus) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS, message);
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
     }
 
-    private void ensureStatusIn(String message, LotteryTicketStatus... allowedStatuses) {
+    private void ensureStatusIn(LotteryTicketStatus... allowedStatuses) {
         for (LotteryTicketStatus allowedStatus : allowedStatuses) {
             if (this.status == allowedStatus) {
                 return;
             }
         }
-        throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS, message);
+        throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
     }
 
     private boolean isSold() {

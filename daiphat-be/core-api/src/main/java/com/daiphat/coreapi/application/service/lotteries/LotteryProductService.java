@@ -14,17 +14,15 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryProductModel;
+import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -55,9 +53,8 @@ public class LotteryProductService implements LotteryProductServicePort {
     }
 
     @Override
-    public LotteryProductResponse getById(UUID id) {
-        LotteryProductModel model = lotteryProductRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
+    public LotteryProductResponse getById(Long id) {
+        LotteryProductModel model = getProductOrThrow(id);
         recalculateInventory(model);
         return lotteryProductApplicationMapper.toResponse(model);
     }
@@ -68,19 +65,13 @@ public class LotteryProductService implements LotteryProductServicePort {
             String status, String type,
             String sortBy, String direction) {
 
-        Sort sort = Sort.by(
-                Sort.Direction.fromOptionalString(direction).orElse(Sort.Direction.DESC),
-                sortBy != null ? sortBy : "createdAt"
+        PageRequest pageable = PageRequest.of(
+                Math.max(0, page - 1),
+                size,
+                SortUtils.createSort(sortBy, direction)
         );
-        PageRequest pageable = PageRequest.of(Math.max(0, page - 1), size, sort);
 
-        LotteryProductStatus statusEnum = null;
-        if (status != null && !status.isBlank()) {
-            try {
-                statusEnum = LotteryProductStatus.valueOf(status.toUpperCase());
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
+        LotteryProductStatus statusEnum = parseStatus(status);
 
         Page<LotteryProductModel> resultPage = lotteryProductRepositoryPort
                 .findAll(pageable, search, statusEnum, type);
@@ -90,24 +81,15 @@ public class LotteryProductService implements LotteryProductServicePort {
             return lotteryProductApplicationMapper.toResponse(model);
         });
 
-        return PageResponse.<LotteryProductResponse>builder()
-                .recordList(responsePage.getContent())
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(resultPage.getTotalElements())
-                        .totalPages(resultPage.getTotalPages())
-                        .currentPage(page)
-                        .limit(size)
-                        .build())
-                .build();
+        return buildPageResponse(responsePage, page, size);
     }
 
     @Override
     @Transactional
-    public LotteryProductResponse update(UUID id, UpdateLotteryProductRequest request) {
+    public LotteryProductResponse update(Long id, UpdateLotteryProductRequest request) {
         log.info("Updating lottery product with id: {}", id);
 
-        LotteryProductModel model = lotteryProductRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
+        LotteryProductModel model = getProductOrThrow(id);
 
         if (hasText(request.name())
                 && !model.getName().equalsIgnoreCase(request.name())
@@ -126,11 +108,7 @@ public class LotteryProductService implements LotteryProductServicePort {
         }
 
         if (hasText(request.type())) {
-            try {
-                model.setType(LotteryProductType.valueOf(request.type().trim().toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                throw new DomainException(ErrorCode.INVALID_INPUT, "Loại sản phẩm vé số không hợp lệ.");
-            }
+            model.setType(parseType(request.type()));
         }
 
         if (request.numberLength() != null) {
@@ -162,11 +140,7 @@ public class LotteryProductService implements LotteryProductServicePort {
         }
 
         if (hasText(request.status())) {
-            try {
-                model.setStatus(LotteryProductStatus.valueOf(request.status().trim().toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                throw new DomainException(ErrorCode.LOTTERY_PRODUCT_INVALID_STATUS);
-            }
+            model.setStatus(parseStatusOrThrow(request.status()));
         }
 
         LotteryProductModel saved = lotteryProductRepositoryPort.save(model);
@@ -178,14 +152,59 @@ public class LotteryProductService implements LotteryProductServicePort {
 
     @Override
     @Transactional
-    public void delete(UUID id) {
+    public void delete(Long id) {
         log.info("Deleting lottery product with id: {}", id);
 
-        if (lotteryProductRepositoryPort.findById(id).isEmpty()) {
-            throw new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND);
-        }
-
+        getProductOrThrow(id);
         lotteryProductRepositoryPort.deleteById(id);
+    }
+
+    private LotteryProductModel getProductOrThrow(Long id) {
+        return lotteryProductRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
+    }
+
+    private LotteryProductType parseType(String type) {
+        try {
+            return LotteryProductType.valueOf(type.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new DomainException(ErrorCode.LOTTERY_PRODUCT_INVALID_TYPE);
+        }
+    }
+
+    private LotteryProductStatus parseStatus(String status) {
+        if (!hasText(status)) {
+            return null;
+        }
+        try {
+            return LotteryProductStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private LotteryProductStatus parseStatusOrThrow(String status) {
+        try {
+            return LotteryProductStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new DomainException(ErrorCode.LOTTERY_PRODUCT_INVALID_STATUS);
+        }
+    }
+
+    private PageResponse<LotteryProductResponse> buildPageResponse(
+            Page<LotteryProductResponse> pageResult,
+            int page,
+            int size
+    ) {
+        return PageResponse.<LotteryProductResponse>builder()
+                .recordList(pageResult.getContent())
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(pageResult.getTotalElements())
+                        .totalPages(pageResult.getTotalPages())
+                        .currentPage(page)
+                        .limit(size)
+                        .build())
+                .build();
     }
 
     private void recalculateInventory(LotteryProductModel model) {

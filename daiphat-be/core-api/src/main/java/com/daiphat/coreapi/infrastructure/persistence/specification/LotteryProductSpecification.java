@@ -2,7 +2,7 @@ package com.daiphat.coreapi.infrastructure.persistence.specification;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductType;
-import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryProductEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import org.springframework.data.jpa.domain.Specification;
 
 import jakarta.persistence.criteria.Predicate;
@@ -14,13 +14,14 @@ public final class LotteryProductSpecification {
     private LotteryProductSpecification() {
     }
 
-    public static Specification<LotteryProductEntity> filter(
+    public static Specification<LotteryStationEntity> filter(
             String search,
             LotteryProductStatus status,
             String type
     ) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNull(root.get("deletedAt")));
 
             if (search != null && !search.isBlank()) {
                 String likePattern = "%" + search.trim().toLowerCase() + "%";

@@ -1,16 +1,14 @@
 package com.daiphat.coreapi.infrastructure.persistence.repository.lottery;
 
-import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryProductEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-import java.util.UUID;
-
 public interface LotteryProductRepository
-        extends JpaRepository<LotteryProductEntity, UUID>,
-        JpaSpecificationExecutor<LotteryProductEntity> {
+        extends JpaRepository<LotteryStationEntity, Long>,
+        JpaSpecificationExecutor<LotteryStationEntity> {
 
-    boolean existsByName(String name);
+    boolean existsByNameAndDeletedAtIsNull(String name);
 
-    boolean existsByNameAndIdNot(String name, UUID id);
+    boolean existsByNameAndIdNotAndDeletedAtIsNull(String name, Long id);
 }
