@@ -1,19 +1,19 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
-import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryProductRequest;
-import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryProductRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
-import com.daiphat.coreapi.application.dto.response.lotteries.LotteryProductResponse;
-import com.daiphat.coreapi.application.mapper.lotteries.LotteryProductApplicationMapper;
-import com.daiphat.coreapi.application.port.in.lotteries.LotteryProductServicePort;
-import com.daiphat.coreapi.application.port.out.lotteries.LotteryProductRepositoryPort;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
+import com.daiphat.coreapi.application.mapper.lotteries.LotteryStationApplicationMapper;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductType;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
-import com.daiphat.coreapi.domain.model.lotteries.LotteryProductModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,41 +26,41 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class LotteryProductService implements LotteryProductServicePort {
+public class LotteryStationService implements LotteryStationServicePort {
 
-    private final LotteryProductRepositoryPort lotteryProductRepositoryPort;
+    private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
-    private final LotteryProductApplicationMapper lotteryProductApplicationMapper;
+    private final LotteryStationApplicationMapper lotteryStationApplicationMapper;
 
     private static final List<LotteryTicketStatus> INVENTORY_STATUSES =
             List.of(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.RESERVED);
 
     @Override
     @Transactional
-    public LotteryProductResponse create(CreateLotteryProductRequest request) {
+    public LotteryStationResponse create(CreateLotteryStationRequest request) {
         log.info("Creating new lottery product: {}", request.name());
 
-        if (lotteryProductRepositoryPort.existsByName(request.name())) {
-            throw new DomainException(ErrorCode.LOTTERY_PRODUCT_NAME_EXISTED);
+        if (lotteryStationRepositoryPort.existsByName(request.name())) {
+            throw new DomainException(ErrorCode.LOTTERY_STATION_NAME_EXISTED);
         }
 
-        LotteryProductModel model = lotteryProductApplicationMapper.toModel(request);
+        LotteryStationModel model = lotteryStationApplicationMapper.toModel(request);
 
-        LotteryProductModel saved = lotteryProductRepositoryPort.save(model);
+        LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         log.info("Lottery product created with id: {}", saved.getId());
 
-        return lotteryProductApplicationMapper.toResponse(saved);
+        return lotteryStationApplicationMapper.toResponse(saved);
     }
 
     @Override
-    public LotteryProductResponse getById(Long id) {
-        LotteryProductModel model = getProductOrThrow(id);
+    public LotteryStationResponse getById(Long id) {
+        LotteryStationModel model = getProductOrThrow(id);
         recalculateInventory(model);
-        return lotteryProductApplicationMapper.toResponse(model);
+        return lotteryStationApplicationMapper.toResponse(model);
     }
 
     @Override
-    public PageResponse<LotteryProductResponse> getAll(
+    public PageResponse<LotteryStationResponse> getAll(
             int page, int size, String search,
             String status, String type,
             String sortBy, String direction) {
@@ -71,14 +71,14 @@ public class LotteryProductService implements LotteryProductServicePort {
                 SortUtils.createSort(sortBy, direction)
         );
 
-        LotteryProductStatus statusEnum = parseStatus(status);
+        LotteryStationStatus statusEnum = parseStatus(status);
 
-        Page<LotteryProductModel> resultPage = lotteryProductRepositoryPort
+        Page<LotteryStationModel> resultPage = lotteryStationRepositoryPort
                 .findAll(pageable, search, statusEnum, type);
 
-        Page<LotteryProductResponse> responsePage = resultPage.map(model -> {
+        Page<LotteryStationResponse> responsePage = resultPage.map(model -> {
             recalculateInventory(model);
-            return lotteryProductApplicationMapper.toResponse(model);
+            return lotteryStationApplicationMapper.toResponse(model);
         });
 
         return buildPageResponse(responsePage, page, size);
@@ -86,15 +86,15 @@ public class LotteryProductService implements LotteryProductServicePort {
 
     @Override
     @Transactional
-    public LotteryProductResponse update(Long id, UpdateLotteryProductRequest request) {
+    public LotteryStationResponse update(Long id, UpdateLotteryStationRequest request) {
         log.info("Updating lottery product with id: {}", id);
 
-        LotteryProductModel model = getProductOrThrow(id);
+        LotteryStationModel model = getProductOrThrow(id);
 
         if (hasText(request.name())
                 && !model.getName().equalsIgnoreCase(request.name())
-                && lotteryProductRepositoryPort.existsByName(request.name())) {
-            throw new DomainException(ErrorCode.LOTTERY_PRODUCT_NAME_EXISTED);
+                && lotteryStationRepositoryPort.existsByName(request.name())) {
+            throw new DomainException(ErrorCode.LOTTERY_STATION_NAME_EXISTED);
         }
 
         if (hasText(request.name())) {
@@ -143,11 +143,11 @@ public class LotteryProductService implements LotteryProductServicePort {
             model.setStatus(parseStatusOrThrow(request.status()));
         }
 
-        LotteryProductModel saved = lotteryProductRepositoryPort.save(model);
+        LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         recalculateInventory(saved);
         log.info("Lottery product updated with id: {}", saved.getId());
 
-        return lotteryProductApplicationMapper.toResponse(saved);
+        return lotteryStationApplicationMapper.toResponse(saved);
     }
 
     @Override
@@ -156,47 +156,47 @@ public class LotteryProductService implements LotteryProductServicePort {
         log.info("Deleting lottery product with id: {}", id);
 
         getProductOrThrow(id);
-        lotteryProductRepositoryPort.deleteById(id);
+        lotteryStationRepositoryPort.deleteById(id);
     }
 
-    private LotteryProductModel getProductOrThrow(Long id) {
-        return lotteryProductRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
+    private LotteryStationModel getProductOrThrow(Long id) {
+        return lotteryStationRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
     }
 
-    private LotteryProductType parseType(String type) {
+    private LotteryStationType parseType(String type) {
         try {
-            return LotteryProductType.valueOf(type.trim().toUpperCase());
+            return LotteryStationType.valueOf(type.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new DomainException(ErrorCode.LOTTERY_PRODUCT_INVALID_TYPE);
+            throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_TYPE);
         }
     }
 
-    private LotteryProductStatus parseStatus(String status) {
+    private LotteryStationStatus parseStatus(String status) {
         if (!hasText(status)) {
             return null;
         }
         try {
-            return LotteryProductStatus.valueOf(status.trim().toUpperCase());
+            return LotteryStationStatus.valueOf(status.trim().toUpperCase());
         } catch (IllegalArgumentException ignored) {
             return null;
         }
     }
 
-    private LotteryProductStatus parseStatusOrThrow(String status) {
+    private LotteryStationStatus parseStatusOrThrow(String status) {
         try {
-            return LotteryProductStatus.valueOf(status.trim().toUpperCase());
+            return LotteryStationStatus.valueOf(status.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new DomainException(ErrorCode.LOTTERY_PRODUCT_INVALID_STATUS);
+            throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_STATUS);
         }
     }
 
-    private PageResponse<LotteryProductResponse> buildPageResponse(
-            Page<LotteryProductResponse> pageResult,
+    private PageResponse<LotteryStationResponse> buildPageResponse(
+            Page<LotteryStationResponse> pageResult,
             int page,
             int size
     ) {
-        return PageResponse.<LotteryProductResponse>builder()
+        return PageResponse.<LotteryStationResponse>builder()
                 .recordList(pageResult.getContent())
                 .pagination(PageResponse.PaginationMetadata.builder()
                         .totalRecords(pageResult.getTotalElements())
@@ -207,7 +207,7 @@ public class LotteryProductService implements LotteryProductServicePort {
                 .build();
     }
 
-    private void recalculateInventory(LotteryProductModel model) {
+    private void recalculateInventory(LotteryStationModel model) {
         if (model.getId() == null) {
             return;
         }

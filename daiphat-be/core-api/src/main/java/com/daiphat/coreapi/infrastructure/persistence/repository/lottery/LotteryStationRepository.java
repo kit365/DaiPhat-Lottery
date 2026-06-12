@@ -4,7 +4,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotterySt
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface LotteryProductRepository
+public interface LotteryStationRepository
         extends JpaRepository<LotteryStationEntity, Long>,
         JpaSpecificationExecutor<LotteryStationEntity> {
 

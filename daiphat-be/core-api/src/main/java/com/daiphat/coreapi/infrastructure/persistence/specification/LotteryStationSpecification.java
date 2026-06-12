@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.specification;
 
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductType;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -9,14 +9,14 @@ import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class LotteryProductSpecification {
+public final class LotteryStationSpecification {
 
-    private LotteryProductSpecification() {
+    private LotteryStationSpecification() {
     }
 
     public static Specification<LotteryStationEntity> filter(
             String search,
-            LotteryProductStatus status,
+            LotteryStationStatus status,
             String type
     ) {
         return (root, query, cb) -> {
@@ -39,7 +39,7 @@ public final class LotteryProductSpecification {
 
             if (type != null && !type.isBlank()) {
                 try {
-                    LotteryProductType productType = LotteryProductType.valueOf(type.trim().toUpperCase());
+                    LotteryStationType productType = LotteryStationType.valueOf(type.trim().toUpperCase());
                     predicates.add(cb.equal(root.get("type"), productType));
                 } catch (IllegalArgumentException ignored) {
                     predicates.add(cb.disjunction());
