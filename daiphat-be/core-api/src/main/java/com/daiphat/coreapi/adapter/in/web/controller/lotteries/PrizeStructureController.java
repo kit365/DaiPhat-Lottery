@@ -13,10 +13,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
-
 @RestController
-@RequestMapping(ApiConstants.API_V1 + "/lottery-products/{productId}/prize-structures")
+@RequestMapping(ApiConstants.API_V1 + "/lottery-stations/{stationId}/prize-structures")
 @RequiredArgsConstructor
 @Validated
 @Slf4j
@@ -26,19 +24,19 @@ public class PrizeStructureController {
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ticket:view')")
-    public ApiResponse<List<PrizeStructureResponse>> getByProductId(@PathVariable UUID productId) {
-        log.info("REST request to get prize structures for product: {}", productId);
-        List<PrizeStructureResponse> response = prizeStructureServicePort.getByProductId(productId);
+    public ApiResponse<List<PrizeStructureResponse>> getByProductId(@PathVariable Long stationId) {
+        log.info("REST request to get prize structures for station: {}", stationId);
+        List<PrizeStructureResponse> response = prizeStructureServicePort.getByProductId(stationId);
         return ApiResponse.success(null, response);
     }
 
     @PutMapping
     @PreAuthorize("hasAnyAuthority('ticket:edit')")
     public ApiResponse<List<PrizeStructureResponse>> update(
-            @PathVariable UUID productId,
+            @PathVariable Long stationId,
             @RequestBody List<@Valid PrizeStructureRequest> requests) {
-        log.info("REST request to update prize structures for product: {} with {} items", productId, requests.size());
-        List<PrizeStructureResponse> response = prizeStructureServicePort.updatePrizeStructures(productId, requests);
+        log.info("REST request to update prize structures for station: {} with {} items", stationId, requests.size());
+        List<PrizeStructureResponse> response = prizeStructureServicePort.updatePrizeStructures(stationId, requests);
         return ApiResponse.success("Cập nhật cấu trúc giải thưởng thành công.", response);
     }
 }

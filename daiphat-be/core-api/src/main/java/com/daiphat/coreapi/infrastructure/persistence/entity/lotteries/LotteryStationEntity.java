@@ -10,20 +10,18 @@ import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
-
 @Entity
-@Table(name = "lottery_products")
+@Table(name = "lottery_stations")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-public class LotteryProductEntity extends BaseEntity {
+public class LotteryStationEntity extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false, length = 100)
     private String name;
@@ -69,7 +67,7 @@ public class LotteryProductEntity extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private LotteryProductStatus status = LotteryProductStatus.ACTIVE;
+    private LotteryProductStatus status = LotteryProductStatus.DRAFT;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by")

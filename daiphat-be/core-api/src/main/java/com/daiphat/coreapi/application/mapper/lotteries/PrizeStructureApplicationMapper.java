@@ -39,6 +39,40 @@ public class PrizeStructureApplicationMapper {
         return requests.stream().map(this::toModel).toList();
     }
 
+    public PrizeStructureModel merge(PrizeStructureRequest request, PrizeStructureModel existing) {
+        if (request == null) {
+            return existing;
+        }
+
+        PrizeStructureModel requestModel = toModel(request);
+        if (existing == null) {
+            return requestModel;
+        }
+
+        return PrizeStructureModel.builder()
+                .id(existing.getId())
+                .productId(existing.getProductId())
+                .region(request.region() != null ? request.region() : existing.getRegion())
+                .isOnly(request.isOnly() != null ? request.isOnly() : existing.isOnly())
+                .prizeLevel(requestModel.getPrizeLevel() != null ? requestModel.getPrizeLevel() : existing.getPrizeLevel())
+                .prizeDisplayName(request.prizeDisplayName() != null ? request.prizeDisplayName() : existing.getPrizeDisplayName())
+                .prizeCode(hasText(request.prizeCode()) ? request.prizeCode() : existing.getPrizeCode())
+                .prizeValue(request.prizeValue() != null ? request.prizeValue() : existing.getPrizeValue())
+                .quantity(request.quantity() != null ? request.quantity() : existing.getQuantity())
+                .matchDigits(request.matchDigits() != null ? request.matchDigits() : existing.getMatchDigits())
+                .matchFrom(requestModel.getMatchFrom() != null ? requestModel.getMatchFrom() : existing.getMatchFrom())
+                .matchFromDisplayName(request.matchFromDisplayName() != null
+                        ? request.matchFromDisplayName()
+                        : existing.getMatchFromDisplayName())
+                .displayOrder(request.displayOrder() != null ? request.displayOrder() : existing.getDisplayOrder())
+                .createdAt(existing.getCreatedAt())
+                .updatedAt(existing.getUpdatedAt())
+                .createdBy(existing.getCreatedBy())
+                .lastModifiedBy(existing.getLastModifiedBy())
+                .deletedAt(existing.getDeletedAt())
+                .build();
+    }
+
     public PrizeStructureResponse toResponse(PrizeStructureModel model) {
         if (model == null) {
             return null;
@@ -86,5 +120,9 @@ public class PrizeStructureApplicationMapper {
 
     private boolean booleanOrDefault(Boolean value) {
         return Boolean.TRUE.equals(value);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

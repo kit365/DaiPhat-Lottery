@@ -13,13 +13,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
-
 @RestController
-@RequestMapping(ApiConstants.API_V1 + "/lottery-products")
+@RequestMapping(ApiConstants.API_V1 + "/lottery-stations")
 @RequiredArgsConstructor
 @Slf4j
-public class LotteryProductController {
+public class LotteryStationController {
 
     private static final String DEFAULT_PAGE = "1";
     private static final String DEFAULT_LIMIT = "10";
@@ -37,7 +35,7 @@ public class LotteryProductController {
 
     @GetMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:view')")
-    public ApiResponse<LotteryProductResponse> getById(@PathVariable UUID id) {
+    public ApiResponse<LotteryProductResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(null, lotteryProductServicePort.getById(id));
     }
 
@@ -59,7 +57,7 @@ public class LotteryProductController {
     @PutMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:edit')")
     public ApiResponse<LotteryProductResponse> update(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @Valid @RequestBody UpdateLotteryProductRequest request) {
         LotteryProductResponse response = lotteryProductServicePort.update(id, request);
         return ApiResponse.success("Cập nhật sản phẩm vé số thành công.", response);
@@ -67,7 +65,7 @@ public class LotteryProductController {
 
     @DeleteMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:delete')")
-    public ApiResponse<Void> delete(@PathVariable UUID id) {
+    public ApiResponse<Void> delete(@PathVariable Long id) {
         lotteryProductServicePort.delete(id);
         return ApiResponse.success("Xóa sản phẩm vé số thành công.");
     }

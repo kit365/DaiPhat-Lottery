@@ -20,8 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -33,31 +31,26 @@ public class PrizeStructureService implements PrizeStructureServicePort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PrizeStructureResponse> getByProductId(UUID productId) {
+    public List<PrizeStructureResponse> getByProductId(Long productId) {
         log.info("Fetching prize structures for lottery product: {}", productId);
 
-        ensureProductExists(productId);
-
+        getProductOrThrow(productId);
         List<PrizeStructureModel> models = prizeStructureRepositoryPort.findByProductId(productId);
         return prizeStructureApplicationMapper.toResponseList(models);
     }
 
     @Override
     @Transactional
-    public List<PrizeStructureResponse> updatePrizeStructures(UUID productId, List<PrizeStructureRequest> requests) {
+    public List<PrizeStructureResponse> updatePrizeStructures(Long productId, List<PrizeStructureRequest> requests) {
         log.info("Updating prize structures for lottery product: {}", productId);
 
-        LotteryProductModel product = lotteryProductRepositoryPort.findById(productId)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
+        LotteryProductModel product = getProductOrThrow(productId);
 
         if (requests == null || requests.isEmpty()) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Danh sách cấu trúc giải thưởng không được để trống.");
+            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_LIST_REQUIRED);
         }
 
-        Map<UUID, PrizeStructureModel> existingById = prizeStructureRepositoryPort.findByProductId(productId)
-                .stream()
-                .filter(model -> model.getId() != null)
-                .collect(HashMap::new, (map, model) -> map.put(model.getId(), model), HashMap::putAll);
+        Map<Long, PrizeStructureModel> existingById = getExistingPrizeStructuresById(productId);
 
         List<PrizeStructureModel> models = requests.stream()
                 .map(req -> mergeAndValidateModel(req, productId, product.getRegion(), existingById))
@@ -74,58 +67,42 @@ public class PrizeStructureService implements PrizeStructureServicePort {
 
     private PrizeStructureModel mergeAndValidateModel(
             PrizeStructureRequest request,
-            UUID productId,
+            Long productId,
             String productRegion,
-            Map<UUID, PrizeStructureModel> existingById) {
+            Map<Long, PrizeStructureModel> existingById) {
         try {
             PrizeStructureModel model = request.id() != null
-                    ? mergeWithExisting(request, productId, existingById)
+                    ? mergeWithExisting(request, productId, productRegion, existingById)
                     : prizeStructureApplicationMapper.toModel(request);
             model.setProductId(productId);
             model.applyProductDefaults(productRegion);
             model.validate(productRegion);
             return model;
         } catch (IllegalArgumentException e) {
-            throw new DomainException(ErrorCode.INVALID_INPUT,
-                    "Dữ liệu cấu trúc giải thưởng không hợp lệ: " + e.getMessage());
+            throw new DomainException(ErrorCode.INVALID_INPUT, e.getMessage());
         }
     }
 
     private PrizeStructureModel mergeWithExisting(
             PrizeStructureRequest request,
-            UUID productId,
-            Map<UUID, PrizeStructureModel> existingById) {
+            Long productId,
+            String productRegion,
+            Map<Long, PrizeStructureModel> existingById) {
         PrizeStructureModel existing = existingById.get(request.id());
-        if (existing == null || !productId.equals(existing.getProductId())) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Cấu trúc giải thưởng không tồn tại để cập nhật.");
+
+        if (existing == null) {
+            PrizeStructureModel model = prizeStructureApplicationMapper.toModel(request);
+            model.setId(null);
+            model.setProductId(productId);
+            model.applyProductDefaults(productRegion);
+            return model;
         }
 
-        PrizeStructureModel merged = PrizeStructureModel.builder()
-                .id(existing.getId())
-                .productId(existing.getProductId())
-                .region(request.region() != null ? request.region() : existing.getRegion())
-                .isOnly(request.isOnly() != null ? request.isOnly() : existing.isOnly())
-                .prizeLevel(hasText(request.prizeLevel())
-                        ? prizeStructureApplicationMapper.toModel(request).getPrizeLevel()
-                        : existing.getPrizeLevel())
-                .prizeDisplayName(request.prizeDisplayName() != null ? request.prizeDisplayName() : existing.getPrizeDisplayName())
-                .prizeCode(hasText(request.prizeCode()) ? request.prizeCode() : existing.getPrizeCode())
-                .prizeValue(request.prizeValue() != null ? request.prizeValue() : existing.getPrizeValue())
-                .quantity(request.quantity() != null ? request.quantity() : existing.getQuantity())
-                .matchDigits(request.matchDigits() != null ? request.matchDigits() : existing.getMatchDigits())
-                .matchFrom(hasText(request.matchFrom())
-                        ? prizeStructureApplicationMapper.toModel(request).getMatchFrom()
-                        : existing.getMatchFrom())
-                .matchFromDisplayName(request.matchFromDisplayName() != null
-                        ? request.matchFromDisplayName()
-                        : existing.getMatchFromDisplayName())
-                .displayOrder(request.displayOrder() != null ? request.displayOrder() : existing.getDisplayOrder())
-                .createdAt(existing.getCreatedAt())
-                .updatedAt(existing.getUpdatedAt())
-                .createdBy(existing.getCreatedBy())
-                .lastModifiedBy(existing.getLastModifiedBy())
-                .build();
-        return merged;
+        if (!productId.equals(existing.getProductId())) {
+            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_PRODUCT_MISMATCH);
+        }
+
+        return prizeStructureApplicationMapper.merge(request, existing);
     }
 
     private void validateUniquePrizeCodes(List<PrizeStructureModel> models) {
@@ -133,19 +110,19 @@ public class PrizeStructureService implements PrizeStructureServicePort {
         for (PrizeStructureModel model : models) {
             String normalizedCode = model.getPrizeCode().trim().toUpperCase();
             if (!seenCodes.add(normalizedCode)) {
-                throw new DomainException(ErrorCode.PRIZE_STRUCTURE_DUPLICATE_CODE,
-                        "Mã giải thưởng bị trùng: " + model.getPrizeCode());
+                throw new DomainException(ErrorCode.PRIZE_STRUCTURE_DUPLICATE_CODE);
             }
         }
     }
 
-    private void ensureProductExists(UUID productId) {
-        if (lotteryProductRepositoryPort.findById(productId).isEmpty()) {
-            throw new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND);
-        }
+    private LotteryProductModel getProductOrThrow(Long productId) {
+        return lotteryProductRepositoryPort.findById(productId)
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
     }
 
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
+    private Map<Long, PrizeStructureModel> getExistingPrizeStructuresById(Long productId) {
+        return prizeStructureRepositoryPort.findByProductId(productId).stream()
+                .filter(model -> model.getId() != null)
+                .collect(HashMap::new, (map, model) -> map.put(model.getId(), model), HashMap::putAll);
     }
 }

@@ -18,7 +18,7 @@ import java.util.UUID;
 @Builder
 public class LotteryProductModel {
 
-    private UUID id;
+    private Long id;
     private String name;
     private String province;
     private String region;
@@ -55,6 +55,8 @@ public class LotteryProductModel {
     @Builder.Default
     private Integer displayOrder = 0;
 
+    private LocalDateTime deletedAt;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
@@ -64,16 +66,14 @@ public class LotteryProductModel {
 
     public void submitForApproval() {
         if (this.status != LotteryProductStatus.DRAFT) {
-            throw new DomainException(ErrorCode.LOTTERY_PRODUCT_INVALID_STATUS,
-                    "Chỉ có thể gửi duyệt sản phẩm ở trạng thái DRAFT.");
+            throw new DomainException(ErrorCode.LOTTERY_PRODUCT_INVALID_STATUS);
         }
         this.status = LotteryProductStatus.PENDING_APPROVAL;
     }
 
     public void approve(UUID adminId) {
         if (this.status != LotteryProductStatus.PENDING_APPROVAL) {
-            throw new DomainException(ErrorCode.LOTTERY_PRODUCT_INVALID_STATUS,
-                    "Chỉ có thể duyệt sản phẩm ở trạng thái PENDING_APPROVAL.");
+            throw new DomainException(ErrorCode.LOTTERY_PRODUCT_INVALID_STATUS);
         }
         this.status = LotteryProductStatus.ACTIVE;
         this.approvedById = adminId;
@@ -104,5 +104,13 @@ public class LotteryProductModel {
         return this.status == LotteryProductStatus.ACTIVE
                 && this.inventoryCount != null
                 && this.inventoryCount > 0;
+    }
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 }
