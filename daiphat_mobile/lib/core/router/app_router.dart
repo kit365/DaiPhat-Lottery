@@ -7,6 +7,7 @@ import '../../ui/viewmodels/forgot_password_viewmodel.dart';
 import '../../ui/viewmodels/profile_viewmodel.dart';
 import '../../ui/views/buy_ticket/buy_ticket_view.dart';
 import '../../ui/views/cart/cart_view.dart';
+import '../../ui/views/checkout/checkout_view.dart';
 import '../../ui/views/home/home_view.dart';
 import '../../ui/views/login/login_view.dart';
 import '../../ui/views/register/register_view.dart';
@@ -38,18 +39,96 @@ GoRouter createAppRouter({
         builder: (context, state, child) =>
             MainLayout(loginViewModel: loginViewModel, child: child),
         routes: [
-          _route(AppRoute.home, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
-          _route(AppRoute.buyTicket, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
-          _route(AppRoute.profile, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
+          _route(
+            AppRoute.home,
+            loginViewModel,
+            registerViewModel,
+            forgotPasswordViewModel,
+            profileViewModel,
+            notificationViewModel,
+          ),
+          _route(
+            AppRoute.buyTicket,
+            loginViewModel,
+            registerViewModel,
+            forgotPasswordViewModel,
+            profileViewModel,
+            notificationViewModel,
+          ),
+          _route(
+            AppRoute.profile,
+            loginViewModel,
+            registerViewModel,
+            forgotPasswordViewModel,
+            profileViewModel,
+            notificationViewModel,
+          ),
         ],
       ),
-      _route(AppRoute.login, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
-      _route(AppRoute.register, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
-      _route(AppRoute.forgotPassword, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
-      _route(AppRoute.cart, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
-      _route(AppRoute.profileEdit, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
-      _route(AppRoute.profileDetail, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
-      _route(AppRoute.notifications, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
+      _route(
+        AppRoute.login,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.register,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.forgotPassword,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.cart,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.checkout,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.profileEdit,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.profileDetail,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.notifications,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
     ],
   );
 }
@@ -66,7 +145,14 @@ GoRoute _route(
     parentNavigatorKey: route.usesRootNavigator ? rootNavigatorKey : null,
     path: route.path,
     name: route.name,
-    builder: (context, state) => _buildRoute(route, loginViewModel, registerViewModel, forgotPasswordViewModel, profileViewModel, notificationViewModel),
+    builder: (context, state) => _buildRoute(
+      route,
+      loginViewModel,
+      registerViewModel,
+      forgotPasswordViewModel,
+      profileViewModel,
+      notificationViewModel,
+    ),
   );
 }
 
@@ -80,7 +166,10 @@ Widget _buildRoute(
 ) {
   switch (route) {
     case AppRoute.home:
-      return HomeView(loginViewModel: loginViewModel, notificationViewModel: notificationViewModel);
+      return HomeView(
+        loginViewModel: loginViewModel,
+        notificationViewModel: notificationViewModel,
+      );
     case AppRoute.login:
       return LoginView(viewModel: loginViewModel);
     case AppRoute.register:
@@ -91,6 +180,8 @@ Widget _buildRoute(
       return const BuyTicketView();
     case AppRoute.cart:
       return const CartView();
+    case AppRoute.checkout:
+      return const CheckoutView();
     case AppRoute.profile:
       return ProfileView(viewModel: profileViewModel);
     case AppRoute.profileEdit:
