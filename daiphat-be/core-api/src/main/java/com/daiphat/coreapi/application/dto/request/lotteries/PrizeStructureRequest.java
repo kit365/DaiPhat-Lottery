@@ -4,10 +4,8 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 
 import java.math.BigDecimal;
-import java.util.UUID;
-
 public record PrizeStructureRequest(
-        UUID id,
+        Long id,
         String region,
         Boolean isOnly,
         String prizeLevel,

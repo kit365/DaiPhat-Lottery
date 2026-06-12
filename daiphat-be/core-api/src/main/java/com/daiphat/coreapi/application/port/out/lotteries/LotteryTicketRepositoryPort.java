@@ -8,22 +8,24 @@ import org.springframework.data.domain.Pageable;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Optional;
-import java.util.UUID;
-
 public interface LotteryTicketRepositoryPort {
 
     LotteryTicketModel save(LotteryTicketModel model);
 
-    Optional<LotteryTicketModel> findById(UUID id);
+    Optional<LotteryTicketModel> findById(Long id);
 
-    Page<LotteryTicketModel> findAll(Pageable pageable, UUID productId, LotteryTicketStatus status,
+    Optional<LotteryTicketModel> findByIdIncludingDeleted(Long id);
+
+    Page<LotteryTicketModel> findAll(Pageable pageable, Long productId, LotteryTicketStatus status,
                                      LocalDate drawDate, String search);
 
-    void deleteById(UUID id);
+    Page<LotteryTicketModel> findAllDeleted(Pageable pageable);
 
-    boolean existsByUniqueFields(UUID productId, String serialNumber, String numbers, LocalDate drawDate);
+    void deleteById(Long id);
 
-    boolean existsByUniqueFieldsAndIdNot(UUID productId, String serialNumber, String numbers, LocalDate drawDate, UUID id);
+    boolean existsByUniqueFields(Long productId, String serialNumber, String numbers, LocalDate drawDate);
 
-    long countByProductIdAndStatuses(UUID productId, Collection<LotteryTicketStatus> statuses);
+    boolean existsByUniqueFieldsAndIdNot(Long productId, String serialNumber, String numbers, LocalDate drawDate, Long id);
+
+    long countByProductIdAndStatuses(Long productId, Collection<LotteryTicketStatus> statuses);
 }

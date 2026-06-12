@@ -4,12 +4,10 @@ import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
-
 @Builder
 public record PrizeStructureResponse(
-        UUID id,
-        UUID productId,
+        Long id,
+        Long productId,
         String region,
         boolean isOnly,
         String prizeLevel,

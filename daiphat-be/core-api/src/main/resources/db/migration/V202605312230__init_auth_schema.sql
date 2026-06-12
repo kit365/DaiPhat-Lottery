@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS roles (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100) DEFAULT 'SYSTEM',
-    last_modified_by VARCHAR(100) DEFAULT 'SYSTEM'
+    last_modified_by VARCHAR(100) DEFAULT 'SYSTEM',
+    deleted_at TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS permissions (
@@ -22,7 +23,8 @@ CREATE TABLE IF NOT EXISTS permissions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100) DEFAULT 'SYSTEM',
-    last_modified_by VARCHAR(100) DEFAULT 'SYSTEM'
+    last_modified_by VARCHAR(100) DEFAULT 'SYSTEM',
+    deleted_at TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS role_permissions (
@@ -53,6 +55,7 @@ CREATE TABLE IF NOT EXISTS users (
     agreed_to_terms BOOLEAN NOT NULL DEFAULT FALSE,
     has_password BOOLEAN NOT NULL DEFAULT FALSE,
     password VARCHAR(255),
+    fcm_token VARCHAR(255),
     failed_login_attempts INTEGER NOT NULL DEFAULT 0,
     locked_until TIMESTAMP,
     last_failed_login_at TIMESTAMP,
@@ -60,6 +63,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100) DEFAULT 'SYSTEM',
     last_modified_by VARCHAR(100) DEFAULT 'SYSTEM',
+    deleted_at TIMESTAMP,
     CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id)
 );
 
@@ -77,6 +81,7 @@ CREATE TABLE IF NOT EXISTS staff_invites (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100) DEFAULT 'SYSTEM',
     last_modified_by VARCHAR(100) DEFAULT 'SYSTEM',
+    deleted_at TIMESTAMP,
     CONSTRAINT fk_staff_invites_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
 );
 

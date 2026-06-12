@@ -6,18 +6,18 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
-import com.daiphat.coreapi.application.port.out.lotteries.LotteryProductRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
-import com.daiphat.coreapi.domain.model.lotteries.LotteryProductModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
+import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +31,7 @@ import java.util.UUID;
 public class LotteryTicketService implements LotteryTicketServicePort {
 
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
-    private final LotteryProductRepositoryPort lotteryProductRepositoryPort;
+    private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final LotteryTicketApplicationMapper lotteryTicketApplicationMapper;
 
     @Override
@@ -39,8 +39,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     public LotteryTicketResponse create(CreateLotteryTicketRequest request, UUID importedById) {
         log.info("Importing lottery ticket with serial: {}", request.serialNumber());
 
-        LotteryProductModel product = lotteryProductRepositoryPort.findById(request.productId())
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
+        LotteryStationModel product = getProductOrThrow(request.productId());
 
         validateUniqueTicket(request.productId(), request.serialNumber(), request.numbers(), request.drawDate(), null);
 
@@ -51,7 +50,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
         if (saved.countsTowardInventory()) {
-            adjustProductInventory(product, 1);
+            persistInventoryAdjustment(product, 1);
         }
 
         log.info("Lottery ticket imported with id: {}", saved.getId());
@@ -60,23 +59,22 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     @Override
     @Transactional(readOnly = true)
-    public LotteryTicketResponse getById(UUID id) {
-        LotteryTicketModel model = lotteryTicketRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+    public LotteryTicketResponse getById(Long id) {
+        LotteryTicketModel model = getTicketOrThrow(id);
         return mapToResponse(model);
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<LotteryTicketResponse> getAll(
-            int page, int size, UUID productId, String status, String drawDate,
+            int page, int size, Long productId, String status, String drawDate,
             String search, String sortBy, String direction) {
 
-        Sort sort = Sort.by(
-                Sort.Direction.fromOptionalString(direction).orElse(Sort.Direction.DESC),
-                sortBy != null ? sortBy : "createdAt"
+        PageRequest pageable = PageRequest.of(
+                Math.max(0, page - 1),
+                size,
+                SortUtils.createSort(sortBy, direction)
         );
-        PageRequest pageable = PageRequest.of(Math.max(0, page - 1), size, sort);
 
         LotteryTicketStatus statusEnum = parseStatus(status);
         LocalDate parsedDrawDate = parseDrawDate(drawDate);
@@ -85,33 +83,23 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .findAll(pageable, productId, statusEnum, parsedDrawDate, search)
                 .map(this::mapToResponse);
 
-        return PageResponse.<LotteryTicketResponse>builder()
-                .recordList(resultPage.getContent())
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(resultPage.getTotalElements())
-                        .totalPages(resultPage.getTotalPages())
-                        .currentPage(page)
-                        .limit(size)
-                        .build())
-                .build();
+        return buildPageResponse(resultPage, page, size);
     }
 
     @Override
     @Transactional
-    public LotteryTicketResponse update(UUID id, UpdateLotteryTicketRequest request) {
+    public LotteryTicketResponse update(Long id, UpdateLotteryTicketRequest request) {
         log.info("Updating lottery ticket with id: {}", id);
 
-        LotteryTicketModel model = lotteryTicketRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+        LotteryTicketModel model = getTicketOrThrow(id);
 
         String nextSerialNumber = hasText(request.serialNumber()) ? request.serialNumber().trim() : model.getSerialNumber();
         String nextNumbers = hasText(request.numbers()) ? request.numbers().trim() : model.getNumbers();
         LocalDate nextDrawDate = request.drawDate() != null ? request.drawDate() : model.getDrawDate();
 
-        LotteryProductModel product = null;
+        LotteryStationModel product = null;
         if (hasText(request.numbers()) || request.drawDate() != null) {
-            product = lotteryProductRepositoryPort.findById(model.getProductId())
-                    .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
+            product = getProductOrThrow(model.getProductId());
         }
 
         validateUniqueTicket(model.getProductId(), nextSerialNumber, nextNumbers, nextDrawDate, id);
@@ -135,11 +123,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
 
         if (hasText(request.status())) {
-            try {
-                model.setStatus(LotteryTicketStatus.valueOf(request.status().trim().toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
-            }
+            model.setStatus(parseStatusOrThrow(request.status()));
         }
 
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
@@ -149,28 +133,30 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     @Override
     @Transactional
-    public void delete(UUID id) {
-        log.info("Deleting lottery ticket with id: {}", id);
+    public void delete(Long id) {
+        log.info("Soft deleting lottery ticket with id: {}", id);
 
-        LotteryTicketModel model = lotteryTicketRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+        LotteryTicketModel model = getTicketOrThrow(id);
 
-        if (model.countsTowardInventory()) {
-            LotteryProductModel product = lotteryProductRepositoryPort.findById(model.getProductId())
-                    .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
-            adjustProductInventory(product, -1);
+        if (model.isDeleted()) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
         }
 
-        lotteryTicketRepositoryPort.deleteById(id);
+        if (model.countsTowardInventory()) {
+            LotteryStationModel product = getProductOrThrow(model.getProductId());
+            persistInventoryAdjustment(product, -1);
+        }
+
+        model.softDelete();
+        lotteryTicketRepositoryPort.save(model);
     }
 
     @Override
     @Transactional
-    public LotteryTicketResponse verify(UUID id, UUID verifierId) {
+    public LotteryTicketResponse verify(Long id, UUID verifierId) {
         log.info("Verifying lottery ticket with id: {} by user: {}", id, verifierId);
 
-        LotteryTicketModel model = lotteryTicketRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+        LotteryTicketModel model = getTicketOrThrow(id);
 
         model.verify(verifierId);
 
@@ -180,14 +166,13 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     @Override
     @Transactional
-    public LotteryTicketResponse changeStatus(UUID id, String status) {
+    public LotteryTicketResponse changeStatus(Long id, String status) {
         log.info("Changing status of lottery ticket with id: {} to {}", id, status);
 
-        LotteryTicketModel model = lotteryTicketRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+        LotteryTicketModel model = getTicketOrThrow(id);
 
         if (status == null || status.isBlank()) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Trạng thái không được để trống.");
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_STATUS_REQUIRED);
         }
 
         boolean wasInInventory = model.countsTowardInventory();
@@ -199,24 +184,63 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             case "RETURNED_TO_ISSUER" -> model.returnToIssuer();
             case "DAMAGED" -> model.damage();
             case "EXPIRED" -> model.expire();
-            default -> throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
-                    "Trạng thái chuyển đổi không hợp lệ: " + status);
+            default -> throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
 
         boolean isInInventory = model.countsTowardInventory();
         if (wasInInventory != isInInventory) {
-            LotteryProductModel product = lotteryProductRepositoryPort.findById(model.getProductId())
-                    .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
-            adjustProductInventory(product, isInInventory ? 1 : -1);
+            LotteryStationModel product = getProductOrThrow(model.getProductId());
+            persistInventoryAdjustment(product, isInInventory ? 1 : -1);
         }
 
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
         return mapToResponse(saved);
     }
 
+    @Override
+    @Transactional
+    public void restore(Long id) {
+        log.info("Restoring lottery ticket with id: {}", id);
+
+        LotteryTicketModel model = getTicketIncludingDeletedOrThrow(id);
+
+        if (!model.isDeleted()) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_NOT_DELETED);
+        }
+
+        model.setDeletedAt(null);
+        model.setStatus(LotteryTicketStatus.IN_STOCK);
+
+        if (model.countsTowardInventory()) {
+            LotteryStationModel product = getProductOrThrow(model.getProductId());
+            persistInventoryAdjustment(product, 1);
+        }
+
+        lotteryTicketRepositoryPort.save(model);
+        log.info("Lottery ticket restored with id: {}", id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<LotteryTicketResponse> getAllDeleted(int page, int size) {
+        log.info("Getting all deleted lottery tickets, page: {}, size: {}", page, size);
+
+        PageRequest pageable = PageRequest.of(
+                Math.max(0, page - 1),
+                size,
+                SortUtils.createSort("deletedAt", "desc")
+        );
+
+        Page<LotteryTicketResponse> resultPage = lotteryTicketRepositoryPort
+                .findAllDeleted(pageable)
+                .map(this::mapToResponse);
+
+        return buildPageResponse(resultPage, page, size);
+    }
+
     private LotteryTicketResponse mapToResponse(LotteryTicketModel model) {
-        String productName = lotteryProductRepositoryPort.findById(model.getProductId())
-                .map(LotteryProductModel::getName)
+        String productName = lotteryStationRepositoryPort.findById(model.getProductId())
+                .map(LotteryStationModel::getName)
                 .orElse(null);
 
         LotteryTicketResponse base = lotteryTicketApplicationMapper.toResponse(model);
@@ -256,6 +280,14 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
     }
 
+    private LotteryTicketStatus parseStatusOrThrow(String status) {
+        try {
+            return LotteryTicketStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        }
+    }
+
     private LocalDate parseDrawDate(String drawDate) {
         if (drawDate == null || drawDate.isBlank()) {
             return null;
@@ -267,59 +299,81 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
     }
 
-    private void adjustProductInventory(LotteryProductModel product, int delta) {
+    private void persistInventoryAdjustment(LotteryStationModel product, int delta) {
         if (delta > 0) {
             product.increaseInventory(delta);
         } else if (delta < 0) {
             product.decreaseInventory(Math.abs(delta));
         }
-        lotteryProductRepositoryPort.save(product);
+        lotteryStationRepositoryPort.save(product);
     }
 
-    private void validateTicketNumbers(String numbers, LotteryProductModel product) {
+    private LotteryStationModel getProductOrThrow(Long id) {
+        return lotteryStationRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
+    }
+
+    private LotteryTicketModel getTicketOrThrow(Long id) {
+        return lotteryTicketRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+    }
+
+    private LotteryTicketModel getTicketIncludingDeletedOrThrow(Long id) {
+        return lotteryTicketRepositoryPort.findByIdIncludingDeleted(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+    }
+
+    private PageResponse<LotteryTicketResponse> buildPageResponse(
+            Page<LotteryTicketResponse> pageResult,
+            int page,
+            int size
+    ) {
+        return PageResponse.<LotteryTicketResponse>builder()
+                .recordList(pageResult.getContent())
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(pageResult.getTotalElements())
+                        .totalPages(pageResult.getTotalPages())
+                        .currentPage(page)
+                        .limit(size)
+                        .build())
+                .build();
+    }
+
+    private void validateTicketNumbers(String numbers, LotteryStationModel product) {
         if (numbers == null || numbers.isBlank()) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Dãy số vé không được để trống.");
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_NUMBERS_REQUIRED);
         }
 
         String normalizedNumbers = numbers.trim();
         if (!normalizedNumbers.matches("\\d+")) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Dãy số vé chỉ được chứa chữ số.");
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_NUMBERS_INVALID);
         }
 
         Integer requiredLength = product.getNumberLength();
         if (requiredLength != null && normalizedNumbers.length() != requiredLength) {
-            throw new DomainException(
-                    ErrorCode.INVALID_INPUT,
-                    "Dãy số vé phải gồm đúng " + requiredLength + " chữ số."
-            );
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_NUMBERS_LENGTH_INVALID);
         }
     }
 
     private void validateDrawDate(LocalDate drawDate) {
         if (drawDate == null) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Ngày quay không được để trống.");
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_DRAW_DATE_REQUIRED);
         }
 
         LocalDate today = LocalDate.now();
         LocalDate tomorrow = today.plusDays(1);
         if (!drawDate.equals(today) && !drawDate.equals(tomorrow)) {
-            throw new DomainException(
-                    ErrorCode.INVALID_INPUT,
-                    "Ngày quay chỉ được phép là hôm nay hoặc ngày mai."
-            );
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_DRAW_DATE_INVALID);
         }
     }
 
-    private void validateUniqueTicket(UUID productId, String serialNumber, String numbers, LocalDate drawDate, UUID currentId) {
+    private void validateUniqueTicket(Long productId, String serialNumber, String numbers, LocalDate drawDate, Long currentId) {
         boolean existed = currentId == null
                 ? lotteryTicketRepositoryPort.existsByUniqueFields(productId, serialNumber, numbers, drawDate)
                 : lotteryTicketRepositoryPort.existsByUniqueFieldsAndIdNot(productId, serialNumber, numbers, drawDate, currentId);
 
         if (existed) {
-            throw new DomainException(
-                    ErrorCode.LOTTERY_TICKET_SERIAL_EXISTED,
-                    "Vé số với productId, serialNumber, numbers và drawDate này đã tồn tại trong hệ thống."
-            );
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_SERIAL_EXISTED);
         }
     }
 

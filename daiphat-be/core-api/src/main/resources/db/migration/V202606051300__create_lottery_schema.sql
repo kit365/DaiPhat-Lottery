@@ -1,6 +1,6 @@
--- lottery_products
-CREATE TABLE IF NOT EXISTS lottery_products (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+-- lottery_stations
+CREATE TABLE IF NOT EXISTS lottery_stations (
+    id                  BIGSERIAL PRIMARY KEY,
     name                VARCHAR(100) NOT NULL,
     province            VARCHAR(100),
     region              VARCHAR(20),
@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS lottery_products (
     number_length       INTEGER,
     min_number          INTEGER,
     max_number          INTEGER,
-    digit_count         INTEGER,
 
     -- Giá & Tồn kho
     price               NUMERIC(15, 0) NOT NULL,
@@ -37,18 +36,19 @@ CREATE TABLE IF NOT EXISTS lottery_products (
     updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by          VARCHAR(100) DEFAULT 'SYSTEM',
     last_modified_by    VARCHAR(100) DEFAULT 'SYSTEM',
+    deleted_at          TIMESTAMP,
 
-    CONSTRAINT fk_lottery_products_approved_by
+    CONSTRAINT fk_lottery_stations_approved_by
         FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_lottery_products_status ON lottery_products(status);
-CREATE INDEX IF NOT EXISTS idx_lottery_products_type   ON lottery_products(type);
+CREATE INDEX IF NOT EXISTS idx_lottery_stations_status ON lottery_stations(status);
+CREATE INDEX IF NOT EXISTS idx_lottery_stations_type   ON lottery_stations(type);
 
 -- prize_structures
 CREATE TABLE IF NOT EXISTS prize_structures (
-    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    product_id              UUID NOT NULL,
+    id                      BIGSERIAL PRIMARY KEY,
+    product_id              BIGINT NOT NULL,
     region                  VARCHAR(20),
     is_only                 BOOLEAN NOT NULL DEFAULT FALSE,
     prize_level             VARCHAR(50) NOT NULL,
@@ -66,9 +66,10 @@ CREATE TABLE IF NOT EXISTS prize_structures (
     updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by              VARCHAR(100) DEFAULT 'SYSTEM',
     last_modified_by        VARCHAR(100) DEFAULT 'SYSTEM',
+    deleted_at              TIMESTAMP,
 
     CONSTRAINT fk_prize_structures_product_id
-        FOREIGN KEY (product_id) REFERENCES lottery_products(id) ON DELETE CASCADE
+        FOREIGN KEY (product_id) REFERENCES lottery_stations(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_prize_structures_product_id ON prize_structures(product_id);
@@ -76,8 +77,8 @@ CREATE INDEX IF NOT EXISTS idx_prize_structures_region      ON prize_structures(
 
 -- lottery_tickets
 CREATE TABLE IF NOT EXISTS lottery_tickets (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    product_id          UUID NOT NULL,
+    id                  BIGSERIAL PRIMARY KEY,
+    product_id          BIGINT NOT NULL,
     ticket_img          VARCHAR(500),
     serial_number       VARCHAR(100) NOT NULL,
     numbers             VARCHAR(100) NOT NULL,
@@ -96,14 +97,16 @@ CREATE TABLE IF NOT EXISTS lottery_tickets (
     updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by          VARCHAR(100) DEFAULT 'SYSTEM',
     last_modified_by    VARCHAR(100) DEFAULT 'SYSTEM',
+    deleted_at          TIMESTAMP,
 
     CONSTRAINT fk_lottery_tickets_product_id
-        FOREIGN KEY (product_id) REFERENCES lottery_products(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES lottery_stations(id) ON DELETE CASCADE,
     CONSTRAINT fk_lottery_tickets_imported_by
-        FOREIGN KEY (imported_by) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (imported_by) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_lottery_tickets_verified_by
         FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT uq_lottery_tickets_serial_number UNIQUE (serial_number)
+    CONSTRAINT uk_lottery_ticket_product_serial_numbers_draw_date
+        UNIQUE (product_id, serial_number, numbers, draw_date)
 );
 
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_product_id ON lottery_tickets(product_id);

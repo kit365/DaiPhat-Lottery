@@ -2,48 +2,46 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
-import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryProductRequest;
-import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryProductRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
-import com.daiphat.coreapi.application.dto.response.lotteries.LotteryProductResponse;
-import com.daiphat.coreapi.application.port.in.lotteries.LotteryProductServicePort;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
-
 @RestController
-@RequestMapping(ApiConstants.API_V1 + "/lottery-products")
+@RequestMapping(ApiConstants.API_V1 + "/lottery-stations")
 @RequiredArgsConstructor
 @Slf4j
-public class LotteryProductController {
+public class LotteryStationController {
 
     private static final String DEFAULT_PAGE = "1";
     private static final String DEFAULT_LIMIT = "10";
     private static final String ID_PATH = "/{id}";
 
-    private final LotteryProductServicePort lotteryProductServicePort;
+    private final LotteryStationServicePort lotteryStationServicePort;
 
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ticket:create')")
-    public ApiResponse<LotteryProductResponse> create(
-            @Valid @RequestBody CreateLotteryProductRequest request) {
-        LotteryProductResponse response = lotteryProductServicePort.create(request);
+    public ApiResponse<LotteryStationResponse> create(
+            @Valid @RequestBody CreateLotteryStationRequest request) {
+        LotteryStationResponse response = lotteryStationServicePort.create(request);
         return ApiResponse.success("Tạo sản phẩm vé số thành công.", response);
     }
 
     @GetMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:view')")
-    public ApiResponse<LotteryProductResponse> getById(@PathVariable UUID id) {
-        return ApiResponse.success(null, lotteryProductServicePort.getById(id));
+    public ApiResponse<LotteryStationResponse> getById(@PathVariable Long id) {
+        return ApiResponse.success(null, lotteryStationServicePort.getById(id));
     }
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ticket:view')")
-    public ApiResponse<PageResponse<LotteryProductResponse>> getAll(
+    public ApiResponse<PageResponse<LotteryStationResponse>> getAll(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
             @RequestParam(required = false) String search,
@@ -53,22 +51,22 @@ public class LotteryProductController {
             @RequestParam(required = false) String direction) {
 
         return ApiResponse.success(null,
-                lotteryProductServicePort.getAll(page, size, search, status, type, sortBy, direction));
+                lotteryStationServicePort.getAll(page, size, search, status, type, sortBy, direction));
     }
 
     @PutMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:edit')")
-    public ApiResponse<LotteryProductResponse> update(
-            @PathVariable UUID id,
-            @Valid @RequestBody UpdateLotteryProductRequest request) {
-        LotteryProductResponse response = lotteryProductServicePort.update(id, request);
+    public ApiResponse<LotteryStationResponse> update(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateLotteryStationRequest request) {
+        LotteryStationResponse response = lotteryStationServicePort.update(id, request);
         return ApiResponse.success("Cập nhật sản phẩm vé số thành công.", response);
     }
 
     @DeleteMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:delete')")
-    public ApiResponse<Void> delete(@PathVariable UUID id) {
-        lotteryProductServicePort.delete(id);
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        lotteryStationServicePort.delete(id);
         return ApiResponse.success("Xóa sản phẩm vé số thành công.");
     }
 }

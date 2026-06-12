@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.listener;
 
 import com.daiphat.coreapi.application.event.BlogPostPublishedEvent;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
+import com.daiphat.coreapi.application.port.out.notification.FcmPushPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.auth.RoleModel;
@@ -42,11 +43,14 @@ class BlogEventListenerTest {
     @Mock
     private NotificationServicePort notificationService;
 
+    @Mock
+    private FcmPushPort fcmPushPort;
+
     private BlogEventListener blogEventListener;
 
     @BeforeEach
     void setUp() {
-        blogEventListener = new BlogEventListener(userRepositoryPort, notificationService);
+        blogEventListener = new BlogEventListener(userRepositoryPort, notificationService, fcmPushPort);
     }
 
     @Test

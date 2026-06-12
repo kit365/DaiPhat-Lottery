@@ -4,7 +4,7 @@ import lombok.*;
 
 @Getter
 @RequiredArgsConstructor
-public enum LotteryProductStatus {
+public enum LotteryStationStatus {
     DRAFT("Draft - Entered by Operator, pending approval"),
     PENDING_APPROVAL("Pending Admin approval"),
     ACTIVE("Active"),

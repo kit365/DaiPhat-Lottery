@@ -4,9 +4,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.PrizeStru
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
-import java.util.UUID;
-
-public interface PrizeStructureRepository extends JpaRepository<PrizeStructureEntity, UUID> {
-    List<PrizeStructureEntity> findByProductIdOrderByDisplayOrderAsc(UUID productId);
-    void deleteByProductId(UUID productId);
+public interface PrizeStructureRepository extends JpaRepository<PrizeStructureEntity, Long> {
+    List<PrizeStructureEntity> findByProduct_IdAndDeletedAtIsNullOrderByDisplayOrderAsc(Long productId);
+    void deleteByProduct_Id(Long productId);
 }
