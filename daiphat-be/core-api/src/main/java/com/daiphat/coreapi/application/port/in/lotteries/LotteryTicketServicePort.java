@@ -11,17 +11,21 @@ public interface LotteryTicketServicePort {
 
     LotteryTicketResponse create(CreateLotteryTicketRequest request, UUID importedById);
 
-    LotteryTicketResponse getById(UUID id);
+    LotteryTicketResponse getById(Long id);
 
     PageResponse<LotteryTicketResponse> getAll(
-            int page, int size, UUID productId, String status,
+            int page, int size, Long productId, String status,
             String drawDate, String search, String sortBy, String direction);
 
-    LotteryTicketResponse update(UUID id, UpdateLotteryTicketRequest request);
+    LotteryTicketResponse update(Long id, UpdateLotteryTicketRequest request);
 
-    void delete(UUID id);
+    void delete(Long id);
 
-    LotteryTicketResponse verify(UUID id, UUID verifierId);
+    LotteryTicketResponse verify(Long id, UUID verifierId);
 
-    LotteryTicketResponse changeStatus(UUID id, String status);
+    LotteryTicketResponse changeStatus(Long id, String status);
+
+    void restore(Long id);
+
+    PageResponse<LotteryTicketResponse> getAllDeleted(int page, int size);
 }

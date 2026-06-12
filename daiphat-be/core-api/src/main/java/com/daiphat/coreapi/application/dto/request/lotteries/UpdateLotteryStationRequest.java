@@ -1,22 +1,18 @@
 package com.daiphat.coreapi.application.dto.request.lotteries;
 
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Builder
-public record CreateLotteryProductRequest(
-        @NotBlank(message = "Tên sản phẩm không được để trống")
+public record UpdateLotteryStationRequest(
         String name,
 
         String province,
         String region,
 
-        @NotBlank(message = "Loại vé không được để trống")
         String type,
 
         // Quy tắc số
@@ -24,7 +20,6 @@ public record CreateLotteryProductRequest(
         Integer minNumber,
         Integer maxNumber,
 
-        @NotNull(message = "Giá không được để trống")
         @DecimalMin(value = "0", inclusive = false, message = "Giá phải lớn hơn 0")
         BigDecimal price,
 
@@ -35,5 +30,6 @@ public record CreateLotteryProductRequest(
 
         // Hiển thị
         String description,
-        Integer displayOrder
+        Integer displayOrder,
+        String status
 ) {}

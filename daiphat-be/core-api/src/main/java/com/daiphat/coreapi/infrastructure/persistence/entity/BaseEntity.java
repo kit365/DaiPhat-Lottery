@@ -40,4 +40,7 @@ public abstract class BaseEntity {
     @LastModifiedBy
     @Column(name = "last_modified_by")
     private String lastModifiedBy;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 }

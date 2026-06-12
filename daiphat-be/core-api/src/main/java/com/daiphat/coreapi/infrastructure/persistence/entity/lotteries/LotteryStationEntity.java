@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.lotteries;
 
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductType;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
@@ -10,20 +10,18 @@ import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
-
 @Entity
-@Table(name = "lottery_products")
+@Table(name = "lottery_stations")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-public class LotteryProductEntity extends BaseEntity {
+public class LotteryStationEntity extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false, length = 100)
     private String name;
@@ -36,7 +34,7 @@ public class LotteryProductEntity extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private LotteryProductType type;
+    private LotteryStationType type;
 
     // Quy tắc số
     @Column(name = "number_length")
@@ -69,7 +67,7 @@ public class LotteryProductEntity extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private LotteryProductStatus status = LotteryProductStatus.ACTIVE;
+    private LotteryStationStatus status = LotteryStationStatus.DRAFT;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by")

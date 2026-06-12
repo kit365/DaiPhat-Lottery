@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries;
 
-import com.daiphat.coreapi.domain.model.lotteries.LotteryProductModel;
-import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryProductEntity;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -14,16 +14,16 @@ import java.util.UUID;
         componentModel = "spring",
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
-public interface LotteryProductPersistenceMapper {
+public interface LotteryStationPersistenceMapper {
 
     @Mapping(target = "approvedBy", source = "approvedById", qualifiedByName = "uuidToUserEntity")
-    LotteryProductEntity toEntity(LotteryProductModel model);
+    LotteryStationEntity toEntity(LotteryStationModel model);
 
     @Mapping(target = "approvedById", source = "approvedBy", qualifiedByName = "userEntityToUuid")
     @Mapping(target = "createdAt", source = "createdAt")
     @Mapping(target = "updatedAt", source = "updatedAt")
     @Mapping(target = "createdBy", source = "createdBy")
-    LotteryProductModel toDomain(LotteryProductEntity entity);
+    LotteryStationModel toDomain(LotteryStationEntity entity);
 
     @Named("userEntityToUuid")
     default UUID userEntityToUuid(UserEntity user) {

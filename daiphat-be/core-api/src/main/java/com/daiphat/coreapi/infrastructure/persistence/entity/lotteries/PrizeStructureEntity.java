@@ -8,8 +8,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
-import java.util.UUID;
-
 @Entity
 @Table(name = "prize_structures")
 @Getter
@@ -20,12 +18,12 @@ import java.util.UUID;
 public class PrizeStructureEntity extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
-    private LotteryProductEntity product;
+    private LotteryStationEntity product;
 
     @Column(length = 20)
     private String region;
@@ -44,7 +42,7 @@ public class PrizeStructureEntity extends BaseEntity {
     @Column(name = "prize_code", nullable = false, length = 20)
     private String prizeCode;
 
-    @Column(name = "prize_value", nullable = false, precision = 15, scale = 0)
+    @Column(name = "prize_value", nullable = false, precision = 15)
     private BigDecimal prizeValue;
 
     @Column(nullable = false)

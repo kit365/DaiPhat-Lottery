@@ -5,12 +5,10 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 
 import java.time.LocalDate;
-import java.util.UUID;
-
 @Builder
 public record CreateLotteryTicketRequest(
         @NotNull(message = "Sản phẩm vé số không được để trống")
-        UUID productId,
+        Long productId,
 
         String ticketImg,
 

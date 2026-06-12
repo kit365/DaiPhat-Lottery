@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries;
 
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
-import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryProductEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import org.mapstruct.Mapper;
@@ -29,11 +29,11 @@ public interface LotteryTicketPersistenceMapper {
     List<LotteryTicketModel> toDomainList(List<LotteryTicketEntity> entities);
 
     @Named("productIdToProductEntity")
-    default LotteryProductEntity productIdToProductEntity(UUID productId) {
+    default LotteryStationEntity productIdToProductEntity(Long productId) {
         if (productId == null) {
             return null;
         }
-        LotteryProductEntity product = new LotteryProductEntity();
+        LotteryStationEntity product = new LotteryStationEntity();
         product.setId(productId);
         return product;
     }

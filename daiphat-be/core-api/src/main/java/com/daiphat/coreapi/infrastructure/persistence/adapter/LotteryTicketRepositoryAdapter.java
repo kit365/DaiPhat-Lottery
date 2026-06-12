@@ -6,20 +6,16 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries.LotteryTicketPersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lottery.LotteryTicketRepository;
-import jakarta.persistence.criteria.Predicate;
+import com.daiphat.coreapi.infrastructure.persistence.specification.LotteryTicketSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
-
 @Component
 @RequiredArgsConstructor
 public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPort {
@@ -35,61 +31,56 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
     }
 
     @Override
-    public Optional<LotteryTicketModel> findById(UUID id) {
+    public Optional<LotteryTicketModel> findById(Long id) {
+        return lotteryTicketRepository.findOne(LotteryTicketSpecification.byId(id))
+                .map(lotteryTicketPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Optional<LotteryTicketModel> findByIdIncludingDeleted(Long id) {
         return lotteryTicketRepository.findById(id)
                 .map(lotteryTicketPersistenceMapper::toDomain);
     }
 
     @Override
     public Page<LotteryTicketModel> findAll(
-            Pageable pageable, UUID productId, LotteryTicketStatus status,
+            Pageable pageable, Long productId, LotteryTicketStatus status,
             LocalDate drawDate, String search) {
-
-        Specification<LotteryTicketEntity> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            if (productId != null) {
-                predicates.add(cb.equal(root.get("product").get("id"), productId));
-            }
-            if (status != null) {
-                predicates.add(cb.equal(root.get("status"), status));
-            }
-            if (drawDate != null) {
-                predicates.add(cb.equal(root.get("drawDate"), drawDate));
-            }
-            if (search != null && !search.isBlank()) {
-                String searchPattern = "%" + search.toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("serialNumber")), searchPattern),
-                        cb.like(cb.lower(root.get("numbers")), searchPattern),
-                        cb.like(cb.lower(root.get("batchCode")), searchPattern)
-                ));
-            }
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        return lotteryTicketRepository.findAll(spec, pageable)
+        return lotteryTicketRepository.findAll(
+                        LotteryTicketSpecification.filter(productId, status, drawDate, search),
+                        pageable
+                )
                 .map(lotteryTicketPersistenceMapper::toDomain);
     }
 
     @Override
-    public void deleteById(UUID id) {
-        lotteryTicketRepository.deleteById(id);
+    public Page<LotteryTicketModel> findAllDeleted(Pageable pageable) {
+        return lotteryTicketRepository.findAll(LotteryTicketSpecification.deleted(), pageable)
+                .map(lotteryTicketPersistenceMapper::toDomain);
     }
 
     @Override
-    public boolean existsByUniqueFields(UUID productId, String serialNumber, String numbers, LocalDate drawDate) {
-        return lotteryTicketRepository.existsByProduct_IdAndSerialNumberAndNumbersAndDrawDate(
+    public void deleteById(Long id) {
+        lotteryTicketRepository.findById(id).ifPresent(entity -> {
+            entity.setDeletedAt(LocalDateTime.now());
+            lotteryTicketRepository.save(entity);
+        });
+    }
+
+    @Override
+    public boolean existsByUniqueFields(Long productId, String serialNumber, String numbers, LocalDate drawDate) {
+        return lotteryTicketRepository.existsByProduct_IdAndSerialNumberAndNumbersAndDrawDateAndDeletedAtIsNull(
                 productId, serialNumber, numbers, drawDate);
     }
 
     @Override
-    public boolean existsByUniqueFieldsAndIdNot(UUID productId, String serialNumber, String numbers, LocalDate drawDate, UUID id) {
-        return lotteryTicketRepository.existsByProduct_IdAndSerialNumberAndNumbersAndDrawDateAndIdNot(
+    public boolean existsByUniqueFieldsAndIdNot(Long productId, String serialNumber, String numbers, LocalDate drawDate, Long id) {
+        return lotteryTicketRepository.existsByProduct_IdAndSerialNumberAndNumbersAndDrawDateAndIdNotAndDeletedAtIsNull(
                 productId, serialNumber, numbers, drawDate, id);
     }
 
     @Override
-    public long countByProductIdAndStatuses(UUID productId, Collection<LotteryTicketStatus> statuses) {
-        return lotteryTicketRepository.countByProduct_IdAndStatusIn(productId, statuses);
+    public long countByProductIdAndStatuses(Long productId, Collection<LotteryTicketStatus> statuses) {
+        return lotteryTicketRepository.countByProduct_IdAndStatusInAndDeletedAtIsNull(productId, statuses);
     }
 }
