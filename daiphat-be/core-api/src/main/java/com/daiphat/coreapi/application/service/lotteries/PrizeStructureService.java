@@ -4,11 +4,11 @@ import com.daiphat.coreapi.application.dto.request.lotteries.PrizeStructureReque
 import com.daiphat.coreapi.application.dto.response.lotteries.PrizeStructureResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.PrizeStructureApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.PrizeStructureServicePort;
-import com.daiphat.coreapi.application.port.out.lotteries.LotteryProductRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.lotteries.LotteryProductModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ import java.util.Set;
 @Slf4j
 public class PrizeStructureService implements PrizeStructureServicePort {
 
-    private final LotteryProductRepositoryPort lotteryProductRepositoryPort;
+    private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final PrizeStructureRepositoryPort prizeStructureRepositoryPort;
     private final PrizeStructureApplicationMapper prizeStructureApplicationMapper;
 
@@ -44,7 +44,7 @@ public class PrizeStructureService implements PrizeStructureServicePort {
     public List<PrizeStructureResponse> updatePrizeStructures(Long productId, List<PrizeStructureRequest> requests) {
         log.info("Updating prize structures for lottery product: {}", productId);
 
-        LotteryProductModel product = getProductOrThrow(productId);
+        LotteryStationModel product = getProductOrThrow(productId);
 
         if (requests == null || requests.isEmpty()) {
             throw new DomainException(ErrorCode.PRIZE_STRUCTURE_LIST_REQUIRED);
@@ -115,9 +115,9 @@ public class PrizeStructureService implements PrizeStructureServicePort {
         }
     }
 
-    private LotteryProductModel getProductOrThrow(Long productId) {
-        return lotteryProductRepositoryPort.findById(productId)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
+    private LotteryStationModel getProductOrThrow(Long productId) {
+        return lotteryStationRepositoryPort.findById(productId)
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
     }
 
     private Map<Long, PrizeStructureModel> getExistingPrizeStructuresById(Long productId) {

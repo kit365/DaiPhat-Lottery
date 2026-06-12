@@ -5,14 +5,14 @@ import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicket
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplicationMapper;
-import com.daiphat.coreapi.application.port.out.lotteries.LotteryProductRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductType;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
-import com.daiphat.coreapi.domain.model.lotteries.LotteryProductModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -68,12 +68,12 @@ class LotteryTicketServiceTest {
     private LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
 
     @Mock
-    private LotteryProductRepositoryPort lotteryProductRepositoryPort;
+    private LotteryStationRepositoryPort lotteryStationRepositoryPort;
 
     @Mock
     private LotteryTicketApplicationMapper lotteryTicketApplicationMapper;
 
-    private LotteryProductModel productModel;
+    private LotteryStationModel productModel;
     private CreateLotteryTicketRequest createRequest;
     private LotteryTicketModel mappedModel;
     private LotteryTicketModel existingModel;
@@ -84,21 +84,21 @@ class LotteryTicketServiceTest {
     void setUp() {
         lotteryTicketService = new LotteryTicketService(
                 lotteryTicketRepositoryPort,
-                lotteryProductRepositoryPort,
+                lotteryStationRepositoryPort,
                 lotteryTicketApplicationMapper
         );
 
-        productModel = LotteryProductModel.builder()
+        productModel = LotteryStationModel.builder()
                 .id(PRODUCT_ID)
                 .name(PRODUCT_NAME)
                 .province("Hồ Chí Minh")
                 .region("Miền Nam")
-                .type(LotteryProductType.TRADITIONAL)
+                .type(LotteryStationType.TRADITIONAL)
                 .numberLength(5)
                 .price(BigDecimal.valueOf(10000))
                 .inventoryCount(10)
                 .nextDrawDate(LocalDate.now())
-                .status(LotteryProductStatus.ACTIVE)
+                .status(LotteryStationStatus.ACTIVE)
                 .build();
 
         createRequest = CreateLotteryTicketRequest.builder()
@@ -173,13 +173,13 @@ class LotteryTicketServiceTest {
     @Test
     @DisplayName("[DP-272] CREATE: Tạo vé số thành công với dữ liệu hợp lệ và tăng tồn kho")
     void create_success_withValidDataAndIncreaseInventory() {
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFields(PRODUCT_ID, SERIAL_NUMBER, NUMBERS, createRequest.drawDate()))
                 .thenReturn(false);
         when(lotteryTicketApplicationMapper.toModel(createRequest)).thenReturn(mappedModel);
         when(lotteryTicketRepositoryPort.save(mappedModel)).thenReturn(savedModel);
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(savedModel)).thenReturn(mappedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.create(createRequest, IMPORTED_BY_ID);
@@ -192,7 +192,7 @@ class LotteryTicketServiceTest {
         assertThat(productModel.getInventoryCount()).isEqualTo(11);
 
         verify(lotteryTicketRepositoryPort).save(mappedModel);
-        verify(lotteryProductRepositoryPort).save(productModel);
+        verify(lotteryStationRepositoryPort).save(productModel);
         assertThat(mappedModel.getImportedById()).isEqualTo(IMPORTED_BY_ID);
         assertThat(mappedModel.getImportedAt()).isNotNull();
         assertThat(mappedModel.getStatus()).isEqualTo(LotteryTicketStatus.IN_STOCK);
@@ -204,39 +204,39 @@ class LotteryTicketServiceTest {
     void create_success_whenProductInventoryIsNull() {
         productModel.setInventoryCount(null);
 
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFields(PRODUCT_ID, SERIAL_NUMBER, NUMBERS, createRequest.drawDate()))
                 .thenReturn(false);
         when(lotteryTicketApplicationMapper.toModel(createRequest)).thenReturn(mappedModel);
         when(lotteryTicketRepositoryPort.save(mappedModel)).thenReturn(savedModel);
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketApplicationMapper.toResponse(savedModel)).thenReturn(mappedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.create(createRequest, IMPORTED_BY_ID);
 
         assertThat(response).isNotNull();
         assertThat(productModel.getInventoryCount()).isEqualTo(1);
-        verify(lotteryProductRepositoryPort).save(productModel);
+        verify(lotteryStationRepositoryPort).save(productModel);
     }
 
     @Test
     @DisplayName("[DP-272] CREATE: Tạo vé số thất bại khi sản phẩm không tồn tại")
-    void create_productNotFound_throwsLotteryProductNotFound() {
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.empty());
+    void create_productNotFound_throwsLotteryStationNotFound() {
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> lotteryTicketService.create(createRequest, IMPORTED_BY_ID))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND);
+                .isEqualTo(ErrorCode.LOTTERY_STATION_NOT_FOUND);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
-        verify(lotteryProductRepositoryPort, never()).save(any(LotteryProductModel.class));
+        verify(lotteryStationRepositoryPort, never()).save(any(LotteryStationModel.class));
     }
 
     @Test
     @DisplayName("[DP-272] CREATE: Tạo vé số thất bại khi trùng bộ khóa duy nhất")
     void create_duplicateUniqueFields_throwsLotteryTicketSerialExisted() {
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFields(PRODUCT_ID, SERIAL_NUMBER, NUMBERS, createRequest.drawDate()))
                 .thenReturn(true);
 
@@ -247,7 +247,7 @@ class LotteryTicketServiceTest {
 
         verify(lotteryTicketApplicationMapper, never()).toModel(any());
         verify(lotteryTicketRepositoryPort, never()).save(any());
-        verify(lotteryProductRepositoryPort, never()).save(any(LotteryProductModel.class));
+        verify(lotteryStationRepositoryPort, never()).save(any(LotteryStationModel.class));
     }
 
     @Test
@@ -271,7 +271,7 @@ class LotteryTicketServiceTest {
                 .batchCode(BATCH_CODE)
                 .build();
 
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFields(PRODUCT_ID, SERIAL_NUMBER, "   ", invalidRequest.drawDate()))
                 .thenReturn(false);
         when(lotteryTicketApplicationMapper.toModel(invalidRequest)).thenReturn(invalidModel);
@@ -279,7 +279,7 @@ class LotteryTicketServiceTest {
         assertThatThrownBy(() -> lotteryTicketService.create(invalidRequest, IMPORTED_BY_ID))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_NUMBERS_REQUIRED);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
     }
@@ -305,7 +305,7 @@ class LotteryTicketServiceTest {
                 .batchCode(BATCH_CODE)
                 .build();
 
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFields(PRODUCT_ID, SERIAL_NUMBER, "12A45", invalidRequest.drawDate()))
                 .thenReturn(false);
         when(lotteryTicketApplicationMapper.toModel(invalidRequest)).thenReturn(invalidModel);
@@ -313,7 +313,7 @@ class LotteryTicketServiceTest {
         assertThatThrownBy(() -> lotteryTicketService.create(invalidRequest, IMPORTED_BY_ID))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_NUMBERS_INVALID);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
     }
@@ -339,7 +339,7 @@ class LotteryTicketServiceTest {
                 .batchCode(BATCH_CODE)
                 .build();
 
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFields(PRODUCT_ID, SERIAL_NUMBER, "1234", invalidRequest.drawDate()))
                 .thenReturn(false);
         when(lotteryTicketApplicationMapper.toModel(invalidRequest)).thenReturn(invalidModel);
@@ -347,7 +347,7 @@ class LotteryTicketServiceTest {
         assertThatThrownBy(() -> lotteryTicketService.create(invalidRequest, IMPORTED_BY_ID))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_NUMBERS_LENGTH_INVALID);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
     }
@@ -373,7 +373,7 @@ class LotteryTicketServiceTest {
                 .batchCode(BATCH_CODE)
                 .build();
 
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFields(PRODUCT_ID, SERIAL_NUMBER, NUMBERS, null))
                 .thenReturn(false);
         when(lotteryTicketApplicationMapper.toModel(invalidRequest)).thenReturn(invalidModel);
@@ -381,7 +381,7 @@ class LotteryTicketServiceTest {
         assertThatThrownBy(() -> lotteryTicketService.create(invalidRequest, IMPORTED_BY_ID))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_DRAW_DATE_REQUIRED);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
     }
@@ -408,7 +408,7 @@ class LotteryTicketServiceTest {
                 .batchCode(BATCH_CODE)
                 .build();
 
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFields(PRODUCT_ID, SERIAL_NUMBER, NUMBERS, invalidDrawDate))
                 .thenReturn(false);
         when(lotteryTicketApplicationMapper.toModel(invalidRequest)).thenReturn(invalidModel);
@@ -416,10 +416,10 @@ class LotteryTicketServiceTest {
         assertThatThrownBy(() -> lotteryTicketService.create(invalidRequest, IMPORTED_BY_ID))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_DRAW_DATE_INVALID);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
-        verify(lotteryProductRepositoryPort, never()).save(any(LotteryProductModel.class));
+        verify(lotteryStationRepositoryPort, never()).save(any(LotteryStationModel.class));
     }
 
     @Test
@@ -473,12 +473,12 @@ class LotteryTicketServiceTest {
                 .verified(false)
                 .build();
 
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFields(PRODUCT_ID, SERIAL_NUMBER, NUMBERS, tomorrow))
                 .thenReturn(false);
         when(lotteryTicketApplicationMapper.toModel(request)).thenReturn(requestModel);
         when(lotteryTicketRepositoryPort.save(requestModel)).thenReturn(persistedModel);
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketApplicationMapper.toResponse(persistedModel)).thenReturn(response);
 
         LotteryTicketResponse result = lotteryTicketService.create(request, IMPORTED_BY_ID);
@@ -486,7 +486,7 @@ class LotteryTicketServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.drawDate()).isEqualTo(tomorrow);
         verify(lotteryTicketRepositoryPort).save(requestModel);
-        verify(lotteryProductRepositoryPort).save(productModel);
+        verify(lotteryStationRepositoryPort).save(productModel);
     }
 
     @Test
@@ -521,7 +521,7 @@ class LotteryTicketServiceTest {
                 .build();
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFieldsAndIdNot(PRODUCT_ID, UPDATED_SERIAL_NUMBER, UPDATED_NUMBERS, tomorrow, TICKET_ID))
                 .thenReturn(false);
         when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
@@ -544,7 +544,7 @@ class LotteryTicketServiceTest {
         assertThat(existingModel.getBatchCode()).isEqualTo(UPDATED_BATCH_CODE);
         assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.RESERVED);
 
-        verify(lotteryProductRepositoryPort, org.mockito.Mockito.times(2)).findById(PRODUCT_ID);
+        verify(lotteryStationRepositoryPort, org.mockito.Mockito.times(2)).findById(PRODUCT_ID);
         verify(lotteryTicketRepositoryPort).save(existingModel);
     }
 
@@ -651,7 +651,7 @@ class LotteryTicketServiceTest {
         );
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFieldsAndIdNot(PRODUCT_ID, UPDATED_SERIAL_NUMBER, UPDATED_NUMBERS, tomorrow, TICKET_ID))
                 .thenReturn(true);
 
@@ -665,7 +665,7 @@ class LotteryTicketServiceTest {
 
     @Test
     @DisplayName("[DP-325] UPDATE: Cập nhật vé số thất bại khi sản phẩm không tồn tại lúc đổi số hoặc ngày quay")
-    void update_productNotFoundWhenValidatingNumbers_throwsLotteryProductNotFound() {
+    void update_productNotFoundWhenValidatingNumbers_throwsLotteryStationNotFound() {
         UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
                 null,
                 null,
@@ -676,12 +676,12 @@ class LotteryTicketServiceTest {
         );
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.empty());
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> lotteryTicketService.update(TICKET_ID, request))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND);
+                .isEqualTo(ErrorCode.LOTTERY_STATION_NOT_FOUND);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
     }
@@ -724,14 +724,14 @@ class LotteryTicketServiceTest {
         );
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFieldsAndIdNot(PRODUCT_ID, SERIAL_NUMBER, "12A45", createRequest.drawDate(), TICKET_ID))
                 .thenReturn(false);
 
         assertThatThrownBy(() -> lotteryTicketService.update(TICKET_ID, request))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_NUMBERS_INVALID);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
     }
@@ -749,14 +749,14 @@ class LotteryTicketServiceTest {
         );
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFieldsAndIdNot(PRODUCT_ID, SERIAL_NUMBER, "1234", createRequest.drawDate(), TICKET_ID))
                 .thenReturn(false);
 
         assertThatThrownBy(() -> lotteryTicketService.update(TICKET_ID, request))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_NUMBERS_LENGTH_INVALID);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
     }
@@ -775,14 +775,14 @@ class LotteryTicketServiceTest {
         );
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketRepositoryPort.existsByUniqueFieldsAndIdNot(PRODUCT_ID, SERIAL_NUMBER, NUMBERS, invalidDrawDate, TICKET_ID))
                 .thenReturn(false);
 
         assertThatThrownBy(() -> lotteryTicketService.update(TICKET_ID, request))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_DRAW_DATE_INVALID);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
     }
@@ -819,7 +819,7 @@ class LotteryTicketServiceTest {
     @DisplayName("[DP-325] GET_BY_ID: Lấy chi tiết vé số thành công với đầy đủ thông tin")
     void getById_success_returnsTicketDetails() {
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.getById(TICKET_ID);
@@ -837,7 +837,7 @@ class LotteryTicketServiceTest {
         assertThat(response.verified()).isFalse();
 
         verify(lotteryTicketRepositoryPort).findById(TICKET_ID);
-        verify(lotteryProductRepositoryPort).findById(PRODUCT_ID);
+        verify(lotteryStationRepositoryPort).findById(PRODUCT_ID);
     }
 
     @Test
@@ -851,7 +851,7 @@ class LotteryTicketServiceTest {
                 .isEqualTo(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
 
         verify(lotteryTicketRepositoryPort).findById(TICKET_ID);
-        verify(lotteryProductRepositoryPort, never()).findById(any());
+        verify(lotteryStationRepositoryPort, never()).findById(any());
     }
 
     // ============================================================
@@ -869,7 +869,7 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), eq(PRODUCT_ID), any(), any(), any()))
                 .thenReturn(ticketPage);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
         when(lotteryTicketApplicationMapper.toResponse(savedModel)).thenReturn(mappedResponse);
 
@@ -895,7 +895,7 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), eq(PRODUCT_ID), eq(LotteryTicketStatus.IN_STOCK), any(), any()))
                 .thenReturn(ticketPage);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
@@ -919,7 +919,7 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), eq(drawDate), any()))
                 .thenReturn(ticketPage);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
@@ -941,7 +941,7 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), eq("123")))
                 .thenReturn(ticketPage);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
@@ -985,7 +985,7 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any()))
                 .thenReturn(ticketPage);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
@@ -1007,7 +1007,7 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), eq(null), any(), any()))
                 .thenReturn(ticketPage);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
@@ -1029,7 +1029,7 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), eq(null), any()))
                 .thenReturn(ticketPage);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
@@ -1051,15 +1051,15 @@ class LotteryTicketServiceTest {
         productModel.setInventoryCount(initialInventory);
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
 
         lotteryTicketService.delete(TICKET_ID);
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory - 1);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryProductRepositoryPort).save(productModel);
+        verify(lotteryStationRepositoryPort).save(productModel);
     }
 
     @Test
@@ -1070,15 +1070,15 @@ class LotteryTicketServiceTest {
         productModel.setInventoryCount(initialInventory);
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
 
         lotteryTicketService.delete(TICKET_ID);
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory - 1);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryProductRepositoryPort).save(productModel);
+        verify(lotteryStationRepositoryPort).save(productModel);
     }
 
     @Test
@@ -1095,7 +1095,7 @@ class LotteryTicketServiceTest {
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryProductRepositoryPort, never()).save(any());
+        verify(lotteryStationRepositoryPort, never()).save(any());
     }
 
     @Test
@@ -1112,7 +1112,7 @@ class LotteryTicketServiceTest {
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryProductRepositoryPort, never()).save(any());
+        verify(lotteryStationRepositoryPort, never()).save(any());
     }
 
     @Test
@@ -1129,7 +1129,7 @@ class LotteryTicketServiceTest {
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryProductRepositoryPort, never()).save(any());
+        verify(lotteryStationRepositoryPort, never()).save(any());
     }
 
     @Test
@@ -1146,7 +1146,7 @@ class LotteryTicketServiceTest {
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryProductRepositoryPort, never()).save(any());
+        verify(lotteryStationRepositoryPort, never()).save(any());
     }
 
     @Test
@@ -1163,7 +1163,7 @@ class LotteryTicketServiceTest {
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryProductRepositoryPort, never()).save(any());
+        verify(lotteryStationRepositoryPort, never()).save(any());
     }
 
     @Test
@@ -1177,50 +1177,50 @@ class LotteryTicketServiceTest {
                 .isEqualTo(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
-        verify(lotteryProductRepositoryPort, never()).save(any());
+        verify(lotteryStationRepositoryPort, never()).save(any());
     }
 
     @Test
     @DisplayName("[DP-325] DELETE: Xóa vé số thất bại khi product không tồn tại - ném DomainException")
     void delete_productNotFound_throwsDomainException() {
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.empty());
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND);
+                .isEqualTo(ErrorCode.LOTTERY_STATION_NOT_FOUND);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
-        verify(lotteryProductRepositoryPort, never()).save(any());
+        verify(lotteryStationRepositoryPort, never()).save(any());
     }
 
     @Test
     @DisplayName("[DP-325] DELETE: Xóa vé số khi tồn kho đang là 0 vẫn thành công - save product được gọi")
     void delete_whenInventoryIsZero_success_callsSaveProduct() {
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
 
         lotteryTicketService.delete(TICKET_ID);
 
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryProductRepositoryPort).save(any(LotteryProductModel.class));
+        verify(lotteryStationRepositoryPort).save(any(LotteryStationModel.class));
     }
 
     @Test
     @DisplayName("[DP-325] DELETE: Xóa vé số khi tồn kho là null không gây NullPointerException - save product được gọi")
     void delete_whenInventoryIsNull_success_callsSaveProduct() {
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
 
         lotteryTicketService.delete(TICKET_ID);
 
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryProductRepositoryPort).save(any(LotteryProductModel.class));
+        verify(lotteryStationRepositoryPort).save(any(LotteryStationModel.class));
     }
 
     @Test
@@ -1234,8 +1234,8 @@ class LotteryTicketServiceTest {
                 .build();
 
         when(lotteryTicketRepositoryPort.findById(differentTicketId)).thenReturn(Optional.of(differentTicket));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(differentTicket);
 
         lotteryTicketService.delete(differentTicketId);
@@ -1248,8 +1248,8 @@ class LotteryTicketServiceTest {
     @DisplayName("[DP-325] DELETE: Xóa vé số soft delete - gọi softDelete() trên model và save()")
     void delete_callsSoftDeleteAndSave() {
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
 
         lotteryTicketService.delete(TICKET_ID);
@@ -1264,14 +1264,14 @@ class LotteryTicketServiceTest {
         productModel.setInventoryCount(initialInventory);
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
 
         lotteryTicketService.delete(TICKET_ID);
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory - 1);
-        verify(lotteryProductRepositoryPort).save(productModel);
+        verify(lotteryStationRepositoryPort).save(productModel);
     }
 
     @Test
@@ -1284,8 +1284,8 @@ class LotteryTicketServiceTest {
         productModel.setInventoryCount(initialInventory);
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
 
         lotteryTicketService.delete(TICKET_ID);
@@ -1305,8 +1305,8 @@ class LotteryTicketServiceTest {
         productModel.setInventoryCount(initialInventory);
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
 
         lotteryTicketService.delete(TICKET_ID);
@@ -1318,30 +1318,30 @@ class LotteryTicketServiceTest {
     @Test
     @DisplayName("[DP-325] DELETE: Xóa vé số khi product inventory chưa được set - save product được gọi")
     void delete_productWithUninitializedInventory_callsSave() {
-        LotteryProductModel uninitializedProduct = LotteryProductModel.builder()
+        LotteryStationModel uninitializedProduct = LotteryStationModel.builder()
                 .id(PRODUCT_ID)
                 .name(PRODUCT_NAME)
                 .inventoryCount(null)
                 .build();
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(uninitializedProduct));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(uninitializedProduct);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(uninitializedProduct));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(uninitializedProduct);
         when(lotteryTicketRepositoryPort.save(any(LotteryTicketModel.class))).thenReturn(existingModel);
 
         lotteryTicketService.delete(TICKET_ID);
 
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryProductRepositoryPort).save(any(LotteryProductModel.class));
+        verify(lotteryStationRepositoryPort).save(any(LotteryStationModel.class));
     }
 
     @Test
     @DisplayName("[DP-325] DELETE: Xóa vé số thất bại khi repository ném DataAccessException khi save product")
     void delete_repositoryThrowsDataAccessExceptionOnProductSave_propagates() {
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         org.mockito.Mockito.doThrow(new org.springframework.dao.DataAccessResourceFailureException("Database error"))
-                .when(lotteryProductRepositoryPort).save(any());
+                .when(lotteryStationRepositoryPort).save(any());
 
         assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
                 .isInstanceOf(org.springframework.dao.DataAccessResourceFailureException.class);
@@ -1395,7 +1395,7 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.verify(TICKET_ID, verifierId);
@@ -1437,7 +1437,7 @@ class LotteryTicketServiceTest {
         assertThatThrownBy(() -> lotteryTicketService.verify(TICKET_ID, newVerifierId))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_ALREADY_VERIFIED);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
     }
@@ -1458,7 +1458,7 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "RESERVED");
@@ -1482,8 +1482,8 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "SOLD_ONLINE");
@@ -1493,7 +1493,7 @@ class LotteryTicketServiceTest {
         assertThat(productModel.getInventoryCount()).isEqualTo(9);
 
         verify(lotteryTicketRepositoryPort).save(existingModel);
-        verify(lotteryProductRepositoryPort).save(productModel);
+        verify(lotteryStationRepositoryPort).save(productModel);
     }
 
     @Test
@@ -1510,8 +1510,8 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "SOLD_OFFLINE");
@@ -1520,7 +1520,7 @@ class LotteryTicketServiceTest {
         assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_OFFLINE);
         assertThat(productModel.getInventoryCount()).isEqualTo(9);
 
-        verify(lotteryProductRepositoryPort).save(productModel);
+        verify(lotteryStationRepositoryPort).save(productModel);
     }
 
     @Test
@@ -1538,8 +1538,8 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryProductRepositoryPort.save(any(LotteryProductModel.class))).thenReturn(productModel);
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "SOLD_ONLINE");
@@ -1548,7 +1548,7 @@ class LotteryTicketServiceTest {
         assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_ONLINE);
         assertThat(productModel.getInventoryCount()).isEqualTo(9);
 
-        verify(lotteryProductRepositoryPort).save(productModel);
+        verify(lotteryStationRepositoryPort).save(productModel);
     }
 
     @Test
@@ -1578,7 +1578,7 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "DAMAGED");
@@ -1599,7 +1599,7 @@ class LotteryTicketServiceTest {
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
-        when(lotteryProductRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "EXPIRED");
@@ -1629,7 +1629,7 @@ class LotteryTicketServiceTest {
         assertThatThrownBy(() -> lotteryTicketService.changeStatus(TICKET_ID, null))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_STATUS_REQUIRED);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
     }
@@ -1642,7 +1642,7 @@ class LotteryTicketServiceTest {
         assertThatThrownBy(() -> lotteryTicketService.changeStatus(TICKET_ID, "   "))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_STATUS_REQUIRED);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
     }

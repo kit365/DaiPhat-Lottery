@@ -1,9 +1,9 @@
 package com.daiphat.coreapi.application.mapper.lotteries;
 
-import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryProductRequest;
-import com.daiphat.coreapi.application.dto.response.lotteries.LotteryProductResponse;
-import com.daiphat.coreapi.domain.model.lotteries.LotteryProductModel;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductType;
+import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
@@ -13,22 +13,22 @@ import org.mapstruct.ReportingPolicy;
         componentModel = "spring",
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
-public interface LotteryProductApplicationMapper {
+public interface LotteryStationApplicationMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "approvedById", ignore = true)
     @Mapping(target = "approvedAt", ignore = true)
     @Mapping(target = "type", source = "type", qualifiedByName = "stringToType")
-    LotteryProductModel toModel(CreateLotteryProductRequest request);
+    LotteryStationModel toModel(CreateLotteryStationRequest request);
 
     @Mapping(target = "type", expression = "java(model.getType() != null ? model.getType().name() : null)")
     @Mapping(target = "status", expression = "java(model.getStatus() != null ? model.getStatus().name() : null)")
-    LotteryProductResponse toResponse(LotteryProductModel model);
+    LotteryStationResponse toResponse(LotteryStationModel model);
 
     @Named("stringToType")
-    default LotteryProductType stringToType(String type) {
+    default LotteryStationType stringToType(String type) {
         if (type == null) return null;
-        return LotteryProductType.valueOf(type.toUpperCase());
+        return LotteryStationType.valueOf(type.toUpperCase());
     }
 }

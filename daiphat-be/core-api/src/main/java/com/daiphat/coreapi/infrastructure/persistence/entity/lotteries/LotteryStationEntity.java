@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.lotteries;
 
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryProductType;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
@@ -34,7 +34,7 @@ public class LotteryStationEntity extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private LotteryProductType type;
+    private LotteryStationType type;
 
     // Quy tắc số
     @Column(name = "number_length")
@@ -67,7 +67,7 @@ public class LotteryStationEntity extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private LotteryProductStatus status = LotteryProductStatus.DRAFT;
+    private LotteryStationStatus status = LotteryStationStatus.DRAFT;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by")

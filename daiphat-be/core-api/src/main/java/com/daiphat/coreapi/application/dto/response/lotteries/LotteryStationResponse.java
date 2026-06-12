@@ -7,7 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 @Builder
-public record LotteryProductResponse(
+public record LotteryStationResponse(
         Long id,
         String name,
         String province,

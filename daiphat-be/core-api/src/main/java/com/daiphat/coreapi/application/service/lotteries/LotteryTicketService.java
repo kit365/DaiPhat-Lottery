@@ -6,12 +6,12 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
-import com.daiphat.coreapi.application.port.out.lotteries.LotteryProductRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
-import com.daiphat.coreapi.domain.model.lotteries.LotteryProductModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +31,7 @@ import java.util.UUID;
 public class LotteryTicketService implements LotteryTicketServicePort {
 
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
-    private final LotteryProductRepositoryPort lotteryProductRepositoryPort;
+    private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final LotteryTicketApplicationMapper lotteryTicketApplicationMapper;
 
     @Override
@@ -39,7 +39,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     public LotteryTicketResponse create(CreateLotteryTicketRequest request, UUID importedById) {
         log.info("Importing lottery ticket with serial: {}", request.serialNumber());
 
-        LotteryProductModel product = getProductOrThrow(request.productId());
+        LotteryStationModel product = getProductOrThrow(request.productId());
 
         validateUniqueTicket(request.productId(), request.serialNumber(), request.numbers(), request.drawDate(), null);
 
@@ -97,7 +97,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         String nextNumbers = hasText(request.numbers()) ? request.numbers().trim() : model.getNumbers();
         LocalDate nextDrawDate = request.drawDate() != null ? request.drawDate() : model.getDrawDate();
 
-        LotteryProductModel product = null;
+        LotteryStationModel product = null;
         if (hasText(request.numbers()) || request.drawDate() != null) {
             product = getProductOrThrow(model.getProductId());
         }
@@ -143,7 +143,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
 
         if (model.countsTowardInventory()) {
-            LotteryProductModel product = getProductOrThrow(model.getProductId());
+            LotteryStationModel product = getProductOrThrow(model.getProductId());
             persistInventoryAdjustment(product, -1);
         }
 
@@ -189,7 +189,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
         boolean isInInventory = model.countsTowardInventory();
         if (wasInInventory != isInInventory) {
-            LotteryProductModel product = getProductOrThrow(model.getProductId());
+            LotteryStationModel product = getProductOrThrow(model.getProductId());
             persistInventoryAdjustment(product, isInInventory ? 1 : -1);
         }
 
@@ -212,7 +212,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         model.setStatus(LotteryTicketStatus.IN_STOCK);
 
         if (model.countsTowardInventory()) {
-            LotteryProductModel product = getProductOrThrow(model.getProductId());
+            LotteryStationModel product = getProductOrThrow(model.getProductId());
             persistInventoryAdjustment(product, 1);
         }
 
@@ -239,8 +239,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     }
 
     private LotteryTicketResponse mapToResponse(LotteryTicketModel model) {
-        String productName = lotteryProductRepositoryPort.findById(model.getProductId())
-                .map(LotteryProductModel::getName)
+        String productName = lotteryStationRepositoryPort.findById(model.getProductId())
+                .map(LotteryStationModel::getName)
                 .orElse(null);
 
         LotteryTicketResponse base = lotteryTicketApplicationMapper.toResponse(model);
@@ -299,18 +299,18 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
     }
 
-    private void persistInventoryAdjustment(LotteryProductModel product, int delta) {
+    private void persistInventoryAdjustment(LotteryStationModel product, int delta) {
         if (delta > 0) {
             product.increaseInventory(delta);
         } else if (delta < 0) {
             product.decreaseInventory(Math.abs(delta));
         }
-        lotteryProductRepositoryPort.save(product);
+        lotteryStationRepositoryPort.save(product);
     }
 
-    private LotteryProductModel getProductOrThrow(Long id) {
-        return lotteryProductRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_PRODUCT_NOT_FOUND));
+    private LotteryStationModel getProductOrThrow(Long id) {
+        return lotteryStationRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
     }
 
     private LotteryTicketModel getTicketOrThrow(Long id) {
@@ -339,7 +339,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .build();
     }
 
-    private void validateTicketNumbers(String numbers, LotteryProductModel product) {
+    private void validateTicketNumbers(String numbers, LotteryStationModel product) {
         if (numbers == null || numbers.isBlank()) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_NUMBERS_REQUIRED);
         }
