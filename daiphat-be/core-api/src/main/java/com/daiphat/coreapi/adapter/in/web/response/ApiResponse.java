@@ -22,7 +22,7 @@ public class ApiResponse<T> {
 
     @JsonView(Views.Public.class)
     @Builder.Default
-    boolean isSuccess = true;
+    boolean success = true;
 
     @JsonView(Views.Public.class)
     @Builder.Default
@@ -49,14 +49,14 @@ public class ApiResponse<T> {
 
     public static <T> ApiResponse<T> error(String message) {
         return ApiResponse.<T>builder()
-                .isSuccess(false)
+                .success(false)
                 .message(message)
                 .build();
     }
 
     public static <T> ApiResponse<T> error(String message, T data) {
         return ApiResponse.<T>builder()
-                .isSuccess(false)
+                .success(false)
                 .message(message)
                 .data(data)
                 .build();

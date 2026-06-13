@@ -7,22 +7,25 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.List;
 public interface LotteryTicketRepository
         extends JpaRepository<LotteryTicketEntity, Long>,
         JpaSpecificationExecutor<LotteryTicketEntity> {
 
-    boolean existsByProduct_IdAndSerialNumberAndNumbersAndDrawDateAndDeletedAtIsNull(
+    boolean existsByStation_IdAndSerialNumberAndNumbersAndDrawDateAndDeletedAtIsNull(
             Long productId,
             String serialNumber,
             String numbers,
             LocalDate drawDate);
 
-    boolean existsByProduct_IdAndSerialNumberAndNumbersAndDrawDateAndIdNotAndDeletedAtIsNull(
+    boolean existsByStation_IdAndSerialNumberAndNumbersAndDrawDateAndIdNotAndDeletedAtIsNull(
             Long productId,
             String serialNumber,
             String numbers,
             LocalDate drawDate,
             Long id);
 
-    long countByProduct_IdAndStatusInAndDeletedAtIsNull(Long productId, Collection<LotteryTicketStatus> statuses);
+    List<LotteryTicketEntity> findAllByDrawDateBeforeAndStatusInAndDeletedAtIsNull(LocalDate beforeDate, Collection<LotteryTicketStatus> statuses);
+
+    long countByStation_IdAndStatusInAndDeletedAtIsNull(Long productId, Collection<LotteryTicketStatus> statuses);
 }

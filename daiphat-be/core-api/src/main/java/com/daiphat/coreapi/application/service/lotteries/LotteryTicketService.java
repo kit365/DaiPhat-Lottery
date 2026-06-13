@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
+import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -23,12 +24,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class LotteryTicketService implements LotteryTicketServicePort {
+
+    private static final List<LotteryTicketStatus> EXPIRABLE_STATUSES = List.of(
+            LotteryTicketStatus.IN_STOCK,
+            LotteryTicketStatus.RESERVED,
+            LotteryTicketStatus.PROXY_HOLDING
+    );
 
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
     private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
@@ -179,11 +187,12 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
         switch (status.toUpperCase()) {
             case "RESERVED" -> model.reserve();
-            case "SOLD_ONLINE" -> model.sellOnline();
-            case "SOLD_OFFLINE" -> model.sellOffline();
-            case "RETURNED_TO_ISSUER" -> model.returnToIssuer();
-            case "DAMAGED" -> model.damage();
-            case "EXPIRED" -> model.expire();
+            case "SOLD" -> model.sellOnline();
+            case "PROXY_HOLDING" -> model.holdForProxy();
+            case "PENDING_RETURN" -> model.requestReturn();
+            case "RETURNED" -> model.confirmReturned();
+            case "INTERNAL_FAULT" -> model.markInternalFault();
+            case "ISSUER_FAULT" -> model.markIssuerFault();
             default -> throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
 
@@ -195,6 +204,53 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
         return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public OrderTicketSnapshot reserveForOrder(Long ticketId) {
+        LotteryTicketModel ticket = getTicketOrThrow(ticketId);
+        LotteryStationModel station = getProductOrThrow(ticket.getProductId());
+
+        ensureTicketAvailableForReserve(ticket);
+        ticket.reserve();
+        lotteryTicketRepositoryPort.save(ticket);
+
+        return new OrderTicketSnapshot(ticket.getId(), station.getPrice());
+    }
+
+    @Override
+    @Transactional
+    public OrderTicketSnapshot sellOfflineForOrder(Long ticketId) {
+        LotteryTicketModel ticket = getTicketOrThrow(ticketId);
+        LotteryStationModel station = getProductOrThrow(ticket.getProductId());
+
+        ensureTicketAvailableForDirectSale(ticket);
+        ticket.sellOffline();
+        lotteryTicketRepositoryPort.save(ticket);
+        persistInventoryAdjustment(station, -1);
+
+        return new OrderTicketSnapshot(ticket.getId(), station.getPrice());
+    }
+
+    @Override
+    @Transactional
+    public void markSoldForOrder(Long ticketId) {
+        LotteryTicketModel ticket = getTicketOrThrow(ticketId);
+        ensureTicketAvailableForOnlineSale(ticket);
+        ticket.sellOnline();
+        lotteryTicketRepositoryPort.save(ticket);
+    }
+
+    @Override
+    @Transactional
+    public int expireDueTickets() {
+        List<LotteryTicketModel> tickets = lotteryTicketRepositoryPort.findExpirableTickets(LocalDate.now(), EXPIRABLE_STATUSES);
+        tickets.forEach(ticket -> {
+            ticket.expire();
+            lotteryTicketRepositoryPort.save(ticket);
+        });
+        return tickets.size();
     }
 
     @Override
@@ -306,6 +362,37 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             product.decreaseInventory(Math.abs(delta));
         }
         lotteryStationRepositoryPort.save(product);
+    }
+
+    private void ensureTicketAvailableForReserve(LotteryTicketModel ticket) {
+        if (ticket.getStatus() != LotteryTicketStatus.IN_STOCK) {
+            throw invalidTicketStatus(ticket, List.of(LotteryTicketStatus.IN_STOCK));
+        }
+    }
+
+    private void ensureTicketAvailableForDirectSale(LotteryTicketModel ticket) {
+        if (ticket.getStatus() != LotteryTicketStatus.IN_STOCK) {
+            throw invalidTicketStatus(ticket, List.of(LotteryTicketStatus.IN_STOCK));
+        }
+    }
+
+    private void ensureTicketAvailableForOnlineSale(LotteryTicketModel ticket) {
+        if (ticket.getStatus() != LotteryTicketStatus.IN_STOCK && ticket.getStatus() != LotteryTicketStatus.RESERVED) {
+            throw invalidTicketStatus(ticket, List.of(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.RESERVED));
+        }
+    }
+
+    private DomainException invalidTicketStatus(LotteryTicketModel ticket, List<LotteryTicketStatus> allowedStatuses) {
+        String allowedStatusText = allowedStatuses.stream().map(Enum::name).toList().toString();
+        return new DomainException(
+                ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                String.format(
+                        "Ve so #%d dang o trang thai %s nen khong the thuc hien thao tac nay. Trang thai hop le: %s.",
+                        ticket.getId(),
+                        ticket.getStatus().name(),
+                        allowedStatusText
+                )
+        );
     }
 
     private LotteryStationModel getProductOrThrow(Long id) {
