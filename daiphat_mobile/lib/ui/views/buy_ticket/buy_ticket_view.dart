@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../viewmodels/buy_ticket_viewmodel.dart';
-import 'package:intl/intl.dart';
 
 class BuyTicketView extends ConsumerWidget {
   const BuyTicketView({super.key});
@@ -13,639 +14,536 @@ class BuyTicketView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(buyTicketViewModelProvider);
     final viewModel = ref.read(buyTicketViewModelProvider.notifier);
+    final tickets = state.filteredTickets;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFFFFBF8),
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
         title: const Text(
-          'Mua vé số',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          'Vé số đang mở bán',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 22,
+            color: AppColors.ink,
+          ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => context.go(AppRoute.home.path),
         ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16.0),
-              children: [
-                _buildBreadcrumb(context),
-                const SizedBox(height: 16),
-                _buildStep(context, '1', 'Chọn ngày mở thưởng', [
-                  _buildOptionCard(
-                    title: 'Hôm nay',
-                    subtitle: '09/02/2025 (Chủ nhật)',
-                    isSelected: state.selectedDate == 'Hôm nay',
-                    onTap: () => viewModel.selectDate(
-                      'Hôm nay',
-                      '09/02/2025 (Chủ nhật)',
-                    ),
-                  ),
-                  _buildOptionCard(
-                    title: 'Ngày mai',
-                    subtitle: '10/02/2025 (Thứ hai)',
-                    isSelected: state.selectedDate == 'Ngày mai',
-                    onTap: () => viewModel.selectDate(
-                      'Ngày mai',
-                      '10/02/2025 (Thứ hai)',
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 16),
-                _buildStep(context, '2', 'Chọn đài mở thưởng', [
-                  _buildOptionCard(
-                    title: 'TP. Hồ Chí Minh',
-                    subtitle: '16:15 • Hôm nay',
-                    isSelected: state.selectedProvince == 'TP. Hồ Chí Minh',
-                    icon: Icons.location_city,
-                    onTap: () => viewModel.selectProvince(
-                      'TP. Hồ Chí Minh',
-                      '16:15 • Hôm nay',
-                    ),
-                  ),
-                  _buildOptionCard(
-                    title: 'Đồng Nai',
-                    subtitle: '16:20 • Hôm nay',
-                    isSelected: state.selectedProvince == 'Đồng Nai',
-                    icon: Icons.map,
-                    onTap: () =>
-                        viewModel.selectProvince('Đồng Nai', '16:20 • Hôm nay'),
-                  ),
-                ]),
-                const SizedBox(height: 16),
-                _buildNumberSelection(context, ref, state, viewModel),
-              ],
-            ),
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.tune_rounded, color: AppColors.primary),
           ),
-          _buildBottomSection(context, state, viewModel),
         ],
       ),
-    );
-  }
-
-  Widget _buildBreadcrumb(BuildContext context) {
-    return Row(
-      children: [
-        const Text(
-          'Trang chủ',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-        ),
-        const Icon(
-          Icons.chevron_right,
-          size: 16,
-          color: AppColors.textSecondary,
-        ),
-        const Text(
-          'Mua vé số',
-          style: TextStyle(
-            color: AppColors.primary,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFFBF8), Color(0xFFFFF2ED)],
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildStep(
-    BuildContext context,
-    String step,
-    String title,
-    List<Widget> options,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFDE8E8)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: SafeArea(
+          top: false,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
-              Container(
-                width: 24,
-                height: 24,
-                decoration: const BoxDecoration(
-                  color: AppColors.primaryDark,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    step,
-                    style: const TextStyle(
-                      color: AppColors.surface,
-                      fontWeight: FontWeight.bold,
+              _SearchField(
+                initialValue: state.searchQuery,
+                onChanged: viewModel.updateSearchQuery,
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 11,
+                    child: _ProvinceFilter(
+                      provinces: state.provinces,
+                      selectedProvince: state.selectedProvince,
+                      onChanged: viewModel.selectProvince,
                     ),
                   ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 10,
+                    child: _DateChip(
+                      title: 'Hôm nay',
+                      date: '09/02/2025',
+                      isSelected: state.selectedDay == TicketDayFilter.today,
+                      onTap: () => viewModel.selectDay(TicketDayFilter.today),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 10,
+                    child: _DateChip(
+                      title: 'Ngày mai',
+                      date: '10/02/2025',
+                      isSelected:
+                          state.selectedDay == TicketDayFilter.tomorrow,
+                      onTap: () => viewModel.selectDay(TicketDayFilter.tomorrow),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _ResultSummary(
+                visibleCount: tickets.length,
+                matchedCount: tickets.length,
+              ),
+              const SizedBox(height: 14),
+              ...tickets.map(
+                (ticket) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _TicketCard(ticket: ticket),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              if (tickets.isEmpty) const _EmptyState(),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: options
-                .map(
-                  (e) => Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: e,
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-        ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildOptionCard({
-    required String title,
-    required String subtitle,
-    required bool isSelected,
-    IconData? icon,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : const Color(0xFFE5E7EB),
-            width: isSelected ? 2 : 1,
+class _SearchField extends StatefulWidget {
+  const _SearchField({
+    required this.initialValue,
+    required this.onChanged,
+  });
+
+  final String initialValue;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<_SearchField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialValue != _controller.text) {
+      _controller.text = widget.initialValue;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      onChanged: widget.onChanged,
+      keyboardType: TextInputType.number,
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+        color: AppColors.ink,
+      ),
+      decoration: InputDecoration(
+        hintText: 'Nhập dãy số (tối đa 6 chữ số)',
+        hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+        prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF6B7280)),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 18),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Color(0xFFE8E8EE)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProvinceFilter extends StatelessWidget {
+  const _ProvinceFilter({
+    required this.provinces,
+    required this.selectedProvince,
+    required this.onChanged,
+  });
+
+  final List<String> provinces;
+  final String selectedProvince;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE8E8EE)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: selectedProvince,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+          borderRadius: BorderRadius.circular(18),
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
           ),
+          items: provinces
+              .map(
+                (province) => DropdownMenuItem<String>(
+                  value: province,
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.storefront_outlined,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(child: Text(province)),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value != null) {
+              onChanged(value);
+            }
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _DateChip extends StatelessWidget {
+  const _DateChip({
+    required this.title,
+    required this.date,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String date;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : const Color(0xFFE8E8EE),
+            width: isSelected ? 1.4 : 1,
+          ),
+          boxShadow: isSelected
+              ? const [
+                  BoxShadow(
+                    color: Color(0x14D31010),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
           children: [
-            if (icon != null)
-              Icon(
-                icon,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
-              ),
-            if (icon != null) const SizedBox(height: 8),
             Text(
               title,
               style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppColors.ink,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? AppColors.primary : AppColors.ink,
               ),
             ),
+            const SizedBox(height: 4),
             Text(
-              subtitle,
+              date,
               style: const TextStyle(
-                fontSize: 10,
-                color: AppColors.textSecondary,
+                fontSize: 12,
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w500,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildNumberSelection(
-    BuildContext context,
-    WidgetRef ref,
-    BuyTicketState state,
-    BuyTicketViewModel viewModel,
-  ) {
-    final numbers = [
-      {'num': '853911', 'left': 'Còn 12 vé'},
-      {'num': '122456', 'left': 'Còn 05 vé'},
-      {'num': '456789', 'left': 'Còn 08 vé'},
-      {'num': '777888', 'left': 'Còn 02 vé'},
-      {'num': '000000', 'left': 'Còn 15 vé'},
-      {'num': '111111', 'left': 'Còn 10 vé'},
-    ];
+class _ResultSummary extends StatelessWidget {
+  const _ResultSummary({
+    required this.visibleCount,
+    required this.matchedCount,
+  });
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFDE8E8)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 24,
-                height: 24,
-                decoration: const BoxDecoration(
-                  color: AppColors.primaryDark,
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Text(
-                    '3',
-                    style: TextStyle(
-                      color: AppColors.surface,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: RichText(
-                  text: TextSpan(
-                    style: Theme.of(context).textTheme.titleMedium,
-                    children: [
-                      const TextSpan(text: 'Chọn số • '),
-                      TextSpan(
-                        text:
-                            '${state.selectedProvince} • ${state.provinceDetail.split(' • ')[0]}',
-                        style: const TextStyle(color: AppColors.primary),
-                      ),
-                    ],
-                  ),
-                ),
+  final int visibleCount;
+  final int matchedCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(
+          Icons.info_outline_rounded,
+          size: 18,
+          color: Color(0xFF94A3B8),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          'Hiển thị $visibleCount vé',
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          '$matchedCount vé phù hợp',
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TicketCard extends StatelessWidget {
+  const _TicketCard({required this.ticket});
+
+  final LotteryTicketListItem ticket;
+
+  @override
+  Widget build(BuildContext context) {
+    final currencyFormatter = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: 'đ',
+      decimalDigits: 0,
+    );
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: () {},
+        child: Ink(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFF1E3E0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x12000000),
+                blurRadius: 18,
+                offset: Offset(0, 8),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          TextField(
-            decoration: InputDecoration(
-              hintText: 'Tìm số (VD: 12345)',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: Container(
-                margin: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryDark,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Text(
-                    'Tìm ngay',
-                    style: TextStyle(
-                      color: AppColors.surface,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 2.5,
-            ),
-            itemCount: numbers.length,
-            itemBuilder: (context, index) {
-              final item = numbers[index];
-              final String numberStr = item['num']!;
-              final bool isSelected = state.selectedNumber == numberStr;
-              return GestureDetector(
-                onTap: () => viewModel.selectNumber(numberStr),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.primary
-                          : const Color(0xFFE5E7EB),
-                    ),
-                    color: isSelected
-                        ? const Color(0xFFFEF2F2)
-                        : AppColors.surface,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        numberStr,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
-                          color: isSelected ? AppColors.primary : AppColors.ink,
-                        ),
-                      ),
-                      Text(
-                        isSelected ? 'Đã chọn' : item['left']!,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: isSelected
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomSection(
-    BuildContext context,
-    BuyTicketState state,
-    BuyTicketViewModel viewModel,
-  ) {
-    final NumberFormat currencyFormat = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: 'đ',
-    );
-    final int ticketPrice = 10000;
-    final int totalAmount = state.selectedNumber != null
-        ? ticketPrice * state.quantity
-        : 0;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: AppColors.primaryDark,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             child: Row(
               children: [
-                const Icon(Icons.receipt_long, color: AppColors.surface),
-                const SizedBox(width: 8),
-                const Text(
-                  'Chi tiết vé',
-                  style: TextStyle(
-                    color: AppColors.surface,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const Spacer(),
-                const Icon(Icons.keyboard_arrow_up, color: AppColors.surface),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                if (state.selectedNumber != null) ...[
-                  Row(
+                _TicketBadge(shortName: ticket.shortName),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.background,
-                          borderRadius: BorderRadius.circular(8),
+                      Text(
+                        ticket.province,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink,
                         ),
-                        child: const Icon(
-                          Icons.location_city,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        ticket.dateLabel,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${currencyFormatter.format(ticket.price)} / vé',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
                           color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Vé số ${state.selectedProvince}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Mở thưởng: ${state.provinceDetail.split(' • ')[0]} • ${state.dateDetail}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'SỐ ĐÃ CHỌN',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.bold,
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBFA),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.primary,
+                          width: 1.5,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => viewModel.clearSelection(),
-                        child: const Text(
-                          'Xóa tất cả',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Text(
-                        state.selectedNumber!,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryDark,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      const Spacer(),
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: const Color(0xFFE5E7EB)),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          children: [
-                            InkWell(
-                              onTap: () => viewModel.updateQuantity(-1),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                child: Icon(Icons.remove, size: 16),
-                              ),
-                            ),
-                            Text(
-                              '${state.quantity}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            InkWell(
-                              onTap: () => viewModel.updateQuantity(1),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                child: Icon(Icons.add, size: 16),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Text(
-                        currencyFormat.format(ticketPrice),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryDark,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Tổng số lượng vé:',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                      Text(
-                        '${state.quantity.toString().padLeft(2, '0')} vé',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Thành tiền (10k/vé):',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                      Text(
-                        currencyFormat.format(totalAmount),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ] else ...[
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
                       child: Text(
-                        'Vui lòng chọn số vé để mua',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                    ),
-                  ),
-                ],
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Tổng thanh toán',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      currencyFormat.format(totalAmount),
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: state.selectedNumber != null ? () {} : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryDark,
-                          disabledBackgroundColor: AppColors.primaryDark
-                              .withValues(alpha: 0.5),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: const Text('MUA NGAY'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: state.selectedNumber != null
-                            ? () => context.push('/cart')
-                            : null,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primaryDark,
-                          side: BorderSide(
-                            color: state.selectedNumber != null
-                                ? AppColors.primaryDark
-                                : AppColors.textSecondary,
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.shopping_cart_outlined),
-                            SizedBox(width: 8),
-                            Text('THÊM VÀO GIỎ HÀNG'),
-                          ],
+                        ticket.code,
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Color(0xFF94A3B8),
                     ),
                   ],
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TicketBadge extends StatelessWidget {
+  const _TicketBadge({required this.shortName});
+
+  final String shortName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 60,
+      height: 60,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFFFE1D9)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12D31010),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFF2CC), Color(0xFFFFB347)],
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 2),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFF6358), Color(0xFFD31010)],
+          ),
+        ),
+        child: Center(
+          child: Text(
+            shortName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFF1E3E0)),
+      ),
+      child: const Column(
+        children: [
+          Icon(
+            Icons.confirmation_number_outlined,
+            size: 42,
+            color: Color(0xFF94A3B8),
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Không tìm thấy vé phù hợp',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'Hãy thử đổi ngày quay thưởng, đài hoặc dãy số cần tìm.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
