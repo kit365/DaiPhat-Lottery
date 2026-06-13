@@ -102,7 +102,14 @@ class BuyTicketView extends ConsumerWidget {
               ...tickets.map(
                 (ticket) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _TicketCard(ticket: ticket),
+                  child: _TicketCard(
+                    ticket: ticket,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => TicketDetailView(ticket: ticket),
+                      ),
+                    ),
+                  ),
                 ),
               ),
               if (tickets.isEmpty) const _EmptyState(),
@@ -345,9 +352,13 @@ class _ResultSummary extends StatelessWidget {
 }
 
 class _TicketCard extends StatelessWidget {
-  const _TicketCard({required this.ticket});
+  const _TicketCard({
+    required this.ticket,
+    required this.onTap,
+  });
 
   final LotteryTicketListItem ticket;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -361,7 +372,7 @@ class _TicketCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
-        onTap: () {},
+        onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -415,35 +426,315 @@ class _TicketCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBFA),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.primary,
-                          width: 1.5,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBFA),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.primary,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Text(
+                    ticket.code,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class TicketDetailView extends StatelessWidget {
+  const TicketDetailView({
+    super.key,
+    required this.ticket,
+  });
+
+  final LotteryTicketListItem ticket;
+
+  @override
+  Widget build(BuildContext context) {
+    final currencyFormatter = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: 'đ',
+      decimalDigits: 0,
+    );
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFFBF8),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        title: const Text(
+          'Chi tiết vé số',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 22,
+            color: AppColors.ink,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: const [
+          _HeaderIcon(icon: Icons.favorite_border_rounded),
+          SizedBox(width: 4),
+          _HeaderIcon(icon: Icons.share_outlined),
+          SizedBox(width: 10),
+        ],
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFFBF8), Color(0xFFFFF1EB)],
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(26),
+                          border: Border.all(color: const Color(0xFFFFD4CC)),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x12000000),
+                              blurRadius: 20,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _TicketBadge(shortName: ticket.shortName),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        ticket.province,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.ink,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _TicketMeta(
+                                              label: 'Ngày quay thưởng',
+                                              value: _detailDate(ticket),
+                                            ),
+                                          ),
+                                          Container(
+                                            width: 1,
+                                            height: 36,
+                                            color: const Color(0xFFF0D8D1),
+                                          ),
+                                          Expanded(
+                                            child: _TicketMeta(
+                                              label: 'Giá vé',
+                                              value:
+                                                  '${currencyFormatter.format(ticket.price)} / vé',
+                                              highlight: true,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFFBFA),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: AppColors.primary,
+                                  width: 1.6,
+                                ),
+                              ),
+                              child: Text(
+                                ticket.code,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 3,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE6F8EC),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 18,
+                                    color: Color(0xFF12985E),
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Đang mở bán',
+                                    style: TextStyle(
+                                      color: Color(0xFF12985E),
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Text(
-                        ticket.code,
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
+                      const SizedBox(height: 16),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: const Color(0xFFF1E3E0)),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x0F000000),
+                              blurRadius: 18,
+                              offset: Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            _InfoRow(
+                              icon: Icons.storefront_outlined,
+                              label: 'Đài',
+                              value: ticket.province,
+                            ),
+                            _InfoRow(
+                              icon: Icons.calendar_month_outlined,
+                              label: 'Ngày quay thưởng',
+                              value: _detailDate(ticket),
+                            ),
+                            const _InfoRow(
+                              icon: Icons.confirmation_number_outlined,
+                              label: 'Loại vé',
+                              value: 'Vé số truyền thống',
+                            ),
+                            _InfoRow(
+                              icon: Icons.sell_outlined,
+                              label: 'Giá tiền',
+                              value: '${currencyFormatter.format(ticket.price)} / vé',
+                              highlight: true,
+                            ),
+                            _InfoRow(
+                              icon: Icons.pin_outlined,
+                              label: 'Dãy số',
+                              value: ticket.code,
+                              highlight: true,
+                            ),
+                            const _InfoRow(
+                              icon: Icons.public_outlined,
+                              label: 'Miền',
+                              value: 'Miền Nam',
+                            ),
+                            const _InfoRow(
+                              icon: Icons.note_alt_outlined,
+                              label: 'Ghi chú',
+                              value:
+                                  'Vé số được mở bán đến 16:00 cùng ngày. Chúc bạn may mắn!',
+                              isLast: true,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push('/cart'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        icon: const Icon(Icons.shopping_cart_outlined),
+                        label: const Text(
+                          'Thêm vào giỏ hàng',
+                          style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Color(0xFF94A3B8),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {},
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        icon: const Icon(Icons.bolt_rounded),
+                        label: const Text(
+                          'Mua ngay',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -451,6 +742,146 @@ class _TicketCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  String _detailDate(LotteryTicketListItem ticket) {
+    return ticket.dayFilter == TicketDayFilter.today
+        ? '09/02/2025 (Hôm nay)'
+        : '10/02/2025 (Ngày mai)';
+  }
+}
+
+class _HeaderIcon extends StatelessWidget {
+  const _HeaderIcon({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF5F3),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, color: AppColors.primary, size: 20),
+    );
+  }
+}
+
+class _TicketMeta extends StatelessWidget {
+  const _TicketMeta({
+    required this.label,
+    required this.value,
+    this.highlight = false,
+  });
+
+  final String label;
+  final String value;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              color: highlight ? AppColors.primary : AppColors.ink,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.highlight = false,
+    this.isLast = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool highlight;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : const Border(
+                bottom: BorderSide(
+                  color: Color(0xFFF2E7E3),
+                ),
+              ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF1EF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            flex: 2,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 15,
+                color: highlight ? AppColors.primary : AppColors.ink,
+                fontWeight: highlight ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
