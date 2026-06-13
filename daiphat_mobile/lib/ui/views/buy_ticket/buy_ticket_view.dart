@@ -491,7 +491,13 @@ class TicketDetailView extends StatelessWidget {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go(AppRoute.buyTicket.path);
+            }
+          },
         ),
         actions: const [
           _HeaderIcon(icon: Icons.favorite_border_rounded),
