@@ -41,6 +41,9 @@ daiphat:
   blog:
     seed:
       enabled: true
+  order:
+    seed:
+      enabled: true
 
 logging:
   level:

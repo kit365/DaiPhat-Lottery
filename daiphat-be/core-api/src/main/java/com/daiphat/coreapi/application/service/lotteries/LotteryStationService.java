@@ -33,7 +33,7 @@ public class LotteryStationService implements LotteryStationServicePort {
     private final LotteryStationApplicationMapper lotteryStationApplicationMapper;
 
     private static final List<LotteryTicketStatus> INVENTORY_STATUSES =
-            List.of(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.RESERVED);
+            List.of(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.RESERVED, LotteryTicketStatus.PROXY_HOLDING);
 
     @Override
     @Transactional

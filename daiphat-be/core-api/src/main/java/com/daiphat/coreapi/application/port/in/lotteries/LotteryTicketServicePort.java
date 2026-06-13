@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.port.in.lotteries;
 
+import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -24,6 +25,14 @@ public interface LotteryTicketServicePort {
     LotteryTicketResponse verify(Long id, UUID verifierId);
 
     LotteryTicketResponse changeStatus(Long id, String status);
+
+    OrderTicketSnapshot reserveForOrder(Long ticketId);
+
+    OrderTicketSnapshot sellOfflineForOrder(Long ticketId);
+
+    void markSoldForOrder(Long ticketId);
+
+    int expireDueTickets();
 
     void restore(Long id);
 
