@@ -14,8 +14,8 @@ import java.time.LocalDateTime;
         name = "lottery_tickets",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_lottery_ticket_product_serial_numbers_draw_date",
-                        columnNames = {"product_id", "serial_number", "numbers", "draw_date"}
+                        name = "uk_lottery_ticket_station_serial_numbers_draw_date",
+                        columnNames = {"station_id", "serial_number", "numbers", "draw_date"}
                 )
         }
 )
@@ -31,8 +31,8 @@ public class LotteryTicketEntity extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private LotteryStationEntity product;
+    @JoinColumn(name = "station_id", nullable = false)
+    private LotteryStationEntity station;
 
     @Column(name = "ticket_img", length = 500)
     private String ticketImg;
