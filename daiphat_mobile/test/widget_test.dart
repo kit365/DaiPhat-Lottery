@@ -5,9 +5,12 @@ import 'package:daiphat_mobile/core/network/api_client.dart';
 import 'package:daiphat_mobile/core/router/app_router.dart';
 import 'package:daiphat_mobile/core/storage/auth_token_storage.dart';
 import 'package:daiphat_mobile/data/repositories/auth_repository.dart';
+import 'package:daiphat_mobile/data/repositories/notification_repository.dart';
 import 'package:daiphat_mobile/data/services/auth_api_service.dart';
+import 'package:daiphat_mobile/data/services/notification_api_service.dart';
 import 'package:daiphat_mobile/main.dart';
 import 'package:daiphat_mobile/ui/viewmodels/login_viewmodel.dart';
+import 'package:daiphat_mobile/ui/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/ui/viewmodels/register_viewmodel.dart';
 import 'package:daiphat_mobile/ui/viewmodels/forgot_password_viewmodel.dart';
 import 'package:daiphat_mobile/ui/viewmodels/profile_viewmodel.dart';
@@ -30,11 +33,17 @@ void main() {
     final registerViewModel = RegisterViewModel(authRepository);
     final forgotPasswordViewModel = ForgotPasswordViewModel(authRepository);
     final profileViewModel = ProfileViewModel(authRepository);
+    final notificationApiService = NotificationApiService(apiClient);
+    final notificationRepository =
+        NotificationRepository(notificationApiService);
+    final notificationViewModel =
+        NotificationViewModel(notificationRepository);
     final router = createAppRouter(
       loginViewModel: loginViewModel,
       registerViewModel: registerViewModel,
       forgotPasswordViewModel: forgotPasswordViewModel,
       profileViewModel: profileViewModel,
+      notificationViewModel: notificationViewModel,
     );
 
     await tester.pumpWidget(

@@ -2,10 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../viewmodels/buy_ticket_viewmodel.dart';
+
+String _formatTicketPrice(int? price) {
+  if (price == null) {
+    return 'Dang cap nhat';
+  }
+
+  final currencyFormatter = NumberFormat.currency(
+    locale: 'vi_VN',
+    symbol: 'd',
+    decimalDigits: 0,
+  );
+  return '${currencyFormatter.format(price)} / ve';
+}
 
 class BuyTicketView extends ConsumerWidget {
   const BuyTicketView({super.key});
@@ -14,7 +28,6 @@ class BuyTicketView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(buyTicketViewModelProvider);
     final viewModel = ref.read(buyTicketViewModelProvider.notifier);
-    final tickets = state.filteredTickets;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFFBF8),
@@ -24,7 +37,7 @@ class BuyTicketView extends ConsumerWidget {
         elevation: 0,
         centerTitle: true,
         title: const Text(
-          'Vé số đang mở bán',
+          'Ve so dang mo ban',
           style: TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 22,
@@ -37,8 +50,10 @@ class BuyTicketView extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.tune_rounded, color: AppColors.primary),
+            onPressed: () {
+              viewModel.refresh();
+            },
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
           ),
         ],
       ),
@@ -52,71 +67,98 @@ class BuyTicketView extends ConsumerWidget {
         ),
         child: SafeArea(
           top: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            children: [
-              _SearchField(
-                initialValue: state.searchQuery,
-                onChanged: viewModel.updateSearchQuery,
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 11,
-                    child: _ProvinceFilter(
-                      provinces: state.provinces,
-                      selectedProvince: state.selectedProvince,
-                      onChanged: viewModel.selectProvince,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 10,
-                    child: _DateChip(
-                      title: 'Hôm nay',
-                      date: '09/02/2025',
-                      isSelected: state.selectedDay == TicketDayFilter.today,
-                      onTap: () => viewModel.selectDay(TicketDayFilter.today),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 10,
-                    child: _DateChip(
-                      title: 'Ngày mai',
-                      date: '10/02/2025',
-                      isSelected:
-                          state.selectedDay == TicketDayFilter.tomorrow,
-                      onTap: () => viewModel.selectDay(TicketDayFilter.tomorrow),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _ResultSummary(
-                visibleCount: tickets.length,
-                matchedCount: tickets.length,
-              ),
-              const SizedBox(height: 14),
-              ...tickets.map(
-                (ticket) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _TicketCard(
-                    ticket: ticket,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => TicketDetailView(ticket: ticket),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (tickets.isEmpty) const _EmptyState(),
-            ],
+          child: state.when(
+            data: (data) => _LoadedView(state: data, viewModel: viewModel),
+            loading: () => const _LoadingState(),
+            error: (error, _) => _ErrorState(
+              message: error.toString(),
+              onRetry: () {
+                viewModel.refresh();
+              },
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LoadedView extends StatelessWidget {
+  const _LoadedView({
+    required this.state,
+    required this.viewModel,
+  });
+
+  final BuyTicketState state;
+  final BuyTicketViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final tickets = state.filteredTickets;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: [
+        _SearchField(
+          initialValue: state.searchQuery,
+          onChanged: (value) {
+            viewModel.updateSearchQuery(value);
+          },
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              flex: 11,
+              child: _ProvinceFilter(
+                provinces: state.provinces,
+                selectedProvince: state.selectedProvince,
+                onChanged: viewModel.selectProvince,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 10,
+              child: _DateChip(
+                title: 'Hom nay',
+                date: state.todayLabel,
+                isSelected: state.selectedDay == TicketDayFilter.today,
+                onTap: () => viewModel.selectDay(TicketDayFilter.today),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 10,
+              child: _DateChip(
+                title: 'Ngay mai',
+                date: state.tomorrowLabel,
+                isSelected: state.selectedDay == TicketDayFilter.tomorrow,
+                onTap: () => viewModel.selectDay(TicketDayFilter.tomorrow),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _ResultSummary(
+          visibleCount: tickets.length,
+          matchedCount: tickets.length,
+        ),
+        const SizedBox(height: 14),
+        ...tickets.map(
+          (ticket) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _TicketCard(
+              ticket: ticket,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => TicketDetailView(ticket: ticket),
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (tickets.isEmpty) const _EmptyState(),
+      ],
     );
   }
 }
@@ -162,14 +204,14 @@ class _SearchFieldState extends State<_SearchField> {
     return TextField(
       controller: _controller,
       onChanged: widget.onChanged,
-      keyboardType: TextInputType.number,
+      keyboardType: TextInputType.text,
       style: const TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w500,
         color: AppColors.ink,
       ),
       decoration: InputDecoration(
-        hintText: 'Nhập dãy số (tối đa 6 chữ số)',
+        hintText: 'Nhap day so, serial hoac ten ve',
         hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
         prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF6B7280)),
         filled: true,
@@ -332,7 +374,7 @@ class _ResultSummary extends StatelessWidget {
         ),
         const SizedBox(width: 6),
         Text(
-          'Hiển thị $visibleCount vé',
+          'Hien thi $visibleCount ve',
           style: const TextStyle(
             color: AppColors.textSecondary,
             fontWeight: FontWeight.w600,
@@ -340,7 +382,7 @@ class _ResultSummary extends StatelessWidget {
         ),
         const Spacer(),
         Text(
-          '$matchedCount vé phù hợp',
+          '$matchedCount ve phu hop',
           style: const TextStyle(
             color: AppColors.primary,
             fontWeight: FontWeight.w700,
@@ -362,12 +404,6 @@ class _TicketCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormatter = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: 'đ',
-      decimalDigits: 0,
-    );
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -390,14 +426,17 @@ class _TicketCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             child: Row(
               children: [
-                _TicketBadge(shortName: ticket.shortName),
+                _TicketBadge(
+                  shortName: ticket.shortName,
+                  imageUrl: ticket.imageUrl,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        ticket.province,
+                        ticket.titleText,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -414,13 +453,29 @@ class _TicketCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        '${currencyFormatter.format(ticket.price)} / vé',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            _formatTicketPrice(ticket.price),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              ticket.statusDisplayName,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.success,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -468,12 +523,6 @@ class TicketDetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormatter = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: 'đ',
-      decimalDigits: 0,
-    );
-
     return Scaffold(
       backgroundColor: const Color(0xFFFFFBF8),
       appBar: AppBar(
@@ -482,7 +531,7 @@ class TicketDetailView extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         title: const Text(
-          'Chi tiết vé số',
+          'Chi tiet ve so',
           style: TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 22,
@@ -546,7 +595,10 @@ class TicketDetailView extends StatelessWidget {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _TicketBadge(shortName: ticket.shortName),
+                                _TicketBadge(
+                                  shortName: ticket.shortName,
+                                  imageUrl: ticket.imageUrl,
+                                ),
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
@@ -554,7 +606,7 @@ class TicketDetailView extends StatelessWidget {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        ticket.province,
+                                        ticket.titleText,
                                         style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w800,
@@ -566,7 +618,7 @@ class TicketDetailView extends StatelessWidget {
                                         children: [
                                           Expanded(
                                             child: _TicketMeta(
-                                              label: 'Ngày quay thưởng',
+                                              label: 'Ngay quay thuong',
                                               value: _detailDate(ticket),
                                             ),
                                           ),
@@ -577,9 +629,8 @@ class TicketDetailView extends StatelessWidget {
                                           ),
                                           Expanded(
                                             child: _TicketMeta(
-                                              label: 'Giá vé',
-                                              value:
-                                                  '${currencyFormatter.format(ticket.price)} / vé',
+                                              label: 'Gia ve',
+                                              value: _formatTicketPrice(ticket.price),
                                               highlight: true,
                                             ),
                                           ),
@@ -623,18 +674,18 @@ class TicketDetailView extends StatelessWidget {
                                 color: const Color(0xFFE6F8EC),
                                 borderRadius: BorderRadius.circular(999),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
+                                  const Icon(
                                     Icons.check_circle_rounded,
                                     size: 18,
                                     color: Color(0xFF12985E),
                                   ),
-                                  SizedBox(width: 6),
+                                  const SizedBox(width: 6),
                                   Text(
-                                    'Đang mở bán',
-                                    style: TextStyle(
+                                    ticket.statusDisplayName,
+                                    style: const TextStyle(
                                       color: Color(0xFF12985E),
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -663,41 +714,45 @@ class TicketDetailView extends StatelessWidget {
                           children: [
                             _InfoRow(
                               icon: Icons.storefront_outlined,
-                              label: 'Đài',
-                              value: ticket.province,
+                              label: 'San pham',
+                              value: ticket.titleText,
+                            ),
+                            _InfoRow(
+                              icon: Icons.location_on_outlined,
+                              label: 'Dai quay',
+                              value: ticket.stationDisplayText,
                             ),
                             _InfoRow(
                               icon: Icons.calendar_month_outlined,
-                              label: 'Ngày quay thưởng',
+                              label: 'Ngay quay thuong',
                               value: _detailDate(ticket),
                             ),
-                            const _InfoRow(
+                            _InfoRow(
                               icon: Icons.confirmation_number_outlined,
-                              label: 'Loại vé',
-                              value: 'Vé số truyền thống',
+                              label: 'Serial',
+                              value: ticket.serialNumber ?? '-',
+                            ),
+                            _InfoRow(
+                              icon: Icons.inventory_2_outlined,
+                              label: 'Batch',
+                              value: ticket.batchCode ?? '-',
                             ),
                             _InfoRow(
                               icon: Icons.sell_outlined,
-                              label: 'Giá tiền',
-                              value: '${currencyFormatter.format(ticket.price)} / vé',
+                              label: 'Gia tien',
+                              value: _formatTicketPrice(ticket.price),
                               highlight: true,
                             ),
                             _InfoRow(
                               icon: Icons.pin_outlined,
-                              label: 'Dãy số',
+                              label: 'Day so',
                               value: ticket.code,
                               highlight: true,
                             ),
-                            const _InfoRow(
-                              icon: Icons.public_outlined,
-                              label: 'Miền',
-                              value: 'Miền Nam',
-                            ),
-                            const _InfoRow(
-                              icon: Icons.note_alt_outlined,
-                              label: 'Ghi chú',
-                              value:
-                                  'Vé số được mở bán đến 16:00 cùng ngày. Chúc bạn may mắn!',
+                            _InfoRow(
+                              icon: Icons.verified_outlined,
+                              label: 'Trang thai',
+                              value: ticket.statusDisplayName,
                               isLast: true,
                             ),
                           ],
@@ -722,7 +777,7 @@ class TicketDetailView extends StatelessWidget {
                         ),
                         icon: const Icon(Icons.shopping_cart_outlined),
                         label: const Text(
-                          'Thêm vào giỏ hàng',
+                          'Them vao gio hang',
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
@@ -757,9 +812,9 @@ class TicketDetailView extends StatelessWidget {
   }
 
   String _detailDate(LotteryTicketListItem ticket) {
-    return ticket.dayFilter == TicketDayFilter.today
-        ? '09/02/2025 (Hôm nay)'
-        : '10/02/2025 (Ngày mai)';
+    final label =
+        ticket.dayFilter == TicketDayFilter.today ? 'Hom nay' : 'Ngay mai';
+    return '${DateFormat('dd/MM/yyyy').format(ticket.drawDate)} ($label)';
   }
 }
 
@@ -898,12 +953,39 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _TicketBadge extends StatelessWidget {
-  const _TicketBadge({required this.shortName});
+  const _TicketBadge({
+    required this.shortName,
+    this.imageUrl,
+  });
 
   final String shortName;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
+    final badgeContent = hasImage
+        ? CachedNetworkImage(
+            imageUrl: imageUrl!,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorWidget: (_, _, _) => _TicketBadgeFallback(
+              shortName: shortName,
+            ),
+            placeholder: (_, _) => const Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          )
+        : _TicketBadgeFallback(shortName: shortName);
+
     return Container(
       width: 60,
       height: 60,
@@ -934,15 +1016,90 @@ class _TicketBadge extends StatelessWidget {
             colors: [Color(0xFFFF6358), Color(0xFFD31010)],
           ),
         ),
-        child: Center(
-          child: Text(
-            shortName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
+        child: ClipOval(child: badgeContent),
+      ),
+    );
+  }
+}
+
+class _TicketBadgeFallback extends StatelessWidget {
+  const _TicketBadgeFallback({required this.shortName});
+
+  final String shortName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        shortName,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingState extends StatelessWidget {
+  const _LoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: CircularProgressIndicator(color: AppColors.primary),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 44,
+              color: AppColors.textMuted,
             ),
-          ),
+            const SizedBox(height: 12),
+            const Text(
+              'Khong tai duoc danh sach ve',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: onRetry,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Thu lai'),
+            ),
+          ],
         ),
       ),
     );
@@ -971,7 +1128,7 @@ class _EmptyState extends StatelessWidget {
           ),
           SizedBox(height: 12),
           Text(
-            'Không tìm thấy vé phù hợp',
+            'Khong tim thay ve phu hop',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -980,7 +1137,7 @@ class _EmptyState extends StatelessWidget {
           ),
           SizedBox(height: 6),
           Text(
-            'Hãy thử đổi ngày quay thưởng, đài hoặc dãy số cần tìm.',
+            'Hay thu doi ngay quay, bo loc hoac tu khoa tim kiem.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.textMuted,
