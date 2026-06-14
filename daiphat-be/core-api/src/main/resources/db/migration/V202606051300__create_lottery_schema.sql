@@ -48,7 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_lottery_stations_type   ON lottery_stations(type)
 -- prize_structures
 CREATE TABLE IF NOT EXISTS prize_structures (
     id                      BIGSERIAL PRIMARY KEY,
-    product_id              BIGINT NOT NULL,
+    station_id              BIGINT NOT NULL,
     region                  VARCHAR(20),
     is_only                 BOOLEAN NOT NULL DEFAULT FALSE,
     prize_level             VARCHAR(50) NOT NULL,
@@ -68,17 +68,17 @@ CREATE TABLE IF NOT EXISTS prize_structures (
     last_modified_by        VARCHAR(100) DEFAULT 'SYSTEM',
     deleted_at              TIMESTAMP,
 
-    CONSTRAINT fk_prize_structures_product_id
-        FOREIGN KEY (product_id) REFERENCES lottery_stations(id) ON DELETE CASCADE
+    CONSTRAINT fk_prize_structures_station_id
+        FOREIGN KEY (station_id) REFERENCES lottery_stations(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_prize_structures_product_id ON prize_structures(product_id);
+CREATE INDEX IF NOT EXISTS idx_prize_structures_station_id ON prize_structures(station_id);
 CREATE INDEX IF NOT EXISTS idx_prize_structures_region      ON prize_structures(region);
 
 -- lottery_tickets
 CREATE TABLE IF NOT EXISTS lottery_tickets (
     id                  BIGSERIAL PRIMARY KEY,
-    product_id          BIGINT NOT NULL,
+    station_id          BIGINT NOT NULL,
     ticket_img          VARCHAR(500),
     serial_number       VARCHAR(100) NOT NULL,
     numbers             VARCHAR(100) NOT NULL,
@@ -99,17 +99,17 @@ CREATE TABLE IF NOT EXISTS lottery_tickets (
     last_modified_by    VARCHAR(100) DEFAULT 'SYSTEM',
     deleted_at          TIMESTAMP,
 
-    CONSTRAINT fk_lottery_tickets_product_id
-        FOREIGN KEY (product_id) REFERENCES lottery_stations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_lottery_tickets_station_id
+        FOREIGN KEY (station_id) REFERENCES lottery_stations(id) ON DELETE CASCADE,
     CONSTRAINT fk_lottery_tickets_imported_by
         FOREIGN KEY (imported_by) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_lottery_tickets_verified_by
         FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT uk_lottery_ticket_product_serial_numbers_draw_date
-        UNIQUE (product_id, serial_number, numbers, draw_date)
+    CONSTRAINT uk_lottery_ticket_station_serial_numbers_draw_date
+        UNIQUE (station_id, serial_number, numbers, draw_date)
 );
 
-CREATE INDEX IF NOT EXISTS idx_lottery_tickets_product_id ON lottery_tickets(product_id);
+CREATE INDEX IF NOT EXISTS idx_lottery_tickets_station_id ON lottery_tickets(station_id);
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_status     ON lottery_tickets(status);
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_numbers    ON lottery_tickets(numbers);
 CREATE INDEX IF NOT EXISTS idx_lottery_tickets_draw_date  ON lottery_tickets(draw_date);

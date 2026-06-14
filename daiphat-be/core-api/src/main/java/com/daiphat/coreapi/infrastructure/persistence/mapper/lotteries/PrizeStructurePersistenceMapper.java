@@ -12,23 +12,23 @@ import java.util.List;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface PrizeStructurePersistenceMapper {
 
-    @Mapping(target = "productId", source = "product.id")
+    @Mapping(target = "productId", source = "station.id")
     @Mapping(target = "isOnly", expression = "java(entity.isOnly())")
     PrizeStructureModel toDomain(PrizeStructureEntity entity);
 
     List<PrizeStructureModel> toDomainList(List<PrizeStructureEntity> entities);
 
-    @Mapping(target = "product", source = "productId", qualifiedByName = "productIdToProductEntity")
+    @Mapping(target = "station", source = "productId", qualifiedByName = "productIdToStationEntity")
     @Mapping(target = "isOnly", expression = "java(model.isOnly())")
     PrizeStructureEntity toEntity(PrizeStructureModel model);
 
     List<PrizeStructureEntity> toEntityList(List<PrizeStructureModel> models);
 
-    @Named("productIdToProductEntity")
-    default LotteryStationEntity productIdToProductEntity(Long productId) {
+    @Named("productIdToStationEntity")
+    default LotteryStationEntity productIdToStationEntity(Long productId) {
         if (productId == null) return null;
-        LotteryStationEntity product = new LotteryStationEntity();
-        product.setId(productId);
-        return product;
+        LotteryStationEntity station = new LotteryStationEntity();
+        station.setId(productId);
+        return station;
     }
 }
