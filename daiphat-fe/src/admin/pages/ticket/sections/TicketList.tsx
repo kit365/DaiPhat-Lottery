@@ -38,8 +38,8 @@ export const TicketList = ({
         isLoading,
         error,
         filters,
-        setStatusFilter,
-        setStockFilter,
+        setFilter,
+        clearFilters,
         setSearchFilter,
         setPage,
         setLimit,
@@ -92,8 +92,8 @@ export const TicketList = ({
                             onSettingsChange: setSettings,
                             // Pass filter handlers to toolbar
                             filters,
-                            onStatusChange: setStatusFilter,
-                            onStockChange: setStockFilter,
+                            onFilterChange: setFilter,
+                            onClearFilters: clearFilters,
                             onSearchChange: setSearchFilter,
                         } as any,
                     }}

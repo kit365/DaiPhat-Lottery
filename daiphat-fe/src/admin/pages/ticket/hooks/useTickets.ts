@@ -4,7 +4,8 @@ import { getTickets, deleteTicket, restoreTicket, forceDeleteTicket } from '../.
 
 interface ITicketFilters {
     status?: string[];
-    stock?: string[];
+    batchCode?: string[];
+    provider?: string[];
     search?: string;
     page: number;
     limit: number;
@@ -15,7 +16,8 @@ export const useTickets = () => {
     const queryClient = useQueryClient();
     const [filters, setFilters] = useState<ITicketFilters>({
         status: [],
-        stock: [],
+        batchCode: [],
+        provider: [],
         search: '',
         page: 1,
         limit: 10,
@@ -79,12 +81,8 @@ export const useTickets = () => {
         }
     });
 
-    const setStatusFilter = (status: string[]) => {
-        setFilters((prev) => ({ ...prev, status, page: 1 }));
-    };
-
-    const setStockFilter = (stock: string[]) => {
-        setFilters((prev) => ({ ...prev, stock, page: 1 }));
+    const setFilter = (fieldId: string, values: string[]) => {
+        setFilters((prev) => ({ ...prev, [fieldId]: values, page: 1 }));
     };
 
     const setIsTrashFilter = (isTrash: boolean) => {
@@ -106,7 +104,8 @@ export const useTickets = () => {
     const clearFilters = () => {
         setFilters({
             status: [],
-            stock: [],
+            batchCode: [],
+            provider: [],
             search: '',
             page: 1,
             limit: 10,
@@ -120,8 +119,7 @@ export const useTickets = () => {
         isLoading,
         error,
         filters,
-        setStatusFilter,
-        setStockFilter,
+        setFilter,
         setSearchFilter,
         setIsTrashFilter,
         setPage,
