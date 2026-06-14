@@ -64,4 +64,23 @@ class LotteryTicketApiService {
 
     return apiResponse.data!;
   }
+
+  Future<LotteryTicket> getLotteryTicketDetail(int id) async {
+    final response = await _apiClient.get('/lottery-tickets/$id');
+
+    final apiResponse = ApiResponse<LotteryTicket>.fromJson(
+      response,
+      (json) => LotteryTicket.fromJson(json as Map<String, dynamic>),
+    );
+
+    if (!apiResponse.isSuccess || apiResponse.data == null) {
+      throw ApiException(
+        apiResponse.message.isNotEmpty
+            ? apiResponse.message
+            : 'Khong the tai chi tiet ve so.',
+      );
+    }
+
+    return apiResponse.data!;
+  }
 }

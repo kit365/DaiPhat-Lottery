@@ -18,4 +18,8 @@ class LotteryTicketRepository {
 
     return response.items;
   }
+
+  Future<LotteryTicket> fetchTicketDetail(int id) {
+    return _apiService.getLotteryTicketDetail(id);
+  }
 }
