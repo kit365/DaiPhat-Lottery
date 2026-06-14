@@ -65,12 +65,14 @@ class BuyTicketState {
     required this.searchQuery,
     required this.selectedProvince,
     required this.selectedDay,
+    required this.onlyInStock,
     required this.tickets,
   });
 
   final String searchQuery;
   final String selectedProvince;
   final TicketDayFilter selectedDay;
+  final bool onlyInStock;
   final List<LotteryTicketListItem> tickets;
 
   List<String> get provinces => <String>{
@@ -79,7 +81,11 @@ class BuyTicketState {
   }.toList();
 
   List<LotteryTicketListItem> get filteredTickets {
-    return tickets;
+    return tickets.where((ticket) {
+      final matchesDay = ticket.dayFilter == selectedDay;
+      final matchesStock = !onlyInStock || ticket.status == 'IN_STOCK';
+      return matchesDay && matchesStock;
+    }).toList();
   }
 
   String get todayLabel => _formatDate(_targetDate(TicketDayFilter.today));
@@ -90,12 +96,14 @@ class BuyTicketState {
     String? searchQuery,
     String? selectedProvince,
     TicketDayFilter? selectedDay,
+    bool? onlyInStock,
     List<LotteryTicketListItem>? tickets,
   }) {
     return BuyTicketState(
       searchQuery: searchQuery ?? this.searchQuery,
       selectedProvince: selectedProvince ?? this.selectedProvince,
       selectedDay: selectedDay ?? this.selectedDay,
+      onlyInStock: onlyInStock ?? this.onlyInStock,
       tickets: tickets ?? this.tickets,
     );
   }
@@ -139,6 +147,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     String searchQuery = '',
     String selectedProvince = 'Tat ca dai',
     TicketDayFilter selectedDay = TicketDayFilter.today,
+    bool onlyInStock = true,
   }) async {
     final tickets = await _repository.fetchOpenTickets(
       search: searchQuery.isEmpty ? null : searchQuery,
@@ -148,6 +157,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
       searchQuery: searchQuery,
       selectedProvince: selectedProvince,
       selectedDay: selectedDay,
+      onlyInStock: onlyInStock,
       tickets: tickets.map(_mapTicketToListItem).toList(),
     );
   }
@@ -216,6 +226,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
         searchQuery: query.trim(),
         selectedProvince: current?.selectedProvince ?? 'Tat ca dai',
         selectedDay: current?.selectedDay ?? TicketDayFilter.today,
+        onlyInStock: current?.onlyInStock ?? true,
       ),
     );
   }
@@ -232,6 +243,12 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
     state = AsyncData(current.copyWith(selectedDay: day));
   }
 
+  void toggleOnlyInStock() {
+    final current = state.asData?.value;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(onlyInStock: !current.onlyInStock));
+  }
+
   Future<void> refresh() async {
     final current = state.asData?.value;
     state = const AsyncLoading();
@@ -240,6 +257,7 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
         searchQuery: current?.searchQuery ?? '',
         selectedProvince: current?.selectedProvince ?? 'Tat ca dai',
         selectedDay: current?.selectedDay ?? TicketDayFilter.today,
+        onlyInStock: current?.onlyInStock ?? true,
       ),
     );
   }

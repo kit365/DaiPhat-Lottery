@@ -106,19 +106,14 @@ class _LoadedView extends StatelessWidget {
           },
         ),
         const SizedBox(height: 14),
+        _StockFilterChip(
+          isSelected: state.onlyInStock,
+          onTap: viewModel.toggleOnlyInStock,
+        ),
+        const SizedBox(height: 14),
         Row(
           children: [
             Expanded(
-              flex: 11,
-              child: _ProvinceFilter(
-                provinces: state.provinces,
-                selectedProvince: state.selectedProvince,
-                onChanged: viewModel.selectProvince,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 10,
               child: _DateChip(
                 title: 'Hom nay',
                 date: state.todayLabel,
@@ -128,7 +123,6 @@ class _LoadedView extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              flex: 10,
               child: _DateChip(
                 title: 'Ngay mai',
                 date: state.tomorrowLabel,
@@ -230,60 +224,54 @@ class _SearchFieldState extends State<_SearchField> {
   }
 }
 
-class _ProvinceFilter extends StatelessWidget {
-  const _ProvinceFilter({
-    required this.provinces,
-    required this.selectedProvince,
-    required this.onChanged,
+class _StockFilterChip extends StatelessWidget {
+  const _StockFilterChip({
+    required this.isSelected,
+    required this.onTap,
   });
 
-  final List<String> provinces;
-  final String selectedProvince;
-  final ValueChanged<String> onChanged;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE8E8EE)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: selectedProvince,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-          borderRadius: BorderRadius.circular(18),
-          style: const TextStyle(
-            color: AppColors.ink,
-            fontWeight: FontWeight.w600,
-            fontSize: 15,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFFFEFEA) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isSelected ? AppColors.primary : const Color(0xFFE8E8EE),
+              width: isSelected ? 1.4 : 1,
+            ),
           ),
-          items: provinces
-              .map(
-                (province) => DropdownMenuItem<String>(
-                  value: province,
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.storefront_outlined,
-                        size: 18,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(child: Text(province)),
-                    ],
-                  ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isSelected
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                size: 18,
+                color: isSelected ? AppColors.primary : AppColors.textMuted,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Ve IN_STOCK',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? AppColors.primary : AppColors.ink,
                 ),
-              )
-              .toList(),
-          onChanged: (value) {
-            if (value != null) {
-              onChanged(value);
-            }
-          },
+              ),
+            ],
+          ),
         ),
       ),
     );
