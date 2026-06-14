@@ -26,10 +26,8 @@ declare module '@mui/x-data-grid' {
 
 export const TicketList = ({
     ticketHook,
-    isTrash = false
 }: {
     ticketHook: any;
-    isTrash?: boolean;
 }) => {
     const { settings, setSettings } = useSettings();
     const {
@@ -45,7 +43,7 @@ export const TicketList = ({
         setLimit,
     } = ticketHook;
 
-    const columns = useTicketColumns(isTrash);
+    const columns = useTicketColumns();
     const localeText = useDataGridLocale();
 
     if (isLoading) {

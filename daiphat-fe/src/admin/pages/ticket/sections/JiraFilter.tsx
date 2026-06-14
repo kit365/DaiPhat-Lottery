@@ -1,7 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Popover, Button, Box, Typography, Divider, List, ListItem, ListItemButton, ListItemText, Checkbox, TextField, InputAdornment } from '@mui/material';
+import { Popover, Button, Box, Typography, Divider, List, ListItem, ListItemButton, ListItemText, Checkbox, TextField, InputAdornment, IconButton } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs from "dayjs";
+import "dayjs/locale/en-gb";
 
 export interface Option {
     value: string;
@@ -14,6 +20,7 @@ export interface FilterField {
     id: string;
     label: string;
     options: Option[];
+    type?: 'date';
 }
 
 interface JiraFilterProps {
@@ -45,9 +52,24 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
 
     const filteredOptions = useMemo(() => {
         if (!activeField) return [];
-        if (!searchQuery) return activeField.options;
-        return activeField.options.filter(opt => opt.label.toLowerCase().includes(searchQuery.toLowerCase()));
-    }, [searchQuery, activeField]);
+        let baseOptions = activeField.options;
+        if (searchQuery) {
+            baseOptions = baseOptions.filter(opt => opt.label.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+
+        if (activeField.type === 'date') {
+            const customSelected = activeSelected.filter(d => !activeField.options.find(o => o.value === d));
+            const customOptions = customSelected.map(d => ({
+                value: d,
+                label: `Đã chọn: ${dayjs(d).format('DD/MM/YYYY')}`,
+                color: '#00A76F',
+                bgColor: 'rgba(0, 167, 111, 0.08)'
+            }));
+            return [...customOptions, ...baseOptions];
+        }
+
+        return baseOptions;
+    }, [searchQuery, activeField, activeSelected]);
 
     const handleToggle = (value: string) => {
         const currentIndex = activeSelected.indexOf(value);
@@ -75,20 +97,20 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                     sx={{
                         textTransform: 'none',
                         color: totalFilterCount > 0 ? '#fff' : '#42526E',
-                        backgroundColor: totalFilterCount > 0 ? '#0052CC' : '#091E420F',
-                        borderColor: totalFilterCount > 0 ? '#0052CC' : 'transparent',
+                        backgroundColor: totalFilterCount > 0 ? '#00A76F' : '#091E420F',
+                        borderColor: totalFilterCount > 0 ? '#00A76F' : 'transparent',
                         fontWeight: 500,
                         height: '32px',
                         padding: '0 12px',
                         '&:hover': {
-                            backgroundColor: totalFilterCount > 0 ? '#0065FF' : '#091E4224',
-                            borderColor: totalFilterCount > 0 ? '#0065FF' : 'transparent',
+                            backgroundColor: totalFilterCount > 0 ? '#007851' : '#091E4224',
+                            borderColor: totalFilterCount > 0 ? '#007851' : 'transparent',
                         },
                         boxShadow: 'none',
                         borderRadius: '3px'
                     }}
                 >
-                    Bộ lọc {totalFilterCount > 0 && <span style={{ marginLeft: '6px', background: '#fff', color: '#0052CC', borderRadius: '10px', padding: '0 6px', fontSize: '11px', fontWeight: 700 }}>{totalFilterCount}</span>}
+                    Bộ lọc {totalFilterCount > 0 && <span style={{ marginLeft: '6px', background: '#fff', color: '#00A76F', borderRadius: '10px', padding: '0 6px', fontSize: '11px', fontWeight: 700 }}>{totalFilterCount}</span>}
                 </Button>
                 {totalFilterCount > 0 && (
                     <Button 
@@ -146,14 +168,14 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                                 setSearchQuery('');
                                             }}
                                             sx={{
-                                                borderLeft: activeTabId === field.id ? '3px solid #0052CC' : '3px solid transparent',
-                                                backgroundColor: activeTabId === field.id ? '#E6EFFC' : 'transparent',
+                                                borderLeft: activeTabId === field.id ? '3px solid #00A76F' : '3px solid transparent',
+                                                backgroundColor: activeTabId === field.id ? 'rgba(0, 167, 111, 0.08)' : 'transparent',
                                                 py: 0.75,
                                                 px: 2,
                                                 '&.Mui-selected': {
-                                                    backgroundColor: '#E6EFFC',
+                                                    backgroundColor: 'rgba(0, 167, 111, 0.08)',
                                                     '&:hover': {
-                                                        backgroundColor: '#E6EFFC',
+                                                        backgroundColor: 'rgba(0, 167, 111, 0.12)',
                                                     }
                                                 }
                                             }}
@@ -163,11 +185,11 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                                 primaryTypographyProps={{ 
                                                     fontSize: '14px', 
                                                     fontWeight: activeTabId === field.id ? 600 : 400,
-                                                    color: activeTabId === field.id ? '#0052CC' : '#42526E'
+                                                    color: activeTabId === field.id ? '#00A76F' : '#42526E'
                                                 }} 
                                             />
                                             {fieldCount > 0 && (
-                                                <Box sx={{ bgcolor: '#0052CC', color: 'white', borderRadius: '10px', px: 1, py: 0.2, fontSize: '11px', fontWeight: 600 }}>
+                                                <Box sx={{ bgcolor: '#00A76F', color: 'white', borderRadius: '10px', px: 1, py: 0.2, fontSize: '11px', fontWeight: 600 }}>
                                                     {fieldCount}
                                                 </Box>
                                             )}
@@ -176,14 +198,6 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                 );
                             })}
                         </List>
-                        <Box sx={{ mt: 'auto', p: 1 }}>
-                            <Button 
-                                startIcon={<span style={{ fontSize: '18px', fontWeight: 300, lineHeight: 1 }}>+</span>}
-                                sx={{ textTransform: 'none', color: '#42526E', fontSize: '14px', fontWeight: 500, width: '100%', justifyContent: 'flex-start' }}
-                            >
-                                Thêm trường
-                            </Button>
-                        </Box>
                     </Box>
 
                     {/* Right Content */}
@@ -211,7 +225,7 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                         borderColor: '#B3BAC5 !important',
                                     },
                                     '&.Mui-focused fieldset': {
-                                        borderColor: '#4C9AFF !important',
+                                        borderColor: '#00A76F !important',
                                         borderWidth: '2px !important',
                                     }
                                 }
@@ -237,28 +251,63 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                                 p: 0.5,
                                                 mr: 1,
                                                 '&.Mui-checked': {
-                                                    color: '#0052CC',
+                                                    color: '#00A76F',
                                                 }
                                             }}
                                         />
-                                        <Box 
-                                            sx={{ 
-                                                bgcolor: option.bgColor || '#DFE1E6', 
-                                                color: option.color || '#42526E', 
-                                                fontSize: '11px', 
-                                                fontWeight: 700, 
-                                                px: 1, 
-                                                py: 0.25, 
-                                                borderRadius: '3px',
-                                                textTransform: 'uppercase'
-                                            }}
-                                        >
-                                            {option.label}
-                                        </Box>
+                                        {option.bgColor || option.color ? (
+                                            <Box 
+                                                sx={{ 
+                                                    bgcolor: option.bgColor || '#DFE1E6', 
+                                                    color: option.color || '#42526E', 
+                                                    fontSize: '11px', 
+                                                    fontWeight: 700, 
+                                                    px: 1, 
+                                                    py: 0.25, 
+                                                    borderRadius: '3px',
+                                                    textTransform: 'uppercase'
+                                                }}
+                                            >
+                                                {option.label}
+                                            </Box>
+                                        ) : (
+                                            <Box sx={{ fontSize: '14px', color: '#172B4D', py: 0.25 }}>
+                                                {option.label}
+                                            </Box>
+                                        )}
                                     </ListItemButton>
                                 </ListItem>
                             ))}
                         </List>
+
+                        {activeField.type === 'date' && (
+                            <Box sx={{ mt: 1, borderTop: '1px solid #DFE1E6', pt: 1.5 }}>
+                                <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
+                                    <DatePicker
+                                        label="Chọn ngày cụ thể"
+                                        slotProps={{
+                                            textField: { 
+                                                size: 'small', 
+                                                fullWidth: true,
+                                                sx: {
+                                                    '& fieldset': { borderColor: '#DFE1E6' },
+                                                    '&:hover fieldset': { borderColor: '#B3BAC5 !important' },
+                                                    '&.Mui-focused fieldset': { borderColor: '#00A76F !important', borderWidth: '2px !important' }
+                                                }
+                                            }
+                                        }}
+                                        onChange={(newValue) => {
+                                            if (newValue) {
+                                                const dateStr = newValue.format('YYYY-MM-DD');
+                                                if (!activeSelected.includes(dateStr)) {
+                                                    onFilterChange(activeTabId, [...activeSelected, dateStr]);
+                                                }
+                                            }
+                                        }}
+                                    />
+                                </LocalizationProvider>
+                            </Box>
+                        )}
                     </Box>
                 </Box>
 

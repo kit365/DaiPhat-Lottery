@@ -159,27 +159,19 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
     );
 }
 
-interface RenderActionsCellProps extends GridRenderCellParams {
-    isTrash: boolean;
-}
-
 // Actions
-export const RenderActionsCell = (params: RenderActionsCellProps) => {
+export const RenderActionsCell = (params: GridRenderCellParams) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const { deleteTicket, restoreTicket, forceDeleteTicket } = useTickets();
-    const { isTrash, ...paramsRest } = params;
+    const { deleteTicket } = useTickets();
 
     const handleEdit = () => {
         navigate(`/${prefixAdmin}/ticket/edit/${params.row.id}`);
     };
 
     const handleDelete = () => {
-        const message = isTrash ? "Bạn có chắc chắn muốn xóa vĩnh viễn vé số này?" : "Bạn có chắc chắn muốn xóa vé số này?";
-        const action = isTrash ? forceDeleteTicket : deleteTicket;
-
-        confirmDelete(message, () => {
-            action(params.row.id, {
+        confirmDelete("Bạn có chắc chắn muốn xóa vé số này?", () => {
+            deleteTicket(params.row.id, {
                 onSuccess: (res: any) => {
                     if (res.success) {
                         toast.success(res.message || "Thao tác thành công");
@@ -194,75 +186,40 @@ export const RenderActionsCell = (params: RenderActionsCellProps) => {
         });
     };
 
-    const handleRestore = () => {
-        restoreTicket(params.row.id, {
-            onSuccess: (res: any) => {
-                if (res.success) {
-                    toast.success("Khôi phục vé số thành công");
-                } else {
-                    toast.error(res.message || "Khôi phục vé số thất bại");
-                }
-            },
-            onError: (err: any) => {
-                toast.error(err.response?.data?.message || err.message || "Khôi phục vé số không thành công");
-            }
-        });
-    };
-
     return (
-        <GridActionsCell {...paramsRest}>
-            {!isTrash ? (
-                <>
-                    <GridActionsCellItem
-                        icon={<EyeIcon />}
-                        label={t("admin.common.details")}
-                        onClick={handleEdit}
-                        showInMenu
-                        {...({
-                            sx: {
-                                '& .MuiTypography-root': {
-                                    fontSize: '0.8125rem',
-                                    fontWeight: "600"
-                                },
-                            },
-                        } as any)}
-                    />
-                    <GridActionsCellItem
-                        icon={<EditIcon />}
-                        label={t("admin.common.edit")}
-                        onClick={handleEdit}
-                        showInMenu
-                        {...({
-                            sx: {
-                                '& .MuiTypography-root': {
-                                    fontSize: '0.8125rem',
-                                    fontWeight: "600"
-                                },
-                            },
-                        } as any)}
-                    />
-                </>
-            ) : (
-                <GridActionsCellItem
-                    icon={<ReloadIcon />}
-                    label="Khôi phục"
-                    onClick={handleRestore}
-                    showInMenu
-                    {...({
-                        sx: {
-                            '& .MuiTypography-root': {
-                                fontSize: '0.8125rem',
-                                fontWeight: "600",
-                                color: "var(--palette-info-main)"
-                            },
+        <GridActionsCell {...params}>
+            <GridActionsCellItem
+                icon={<EyeIcon />}
+                label={t("admin.common.details")}
+                onClick={handleEdit}
+                showInMenu
+                {...({
+                    sx: {
+                        '& .MuiTypography-root': {
+                            fontSize: '0.8125rem',
+                            fontWeight: "600"
                         },
-                    } as any)}
-                />
-            )}
+                    },
+                } as any)}
+            />
+            <GridActionsCellItem
+                icon={<EditIcon />}
+                label={t("admin.common.edit")}
+                onClick={handleEdit}
+                showInMenu
+                {...({
+                    sx: {
+                        '& .MuiTypography-root': {
+                            fontSize: '0.8125rem',
+                            fontWeight: "600"
+                        },
+                    },
+                } as any)}
+            />
 
             <GridActionsCellItem
                 icon={<DeleteIcon />}
-                label={isTrash ? "Xóa vĩnh viễn" : t("admin.common.delete")}
+                label={t("admin.common.delete")}
                 onClick={handleDelete}
                 showInMenu
                 {...({

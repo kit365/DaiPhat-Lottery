@@ -89,11 +89,8 @@ export const createTicket = async (data: any): Promise<ApiResponse<any>> => {
 
 /** Lấy chi tiết vé cho trang Edit */
 export const getTicketById = async (id: string | number): Promise<ApiResponse<any>> => {
-    const ticket = mockTickets.find(p => p._id === id) || mockTickets[0];
-    return {
-        success: true,
-        data: ticket
-    } as any;
+    const response = await apiApp.get(`${BASE_URL}/${id}`, withAuth());
+    return response.data;
 };
 
 /** Cập nhật vé */
