@@ -37,15 +37,16 @@ export const useTickets = () => {
         if (!data?.data?.recordList) return [];
 
         return data.data.recordList.map((item: any) => ({
-            id: item._id,
-            ticket: item.name,
-            category: (item.categoryInfo || []).map((c: any) => c.name).join(', ') || 'Uncategorized',
-            image: item.images?.[0] || '',
-            createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-            stock: item.stock || 0,
-            price: item.priceNew || item.priceOld || 0,
-            status: item.status || 'draft',
-            providerName: item.providerName || 'N/A',
+            id: item.id || item._id,
+            providerName: item.productName || item.providerName || 'Không xác định',
+            serialNumber: item.serialNumber || '',
+            numbers: item.numbers || '',
+            drawDate: item.drawDate || '',
+            batchCode: item.batchCode || '',
+            image: item.ticketImg || item.avatar || '',
+            createdAt: item.importedAt || item.createdAt ? new Date(item.importedAt || item.createdAt) : new Date(),
+            status: item.status ? item.status.toLowerCase() : 'draft',
+            statusDisplayName: item.statusDisplayName || item.status,
         }));
     }, [data]);
 

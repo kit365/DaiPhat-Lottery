@@ -16,6 +16,16 @@ export const columnsConfig: GridColDef<any>[] = [
         renderCell: RenderTitleCell,
     },
     {
+        field: "drawSchedule",
+        headerName: "Lịch quay",
+        width: 150,
+        renderCell: (params) => (
+            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>
+                {params.value || 'Chưa có'}
+            </span>
+        )
+    },
+    {
         field: "createdAt",
         headerName: "Thời gian tạo",
         width: 160,

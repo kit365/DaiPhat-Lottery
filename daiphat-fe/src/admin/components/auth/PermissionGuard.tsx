@@ -23,9 +23,10 @@ export const PermissionGuard = ({ children, permission, fallback }: Props) => {
     // Phải chờ cả isLoading (lần đầu) và isFetching (mọi lần reload) để đảm bảo có data mới nhất
     const isFetchingUser = isReady && !!token && (isLoading || isFetching);
 
-    const roleCode = user?.role?.code || "";
-    const isAdmin = roleCode === USER_ROLES.ADMIN;
-    const isStaff = roleCode.includes('STAFF');
+    const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || "");
+    const normalizedRole = roleCode.startsWith("ROLE_") ? roleCode : `ROLE_${roleCode}`;
+    const isAdmin = normalizedRole === USER_ROLES.ADMIN || normalizedRole === "ROLE_SUPER_ADMIN";
+    const isStaff = normalizedRole.includes('STAFF');
     const isOnlyMember = !isAdmin && !isStaff;
 
     const hasPermission = isAdmin || !permission || user?.permissions?.includes(permission);

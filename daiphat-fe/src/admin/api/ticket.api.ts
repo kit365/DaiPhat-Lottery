@@ -2,8 +2,9 @@ import { apiApp } from '../../api';
 import Cookies from 'js-cookie';
 import { ApiResponse } from '../config/type';
 import { prefixAdmin } from '../constants/routes';
+import { STORAGE_KEYS } from '../../constants/storage.constants';
 
-const BASE_URL = `/${prefixAdmin}/ticket`;
+const BASE_URL = `/lottery-tickets`;
 
 /** Header auth dùng chung */
 const withAuth = () => {
@@ -21,20 +22,46 @@ import { mockCategories } from '../data/categories';
 import { mockProviders } from '../data/providers';
 
 export const getTickets = async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiApp.get(BASE_URL, { 
+        params: {
+            page: params?.page || 1,
+            size: params?.limit || 10,
+            stationId: params?.stationId,
+            status: params?.status,
+            drawDate: params?.drawDate,
+            search: params?.search,
+            sortBy: params?.sortBy,
+            direction: params?.direction
+        },
+        ...withAuth() 
+    });
+    
+    const result = response.data?.data;
+    
+    // Map BE response to match FE expectations
+    const recordList = (result?.recordList || []).map((item: any) => ({
+        ...item,
+        _id: item.id,
+        avatar: item.ticketImg,
+        status: item.status ? item.status.toLowerCase() : 'draft'
+    }));
+
     return {
         success: true,
+        message: response.data?.message || "",
+        timestamp: response.data?.timestamp || new Date().toISOString(),
         data: {
-            recordList: mockTickets,
-            pagination: {
-                totalRecords: mockTickets.length,
+            recordList,
+            pagination: result?.pagination || {
+                totalRecords: recordList.length,
                 totalPages: 1,
                 currentPage: params?.page || 1,
                 limit: params?.limit || 10
             },
             statusCounts: {
-                all: mockTickets.length,
-                active: mockTickets.filter(p => p.status === 'active').length,
-                inactive: mockTickets.filter(p => p.status === 'inactive').length,
+                all: result?.pagination?.totalRecords || recordList.length,
+                active: recordList.filter((b: any) => b.status === 'active').length,
+                inactive: recordList.filter((b: any) => b.status === 'inactive').length,
             }
         }
     } as any;
@@ -56,7 +83,7 @@ export const getCreateTicketData = async (): Promise<ApiResponse<any>> => {
 
 /** Tạo vé mới */
 export const createTicket = async (data: any): Promise<ApiResponse<any>> => {
-    const response = await apiApp.post(`${BASE_URL}/create`, data, withAuth());
+    const response = await apiApp.post(BASE_URL, data, withAuth());
     return response.data;
 };
 
