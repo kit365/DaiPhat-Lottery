@@ -84,10 +84,7 @@ class BuyTicketView extends ConsumerWidget {
 }
 
 class _LoadedView extends StatelessWidget {
-  const _LoadedView({
-    required this.state,
-    required this.viewModel,
-  });
+  const _LoadedView({required this.state, required this.viewModel});
 
   final BuyTicketState state;
   final BuyTicketViewModel viewModel;
@@ -158,10 +155,7 @@ class _LoadedView extends StatelessWidget {
 }
 
 class _SearchField extends StatefulWidget {
-  const _SearchField({
-    required this.initialValue,
-    required this.onChanged,
-  });
+  const _SearchField({required this.initialValue, required this.onChanged});
 
   final String initialValue;
   final ValueChanged<String> onChanged;
@@ -225,10 +219,7 @@ class _SearchFieldState extends State<_SearchField> {
 }
 
 class _StockFilterChip extends StatelessWidget {
-  const _StockFilterChip({
-    required this.isSelected,
-    required this.onTap,
-  });
+  const _StockFilterChip({required this.isSelected, required this.onTap});
 
   final bool isSelected;
   final VoidCallback onTap;
@@ -382,10 +373,7 @@ class _ResultSummary extends StatelessWidget {
 }
 
 class _TicketCard extends StatelessWidget {
-  const _TicketCard({
-    required this.ticket,
-    required this.onTap,
-  });
+  const _TicketCard({required this.ticket, required this.onTap});
 
   final LotteryTicketListItem ticket;
   final VoidCallback onTap;
@@ -477,10 +465,7 @@ class _TicketCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFFBFA),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.primary,
-                      width: 1.5,
-                    ),
+                    border: Border.all(color: AppColors.primary, width: 1.5),
                   ),
                   child: Text(
                     ticket.code,
@@ -501,16 +486,16 @@ class _TicketCard extends StatelessWidget {
   }
 }
 
-class TicketDetailView extends StatelessWidget {
-  const TicketDetailView({
-    super.key,
-    required this.ticket,
-  });
+class TicketDetailView extends ConsumerWidget {
+  const TicketDetailView({super.key, required this.ticket});
 
   final LotteryTicketListItem ticket;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ticketDetailAsync = ref.watch(lotteryTicketDetailProvider(ticket.id));
+    final resolvedTicket = ticketDetailAsync.asData?.value ?? ticket;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFFBF8),
       appBar: AppBar(
@@ -584,8 +569,8 @@ class TicketDetailView extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _TicketBadge(
-                                  shortName: ticket.shortName,
-                                  imageUrl: ticket.imageUrl,
+                                  shortName: resolvedTicket.shortName,
+                                  imageUrl: resolvedTicket.imageUrl,
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -594,7 +579,7 @@ class TicketDetailView extends StatelessWidget {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        ticket.titleText,
+                                        resolvedTicket.titleText,
                                         style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w800,
@@ -607,7 +592,9 @@ class TicketDetailView extends StatelessWidget {
                                           Expanded(
                                             child: _TicketMeta(
                                               label: 'Ngay quay thuong',
-                                              value: _detailDate(ticket),
+                                              value: _detailDate(
+                                                resolvedTicket,
+                                              ),
                                             ),
                                           ),
                                           Container(
@@ -618,7 +605,9 @@ class TicketDetailView extends StatelessWidget {
                                           Expanded(
                                             child: _TicketMeta(
                                               label: 'Gia ve',
-                                              value: _formatTicketPrice(ticket.price),
+                                              value: _formatTicketPrice(
+                                                resolvedTicket.price,
+                                              ),
                                               highlight: true,
                                             ),
                                           ),
@@ -642,7 +631,7 @@ class TicketDetailView extends StatelessWidget {
                                 ),
                               ),
                               child: Text(
-                                ticket.code,
+                                resolvedTicket.code,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   color: AppColors.primary,
@@ -672,7 +661,7 @@ class TicketDetailView extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    ticket.statusDisplayName,
+                                    resolvedTicket.statusDisplayName,
                                     style: const TextStyle(
                                       color: Color(0xFF12985E),
                                       fontWeight: FontWeight.w800,
@@ -703,44 +692,39 @@ class TicketDetailView extends StatelessWidget {
                             _InfoRow(
                               icon: Icons.storefront_outlined,
                               label: 'San pham',
-                              value: ticket.titleText,
+                              value: resolvedTicket.titleText,
                             ),
                             _InfoRow(
                               icon: Icons.location_on_outlined,
                               label: 'Dai quay',
-                              value: ticket.stationDisplayText,
+                              value: resolvedTicket.stationDisplayText,
                             ),
                             _InfoRow(
                               icon: Icons.calendar_month_outlined,
                               label: 'Ngay quay thuong',
-                              value: _detailDate(ticket),
+                              value: _detailDate(resolvedTicket),
                             ),
                             _InfoRow(
                               icon: Icons.confirmation_number_outlined,
                               label: 'Serial',
-                              value: ticket.serialNumber ?? '-',
-                            ),
-                            _InfoRow(
-                              icon: Icons.inventory_2_outlined,
-                              label: 'Batch',
-                              value: ticket.batchCode ?? '-',
+                              value: resolvedTicket.serialNumber ?? '-',
                             ),
                             _InfoRow(
                               icon: Icons.sell_outlined,
                               label: 'Gia tien',
-                              value: _formatTicketPrice(ticket.price),
+                              value: _formatTicketPrice(resolvedTicket.price),
                               highlight: true,
                             ),
                             _InfoRow(
                               icon: Icons.pin_outlined,
                               label: 'Day so',
-                              value: ticket.code,
+                              value: resolvedTicket.code,
                               highlight: true,
                             ),
                             _InfoRow(
                               icon: Icons.verified_outlined,
                               label: 'Trang thai',
-                              value: ticket.statusDisplayName,
+                              value: resolvedTicket.statusDisplayName,
                               isLast: true,
                             ),
                           ],
@@ -750,6 +734,27 @@ class TicketDetailView extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
+                if (ticketDetailAsync.isLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: LinearProgressIndicator(
+                      color: AppColors.primary,
+                      backgroundColor: Color(0xFFFFE1D9),
+                    ),
+                  ),
+                if (ticketDetailAsync.hasError)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Khong tai duoc chi tiet moi nhat, dang hien thi du lieu tu danh sach.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 Row(
                   children: [
                     Expanded(
@@ -773,7 +778,8 @@ class TicketDetailView extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => context.pushNamed(AppRoute.checkout.name),
+                        onPressed: () =>
+                            context.pushNamed(AppRoute.checkout.name),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
@@ -800,8 +806,9 @@ class TicketDetailView extends StatelessWidget {
   }
 
   String _detailDate(LotteryTicketListItem ticket) {
-    final label =
-        ticket.dayFilter == TicketDayFilter.today ? 'Hom nay' : 'Ngay mai';
+    final label = ticket.dayFilter == TicketDayFilter.today
+        ? 'Hom nay'
+        : 'Ngay mai';
     return '${DateFormat('dd/MM/yyyy').format(ticket.drawDate)} ($label)';
   }
 }
@@ -888,11 +895,7 @@ class _InfoRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : const Border(
-                bottom: BorderSide(
-                  color: Color(0xFFF2E7E3),
-                ),
-              ),
+            : const Border(bottom: BorderSide(color: Color(0xFFF2E7E3))),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -904,11 +907,7 @@ class _InfoRow extends StatelessWidget {
               color: const Color(0xFFFFF1EF),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              icon,
-              size: 18,
-              color: AppColors.primary,
-            ),
+            child: Icon(icon, size: 18, color: AppColors.primary),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -941,10 +940,7 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _TicketBadge extends StatelessWidget {
-  const _TicketBadge({
-    required this.shortName,
-    this.imageUrl,
-  });
+  const _TicketBadge({required this.shortName, this.imageUrl});
 
   final String shortName;
   final String? imageUrl;
@@ -958,9 +954,8 @@ class _TicketBadge extends StatelessWidget {
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
-            errorWidget: (_, _, _) => _TicketBadgeFallback(
-              shortName: shortName,
-            ),
+            errorWidget: (_, _, _) =>
+                _TicketBadgeFallback(shortName: shortName),
             placeholder: (_, _) => const Center(
               child: SizedBox(
                 width: 18,
@@ -1042,10 +1037,7 @@ class _LoadingState extends StatelessWidget {
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorState({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;

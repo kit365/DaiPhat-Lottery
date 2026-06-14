@@ -129,6 +129,13 @@ final lotteryTicketRepositoryProvider = Provider<LotteryTicketRepository>((ref) 
   return LotteryTicketRepository(ref.watch(lotteryTicketApiServiceProvider));
 });
 
+final lotteryTicketDetailProvider =
+    FutureProvider.family<LotteryTicketListItem, int>((ref, id) async {
+      final repository = ref.read(lotteryTicketRepositoryProvider);
+      final ticket = await repository.fetchTicketDetail(id);
+      return mapLotteryTicketToListItem(ticket);
+    });
+
 final buyTicketViewModelProvider =
     AsyncNotifierProvider<BuyTicketViewModel, BuyTicketState>(
       BuyTicketViewModel.new,
@@ -158,64 +165,8 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
       selectedProvince: selectedProvince,
       selectedDay: selectedDay,
       onlyInStock: onlyInStock,
-      tickets: tickets.map(_mapTicketToListItem).toList(),
+      tickets: tickets.map(mapLotteryTicketToListItem).toList(),
     );
-  }
-
-  LotteryTicketListItem _mapTicketToListItem(LotteryTicket ticket) {
-    final drawDate = ticket.drawDate ?? DateTime.now();
-    return LotteryTicketListItem(
-      id: ticket.id,
-      displayName: ticket.productName,
-      code: ticket.numbers,
-      shortName: _buildShortName(ticket.productName),
-      dateLabel: _buildDateLabel(drawDate),
-      dayFilter: _resolveDayFilter(drawDate),
-      drawDate: drawDate,
-      status: ticket.status,
-      statusDisplayName: ticket.statusDisplayName,
-      stationName: null,
-      serialNumber: ticket.serialNumber,
-      batchCode: ticket.batchCode,
-      imageUrl: ticket.ticketImg,
-      price: null,
-    );
-  }
-
-  TicketDayFilter _resolveDayFilter(DateTime drawDate) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = today.add(const Duration(days: 1));
-    final ticketDate = DateTime(drawDate.year, drawDate.month, drawDate.day);
-
-    if (ticketDate == tomorrow) {
-      return TicketDayFilter.tomorrow;
-    }
-
-    return TicketDayFilter.today;
-  }
-
-  String _buildDateLabel(DateTime drawDate) {
-    final label = _resolveDayFilter(drawDate) == TicketDayFilter.today
-        ? 'Hom nay'
-        : 'Ngay mai';
-    return '$label - ${DateFormat('dd/MM/yyyy').format(drawDate)}';
-  }
-
-  String _buildShortName(String input) {
-    final words = input
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty)
-        .toList();
-
-    if (words.isEmpty) return 'VS';
-    if (words.length == 1) {
-      final word = words.first;
-      return word.substring(0, word.length < 2 ? word.length : 2).toUpperCase();
-    }
-
-    return words.take(2).map((word) => word[0]).join().toUpperCase();
   }
 
   Future<void> updateSearchQuery(String query) async {
@@ -261,4 +212,60 @@ class BuyTicketViewModel extends AsyncNotifier<BuyTicketState> {
       ),
     );
   }
+}
+
+LotteryTicketListItem mapLotteryTicketToListItem(LotteryTicket ticket) {
+  final drawDate = ticket.drawDate ?? DateTime.now();
+  return LotteryTicketListItem(
+    id: ticket.id,
+    displayName: ticket.productName,
+    code: ticket.numbers,
+    shortName: _buildShortName(ticket.productName),
+    dateLabel: _buildDateLabel(drawDate),
+    dayFilter: _resolveDayFilter(drawDate),
+    drawDate: drawDate,
+    status: ticket.status,
+    statusDisplayName: ticket.statusDisplayName,
+    stationName: null,
+    serialNumber: ticket.serialNumber,
+    batchCode: ticket.batchCode,
+    imageUrl: ticket.ticketImg,
+    price: null,
+  );
+}
+
+TicketDayFilter _resolveDayFilter(DateTime drawDate) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final tomorrow = today.add(const Duration(days: 1));
+  final ticketDate = DateTime(drawDate.year, drawDate.month, drawDate.day);
+
+  if (ticketDate == tomorrow) {
+    return TicketDayFilter.tomorrow;
+  }
+
+  return TicketDayFilter.today;
+}
+
+String _buildDateLabel(DateTime drawDate) {
+  final label = _resolveDayFilter(drawDate) == TicketDayFilter.today
+      ? 'Hom nay'
+      : 'Ngay mai';
+  return '$label - ${DateFormat('dd/MM/yyyy').format(drawDate)}';
+}
+
+String _buildShortName(String input) {
+  final words = input
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .toList();
+
+  if (words.isEmpty) return 'VS';
+  if (words.length == 1) {
+    final word = words.first;
+    return word.substring(0, word.length < 2 ? word.length : 2).toUpperCase();
+  }
+
+  return words.take(2).map((word) => word[0]).join().toUpperCase();
 }

@@ -62,7 +62,6 @@ class HomeHeader extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          _iconBtn(Icons.calendar_month_outlined),
           if (loginViewModel.isAuthenticated) ...[
             const SizedBox(width: 8),
             GestureDetector(
