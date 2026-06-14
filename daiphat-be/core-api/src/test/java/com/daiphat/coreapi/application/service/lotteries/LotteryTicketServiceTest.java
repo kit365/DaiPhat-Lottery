@@ -220,6 +220,42 @@ class LotteryTicketServiceTest {
     }
 
     @Test
+    @DisplayName("SELL OFFLINE: Vé RESERVED trả message đẹp cho FE")
+    void sellOfflineForOrder_fail_whenReserved_shouldReturnFriendlyMessage() {
+        LotteryTicketModel reservedTicket = LotteryTicketModel.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status(LotteryTicketStatus.RESERVED)
+                .drawDate(LocalDate.now().plusDays(1))
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(reservedTicket));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.sellOfflineForOrder(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .hasMessage("Vé đã được đặt trước, không thể bán tại quầy.");
+    }
+
+    @Test
+    @DisplayName("SELL OFFLINE: Vé SOLD trả message đẹp cho FE")
+    void sellOfflineForOrder_fail_whenSold_shouldReturnFriendlyMessage() {
+        LotteryTicketModel soldTicket = LotteryTicketModel.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status(LotteryTicketStatus.SOLD)
+                .drawDate(LocalDate.now().plusDays(1))
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(soldTicket));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.sellOfflineForOrder(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .hasMessage("Vé đã được bán.");
+    }
+
+    @Test
     @DisplayName("[DP-272] CREATE: Tạo vé số thất bại khi sản phẩm không tồn tại")
     void create_productNotFound_throwsLotteryStationNotFound() {
         when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.empty());
@@ -569,7 +605,7 @@ class LotteryTicketServiceTest {
                 .numbers(NUMBERS)
                 .drawDate(createRequest.drawDate())
                 .batchCode(BATCH_CODE)
-                .status("SOLD_ONLINE")
+                .status("SOLD")
                 .statusDisplayName("Đã bán online")
                 .importedById(IMPORTED_BY_ID)
                 .importedAt(existingModel.getImportedAt())
@@ -585,8 +621,8 @@ class LotteryTicketServiceTest {
         LotteryTicketResponse result = lotteryTicketService.update(TICKET_ID, request);
 
         assertThat(result).isNotNull();
-        assertThat(result.status()).isEqualTo("SOLD_ONLINE");
-        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_ONLINE);
+        assertThat(result.status()).isEqualTo("SOLD");
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD);
 
         verify(lotteryTicketRepositoryPort).save(existingModel);
     }
@@ -1082,9 +1118,9 @@ class LotteryTicketServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-325] DELETE: Xóa vé số RETURNED_TO_ISSUER không giảm tồn kho (không tính vào kho)")
+    @DisplayName("[DP-325] DELETE: Xóa vé số RETURNED không giảm tồn kho (không tính vào kho)")
     void delete_returnedToIssuerTicket_success_doesNotDecreaseInventory() {
-        existingModel.setStatus(LotteryTicketStatus.RETURNED_TO_ISSUER);
+        existingModel.setStatus(LotteryTicketStatus.RETURNED);
         int initialInventory = 10;
         productModel.setInventoryCount(initialInventory);
 
@@ -1099,9 +1135,9 @@ class LotteryTicketServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-325] DELETE: Xóa vé số SOLD_ONLINE không giảm tồn kho (đã bán)")
+    @DisplayName("[DP-325] DELETE: Xóa vé số SOLD không giảm tồn kho (đã bán)")
     void delete_soldOnlineTicket_success_doesNotDecreaseInventory() {
-        existingModel.setStatus(LotteryTicketStatus.SOLD_ONLINE);
+        existingModel.setStatus(LotteryTicketStatus.SOLD);
         int initialInventory = 10;
         productModel.setInventoryCount(initialInventory);
 
@@ -1116,9 +1152,9 @@ class LotteryTicketServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-325] DELETE: Xóa vé số SOLD_OFFLINE không giảm tồn kho (đã bán offline)")
+    @DisplayName("[DP-325] DELETE: Xóa vé số SOLD không giảm tồn kho (đã bán)")
     void delete_soldOfflineTicket_success_doesNotDecreaseInventory() {
-        existingModel.setStatus(LotteryTicketStatus.SOLD_OFFLINE);
+        existingModel.setStatus(LotteryTicketStatus.SOLD);
         int initialInventory = 10;
         productModel.setInventoryCount(initialInventory);
 
@@ -1133,9 +1169,9 @@ class LotteryTicketServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-325] DELETE: Xóa vé số DAMAGED không giảm tồn kho (đã hỏng)")
+    @DisplayName("[DP-325] DELETE: Xóa vé số INTERNAL_FAULT không giảm tồn kho (đã hỏng)")
     void delete_damagedTicket_success_doesNotDecreaseInventory() {
-        existingModel.setStatus(LotteryTicketStatus.DAMAGED);
+        existingModel.setStatus(LotteryTicketStatus.INTERNAL_FAULT);
         int initialInventory = 10;
         productModel.setInventoryCount(initialInventory);
 
@@ -1470,14 +1506,14 @@ class LotteryTicketServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái sang SOLD_ONLINE thành công và giảm tồn kho")
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái sang SOLD thành công và giảm tồn kho")
     void changeStatus_toSoldOnline_successAndDecreasesInventory() {
         productModel.setInventoryCount(10);
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
                 .id(TICKET_ID)
                 .productId(PRODUCT_ID)
-                .status("SOLD_ONLINE")
-                .statusDisplayName("Đã bán online")
+                .status("SOLD")
+                .statusDisplayName("Đã bán")
                 .build();
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
@@ -1486,10 +1522,10 @@ class LotteryTicketServiceTest {
         when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
 
-        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "SOLD_ONLINE");
+        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "SOLD");
 
         assertThat(response).isNotNull();
-        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_ONLINE);
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD);
         assertThat(productModel.getInventoryCount()).isEqualTo(9);
 
         verify(lotteryTicketRepositoryPort).save(existingModel);
@@ -1497,15 +1533,15 @@ class LotteryTicketServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái từ IN_STOCK sang SOLD_OFFLINE thành công")
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái từ IN_STOCK sang SOLD thành công")
     void changeStatus_fromInStockToSoldOffline_success() {
         productModel.setInventoryCount(10);
 
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
                 .id(TICKET_ID)
                 .productId(PRODUCT_ID)
-                .status("SOLD_OFFLINE")
-                .statusDisplayName("Đã bán offline")
+                .status("SOLD")
+                .statusDisplayName("Đã bán")
                 .build();
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
@@ -1514,17 +1550,17 @@ class LotteryTicketServiceTest {
         when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
 
-        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "SOLD_OFFLINE");
+        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "SOLD");
 
         assertThat(response).isNotNull();
-        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_OFFLINE);
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD);
         assertThat(productModel.getInventoryCount()).isEqualTo(9);
 
         verify(lotteryStationRepositoryPort).save(productModel);
     }
 
     @Test
-    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái từ RESERVED sang SOLD_ONLINE thành công")
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái từ RESERVED sang SOLD thành công")
     void changeStatus_fromReservedToSoldOnline_success() {
         existingModel.setStatus(LotteryTicketStatus.RESERVED);
         productModel.setInventoryCount(10);
@@ -1532,8 +1568,8 @@ class LotteryTicketServiceTest {
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
                 .id(TICKET_ID)
                 .productId(PRODUCT_ID)
-                .status("SOLD_ONLINE")
-                .statusDisplayName("Đã bán online")
+                .status("SOLD")
+                .statusDisplayName("Đã bán")
                 .build();
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
@@ -1542,10 +1578,10 @@ class LotteryTicketServiceTest {
         when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(productModel);
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
 
-        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "SOLD_ONLINE");
+        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "SOLD");
 
         assertThat(response).isNotNull();
-        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD_ONLINE);
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD);
         assertThat(productModel.getInventoryCount()).isEqualTo(9);
 
         verify(lotteryStationRepositoryPort).save(productModel);
@@ -1567,13 +1603,13 @@ class LotteryTicketServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái sang DAMAGED thành công")
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái sang INTERNAL_FAULT thành công")
     void changeStatus_toDamaged_success() {
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
                 .id(TICKET_ID)
                 .productId(PRODUCT_ID)
-                .status("DAMAGED")
-                .statusDisplayName("Đã hỏng")
+                .status("INTERNAL_FAULT")
+                .statusDisplayName("Nhân viên làm hỏng")
                 .build();
 
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
@@ -1581,31 +1617,21 @@ class LotteryTicketServiceTest {
         when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
 
-        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "DAMAGED");
+        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "INTERNAL_FAULT");
 
         assertThat(response).isNotNull();
-        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.DAMAGED);
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.INTERNAL_FAULT);
     }
 
     @Test
-    @DisplayName("[DP-325] CHANGE_STATUS: Đổi trạng thái sang EXPIRED thành công")
-    void changeStatus_toExpired_success() {
-        LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
-                .id(TICKET_ID)
-                .productId(PRODUCT_ID)
-                .status("EXPIRED")
-                .statusDisplayName("Đã hết hạn")
-                .build();
-
+    @DisplayName("[DP-325] CHANGE_STATUS: Không cho đổi trạng thái thủ công sang EXPIRED")
+    void changeStatus_toExpired_throwsInvalidStatus() {
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
-        when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
-        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
-        when(lotteryTicketApplicationMapper.toResponse(existingModel)).thenReturn(expectedResponse);
 
-        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, "EXPIRED");
-
-        assertThat(response).isNotNull();
-        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.EXPIRED);
+        assertThatThrownBy(() -> lotteryTicketService.changeStatus(TICKET_ID, "EXPIRED"))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
     }
 
     @Test

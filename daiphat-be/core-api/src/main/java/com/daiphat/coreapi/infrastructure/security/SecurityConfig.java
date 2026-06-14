@@ -57,13 +57,15 @@ public class SecurityConfig {
                                 AUTH + "/register/resend-verification",
                                 AUTH + "/forgot-password/**",
                                 PERMISSIONS + "/register",
-                                ApiConstants.API_V1 + "/users/accept-invite"
+                                ApiConstants.API_V1 + "/users/accept-invite",
+                                ApiConstants.API_V1 + "/transactions/payment/webhook/*"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 AUTH + "/verify-email",
                                 AUTH + "/password-policy",
                                 ApiConstants.API_V1 + "/blogs/public",
-                                ApiConstants.API_V1 + "/blogs/categories/public"
+                                ApiConstants.API_V1 + "/blogs/categories/public",
+                                ApiConstants.API_V1 + "/transactions/payment/webhook/*"
                         ).permitAll()
                         .requestMatchers(HttpMethod.PATCH,
                                 ApiConstants.API_V1 + "/blogs/*/view"

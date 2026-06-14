@@ -39,6 +39,17 @@ daiphat:
     client-id: ${FIREBASE_CLIENT_ID}
   blog:
     schedule-publish-rate-ms: ${BLOG_SCHEDULE_PUBLISH_RATE_MS:60000}
+  payment:
+    payos:
+      client-id: ${PAYOS_CLIENT_ID:}
+      api-key: ${PAYOS_API_KEY:}
+      checksum-key: ${PAYOS_CHECKSUM_KEY:}
+      return-path: ${PAYOS_RETURN_PATH:/payment/payos/return}
+      cancel-path: ${PAYOS_CANCEL_PATH:/payment/payos/cancel}
+  order:
+    pending-payment-ttl-seconds: ${ORDER_PENDING_PAYMENT_TTL_SECONDS:600}
+    pending-payment-expire-rate-ms: ${ORDER_PENDING_PAYMENT_EXPIRE_RATE_MS:60000}
+    payment-failure-max-attempts: ${ORDER_PAYMENT_FAILURE_MAX_ATTEMPTS:3}
   storage:
     cloudinary:
       cloud-name: ${CLOUDINARY_CLOUD_NAME}

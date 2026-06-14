@@ -355,14 +355,14 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         setAuthentication(principal, RoleConstants.ROLE_STREET_AGENT, "ticket:view");
 
-        when(lotteryTicketServicePort.getAll(1, 10, null, "SOLD_ONLINE", null, "0001", "updatedAt", "desc"))
+        when(lotteryTicketServicePort.getAll(1, 10, null, "SOLD", null, "0001", "updatedAt", "desc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
                 1,
                 10,
                 null,
-                "SOLD_ONLINE",
+                "SOLD",
                 null,
                 "0001",
                 "updatedAt",
@@ -380,7 +380,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getRecordList().getFirst().verified()).isTrue();
         assertThat(body.getData().getRecordList().getFirst().returnedAt()).isEqualTo(LocalDateTime.of(2026, 6, 15, 8, 30));
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, "SOLD_ONLINE", null, "0001", "updatedAt", "desc");
+        verify(lotteryTicketServicePort).getAll(1, 10, null, "SOLD", null, "0001", "updatedAt", "desc");
     }
 
     @Test
