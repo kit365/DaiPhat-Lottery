@@ -1,97 +1,74 @@
-import { Box, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Stack, TextField, ThemeProvider, useTheme, Button, Checkbox, FormControlLabel, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Switch, Divider, ListItemText } from "@mui/material"
-import { useTranslation } from "react-i18next";
+import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography } from "@mui/material"
 import { Breadcrumb } from "../../components/ui/Breadcrumb"
 import { Title } from "../../components/ui/Title"
-import { useState, useMemo, useEffect, type Dispatch, type SetStateAction } from "react"
-import { Tiptap } from "../../components/layouts/titap/Tiptap"
+import { useState, useMemo, useEffect } from "react"
 import { UploadFiles } from "../../components/ui/UploadFiles"
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../constants/routes";
-import { CategoryTreeSelectGeneric } from "../../components/ui/CategoryTreeSelectGeneric";
-import { useCreateTicketData, useCreateTicket } from "./hooks/useTicket";
+import { useCreateTicket } from "./hooks/useTicket";
 import { toast } from "react-toastify";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createTicketSchema } from "../../schemas/ticket.schema";
+import { createTicketSchema, CreateTicketFormValues } from "../../schemas/ticket.schema";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { useProviders } from "../provider/hooks/useProvider";
-import { useTicketSubtypes } from "../account-user/hooks/useTicketSubtype";
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs from "dayjs";
+import "dayjs/locale/en-gb";
 
 interface CustomFile extends File {
     preview: string;
 }
 
-interface VariantAttribute {
-    attrId: string;
-    attrType: string;
-    label: string;
-    value: string;
-}
+const SCHEDULE_TO_DAY_MAP: Record<string, number[]> = {
+    "Thứ Hai": [1], "T2": [1], "Thứ 2": [1],
+    "Thứ Ba": [2], "T3": [2], "Thứ 3": [2],
+    "Thứ Tư": [3], "T4": [3], "Thứ 4": [3],
+    "Thứ Năm": [4], "T5": [4], "Thứ 5": [4],
+    "Thứ Sáu": [5], "T6": [5], "Thứ 6": [5],
+    "Thứ Bảy": [6], "T7": [6], "Thứ 7": [6],
+    "Chủ Nhật": [0], "CN": [0]
+};
 
-interface Variant {
-    id: string;
-    attributeValue: VariantAttribute[];
-    priceOld: string;
-    priceNew: string;
-    stock: string;
-    status: boolean;
-}
+const getValidDays = (schedule: string) => {
+    if (!schedule) return [];
+    const validDays: number[] = [];
+    Object.keys(SCHEDULE_TO_DAY_MAP).forEach(key => {
+        if (schedule.includes(key)) {
+            validDays.push(...SCHEDULE_TO_DAY_MAP[key]);
+        }
+    });
+    return validDays;
+};
 
 export const TicketCreatePage = () => {
-    const { t } = useTranslation();
-
     const {
         control,
         handleSubmit,
         setValue,
-        watch,
+        setError,
         reset,
-        formState: { }
-    } = useForm<any>({
+    } = useForm<CreateTicketFormValues>({
         resolver: zodResolver(createTicketSchema),
         defaultValues: {
-            name: "",
-            description: "",
-            content: "",
-            position: "",
-            priceOld: "",
-            priceNew: "",
-            stock: "",
-            images: [],
-            status: "active",
-            category: [],
-            providerId: "",
-            attributes: [],
-            variants: [],
-            isFood: false,
-            expiryDate: "",
-            suitableTicketSubtypes: [],
-            minAge: 0,
+            productId: "",
+            ticketImg: undefined,
+            serialNumber: "",
+            numbers: "",
+            drawDate: "",
+            batchCode: "",
         },
     });
 
-    const [resetKey, setResetKey] = useState(0);
     const [expandedDetail, setExpandedDetail] = useState(true);
-    const [expandedExtra, setExpandedExtra] = useState(true);
-    const [expandedPrice, setExpandedPrice] = useState(true);
-    const [expandedVariants, setExpandedVariants] = useState(true);
-
-    const toggle = (setter: Dispatch<SetStateAction<boolean>>) =>
-        () => setter(prev => !prev);
-
-    const [userTicketType, setUserTicketType] = useState<string>("all");
     const [files, setFiles] = useState<CustomFile[]>([]);
-    const [variants, setVariants] = useState<Variant[]>([]);
+    const [resetKey, setResetKey] = useState(0);
 
-    const { data: createData } = useCreateTicketData();
     const { data: providersRes } = useProviders({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
-    const { data: ticketSubtypesRes } = useTicketSubtypes({ limit: 1000 });
-    const ticketSubtypes = (ticketSubtypesRes as any)?.data?.recordList || [];
     const { mutate: create, isPending } = useCreateTicket();
-
-    const attributes = createData?.attributeList || [];
-    const nestedCategories = createData?.categoryList || [];
 
     const outerTheme = useTheme();
 
@@ -107,47 +84,6 @@ export const TicketCreatePage = () => {
                         borderRadius: "var(--shape-borderRadius-lg)",
                         color: "var(--palette-text-primary)",
                     },
-                }
-            },
-            MuiTableHead: {
-                styleOverrides: {
-                    root: {
-                        backgroundColor: "var(--palette-background-neutral)",
-                        "& .MuiTableCell-root": {
-                            fontWeight: 600,
-                            color: "var(--palette-text-secondary)",
-                            fontSize: "1rem",
-                        }
-                    }
-                }
-            },
-            MuiTableCell: {
-                styleOverrides: {
-                    root: {
-                        fontSize: "1rem",
-                    }
-                }
-            },
-            MuiTypography: {
-                styleOverrides: {
-                    root: {
-                        fontSize: "1rem",
-                    },
-                    subtitle1: {
-                        fontSize: "1rem",
-                        fontWeight: 600,
-                    },
-                    subtitle2: {
-                        fontSize: "1rem",
-                        fontWeight: 600,
-                    }
-                }
-            },
-            MuiFormControlLabel: {
-                styleOverrides: {
-                    label: {
-                        fontSize: "1rem",
-                    }
                 }
             },
             MuiInputLabel: {
@@ -168,135 +104,102 @@ export const TicketCreatePage = () => {
     }), [outerTheme]);
 
     useEffect(() => {
-        setValue("images", files);
+        setValue("ticketImg", files.length > 0 ? files[0] : undefined);
     }, [files, setValue]);
 
-    useEffect(() => {
-        setValue("variants", variants);
-        // Calculate total stock if variants exist
-        if (variants.length > 0) {
-            const totalStock = variants.reduce((sum, v) => sum + (parseInt(v.stock) || 0), 0);
-            setValue("stock", String(totalStock));
-        }
-    }, [variants, setValue]);
-
-    const selectedAttributeIds = watch("attributes") || [];
-
-    const handleToggleAttribute = (id: string) => {
-        const next = selectedAttributeIds.includes(id)
-            ? selectedAttributeIds.filter(attrId => attrId !== id)
-            : [...selectedAttributeIds, id];
-        setValue("attributes", next);
-
-        if (next.length === 0) {
-            setVariants([]);
-        }
-    };
-
-    const generateVariants = () => {
-        const selectedAttrs = attributes.filter((attr: any) => {
-            const attrId = (attr.id || attr._id)?.toString();
-            return attrId && selectedAttributeIds.includes(attrId);
-        });
-        if (selectedAttrs.length === 0) return;
-
-        const cartesian = (arrays: any[][]): any[][] => {
-            return arrays.reduce((a, b) =>
-                a.flatMap(d => b.map(e => [d, e].flat()))
-                , [[]]);
-        };
-
-        const attrValues = selectedAttrs.map((attr: any) =>
-            (attr.options || []).map((opt: any) => ({
-                attrId: (attr.id || attr._id).toString(),
-                attrType: attr.type,
-                label: opt.label,
-                value: opt.value
-            }))
-        );
-
-        if (attrValues.some(arr => arr.length === 0)) {
-            toast.warn("Một số thuộc tính đã chọn không có tùy chọn để tạo biến thể");
+    const fillSample = (sampleNum: number) => {
+        if (providers.length === 0) {
+            toast.warn("Đang tải danh sách nhà đài...");
             return;
         }
 
-        const combinations = cartesian(attrValues);
-        const priceOldField = watch("priceOld");
-        const priceNewField = watch("priceNew");
+        const findProvider = (nameMatch: string) => providers.find((p: any) => p.name.includes(nameMatch)) || providers[0];
 
-        const newVariants: Variant[] = combinations.map((combo, index) => ({
-            id: `v-${Date.now()}-${index}`,
-            attributeValue: combo,
-            priceOld: String(priceOldField || "0"),
-            priceNew: String(priceNewField || "0"),
-            stock: "0",
-            status: true
-        }));
-
-        setVariants(newVariants);
+        if (sampleNum === 1) {
+            const p = findProvider("Hồ Chí Minh");
+            setValue("productId", p.id || p._id);
+            setValue("serialNumber", "HCM-12345");
+            setValue("numbers", "987654");
+            setValue("drawDate", dayjs().format("YYYY-MM-DD"));
+            setValue("batchCode", "BATCH-HCM-01");
+        } else if (sampleNum === 2) {
+            const p = findProvider("Bến Tre");
+            setValue("productId", p.id || p._id);
+            setValue("serialNumber", "BT-99999");
+            setValue("numbers", "112233");
+            setValue("drawDate", dayjs().add(1, 'day').format("YYYY-MM-DD"));
+            setValue("batchCode", "BATCH-BT-02");
+        } else if (sampleNum === 3) {
+            const p = findProvider("Đồng Nai");
+            setValue("productId", p.id || p._id);
+            setValue("serialNumber", "DN-55555");
+            setValue("numbers", "334455");
+            setValue("drawDate", dayjs().format("YYYY-MM-DD"));
+            setValue("batchCode", "BATCH-DN-03");
+        }
+        toast.info(`Đã điền mẫu data ${sampleNum}`);
     };
 
-    const handleUpdateVariant = (id: string, field: keyof Variant, value: any) => {
-        setVariants(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v));
-    };
+    const onSubmit = (data: CreateTicketFormValues) => {
+        // Validation for drawDate
+        const selectedProvider = providers.find((p: any) => (p.id || p._id) === data.productId);
+        if (selectedProvider && data.drawDate) {
+            const drawDateObj = dayjs(data.drawDate).startOf('day');
+            const today = dayjs().startOf('day');
+            const tomorrow = dayjs().add(1, 'day').startOf('day');
+            
+            // Backend restriction: Must be today or tomorrow
+            if (!drawDateObj.isSame(today) && !drawDateObj.isSame(tomorrow)) {
+                setError("drawDate", { message: "Chỉ được phép nhập vé có ngày quay là Hôm nay hoặc Ngày mai (Theo chuẩn BE)" });
+                return;
+            }
 
-    const onSubmit = (data: any) => {
+            // Check if day of week matches draw schedule
+            const validDays = getValidDays(selectedProvider.drawSchedule);
+            if (validDays.length > 0 && !validDays.includes(drawDateObj.day())) {
+                setError("drawDate", { 
+                    message: `Lịch quay nhà đài này là: ${selectedProvider.drawSchedule}. Chọn sai thứ!` 
+                });
+                return;
+            }
+        }
+
+        let ticketImgPath = "";
+        if (files.length > 0) {
+            ticketImgPath = files[0].name; 
+        }
+
         const payload = {
-            ...data,
-            category: JSON.stringify(data.category),
-            variants: JSON.stringify(data.variants.map((v: any) => ({
-                status: v.status,
-                attributeValue: v.attributeValue,
-                priceOld: Number(v.priceOld) || 0,
-                priceNew: Number(v.priceNew) || 0,
-                stock: Number(v.stock) || 0
-            }))),
-            attributes: JSON.stringify(data.attributes),
-            images: JSON.stringify(data.images.map((f: any) => f.name || f)),
-            suitableTicketSubtypes: JSON.stringify(data.suitableTicketSubtypes),
-            priceOld: Number(data.priceOld) || 0,
-            priceNew: Number(data.priceNew) || 0,
-            stock: Number(data.stock) || 0,
-            position: Number(data.position) || 0
+            productId: data.productId,
+            serialNumber: data.serialNumber,
+            numbers: data.numbers,
+            drawDate: data.drawDate,
+            batchCode: data.batchCode,
+            ticketImg: ticketImgPath
         };
 
-        console.log(">>> Ticket Data to Create:", payload);
-
         create(payload, {
-            onSuccess: (res) => {
+            onSuccess: (res: any) => {
                 if (res.success) {
-                    toast.success(res.message || "Tạo vé số thành công!");
+                    toast.success(res.message || "Nhập vé số vào kho thành công!");
                     reset({
-                        name: "",
-                        description: "",
-                        content: "",
-                        position: "",
-                        priceOld: "",
-                        priceNew: "",
-                        stock: "",
-                        images: [],
-                        status: "active",
-                        category: [],
-                        attributes: [],
-                        variants: [],
+                        productId: "",
+                        serialNumber: "",
+                        numbers: "",
+                        drawDate: "",
+                        batchCode: "",
                     });
                     setFiles([]);
-                    setVariants([]);
                     setResetKey(prev => prev + 1);
                 } else {
                     toast.error(res.message || "Tạo vé số thất bại");
                 }
             },
             onError: (err: any) => {
-                toast.error(err?.message || "Đã xảy ra lỗi khi tạo vé số");
+                toast.error(err?.response?.data?.message || err?.message || "Đã xảy ra lỗi khi tạo vé số");
             }
         });
     };
-
-    const onError = (errors: any) => {
-        console.log(">>> Validation Errors:", errors);
-    };
-
 
     return (
         <>
@@ -305,422 +208,185 @@ export const TicketCreatePage = () => {
                     <Title title={"Tạo mới vé số"} />
                     <Breadcrumb
                         items={[
-                            { label: t('admin.dashboard.title'), to: "/" },
-                            { label: "Danh sách vé số", to: `/${prefixAdmin}/ticket/list` },
-                            { label: t('admin.common.create') }
+                            { label: "Dashboard", to: "/" },
+                            { label: "Kho vé số", to: `/${prefixAdmin}/ticket/list` },
+                            { label: "Nhập vé" }
                         ]}
                     />
                 </div>
             </div>
             <ThemeProvider theme={localTheme}>
-                <form onSubmit={handleSubmit(onSubmit, onError)}>
+                <form onSubmit={handleSubmit(onSubmit)}>
                     <Stack sx={{
                         margin: "0px calc(15 * var(--spacing))",
                         gap: "calc(5 * var(--spacing))",
                         pb: 10
                     }}>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Button variant="outlined" color="info" onClick={() => fillSample(1)}>
+                                Điền mẫu 1 (Hồ Chí Minh - T2)
+                            </Button>
+                            <Button variant="outlined" color="secondary" onClick={() => fillSample(2)}>
+                                Điền mẫu 2 (Bến Tre - T3)
+                            </Button>
+                            <Button variant="outlined" color="warning" onClick={() => fillSample(3)}>
+                                Điền mẫu 3 (Đồng Nai - T4)
+                            </Button>
+                        </Box>
+
                         <CollapsibleCard
-                            title={t('admin.common.details')}
-                            subheader={t('admin.common.description')}
+                            title={"Thông tin vé số"}
+                            subheader={"Sản phẩm, dãy số, ngày quay..."}
                             expanded={expandedDetail}
-                            onToggle={toggle(setExpandedDetail)}
-                        >
-                            <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
-                                <Controller
-                                    name="name"
-                                    control={control}
-                                    render={({ field, fieldState }) => (
-                                        <TextField
-                                            {...field}
-                                            label={t('admin.ticket.fields.name')}
-                                            fullWidth
-                                            error={!!fieldState.error}
-                                            helperText={fieldState.error?.message}
-                                        />
-                                    )}
-                                />
-                                <Controller
-                                    name="description"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <Tiptap
-                                            value={field.value}
-                                            onChange={field.onChange}
-                                        />
-                                    )}
-                                />
-                                <UploadFiles
-                                    key={resetKey}
-                                    files={files}
-                                    onFilesChange={(newFiles) => setFiles(newFiles)}
-                                />
-                            </Stack>
-                        </CollapsibleCard>
-
-                        <CollapsibleCard
-                            title={t('admin.common.attributes')}
-                            subheader={t('admin.common.description')}
-                            expanded={expandedExtra}
-                            onToggle={toggle(setExpandedExtra)}
+                            onToggle={() => setExpandedDetail(!expandedDetail)}
                         >
                             <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
                                 <Box
                                     sx={{
                                         display: "grid",
-                                        gridTemplateColumns: "repeat(2, 1fr)",
+                                        gridTemplateColumns: "repeat(12, 1fr)",
                                         gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))",
                                     }}
                                 >
-                                    <CategoryTreeSelectGeneric
-                                        multiple
-                                        name="category"
-                                        control={control}
-                                        categories={nestedCategories}
-                                        label={t('admin.ticket.fields.select_category')}
-                                    />
-
-                                    <Controller
-                                        name="providerId"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <FormControl fullWidth>
-                                                <InputLabel shrink>{"Nhà đài"}</InputLabel>
-                                                <Select
-                                                    {...field}
-                                                    displayEmpty
-                                                    input={<OutlinedInput label={"Nhà đài"} notched />}
-                                                >
-                                                    <MenuItem value="">
-                                                        <Box sx={{ color: "#919EAB" }}>Chọn nhà đài</Box>
-                                                    </MenuItem>
-                                                    {Array.isArray(providers) && providers.map((provider: any) => {
-                                                        const providerId = provider.id || provider._id;
-                                                        return (
-                                                            <MenuItem key={providerId} value={providerId}>
-                                                                {provider.name}
-                                                            </MenuItem>
-                                                        );
-                                                    })}
-                                                </Select>
-                                            </FormControl>
-                                        )}
-                                    />
-                                </Box>
-                                <Box
-                                    sx={{
-                                        display: "grid",
-                                        gridTemplateColumns: "repeat(2, 1fr)",
-                                        gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))",
-                                    }}
-                                >
-                                    <Controller
-                                        name="status"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <FormControl>
-                                                <InputLabel id="status-select-label" sx={{ color: "var(--palette-text-secondary)" }}>{t('admin.common.status')}</InputLabel>
-                                                <Select
-                                                    {...field}
-                                                    labelId="status-select-label"
-                                                    input={<OutlinedInput label={t('admin.common.status')} />}
-                                                >
-                                                    <MenuItem value="draft">{t('admin.ticket.status.draft')}</MenuItem>
-                                                    <MenuItem value="active">{t('admin.ticket.status.active')}</MenuItem>
-                                                    <MenuItem value="inactive">{t('admin.ticket.status.inactive')}</MenuItem>
-                                                </Select>
-                                            </FormControl>
-                                        )}
-                                    />
-
-                                    <Controller
-                                        name="position"
-                                        control={control}
-                                        render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                label={t('admin.common.position')}
-                                                fullWidth
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message}
-                                            />
-                                        )}
-                                    />
-                                </Box>
-                                <Box
-                                    sx={{
-                                        display: "grid",
-                                        gridTemplateColumns: "repeat(2, 1fr)",
-                                        gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))",
-                                        alignItems: "center"
-                                    }}
-                                >
-                                    <Controller
-                                        name="isFood"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <FormControlLabel
-                                                control={<Checkbox {...field} checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
-                                                label="Vé số có thời hạn quay thưởng"
-                                            />
-                                        )}
-                                    />
-
-                                    {watch("isFood") && (
-                                        <>
-                                            <Controller
-                                                name="expiryDate"
-                                                control={control}
-                                                render={({ field, fieldState }) => (
-                                                    <TextField
-                                                        {...field}
-                                                        label="Ngày hết hạn"
-                                                        type="datetime-local"
-                                                        fullWidth
-                                                        InputLabelProps={{ shrink: true }}
-                                                        inputProps={{ min: new Date().toISOString().slice(0, 16) }}
-                                                        error={!!fieldState.error}
-                                                        helperText={fieldState.error?.message}
-                                                    />
-                                                )}
-                                            />
-                                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                                                <FormControl fullWidth>
-                                                    <InputLabel id="userTicket-type-label">Miền</InputLabel>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="productId"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <FormControl fullWidth error={!!fieldState.error}>
+                                                    <InputLabel shrink>{"Sản phẩm vé số (Nhà đài)"}</InputLabel>
                                                     <Select
-                                                        labelId="userTicket-type-label"
-                                                        value={userTicketType}
-                                                        label="Miền"
-                                                        onChange={(e) => setUserTicketType(e.target.value)}
+                                                        {...field}
+                                                        displayEmpty
+                                                        input={<OutlinedInput label={"Sản phẩm vé số (Nhà đài)"} notched />}
                                                     >
-                                                        <MenuItem value="all">Tất cả</MenuItem>
-                                                        <MenuItem value="dog">Miền Nam</MenuItem>
-                                                        <MenuItem value="cat">Miền Trung</MenuItem>
+                                                        <MenuItem value="">
+                                                            <Box sx={{ color: "#919EAB" }}>Chọn nhà đài</Box>
+                                                        </MenuItem>
+                                                        {Array.isArray(providers) && providers.map((provider: any) => {
+                                                            const providerId = provider.id || provider._id;
+                                                            return (
+                                                                <MenuItem key={providerId} value={providerId}>
+                                                                    {provider.name}
+                                                                </MenuItem>
+                                                            );
+                                                        })}
                                                     </Select>
+                                                    {fieldState.error && <p className="text-red-500 text-xs mt-1 ml-3">{fieldState.error.message}</p>}
                                                 </FormControl>
-                                                <Controller
-                                                    name="suitableTicketSubtypes"
-                                                    control={control}
-                                                    render={({ field }) => {
-                                                        const filteredTicketSubtypes = userTicketType === "all"
-                                                            ? ticketSubtypes
-                                                            : ticketSubtypes.filter((b: any) => b.type === userTicketType);
-
-                                                        return (
-                                                            <FormControl fullWidth>
-                                                                <InputLabel id="ticketSubtypes-label">Tỉnh thành ({userTicketType === "all" ? "Tất cả" : userTicketType === "dog" ? "Miền Nam" : "Miền Trung"})</InputLabel>
-                                                                <Select
-                                                                    {...field}
-                                                                    labelId="ticketSubtypes-label"
-                                                                    multiple
-                                                                    input={<OutlinedInput label={`Tỉnh thành (${userTicketType === "all" ? "Tất cả" : userTicketType === "dog" ? "Miền Nam" : "Miền Trung"})`} />}
-                                                                    renderValue={(selected) => (
-                                                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                                            {(selected as string[]).map((value) => (
-                                                                                <Typography key={value} variant="body2" sx={{ bgcolor: 'var(--palette-background-neutral)', px: 1, borderRadius: 1 }}>
-                                                                                    {ticketSubtypes.find((b: any) => (b.id || b._id) === value)?.name || value}
-                                                                                </Typography>
-                                                                            ))}
-                                                                        </Box>
-                                                                    )}
-                                                                >
-                                                                    <MenuItem
-                                                                        value="all"
-                                                                        onClick={() => {
-                                                                            const isSelectedAll = field.value.length === filteredTicketSubtypes.length;
-                                                                            if (isSelectedAll) {
-                                                                                field.onChange([]);
-                                                                            } else {
-                                                                                field.onChange(filteredTicketSubtypes.map((b: any) => b.id || b._id));
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        <Checkbox checked={field.value.length === filteredTicketSubtypes.length && filteredTicketSubtypes.length > 0} />
-                                                                        <ListItemText primary="Chọn tất cả" />
-                                                                    </MenuItem>
-                                                                    {filteredTicketSubtypes.map((ticketSubtype: any) => {
-                                                                        const ticketSubtypeId = ticketSubtype.id || ticketSubtype._id;
-                                                                        return (
-                                                                            <MenuItem key={ticketSubtypeId} value={ticketSubtypeId}>
-                                                                                <Checkbox checked={field.value.indexOf(ticketSubtypeId) > -1} />
-                                                                                <ListItemText primary={`${ticketSubtype.name} (${ticketSubtype.type === 'dog' ? 'Chó' : 'Mèo'})`} />
-                                                                            </MenuItem>
-                                                                        );
-                                                                    })}
-                                                                </Select>
-                                                            </FormControl>
-                                                        );
-                                                    }}
-                                                />
-                                            </Box>
-                                            <Controller
-                                                name="minAge"
-                                                control={control}
-                                                render={({ field, fieldState }) => {
-                                                    const months = Number(field.value) || 0;
-                                                    let ageText = `${months} tháng`;
-                                                    if (months >= 12) {
-                                                        const years = Math.floor(months / 12);
-                                                        const remMonths = months % 12;
-                                                        ageText = `${years} năm ${remMonths > 0 ? `${remMonths} tháng` : ''}`;
-                                                    }
-                                                    return (
-                                                        <TextField
-                                                            {...field}
-                                                            label="Độ tuổi tối thiểu (Tháng)"
-                                                            type="number"
-                                                            fullWidth
-                                                            error={!!fieldState.error}
-                                                            helperText={fieldState.error?.message || `Tương đương: ${ageText}`}
-                                                        />
-                                                    );
-                                                }}
-                                            />
-                                        </>
-                                    )}
-                                </Box>
-                            </Stack>
-                        </CollapsibleCard>
-
-                        <CollapsibleCard
-                            title={"Giá"}
-                            subheader={"Các trường liên quan đến giá"}
-                            expanded={expandedPrice}
-                            onToggle={toggle(setExpandedPrice)}
-                        >
-                            <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
-                                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: "calc(3 * var(--spacing))" }}>
-                                    <Controller
-                                        name="priceOld"
-                                        control={control}
-                                        render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                label={"Giá gốc"}
-                                                fullWidth
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message}
-                                            />
-                                        )}
-                                    />
-                                    <Controller
-                                        name="priceNew"
-                                        control={control}
-                                        render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                label={"Giá mới"}
-                                                fullWidth
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message}
-                                            />
-                                        )}
-                                    />
-                                </Box>
-                                <Controller
-                                    name="stock"
-                                    control={control}
-                                    render={({ field, fieldState }) => (
-                                        <TextField
-                                            {...field}
-                                            label={"Còn lại"}
-                                            fullWidth
-                                            disabled={variants.length > 0}
-                                            error={!!fieldState.error}
-                                            helperText={variants.length > 0 ? "Tổng từ các biến thể" : fieldState.error?.message}
+                                            )}
                                         />
-                                    )}
-                                />
-                            </Stack>
-                        </CollapsibleCard>
-
-                        <CollapsibleCard
-                            title={"Biến thể vé số"}
-                            subheader={"Tạo các biến thể dựa trên thuộc tính"}
-                            expanded={expandedVariants}
-                            onToggle={toggle(setExpandedVariants)}
-                        >
-                            <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
-                                <Box>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Danh sách thuộc tính</Typography>
-                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                                        {attributes.map((attr: any) => {
-                                            const attrId = (attr.id || attr._id).toString();
-                                            return (
-                                                <FormControlLabel
-                                                    key={attrId}
-                                                    control={
-                                                        <Checkbox
-                                                            checked={selectedAttributeIds.includes(attrId)}
-                                                            onChange={() => handleToggleAttribute(attrId)}
-                                                        />
-                                                    }
-                                                    label={attr.name}
-                                                />
-                                            );
-                                        })}
                                     </Box>
-                                    <Button
-                                        variant="outlined"
-                                        size="large"
-                                        sx={{ mt: 2, textTransform: 'none', borderRadius: "var(--shape-borderRadius)", fontWeight: 600, fontSize: '0.875rem' }}
-                                        onClick={generateVariants}
-                                    >
-                                        Tạo biến thể
-                                    </Button>
+
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="batchCode"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    label="Mã lô nhập"
+                                                    fullWidth
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                        <Controller
+                                            name="serialNumber"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    label="Số sê-ri"
+                                                    fullWidth
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                        <Controller
+                                            name="numbers"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    label="Dãy số"
+                                                    fullWidth
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                        <Controller
+                                            name="drawDate"
+                                            control={control}
+                                            render={({ field, fieldState }) => {
+                                                const watchProductId = control._formValues.productId;
+                                                const selectedProvider = providers.find((p: any) => (p.id || p._id) === watchProductId);
+                                                const validDays = selectedProvider ? getValidDays(selectedProvider.drawSchedule) : [];
+                                                
+                                                const shouldDisableDate = (date: dayjs.Dayjs) => {
+                                                    if (!selectedProvider) return true;
+                                                    
+                                                    const checkDate = date.startOf('day');
+                                                    const today = dayjs().startOf('day');
+                                                    const tomorrow = dayjs().add(1, 'day').startOf('day');
+                                                    
+                                                    // Strictly today or tomorrow
+                                                    if (!checkDate.isSame(today) && !checkDate.isSame(tomorrow)) {
+                                                        return true;
+                                                    }
+
+                                                    if (validDays.length > 0) {
+                                                        return !validDays.includes(date.day());
+                                                    }
+                                                    return false;
+                                                };
+
+                                                return (
+                                                    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
+                                                        <DatePicker
+                                                            label="Ngày quay"
+                                                            disabled={!watchProductId}
+                                                            value={field.value ? dayjs(field.value) : null}
+                                                            onChange={(newValue) => {
+                                                                field.onChange(newValue ? newValue.format("YYYY-MM-DD") : "");
+                                                            }}
+                                                            shouldDisableDate={shouldDisableDate}
+                                                            slotProps={{
+                                                                textField: {
+                                                                    fullWidth: true,
+                                                                    error: !!fieldState.error,
+                                                                    helperText: !watchProductId ? "Vui lòng chọn nhà đài trước" : fieldState.error?.message,
+                                                                    InputLabelProps: { shrink: true }
+                                                                }
+                                                            }}
+                                                        />
+                                                    </LocalizationProvider>
+                                                );
+                                            }}
+                                        />
+                                    </Box>
                                 </Box>
 
-                                {selectedAttributeIds.length > 0 && variants.length > 0 && (
-                                    <>
-                                        <Divider />
-                                        <Box>
-                                            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>Danh sách biến thể</Typography>
-                                            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid var(--palette-text-disabled)33', borderRadius: "var(--shape-borderRadius-lg)", overflow: 'hidden' }}>
-                                                <Table>
-                                                    <TableHead>
-                                                        <TableRow>
-                                                            <TableCell width={80}>Trạng thái</TableCell>
-                                                            {/* Dynamic columns based on selected attributes */}
-                                                            {attributes.filter((a: any) => selectedAttributeIds.includes((a.id || a._id).toString())).map((a: any) => (
-                                                                <TableCell key={(a.id || a._id).toString()}>{a.name}</TableCell>
-                                                            ))}
-                                                            <TableCell>Giá cũ</TableCell>
-                                                            <TableCell>Giá mới</TableCell>
-                                                            <TableCell>Còn lại</TableCell>
-                                                        </TableRow>
-                                                    </TableHead>
-                                                    <TableBody>
-                                                        {variants.map((v) => (
-                                                            <TableRow key={v.id}>
-                                                                <TableCell>
-                                                                    <Switch
-                                                                        size="small"
-                                                                        checked={v.status}
-                                                                        onChange={(e) => handleUpdateVariant(v.id, 'status', e.target.checked)}
-                                                                        color="success"
-                                                                    />
-                                                                </TableCell>
-                                                                {v.attributeValue.map((attr, idx) => (
-                                                                    <TableCell key={idx}>
-                                                                        <Typography sx={{ fontSize: '0.875rem' }}>{attr.label}</Typography>
-                                                                    </TableCell>
-                                                                ))}
-                                                                <TableCell>
-                                                                    <TextField size="small" placeholder="0" value={v.priceOld} onChange={(e) => handleUpdateVariant(v.id, 'priceOld', e.target.value)} />
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <TextField size="small" placeholder="0" value={v.priceNew} onChange={(e) => handleUpdateVariant(v.id, 'priceNew', e.target.value)} />
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <TextField size="small" placeholder="0" value={v.stock} onChange={(e) => handleUpdateVariant(v.id, 'stock', e.target.value)} />
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                            </TableContainer>
-                                        </Box>
-                                    </>
-                                )}
+                                <Box sx={{ mt: 2 }}>
+                                    <div className="mb-3 font-semibold">Ảnh vé số (Tùy chọn)</div>
+                                    <UploadFiles
+                                        key={resetKey}
+                                        files={files}
+                                        onFilesChange={(newFiles) => setFiles(newFiles)}
+                                    />
+                                </Box>
                             </Stack>
                         </CollapsibleCard>
 
@@ -728,8 +394,9 @@ export const TicketCreatePage = () => {
                             <LoadingButton
                                 type="submit"
                                 loading={isPending}
-                                label={"Tạo mới vé số"}
+                                label={"Nhập vé"}
                                 loadingLabel="Đang xử lý..."
+                                sx={{ minHeight: "3rem", minWidth: "4rem" }}
                             />
                         </Box>
                     </Stack>

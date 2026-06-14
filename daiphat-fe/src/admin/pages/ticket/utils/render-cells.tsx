@@ -13,7 +13,7 @@ import { ReloadIcon } from "../../../assets/icons/index";
 
 // Vé số
 export const RenderTicketCell = (params: GridRenderCellParams) => {
-    const { ticket, category, image } = params.row;
+    const { providerName, serialNumber, numbers, image } = params.row;
     const navigate = useNavigate();
 
     return (
@@ -27,7 +27,7 @@ export const RenderTicketCell = (params: GridRenderCellParams) => {
             }}>
 
             <Avatar
-                alt={ticket}
+                alt={providerName}
                 src={image}
                 variant="rounded"
                 sx={{
@@ -55,10 +55,10 @@ export const RenderTicketCell = (params: GridRenderCellParams) => {
                             }
                         }}
                     >
-                        {ticket}
+                        {providerName}
                     </Box>
                 }
-                secondary={category}
+                secondary={`Sê-ri: ${serialNumber} - Dãy: ${numbers}`}
                 slotProps={{
                     primary: {
                         component: 'span',
@@ -113,80 +113,25 @@ export const RenderCreatedAtCell = (params: GridRenderCellParams) => {
     );
 }
 
-// Số lượng (Stock)
-export const RenderStockCell = (params: GridRenderCellParams) => {
-    const stockValue = params.row.stock || 0;
-
-    let label = "";
-    let color = "";
-    let bgColor = "";
-    let percentage = 0;
-
-    if (stockValue === 0) {
-        label = "Hết vé";
-        bgColor = "rgba(255, 86, 48, 0.24)";
-        percentage = 0;
-    } else if (stockValue > 0 && stockValue <= 20) {
-        label = `${stockValue} vé (Sắp hết)`;
-        color = "#FFAB00";
-        bgColor = "rgba(255 171 0 / 24%)";
-        percentage = (stockValue / 20) * 100;
-    } else {
-        label = `${stockValue} vé (Sẵn sàng)`;
-        color = "#22C55E";
-        bgColor = "rgba(34, 197, 94, 0.24)";
-        percentage = 90;
-    }
-
-    return (
-        <Box
-            sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                height: '100%',
-                width: '100%',
-                fontSize: "0.75rem",
-                color: "var(--palette-text-secondary)"
-            }}
-        >
-            <LinearProgress
-                variant="determinate"
-                value={percentage}
-                sx={{
-                    width: "80px",
-                    height: "6px",
-                    borderRadius: "var(--shape-borderRadius-lg)",
-                    marginBottom: "8px",
-                    backgroundColor: bgColor,
-                    "& .MuiLinearProgress-bar": {
-                        backgroundColor: color,
-                        borderRadius: "var(--shape-borderRadius-lg)",
-                    },
-                }}
-            />
-            {label}
-        </Box>
-    );
-}
-
 // Status
 export const RenderStatusCell = (params: GridRenderCellParams) => {
-    const { t } = useTranslation();
-    const status = params.row.status;
+    const { status, statusDisplayName } = params.row;
 
-    let label = t("admin.ticket.status.draft");
     let bg = "var(--palette-text-disabled)29";
     let text = "var(--palette-text-primary)";
 
-    if (status === "active") {
-        label = t("admin.ticket.status.active");
+    if (status === "in_stock") {
         bg = "var(--palette-info-lighter)";
         text = "var(--palette-info-dark)";
-    } else if (status === "inactive") {
-        label = t("admin.ticket.status.inactive");
+    } else if (status === "sold") {
+        bg = "var(--palette-success-lighter)";
+        text = "var(--palette-success-dark)";
+    } else if (status === "expired" || status === "internal_fault" || status === "issuer_fault") {
         bg = "var(--palette-error-lighter)";
         text = "var(--palette-error-dark)";
+    } else if (status === "reserved" || status === "proxy_holding" || status === "pending_return" || status === "returned") {
+        bg = "rgba(255 171 0 / 24%)";
+        text = "#FFAB00";
     }
 
     return (
@@ -197,7 +142,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
                 color: text,
             }}
         >
-            {label}
+            {statusDisplayName || status}
         </span>
     );
 }

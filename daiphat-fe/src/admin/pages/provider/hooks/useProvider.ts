@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProviders, createProvider, getProviderById, updateProvider, deleteProvider, restoreProvider, forceDeleteProvider } from '../../../api/provider.api';
+import { getProviders, createProvider, getProviderById, updateProvider, deleteProvider } from '../../../api/provider.api';
 
 
 export const useProviders = (params?: any) => {
@@ -63,24 +63,4 @@ export const useDeleteProvider = () => {
     });
 };
 
-export const useRestoreProvider = () => {
-    const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: restoreProvider,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['providers'] });
-        },
-    });
-};
-
-export const useDeletePermanentProvider = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: forceDeleteProvider,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['providers'] });
-        },
-    });
-};

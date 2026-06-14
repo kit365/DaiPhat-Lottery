@@ -1,17 +1,19 @@
-import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress } from "@mui/material";
+import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress, createTheme, MenuItem, Checkbox, ListItemText, Typography } from "@mui/material";
+import { REGION_DATA, REGION_OPTIONS } from "../../constants/region.constants";
+import { DAYS_OF_WEEK } from "../../constants/schedule.constants";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
+import { DatePicker, TimePicker } from "@mui/x-date-pickers";
+import dayjs from "dayjs";
 import { Tiptap } from "../../components/layouts/titap/Tiptap";
-import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
+import { useState, useEffect, type Dispatch, type SetStateAction, useMemo } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
 import { useProviderDetail, useUpdateProvider } from "./hooks/useProvider";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
-import { createProviderSchema, CreateProviderFormValues } from "../../schemas/provider.schema";
+import { CreateProviderFormValues, createProviderSchema } from "../../schemas/provider.schema";
 import { SwitchButton } from "../../components/ui/SwitchButton";
-import { getProviderTheme } from "./configs/theme";
 import { prefixAdmin } from "../../constants/routes";
-import { FormUploadSingleFile } from "../../components/upload/FormUploadSingleFile";
 import { toast } from "react-toastify";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { useParams } from "react-router-dom";
@@ -24,7 +26,37 @@ export const ProviderEditPage = () => {
         () => setter(prev => !prev);
 
     const outerTheme = useTheme();
-    const localTheme = getProviderTheme(outerTheme);
+
+    const localTheme = useMemo(() => createTheme(outerTheme, {
+        components: {
+            MuiCard: {
+                styleOverrides: {
+                    root: {
+                        backgroundImage: "none !important",
+                        backdropFilter: "none !important",
+                        backgroundColor: "var(--palette-background-paper) !important",
+                        boxShadow: "var(--customShadows-card)",
+                        borderRadius: "var(--shape-borderRadius-lg)",
+                        color: "var(--palette-text-primary)",
+                    },
+                }
+            },
+            MuiInputLabel: {
+                styleOverrides: {
+                    root: {
+                        fontSize: "1rem",
+                    }
+                }
+            },
+            MuiOutlinedInput: {
+                styleOverrides: {
+                    root: {
+                        fontSize: "1rem",
+                    }
+                }
+            }
+        }
+    }), [outerTheme]);
 
     const { data: detailRes, isLoading: isLoadingDetail } = useProviderDetail(id);
     const { mutate: update, isPending: isUpdating } = useUpdateProvider();
@@ -33,15 +65,30 @@ export const ProviderEditPage = () => {
         control,
         handleSubmit,
         reset,
+        watch,
+        setValue,
     } = useForm<CreateProviderFormValues>({
         resolver: zodResolver(createProviderSchema),
         defaultValues: {
             name: "",
             description: "",
             status: "active",
-            avatar: "",
+            type: "TRADITIONAL",
+            price: 10000,
+            province: "",
+            region: "",
+            numberLength: 6,
+            minNumber: 0,
+            maxNumber: 999999,
+            drawSchedule: "",
+            drawTime: "",
+            nextDrawDate: "",
+            displayOrder: 0,
         },
     });
+
+    const regionValue = watch("region");
+    const provinceOptions = regionValue ? REGION_DATA[regionValue] || [] : [];
 
     useEffect(() => {
         if (detailRes) {
@@ -49,7 +96,17 @@ export const ProviderEditPage = () => {
                 name: detailRes.name || "",
                 description: detailRes.description || "",
                 status: detailRes.status || "active",
-                avatar: detailRes.avatar || "",
+                type: detailRes.type || "TRADITIONAL",
+                price: detailRes.price || 10000,
+                province: detailRes.province || "",
+                region: detailRes.region || "",
+                numberLength: detailRes.numberLength || 6,
+                minNumber: detailRes.minNumber || 0,
+                maxNumber: detailRes.maxNumber || 999999,
+                drawSchedule: detailRes.drawSchedule || "",
+                drawTime: detailRes.drawTime || "",
+                nextDrawDate: detailRes.nextDrawDate || "",
+                displayOrder: detailRes.displayOrder || 0,
             });
         }
     }, [detailRes, reset]);
@@ -63,8 +120,9 @@ export const ProviderEditPage = () => {
                     toast.error(response.message);
                 }
             },
-            onError: () => {
-                toast.error("Có lỗi xảy ra trong quá trình cập nhật");
+            onError: (err: any) => {
+                const message = err?.response?.data?.message || err?.message || "Có lỗi xảy ra trong quá trình cập nhật";
+                toast.error(message);
             }
         });
     };
@@ -102,37 +160,343 @@ export const ProviderEditPage = () => {
                             onToggle={toggle(setExpandedDetail)}
                         >
                             <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
-                                <Box sx={{ display: "grid", gridTemplateColumns: "1fr", gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))" }}>
+                                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))" }}>
+                                    <Box sx={{ gridColumn: "span 12" }}>
+                                        <Controller
+                                            name="name"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    label="Tên nhà đài"
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                    fullWidth
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="type"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    select
+                                                    label="Loại vé"
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                    fullWidth
+                                                >
+                                                    <MenuItem value="TRADITIONAL">Truyền thống</MenuItem>
+                                                </TextField>
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="price"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    label="Giá vé"
+                                                    value={field.value !== undefined ? new Intl.NumberFormat('vi-VN').format(Number(field.value)) : ''}
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                    onChange={(e) => {
+                                                        const rawValue = e.target.value.replace(/\./g, '');
+                                                        if (rawValue === '') {
+                                                            field.onChange(0);
+                                                        } else if (!isNaN(Number(rawValue))) {
+                                                            field.onChange(Number(rawValue));
+                                                        }
+                                                    }}
+                                                    fullWidth
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="region"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    select
+                                                    label="Vùng miền"
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                    onChange={(e) => {
+                                                        field.onChange(e);
+                                                        setValue("province", ""); // reset province when region changes
+                                                    }}
+                                                    fullWidth
+                                                >
+                                                    {REGION_OPTIONS.map((option) => (
+                                                        <MenuItem key={option.value} value={option.value}>
+                                                            {option.label}
+                                                        </MenuItem>
+                                                    ))}
+                                                </TextField>
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="province"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    select
+                                                    label="Tỉnh/Thành phố"
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                    disabled={!regionValue}
+                                                    fullWidth
+                                                >
+                                                    {provinceOptions.map((prov) => (
+                                                        <MenuItem key={prov} value={prov}>
+                                                            {prov}
+                                                        </MenuItem>
+                                                    ))}
+                                                </TextField>
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="drawSchedule"
+                                            control={control}
+                                            render={({ field, fieldState }) => {
+                                                const selectedDays = field.value ? field.value.split(', ').filter(Boolean) : [];
+                                                const toggleDay = (dayValue: string) => {
+                                                    const newSelected = selectedDays.includes(dayValue)
+                                                        ? selectedDays.filter((v: string) => v !== dayValue)
+                                                        : [...selectedDays, dayValue];
+                                                    
+                                                    const ordered = DAYS_OF_WEEK.filter(d => newSelected.includes(d.value)).map(d => d.value);
+                                                    field.onChange(ordered.join(', '));
+                                                };
+                                                
+                                                return (
+                                                    <TextField
+                                                        fullWidth
+                                                        label="Lịch quay"
+                                                        error={!!fieldState.error}
+                                                        helperText={fieldState.error?.message}
+                                                        InputLabelProps={{ shrink: true }}
+                                                        InputProps={{
+                                                            readOnly: true,
+                                                            sx: { 
+                                                                height: '56px',
+                                                                '& input': { display: 'none' } 
+                                                            },
+                                                            startAdornment: (
+                                                                <Stack direction="row" gap={1} sx={{ py: 0.5, alignItems: 'center' }}>
+                                                                    {DAYS_OF_WEEK.map((day) => {
+                                                                        const isSelected = selectedDays.includes(day.value);
+                                                                        return (
+                                                                            <Box
+                                                                                key={day.value}
+                                                                                onClick={() => toggleDay(day.value)}
+                                                                                sx={{
+                                                                                    width: 32,
+                                                                                    height: 32,
+                                                                                    fontSize: '0.875rem',
+                                                                                    borderRadius: '50%',
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    justifyContent: 'center',
+                                                                                    cursor: 'pointer',
+                                                                                    backgroundColor: isSelected ? '#10b981' : 'rgba(0, 0, 0, 0.04)',
+                                                                                    color: isSelected ? '#fff' : 'text.primary',
+                                                                                    fontWeight: isSelected ? 600 : 400,
+                                                                                    transition: 'all 0.2s',
+                                                                                    '&:hover': {
+                                                                                        backgroundColor: isSelected ? '#059669' : 'rgba(0, 0, 0, 0.08)',
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                {day.shortLabel}
+                                                                            </Box>
+                                                                        );
+                                                                    })}
+                                                                </Stack>
+                                                            )
+                                                        }}
+                                                    />
+                                                );
+                                            }}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
+                                        <Controller
+                                            name="drawTime"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TimePicker
+                                                    label="Giờ quay"
+                                                    value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
+                                                    onChange={(newValue) => {
+                                                        field.onChange(newValue ? newValue.format('HH:mm') : '');
+                                                    }}
+                                                    localeText={{ cancelButtonLabel: 'Hủy' }}
+                                                    slotProps={{
+                                                        textField: {
+                                                            fullWidth: true,
+                                                            error: !!fieldState.error,
+                                                            helperText: fieldState.error?.message,
+                                                            InputLabelProps: { shrink: true },
+                                                            sx: {
+                                                                '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                                    borderColor: 'var(--palette-text-primary) !important',
+                                                                },
+                                                                '& .MuiInputLabel-root.Mui-focused': {
+                                                                    color: 'var(--palette-text-primary) !important',
+                                                                }
+                                                            }
+                                                        },
+                                                        popper: {
+                                                            sx: {
+                                                                '& .Mui-selected, & .Mui-selected:hover': {
+                                                                    backgroundColor: '#10b981 !important',
+                                                                    color: '#fff !important',
+                                                                },
+                                                                '& .MuiClockPointer-root, & .MuiClock-pin': {
+                                                                    backgroundColor: '#10b981 !important',
+                                                                },
+                                                                '& .MuiClockPointer-thumb': {
+                                                                    backgroundColor: '#10b981 !important',
+                                                                    borderColor: '#10b981 !important',
+                                                                },
+                                                                '& .MuiButton-textPrimary': {
+                                                                    color: '#10b981 !important',
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
+                                        <Controller
+                                            name="nextDrawDate"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <DatePicker
+                                                    label="Ngày quay tiếp theo"
+                                                    format="DD/MM/YYYY"
+                                                    value={field.value ? dayjs(field.value) : null}
+                                                    onChange={(newValue) => {
+                                                        field.onChange(newValue ? newValue.format('YYYY-MM-DD') : '');
+                                                    }}
+                                                    localeText={{ cancelButtonLabel: 'Hủy' }}
+                                                    slotProps={{
+                                                        textField: {
+                                                            fullWidth: true,
+                                                            error: !!fieldState.error,
+                                                            helperText: fieldState.error?.message,
+                                                            InputLabelProps: { shrink: true },
+                                                            sx: {
+                                                                '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                                    borderColor: 'var(--palette-text-primary) !important',
+                                                                },
+                                                                '& .MuiInputLabel-root.Mui-focused': {
+                                                                    color: 'var(--palette-text-primary) !important',
+                                                                }
+                                                            }
+                                                        },
+                                                        popper: {
+                                                            sx: {
+                                                                '& .Mui-selected, & .Mui-selected:hover': {
+                                                                    backgroundColor: '#10b981 !important',
+                                                                    color: '#fff !important',
+                                                                },
+                                                                '& .MuiButton-textPrimary': {
+                                                                    color: '#10b981 !important',
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                </Box>
+
+                                <Box sx={{ mt: 1 }}>
+                                    <Typography variant="subtitle2" sx={{ mb: '12px', fontWeight: 600, color: 'text.primary' }}>
+                                        Cấu hình vé (dùng cho máy quét)
+                                    </Typography>
+                                    <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "calc(2 * var(--spacing))" }}>
+                                        <Controller
+                                            name="numberLength"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    type="number"
+                                                    label="Độ dài số"
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                    onChange={(e) => field.onChange(Number(e.target.value))}
+                                                    fullWidth
+                                                />
+                                            )}
+                                        />
+                                        <Controller
+                                            name="minNumber"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    type="number"
+                                                    label="Số nhỏ nhất"
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                    onChange={(e) => field.onChange(Number(e.target.value))}
+                                                    fullWidth
+                                                />
+                                            )}
+                                        />
+                                        <Controller
+                                            name="maxNumber"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    type="number"
+                                                    label="Số lớn nhất"
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                    onChange={(e) => field.onChange(Number(e.target.value))}
+                                                    fullWidth
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                </Box>
+
+                                <Box sx={{ mt: 1 }}>
+                                    <Typography variant="subtitle2" sx={{ mb: '12px', fontWeight: 600, color: 'text.primary' }}>
+                                        Mô tả
+                                    </Typography>
                                     <Controller
-                                        name="name"
+                                        name="description"
                                         control={control}
-                                        render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                label="Tên nhà đài"
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message}
-                                                fullWidth
+                                        render={({ field }) => (
+                                            <Tiptap
+                                                value={field.value ?? ""}
+                                                onChange={field.onChange}
                                             />
                                         )}
                                     />
                                 </Box>
-
-                                <Controller
-                                    name="description"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <Tiptap
-                                            value={field.value ?? ""}
-                                            onChange={field.onChange}
-                                        />
-                                    )}
-                                />
-
-                                <FormUploadSingleFile
-                                    name="avatar"
-                                    control={control}
-                                />
                             </Stack>
                         </CollapsibleCard>
 
