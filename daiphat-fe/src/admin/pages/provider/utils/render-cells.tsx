@@ -202,7 +202,7 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                         },
                     },
                 } as any)}
-                onClick={() => navigate(`/${prefixAdmin}/provider/edit/${id}`)}
+                onClick={() => navigate(`/${prefixAdmin}/provider/detail/${id}`)}
             />
             <GridActionsCellItem
                 icon={<EditIcon />}

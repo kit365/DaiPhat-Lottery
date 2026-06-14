@@ -107,38 +107,7 @@ export const TicketCreatePage = () => {
         setValue("ticketImg", files.length > 0 ? files[0] : undefined);
     }, [files, setValue]);
 
-    const fillSample = (sampleNum: number) => {
-        if (providers.length === 0) {
-            toast.warn("Đang tải danh sách nhà đài...");
-            return;
-        }
-
-        const findProvider = (nameMatch: string) => providers.find((p: any) => p.name.includes(nameMatch)) || providers[0];
-
-        if (sampleNum === 1) {
-            const p = findProvider("Hồ Chí Minh");
-            setValue("productId", p.id || p._id);
-            setValue("serialNumber", "HCM-12345");
-            setValue("numbers", "987654");
-            setValue("drawDate", dayjs().format("YYYY-MM-DD"));
-            setValue("batchCode", "BATCH-HCM-01");
-        } else if (sampleNum === 2) {
-            const p = findProvider("Bến Tre");
-            setValue("productId", p.id || p._id);
-            setValue("serialNumber", "BT-99999");
-            setValue("numbers", "112233");
-            setValue("drawDate", dayjs().add(1, 'day').format("YYYY-MM-DD"));
-            setValue("batchCode", "BATCH-BT-02");
-        } else if (sampleNum === 3) {
-            const p = findProvider("Đồng Nai");
-            setValue("productId", p.id || p._id);
-            setValue("serialNumber", "DN-55555");
-            setValue("numbers", "334455");
-            setValue("drawDate", dayjs().format("YYYY-MM-DD"));
-            setValue("batchCode", "BATCH-DN-03");
-        }
-        toast.info(`Đã điền mẫu data ${sampleNum}`);
-    };
+    // Removed fillSample function
 
     const onSubmit = (data: CreateTicketFormValues) => {
         // Validation for drawDate
@@ -147,7 +116,7 @@ export const TicketCreatePage = () => {
             const drawDateObj = dayjs(data.drawDate).startOf('day');
             const today = dayjs().startOf('day');
             const tomorrow = dayjs().add(1, 'day').startOf('day');
-            
+
             // Backend restriction: Must be today or tomorrow
             if (!drawDateObj.isSame(today) && !drawDateObj.isSame(tomorrow)) {
                 setError("drawDate", { message: "Chỉ được phép nhập vé có ngày quay là Hôm nay hoặc Ngày mai (Theo chuẩn BE)" });
@@ -157,8 +126,8 @@ export const TicketCreatePage = () => {
             // Check if day of week matches draw schedule
             const validDays = getValidDays(selectedProvider.drawSchedule);
             if (validDays.length > 0 && !validDays.includes(drawDateObj.day())) {
-                setError("drawDate", { 
-                    message: `Lịch quay nhà đài này là: ${selectedProvider.drawSchedule}. Chọn sai thứ!` 
+                setError("drawDate", {
+                    message: `Lịch quay nhà đài này là: ${selectedProvider.drawSchedule}. Chọn sai thứ!`
                 });
                 return;
             }
@@ -166,7 +135,7 @@ export const TicketCreatePage = () => {
 
         let ticketImgPath = "";
         if (files.length > 0) {
-            ticketImgPath = files[0].name; 
+            ticketImgPath = files[0].name;
         }
 
         const payload = {
@@ -222,17 +191,6 @@ export const TicketCreatePage = () => {
                         gap: "calc(5 * var(--spacing))",
                         pb: 10
                     }}>
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                            <Button variant="outlined" color="info" onClick={() => fillSample(1)}>
-                                Điền mẫu 1 (Hồ Chí Minh - T2)
-                            </Button>
-                            <Button variant="outlined" color="secondary" onClick={() => fillSample(2)}>
-                                Điền mẫu 2 (Bến Tre - T3)
-                            </Button>
-                            <Button variant="outlined" color="warning" onClick={() => fillSample(3)}>
-                                Điền mẫu 3 (Đồng Nai - T4)
-                            </Button>
-                        </Box>
 
                         <CollapsibleCard
                             title={"Thông tin vé số"}
@@ -334,14 +292,14 @@ export const TicketCreatePage = () => {
                                                 const watchProductId = control._formValues.productId;
                                                 const selectedProvider = providers.find((p: any) => (p.id || p._id) === watchProductId);
                                                 const validDays = selectedProvider ? getValidDays(selectedProvider.drawSchedule) : [];
-                                                
+
                                                 const shouldDisableDate = (date: dayjs.Dayjs) => {
                                                     if (!selectedProvider) return true;
-                                                    
+
                                                     const checkDate = date.startOf('day');
                                                     const today = dayjs().startOf('day');
                                                     const tomorrow = dayjs().add(1, 'day').startOf('day');
-                                                    
+
                                                     // Strictly today or tomorrow
                                                     if (!checkDate.isSame(today) && !checkDate.isSame(tomorrow)) {
                                                         return true;

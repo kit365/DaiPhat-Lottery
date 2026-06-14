@@ -191,7 +191,7 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
             <GridActionsCellItem
                 icon={<EyeIcon />}
                 label={t("admin.common.details")}
-                onClick={handleEdit}
+                onClick={() => navigate(`/${prefixAdmin}/ticket/detail/${params.row.id}`)}
                 showInMenu
                 {...({
                     sx: {
