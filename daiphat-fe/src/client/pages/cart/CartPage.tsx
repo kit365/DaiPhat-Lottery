@@ -242,42 +242,6 @@ export const CartPage = () => {
                 </div>
             </main>
 
-            {/* Bottom Banner */}
-            <div className="bg-[#FFF4F4] py-8 mt-12 border-t border-[#FFEBEE]">
-                <div className="max-w-[1440px] mx-auto px-4 lg:px-8">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div className="flex items-center gap-4 justify-center md:justify-start">
-                            <i className="fa-regular fa-user text-[32px] text-[#ee1314]"></i>
-                            <div>
-                                <div className="font-bold text-[15px] text-[#ee1314]">Hơn 10 triệu</div>
-                                <div className="text-[13px] text-[#637381]">Khách hàng tin tưởng</div>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 justify-center md:justify-start">
-                            <ShieldCheck className="text-[#ee1314]" size={36} strokeWidth={1.5} />
-                            <div>
-                                <div className="font-bold text-[15px] text-[#ee1314]">Minh bạch - Uy tín</div>
-                                <div className="text-[13px] text-[#637381]">Được cấp phép bởi Bộ Tài Chính</div>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 justify-center md:justify-start">
-                            <i className="fa-solid fa-lock text-[32px] text-[#ee1314]"></i>
-                            <div>
-                                <div className="font-bold text-[15px] text-[#ee1314]">Thanh toán an toàn</div>
-                                <div className="text-[13px] text-[#637381]">Bảo mật tuyệt đối</div>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 justify-center md:justify-start">
-                            <i className="fa-solid fa-truck-fast text-[32px] text-[#ee1314]"></i>
-                            <div>
-                                <div className="font-bold text-[15px] text-[#ee1314]">Giao dịch nhanh chóng</div>
-                                <div className="text-[13px] text-[#637381]">Xác nhận trong 3 giây</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
     );
 };
