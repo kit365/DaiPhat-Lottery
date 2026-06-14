@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.dto.response.order;
 
 import com.daiphat.coreapi.domain.model.enums.order.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.order.PaymentGateway;
 import lombok.Builder;
 
 import java.math.BigDecimal;
@@ -13,6 +14,8 @@ public record TransactionResponse(
         Long id,
         UUID orderId,
         BigDecimal amount,
+        PaymentGateway gateway,
+        Long gatewayOrderCode,
         String paymentRef,
         TransactionStatus status,
         LocalDateTime paidAt,

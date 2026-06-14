@@ -50,11 +50,15 @@ CREATE INDEX IF NOT EXISTS idx_order_details_order_id ON order_details(order_id)
 CREATE INDEX IF NOT EXISTS idx_order_details_status ON order_details(status);
 CREATE INDEX IF NOT EXISTS idx_order_details_ticket_id ON order_details(lottery_ticket_id);
 
+CREATE SEQUENCE IF NOT EXISTS payment_order_code_seq START WITH 5100000;
+
 -- Create transactions table
 CREATE TABLE IF NOT EXISTS transactions (
     id BIGSERIAL PRIMARY KEY,
     order_id UUID NOT NULL,
     amount DECIMAL(15, 0) NOT NULL,
+    gateway VARCHAR(30),
+    gateway_order_code BIGINT,
     payment_ref VARCHAR(100),
     status VARCHAR(20) NOT NULL,
     paid_at TIMESTAMP,
@@ -68,6 +72,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     updated_at TIMESTAMP,
     created_by VARCHAR(255),
     last_modified_by VARCHAR(255),
+    CONSTRAINT uk_transactions_gateway_order_code UNIQUE (gateway_order_code),
     CONSTRAINT uk_transactions_payment_ref UNIQUE (payment_ref),
     CONSTRAINT fk_transactions_order FOREIGN KEY (order_id) REFERENCES orders (id),
     CONSTRAINT fk_transactions_cod_collected_by FOREIGN KEY (cod_collected_by) REFERENCES users (id)

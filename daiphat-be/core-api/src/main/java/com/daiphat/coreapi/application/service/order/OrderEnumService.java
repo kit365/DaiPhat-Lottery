@@ -77,7 +77,7 @@ public class OrderEnumService implements OrderEnumServicePort {
         return Arrays.stream(TransactionType.values())
                 .map(type -> new EnumOptionResponse(type.name(), switch (type) {
                     case OFFLINE -> "Tiền mặt";
-                    case ONLINE -> "Thanh toán online";
+                    case ONLINE -> "Chuyển khoản / thanh toán online";
                 }))
                 .toList();
     }

@@ -12,7 +12,9 @@ public class CodPaymentStrategy implements PaymentStrategy {
     @Override
     public PaymentResult createPayment(OrderModel order, TransactionModel transaction) {
         return PaymentResult.builder()
+                .transactionId(transaction.getId())
                 .type(TransactionType.OFFLINE)
+                .gatewayOrderCode(transaction.getGatewayOrderCode())
                 .paymentRef(transaction.getPaymentRef())
                 .checkoutUrl(null)
                 .status(transaction.getStatus().name())

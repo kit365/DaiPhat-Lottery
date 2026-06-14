@@ -32,6 +32,8 @@ public interface LotteryTicketServicePort {
 
     void markSoldForOrder(Long ticketId);
 
+    void releaseReservationForOrder(Long ticketId);
+
     int expireDueTickets();
 
     void restore(Long id);

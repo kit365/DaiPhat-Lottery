@@ -4,9 +4,9 @@ import com.daiphat.coreapi.domain.model.enums.order.PaymentGateway;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.NotNull;
 
-public record HandleOnlinePaymentFailureRequest(
+public record CancelPaymentRequest(
         @Positive Long transactionId,
         @NotNull PaymentGateway gateway,
-        String failureReason
+        String reason
 ) {
 }

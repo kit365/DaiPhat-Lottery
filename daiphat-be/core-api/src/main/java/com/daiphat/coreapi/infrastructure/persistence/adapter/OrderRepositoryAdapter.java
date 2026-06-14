@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.adapter;
 
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.order.OrderPersistenceMapper;
@@ -8,6 +9,8 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderRepo
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,7 +34,23 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
     }
 
     @Override
+    public Optional<OrderModel> findByGatewayOrderCode(Long gatewayOrderCode) {
+        return orderRepository.findByTransactionGatewayOrderCode(gatewayOrderCode)
+                .map(orderPersistenceMapper::toDomain);
+    }
+
+    @Override
     public boolean existsByOrderCode(String orderCode) {
         return orderRepository.existsByOrderCode(orderCode);
+    }
+
+    @Override
+    public List<OrderModel> findPendingPaymentOrdersCreatedBefore(LocalDateTime threshold) {
+        return orderRepository.findPendingPaymentOrderIdsCreatedBefore(OrderStatus.PENDING_PAYMENT, threshold)
+                .stream()
+                .map(orderRepository::findById)
+                .flatMap(Optional::stream)
+                .map(orderPersistenceMapper::toDomain)
+                .toList();
     }
 }
