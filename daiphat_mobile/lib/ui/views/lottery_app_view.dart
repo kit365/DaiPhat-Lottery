@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'blog/blog_screen.dart';
+import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
 
 const _red = Color(0xFFE90000);
 const _softRed = Color(0xFFFFF0F0);
@@ -2591,3 +2591,4 @@ String money(int amount) {
 const _shadow = [
   BoxShadow(color: Color(0x12000000), blurRadius: 18, offset: Offset(0, 8)),
 ];
+
