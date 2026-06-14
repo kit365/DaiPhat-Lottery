@@ -90,15 +90,33 @@ public enum ErrorCode {
 
     // Lottery Errors
     // Lottery Product Errors
-    LOTTERY_PRODUCT_NOT_FOUND("LT_001", "Sản phẩm vé số không tồn tại.", HttpStatus.NOT_FOUND),
-    LOTTERY_PRODUCT_NAME_EXISTED("LT_002", "Tên sản phẩm vé số đã tồn tại.", HttpStatus.BAD_REQUEST),
-    LOTTERY_PRODUCT_INVALID_STATUS("LT_003", "Trạng thái sản phẩm không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
-    LOTTERY_PRODUCT_INSUFFICIENT_INVENTORY("LT_004", "Tồn kho không đủ.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_NOT_FOUND("LT_001", "Sản phẩm vé số không tồn tại.", HttpStatus.NOT_FOUND),
+    LOTTERY_STATION_NAME_EXISTED("LT_002", "Tên sản phẩm vé số đã tồn tại.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_INVALID_STATUS("LT_003", "Trạng thái sản phẩm không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_INSUFFICIENT_INVENTORY("LT_004", "Tồn kho không đủ.", HttpStatus.BAD_REQUEST),
     PRIZE_STRUCTURE_NOT_FOUND("LT_005", "Cấu trúc giải thưởng không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_TICKET_NOT_FOUND("LT_006", "Vé số không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_TICKET_INVALID_STATUS("LT_007", "Trạng thái vé số không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_SERIAL_EXISTED("LT_008", "Số sê-ri vé số đã tồn tại trong hệ thống.", HttpStatus.BAD_REQUEST),
-    PRIZE_STRUCTURE_DUPLICATE_CODE("LT_009", "Mã giải thưởng bị trùng trong cùng sản phẩm.", HttpStatus.BAD_REQUEST);
+    PRIZE_STRUCTURE_DUPLICATE_CODE("LT_009", "Mã giải thưởng bị trùng trong cùng sản phẩm.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_INVALID_TYPE("LT_010", "Loại sản phẩm vé số không hợp lệ.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_ALREADY_VERIFIED("LT_011", "Vé số đã được xác minh trước đó.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_STATUS_REQUIRED("LT_012", "Trạng thái vé số không được để trống.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_NOT_DELETED("LT_013", "Vé số chưa bị xóa.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_NUMBERS_REQUIRED("LT_014", "Dãy số vé không được để trống.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_NUMBERS_INVALID("LT_015", "Dãy số vé chỉ được chứa chữ số.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_NUMBERS_LENGTH_INVALID("LT_016", "Dãy số vé không đúng độ dài yêu cầu.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_DRAW_DATE_REQUIRED("LT_017", "Ngày quay không được để trống.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_DRAW_DATE_INVALID("LT_018", "Ngày quay không hợp lệ.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_LIST_REQUIRED("LT_019", "Danh sách cấu trúc giải thưởng không được để trống.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_PRODUCT_MISMATCH("LT_020", "Cấu trúc giải thưởng không thuộc sản phẩm này.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_INVALID_LEVEL("LT_021", "Bậc giải thưởng không hợp lệ.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_CODE_REQUIRED("LT_022", "Mã giải thưởng không được để trống.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_VALUE_INVALID("LT_023", "Giá trị giải thưởng phải lớn hơn hoặc bằng 0.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_QUANTITY_INVALID("LT_024", "Số lượng giải phải lớn hơn hoặc bằng 1.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_MATCH_RULE_INVALID("LT_025", "Quy tắc so khớp không hợp lệ.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_REGION_INVALID("LT_026", "Cấu trúc giải dùng chung miền phải có region trùng với sản phẩm.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_MATCH_DIGITS_INVALID("LT_027", "Số chữ số khớp không hợp lệ.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

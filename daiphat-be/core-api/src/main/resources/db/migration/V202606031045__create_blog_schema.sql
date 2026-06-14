@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS blog_category (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100) DEFAULT 'SYSTEM',
     last_modified_by VARCHAR(100) DEFAULT 'SYSTEM',
+    deleted_at TIMESTAMP,
     CONSTRAINT fk_blog_category_parent FOREIGN KEY (parent_id) REFERENCES blog_category(id) ON DELETE SET NULL
 );
 
@@ -23,7 +24,8 @@ CREATE TABLE IF NOT EXISTS blog_tag (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100) DEFAULT 'SYSTEM',
-    last_modified_by VARCHAR(100) DEFAULT 'SYSTEM'
+    last_modified_by VARCHAR(100) DEFAULT 'SYSTEM',
+    deleted_at TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS blog_post (
@@ -44,6 +46,7 @@ CREATE TABLE IF NOT EXISTS blog_post (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100) DEFAULT 'SYSTEM',
     last_modified_by VARCHAR(100) DEFAULT 'SYSTEM',
+    deleted_at TIMESTAMP,
     CONSTRAINT fk_blog_post_category FOREIGN KEY (category_id) REFERENCES blog_category(id)
 );
 

@@ -10,8 +10,8 @@ import java.util.UUID;
 
 @Builder
 public record LotteryTicketResponse(
-        @JsonView(Views.Public.class) UUID id,
-        @JsonView(Views.Public.class) UUID productId,
+        @JsonView(Views.Public.class) Long id,
+        @JsonView(Views.Public.class) Long productId,
         @JsonView(Views.Public.class) String productName,
         @JsonView(Views.Public.class) String ticketImg,
         @JsonView(Views.Public.class) String serialNumber,

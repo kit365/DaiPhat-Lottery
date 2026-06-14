@@ -4,9 +4,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.PrizeStructureReque
 import com.daiphat.coreapi.application.dto.response.lotteries.PrizeStructureResponse;
 
 import java.util.List;
-import java.util.UUID;
-
 public interface PrizeStructureServicePort {
-    List<PrizeStructureResponse> getByProductId(UUID productId);
-    List<PrizeStructureResponse> updatePrizeStructures(UUID productId, List<PrizeStructureRequest> requests);
+    List<PrizeStructureResponse> getByProductId(Long productId);
+    List<PrizeStructureResponse> updatePrizeStructures(Long productId, List<PrizeStructureRequest> requests);
 }

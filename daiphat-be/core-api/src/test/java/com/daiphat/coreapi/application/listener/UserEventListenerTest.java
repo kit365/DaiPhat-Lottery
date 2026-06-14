@@ -10,6 +10,8 @@ import com.daiphat.coreapi.application.event.UserEmailVerifiedEvent;
 import com.daiphat.coreapi.application.event.UserPasswordChangedEvent;
 import com.daiphat.coreapi.application.port.in.mail.EmailServicePort;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
+import com.daiphat.coreapi.application.port.out.notification.FcmPushPort;
+import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
@@ -25,6 +27,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.UUID;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -50,12 +53,24 @@ class UserEventListenerTest {
     @Mock
     private NotificationServicePort notificationService;
 
+    @Mock
+    private FcmPushPort fcmPushPort;
+
+    @Mock
+    private UserRepositoryPort userRepositoryPort;
+
     private UserEventListener userEventListener;
 
     @BeforeEach
     void setUp() {
         AuthProperties authProperties = new AuthProperties();
-        userEventListener = new UserEventListener(emailService, notificationService, authProperties);
+        userEventListener = new UserEventListener(
+                emailService,
+                notificationService,
+                authProperties,
+                fcmPushPort,
+                userRepositoryPort
+        );
     }
 
     @Test
@@ -219,6 +234,9 @@ class UserEventListenerTest {
                 .fullName("John Doe")
                 .token("test-token")
                 .build();
+        when(notificationService.createNotification(any(NotificationModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepositoryPort.findById(USER_ID)).thenReturn(Optional.empty());
 
         userEventListener.handleUserEmailVerified(event);
 
@@ -240,6 +258,9 @@ class UserEventListenerTest {
                 .userId(USER_ID)
                 .email(EMAIL)
                 .build();
+        when(notificationService.createNotification(any(NotificationModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepositoryPort.findById(USER_ID)).thenReturn(Optional.empty());
 
         userEventListener.handleUserPasswordChanged(event);
 

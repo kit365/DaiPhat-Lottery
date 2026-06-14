@@ -9,8 +9,6 @@ import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.UUID;
-
 @Entity
 @Table(
         name = "lottery_tickets",
@@ -29,12 +27,12 @@ import java.util.UUID;
 public class LotteryTicketEntity extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
-    private LotteryProductEntity product;
+    private LotteryStationEntity product;
 
     @Column(name = "ticket_img", length = 500)
     private String ticketImg;

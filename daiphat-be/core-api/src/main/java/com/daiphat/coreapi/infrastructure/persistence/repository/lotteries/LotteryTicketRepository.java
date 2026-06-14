@@ -7,24 +7,22 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.time.LocalDate;
 import java.util.Collection;
-import java.util.UUID;
-
 public interface LotteryTicketRepository
-        extends JpaRepository<LotteryTicketEntity, UUID>,
+        extends JpaRepository<LotteryTicketEntity, Long>,
         JpaSpecificationExecutor<LotteryTicketEntity> {
 
-    boolean existsByProduct_IdAndSerialNumberAndNumbersAndDrawDate(
-            UUID productId,
+    boolean existsByProduct_IdAndSerialNumberAndNumbersAndDrawDateAndDeletedAtIsNull(
+            Long productId,
             String serialNumber,
             String numbers,
             LocalDate drawDate);
 
-    boolean existsByProduct_IdAndSerialNumberAndNumbersAndDrawDateAndIdNot(
-            UUID productId,
+    boolean existsByProduct_IdAndSerialNumberAndNumbersAndDrawDateAndIdNotAndDeletedAtIsNull(
+            Long productId,
             String serialNumber,
             String numbers,
             LocalDate drawDate,
-            UUID id);
+            Long id);
 
-    long countByProduct_IdAndStatusIn(UUID productId, Collection<LotteryTicketStatus> statuses);
+    long countByProduct_IdAndStatusInAndDeletedAtIsNull(Long productId, Collection<LotteryTicketStatus> statuses);
 }

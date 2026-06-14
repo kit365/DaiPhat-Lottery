@@ -9,8 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.UUID;
-
 @Component
 @RequiredArgsConstructor
 public class PrizeStructureRepositoryAdapter implements PrizeStructureRepositoryPort {
@@ -19,20 +17,20 @@ public class PrizeStructureRepositoryAdapter implements PrizeStructureRepository
     private final PrizeStructurePersistenceMapper prizeStructurePersistenceMapper;
 
     @Override
-    public List<PrizeStructureModel> findByProductId(UUID productId) {
-        List<PrizeStructureEntity> entities = prizeStructureRepository.findByProductIdOrderByDisplayOrderAsc(productId);
+    public List<PrizeStructureModel> findByProductId(Long productId) {
+        List<PrizeStructureEntity> entities = prizeStructureRepository.findByProduct_IdAndDeletedAtIsNullOrderByDisplayOrderAsc(productId);
         return prizeStructurePersistenceMapper.toDomainList(entities);
     }
 
     @Override
-    public List<PrizeStructureModel> saveAll(UUID productId, List<PrizeStructureModel> models) {
+    public List<PrizeStructureModel> saveAll(Long productId, List<PrizeStructureModel> models) {
         List<PrizeStructureEntity> entities = prizeStructurePersistenceMapper.toEntityList(models);
         List<PrizeStructureEntity> saved = prizeStructureRepository.saveAll(entities);
         return prizeStructurePersistenceMapper.toDomainList(saved);
     }
 
     @Override
-    public void deleteByProductId(UUID productId) {
-        prizeStructureRepository.deleteByProductId(productId);
+    public void deleteByProductId(Long productId) {
+        prizeStructureRepository.deleteByProduct_Id(productId);
     }
 }

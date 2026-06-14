@@ -8,8 +8,6 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
-
 @Getter
 @Setter
 @AllArgsConstructor
@@ -17,8 +15,8 @@ import java.util.UUID;
 @Builder
 public class PrizeStructureModel {
 
-    private UUID id;
-    private UUID productId;
+    private Long id;
+    private Long productId;
     private String region;
 
     @Builder.Default
@@ -35,6 +33,8 @@ public class PrizeStructureModel {
 
     @Builder.Default
     private Integer displayOrder = 0;
+
+    private LocalDateTime deletedAt;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -66,24 +66,23 @@ public class PrizeStructureModel {
 
     public void validate(String productRegion) {
         if (prizeLevel == null) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Bậc giải thưởng không hợp lệ.");
+            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_INVALID_LEVEL);
         }
         if (prizeCode == null || prizeCode.isBlank()) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Mã giải thưởng không được để trống.");
+            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_CODE_REQUIRED);
         }
         if (prizeValue == null || prizeValue.compareTo(BigDecimal.ZERO) < 0) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Giá trị giải thưởng phải lớn hơn hoặc bằng 0.");
+            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_VALUE_INVALID);
         }
         if (quantity == null || quantity < 1) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Số lượng giải phải lớn hơn hoặc bằng 1.");
+            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_QUANTITY_INVALID);
         }
         if (matchFrom == null) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Quy tắc so khớp không hợp lệ.");
+            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_MATCH_RULE_INVALID);
         }
         if (!isOnly && productRegion != null && region != null
                 && !region.equalsIgnoreCase(productRegion)) {
-            throw new DomainException(ErrorCode.INVALID_INPUT,
-                    "Cấu trúc giải dùng chung miền phải có region trùng với sản phẩm.");
+            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_REGION_INVALID);
         }
 
         validateMatchDigits();
@@ -95,8 +94,15 @@ public class PrizeStructureModel {
         }
 
         if (matchDigits == null || matchDigits < 1) {
-            throw new DomainException(ErrorCode.INVALID_INPUT,
-                    "Số chữ số khớp phải lớn hơn 0 khi quy tắc so khớp là LAST hoặc ANY.");
+            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_MATCH_DIGITS_INVALID);
         }
+    }
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 }

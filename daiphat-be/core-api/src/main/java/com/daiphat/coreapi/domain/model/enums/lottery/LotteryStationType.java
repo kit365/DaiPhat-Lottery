@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum LotteryProductType {
+public enum LotteryStationType {
     TRADITIONAL("TRADITIONAL_LOTTERY");
     private final String displayName;
 }
