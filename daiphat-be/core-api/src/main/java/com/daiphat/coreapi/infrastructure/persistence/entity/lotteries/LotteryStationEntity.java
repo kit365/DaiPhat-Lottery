@@ -77,6 +77,9 @@ public class LotteryStationEntity extends BaseEntity {
     private java.time.LocalDateTime approvedAt;
 
     // Hiển thị
+    @Column(name = "image", length = 500)
+    private String image;
+
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 

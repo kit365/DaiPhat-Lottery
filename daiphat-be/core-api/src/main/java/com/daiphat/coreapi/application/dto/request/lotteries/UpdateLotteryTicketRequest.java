@@ -1,5 +1,7 @@
 package com.daiphat.coreapi.application.dto.request.lotteries;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
+
 import java.time.LocalDate;
 
 public record UpdateLotteryTicketRequest(
@@ -8,5 +10,5 @@ public record UpdateLotteryTicketRequest(
         String numbers,
         LocalDate drawDate,
         String batchCode,
-        String status
+        LotteryTicketStatus status
 ) {}

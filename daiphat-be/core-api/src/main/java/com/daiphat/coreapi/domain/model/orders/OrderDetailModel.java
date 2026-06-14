@@ -20,8 +20,8 @@ public class OrderDetailModel {
 
     private Long id;
     private UUID orderId;
-    private Long lotteryTicketId;
-    private Long replacedByTicketId;
+    private Long lotteryTicketSerialId;
+    private Long replacedByTicketSerialId;
     private BigDecimal price;
 
     @Builder.Default
@@ -60,11 +60,11 @@ public class OrderDetailModel {
     }
 
     public void replaceWith(Long replacementTicketId) {
-        this.replacedByTicketId = replacementTicketId;
+        this.replacedByTicketSerialId = replacementTicketId;
     }
 
     public boolean isReplaced() {
-        return this.replacedByTicketId != null;
+        return this.replacedByTicketSerialId != null;
     }
 
     public boolean isRefunded() {

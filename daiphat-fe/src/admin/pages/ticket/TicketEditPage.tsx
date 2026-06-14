@@ -1,23 +1,22 @@
-import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography, CircularProgress } from "@mui/material"
+import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography, IconButton, CircularProgress } from "@mui/material"
 import { Breadcrumb } from "../../components/ui/Breadcrumb"
 import { Title } from "../../components/ui/Title"
 import { useState, useMemo, useEffect } from "react"
 import { UploadFiles } from "../../components/ui/UploadFiles"
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../constants/routes";
-import { useUpdateTicket, useTicketDetail } from "./hooks/useTicket";
+import { useUpdateTicket, useTicketDetail, useUploadTicketImage, useUploadTicketSerialImage } from "./hooks/useTicket";
 import { toast } from "react-toastify";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createTicketSchema, CreateTicketFormValues } from "../../schemas/ticket.schema";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { useProviders } from "../provider/hooks/useProvider";
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import { useParams, useNavigate } from "react-router-dom";
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AddIcon from '@mui/icons-material/Add';
 
 interface CustomFile extends File {
     preview: string;
@@ -56,25 +55,31 @@ export const TicketEditPage = () => {
         setValue,
         setError,
         reset,
+        watch,
     } = useForm<CreateTicketFormValues>({
         resolver: zodResolver(createTicketSchema),
         defaultValues: {
-            productId: "",
-            ticketImg: undefined,
-            serialNumber: "",
+            stationId: "",
+            serials: [{ serialNumber: "", ticketImg: undefined }],
             numbers: "",
-            drawDate: "",
             batchCode: "",
         },
     });
 
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: "serials"
+    });
+
     const [expandedDetail, setExpandedDetail] = useState(true);
-    const [files, setFiles] = useState<CustomFile[]>([]);
+    const [expandedSerials, setExpandedSerials] = useState(true);
     const [resetKey, setResetKey] = useState(0);
 
     const { data: providersRes } = useProviders({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
     const { mutate: update, isPending } = useUpdateTicket();
+    const { mutateAsync: uploadImageAsync, isPending: isUploadingImage } = useUploadTicketImage();
+    const { mutateAsync: uploadSerialImageAsync, isPending: isUploadingSerialImage } = useUploadTicketSerialImage();
 
     const outerTheme = useTheme();
 
@@ -111,55 +116,128 @@ export const TicketEditPage = () => {
 
     useEffect(() => {
         if (ticketDetail) {
+            const serials = Array.isArray(ticketDetail.serials) && ticketDetail.serials.length > 0
+                ? ticketDetail.serials.map((serial: any) => ({
+                    id: serial.id,
+                    serialNumber: serial.serialNumber || "",
+                    ticketImg: serial.ticketImg ? [serial.ticketImg as any] : undefined,
+                }))
+                : [{
+                    serialNumber: ticketDetail.serialNumber || "",
+                    ticketImg: ticketDetail.ticketImg ? [ticketDetail.ticketImg as any] : undefined,
+                }];
+
             reset({
-                productId: (ticketDetail.stationId || ticketDetail.productId || ticketDetail.providerId || "").toString(),
-                serialNumber: ticketDetail.serialNumber || "",
+                stationId: (ticketDetail.stationId || ticketDetail.productId || ticketDetail.providerId || "").toString(),
+                serials,
                 numbers: ticketDetail.numbers || "",
-                drawDate: ticketDetail.drawDate || "",
                 batchCode: ticketDetail.batchCode || "",
             });
-            // Handle image logic if needed (e.g. setting files from ticketImg URL)
+            setResetKey((prev) => prev + 1);
         }
     }, [ticketDetail, reset]);
 
-    useEffect(() => {
-        setValue("ticketImg", files.length > 0 ? files[0] : undefined);
-    }, [files, setValue]);
-
     const onSubmit = (data: CreateTicketFormValues) => {
-        const selectedProvider = providers.find((p: any) => (p.id || p._id) === data.productId);
-        if (selectedProvider && data.drawDate) {
-            const drawDateObj = dayjs(data.drawDate).startOf('day');
-            
-            const validDays = getValidDays(selectedProvider.drawSchedule);
-            if (validDays.length > 0 && !validDays.includes(drawDateObj.day())) {
-                setError("drawDate", { 
-                    message: `Lịch quay nhà đài này là: ${selectedProvider.drawSchedule}. Chọn sai thứ!` 
-                });
-                return;
-            }
-        }
+        const selectedProvider = providers.find((p: any) => (p.id || p._id) === data.stationId);
+        let finalDrawDate = "";
+        
+        if (selectedProvider) {
+            const drawSchedule = selectedProvider.drawSchedule;
+            const validDays = getValidDays(drawSchedule);
+            const today = dayjs().startOf('day');
+            const tomorrow = dayjs().add(1, 'day').startOf('day');
 
-        let ticketImgPath = ticketDetail?.ticketImg || "";
-        if (files.length > 0) {
-            ticketImgPath = files[0].name; 
+            if (validDays.length > 0) {
+                if (validDays.includes(today.day())) {
+                    finalDrawDate = today.format("YYYY-MM-DD");
+                } else if (validDays.includes(tomorrow.day())) {
+                    finalDrawDate = tomorrow.format("YYYY-MM-DD");
+                } else {
+                    toast.error(`Nhà đài này có lịch quay là ${drawSchedule}, không quay vào hôm nay hoặc ngày mai.`);
+                    return;
+                }
+            } else {
+                finalDrawDate = today.format("YYYY-MM-DD");
+            }
+        } else {
+            toast.error("Vui lòng chọn nhà đài");
+            return;
         }
 
         const payload = {
-            productId: data.productId,
-            serialNumber: data.serialNumber,
+            stationId: data.stationId,
+            serials: data.serials.map((s, idx) => {
+                let ticketImgPath = "";
+                // If it's a File, upload it later, pass the name. 
+                // If it's a string (old image), pass the string.
+                if (s.ticketImg && s.ticketImg.length > 0) {
+                    if (s.ticketImg[0] instanceof File) {
+                        ticketImgPath = s.ticketImg[0].name;
+                    } else {
+                        ticketImgPath = s.ticketImg[0] as unknown as string;
+                    }
+                } else if (idx === 0 && ticketDetail?.ticketImg) {
+                    // Fallback to old image for the first serial if no new image was uploaded
+                    ticketImgPath = ticketDetail.ticketImg;
+                }
+                
+                return {
+                    serialNumber: s.serialNumber,
+                    ticketImg: ticketImgPath
+                }
+            }),
             numbers: data.numbers,
-            drawDate: data.drawDate,
-            batchCode: data.batchCode,
-            ticketImg: ticketImgPath
+            drawDate: finalDrawDate,
+            batchCode: data.batchCode
         };
 
         if (id) {
             update({ id, data: payload }, {
-                onSuccess: (res: any) => {
+                onSuccess: async (res: any) => {
                     if (res.success) {
-                        toast.success(res.message || "Cập nhật vé số thành công!");
-                        navigate(`/${prefixAdmin}/ticket/list`);
+                        const allFilesToUpload = data.serials
+                            .filter(s => s.ticketImg && s.ticketImg.length > 0 && s.ticketImg[0] instanceof File)
+                            .map(s => s.ticketImg[0]);
+
+                        if (allFilesToUpload.length > 0) {
+                            try {
+                                const serialImageUploads = data.serials
+                                    .map((serial, index) => {
+                                        const file = serial.ticketImg?.[0];
+                                        if (!(file instanceof File)) {
+                                            return null;
+                                        }
+
+                                        const serialId = serial.id || ticketDetail?.serials?.[index]?.id;
+                                        if (!serialId) {
+                                            return { type: 'ticket' as const, file };
+                                        }
+
+                                        return { type: 'serial' as const, id: serialId, file };
+                                    })
+                                    .filter(Boolean);
+
+                                for (const upload of serialImageUploads) {
+                                    if (!upload) continue;
+                                    if (upload.type === 'serial') {
+                                        await uploadSerialImageAsync({ id: upload.id, file: upload.file });
+                                    } else {
+                                        await uploadImageAsync({ id, file: upload.file });
+                                    }
+                                }
+                                finalizeSuccess();
+                            } catch (err: any) {
+                                toast.error(err?.response?.data?.message || err?.message || "Lỗi tải ảnh lên hệ thống");
+                                finalizeSuccess();
+                            }
+                        } else {
+                            finalizeSuccess();
+                        }
+
+                        function finalizeSuccess() {
+                            toast.success(res.message || "Cập nhật vé số thành công!");
+                            navigate(`/${prefixAdmin}/ticket/list`);
+                        }
                     } else {
                         toast.error(res.message || "Cập nhật vé số thất bại");
                     }
@@ -197,8 +275,8 @@ export const TicketEditPage = () => {
                         pb: 10
                     }}>
                         <CollapsibleCard
-                            title={"Thông tin vé số"}
-                            subheader={"Sản phẩm, dãy số, ngày quay..."}
+                            title={"Thông tin chung"}
+                            subheader={"Nhà đài, dãy số, mã lô..."}
                             expanded={expandedDetail}
                             onToggle={() => setExpandedDetail(!expandedDetail)}
                         >
@@ -212,15 +290,15 @@ export const TicketEditPage = () => {
                                 >
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
                                         <Controller
-                                            name="productId"
+                                            name="stationId"
                                             control={control}
                                             render={({ field, fieldState }) => (
                                                 <FormControl fullWidth error={!!fieldState.error}>
-                                                    <InputLabel shrink>{"Sản phẩm vé số (Nhà đài)"}</InputLabel>
+                                                    <InputLabel shrink>{"Nhà đài"}</InputLabel>
                                                     <Select
                                                         {...field}
                                                         displayEmpty
-                                                        input={<OutlinedInput label={"Sản phẩm vé số (Nhà đài)"} notched />}
+                                                        input={<OutlinedInput label={"Nhà đài"} notched />}
                                                     >
                                                         <MenuItem value="">
                                                             <Box sx={{ color: "#919EAB" }}>Chọn nhà đài</Box>
@@ -256,23 +334,7 @@ export const TicketEditPage = () => {
                                         />
                                     </Box>
 
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
-                                        <Controller
-                                            name="serialNumber"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    label="Số sê-ri"
-                                                    fullWidth
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                />
-                                            )}
-                                        />
-                                    </Box>
-
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 12" } }}>
                                         <Controller
                                             name="numbers"
                                             control={control}
@@ -287,70 +349,104 @@ export const TicketEditPage = () => {
                                             )}
                                         />
                                     </Box>
+                                </Box>
+                            </Stack>
+                        </CollapsibleCard>
 
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
-                                        <Controller
-                                            name="drawDate"
-                                            control={control}
-                                            render={({ field, fieldState }) => {
-                                                const watchProductId = control._formValues.productId;
-                                                const selectedProvider = providers.find((p: any) => (p.id || p._id) === watchProductId);
-                                                const validDays = selectedProvider ? getValidDays(selectedProvider.drawSchedule) : [];
-                                                
-                                                const shouldDisableDate = (date: dayjs.Dayjs) => {
-                                                    if (!selectedProvider) return true;
-                                                    if (validDays.length > 0) {
-                                                        return !validDays.includes(date.day());
-                                                    }
-                                                    return false;
-                                                };
+                        <CollapsibleCard
+                            title={"Danh sách vé số (Sê-ri)"}
+                            subheader={"Danh sách các sê-ri vé số trong lô này"}
+                            expanded={expandedSerials}
+                            onToggle={() => setExpandedSerials(!expandedSerials)}
+                        >
+                            <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
+                                {fields.map((item, index) => (
+                                    <Box key={item.id} sx={{
+                                        p: 3,
+                                        border: "1px dashed var(--palette-divider)",
+                                        borderRadius: 2,
+                                        position: "relative"
+                                    }}>
+                                        <Box sx={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            mb: 2
+                                        }}>
+                                            <Typography variant="subtitle2" fontWeight="600">
+                                                Vé #{index + 1}
+                                            </Typography>
+                                            {fields.length > 1 && (
+                                                <IconButton 
+                                                    size="small" 
+                                                    color="error"
+                                                    onClick={() => remove(index)}
+                                                >
+                                                    <DeleteOutlineIcon />
+                                                </IconButton>
+                                            )}
+                                        </Box>
 
-                                                return (
-                                                    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
-                                                        <DatePicker
-                                                            label="Ngày quay"
-                                                            disabled={!watchProductId}
-                                                            value={field.value ? dayjs(field.value) : null}
-                                                            onChange={(newValue) => {
-                                                                field.onChange(newValue ? newValue.format("YYYY-MM-DD") : "");
-                                                            }}
-                                                            shouldDisableDate={shouldDisableDate}
-                                                            slotProps={{
-                                                                textField: {
-                                                                    fullWidth: true,
-                                                                    error: !!fieldState.error,
-                                                                    helperText: !watchProductId ? "Vui lòng chọn nhà đài trước" : fieldState.error?.message,
-                                                                    InputLabelProps: { shrink: true }
-                                                                }
-                                                            }}
+                                        <Box sx={{
+                                            display: "grid",
+                                            gridTemplateColumns: "repeat(12, 1fr)",
+                                            gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))",
+                                        }}>
+                                            <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                                <Controller
+                                                    name={`serials.${index}.serialNumber`}
+                                                    control={control}
+                                                    render={({ field, fieldState }) => (
+                                                        <TextField
+                                                            {...field}
+                                                            label="Số sê-ri"
+                                                            fullWidth
+                                                            error={!!fieldState.error}
+                                                            helperText={fieldState.error?.message}
                                                         />
-                                                    </LocalizationProvider>
-                                                );
-                                            }}
-                                        />
+                                                    )}
+                                                />
+                                            </Box>
+                                            <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                                <div className="mb-2 font-medium text-sm text-gray-600">Ảnh vé số</div>
+                                                <Controller
+                                                    name={`serials.${index}.ticketImg`}
+                                                    control={control}
+                                                    render={({ field }) => (
+                                                        <>
+                                                            <UploadFiles
+                                                                key={`${resetKey}-${index}`}
+                                                                files={Array.isArray(field.value) && field.value[0] instanceof File ? field.value : []}
+                                                                onFilesChange={(newFiles) => field.onChange(newFiles)}
+                                                            />
+                                                            {Array.isArray(field.value) && typeof field.value[0] === 'string' && (
+                                                                <div className="mt-2 text-sm text-gray-500">
+                                                                    Ảnh hiện tại: {field.value[0]}
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                />
+                                            </Box>
+                                        </Box>
                                     </Box>
-                                </Box>
+                                ))}
 
-                                <Box sx={{ mt: 2 }}>
-                                    <div className="mb-3 font-semibold">Ảnh vé số (Tùy chọn)</div>
-                                    <UploadFiles
-                                        key={resetKey}
-                                        files={files}
-                                        onFilesChange={(newFiles) => setFiles(newFiles)}
-                                    />
-                                    {ticketDetail?.ticketImg && files.length === 0 && (
-                                        <div className="mt-2 text-sm text-gray-500">
-                                            Ảnh hiện tại: {ticketDetail.ticketImg}
-                                        </div>
-                                    )}
-                                </Box>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<AddIcon />}
+                                    onClick={() => append({ serialNumber: "", ticketImg: undefined })}
+                                    sx={{ alignSelf: "flex-start", mt: 1 }}
+                                >
+                                    Thêm Số sê-ri
+                                </Button>
                             </Stack>
                         </CollapsibleCard>
 
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: "calc(2 * var(--spacing))" }}>
                             <LoadingButton
                                 type="submit"
-                                loading={isPending}
+                                loading={isPending || isUploadingImage || isUploadingSerialImage}
                                 label={"Lưu thay đổi"}
                                 loadingLabel="Đang lưu..."
                                 sx={{ minHeight: "3rem", minWidth: "4rem" }}

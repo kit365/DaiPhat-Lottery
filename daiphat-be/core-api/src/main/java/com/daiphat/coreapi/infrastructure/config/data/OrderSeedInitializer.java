@@ -13,6 +13,7 @@ import com.daiphat.coreapi.domain.model.enums.order.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderRefundEntity;
@@ -128,6 +129,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                         .numbers(numbers)
                         .drawDate(drawDate)
                         .batchCode(batchCode)
+                        .priceSnapshot(station.getPrice())
                         .status(LotteryTicketStatus.IN_STOCK)
                         .importedBy(operator)
                         .importedAt(LocalDateTime.now().minusHours(2))
@@ -387,7 +389,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
         order.setPickedUpBy(operator);
 
         OrderDetailEntity detail = buildDetail(order, oldTicket, station.getPrice(), OrderDetailStatus.ACTIVE, now);
-        detail.setReplacedByTicket(newTicket);
+        detail.setReplacedByTicketSerial(ticketSerialRef(newTicket.getId()));
         TransactionEntity transaction = buildTransaction(
                 order,
                 station.getPrice(),
@@ -465,6 +467,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                                 .numbers(numbers)
                                 .drawDate(LocalDate.now())
                                 .batchCode(batchCode)
+                                .priceSnapshot(station.getPrice())
                                 .status(status)
                                 .importedBy(operator)
                                 .importedAt(LocalDateTime.now().minusHours(2))
@@ -512,7 +515,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
     ) {
         return OrderDetailEntity.builder()
                 .order(order)
-                .lotteryTicket(ticket)
+                .lotteryTicketSerial(ticketSerialRef(ticket.getId()))
                 .price(price)
                 .status(status)
                 .createdAt(timestamp)
@@ -520,6 +523,15 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 .createdBy(SYSTEM_ACTOR)
                 .lastModifiedBy(SYSTEM_ACTOR)
                 .build();
+    }
+
+    private LotteryTicketSerialEntity ticketSerialRef(Long serialId) {
+        if (serialId == null) {
+            return null;
+        }
+        LotteryTicketSerialEntity entity = new LotteryTicketSerialEntity();
+        entity.setId(serialId);
+        return entity;
     }
 
     private TransactionEntity buildTransaction(

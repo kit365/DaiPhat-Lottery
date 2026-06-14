@@ -47,7 +47,7 @@ daiphat:
       cancel-path: ${PAYOS_CANCEL_PATH:/payment/payos/cancel}
   order:
     seed:
-      enabled: true
+      enabled: false
 
 logging:
   level:

@@ -41,8 +41,11 @@ export const useTickets = () => {
         if (!data?.data?.recordList) return [];
 
         return data.data.recordList.map((item: any) => ({
+            ...item,
             id: item.id || item._id,
-            providerName: item.productName || item.providerName || 'Không xác định',
+            providerName: item.productName || item.providerName || item.stationName || 'Không xác định',
+            stationName: item.stationName || '',
+            quantity: item.quantity || 0,
             serialNumber: item.serialNumber || '',
             numbers: item.numbers || '',
             drawDate: item.drawDate || '',

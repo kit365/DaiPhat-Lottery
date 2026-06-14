@@ -74,7 +74,7 @@ export const TicketDetailPage = () => {
                 }}>
                     <CollapsibleCard
                         title={"Thông tin vé số"}
-                        subheader={"Sản phẩm, dãy số, ngày quay..."}
+                        subheader={"Nhà đài, dãy số, ngày quay..."}
                         expanded={expandedDetail}
                         onToggle={() => setExpandedDetail(!expandedDetail)}
                     >

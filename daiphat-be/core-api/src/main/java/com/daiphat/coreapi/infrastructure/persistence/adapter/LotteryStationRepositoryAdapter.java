@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -49,6 +50,13 @@ public class LotteryStationRepositoryAdapter implements LotteryStationRepository
     public List<LotteryStationModel> findAll() {
         return lotteryStationRepository.findAll().stream()
                 .filter(entity -> entity.getDeletedAt() == null)
+                .map(lotteryStationPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<LotteryStationModel> findByNextDrawDate(LocalDate drawDate) {
+        return lotteryStationRepository.findByNextDrawDateAndDeletedAtIsNull(drawDate).stream()
                 .map(lotteryStationPersistenceMapper::toDomain)
                 .toList();
     }

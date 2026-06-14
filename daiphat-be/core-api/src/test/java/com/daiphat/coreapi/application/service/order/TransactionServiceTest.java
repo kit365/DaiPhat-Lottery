@@ -173,7 +173,7 @@ class TransactionServiceTest {
                 .status(TransactionStatus.PENDING)
                 .build();
         OrderDetailModel detail = OrderDetailModel.builder()
-                .lotteryTicketId(101L)
+                .lotteryTicketSerialId(101L)
                 .build();
         OrderModel order = OrderModel.builder()
                 .id(UUID.randomUUID())
@@ -258,7 +258,7 @@ class TransactionServiceTest {
                 .status(TransactionStatus.PENDING)
                 .build();
         OrderDetailModel detail = OrderDetailModel.builder()
-                .lotteryTicketId(8L)
+                .lotteryTicketSerialId(8L)
                 .build();
         OrderModel order = OrderModel.builder()
                 .id(UUID.randomUUID())
@@ -322,7 +322,7 @@ class TransactionServiceTest {
                 .status(TransactionStatus.PENDING)
                 .build();
         OrderDetailModel detail = OrderDetailModel.builder()
-                .lotteryTicketId(88L)
+                .lotteryTicketSerialId(88L)
                 .build();
         OrderModel order = OrderModel.builder()
                 .id(orderId)

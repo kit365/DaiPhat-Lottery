@@ -78,7 +78,7 @@ public class TransactionService implements TransactionServicePort {
                 null
         ));
         reconcileDirectOrderPayment(order);
-        order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.markSoldForOrder(detail.getLotteryTicketId()));
+        order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.markSoldForOrder(detail.getLotteryTicketSerialId()));
         OrderModel saved = orderRepositoryPort.save(order);
         clearFailureAttempts(transaction);
         clearCountdownIfResolved(saved);
@@ -154,7 +154,7 @@ public class TransactionService implements TransactionServicePort {
             strategy.handleSuccess(order, transaction, callbackResult);
             clearFailureAttempts(transaction);
             reconcileDirectOrderPayment(order);
-            order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.markSoldForOrder(detail.getLotteryTicketId()));
+            order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.markSoldForOrder(detail.getLotteryTicketSerialId()));
         } else {
             strategy.handleFailure(order, transaction, callbackResult);
             enforceFailureAttemptLimit(order, transaction);
@@ -261,7 +261,7 @@ public class TransactionService implements TransactionServicePort {
     }
 
     private void releaseReservedTickets(OrderModel order) {
-        order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.releaseReservationForOrder(detail.getLotteryTicketId()));
+        order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.releaseReservationForOrder(detail.getLotteryTicketSerialId()));
     }
 
     private void clearCountdownIfResolved(OrderModel order) {

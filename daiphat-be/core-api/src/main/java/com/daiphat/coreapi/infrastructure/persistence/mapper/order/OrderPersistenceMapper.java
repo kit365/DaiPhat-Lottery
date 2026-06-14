@@ -4,7 +4,7 @@ import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.OrderRefundModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
-import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderRefundEntity;
@@ -101,8 +101,8 @@ public class OrderPersistenceMapper {
         OrderDetailEntity entity = new OrderDetailEntity();
         entity.setId(model.getId());
         entity.setOrder(order);
-        entity.setLotteryTicket(lotteryTicketRef(model.getLotteryTicketId()));
-        entity.setReplacedByTicket(lotteryTicketRef(model.getReplacedByTicketId()));
+        entity.setLotteryTicketSerial(lotteryTicketSerialRef(model.getLotteryTicketSerialId()));
+        entity.setReplacedByTicketSerial(lotteryTicketSerialRef(model.getReplacedByTicketSerialId()));
         entity.setPrice(model.getPrice());
         entity.setStatus(model.getStatus());
         entity.setCreatedAt(model.getCreatedAt());
@@ -131,8 +131,8 @@ public class OrderPersistenceMapper {
         return OrderDetailModel.builder()
                 .id(entity.getId())
                 .orderId(entity.getOrder() != null ? entity.getOrder().getId() : null)
-                .lotteryTicketId(entity.getLotteryTicket() != null ? entity.getLotteryTicket().getId() : null)
-                .replacedByTicketId(entity.getReplacedByTicket() != null ? entity.getReplacedByTicket().getId() : null)
+                .lotteryTicketSerialId(entity.getLotteryTicketSerial() != null ? entity.getLotteryTicketSerial().getId() : null)
+                .replacedByTicketSerialId(entity.getReplacedByTicketSerial() != null ? entity.getReplacedByTicketSerial().getId() : null)
                 .price(entity.getPrice())
                 .status(entity.getStatus())
                 .refunds(refunds)
@@ -242,11 +242,11 @@ public class OrderPersistenceMapper {
         return user != null ? user.getId() : null;
     }
 
-    private LotteryTicketEntity lotteryTicketRef(Long ticketId) {
+    private LotteryTicketSerialEntity lotteryTicketSerialRef(Long ticketId) {
         if (ticketId == null) {
             return null;
         }
-        LotteryTicketEntity entity = new LotteryTicketEntity();
+        LotteryTicketSerialEntity entity = new LotteryTicketSerialEntity();
         entity.setId(ticketId);
         return entity;
     }

@@ -48,6 +48,7 @@ public class LotteryStationModel {
     private LocalDateTime approvedAt;
 
     // Hiển thị
+    private String image;
     private String thumbnailUrl;
     private String thumbnailPublicId;
     private String description;

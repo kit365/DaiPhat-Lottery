@@ -5,6 +5,7 @@ import java.time.LocalDate;
 
 public record OrderTicketSnapshot(
         Long ticketId,
+        Long ticketSerialId,
         BigDecimal price,
         LocalDate drawDate
 ) {

@@ -17,7 +17,8 @@ interface RenderCreatedAtCellProps {
 }
 
 export const RenderTitleCell = (params: GridRenderCellParams) => {
-    const { name, avatar, altImage } = params.row;
+    const { name, avatar, image, thumbnailUrl, altImage } = params.row;
+    const finalAvatar = avatar || thumbnailUrl || image;
     const id = params.row._id || params.row.id;
     const navigate = useNavigate();
 
@@ -33,7 +34,7 @@ export const RenderTitleCell = (params: GridRenderCellParams) => {
 
             <Avatar
                 alt={altImage || name}
-                src={avatar}
+                src={finalAvatar}
                 variant="rounded"
                 sx={{
                     width: "64px",

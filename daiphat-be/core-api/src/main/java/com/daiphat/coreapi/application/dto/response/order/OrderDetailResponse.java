@@ -9,8 +9,8 @@ import java.util.List;
 @Builder
 public record OrderDetailResponse(
         Long id,
-        Long lotteryTicketId,
-        Long replacedByTicketId,
+        Long lotteryTicketSerialId,
+        Long replacedByTicketSerialId,
         BigDecimal price,
         OrderDetailStatus status,
         List<OrderRefundResponse> refunds
