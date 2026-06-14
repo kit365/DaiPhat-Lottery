@@ -4,7 +4,7 @@ import { RenderActionsCell, RenderTicketCell, RenderStatusCell, RenderCreatedAtC
 import { ITicket } from '../configs/types';
 import { useMemo } from 'react';
 
-export const useTicketColumns = (isTrash: boolean = false) => {
+export const useTicketColumns = () => {
     const { t } = useTranslation();
 
     const columns: GridColDef<ITicket>[] = useMemo(() => [
@@ -52,9 +52,9 @@ export const useTicketColumns = (isTrash: boolean = false) => {
             disableColumnMenu: true,
             width: 64,
             align: 'right',
-            renderCell: (params) => <RenderActionsCell {...params} isTrash={isTrash} />,
+            renderCell: (params) => <RenderActionsCell {...params} />,
         },
-    ], [t, isTrash]);
+    ], [t]);
 
     return columns;
 };

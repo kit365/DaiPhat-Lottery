@@ -2,7 +2,6 @@ import { Toolbar } from "@mui/material";
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { IGridSettings } from "../configs/types";
-import { SelectMulti } from "../../../components/ui/SelectMulti";
 import { Search } from "../../../components/ui/Search";
 import { JiraFilter } from "./JiraFilter";
 import { Columns } from "../../../components/ui/Columns";
@@ -10,6 +9,8 @@ import { Filter } from "../../../components/ui/Filter";
 import { ExportButton } from "../../../components/ui/ExportButton";
 import { SettingsList } from "../../../components/ui/SettingsList";
 import { toolbarStyles } from "../configs/styles.config";
+import { useProviders } from "../../provider/hooks/useProvider";
+import dayjs from "dayjs";
 
 interface ToolbarProps {
     settings: IGridSettings;
@@ -18,6 +19,7 @@ interface ToolbarProps {
         status?: string[];
         batchCode?: string[];
         provider?: string[];
+        drawDate?: string[];
         search?: string;
     };
     onFilterChange: (fieldId: string, values: string[]) => void;
@@ -34,35 +36,43 @@ export const TicketToolbar = ({
     onSearchChange,
 }: ToolbarProps) => {
     const { t } = useTranslation();
-    const filterFields = useMemo(() => [
-        {
-            id: 'status',
-            label: "Trạng thái",
-            options: [
-                { value: 'in_stock', label: "Trong kho", color: '#0052CC', bgColor: '#DEEBFF' },
-                { value: 'sold', label: "Đã bán", color: '#006644', bgColor: '#E3FCEF' }
-            ]
-        },
-        {
-            id: 'batchCode',
-            label: "Lô nhập",
-            options: [
-                { value: 'B001', label: "B001" },
-                { value: 'B002', label: "B002" },
-                { value: 'B003', label: "B003" },
-                { value: 'B004', label: "B004" }
-            ]
-        },
-        {
-            id: 'provider',
-            label: "Nhà đài",
-            options: [
-                { value: '1', label: "Hồ Chí Minh" },
-                { value: '2', label: "Đồng Tháp" },
-                { value: '3', label: "Cà Mau" }
-            ]
-        }
-    ], []);
+    const { data: providersData } = useProviders({ limit: 100 });
+    
+    const filterFields = useMemo(() => {
+        const providerList = providersData?.data?.recordList || [];
+        const providerOptions = providerList.map((p: any) => ({
+            value: (p.id || p._id).toString(),
+            label: p.name
+        }));
+
+        const today = dayjs().format('YYYY-MM-DD');
+        const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
+
+        return [
+            {
+                id: 'status',
+                label: "Trạng thái",
+                options: [
+                    { value: 'in_stock', label: "Trong kho" },
+                    { value: 'sold', label: "Đã bán" }
+                ]
+            },
+            {
+                id: 'provider',
+                label: "Nhà đài",
+                options: providerOptions
+            },
+            {
+                id: 'drawDate',
+                label: "Ngày quay",
+                type: 'date' as const,
+                options: [
+                    { value: today, label: `Hôm nay (${dayjs(today).format('DD/MM/YYYY')})` },
+                    { value: tomorrow, label: `Ngày mai (${dayjs(tomorrow).format('DD/MM/YYYY')})` }
+                ]
+            }
+        ];
+    }, [providersData]);
 
     return (
         <Toolbar style={toolbarStyles.root}>
@@ -71,8 +81,8 @@ export const TicketToolbar = ({
                     fields={filterFields}
                     selectedFilters={{
                         status: filters.status || [],
-                        batchCode: filters.batchCode || [],
-                        provider: filters.provider || []
+                        provider: filters.provider || [],
+                        drawDate: filters.drawDate || []
                     }}
                     onFilterChange={onFilterChange}
                     onClearAll={onClearFilters}
