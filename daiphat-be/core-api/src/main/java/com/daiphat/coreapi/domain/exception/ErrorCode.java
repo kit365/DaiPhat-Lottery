@@ -101,6 +101,9 @@ public enum ErrorCode {
     UNSUPPORTED_PAYMENT_TYPE("ORD_010", "Phương thức thanh toán chưa được hỗ trợ.", HttpStatus.BAD_REQUEST),
     ORDER_CODE_GENERATION_FAILED("ORD_011", "Không thể tạo mã đơn hàng duy nhất.", HttpStatus.INTERNAL_SERVER_ERROR),
     INVALID_PICKUP_TIME("ORD_012", "Thời gian hẹn lấy vé không hợp lệ.", HttpStatus.BAD_REQUEST),
+    INVALID_TRANSACTION_AMOUNT("ORD_013", "Số tiền thanh toán không hợp lệ.", HttpStatus.BAD_REQUEST),
+    TRANSACTION_SELECTION_REQUIRED("ORD_014", "Cần chỉ định giao dịch thanh toán.", HttpStatus.BAD_REQUEST),
+    ONLINE_PAYMENT_MIN_AMOUNT("ORD_015", "Số tiền thanh toán online phải từ 10.000đ.", HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
     // Lottery Product Errors

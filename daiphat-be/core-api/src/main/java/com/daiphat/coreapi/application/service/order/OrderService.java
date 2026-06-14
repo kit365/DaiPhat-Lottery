@@ -2,26 +2,33 @@ package com.daiphat.coreapi.application.service.order;
 
 import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
 import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderRequest;
+import com.daiphat.coreapi.application.dto.request.order.DirectOrderTransactionRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
+import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
+import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
+import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.valueobject.Phone;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -31,10 +38,17 @@ import java.util.UUID;
 @Slf4j
 public class OrderService implements OrderServicePort {
 
+    private static final BigDecimal ONLINE_PAYMENT_MIN_AMOUNT = BigDecimal.valueOf(10_000);
+    private static final long MAX_PICKUP_LEAD_DAYS = 3;
+
+    @Value("${daiphat.order.pending-payment-ttl-seconds:600}")
+    private long pendingPaymentTtlSeconds;
+
     private final OrderRepositoryPort orderRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final UserLookupServicePort userLookupServicePort;
     private final OrderApplicationMapper orderApplicationMapper;
+    private final PaymentCountdownCachePort paymentCountdownCachePort;
 
     @Override
     @Transactional
@@ -44,16 +58,18 @@ public class OrderService implements OrderServicePort {
         validateTicketIds(request.lotteryTicketIds());
         ensureUserExists(customerId);
         ensureValidPhone(request.phone());
-        ensureValidPickupTime(request.expectedPickupAt());
-
         List<OrderDetailModel> orderDetails = new ArrayList<>();
+        List<OrderTicketSnapshot> ticketSnapshots = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         for (Long ticketId : request.lotteryTicketIds()) {
             OrderTicketSnapshot ticketSnapshot = lotteryTicketServicePort.reserveForOrder(ticketId);
+            ticketSnapshots.add(ticketSnapshot);
             orderDetails.add(buildOrderDetail(ticketSnapshot));
             totalAmount = totalAmount.add(ticketSnapshot.price());
         }
+
+        ensureValidPickupTime(request.expectedPickupAt(), ticketSnapshots);
 
         TransactionModel transaction = orderApplicationMapper.toOnlineTransactionModel(totalAmount, request.note());
         transaction.initializeForCreate();
@@ -68,6 +84,7 @@ public class OrderService implements OrderServicePort {
         order.initializeForCreate();
 
         OrderModel saved = orderRepositoryPort.save(order);
+        registerPendingPaymentCountdown(saved);
         log.info("Created online order with id: {}", saved.getId());
         return saved;
     }
@@ -81,31 +98,35 @@ public class OrderService implements OrderServicePort {
         ensureUserExistsIfPresent(request.customerId());
         ensureUserExists(operatorId);
         ensureValidPhone(request.phone());
+        boolean hasPendingOnlinePayment = hasPendingOnlinePayment(request);
 
         List<OrderDetailModel> orderDetails = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         for (Long ticketId : request.lotteryTicketIds()) {
-            OrderTicketSnapshot ticketSnapshot = lotteryTicketServicePort.sellOfflineForOrder(ticketId);
+            OrderTicketSnapshot ticketSnapshot = hasPendingOnlinePayment
+                    ? lotteryTicketServicePort.reserveForOrder(ticketId)
+                    : lotteryTicketServicePort.sellOfflineForOrder(ticketId);
             orderDetails.add(buildOrderDetail(ticketSnapshot));
             totalAmount = totalAmount.add(ticketSnapshot.price());
         }
 
-        TransactionModel transaction = orderApplicationMapper.toDirectTransactionModel(totalAmount, request.note());
-        transaction.initializeForCreate();
-        transaction.collectCash(operatorId);
+        List<TransactionModel> transactions = buildDirectTransactions(request, totalAmount, operatorId);
 
         OrderModel order = orderApplicationMapper.toDirectOrderModel(request);
         order.setOrderCode(generateOrderCode());
         order.setReceiveType(resolveReceiveType(request.receiveType()));
         order.setTotalAmount(totalAmount);
         order.setOrderDetails(orderDetails);
-        order.setTransactions(List.of(transaction));
+        order.setTransactions(transactions);
         order.initializeForCreate();
-        order.markPaid();
-        order.completeDirectOrder(operatorId);
+        if (order.isFullyPaid()) {
+            order.markPaid();
+            order.completeDirectOrder(operatorId);
+        }
 
         OrderModel saved = orderRepositoryPort.save(order);
+        registerPendingPaymentCountdown(saved);
         log.info("Created direct order with id: {}", saved.getId());
         return saved;
     }
@@ -132,8 +153,23 @@ public class OrderService implements OrderServicePort {
         }
     }
 
-    private void ensureValidPickupTime(LocalDateTime expectedPickupAt) {
+    private void ensureValidPickupTime(LocalDateTime expectedPickupAt, List<OrderTicketSnapshot> ticketSnapshots) {
         if (expectedPickupAt == null || expectedPickupAt.isBefore(LocalDateTime.now().plusMinutes(15))) {
+            throw new DomainException(ErrorCode.INVALID_PICKUP_TIME);
+        }
+
+        LocalDate earliestDrawDate = ticketSnapshots.stream()
+                .map(OrderTicketSnapshot::drawDate)
+                .filter(java.util.Objects::nonNull)
+                .min(LocalDate::compareTo)
+                .orElse(null);
+        if (earliestDrawDate == null) {
+            throw new DomainException(ErrorCode.INVALID_PICKUP_TIME);
+        }
+
+        LocalDate pickupDate = expectedPickupAt.toLocalDate();
+        LocalDate earliestAllowedPickupDate = earliestDrawDate.minusDays(MAX_PICKUP_LEAD_DAYS);
+        if (pickupDate.isBefore(earliestAllowedPickupDate) || pickupDate.isAfter(earliestDrawDate)) {
             throw new DomainException(ErrorCode.INVALID_PICKUP_TIME);
         }
     }
@@ -142,14 +178,83 @@ public class OrderService implements OrderServicePort {
         Phone.of(phone);
     }
 
+    private List<TransactionModel> buildDirectTransactions(CreateDirectOrderRequest request, BigDecimal totalAmount, UUID operatorId) {
+        List<DirectOrderTransactionRequest> paymentRequests = request.transactions();
+        if (paymentRequests == null || paymentRequests.isEmpty()) {
+            paymentRequests = List.of(new DirectOrderTransactionRequest(TransactionType.OFFLINE, totalAmount, request.note()));
+        }
+
+        List<TransactionModel> transactions = new ArrayList<>();
+        BigDecimal paidAmount = BigDecimal.ZERO;
+        for (DirectOrderTransactionRequest paymentRequest : paymentRequests) {
+            validateDirectTransaction(paymentRequest);
+
+            TransactionModel transaction = orderApplicationMapper.toDirectTransactionModel(
+                    paymentRequest.type(),
+                    paymentRequest.amount(),
+                    resolveTransactionNote(paymentRequest.note(), request.note())
+            );
+            transaction.initializeForCreate();
+            if (paymentRequest.type() == TransactionType.OFFLINE) {
+                transaction.markDirectPaymentCompleted(operatorId);
+            }
+            transactions.add(transaction);
+            paidAmount = paidAmount.add(paymentRequest.amount());
+        }
+
+        if (paidAmount.compareTo(totalAmount) != 0) {
+            throw new DomainException(ErrorCode.INVALID_TRANSACTION_AMOUNT);
+        }
+        return transactions;
+    }
+
+    private void validateDirectTransaction(DirectOrderTransactionRequest paymentRequest) {
+        if (paymentRequest == null
+                || paymentRequest.type() == null
+                || paymentRequest.amount() == null
+                || paymentRequest.amount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new DomainException(ErrorCode.INVALID_TRANSACTION_AMOUNT);
+        }
+        if (paymentRequest.type() == TransactionType.ONLINE
+                && paymentRequest.amount().compareTo(ONLINE_PAYMENT_MIN_AMOUNT) < 0) {
+            throw new DomainException(ErrorCode.ONLINE_PAYMENT_MIN_AMOUNT);
+        }
+    }
+
+    private String resolveTransactionNote(String transactionNote, String orderNote) {
+        return transactionNote != null && !transactionNote.isBlank() ? transactionNote : orderNote;
+    }
+
+    private void registerPendingPaymentCountdown(OrderModel order) {
+        if (order.getStatus() == OrderStatus.PENDING_PAYMENT && order.getId() != null) {
+            paymentCountdownCachePort.start(order.getId(), java.time.Duration.ofSeconds(pendingPaymentTtlSeconds));
+            return;
+        }
+        if (order.getId() != null) {
+            paymentCountdownCachePort.clear(order.getId());
+        }
+    }
+
+    private boolean hasPendingOnlinePayment(CreateDirectOrderRequest request) {
+        List<DirectOrderTransactionRequest> paymentRequests = request.transactions();
+        if (paymentRequests == null || paymentRequests.isEmpty()) {
+            return false;
+        }
+        return paymentRequests.stream()
+                .filter(paymentRequest -> paymentRequest != null && paymentRequest.type() != null)
+                .anyMatch(paymentRequest -> paymentRequest.type() == TransactionType.ONLINE);
+    }
+
     private OrderReceiveType resolveReceiveType(OrderReceiveType receiveType) {
         return receiveType != null ? receiveType : OrderReceiveType.COUNTER_PICKUP;
     }
 
     private String generateOrderCode() {
+        String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         final int maxRetries = 5;
         for (int i = 0; i < maxRetries; i++) {
-            String orderCode = "ORD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            String orderCode = "ORD-" + date + "-" + suffix;
             if (!orderRepositoryPort.existsByOrderCode(orderCode)) {
                 return orderCode;
             }

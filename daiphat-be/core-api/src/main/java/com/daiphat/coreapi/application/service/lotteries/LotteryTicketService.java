@@ -178,21 +178,18 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         log.info("Changing status of lottery ticket with id: {} to {}", id, status);
 
         LotteryTicketModel model = getTicketOrThrow(id);
-
-        if (status == null || status.isBlank()) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_STATUS_REQUIRED);
-        }
+        LotteryTicketStatus targetStatus = parseStatusOrThrow(status);
 
         boolean wasInInventory = model.countsTowardInventory();
 
-        switch (status.toUpperCase()) {
-            case "RESERVED" -> model.reserve();
-            case "SOLD" -> model.sellOnline();
-            case "PROXY_HOLDING" -> model.holdForProxy();
-            case "PENDING_RETURN" -> model.requestReturn();
-            case "RETURNED" -> model.confirmReturned();
-            case "INTERNAL_FAULT" -> model.markInternalFault();
-            case "ISSUER_FAULT" -> model.markIssuerFault();
+        switch (targetStatus) {
+            case RESERVED -> model.reserve();
+            case SOLD -> model.sellOnline();
+            case PROXY_HOLDING -> model.holdForProxy();
+            case PENDING_RETURN -> model.requestReturn();
+            case RETURNED -> model.confirmReturned();
+            case INTERNAL_FAULT -> model.markInternalFault();
+            case ISSUER_FAULT -> model.markIssuerFault();
             default -> throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
 
@@ -216,7 +213,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         ticket.reserve();
         lotteryTicketRepositoryPort.save(ticket);
 
-        return new OrderTicketSnapshot(ticket.getId(), station.getPrice());
+        return new OrderTicketSnapshot(ticket.getId(), station.getPrice(), ticket.getDrawDate());
     }
 
     @Override
@@ -230,7 +227,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         lotteryTicketRepositoryPort.save(ticket);
         persistInventoryAdjustment(station, -1);
 
-        return new OrderTicketSnapshot(ticket.getId(), station.getPrice());
+        return new OrderTicketSnapshot(ticket.getId(), station.getPrice(), ticket.getDrawDate());
     }
 
     @Override
@@ -239,6 +236,14 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         LotteryTicketModel ticket = getTicketOrThrow(ticketId);
         ensureTicketAvailableForOnlineSale(ticket);
         ticket.sellOnline();
+        lotteryTicketRepositoryPort.save(ticket);
+    }
+
+    @Override
+    @Transactional
+    public void releaseReservationForOrder(Long ticketId) {
+        LotteryTicketModel ticket = getTicketOrThrow(ticketId);
+        ticket.releaseReservation();
         lotteryTicketRepositoryPort.save(ticket);
     }
 
@@ -337,6 +342,9 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     }
 
     private LotteryTicketStatus parseStatusOrThrow(String status) {
+        if (status == null || status.isBlank()) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_STATUS_REQUIRED);
+        }
         try {
             return LotteryTicketStatus.valueOf(status.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -372,7 +380,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     private void ensureTicketAvailableForDirectSale(LotteryTicketModel ticket) {
         if (ticket.getStatus() != LotteryTicketStatus.IN_STOCK) {
-            throw invalidTicketStatus(ticket, List.of(LotteryTicketStatus.IN_STOCK));
+            throw invalidTicketStatusForDirectSale(ticket);
         }
     }
 
@@ -393,6 +401,20 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                         allowedStatusText
                 )
         );
+    }
+
+    private DomainException invalidTicketStatusForDirectSale(LotteryTicketModel ticket) {
+        return switch (ticket.getStatus()) {
+            case RESERVED -> new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Vé đã được đặt trước, không thể bán tại quầy."
+            );
+            case SOLD -> new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Vé đã được bán."
+            );
+            default -> invalidTicketStatus(ticket, List.of(LotteryTicketStatus.IN_STOCK));
+        };
     }
 
     private LotteryStationModel getProductOrThrow(Long id) {

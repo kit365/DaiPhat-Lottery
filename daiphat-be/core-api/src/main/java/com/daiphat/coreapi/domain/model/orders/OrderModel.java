@@ -5,6 +5,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.order.TransactionStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -82,7 +83,7 @@ public class OrderModel {
 
     public void completeDirectOrder(UUID operatorId) {
         ensureOrderType(OrderType.DIRECT);
-        ensureStatusIn(OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.PENDING_PICKUP);
+        ensurePaidFulfillmentStatus();
         this.status = OrderStatus.COMPLETED;
         this.pickedUpBy = operatorId;
         this.actualPickedUpAt = LocalDateTime.now();
@@ -102,20 +103,42 @@ public class OrderModel {
         cancel(cancelReason);
     }
 
+    public void cancelPendingPayment(String cancelReason) {
+        ensureStatus(OrderStatus.PENDING_PAYMENT);
+        cancel(cancelReason);
+    }
+
     public void cancelAfterPayment(String cancelReason) {
         ensureOrderType(OrderType.ONLINE);
-        ensureStatusIn(OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.PENDING_PICKUP);
+        ensurePaidFulfillmentStatus();
         cancel(cancelReason);
     }
 
     public void cancelDirectOrder(String cancelReason) {
         ensureOrderType(OrderType.DIRECT);
-        ensureStatusIn(OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.PENDING_PICKUP);
+        ensurePaidFulfillmentStatus();
         cancel(cancelReason);
     }
 
     public boolean hasApprovedRefund() {
         return this.orderDetails != null && this.orderDetails.stream().anyMatch(OrderDetailModel::isRefunded);
+    }
+
+    public BigDecimal getCompletedTransactionAmount() {
+        if (this.transactions == null) {
+            return BigDecimal.ZERO;
+        }
+        return this.transactions.stream()
+                .filter(transaction -> transaction.getStatus() == TransactionStatus.COMPLETED)
+                .map(TransactionModel::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public boolean isFullyPaid() {
+        if (this.totalAmount == null) {
+            return false;
+        }
+        return getCompletedTransactionAmount().compareTo(this.totalAmount) == 0;
     }
 
     private void cancel(String cancelReason) {
@@ -136,12 +159,12 @@ public class OrderModel {
         }
     }
 
-    private void ensureStatusIn(OrderStatus... allowedStatuses) {
-        for (OrderStatus allowedStatus : allowedStatuses) {
-            if (this.status == allowedStatus) {
-                return;
-            }
+    private void ensurePaidFulfillmentStatus() {
+        if (this.status != OrderStatus.PAID
+                && this.status != OrderStatus.PREPARING
+                && this.status != OrderStatus.PENDING_PICKUP) {
+            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
         }
-        throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
     }
+
 }

@@ -2,6 +2,7 @@ package com.daiphat.coreapi.domain.model.orders;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.order.PaymentGateway;
 import com.daiphat.coreapi.domain.model.enums.order.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
 import lombok.*;
@@ -20,6 +21,8 @@ public class TransactionModel {
     private Long id;
     private UUID orderId;
     private BigDecimal amount;
+    private PaymentGateway gateway;
+    private Long gatewayOrderCode;
     private String paymentRef;
 
     @Builder.Default
@@ -61,14 +64,34 @@ public class TransactionModel {
         this.cancelledAt = LocalDateTime.now();
     }
 
+    public void releaseGatewayAttempt(String failureReason) {
+        ensureType(TransactionType.ONLINE);
+        ensureStatus(TransactionStatus.PENDING);
+        this.gatewayOrderCode = null;
+        this.paymentRef = null;
+        this.failureReason = failureReason;
+        this.cancelledAt = LocalDateTime.now();
+    }
+
     public void collectCash(UUID collectorId) {
         ensureType(TransactionType.OFFLINE);
+        markDirectPaymentCompleted(collectorId);
+    }
+
+    public void markDirectPaymentCompleted(UUID operatorId) {
+        ensureManualDirectType();
         ensureStatus(TransactionStatus.PENDING);
         this.status = TransactionStatus.COMPLETED;
-        this.codCollectedBy = collectorId;
-        this.codCollectedAt = LocalDateTime.now();
-        this.paidAt = this.codCollectedAt;
+        this.paidAt = LocalDateTime.now();
+        this.cancelledAt = null;
         this.failureReason = null;
+        if (this.type == TransactionType.OFFLINE) {
+            this.codCollectedBy = operatorId;
+            this.codCollectedAt = this.paidAt;
+            return;
+        }
+        this.codCollectedBy = null;
+        this.codCollectedAt = null;
     }
 
     public void markCancelled(String note) {
@@ -85,6 +108,12 @@ public class TransactionModel {
 
     private void ensureType(TransactionType expectedType) {
         if (this.type != expectedType) {
+            throw new DomainException(ErrorCode.TRANSACTION_INVALID_STATUS);
+        }
+    }
+
+    private void ensureManualDirectType() {
+        if (this.type != TransactionType.OFFLINE && this.type != TransactionType.ONLINE) {
             throw new DomainException(ErrorCode.TRANSACTION_INVALID_STATUS);
         }
     }

@@ -2,6 +2,7 @@ package com.daiphat.coreapi.infrastructure.persistence.entity.order;
 
 import com.daiphat.coreapi.domain.model.enums.order.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.order.PaymentGateway;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -40,6 +41,13 @@ public class TransactionEntity {
 
     @Column(nullable = false, precision = 15)
     private BigDecimal amount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private PaymentGateway gateway;
+
+    @Column(name = "gateway_order_code", unique = true)
+    private Long gatewayOrderCode;
 
     @Column(name = "payment_ref", length = 100)
     private String paymentRef;

@@ -188,6 +188,8 @@ public class OrderPersistenceMapper {
         entity.setId(model.getId());
         entity.setOrder(order);
         entity.setAmount(model.getAmount());
+        entity.setGateway(model.getGateway());
+        entity.setGatewayOrderCode(model.getGatewayOrderCode());
         entity.setPaymentRef(model.getPaymentRef());
         entity.setStatus(model.getStatus());
         entity.setPaidAt(model.getPaidAt());
@@ -209,6 +211,8 @@ public class OrderPersistenceMapper {
                 .id(entity.getId())
                 .orderId(entity.getOrder() != null ? entity.getOrder().getId() : null)
                 .amount(entity.getAmount())
+                .gateway(entity.getGateway())
+                .gatewayOrderCode(entity.getGatewayOrderCode())
                 .paymentRef(entity.getPaymentRef())
                 .status(entity.getStatus())
                 .paidAt(entity.getPaidAt())

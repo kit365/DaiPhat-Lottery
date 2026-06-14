@@ -220,6 +220,42 @@ class LotteryTicketServiceTest {
     }
 
     @Test
+    @DisplayName("SELL OFFLINE: Vé RESERVED trả message đẹp cho FE")
+    void sellOfflineForOrder_fail_whenReserved_shouldReturnFriendlyMessage() {
+        LotteryTicketModel reservedTicket = LotteryTicketModel.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status(LotteryTicketStatus.RESERVED)
+                .drawDate(LocalDate.now().plusDays(1))
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(reservedTicket));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.sellOfflineForOrder(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .hasMessage("Vé đã được đặt trước, không thể bán tại quầy.");
+    }
+
+    @Test
+    @DisplayName("SELL OFFLINE: Vé SOLD trả message đẹp cho FE")
+    void sellOfflineForOrder_fail_whenSold_shouldReturnFriendlyMessage() {
+        LotteryTicketModel soldTicket = LotteryTicketModel.builder()
+                .id(TICKET_ID)
+                .productId(PRODUCT_ID)
+                .status(LotteryTicketStatus.SOLD)
+                .drawDate(LocalDate.now().plusDays(1))
+                .build();
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(soldTicket));
+        when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.of(productModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.sellOfflineForOrder(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .hasMessage("Vé đã được bán.");
+    }
+
+    @Test
     @DisplayName("[DP-272] CREATE: Tạo vé số thất bại khi sản phẩm không tồn tại")
     void create_productNotFound_throwsLotteryStationNotFound() {
         when(lotteryStationRepositoryPort.findById(PRODUCT_ID)).thenReturn(Optional.empty());

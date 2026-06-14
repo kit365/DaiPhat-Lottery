@@ -63,6 +63,11 @@ public class LotteryTicketModel {
         this.status = LotteryTicketStatus.RESERVED;
     }
 
+    public void releaseReservation() {
+        ensureStatus(LotteryTicketStatus.RESERVED);
+        this.status = LotteryTicketStatus.IN_STOCK;
+    }
+
     public void sellOnline() {
         ensureStatusIn(
                 LotteryTicketStatus.IN_STOCK,

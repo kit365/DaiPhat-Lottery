@@ -104,9 +104,9 @@ public interface OrderApplicationMapper {
                 .build();
     }
 
-    default TransactionModel toDirectTransactionModel(BigDecimal amount, String note) {
+    default TransactionModel toDirectTransactionModel(TransactionType type, BigDecimal amount, String note) {
         return TransactionModel.builder()
-                .type(TransactionType.OFFLINE)
+                .type(type)
                 .amount(amount)
                 .note(note)
                 .build();

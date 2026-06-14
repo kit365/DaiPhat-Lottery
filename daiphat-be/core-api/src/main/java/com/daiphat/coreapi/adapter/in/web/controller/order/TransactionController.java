@@ -4,6 +4,8 @@ import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.order.PaymentResult;
+import com.daiphat.coreapi.application.dto.order.PendingPaymentCountdownResult;
+import com.daiphat.coreapi.application.dto.request.order.CancelPaymentRequest;
 import com.daiphat.coreapi.application.dto.request.order.CollectDirectOrderCashRequest;
 import com.daiphat.coreapi.application.dto.request.order.HandleOnlinePaymentFailureRequest;
 import com.daiphat.coreapi.application.dto.request.order.HandleOnlinePaymentSuccessRequest;
@@ -14,10 +16,12 @@ import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.order.OrderEnumServicePort;
 import com.daiphat.coreapi.application.port.in.order.TransactionServicePort;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.order.PaymentGateway;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -46,8 +50,27 @@ public class TransactionController {
             @PathVariable UUID orderId,
             @Valid @RequestBody ProcessPaymentRequest request) {
         log.info("REST request to process payment for order: {}", orderId);
-        PaymentResult paymentResult = transactionServicePort.processPayment(orderId, request.type());
+        PaymentResult paymentResult = transactionServicePort.processPayment(orderId, request.transactionId(), request.gateway());
         return ApiResponse.success("Khởi tạo thanh toán thành công.", paymentResult);
+    }
+
+    @GetMapping(ORDER_ID_PATH + PAYMENT_PATH + "/countdown")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<PendingPaymentCountdownResult> getPendingPaymentCountdown(@PathVariable UUID orderId) {
+        return ApiResponse.success(
+                "Lấy thời gian thanh toán còn lại thành công.",
+                transactionServicePort.getPendingPaymentCountdown(orderId)
+        );
+    }
+
+    @PostMapping(ORDER_ID_PATH + PAYMENT_PATH + "/cancel")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', '" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    public ApiResponse<OrderResponse> cancelPayment(
+            @PathVariable UUID orderId,
+            @Valid @RequestBody CancelPaymentRequest request) {
+        log.info("REST request to cancel payment for order: {} via gateway {}", orderId, request.gateway());
+        OrderModel order = transactionServicePort.cancelOnlinePayment(orderId, request.transactionId(), request.gateway(), request.reason());
+        return ApiResponse.success("Hủy link thanh toán thành công.", orderApplicationMapper.toResponse(order));
     }
 
     @PatchMapping(ORDER_ID_PATH + PAYMENT_PATH + "/success")
@@ -56,7 +79,7 @@ public class TransactionController {
             @PathVariable UUID orderId,
             @Valid @RequestBody HandleOnlinePaymentSuccessRequest request) {
         log.info("REST request to mark online payment success for order: {}", orderId);
-        OrderModel order = transactionServicePort.handleOnlinePaymentSuccess(orderId, request.paymentRef());
+        OrderModel order = transactionServicePort.handleOnlinePaymentSuccess(orderId, request.transactionId(), request.gateway(), request.paymentRef());
         return ApiResponse.success("Cập nhật thanh toán thành công.", orderApplicationMapper.toResponse(order));
     }
 
@@ -66,8 +89,21 @@ public class TransactionController {
             @PathVariable UUID orderId,
             @Valid @RequestBody HandleOnlinePaymentFailureRequest request) {
         log.info("REST request to mark online payment failure for order: {}", orderId);
-        OrderModel order = transactionServicePort.handleOnlinePaymentFailure(orderId, request.failureReason());
+        OrderModel order = transactionServicePort.handleOnlinePaymentFailure(orderId, request.transactionId(), request.gateway(), request.failureReason());
         return ApiResponse.success("Cập nhật thanh toán thất bại thành công.", orderApplicationMapper.toResponse(order));
+    }
+
+    @GetMapping(value = PAYMENT_PATH + "/webhook/{gateway}", consumes = MediaType.ALL_VALUE)
+    public void checkGatewayWebhook(@PathVariable PaymentGateway gateway) {
+        log.info("Gateway webhook check for {}", gateway);
+    }
+
+    @PostMapping(value = PAYMENT_PATH + "/webhook/{gateway}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public void handleGatewayWebhook(
+            @PathVariable PaymentGateway gateway,
+            @RequestBody String payload) {
+        log.info("REST request to process webhook for gateway {}", gateway);
+        transactionServicePort.processGatewayCallback(gateway, payload);
     }
 
     @PatchMapping(ORDER_ID_PATH + "/collect-cash")
