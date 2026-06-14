@@ -24,6 +24,7 @@ public record LotteryStationResponse(
         String status,
         UUID approvedById,
         LocalDateTime approvedAt,
+        String image,
         String thumbnailUrl,
         String description,
         Integer displayOrder,

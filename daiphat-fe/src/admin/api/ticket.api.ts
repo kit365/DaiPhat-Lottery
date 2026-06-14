@@ -140,3 +140,32 @@ export const scanExpiredTickets = async (): Promise<ApiResponse<any>> => {
         message: "Quét vé số hết hạn thành công!"
     } as any;
 };
+
+/** Tải ảnh vé số */
+export const uploadTicketImage = async (id: string | number, file: File): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiApp.post(`${BASE_URL}/${id}/image`, formData, {
+        ...withAuth(),
+        headers: {
+            ...withAuth().headers,
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
+
+
+/** Tải ảnh sê-ri vé số */
+export const uploadTicketSerialImage = async (id: string | number, file: File): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiApp.post(`/lottery-ticket-serials/${id}/image`, formData, {
+        ...withAuth(),
+        headers: {
+            ...withAuth().headers,
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};

@@ -13,8 +13,11 @@ import { ReloadIcon } from "../../../assets/icons/index";
 
 // Vé số
 export const RenderTicketCell = (params: GridRenderCellParams) => {
-    const { providerName, serialNumber, numbers, image } = params.row;
+    const { stationName, numbers, avatar, ticketImg, batchCode, quantity } = params.row;
     const navigate = useNavigate();
+
+    const displayImage = avatar || ticketImg;
+    const displayName = stationName || params.row.providerName || "Không xác định";
 
     return (
         <Box
@@ -27,8 +30,8 @@ export const RenderTicketCell = (params: GridRenderCellParams) => {
             }}>
 
             <Avatar
-                alt={providerName}
-                src={image}
+                alt={displayName}
+                src={displayImage}
                 variant="rounded"
                 sx={{
                     width: "64px",
@@ -55,10 +58,10 @@ export const RenderTicketCell = (params: GridRenderCellParams) => {
                             }
                         }}
                     >
-                        {providerName}
+                        {displayName}
                     </Box>
                 }
-                secondary={`Sê-ri: ${serialNumber} - Dãy: ${numbers}`}
+                secondary={`Mã lô: ${batchCode || 'N/A'} - Dãy số: ${numbers || 'N/A'} - SL: ${quantity ?? 0}`}
                 slotProps={{
                     primary: {
                         component: 'span',

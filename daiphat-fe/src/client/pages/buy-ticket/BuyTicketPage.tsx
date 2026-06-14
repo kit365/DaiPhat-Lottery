@@ -5,30 +5,15 @@ import { ChevronRight, Calendar as CalendarIcon, CheckCircle2, ShieldCheck, Refr
 import { useCartStore } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast as toast } from '../../utils/toast.util';
-import { useProviderDetail } from '../../../admin/pages/provider/hooks/useProvider';
+import { useStationsToday, useStationsTomorrow } from '../../../admin/pages/provider/hooks/useProvider';
 import { useTicketList } from '../../../admin/pages/ticket/hooks/useTicket';
+import { LotteryTicketStatus } from '../../../constants/lottery.constants';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 
 export const BuyTicketPage = () => {
     const navigate = useNavigate();
     const { token, openLoginModal } = useAuthStore();
-
-    // API Hooks
-    const { data: providerData, isLoading: isLoadingProviders } = useProviderDetail(22);
-
-    const dynamicProvinces = useMemo(() => {
-        if (!providerData) return [];
-        const p = providerData;
-        return [{
-            id: p.id || p._id,
-            name: p.name,
-            time: p.drawTime || '16:15',
-            day: p.drawDays ? (Array.isArray(p.drawDays) ? p.drawDays.join(', ') : p.drawDays) : 'Hàng ngày',
-            icon: p.avatar || p.image || 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png',
-            schedule: p.drawSchedule
-        }];
-    }, [providerData]);
 
     // State
     const [selectedDate, setSelectedDate] = useState<'today' | 'tomorrow'>('today');
@@ -37,21 +22,40 @@ export const BuyTicketPage = () => {
     const [selectedNumbers, setSelectedNumbers] = useState<string[]>([]);
     const [ticketQuantity, setTicketQuantity] = useState(1);
 
-    // Default province selection
-    useEffect(() => {
-        if (dynamicProvinces.length > 0 && !selectedProvince) {
-            setSelectedProvince(dynamicProvinces[0].id);
-        }
-    }, [dynamicProvinces, selectedProvince]);
+    // API Hooks
+    const { data: stationsTodayData, isLoading: isLoadingToday } = useStationsToday();
+    const { data: stationsTomorrowData, isLoading: isLoadingTomorrow } = useStationsTomorrow();
+
+    const isLoadingProviders = selectedDate === 'today' ? isLoadingToday : isLoadingTomorrow;
+
+    const dynamicProvinces = useMemo(() => {
+        const sourceData = selectedDate === 'today' ? stationsTodayData : stationsTomorrowData;
+        if (!sourceData) return [];
+        return sourceData.map((p: any) => ({
+            id: p.id || p._id,
+            name: p.name,
+            time: p.drawTime,
+            day: p.drawSchedule,
+            icon: p.image || p.thumbnailUrl,
+            schedule: p.drawSchedule
+        }));
+    }, [selectedDate, stationsTodayData, stationsTomorrowData]);
+
+    // No default province selection, require user to click
 
     // Fetch tickets
     const drawDateFilter = selectedDate === 'today' ? dayjs().format('YYYY-MM-DD') : dayjs().add(1, 'day').format('YYYY-MM-DD');
-    const { data: ticketsRes, isLoading: isLoadingTickets } = useTicketList({
-        stationId: selectedProvince,
-        drawDate: drawDateFilter,
-        status: 'in_stock',
-        limit: 100
-    });
+    const { data: ticketsRes, isLoading: isLoadingTickets } = useTicketList(
+        {
+            stationId: selectedProvince,
+            drawDate: drawDateFilter,
+            status: LotteryTicketStatus.IN_STOCK,
+            limit: 100
+        },
+        {
+            enabled: !!selectedProvince
+        }
+    );
     const availableTickets = ticketsRes?.data?.recordList || [];
 
     const toggleNumber = (num: string) => {
@@ -143,7 +147,7 @@ export const BuyTicketPage = () => {
                             <div className="grid grid-cols-2 gap-4 max-w-[500px]">
                                 {/* Today */}
                                 <div
-                                    onClick={() => setSelectedDate('today')}
+                                    onClick={() => { setSelectedDate('today'); setSelectedProvince(''); setSelectedNumbers([]); }}
                                     className={`relative p-3.5 rounded-xl border-2 cursor-pointer transition-colors flex gap-3 items-center
                                         ${selectedDate === 'today' ? 'border-[#ee1314] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
                                     `}
@@ -163,7 +167,7 @@ export const BuyTicketPage = () => {
                                 </div>
                                 {/* Tomorrow */}
                                 <div
-                                    onClick={() => setSelectedDate('tomorrow')}
+                                    onClick={() => { setSelectedDate('tomorrow'); setSelectedProvince(''); setSelectedNumbers([]); }}
                                     className={`relative p-3.5 rounded-xl border-2 cursor-pointer transition-colors flex gap-3 items-center
                                         ${selectedDate === 'tomorrow' ? 'border-[#ee1314] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
                                     `}
@@ -274,7 +278,11 @@ export const BuyTicketPage = () => {
 
                             {/* Numbers Grid (10 columns) */}
                             <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2.5 flex-1 content-start shrink-0">
-                                {isLoadingTickets ? (
+                                {!selectedProvince ? (
+                                    <div className="col-span-full py-10 flex justify-center text-[#637381] font-medium">
+                                        Vui lòng chọn đài mở thưởng để xem vé
+                                    </div>
+                                ) : isLoadingTickets ? (
                                     <div className="col-span-full py-10 flex justify-center text-[#637381] font-medium">
                                         <i className="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải vé số...
                                     </div>

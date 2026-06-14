@@ -2,18 +2,19 @@ package com.daiphat.coreapi.application.dto.request.lotteries;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Valid;
 import lombok.Builder;
 
 import java.time.LocalDate;
+import java.util.List;
 @Builder
 public record CreateLotteryTicketRequest(
-        @NotNull(message = "Sản phẩm vé số không được để trống")
-        Long productId,
+        @NotNull(message = "Đài vé số không được để trống")
+        Long stationId,
 
-        String ticketImg,
-
-        @NotBlank(message = "Số sê-ri không được để trống")
-        String serialNumber,
+        @Valid
+        @NotNull(message = "Danh sách sê-ri không được để trống")
+        List<CreateLotteryTicketSerialRequest> serials,
 
         @NotBlank(message = "Dãy số không được để trống")
         String numbers,
@@ -23,4 +24,5 @@ public record CreateLotteryTicketRequest(
 
         @NotBlank(message = "Mã lô nhập không được để trống")
         String batchCode
-) {}
+) {
+}

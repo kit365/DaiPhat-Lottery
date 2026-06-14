@@ -71,8 +71,8 @@ public interface OrderApplicationMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "orderId", ignore = true)
-    @Mapping(target = "lotteryTicketId", source = "ticketId")
-    @Mapping(target = "replacedByTicketId", ignore = true)
+    @Mapping(target = "lotteryTicketSerialId", source = "ticketSerialId")
+    @Mapping(target = "replacedByTicketSerialId", ignore = true)
     @Mapping(target = "price", source = "price")
     @Mapping(target = "status", expression = "java(OrderDetailStatus.ACTIVE)")
     @Mapping(target = "refunds", ignore = true)

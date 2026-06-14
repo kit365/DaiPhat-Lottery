@@ -60,6 +60,7 @@ export const createProvider = async (data: any): Promise<any> => {
         drawSchedule: data.drawSchedule || '',
         drawTime: data.drawTime || '',
         nextDrawDate: data.nextDrawDate || null,
+        image: data.image || '',
         description: data.description || '',
         displayOrder: data.displayOrder || 0,
         status: data.status ? data.status.toUpperCase() : 'ACTIVE',
@@ -81,6 +82,7 @@ export const updateProvider = async (id: string | number, data: any): Promise<an
         drawSchedule: data.drawSchedule || '',
         drawTime: data.drawTime || '',
         nextDrawDate: data.nextDrawDate || null,
+        image: data.image || '',
         description: data.description || '',
         displayOrder: data.displayOrder || 0,
         status: data.status ? data.status.toUpperCase() : 'ACTIVE',
@@ -96,5 +98,40 @@ export const deleteProvider = async (id: string | number): Promise<any> => {
 
 export const forceDeleteProvider = async (id: string | number): Promise<any> => {
     const response = await apiApp.delete(`${BASE_URL}/${id}`);
+    return response.data;
+};
+
+export const getStationsToday = async (): Promise<any> => {
+    const response = await apiApp.get(`${BASE_URL}/draws/today`);
+    const result = response.data?.data || [];
+    // Map BE response to match FE expectations for dynamicProvinces
+    return result.map((item: any) => ({
+        ...item,
+        id: item.id || item._id,
+        avatar: item.thumbnailUrl || item.avatar,
+        status: item.status ? item.status.toLowerCase() : 'draft'
+    }));
+};
+
+export const getStationsTomorrow = async (): Promise<any> => {
+    const response = await apiApp.get(`${BASE_URL}/draws/tomorrow`);
+    const result = response.data?.data || [];
+    // Map BE response to match FE expectations for dynamicProvinces
+    return result.map((item: any) => ({
+        ...item,
+        id: item.id || item._id,
+        avatar: item.thumbnailUrl || item.avatar,
+        status: item.status ? item.status.toLowerCase() : 'draft'
+    }));
+};
+
+export const uploadProviderImage = async (id: string | number, file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiApp.post(`${BASE_URL}/${id}/image`, formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
     return response.data;
 };

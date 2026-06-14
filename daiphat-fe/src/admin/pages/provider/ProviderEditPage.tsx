@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 import { Tiptap } from "../../components/layouts/titap/Tiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction, useMemo } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
-import { useProviderDetail, useUpdateProvider } from "./hooks/useProvider";
+import { useProviderDetail, useUpdateProvider, useUploadProviderImage } from "./hooks/useProvider";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { CreateProviderFormValues, createProviderSchema } from "../../schemas/provider.schema";
@@ -16,6 +16,7 @@ import { SwitchButton } from "../../components/ui/SwitchButton";
 import { prefixAdmin } from "../../constants/routes";
 import { toast } from "react-toastify";
 import { LoadingButton } from "../../components/ui/LoadingButton";
+import { UploadFiles } from "../../components/ui/UploadFiles";
 import { useParams } from "react-router-dom";
 
 export const ProviderEditPage = () => {
@@ -58,8 +59,12 @@ export const ProviderEditPage = () => {
         }
     }), [outerTheme]);
 
+    const [files, setFiles] = useState<any[]>([]);
+    const [resetKey, setResetKey] = useState(0);
+
     const { data: detailRes, isLoading: isLoadingDetail } = useProviderDetail(id);
     const { mutate: update, isPending: isUpdating } = useUpdateProvider();
+    const { mutate: uploadImage, isPending: isUploadingImage } = useUploadProviderImage();
 
     const {
         control,
@@ -106,16 +111,54 @@ export const ProviderEditPage = () => {
                 drawSchedule: detailRes.drawSchedule || "",
                 drawTime: detailRes.drawTime || "",
                 nextDrawDate: detailRes.nextDrawDate || "",
+                image: detailRes.image || "",
                 displayOrder: detailRes.displayOrder || 0,
             });
+            if (detailRes.image) {
+                setFiles([detailRes.image]);
+            } else {
+                setFiles([]);
+            }
         }
     }, [detailRes, reset]);
 
     const onSubmit = (data: CreateProviderFormValues) => {
-        update({ id: id!, data }, {
+        let imagePath = detailRes?.image || "";
+        if (files.length > 0 && !(files[0] instanceof File)) {
+            imagePath = files[0];
+        } else if (files.length > 0) {
+            imagePath = files[0].name;
+        } else {
+            imagePath = "";
+        }
+
+        const payload = {
+            ...data,
+            image: imagePath,
+        };
+
+        update({ id: id!, data: payload }, {
             onSuccess: (response) => {
                 if (response.success) {
-                    toast.success(response.message || "Cập nhật nhà đài thành công");
+                    const fileToUpload = files.find(f => f instanceof File);
+
+                    if (fileToUpload) {
+                        uploadImage({ id: id!, file: fileToUpload }, {
+                            onSuccess: () => {
+                                finalizeSuccess();
+                            },
+                            onError: (uploadErr: any) => {
+                                toast.error(uploadErr?.response?.data?.message || uploadErr?.message || "Lỗi tải ảnh lên hệ thống");
+                                finalizeSuccess();
+                            }
+                        });
+                    } else {
+                        finalizeSuccess();
+                    }
+
+                    function finalizeSuccess() {
+                        toast.success(response.message || "Cập nhật nhà đài thành công");
+                    }
                 } else {
                     toast.error(response.message);
                 }
@@ -483,6 +526,15 @@ export const ProviderEditPage = () => {
                                 </Box>
 
                                 <Box sx={{ mt: 1 }}>
+                                    <div className="mb-3 font-semibold">Ảnh nhà đài (Tùy chọn)</div>
+                                    <UploadFiles 
+                                        key={resetKey}
+                                        files={files} 
+                                        onFilesChange={(newFiles) => setFiles(newFiles)} 
+                                    />
+                                </Box>
+
+                                <Box sx={{ mt: 1 }}>
                                     <Typography variant="subtitle2" sx={{ mb: '12px', fontWeight: 600, color: 'text.primary' }}>
                                         Mô tả
                                     </Typography>
@@ -509,7 +561,7 @@ export const ProviderEditPage = () => {
                             />
                             <LoadingButton
                                 type="submit"
-                                loading={isUpdating}
+                                loading={isUpdating || isUploadingImage}
                                 label="Cập nhật nhà đài"
                                 loadingLabel="Đang cập nhật..."
                                 sx={{ minHeight: "3rem", minWidth: "4rem" }}

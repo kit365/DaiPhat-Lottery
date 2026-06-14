@@ -7,15 +7,18 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 @Entity
 @Table(
         name = "lottery_tickets",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_lottery_ticket_station_serial_numbers_draw_date",
-                        columnNames = {"station_id", "serial_number", "numbers", "draw_date"}
+                        name = "uk_lottery_ticket_station_numbers_draw_date",
+                        columnNames = {"station_id", "numbers", "draw_date"}
                 )
         }
 )
@@ -37,9 +40,6 @@ public class LotteryTicketEntity extends BaseEntity {
     @Column(name = "ticket_img", length = 500)
     private String ticketImg;
 
-    @Column(name = "serial_number", nullable = false, length = 100)
-    private String serialNumber;
-
     @Column(nullable = false, length = 100)
     private String numbers;
 
@@ -49,29 +49,42 @@ public class LotteryTicketEntity extends BaseEntity {
     @Column(name = "batch_code", nullable = false, length = 100)
     private String batchCode;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer quantity = 1;
+
+    @Column(name = "price_snapshot", nullable = false, precision = 15)
+    private BigDecimal priceSnapshot;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     @Builder.Default
     private LotteryTicketStatus status = LotteryTicketStatus.IN_STOCK;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "imported_by", nullable = false)
+    @OneToMany(mappedBy = "ticket", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<LotteryTicketSerialEntity> serials = new ArrayList<>();
+
+
+    @Transient
+    private String serialNumber;
+
+    @Transient
     private UserEntity importedBy;
 
-    @Column(name = "imported_at", nullable = false)
+    @Transient
     private LocalDateTime importedAt;
 
-    @Column(name = "is_verified", nullable = false)
+    @Transient
     @Builder.Default
     private boolean verified = false;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "verified_by")
+    @Transient
     private UserEntity verifiedBy;
 
-    @Column(name = "verified_at")
+    @Transient
     private LocalDateTime verifiedAt;
 
-    @Column(name = "returned_at")
+    @Transient
     private LocalDateTime returnedAt;
 }

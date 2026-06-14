@@ -14,20 +14,18 @@ public interface LotteryTicketRepositoryPort {
 
     Optional<LotteryTicketModel> findById(Long id);
 
-    Optional<LotteryTicketModel> findByIdIncludingDeleted(Long id);
+    Optional<LotteryTicketModel> findByUniqueFields(Long stationId, String numbers, LocalDate drawDate);
 
-    Page<LotteryTicketModel> findAll(Pageable pageable, Long productId, LotteryTicketStatus status,
+    Page<LotteryTicketModel> findAll(Pageable pageable, Long stationId, LotteryTicketStatus status,
                                      LocalDate drawDate, String search);
-
-    Page<LotteryTicketModel> findAllDeleted(Pageable pageable);
 
     java.util.List<LotteryTicketModel> findExpirableTickets(LocalDate beforeDate, Collection<LotteryTicketStatus> statuses);
 
     void deleteById(Long id);
 
-    boolean existsByUniqueFields(Long productId, String serialNumber, String numbers, LocalDate drawDate);
+    boolean existsByUniqueFields(Long stationId, String serialNumber, String numbers, LocalDate drawDate);
 
-    boolean existsByUniqueFieldsAndIdNot(Long productId, String serialNumber, String numbers, LocalDate drawDate, Long id);
+    boolean existsByUniqueFieldsAndIdNot(Long stationId, String serialNumber, String numbers, LocalDate drawDate, Long id);
 
-    long countByProductIdAndStatuses(Long productId, Collection<LotteryTicketStatus> statuses);
+    long sumQuantityByProductIdAndStatuses(Long stationId, Collection<LotteryTicketStatus> statuses);
 }

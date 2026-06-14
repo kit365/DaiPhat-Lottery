@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 import { Tiptap } from "../../components/layouts/titap/Tiptap"
 import { useState, useMemo, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
-import { useCreateProvider } from "./hooks/useProvider";
+import { useCreateProvider, useUploadProviderImage } from "./hooks/useProvider";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { CreateProviderFormValues, createProviderSchema } from "../../schemas/provider.schema";
@@ -16,6 +16,7 @@ import { CreateProviderFormValues, createProviderSchema } from "../../schemas/pr
 import { prefixAdmin } from "../../constants/routes";
 import { toast } from "react-toastify";
 import { LoadingButton } from "../../components/ui/LoadingButton";
+import { UploadFiles } from "../../components/ui/UploadFiles";
 
 export const ProviderCreatePage = () => {
     const [expandedDetail, setExpandedDetail] = useState(true);
@@ -80,32 +81,61 @@ export const ProviderCreatePage = () => {
         },
     });
 
+    const [files, setFiles] = useState<any[]>([]);
+    const [resetKey, setResetKey] = useState(0);
     const regionValue = watch("region");
     const provinceOptions = regionValue ? REGION_DATA[regionValue] || [] : [];
 
     const { mutate: create, isPending } = useCreateProvider();
+    const { mutate: uploadImage, isPending: isUploadingImage } = useUploadProviderImage();
 
     const onSubmit = (data: CreateProviderFormValues) => {
-        create(data, {
+        const payload = {
+            ...data,
+            image: files.length > 0 ? files[0].name : "",
+        };
+
+        create(payload, {
             onSuccess: (response) => {
                 if (response.success) {
-                    toast.success(response.message || "Tạo nhà đài thành công");
-                    reset({
-                        name: "",
-                        description: "",
-                        status: "active",
-                        type: "TRADITIONAL",
-                        price: 10000,
-                        province: "",
-                        region: "",
-                        numberLength: 6,
-                        minNumber: 0,
-                        maxNumber: 999999,
-                        drawSchedule: "",
-                        drawTime: "",
-                        nextDrawDate: "",
-                        displayOrder: 0,
-                    });
+                    const createdProviderId = response.data?.id || response.data?._id;
+                    const fileToUpload = files.find(f => f instanceof File);
+
+                    if (createdProviderId && fileToUpload) {
+                        uploadImage({ id: createdProviderId, file: fileToUpload }, {
+                            onSuccess: () => {
+                                finalizeSuccess();
+                            },
+                            onError: (uploadErr: any) => {
+                                toast.error(uploadErr?.response?.data?.message || uploadErr?.message || "Lỗi tải ảnh lên hệ thống");
+                                finalizeSuccess();
+                            }
+                        });
+                    } else {
+                        finalizeSuccess();
+                    }
+
+                    function finalizeSuccess() {
+                        toast.success(response.message || "Tạo nhà đài thành công");
+                        reset({
+                            name: "",
+                            description: "",
+                            status: "active",
+                            type: "TRADITIONAL",
+                            price: 10000,
+                            province: "",
+                            region: "",
+                            numberLength: 6,
+                            minNumber: 0,
+                            maxNumber: 999999,
+                            drawSchedule: "",
+                            drawTime: "",
+                            nextDrawDate: "",
+                            displayOrder: 0,
+                        });
+                        setFiles([]);
+                        setResetKey(prev => prev + 1);
+                    }
                 } else {
                     toast.error(response.message);
                 }
@@ -472,6 +502,14 @@ export const ProviderCreatePage = () => {
                                     </Box>
                                 </Box>
                                 <Box sx={{ mt: 1 }}>
+                                    <div className="mb-3 font-semibold">Ảnh nhà đài (Tùy chọn)</div>
+                                    <UploadFiles 
+                                        key={resetKey}
+                                        files={files} 
+                                        onFilesChange={(newFiles) => setFiles(newFiles)} 
+                                    />
+                                </Box>
+                                <Box sx={{ mt: 1 }}>
                                     <Typography variant="subtitle2" sx={{ mb: '12px', fontWeight: 600, color: 'text.primary' }}>
                                         Mô tả
                                     </Typography>
@@ -491,7 +529,7 @@ export const ProviderCreatePage = () => {
                         <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
                             <LoadingButton
                                 type="submit"
-                                loading={isPending}
+                                loading={isPending || isUploadingImage}
                                 label="Tạo nhà đài"
                                 loadingLabel="Đang tạo..."
                                 sx={{ minHeight: "3rem", minWidth: "4rem" }}

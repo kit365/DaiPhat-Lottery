@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProviders, createProvider, getProviderById, updateProvider, deleteProvider } from '../../../api/provider.api';
+import { getProviders, createProvider, getProviderById, updateProvider, deleteProvider, getStationsToday, getStationsTomorrow, uploadProviderImage } from '../../../api/provider.api';
+import { QUERY_KEYS } from '../../../../constants/queryKeys';
 
 
 export const useProviders = (params?: any) => {
     return useQuery({
-        queryKey: ['providers', params],
+        queryKey: [QUERY_KEYS.PROVIDERS, params],
         queryFn: () => getProviders(params),
     });
 };
@@ -15,7 +16,7 @@ export const useCreateProvider = () => {
     return useMutation({
         mutationFn: createProvider,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['providers'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PROVIDERS] });
         },
     });
 };
@@ -27,8 +28,8 @@ export const useUpdateProvider = () => {
         mutationFn: ({ id, data }: { id: string | number; data: any }) => updateProvider(id, data),
         onSuccess: (response) => {
             if (response.success) {
-                queryClient.invalidateQueries({ queryKey: ['providers'] });
-                queryClient.invalidateQueries({ queryKey: ['provider'] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PROVIDERS] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PROVIDER_DETAIL] });
             }
         },
     });
@@ -36,7 +37,7 @@ export const useUpdateProvider = () => {
 
 export const useProviderDetail = (id?: string | number) => {
     return useQuery({
-        queryKey: ['provider', id],
+        queryKey: [QUERY_KEYS.PROVIDER_DETAIL, id],
         queryFn: () => getProviderById(id!),
         enabled: !!id,
         select: (res: any) => {
@@ -58,9 +59,28 @@ export const useDeleteProvider = () => {
     return useMutation({
         mutationFn: deleteProvider,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['providers'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PROVIDERS] });
         },
     });
 };
 
+export const useStationsToday = () => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.STATIONS_TODAY],
+        queryFn: () => getStationsToday(),
+    });
+};
+
+export const useStationsTomorrow = () => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.STATIONS_TOMORROW],
+        queryFn: () => getStationsTomorrow(),
+    });
+};
+
+export const useUploadProviderImage = () => {
+    return useMutation({
+        mutationFn: ({ id, file }: { id: string | number; file: File }) => uploadProviderImage(id, file),
+    });
+};
 
