@@ -119,20 +119,32 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 
     let bg = "var(--palette-text-disabled)29";
     let text = "var(--palette-text-primary)";
+    let label = statusDisplayName;
 
     if (status === "in_stock") {
         bg = "var(--palette-info-lighter)";
         text = "var(--palette-info-dark)";
+        if (!label) label = "Trong kho";
     } else if (status === "sold") {
         bg = "var(--palette-success-lighter)";
         text = "var(--palette-success-dark)";
-    } else if (status === "expired" || status === "internal_fault" || status === "issuer_fault") {
+        if (!label) label = "Đã bán";
+    } else if (status === "expired") {
         bg = "var(--palette-error-lighter)";
         text = "var(--palette-error-dark)";
+        if (!label) label = "Hết hạn";
+    } else if (status === "internal_fault" || status === "issuer_fault") {
+        bg = "var(--palette-error-lighter)";
+        text = "var(--palette-error-dark)";
+        if (!label) label = "Lỗi / Hỏng";
     } else if (status === "reserved" || status === "proxy_holding" || status === "pending_return" || status === "returned") {
         bg = "rgba(255 171 0 / 24%)";
         text = "#FFAB00";
+        if (!label && status === "reserved") label = "Đã đặt trước";
+        if (!label && status === "proxy_holding") label = "Đại lý giữ";
     }
+
+    if (!label) label = status;
 
     return (
         <span
@@ -142,7 +154,7 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
                 color: text,
             }}
         >
-            {statusDisplayName || status}
+            {label}
         </span>
     );
 }
