@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 @Component
 @RequiredArgsConstructor
@@ -60,6 +61,13 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
     }
 
     @Override
+    public List<LotteryTicketModel> findExpirableTickets(LocalDate beforeDate, Collection<LotteryTicketStatus> statuses) {
+        return lotteryTicketRepository.findAllByDrawDateBeforeAndStatusInAndDeletedAtIsNull(beforeDate, statuses).stream()
+                .map(lotteryTicketPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public void deleteById(Long id) {
         lotteryTicketRepository.findById(id).ifPresent(entity -> {
             entity.setDeletedAt(LocalDateTime.now());
@@ -69,18 +77,18 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
 
     @Override
     public boolean existsByUniqueFields(Long productId, String serialNumber, String numbers, LocalDate drawDate) {
-        return lotteryTicketRepository.existsByProduct_IdAndSerialNumberAndNumbersAndDrawDateAndDeletedAtIsNull(
+        return lotteryTicketRepository.existsByStation_IdAndSerialNumberAndNumbersAndDrawDateAndDeletedAtIsNull(
                 productId, serialNumber, numbers, drawDate);
     }
 
     @Override
     public boolean existsByUniqueFieldsAndIdNot(Long productId, String serialNumber, String numbers, LocalDate drawDate, Long id) {
-        return lotteryTicketRepository.existsByProduct_IdAndSerialNumberAndNumbersAndDrawDateAndIdNotAndDeletedAtIsNull(
+        return lotteryTicketRepository.existsByStation_IdAndSerialNumberAndNumbersAndDrawDateAndIdNotAndDeletedAtIsNull(
                 productId, serialNumber, numbers, drawDate, id);
     }
 
     @Override
     public long countByProductIdAndStatuses(Long productId, Collection<LotteryTicketStatus> statuses) {
-        return lotteryTicketRepository.countByProduct_IdAndStatusInAndDeletedAtIsNull(productId, statuses);
+        return lotteryTicketRepository.countByStation_IdAndStatusInAndDeletedAtIsNull(productId, statuses);
     }
 }

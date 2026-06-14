@@ -88,6 +88,23 @@ public enum ErrorCode {
     NOTIFICATION_NOT_FOUND("NTF_001", "Thông báo không tồn tại.", HttpStatus.NOT_FOUND),
     NOTIFICATION_DELETE_REQUIRES_READ("NTF_002", "Chỉ có thể xóa thông báo đã đọc.", HttpStatus.BAD_REQUEST),
 
+    // Order Errors
+    ORDER_NOT_FOUND("ORD_001", "Đơn hàng không tồn tại.", HttpStatus.NOT_FOUND),
+    ORDER_INVALID_STATUS("ORD_002", "Trạng thái đơn hàng không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    ORDER_DETAIL_NOT_FOUND("ORD_003", "Chi tiết đơn hàng không tồn tại.", HttpStatus.NOT_FOUND),
+    ORDER_DETAIL_INVALID_STATUS("ORD_004", "Trạng thái chi tiết đơn hàng không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    ORDER_REFUND_NOT_FOUND("ORD_005", "Yêu cầu hoàn tiền không tồn tại.", HttpStatus.NOT_FOUND),
+    ORDER_REFUND_INVALID_STATUS("ORD_006", "Trạng thái yêu cầu hoàn tiền không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    ORDER_REFUND_BANK_INFO_REQUIRED("ORD_007", "Yêu cầu hoàn tiền chuyển khoản phải có đầy đủ thông tin ngân hàng.", HttpStatus.BAD_REQUEST),
+    TRANSACTION_NOT_FOUND("ORD_008", "Giao dịch không tồn tại.", HttpStatus.NOT_FOUND),
+    TRANSACTION_INVALID_STATUS("ORD_009", "Trạng thái giao dịch không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    UNSUPPORTED_PAYMENT_TYPE("ORD_010", "Phương thức thanh toán chưa được hỗ trợ.", HttpStatus.BAD_REQUEST),
+    ORDER_CODE_GENERATION_FAILED("ORD_011", "Không thể tạo mã đơn hàng duy nhất.", HttpStatus.INTERNAL_SERVER_ERROR),
+    INVALID_PICKUP_TIME("ORD_012", "Thời gian hẹn lấy vé không hợp lệ.", HttpStatus.BAD_REQUEST),
+    INVALID_TRANSACTION_AMOUNT("ORD_013", "Số tiền thanh toán không hợp lệ.", HttpStatus.BAD_REQUEST),
+    TRANSACTION_SELECTION_REQUIRED("ORD_014", "Cần chỉ định giao dịch thanh toán.", HttpStatus.BAD_REQUEST),
+    ONLINE_PAYMENT_MIN_AMOUNT("ORD_015", "Số tiền thanh toán online phải từ 10.000đ.", HttpStatus.BAD_REQUEST),
+
     // Lottery Errors
     // Lottery Product Errors
     LOTTERY_STATION_NOT_FOUND("LT_001", "Sản phẩm vé số không tồn tại.", HttpStatus.NOT_FOUND),
@@ -115,8 +132,10 @@ public enum ErrorCode {
     PRIZE_STRUCTURE_VALUE_INVALID("LT_023", "Giá trị giải thưởng phải lớn hơn hoặc bằng 0.", HttpStatus.BAD_REQUEST),
     PRIZE_STRUCTURE_QUANTITY_INVALID("LT_024", "Số lượng giải phải lớn hơn hoặc bằng 1.", HttpStatus.BAD_REQUEST),
     PRIZE_STRUCTURE_MATCH_RULE_INVALID("LT_025", "Quy tắc so khớp không hợp lệ.", HttpStatus.BAD_REQUEST),
-    PRIZE_STRUCTURE_REGION_INVALID("LT_026", "Cấu trúc giải dùng chung miền phải có region trùng với sản phẩm.", HttpStatus.BAD_REQUEST),
-    PRIZE_STRUCTURE_MATCH_DIGITS_INVALID("LT_027", "Số chữ số khớp không hợp lệ.", HttpStatus.BAD_REQUEST);
+    LOTTERY_TICKET_EXPIRED("LT_026", "Vé số đã hết hạn.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_BOOKING_CLOSED("LT_027", "Đã quá giờ chốt đặt vé cho kỳ quay hôm nay.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_REGION_INVALID("LT_028", "Cấu trúc giải dùng chung miền phải có region trùng với sản phẩm.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_MATCH_DIGITS_INVALID("LT_029", "Số chữ số khớp không hợp lệ.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

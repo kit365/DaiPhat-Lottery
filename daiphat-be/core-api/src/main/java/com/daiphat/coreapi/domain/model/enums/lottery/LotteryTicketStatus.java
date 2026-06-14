@@ -8,11 +8,13 @@ import lombok.RequiredArgsConstructor;
 public enum LotteryTicketStatus {
     IN_STOCK("Trong kho"),
     RESERVED("Đang giữ chỗ"),
-    SOLD_ONLINE("Đã bán online"),
-    SOLD_OFFLINE("Đã bán offline"),
+    SOLD("Đã bán"),
+    PROXY_HOLDING("Đại lý giữ hộ"),
+    PENDING_RETURN("Chờ trả nhà đài"),
+    RETURNED("Đã trả nhà đài"),
     EXPIRED("Hết hạn"),
-    RETURNED_TO_ISSUER("Đã trả nhà đài"),
-    DAMAGED("Hỏng");
+    INTERNAL_FAULT("Nhân viên làm hỏng"),
+    ISSUER_FAULT("Lỗi in ấn từ nhà cung cấp");
 
     private final String displayName;
 }

@@ -35,7 +35,7 @@ public final class LotteryTicketSpecification {
             predicates.add(cb.isNull(root.get(BaseEntity_.deletedAt)));
 
             if (productId != null) {
-                predicates.add(cb.equal(root.get(LotteryTicketEntity_.product).get(LotteryStationEntity_.id), productId));
+                predicates.add(cb.equal(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id), productId));
             }
             if (status != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.status), status));
