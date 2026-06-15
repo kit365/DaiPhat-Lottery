@@ -90,7 +90,8 @@ class BuyTicketState {
 
   String get todayLabel => _formatDate(_targetDate(TicketDayFilter.today));
 
-  String get tomorrowLabel => _formatDate(_targetDate(TicketDayFilter.tomorrow));
+  String get tomorrowLabel =>
+      _formatDate(_targetDate(TicketDayFilter.tomorrow));
 
   BuyTicketState copyWith({
     String? searchQuery,
@@ -121,11 +122,15 @@ class BuyTicketState {
   }
 }
 
-final lotteryTicketApiServiceProvider = Provider<LotteryTicketApiService>((ref) {
+final lotteryTicketApiServiceProvider = Provider<LotteryTicketApiService>((
+  ref,
+) {
   return LotteryTicketApiService(ref.watch(apiClientProvider));
 });
 
-final lotteryTicketRepositoryProvider = Provider<LotteryTicketRepository>((ref) {
+final lotteryTicketRepositoryProvider = Provider<LotteryTicketRepository>((
+  ref,
+) {
   return LotteryTicketRepository(ref.watch(lotteryTicketApiServiceProvider));
 });
 
@@ -218,19 +223,19 @@ LotteryTicketListItem mapLotteryTicketToListItem(LotteryTicket ticket) {
   final drawDate = ticket.drawDate ?? DateTime.now();
   return LotteryTicketListItem(
     id: ticket.id,
-    displayName: ticket.productName,
+    displayName: ticket.stationName,
     code: ticket.numbers,
-    shortName: _buildShortName(ticket.productName),
+    shortName: _buildShortName(ticket.stationName),
     dateLabel: _buildDateLabel(drawDate),
     dayFilter: _resolveDayFilter(drawDate),
     drawDate: drawDate,
     status: ticket.status,
     statusDisplayName: ticket.statusDisplayName,
-    stationName: null,
+    stationName: ticket.stationName,
     serialNumber: ticket.serialNumber,
     batchCode: ticket.batchCode,
     imageUrl: ticket.ticketImg,
-    price: null,
+    price: ticket.priceSnapshot,
   );
 }
 
@@ -269,4 +274,3 @@ String _buildShortName(String input) {
 
   return words.take(2).map((word) => word[0]).join().toUpperCase();
 }
-

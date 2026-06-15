@@ -141,6 +141,11 @@ export const scanExpiredTickets = async (): Promise<ApiResponse<any>> => {
     } as any;
 };
 
+import { uploadAdminImage } from './upload.api';
+
+/** Upload ảnh vé số lên Cloudinary qua backend (dùng khi tạo vé, chưa có ticket id) */
+export const uploadLotteryTicketAsset = uploadAdminImage;
+
 /** Tải ảnh vé số */
 export const uploadTicketImage = async (id: string | number, file: File): Promise<ApiResponse<any>> => {
     const formData = new FormData();

@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.specification;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity_;
@@ -39,6 +40,40 @@ public final class LotteryTicketSpecification {
             }
             if (status != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.status), status));
+            }
+            if (drawDate != null) {
+                predicates.add(cb.equal(root.get(LotteryTicketEntity_.drawDate), drawDate));
+            }
+            if (search != null && !search.isBlank()) {
+                String searchPattern = "%" + search.toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get(LotteryTicketEntity_.numbers)), searchPattern),
+                        cb.like(cb.lower(root.get(LotteryTicketEntity_.batchCode)), searchPattern)
+                ));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    public static Specification<LotteryTicketEntity> filterPublic(
+            Long stationId,
+            LocalDate drawDate,
+            String search
+    ) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isNull(root.get(BaseEntity_.deletedAt)));
+            predicates.add(cb.equal(root.get(LotteryTicketEntity_.status), LotteryTicketStatus.IN_STOCK));
+            predicates.add(cb.greaterThan(root.get(LotteryTicketEntity_.quantity), 0));
+            predicates.add(cb.equal(
+                    root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.status),
+                    LotteryStationStatus.ACTIVE
+            ));
+            predicates.add(cb.isNull(root.get(LotteryTicketEntity_.station).get(BaseEntity_.deletedAt)));
+
+            if (stationId != null) {
+                predicates.add(cb.equal(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id), stationId));
             }
             if (drawDate != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.drawDate), drawDate));

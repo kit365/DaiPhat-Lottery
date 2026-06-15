@@ -1,10 +1,13 @@
 package com.daiphat.coreapi.application.dto.request.lotteries;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.DecimalMin;
 import lombok.Builder;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.DayOfWeek;
+import java.time.LocalTime;
+import java.util.List;
 
 @Builder
 public record UpdateLotteryStationRequest(
@@ -24,9 +27,10 @@ public record UpdateLotteryStationRequest(
         BigDecimal price,
 
         // Lịch quay
-        String drawSchedule,
-        String drawTime,
-        LocalDate nextDrawDate,
+        List<DayOfWeek> drawDays,
+
+        @JsonFormat(pattern = "HH:mm")
+        LocalTime drawTime,
 
         // Hiển thị
         String image,

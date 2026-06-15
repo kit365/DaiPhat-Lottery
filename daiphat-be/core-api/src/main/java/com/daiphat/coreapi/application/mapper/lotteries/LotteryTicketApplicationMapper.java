@@ -30,12 +30,13 @@ public interface LotteryTicketApplicationMapper {
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "lastModifiedBy", ignore = true)
     @Mapping(target = "ticketImg", ignore = true)
-    @Mapping(target = "serialNumber", ignore = true)
+    @Mapping(target = "serials", ignore = true)
     LotteryTicketModel toModel(CreateLotteryTicketRequest request);
 
     @Mapping(target = "status", expression = "java(model.getStatus() != null ? model.getStatus().name() : null)")
     @Mapping(target = "statusDisplayName", expression = "java(model.getStatus() != null ? model.getStatus().getDisplayName() : null)")
     @Mapping(target = "stationName", ignore = true)
+    @Mapping(target = "serialNumber", ignore = true)
     @Mapping(target = "serials", ignore = true)
     LotteryTicketResponse toResponse(LotteryTicketModel model);
 
@@ -54,7 +55,7 @@ public interface LotteryTicketApplicationMapper {
                 base.stationId(),
                 stationName,
                 serial != null ? serial.getTicketImg() : base.ticketImg(),
-                serial != null ? serial.getSerialNumber() : base.serialNumber(),
+                serial != null ? serial.getSerialNumber() : null,
                 base.numbers(),
                 base.drawDate(),
                 base.quantity(),

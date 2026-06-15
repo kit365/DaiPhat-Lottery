@@ -2,7 +2,7 @@ import { Box, Stack, TextField, ThemeProvider, useTheme } from "@mui/material"
 import { Breadcrumb } from "../../components/ui/Breadcrumb"
 import { Title } from "../../components/ui/Title"
 import { Tiptap } from "../../components/layouts/titap/Tiptap"
-import { useState, useMemo, type Dispatch, type SetStateAction } from "react";
+import { useState, useMemo, useCallback, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
 import { useCreateTicketCategory, useNestedTicketCategories } from "./hooks/useTicketCategory";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,6 +11,7 @@ import { SwitchButton } from "../../components/ui/SwitchButton";
 import { getTicketCategoryTheme } from "./configs/theme";
 import { prefixAdmin } from "../../constants/routes";
 import { FormUploadSingleFile } from "../../components/upload/FormUploadSingleFile";
+import { uploadAdminImage } from "../../api/upload.api";
 import { toast } from "react-toastify";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { CategoryParentSelect } from "../../components/ui/CategoryTreeSelect";
@@ -60,6 +61,7 @@ export const TicketCategoryCreatePage = () => {
 
     // Tạo
     const { mutate: create, isPending } = useCreateTicketCategory();
+    const uploadImage = useCallback(async (file: File) => uploadAdminImage(file), []);
 
     const onSubmit = (data: any) => {
         create(data, {
@@ -149,6 +151,7 @@ export const TicketCategoryCreatePage = () => {
                                 <FormUploadSingleFile
                                     name="avatar"
                                     control={control}
+                                    customUpload={uploadImage}
                                 />
                             </Stack>
                         </CollapsibleCard>

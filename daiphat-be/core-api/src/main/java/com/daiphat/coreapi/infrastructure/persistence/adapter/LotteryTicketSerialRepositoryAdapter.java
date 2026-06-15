@@ -4,7 +4,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRep
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries.LotteryTicketSerialPersistenceMapper;
-import com.daiphat.coreapi.infrastructure.persistence.repository.lottery.LotteryTicketSerialRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

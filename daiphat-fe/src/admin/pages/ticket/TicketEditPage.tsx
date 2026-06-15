@@ -1,15 +1,23 @@
-import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography, IconButton, CircularProgress } from "@mui/material"
+import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography, IconButton, CircularProgress, FormHelperText } from "@mui/material"
 import { Breadcrumb } from "../../components/ui/Breadcrumb"
 import { Title } from "../../components/ui/Title"
 import { useState, useMemo, useEffect } from "react"
-import { UploadFiles } from "../../components/ui/UploadFiles"
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
+import { TicketSerialImageField } from "./components/TicketSerialImageField"
 import { prefixAdmin } from "../../constants/routes";
 import { useUpdateTicket, useTicketDetail } from "./hooks/useTicket";
 import { toast } from "react-toastify";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createTicketSchema, CreateTicketFormValues } from "../../schemas/ticket.schema";
+import { updateTicketSchema, UpdateTicketFormValues } from "../../schemas/ticket.schema";
+import {
+    TICKET_STATUS_OPTIONS,
+    canTransitionTicketStatus,
+    getAllowedTicketStatusTransitions,
+    getTicketStatusLabel,
+    getTicketStatusTransitionHint,
+    normalizeTicketStatus,
+} from "./configs/ticket-status.config";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { useProviders } from "../provider/hooks/useProvider";
 import dayjs from "dayjs";
@@ -17,10 +25,6 @@ import "dayjs/locale/en-gb";
 import { useParams, useNavigate } from "react-router-dom";
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
-
-interface CustomFile extends File {
-    preview: string;
-}
 
 const SCHEDULE_TO_DAY_MAP: Record<string, number[]> = {
     "Thứ Hai": [1], "T2": [1], "Thứ 2": [1],
@@ -56,13 +60,14 @@ export const TicketEditPage = () => {
         setError,
         reset,
         watch,
-    } = useForm<CreateTicketFormValues>({
-        resolver: zodResolver(createTicketSchema),
+    } = useForm<UpdateTicketFormValues>({
+        resolver: zodResolver(updateTicketSchema),
         defaultValues: {
             stationId: "",
             serials: [{ serialNumber: "", ticketImg: undefined }],
             numbers: "",
             batchCode: "",
+            status: "",
         },
     });
 
@@ -70,6 +75,9 @@ export const TicketEditPage = () => {
         control,
         name: "serials"
     });
+
+    const originalStatus = normalizeTicketStatus(ticketDetail?.status);
+    const allowedStatusValues = new Set(getAllowedTicketStatusTransitions(ticketDetail?.status));
 
     const [expandedDetail, setExpandedDetail] = useState(true);
     const [expandedSerials, setExpandedSerials] = useState(true);
@@ -130,12 +138,13 @@ export const TicketEditPage = () => {
                 serials,
                 numbers: ticketDetail.numbers || "",
                 batchCode: ticketDetail.batchCode || "",
+                status: normalizeTicketStatus(ticketDetail.status),
             });
             setResetKey((prev) => prev + 1);
         }
     }, [ticketDetail, reset]);
 
-    const onSubmit = (data: CreateTicketFormValues) => {
+    const onSubmit = (data: UpdateTicketFormValues) => {
         const selectedProvider = providers.find((p: any) => String(p.id || p._id) === String(data.stationId));
         let finalDrawDate = "";
         
@@ -162,25 +171,30 @@ export const TicketEditPage = () => {
             return;
         }
 
-        const payload = {
-            stationId: data.stationId,
-            serials: data.serials.map((s, idx) => {
-                let ticketImgPath = typeof s.ticketImg === 'string' ? s.ticketImg : "";
-                
-                if (idx === 0 && !ticketImgPath && ticketDetail?.ticketImg) {
-                    // Fallback to old image for the first serial if no new image was uploaded
-                    ticketImgPath = ticketDetail.ticketImg;
-                }
-                
-                return {
-                    serialNumber: s.serialNumber,
-                    ticketImg: ticketImgPath
-                }
-            }),
+        const nextStatus = normalizeTicketStatus(data.status);
+
+        const payload: Record<string, unknown> = {
             numbers: data.numbers,
-            drawDate: finalDrawDate,
-            batchCode: data.batchCode
+            drawDate: ticketDetail?.drawDate || finalDrawDate,
+            batchCode: data.batchCode,
+            serials: data.serials.map((s) => ({
+                ...(s.id != null && s.id !== "" ? { id: Number(s.id) } : {}),
+                serialNumber: s.serialNumber,
+                ...(typeof s.ticketImg === "string" && s.ticketImg.trim()
+                    ? { ticketImg: s.ticketImg.trim() }
+                    : {}),
+            })),
         };
+
+        if (nextStatus && nextStatus !== originalStatus) {
+            if (!canTransitionTicketStatus(ticketDetail?.status, nextStatus)) {
+                toast.error(
+                    `Không thể chuyển từ "${getTicketStatusLabel(ticketDetail?.status)}" sang "${getTicketStatusLabel(nextStatus)}". ${getTicketStatusTransitionHint(ticketDetail?.status)}`
+                );
+                return;
+            }
+            payload.status = nextStatus;
+        }
 
         if (id) {
             update({ id, data: payload }, {
@@ -284,6 +298,39 @@ export const TicketEditPage = () => {
                                         />
                                     </Box>
 
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="status"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <FormControl fullWidth error={!!fieldState.error}>
+                                                    <InputLabel shrink>Trạng thái</InputLabel>
+                                                    <Select
+                                                        {...field}
+                                                        displayEmpty
+                                                        input={<OutlinedInput label="Trạng thái" notched />}
+                                                    >
+                                                        {TICKET_STATUS_OPTIONS.map((opt) => (
+                                                            <MenuItem
+                                                                key={opt.value}
+                                                                value={opt.value}
+                                                                disabled={!allowedStatusValues.has(opt.value)}
+                                                            >
+                                                                {opt.label}
+                                                            </MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                    <FormHelperText>
+                                                        {getTicketStatusTransitionHint(ticketDetail?.status)}
+                                                    </FormHelperText>
+                                                    {fieldState.error && (
+                                                        <p className="text-red-500 text-xs mt-1 ml-3">{fieldState.error.message}</p>
+                                                    )}
+                                                </FormControl>
+                                            )}
+                                        />
+                                    </Box>
+
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 12" } }}>
                                         <Controller
                                             name="numbers"
@@ -305,7 +352,7 @@ export const TicketEditPage = () => {
 
                         <CollapsibleCard
                             title={"Danh sách vé số (Sê-ri)"}
-                            subheader={"Danh sách các sê-ri vé số trong lô này"}
+                            subheader={"Thêm các số sê-ri và ảnh vé số thuộc lô này"}
                             expanded={expandedSerials}
                             onToggle={() => setExpandedSerials(!expandedSerials)}
                         >
@@ -357,6 +404,7 @@ export const TicketEditPage = () => {
                                                     )}
                                                 />
                                             </Box>
+                                            <TicketSerialImageField control={control} index={index} />
                                         </Box>
                                     </Box>
                                 ))}
