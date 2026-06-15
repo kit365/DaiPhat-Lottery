@@ -5,12 +5,57 @@ import { Trash2, ChevronRight, Minus, Plus, ShieldCheck, ArrowLeft, Store, Credi
 import { useCartStore } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast as toast } from '../../utils/toast.util';
+import dayjs from 'dayjs';
+import { CheckoutDateTimePicker } from '../../components/cart/CheckoutDateTimePicker';
+import { CreateOnlineOrderRequest, OrderReceiveType } from '../../../types/order.type';
+import { PaymentGateway, TransactionType } from '../../../types/transaction.type';
+import { useCreateOnlineOrder, useGetOrderReceiveTypes } from '../../hooks/useOrder';
+import { useProcessPayment, useGetTransactionTypes } from '../../hooks/useTransaction';
 
 export const CheckoutPage = () => {
     const navigate = useNavigate();
     const { items, updateQuantity, removeItem, clearCart } = useCartStore();
-    const { token, openLoginModal } = useAuthStore();
-    const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer'>('transfer');
+    const { token, user, openLoginModal } = useAuthStore();
+    
+    const [name, setName] = useState('');
+    const [phone, setPhone] = useState('');
+    const [expectedPickupAt, setExpectedPickupAt] = useState<string>(() => {
+        const now = dayjs();
+        const remainder = 15 - (now.minute() % 15);
+        // Default to current time + ~30-45 mins so they have buffer to checkout
+        return now.add(remainder + 30, 'minute').startOf('minute').toISOString();
+    });
+    const [note, setNote] = useState('');
+    const [receiveType, setReceiveType] = useState<string>('');
+    const [transactionType, setTransactionType] = useState<string>('');
+
+    const createOrderMutation = useCreateOnlineOrder();
+    const processPaymentMutation = useProcessPayment();
+    const { data: receiveTypesRes } = useGetOrderReceiveTypes();
+    const { data: transactionTypesRes } = useGetTransactionTypes();
+
+    const receiveTypes = receiveTypesRes?.data || [];
+    const transactionTypes = transactionTypesRes?.data || [];
+
+    React.useEffect(() => {
+        if (receiveTypes.length > 0 && !receiveType) {
+            setReceiveType(receiveTypes[0].value);
+        }
+    }, [receiveTypes, receiveType]);
+
+    React.useEffect(() => {
+        if (transactionTypes.length > 0 && !transactionType) {
+            const onlineType = transactionTypes.find(t => t.value === TransactionType.ONLINE);
+            setTransactionType(onlineType ? onlineType.value : transactionTypes[0].value);
+        }
+    }, [transactionTypes, transactionType]);
+
+    React.useEffect(() => {
+        if (user) {
+            if (!name) setName(user.fullName || user.username || '');
+            if (!phone) setPhone(user.phoneNumber || user.phone || '');
+        }
+    }, [user]);
 
     React.useEffect(() => {
         if (!token) {
@@ -26,11 +71,67 @@ export const CheckoutPage = () => {
     const totalAmount = subTotal + deliveryFee;
 
     const handleCheckout = () => {
-        // Mock checkout API call
-        toast.success("Thanh toán thành công! Vui lòng đến cửa hàng để nhận vé.");
-        clearCart();
-        navigate('/'); // Navigate to home or success page
+        if (!name || !phone || !expectedPickupAt) {
+            toast.error("Vui lòng điền đầy đủ thông tin bắt buộc (Tên, SĐT, Giờ đến lấy)!");
+            return;
+        }
+
+        const expectedDateObj = new Date(expectedPickupAt);
+
+        // Phải cách ít nhất 15 phút để cửa hàng chuẩn bị
+        if (dayjs(expectedDateObj).isBefore(dayjs().add(15, 'minute'))) {
+            toast.error("Vui lòng chọn thời gian đến lấy sau ít nhất 15 phút để cửa hàng chuẩn bị vé!");
+            return;
+        }
+
+        const payload: CreateOnlineOrderRequest = {
+            name,
+            phone,
+            items: items.map(item => ({
+                lotteryTicketId: Number(item.id),
+                quantity: item.quantity
+            })),
+            receiveType: receiveType as OrderReceiveType,
+            expectedPickupAt: dayjs(expectedDateObj).format('YYYY-MM-DDTHH:mm:ss'),
+            note: note || undefined
+        };
+
+        createOrderMutation.mutate(payload, {
+            onSuccess: (res) => {
+                if (res.success && res.data) {
+                    const orderId = res.data.id;
+                    const transactionId = res.data.transactions?.[0]?.id;
+
+                    if (transactionType === TransactionType.ONLINE && transactionId) {
+                        // Redirect to PayOS
+                        processPaymentMutation.mutate({
+                            orderId,
+                            data: {
+                                transactionId,
+                                gateway: PaymentGateway.PAYOS
+                            }
+                        }, {
+                            onSuccess: (paymentRes) => {
+                                if (paymentRes.success && paymentRes.data?.checkoutUrl) {
+                                    clearCart();
+                                    window.location.href = paymentRes.data.checkoutUrl;
+                                } else {
+                                    toast.error("Không lấy được đường dẫn thanh toán");
+                                }
+                            }
+                        });
+                    } else {
+                        // For cash or if no transaction id
+                        toast.success("Đặt hàng thành công!");
+                        clearCart();
+                        navigate('/'); // Navigate to success page
+                    }
+                }
+            }
+        });
     };
+
+    const isSubmitting = createOrderMutation.isPending || processPaymentMutation.isPending;
 
     return (
         <div 
@@ -67,7 +168,7 @@ export const CheckoutPage = () => {
                 <div className="flex flex-col lg:flex-row gap-5 flex-1 items-start">
                     
                     {/* Left Content */}
-                    <div className="flex-1 w-full bg-white rounded-[20px] shadow-md border border-[#E5E8EB] flex flex-col overflow-hidden">
+                    <div className="flex-1 w-full bg-white rounded-[20px] shadow-md border border-[#E5E8EB] flex flex-col">
                         
                         {/* 1. Danh sách vé */}
                         <div className="p-5 border-b border-[#E5E8EB]">
@@ -120,27 +221,75 @@ export const CheckoutPage = () => {
                             </div>
                         </div>
 
-                        {/* 2. Hình thức nhận vé */}
+                        {/* 2. Thông tin khách hàng & Hình thức nhận vé */}
                         <div className="p-5 border-b border-[#E5E8EB]">
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="w-6 h-6 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-[13px] font-bold">2</div>
-                                <h2 className="text-[16px] font-bold text-[#212B36]">Hình thức nhận vé</h2>
+                                <h2 className="text-[16px] font-bold text-[#212B36]">Thông tin nhận vé</h2>
                             </div>
-                            <div className="w-full">
-                                <label className="flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors border-[#ee1314] bg-[#FFF4F4] shadow-sm relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-24 h-24 bg-[#ee1314] rounded-full -translate-y-1/2 translate-x-1/3 opacity-5 pointer-events-none"></div>
-                                    <div className="text-[#ee1314] mt-1">
-                                        <CheckCircle2 size={24} className="fill-[#ee1314] text-white shadow-sm rounded-full" />
-                                    </div>
-                                    <div className="flex-1 z-10 relative">
-                                        <div className="flex items-center gap-2 font-bold text-[#212B36] mb-1">
-                                            <Store size={18} className="text-[#ee1314]" /> Nhận tại cửa hàng
+                            
+                            {/* Form thông tin khách hàng */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <div>
+                                    <label className="block text-[13px] font-medium text-[#212B36] mb-1.5">Họ và tên <span className="text-[#ee1314]">*</span></label>
+                                    <input 
+                                        type="text" 
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        className="w-full h-11 px-3 py-2 border border-[#E5E8EB] rounded-lg text-[14px] focus:outline-none focus:border-[#ee1314] transition-colors"
+                                        placeholder="Nhập họ và tên"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[13px] font-medium text-[#212B36] mb-1.5">Số điện thoại <span className="text-[#ee1314]">*</span></label>
+                                    <input 
+                                        type="tel" 
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                        className="w-full h-11 px-3 py-2 border border-[#E5E8EB] rounded-lg text-[14px] focus:outline-none focus:border-[#ee1314] transition-colors"
+                                        placeholder="Nhập số điện thoại"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[13px] font-medium text-[#212B36] mb-1.5">Thời gian đến lấy (dự kiến) <span className="text-[#ee1314]">*</span></label>
+                                    <CheckoutDateTimePicker 
+                                        value={expectedPickupAt}
+                                        onChange={(val) => setExpectedPickupAt(val)}
+                                        minDate={new Date()}
+                                        maxDate={new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[13px] font-medium text-[#212B36] mb-1.5">Ghi chú thêm</label>
+                                    <input 
+                                        type="text" 
+                                        value={note}
+                                        onChange={(e) => setNote(e.target.value)}
+                                        className="w-full h-11 px-3 py-2 border border-[#E5E8EB] rounded-lg text-[14px] focus:outline-none focus:border-[#ee1314] transition-colors"
+                                        placeholder="VD: Tới lấy vào giờ nghỉ trưa..."
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="w-full space-y-3">
+                                {receiveTypes.map(type => (
+                                    <label key={type.value} className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${receiveType === type.value ? 'border-[#ee1314] bg-[#FFF4F4] shadow-sm' : 'border-[#E5E8EB] bg-white hover:border-gray-300'} relative overflow-hidden`}>
+                                        {receiveType === type.value && <div className="absolute top-0 right-0 w-24 h-24 bg-[#ee1314] rounded-full -translate-y-1/2 translate-x-1/3 opacity-5 pointer-events-none"></div>}
+                                        <div className={`mt-1 ${receiveType === type.value ? 'text-[#ee1314]' : 'text-gray-300'}`}>
+                                            <CheckCircle2 size={24} className={receiveType === type.value ? 'fill-[#ee1314] text-white shadow-sm rounded-full' : 'stroke-2'} />
                                         </div>
-                                        <p className="text-[13px] text-[#637381] mt-1 leading-relaxed">
-                                            Quý khách vui lòng đến trực tiếp quầy giao dịch Đại Phát để nhận vé giấy thực tế sau khi đặt hàng.
-                                        </p>
-                                    </div>
-                                </label>
+                                        <div className="flex-1 z-10 relative">
+                                            <div className="flex items-center gap-2 font-bold text-[#212B36] mb-1">
+                                                <Store size={18} className={receiveType === type.value ? 'text-[#ee1314]' : 'text-gray-400'} /> {type.label}
+                                            </div>
+                                            {type.value === OrderReceiveType.COUNTER_PICKUP && (
+                                                <p className="text-[13px] text-[#637381] mt-1 leading-relaxed">
+                                                    Quý khách vui lòng đến trực tiếp quầy giao dịch Đại Phát để nhận vé giấy thực tế sau khi đặt hàng.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </label>
+                                ))}
                             </div>
                         </div>
 
@@ -150,18 +299,27 @@ export const CheckoutPage = () => {
                                 <div className="w-6 h-6 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-[13px] font-bold">3</div>
                                 <h2 className="text-[16px] font-bold text-[#212B36]">Phương thức thanh toán</h2>
                             </div>
-                            <div className="w-full">
-                                <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'transfer' ? 'border-[#ee1314] bg-[#FFF4F4] shadow-sm' : 'border-[#E5E8EB] bg-white hover:border-gray-300'}`}>
-                                    <div className="text-[#ee1314] mt-1">
-                                        <CheckCircle2 size={24} className="fill-[#ee1314] text-white shadow-sm rounded-full" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 font-bold text-[#212B36] mb-1">
-                                            <CreditCard size={18} className="text-[#1877F2]" /> Chuyển khoản (Mã QR)
+                            <div className="w-full space-y-3">
+                                {transactionTypes
+                                    .filter(type => type.value === TransactionType.ONLINE)
+                                    .map(type => (
+                                    <label key={type.value} onClick={() => setTransactionType(type.value)} className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${transactionType === type.value ? 'border-[#ee1314] bg-[#FFF4F4] shadow-sm' : 'border-[#E5E8EB] bg-white hover:border-gray-300'}`}>
+                                        <div className={`mt-1 ${transactionType === type.value ? 'text-[#ee1314]' : 'text-gray-300'}`}>
+                                            <CheckCircle2 size={24} className={transactionType === type.value ? 'fill-[#ee1314] text-white shadow-sm rounded-full' : 'stroke-2'} />
                                         </div>
-                                        <p className="text-[13px] text-[#637381] mt-1">Quét mã QR Code bằng ứng dụng ngân hàng hoặc ví điện tử (hỗ trợ 24/7).</p>
-                                    </div>
-                                </label>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 font-bold text-[#212B36] mb-1">
+                                                <CreditCard size={18} className={transactionType === type.value ? 'text-[#1877F2]' : 'text-gray-400'} /> {type.label}
+                                            </div>
+                                            {type.value === TransactionType.ONLINE && (
+                                                <p className="text-[13px] text-[#637381] mt-1">Quét mã QR Code bằng ứng dụng ngân hàng (hỗ trợ 24/7).</p>
+                                            )}
+                                            {type.value === TransactionType.OFFLINE && (
+                                                <p className="text-[13px] text-[#637381] mt-1">Thanh toán bằng tiền mặt khi nhận vé tại quầy.</p>
+                                            )}
+                                        </div>
+                                    </label>
+                                ))}
                             </div>
                         </div>
 
@@ -215,10 +373,15 @@ export const CheckoutPage = () => {
                                 <div className="flex flex-col gap-3 mt-2">
                                     <button 
                                         onClick={handleCheckout}
-                                        disabled={items.length === 0}
+                                        disabled={items.length === 0 || isSubmitting}
                                         className="w-full py-3.5 bg-[#ee1314] text-white font-bold rounded-xl text-[14px] hover:bg-[#d00f10] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md shadow-[#ee1314]/20 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm"
                                     >
-                                        <i className="fa-solid fa-check-circle"></i> Chốt đơn ngay
+                                        {isSubmitting ? (
+                                            <i className="fa-solid fa-spinner fa-spin"></i>
+                                        ) : (
+                                            <i className="fa-solid fa-check-circle"></i>
+                                        )}
+                                        {isSubmitting ? 'Đang xử lý...' : 'Chốt đơn ngay'}
                                     </button>
                                     <button 
                                         onClick={() => navigate('/cart')}

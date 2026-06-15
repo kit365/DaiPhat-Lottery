@@ -14,7 +14,7 @@ export interface CartItem {
 
 interface CartStore {
     items: CartItem[];
-    addItem: (item: Omit<CartItem, 'id'>) => void;
+    addItem: (item: CartItem) => void;
     removeItem: (id: string) => void;
     updateQuantity: (id: string, delta: number) => void;
     clearCart: () => void;
@@ -41,7 +41,7 @@ export const useCartStore = create<CartStore>((set) => ({
         }
         
         return {
-            items: [...state.items, { ...item, id: Math.random().toString(36).substr(2, 9) }]
+            items: [...state.items, item]
         };
     }),
     removeItem: (id) => set((state) => ({
