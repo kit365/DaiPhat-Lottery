@@ -17,6 +17,10 @@ public interface OrderServicePort {
 
     OrderModel createDirectOrder(CreateDirectOrderRequest request, UUID operatorId);
 
+    OrderResponse getOrderDetail(UUID orderId);
+
+    OrderResponse getMyOrderDetail(UUID orderId, UUID customerId);
+
     PageResponse<OrderResponse> getMyOrders(
             int page,
             int size,

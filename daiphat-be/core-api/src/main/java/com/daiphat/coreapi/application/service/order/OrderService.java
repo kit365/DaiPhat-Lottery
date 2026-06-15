@@ -144,6 +144,23 @@ public class OrderService implements OrderServicePort {
 
     @Override
     @Transactional(readOnly = true)
+    public OrderResponse getOrderDetail(UUID orderId) {
+        return orderApplicationMapper.toResponse(getOrderOrThrow(orderId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OrderResponse getMyOrderDetail(UUID orderId, UUID customerId) {
+        ensureUserExists(customerId);
+        OrderModel order = getOrderOrThrow(orderId);
+        if (order.getUserId() == null || !order.getUserId().equals(customerId)) {
+            throw new DomainException(ErrorCode.ACCESS_DENIED);
+        }
+        return orderApplicationMapper.toResponse(order);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<OrderResponse> getMyOrders(
             int page,
             int size,
@@ -389,6 +406,11 @@ public class OrderService implements OrderServicePort {
         if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
             throw new DomainException(ErrorCode.INVALID_INPUT);
         }
+    }
+
+    private OrderModel getOrderOrThrow(UUID orderId) {
+        return orderRepositoryPort.findById(orderId)
+                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
     }
 
 }
