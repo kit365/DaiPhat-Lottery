@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { OrderStatus, OrderType, GetMyOrdersParams } from '../../../../types/order.type';
+import { OrderStatus, OrderType, GetMyOrdersParams, OrderResponse } from '../../../../types/order.type';
 import { useGetMyOrders } from '../../../hooks/useOrder';
+import { useProcessPayment } from '../../../hooks/useTransaction';
+import { PaymentGateway } from '../../../../types/transaction.type';
+import { AppToast } from '../../../utils/toast.util';
 import { format } from 'date-fns';
 
 const ORDER_STATUS_MAP: Record<OrderStatus, { label: string, bg: string, text: string }> = {
@@ -60,6 +63,39 @@ export const OrdersTab = () => {
     }
 
     const { data: orderData, isLoading } = useGetMyOrders(queryParams);
+    const processPaymentMutation = useProcessPayment();
+
+    const handleQuickPayment = (order: OrderResponse) => {
+        if (!order?.id) {
+            AppToast.error('Không tìm thấy thông tin đơn hàng');
+            return;
+        }
+
+        const pendingTransaction = order.transactions?.find(
+            (transaction: any) => transaction.type === 'ONLINE' && transaction.status === 'PENDING'
+        );
+
+        if (!pendingTransaction?.id) {
+            AppToast.error('Không còn giao dịch thanh toán khả dụng');
+            return;
+        }
+
+        processPaymentMutation.mutate({
+            orderId: order.id,
+            data: {
+                transactionId: pendingTransaction.id,
+                gateway: pendingTransaction.gateway || PaymentGateway.PAYOS
+            }
+        }, {
+            onSuccess: (paymentRes: any) => {
+                if (paymentRes.success && paymentRes.data?.checkoutUrl) {
+                    window.location.href = paymentRes.data.checkoutUrl;
+                } else {
+                    AppToast.error("Không lấy được đường dẫn thanh toán");
+                }
+            }
+        });
+    };
 
     // Reset page when filters change
     useEffect(() => {
@@ -298,12 +334,29 @@ export const OrdersTab = () => {
                                                     {getStatusBadge(order.status)}
                                                 </td>
                                                 <td className="py-4 px-5 text-right align-top">
-                                                    <button 
-                                                        onClick={() => navigate(`/profile/orders/${order.id}`)}
-                                                        className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#919EAB] group-hover:text-[#2065D1] group-hover:border-[#2065D1] group-hover:bg-[#F0F5FF] transition-all ml-auto cursor-pointer"
-                                                    >
-                                                        <i className="fa-regular fa-eye text-[13px]"></i>
-                                                    </button>
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {order.status === OrderStatus.PENDING_PAYMENT && (
+                                                            <button 
+                                                                onClick={() => handleQuickPayment(order)}
+                                                                disabled={processPaymentMutation.isPending}
+                                                                className="w-8 h-8 rounded-lg border border-[#ee1314] text-[#ee1314] hover:bg-[#FFF4F4] transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                                                                title="Thanh toán ngay"
+                                                            >
+                                                                {processPaymentMutation.isPending ? (
+                                                                    <i className="fa-solid fa-spinner fa-spin text-[13px]"></i>
+                                                                ) : (
+                                                                    <i className="fa-solid fa-credit-card text-[13px]"></i>
+                                                                )}
+                                                            </button>
+                                                        )}
+                                                        <button 
+                                                            onClick={() => navigate(`/profile/orders/${order.id}`)}
+                                                            className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#919EAB] hover:text-[#2065D1] hover:border-[#2065D1] hover:bg-[#F0F5FF] transition-all cursor-pointer"
+                                                            title="Xem chi tiết"
+                                                        >
+                                                            <i className="fa-regular fa-eye text-[13px]"></i>
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );

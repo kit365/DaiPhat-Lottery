@@ -105,6 +105,7 @@ export const useAdminOrderList = (initialParams?: OrderFilterParams) => {
         clearFilters,
         setSearchFilter,
         setSortBy,
+
         setPage,
         setLimit,
         refetch: queryInfo.refetch
@@ -130,7 +131,7 @@ export const useOrderDetail = (id: string) => {
 export const useUpdateOrderStatus = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, status }: { id: string; status: string }) => updateOrderStatus(id, status),
+        mutationFn: ({ id, status, reason }: { id: string; status: string; reason?: string }) => updateOrderStatus(id, status, reason),
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDERS] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDER_DETAIL, variables.id] });

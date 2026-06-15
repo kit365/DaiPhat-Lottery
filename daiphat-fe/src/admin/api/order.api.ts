@@ -43,18 +43,18 @@ export const getOrderDetail = async (id: string): Promise<ApiResponse<OrderRespo
 };
 
 
-export const updateOrderStatus = async (id: string, status: string) => {
-    const response = await apiApp.patch(`${BASE_URL}/${id}/status`, { status }, withAuth());
+export const updateOrderStatus = async (id: string, status: string, reason?: string) => {
+    const response = await apiApp.patch(`/orders/${id}/status`, { status, reason }, withAuth());
     return response.data;
 };
 
 export const createOrder = async (data: any) => {
-    const response = await apiApp.post(`${BASE_URL}/create`, data, withAuth());
+    const response = await apiApp.post(`/orders/direct`, data, withAuth());
     return response.data;
 };
 
 export const updateOrder = async (id: string, data: any) => {
-    const response = await apiApp.patch(`${BASE_URL}/edit/${id}`, data, withAuth());
+    const response = await apiApp.patch(`/orders/${id}`, data, withAuth());
     return response.data;
 };
 

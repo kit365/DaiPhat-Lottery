@@ -44,6 +44,7 @@ export const QUERY_KEYS = {
     CLIENT_ORDER_STATUSES: 'client-order-statuses',
     CLIENT_MY_ORDERS: 'client-my-orders',
     CLIENT_MY_ORDER_DETAIL: 'client-my-order-detail',
+    CLIENT_PENDING_PAYMENT_COUNTDOWN: 'client-pending-payment-countdown',
 
     // Transaction (Client)
     CLIENT_TRANSACTION_TYPES: 'client-transaction-types',

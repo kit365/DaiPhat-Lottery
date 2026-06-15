@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useOrderDetail, useUpdateOrderStatus } from './hooks/useOrderManagement';
 import { OrderStatus, OrderType } from '../../../types/order.type';
 import dayjs from 'dayjs';
-import { CircularProgress, Box, Typography, Button, Select, MenuItem, Chip, IconButton } from '@mui/material';
+import { CircularProgress, Box, Typography, Button } from '@mui/material';
 import { Icon } from '@iconify/react';
 import { toast } from 'react-toastify';
 import { prefixAdmin } from '../../constants/routes';
@@ -140,7 +140,14 @@ export const OrderDetailPage = () => {
     };
 
     const handleStatusChange = (newStatus: OrderStatus) => {
-        updateStatus({ id: order.id, status: newStatus }, {
+        let reason = undefined;
+        if (newStatus === OrderStatus.CANCELLED) {
+            const input = window.prompt("Nhập lý do huỷ đơn hàng (tùy chọn):");
+            if (input === null) return; // User cancelled
+            reason = input;
+        }
+
+        updateStatus({ id: order.id, status: newStatus, reason }, {
             onSuccess: () => toast.success("Cập nhật trạng thái thành công"),
             onError: (err: any) => toast.error(err?.response?.data?.message || err?.message || "Cập nhật trạng thái thất bại")
         });
@@ -174,26 +181,18 @@ export const OrderDetailPage = () => {
                 
                 <div className="flex items-center gap-3">
                     {/* Select Update Status */}
-                    <Select
-                        size="small"
+                    <select
                         value={order.status}
                         onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
                         disabled={order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED}
-                        sx={{
-                            minWidth: 160,
-                            height: 38,
-                            borderRadius: '8px',
-                            fontWeight: 600,
-                            fontSize: '0.875rem',
-                            bgcolor: 'white'
-                        }}
+                        className="h-[38px] px-3 pr-8 bg-white border border-[#E5E8EB] rounded-lg text-[14px] font-semibold text-[#212B36] outline-none cursor-pointer hover:border-[#919EAB] transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[#F9FAFB] min-w-[160px]"
                     >
                         {Object.entries(ORDER_STATUS_MAP).map(([value, opt]) => (
-                            <MenuItem key={value} value={value} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                            <option key={value} value={value} className="font-medium">
                                 {opt.label}
-                            </MenuItem>
+                            </option>
                         ))}
-                    </Select>
+                    </select>
 
                     <button
                         onClick={() => navigate(`/${prefixAdmin}/order/list`)}

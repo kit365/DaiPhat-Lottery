@@ -300,7 +300,7 @@ export const OrderDetailTab = () => {
                         <ul className="text-[13px] text-[#454F5B] space-y-2 mt-2 font-medium">
                             <li className="flex items-start gap-2">
                                 <span className="text-[#FFB020] mt-0.5">•</span>
-                                <span>Bấm nút <strong>"Thanh toán ngay"</strong> ở góc phải hoặc ở phần thanh toán bên dưới để thực hiện chuyển khoản.</span>
+                                <span>Bấm nút <strong>"Tiếp tục thanh toán"</strong> ở góc phải hoặc ở phần thanh toán bên dưới để thực hiện chuyển khoản.</span>
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="text-[#FFB020] mt-0.5">•</span>
@@ -337,7 +337,7 @@ export const OrderDetailTab = () => {
                             ) : (
                                 <i className="fa-solid fa-credit-card"></i>
                             )}
-                            Thanh toán ngay
+                            Tiếp tục thanh toán
                         </button>
                     </div>
                 </div>
@@ -567,7 +567,7 @@ export const OrderDetailTab = () => {
                             ) : (
                                 <i className="fa-solid fa-credit-card"></i>
                             )}
-                            Thanh toán ngay
+                            Tiếp tục thanh toán
                         </button>
                     </div>
                 )}
@@ -628,7 +628,7 @@ export const OrderDetailTab = () => {
                         ) : (
                             <i className="fa-solid fa-credit-card"></i>
                         )}
-                        Thanh toán ngay
+                        Tiếp tục thanh toán
                     </button>
                 </div>
             )}
