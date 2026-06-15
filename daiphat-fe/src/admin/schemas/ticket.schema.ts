@@ -13,3 +13,9 @@ export const createTicketSchema = z.object({
 });
 
 export type CreateTicketFormValues = z.infer<typeof createTicketSchema>;
+
+export const updateTicketSchema = createTicketSchema.extend({
+    status: z.string().optional(),
+});
+
+export type UpdateTicketFormValues = z.infer<typeof updateTicketSchema>;

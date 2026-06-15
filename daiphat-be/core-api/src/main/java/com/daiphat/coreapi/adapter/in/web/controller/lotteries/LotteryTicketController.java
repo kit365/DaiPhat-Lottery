@@ -5,6 +5,7 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.base.Views;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
@@ -35,6 +36,9 @@ public class LotteryTicketController {
     private static final String DEFAULT_PAGE = "1";
     private static final String DEFAULT_LIMIT = "10";
     private static final String ID_PATH = "/{id}";
+    private static final String DEFAULT_HOME_SORT_BY = "displayOrder";
+    private static final String DEFAULT_HOME_SORT_DIRECTION = "asc";
+    private static final String HOME_DEFAULT_DRAW_DATE = "today";
 
     private final LotteryTicketServicePort lotteryTicketServicePort;
 
@@ -81,13 +85,48 @@ public class LotteryTicketController {
         return mappingJacksonValue;
     }
 
+    @GetMapping("/public")
+    public MappingJacksonValue getPublicTickets(
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
+            @RequestParam(required = false) Long stationId,
+            @RequestParam(required = false) String drawDate,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String direction) {
+        log.info("REST public request to query lottery tickets page: {}, size: {}", page, size);
+        PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
+                page, size, stationId, drawDate, search, sortBy, direction);
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(ApiResponse.success(null, response));
+        mappingJacksonValue.setSerializationView(Views.Public.class);
+        return mappingJacksonValue;
+    }
+
+    @GetMapping("/home")
+    public MappingJacksonValue getHomeTickets(
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
+            @RequestParam(required = false) Long stationId,
+            @RequestParam(defaultValue = HOME_DEFAULT_DRAW_DATE) String drawDate,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = DEFAULT_HOME_SORT_BY) String sortBy,
+            @RequestParam(defaultValue = DEFAULT_HOME_SORT_DIRECTION) String direction) {
+        log.info("REST home request to query lottery tickets page: {}, size: {}", page, size);
+        PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
+                page, size, stationId, resolveHomeDrawDate(drawDate), search, sortBy, direction);
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(ApiResponse.success(null, response));
+        mappingJacksonValue.setSerializationView(Views.Public.class);
+        return mappingJacksonValue;
+    }
+
     @PutMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:edit')")
     public ApiResponse<LotteryTicketResponse> update(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateLotteryTicketRequest request) {
+            @Valid @RequestBody UpdateLotteryTicketRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to update lottery ticket: {}", id);
-        LotteryTicketResponse response = lotteryTicketServicePort.update(id, request);
+        LotteryTicketResponse response = lotteryTicketServicePort.update(id, request, principal.getId());
         return ApiResponse.success("Cập nhật thông tin vé số thành công.", response);
     }
 
@@ -119,6 +158,16 @@ public class LotteryTicketController {
         return ApiResponse.success("Cập nhật trạng thái vé số thành công.", response);
     }
 
+    @PostMapping(value = "/images/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('ticket:create', 'ticket:edit')")
+    public ApiResponse<StorageResult> uploadAsset(@RequestPart("file") MultipartFile file) {
+        log.info("REST request to upload lottery ticket asset image");
+        return ApiResponse.success(
+                "Tải ảnh lên thành công.",
+                lotteryTicketServicePort.uploadAsset(StorageUtils.toUploadRequest(file))
+        );
+    }
+
     @PostMapping(value = ID_PATH + "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyAuthority('ticket:edit')")
     public ApiResponse<LotteryTicketResponse> uploadImage(
@@ -145,5 +194,12 @@ public class LotteryTicketController {
                         || "ticket:view".equals(authority));
 
         return isMemberOnly ? Views.Public.class : Views.Admin.class;
+    }
+
+    private String resolveHomeDrawDate(String drawDate) {
+        if (drawDate == null || drawDate.isBlank() || HOME_DEFAULT_DRAW_DATE.equalsIgnoreCase(drawDate)) {
+            return java.time.LocalDate.now().toString();
+        }
+        return drawDate;
     }
 }

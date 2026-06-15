@@ -2,41 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
-import 'cart_mock_data.dart';
+import '../../models/cart_item_model.dart';
+import '../../providers/cart_provider.dart';
 
-class CartView extends StatefulWidget {
+class CartView extends ConsumerStatefulWidget {
   const CartView({super.key});
 
   @override
-  State<CartView> createState() => _CartViewState();
+  ConsumerState<CartView> createState() => _CartViewState();
 }
 
-class _CartViewState extends State<CartView> {
-  late final List<CartItemData> _items;
-
-  @override
-  void initState() {
-    super.initState();
-    _items = List<CartItemData>.of(cartMockItems);
-  }
-
-  int get _subtotal => _items.fold(0, (sum, item) => sum + item.subtotal);
-
-  int get _ticketCount => _items.fold(0, (sum, item) => sum + item.quantity);
-
-  int get _total => _subtotal + (_items.isEmpty ? 0 : cartHandlingFee);
-
-  void _removeItem(CartItemData item) {
-    final removedIndex = _items.indexOf(item);
-    if (removedIndex == -1) {
-      return;
-    }
-
-    setState(() {
-      _items.removeAt(removedIndex);
-    });
+class _CartViewState extends ConsumerState<CartView> {
+  void _removeItem(CartItemData item, int index) {
+    ref.read(cartProvider.notifier).removeAtIndex(index);
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -47,9 +29,7 @@ class _CartViewState extends State<CartView> {
           action: SnackBarAction(
             label: 'Hoàn tác',
             onPressed: () {
-              setState(() {
-                _items.insert(removedIndex, item);
-              });
+              ref.read(cartProvider.notifier).insertItem(index, item);
             },
           ),
         ),
@@ -58,6 +38,10 @@ class _CartViewState extends State<CartView> {
 
   @override
   Widget build(BuildContext context) {
+    final _items = ref.watch(cartProvider);
+    final _subtotal = ref.watch(cartSubtotalProvider);
+    final _ticketCount = ref.watch(cartTicketCountProvider);
+    final _total = ref.watch(cartTotalProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFFFFBF8),
       appBar: AppBar(
@@ -118,7 +102,7 @@ class _CartViewState extends State<CartView> {
                               key: ValueKey('${item.number}-$index'),
                               direction: DismissDirection.endToStart,
                               background: const _DeleteSwipeBackground(),
-                              onDismissed: (_) => _removeItem(item),
+                              onDismissed: (_) => _removeItem(item, index),
                               child: _CartTicketCard(item: item),
                             ),
                           );

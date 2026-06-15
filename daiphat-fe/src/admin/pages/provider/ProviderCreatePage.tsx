@@ -75,7 +75,7 @@ export const ProviderCreatePage = () => {
             numberLength: 6,
             minNumber: 0,
             maxNumber: 999999,
-            drawSchedule: "",
+            drawDays: [],
             drawTime: "16:15",
         },
     });
@@ -125,7 +125,7 @@ export const ProviderCreatePage = () => {
                             numberLength: 6,
                             minNumber: 0,
                             maxNumber: 999999,
-                            drawSchedule: "",
+                            drawDays: [],
                             drawTime: "16:15",
                             displayOrder: 0,
                             image: "",
@@ -284,17 +284,17 @@ export const ProviderCreatePage = () => {
                                     </Box>
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
                                         <Controller
-                                            name="drawSchedule"
+                                            name="drawDays"
                                             control={control}
                                             render={({ field, fieldState }) => {
-                                                const selectedDays = field.value ? field.value.split(', ').filter(Boolean) : [];
+                                                const selectedDays = Array.isArray(field.value) ? field.value : [];
                                                 const toggleDay = (dayValue: string) => {
                                                     const newSelected = selectedDays.includes(dayValue)
                                                         ? selectedDays.filter((v: string) => v !== dayValue)
                                                         : [...selectedDays, dayValue];
                                                     
                                                     const ordered = DAYS_OF_WEEK.filter(d => newSelected.includes(d.value)).map(d => d.value);
-                                                    field.onChange(ordered.join(', '));
+                                                    field.onChange(ordered);
                                                 };
                                                 
                                                 return (

@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.DirectOrderTransactionRequest;
+import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
@@ -40,6 +41,15 @@ import static org.mockito.Mockito.when;
 @DisplayName("OrderService")
 class OrderServiceTest {
 
+    private static final List<Long> TICKET_IDS = List.of(101L, 102L);
+    private static final List<OrderTicketItemRequest> TICKET_ITEMS = List.of(
+            new OrderTicketItemRequest(101L, 1),
+            new OrderTicketItemRequest(102L, 1)
+    );
+    private static final List<OrderTicketItemRequest> SINGLE_TICKET_ITEM = List.of(
+            new OrderTicketItemRequest(101L, 1)
+    );
+
     private final OrderRepositoryPort orderRepositoryPort = mock(OrderRepositoryPort.class);
     private final LotteryTicketServicePort lotteryTicketServicePort = mock(LotteryTicketServicePort.class);
     private final UserLookupServicePort userLookupServicePort = mock(UserLookupServicePort.class);
@@ -67,7 +77,7 @@ class OrderServiceTest {
                 customerId,
                 "string",
                 "0764349951",
-                List.of(101L, 102L),
+                TICKET_ITEMS,
                 null,
                 "Thu tai quay",
                 List.of(
@@ -78,8 +88,10 @@ class OrderServiceTest {
 
         when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(mock(UserModel.class));
         when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(mock(UserModel.class));
-        when(lotteryTicketServicePort.reserveForOrder(101L)).thenReturn(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(6_000), LocalDate.now().plusDays(1)));
-        when(lotteryTicketServicePort.reserveForOrder(102L)).thenReturn(new OrderTicketSnapshot(102L, 1002L, BigDecimal.valueOf(10_000), LocalDate.now().plusDays(1)));
+        when(lotteryTicketServicePort.reserveForOrder(TICKET_IDS)).thenReturn(List.of(
+                new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(6_000), LocalDate.now().plusDays(1)),
+                new OrderTicketSnapshot(102L, 1002L, BigDecimal.valueOf(10_000), LocalDate.now().plusDays(1))
+        ));
         when(orderRepositoryPort.existsByOrderCode(anyString())).thenReturn(false);
         when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -98,8 +110,7 @@ class OrderServiceTest {
         assertThat(result.getTransactions().stream()
                 .map(TransactionModel::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)).isEqualByComparingTo("16000");
-        verify(lotteryTicketServicePort).reserveForOrder(101L);
-        verify(lotteryTicketServicePort).reserveForOrder(102L);
+        verify(lotteryTicketServicePort).reserveForOrder(TICKET_IDS);
     }
 
     @Test
@@ -110,7 +121,7 @@ class OrderServiceTest {
                 null,
                 "string",
                 "0764349951",
-                List.of(101L, 102L),
+                TICKET_ITEMS,
                 null,
                 "Thu tai quay",
                 List.of(
@@ -120,8 +131,10 @@ class OrderServiceTest {
         );
 
         when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(mock(UserModel.class));
-        when(lotteryTicketServicePort.reserveForOrder(101L)).thenReturn(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(6_000), LocalDate.now().plusDays(1)));
-        when(lotteryTicketServicePort.reserveForOrder(102L)).thenReturn(new OrderTicketSnapshot(102L, 1002L, BigDecimal.valueOf(6_000), LocalDate.now().plusDays(1)));
+        when(lotteryTicketServicePort.reserveForOrder(TICKET_IDS)).thenReturn(List.of(
+                new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(6_000), LocalDate.now().plusDays(1)),
+                new OrderTicketSnapshot(102L, 1002L, BigDecimal.valueOf(6_000), LocalDate.now().plusDays(1))
+        ));
 
         assertThatThrownBy(() -> orderService.createDirectOrder(request, operatorId))
                 .isInstanceOf(DomainException.class)
@@ -136,15 +149,15 @@ class OrderServiceTest {
         CreateOnlineOrderRequest request = new CreateOnlineOrderRequest(
                 "Kiet",
                 "0764349959",
-                List.of(101L),
+                SINGLE_TICKET_ITEM,
                 null,
                 drawDate.minusDays(4).atTime(10, 0),
                 "string"
         );
 
         when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(mock(UserModel.class));
-        when(lotteryTicketServicePort.reserveForOrder(101L))
-                .thenReturn(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(10_000), drawDate));
+        when(lotteryTicketServicePort.reserveForOrder(List.of(101L)))
+                .thenReturn(List.of(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(10_000), drawDate)));
 
         assertThatThrownBy(() -> orderService.createOnlineOrder(request, customerId))
                 .isInstanceOf(DomainException.class)
@@ -160,15 +173,15 @@ class OrderServiceTest {
         CreateOnlineOrderRequest request = new CreateOnlineOrderRequest(
                 "Kiet",
                 "0764349959",
-                List.of(101L),
+                SINGLE_TICKET_ITEM,
                 null,
                 LocalDateTime.of(drawDate.minusDays(2), java.time.LocalTime.of(9, 0)),
                 "string"
         );
 
         when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(mock(UserModel.class));
-        when(lotteryTicketServicePort.reserveForOrder(101L))
-                .thenReturn(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(10_000), drawDate));
+        when(lotteryTicketServicePort.reserveForOrder(List.of(101L)))
+                .thenReturn(List.of(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(10_000), drawDate)));
         when(orderRepositoryPort.existsByOrderCode(anyString())).thenReturn(false);
         when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

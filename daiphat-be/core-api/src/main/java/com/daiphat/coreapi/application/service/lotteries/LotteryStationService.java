@@ -11,14 +11,15 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositor
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
+import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
+import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -37,6 +39,7 @@ public class LotteryStationService implements LotteryStationServicePort {
 
     private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
+    private final StationPrizeStructureSeeder stationPrizeStructureSeeder;
     private final LotteryStationApplicationMapper lotteryStationApplicationMapper;
     private final StoragePort storagePort;
 
@@ -53,12 +56,18 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
 
         LotteryStationModel model = lotteryStationApplicationMapper.toModel(request);
+        stationPrizeStructureSeeder.requireRegionHasPrizeStructures(model.getRegion());
         if (model.getStatus() == null) {
             model.setStatus(LotteryStationStatus.ACTIVE);
         }
+        syncNextDrawDate(model);
 
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         log.info("Lottery product created with id: {}", saved.getId());
+
+        List<PrizeStructureModel> defaultPrizeStructures = stationPrizeStructureSeeder.seedFromRegion(saved);
+        log.info("Seeded {} default prize structures for lottery product: {}",
+                defaultPrizeStructures.size(), saved.getId());
 
         return lotteryStationApplicationMapper.toResponse(saved);
     }
@@ -135,6 +144,8 @@ public class LotteryStationService implements LotteryStationServicePort {
         log.info("Updating lottery product with id: {}", id);
 
         LotteryStationModel model = getProductOrThrow(id);
+        String previousRegion = model.getRegion();
+        boolean regionChanged = false;
 
         if (hasText(request.name())) {
             if (!model.getName().equalsIgnoreCase(request.name())
@@ -144,9 +155,32 @@ public class LotteryStationService implements LotteryStationServicePort {
             model.setName(request.name().trim());
         }
 
+        if (request.region() != null) {
+            String newRegion = request.region().trim();
+            if (hasText(newRegion) && (previousRegion == null || !newRegion.equalsIgnoreCase(previousRegion))) {
+                regionChanged = true;
+            }
+        }
+
         lotteryStationApplicationMapper.updateModel(model, request);
+        syncNextDrawDate(model);
+
+        if (hasText(request.status()) && parseStatus(request.status()) == LotteryStationStatus.INACTIVE) {
+            model.deactivate();
+        }
+
+        if (regionChanged) {
+            stationPrizeStructureSeeder.requireRegionHasPrizeStructures(model.getRegion());
+        }
 
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
+
+        if (regionChanged) {
+            List<PrizeStructureModel> reseeded = stationPrizeStructureSeeder.reseedFromRegion(saved);
+            log.info("Re-seeded {} prize structures after region change for station: {}",
+                    reseeded.size(), saved.getId());
+        }
+
         recalculateInventory(saved);
         log.info("Lottery product updated with id: {}", saved.getId());
 
@@ -168,9 +202,6 @@ public class LotteryStationService implements LotteryStationServicePort {
         LotteryStationModel model = getProductOrThrow(id);
         StorageUtils.validateImageUpload(request);
 
-        // Delete old image if it exists
-        // Wait, LotteryStation doesn't store ImagePublicId in DB, it only stores image url.
-        // Assuming we just overwrite or upload a new one.
         StorageResult result = storagePort.upload(new UploadRequest(
                 request.data(),
                 request.fileName(),
@@ -179,7 +210,6 @@ public class LotteryStationService implements LotteryStationServicePort {
         ));
 
         model.setImage(result.url());
-        // Option to save thumbnail url if needed, for now just image
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         return lotteryStationApplicationMapper.toResponse(saved);
     }
@@ -192,12 +222,38 @@ public class LotteryStationService implements LotteryStationServicePort {
         lotteryStationRepositoryPort.save(model);
     }
 
+    @Override
+    @Transactional
+    public int recalculateNextDrawDates() {
+        int updatedCount = 0;
+        for (LotteryStationModel station : lotteryStationRepositoryPort.findAll()) {
+            if (station.getId() == null) {
+                continue;
+            }
+            try {
+                updatedCount += lotteryStationRepositoryPort.updateNextDrawDate(
+                        station.getId(),
+                        resolveNextDrawDate(station)
+                );
+            } catch (DomainException ex) {
+                log.warn("Skipping nextDrawDate recalculation for station {}: {}", station.getId(), ex.getMessage());
+            }
+        }
+        return updatedCount;
+    }
+
+    private void syncNextDrawDate(LotteryStationModel station) {
+        station.setNextDrawDate(resolveNextDrawDate(station));
+    }
+
+    private LocalDate resolveNextDrawDate(LotteryStationModel station) {
+        return DrawScheduleUtils.resolveNextDrawDate(station.getDrawDays(), station.getDrawTime());
+    }
+
     private LotteryStationModel getProductOrThrow(Long id) {
         return lotteryStationRepositoryPort.findById(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
     }
-
-
 
     private LotteryStationStatus parseStatus(String status) {
         if (!hasText(status)) {
@@ -209,8 +265,6 @@ public class LotteryStationService implements LotteryStationServicePort {
             return null;
         }
     }
-
-
 
     private PageResponse<LotteryStationResponse> buildPageResponse(
             Page<LotteryStationResponse> pageResult,
