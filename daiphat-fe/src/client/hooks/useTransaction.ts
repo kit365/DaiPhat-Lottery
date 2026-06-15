@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { transactionService } from '../services/transactionService';
 import { AppToast as toast } from '../utils/toast.util';
 import { ProcessPaymentRequest } from '../../types/transaction.type';
+import { QUERY_KEYS } from '../../constants/queryKeys';
 
 export const useProcessPayment = () => {
     return useMutation({
@@ -15,7 +16,7 @@ export const useProcessPayment = () => {
 
 export const useGetTransactionTypes = () => {
     return useQuery({
-        queryKey: ['transactionTypes'],
+        queryKey: [QUERY_KEYS.CLIENT_TRANSACTION_TYPES],
         queryFn: () => transactionService.getTransactionTypes()
     });
 };

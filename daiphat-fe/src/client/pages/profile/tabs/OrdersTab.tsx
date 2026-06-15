@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { OrderStatus, OrderType, GetMyOrdersParams } from '../../../../types/order.type';
 import { useGetMyOrders } from '../../../hooks/useOrder';
 import { format } from 'date-fns';
@@ -18,6 +19,7 @@ const ORDER_TYPE_MAP: Record<OrderType, { label: string, icon: string }> = {
 };
 
 export const OrdersTab = () => {
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<OrderStatus | 'ALL'>('ALL');
     const [showFilter, setShowFilter] = useState(false);
     const [sortByUI, setSortByUI] = useState('default');
@@ -296,7 +298,10 @@ export const OrdersTab = () => {
                                                     {getStatusBadge(order.status)}
                                                 </td>
                                                 <td className="py-4 px-5 text-right align-top">
-                                                    <button className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#919EAB] group-hover:text-[#2065D1] group-hover:border-[#2065D1] group-hover:bg-[#F0F5FF] transition-all ml-auto cursor-pointer">
+                                                    <button 
+                                                        onClick={() => navigate(`/profile/orders/${order.id}`)}
+                                                        className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#919EAB] group-hover:text-[#2065D1] group-hover:border-[#2065D1] group-hover:bg-[#F0F5FF] transition-all ml-auto cursor-pointer"
+                                                    >
                                                         <i className="fa-regular fa-eye text-[13px]"></i>
                                                     </button>
                                                 </td>

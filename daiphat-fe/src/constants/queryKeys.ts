@@ -36,4 +36,13 @@ export const QUERY_KEYS = {
     PROVIDER_DETAIL: 'provider',
     STATIONS_TODAY: 'stations-today',
     STATIONS_TOMORROW: 'stations-tomorrow',
+
+    // Order (Client)
+    CLIENT_ORDER_RECEIVE_TYPES: 'client-order-receive-types',
+    CLIENT_ORDER_STATUSES: 'client-order-statuses',
+    CLIENT_MY_ORDERS: 'client-my-orders',
+    CLIENT_MY_ORDER_DETAIL: 'client-my-order-detail',
+
+    // Transaction (Client)
+    CLIENT_TRANSACTION_TYPES: 'client-transaction-types',
 } as const;
