@@ -202,7 +202,7 @@ class LotteryTicketServiceTest {
         assertThat(productModel.getInventoryCount()).isEqualTo(11);
 
         verify(lotteryTicketRepositoryPort).save(mappedModel);
-        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).adjustInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).recalculateInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID));
         assertThat(mappedModel.getImportedById()).isEqualTo(IMPORTED_BY_ID);
         assertThat(mappedModel.getImportedAt()).isNotNull();
         assertThat(mappedModel.getStatus()).isEqualTo(LotteryTicketStatus.IN_STOCK);
@@ -227,7 +227,7 @@ class LotteryTicketServiceTest {
 
         assertThat(response).isNotNull();
         assertThat(productModel.getInventoryCount()).isEqualTo(1);
-        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).adjustInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).recalculateInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID));
     }
 
     @Test
@@ -280,7 +280,7 @@ class LotteryTicketServiceTest {
                 .isEqualTo(ErrorCode.LOTTERY_STATION_NOT_FOUND);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
-        verify(lotteryStationServicePort, org.mockito.Mockito.never()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.never()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -298,7 +298,7 @@ class LotteryTicketServiceTest {
 
         verify(lotteryTicketApplicationMapper, never()).toModel(any());
         verify(lotteryTicketRepositoryPort, never()).save(any());
-        verify(lotteryStationServicePort, org.mockito.Mockito.never()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.never()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -475,7 +475,7 @@ class LotteryTicketServiceTest {
                 .isEqualTo(ErrorCode.LOTTERY_TICKET_DRAW_DATE_INVALID);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
-        verify(lotteryStationServicePort, org.mockito.Mockito.never()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.never()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -543,7 +543,7 @@ class LotteryTicketServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.drawDate()).isEqualTo(tomorrow);
         verify(lotteryTicketRepositoryPort).save(requestModel);
-        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).adjustInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).recalculateInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID));
     }
 
     @Test
@@ -1131,7 +1131,7 @@ class LotteryTicketServiceTest {
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory - 1);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).adjustInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).recalculateInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID));
     }
 
     @Test
@@ -1151,7 +1151,7 @@ class LotteryTicketServiceTest {
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory - 1);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).adjustInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).recalculateInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID));
     }
 
     @Test
@@ -1168,7 +1168,7 @@ class LotteryTicketServiceTest {
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryStationServicePort, org.mockito.Mockito.never()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.never()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -1185,7 +1185,7 @@ class LotteryTicketServiceTest {
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryStationServicePort, org.mockito.Mockito.never()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.never()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -1202,7 +1202,7 @@ class LotteryTicketServiceTest {
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryStationServicePort, org.mockito.Mockito.never()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.never()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -1219,7 +1219,7 @@ class LotteryTicketServiceTest {
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryStationServicePort, org.mockito.Mockito.never()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.never()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -1236,7 +1236,7 @@ class LotteryTicketServiceTest {
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory);
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryStationServicePort, org.mockito.Mockito.never()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.never()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -1250,7 +1250,7 @@ class LotteryTicketServiceTest {
                 .isEqualTo(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
-        verify(lotteryStationServicePort, org.mockito.Mockito.never()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.never()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -1266,7 +1266,7 @@ class LotteryTicketServiceTest {
                 .isEqualTo(ErrorCode.LOTTERY_STATION_NOT_FOUND);
 
         verify(lotteryTicketRepositoryPort, never()).save(any());
-        verify(lotteryStationServicePort, org.mockito.Mockito.never()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.never()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -1281,7 +1281,7 @@ class LotteryTicketServiceTest {
         lotteryTicketService.delete(TICKET_ID);
 
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -1296,7 +1296,7 @@ class LotteryTicketServiceTest {
         lotteryTicketService.delete(TICKET_ID);
 
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -1350,7 +1350,7 @@ class LotteryTicketServiceTest {
         lotteryTicketService.delete(TICKET_ID);
 
         assertThat(productModel.getInventoryCount()).isEqualTo(initialInventory - 1);
-        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).adjustInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).recalculateInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID));
     }
 
     @Test
@@ -1413,7 +1413,7 @@ class LotteryTicketServiceTest {
         lotteryTicketService.delete(TICKET_ID);
 
         verify(lotteryTicketRepositoryPort).save(any(LotteryTicketModel.class));
-        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).recalculateInventory(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -1423,7 +1423,7 @@ class LotteryTicketServiceTest {
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         org.mockito.Mockito.doThrow(new org.springframework.dao.DataAccessResourceFailureException("Database error"))
-                .when(lotteryStationServicePort).adjustInventory(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(Integer.class));
+                .when(lotteryStationServicePort).recalculateInventory(org.mockito.ArgumentMatchers.any());
 
         assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
                 .isInstanceOf(org.springframework.dao.DataAccessResourceFailureException.class);
@@ -1578,7 +1578,7 @@ class LotteryTicketServiceTest {
         assertThat(productModel.getInventoryCount()).isEqualTo(9);
 
         verify(lotteryTicketRepositoryPort).save(existingModel);
-        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).adjustInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).recalculateInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID));
     }
 
     @Test
@@ -1606,7 +1606,7 @@ class LotteryTicketServiceTest {
         assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD);
         assertThat(productModel.getInventoryCount()).isEqualTo(9);
 
-        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).adjustInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).recalculateInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID));
     }
 
     @Test
@@ -1635,7 +1635,7 @@ class LotteryTicketServiceTest {
         assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.SOLD);
         assertThat(productModel.getInventoryCount()).isEqualTo(9);
 
-        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).adjustInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID), org.mockito.ArgumentMatchers.any(Integer.class));
+        verify(lotteryStationServicePort, org.mockito.Mockito.atLeastOnce()).recalculateInventory(org.mockito.ArgumentMatchers.eq(PRODUCT_ID));
     }
 
     @Test

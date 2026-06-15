@@ -23,6 +23,7 @@ import { BuyTicketPage } from './client/pages/buy-ticket/BuyTicketPage';
 import { LoginPage } from './client/pages/auth/LoginPage';
 import { RegisterPage } from './client/pages/auth/RegisterPage';
 import { ForgotPasswordPage as ClientForgotPasswordPage } from './client/pages/auth/ForgotPasswordPage';
+import { NotFoundPage } from './client/pages/NotFoundPage';
 
 import { ROUTES } from './admin/constants/routes';
 import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
@@ -95,7 +96,7 @@ function App() {
             <Route index element={<ProfileDashboardPage />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
 
         </Route>
 
@@ -137,7 +138,7 @@ function App() {
         </Route>
 
         {/* Global Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   )

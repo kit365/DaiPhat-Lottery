@@ -5,7 +5,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries.LotteryTicketPersistenceMapper;
-import com.daiphat.coreapi.infrastructure.persistence.repository.lottery.LotteryTicketRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
 import com.daiphat.coreapi.infrastructure.persistence.specification.LotteryTicketSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

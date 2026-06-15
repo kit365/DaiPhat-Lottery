@@ -2,6 +2,7 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
+import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -11,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
@@ -78,6 +80,22 @@ public class LotteryStationController {
             @Valid @RequestBody UpdateLotteryStationRequest request) {
         LotteryStationResponse response = lotteryStationServicePort.update(id, request);
         return ApiResponse.success("Cập nhật sản phẩm vé số thành công.", response);
+    }
+
+    @PostMapping(ID_PATH + "/submit-for-approval")
+    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    public ApiResponse<LotteryStationResponse> submitForApproval(@PathVariable Long id) {
+        LotteryStationResponse response = lotteryStationServicePort.submitForApproval(id);
+        return ApiResponse.success("Gửi nhà đài duyệt thành công.", response);
+    }
+
+    @PostMapping(ID_PATH + "/approve")
+    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    public ApiResponse<LotteryStationResponse> approve(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        LotteryStationResponse response = lotteryStationServicePort.approve(id, principal.getId());
+        return ApiResponse.success("Phê duyệt nhà đài thành công.", response);
     }
 
     @DeleteMapping(ID_PATH)
