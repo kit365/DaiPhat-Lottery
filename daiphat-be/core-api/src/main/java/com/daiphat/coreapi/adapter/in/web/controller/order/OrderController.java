@@ -5,6 +5,7 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
+import com.daiphat.coreapi.application.dto.request.order.UpdateOrderStatusRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
@@ -66,6 +67,19 @@ public class OrderController {
         return ApiResponse.success(
                 "Lấy chi tiết đơn hàng thành công.",
                 orderServicePort.getOrderDetail(id)
+        );
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    public ApiResponse<OrderResponse> updateOrderStatus(
+            @PathVariable java.util.UUID id,
+            @Valid @RequestBody UpdateOrderStatusRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        log.info("REST request to update order {} status to {} by user {}", id, request.status(), principal.getId());
+        return ApiResponse.success(
+                "Cập nhật trạng thái đơn hàng thành công.",
+                orderServicePort.updateOrderStatus(id, request.status(), request.reason(), principal.getId())
         );
     }
 

@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
 import vn.payos.PayOS;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
@@ -52,14 +53,16 @@ public class PayOsGatewayAdapter implements PayOsGatewayPort {
         long expectedAmount = transaction.getAmount().longValue();
         validateMinimumAmount(expectedAmount);
         String description = buildDescription(order.getOrderCode());
-        String effectiveReturnUrl = buildFrontendUrl(authProperties.getFrontendUrl(),
-                paymentProperties.getPayos().getReturnPath());
-        String effectiveCancelUrl = buildFrontendUrl(authProperties.getFrontendUrl(),
-                paymentProperties.getPayos().getCancelPath());
-
-        // Append internal order code so FE can display it
-        effectiveReturnUrl += "?internalCode=" + order.getOrderCode();
-        effectiveCancelUrl += "?internalCode=" + order.getOrderCode();
+        String effectiveReturnUrl = buildPaymentRedirectUrl(
+                paymentProperties.getPayos().getReturnPath(),
+                order,
+                transaction
+        );
+        String effectiveCancelUrl = buildPaymentRedirectUrl(
+                paymentProperties.getPayos().getCancelPath(),
+                order,
+                transaction
+        );
 
         log.info("PayOS Request - Return URL: {}, Cancel URL: {}", effectiveReturnUrl, effectiveCancelUrl);
 
@@ -192,6 +195,16 @@ public class PayOsGatewayAdapter implements PayOsGatewayPort {
         String normalizedBase = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         String normalizedPath = (path == null || path.isBlank()) ? "" : (path.startsWith("/") ? path : "/" + path);
         return normalizedBase + normalizedPath;
+    }
+
+    private String buildPaymentRedirectUrl(String path, OrderModel order, TransactionModel transaction) {
+        return UriComponentsBuilder.fromUriString(buildFrontendUrl(authProperties.getFrontendUrl(), path))
+                .queryParam("internalCode", order.getOrderCode())
+                .queryParam("orderId", order.getId())
+                .queryParam("transactionId", transaction.getId())
+                .queryParam("gateway", transaction.getGateway())
+                .build()
+                .toUriString();
     }
 
     private void ensureConfigured() {

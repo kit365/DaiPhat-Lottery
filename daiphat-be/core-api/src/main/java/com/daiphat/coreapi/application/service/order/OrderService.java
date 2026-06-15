@@ -14,6 +14,8 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePor
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategy;
+import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategyFactory;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
@@ -21,6 +23,7 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.OrderRefundStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
@@ -64,6 +67,7 @@ public class OrderService implements OrderServicePort {
     private final UserLookupServicePort userLookupServicePort;
     private final OrderApplicationMapper orderApplicationMapper;
     private final PaymentCountdownCachePort paymentCountdownCachePort;
+    private final PaymentGatewayStrategyFactory paymentGatewayStrategyFactory;
 
     @Override
     @Transactional
@@ -161,6 +165,25 @@ public class OrderService implements OrderServicePort {
             throw new DomainException(ErrorCode.ACCESS_DENIED);
         }
         return orderApplicationMapper.toResponse(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse updateOrderStatus(UUID orderId, OrderStatus status, String reason, UUID operatorId) {
+        ensureUserExists(operatorId);
+        if (status == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+
+        OrderModel order = getOrderOrThrow(orderId);
+        if (order.getStatus() == status) {
+            return orderApplicationMapper.toResponse(order);
+        }
+
+        applyOrderStatusTransition(order, status, reason, operatorId);
+        OrderModel saved = orderRepositoryPort.save(order);
+        clearPendingPaymentCountdownIfResolved(saved);
+        return orderApplicationMapper.toResponse(saved);
     }
 
     @Override
@@ -281,6 +304,89 @@ public class OrderService implements OrderServicePort {
     private void validateTicketIds(List<Long> ticketIds) {
         if (ticketIds == null || ticketIds.isEmpty() || ticketIds.size() > 10) {
             throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+    }
+
+    private void applyOrderStatusTransition(OrderModel order, OrderStatus targetStatus, String reason, UUID operatorId) {
+        switch (targetStatus) {
+            case PAID -> {
+                if (!order.isFullyPaid()) {
+                    throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+                }
+                order.markPaid();
+            }
+            case PREPARING -> order.markPreparing();
+            case PENDING_PICKUP -> order.markPendingPickup();
+            case COMPLETED -> {
+                if (order.getOrderType() == OrderType.DIRECT) {
+                    order.completeDirectOrder(operatorId);
+                } else {
+                    order.completeOnlineOrder(operatorId);
+                }
+            }
+            case CANCELLED -> cancelOrderFromAdmin(order, reason);
+            case PENDING_PAYMENT -> throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+        }
+    }
+
+    private void cancelOrderFromAdmin(OrderModel order, String reason) {
+        String effectiveReason = reason != null && !reason.isBlank()
+                ? reason
+                : "Đơn hàng bị hủy bởi quản trị viên.";
+
+        if (order.getStatus() == OrderStatus.PENDING_PAYMENT) {
+            cancelPendingTransactions(order, effectiveReason);
+            releaseReservedTickets(order);
+            order.cancelPendingPayment(effectiveReason);
+            return;
+        }
+
+        if (order.getOrderType() == OrderType.DIRECT) {
+            order.cancelDirectOrder(effectiveReason);
+            return;
+        }
+
+        order.cancelAfterPayment(effectiveReason);
+    }
+
+    private void cancelPendingTransactions(OrderModel order, String reason) {
+        if (order.getTransactions() == null) {
+            return;
+        }
+
+        for (TransactionModel transaction : order.getTransactions()) {
+            if (transaction.getStatus() != TransactionStatus.PENDING) {
+                continue;
+            }
+
+            if (transaction.getType() == TransactionType.ONLINE
+                    && transaction.getGateway() != null
+                    && transaction.getGatewayOrderCode() != null) {
+                PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(transaction.getGateway());
+                try {
+                    strategy.cancelPayment(order, transaction, reason);
+                } catch (DomainException ex) {
+                    log.warn("Could not cancel gateway link for admin-cancelled order {} transaction {}: {}",
+                            order.getId(), transaction.getId(), ex.getMessage());
+                }
+            }
+
+            if (transaction.getStatus() == TransactionStatus.PENDING) {
+                transaction.markCancelled(reason);
+            }
+        }
+    }
+
+    private void releaseReservedTickets(OrderModel order) {
+        if (order.getOrderDetails() == null) {
+            return;
+        }
+        order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.releaseReservationForOrder(detail.getLotteryTicketSerialId()));
+    }
+
+    private void clearPendingPaymentCountdownIfResolved(OrderModel order) {
+        if (order.getStatus() != OrderStatus.PENDING_PAYMENT && order.getId() != null) {
+            paymentCountdownCachePort.clear(order.getId());
         }
     }
 

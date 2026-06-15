@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
+import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 
@@ -20,6 +21,8 @@ public interface OrderServicePort {
     OrderResponse getOrderDetail(UUID orderId);
 
     OrderResponse getMyOrderDetail(UUID orderId, UUID customerId);
+
+    OrderResponse updateOrderStatus(UUID orderId, OrderStatus status, String reason, UUID operatorId);
 
     PageResponse<OrderResponse> getOrders(
             int page,
