@@ -21,7 +21,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEn
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lottery.LotteryStationRepository;
-import com.daiphat.coreapi.infrastructure.persistence.repository.lottery.LotteryTicketRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

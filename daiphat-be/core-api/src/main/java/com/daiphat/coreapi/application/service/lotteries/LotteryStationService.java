@@ -11,9 +11,9 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositor
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
+import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
@@ -30,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -37,6 +39,7 @@ public class LotteryStationService implements LotteryStationServicePort {
 
     private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
+    private final StationPrizeStructureSeeder stationPrizeStructureSeeder;
     private final LotteryStationApplicationMapper lotteryStationApplicationMapper;
     private final StoragePort storagePort;
 
@@ -53,12 +56,15 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
 
         LotteryStationModel model = lotteryStationApplicationMapper.toModel(request);
-        if (model.getStatus() == null) {
-            model.setStatus(LotteryStationStatus.ACTIVE);
-        }
+        stationPrizeStructureSeeder.requireRegionHasPrizeStructures(model.getRegion());
+        model.setStatus(LotteryStationStatus.DRAFT);
 
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         log.info("Lottery product created with id: {}", saved.getId());
+
+        List<PrizeStructureModel> defaultPrizeStructures = stationPrizeStructureSeeder.seedFromRegion(saved);
+        log.info("Seeded {} default prize structures for lottery product: {}",
+                defaultPrizeStructures.size(), saved.getId());
 
         return lotteryStationApplicationMapper.toResponse(saved);
     }
@@ -135,6 +141,8 @@ public class LotteryStationService implements LotteryStationServicePort {
         log.info("Updating lottery product with id: {}", id);
 
         LotteryStationModel model = getProductOrThrow(id);
+        String previousRegion = model.getRegion();
+        boolean regionChanged = false;
 
         if (hasText(request.name())) {
             if (!model.getName().equalsIgnoreCase(request.name())
@@ -144,9 +152,35 @@ public class LotteryStationService implements LotteryStationServicePort {
             model.setName(request.name().trim());
         }
 
+        if (request.region() != null) {
+            String newRegion = request.region().trim();
+            if (hasText(newRegion) && (previousRegion == null || !newRegion.equalsIgnoreCase(previousRegion))) {
+                regionChanged = true;
+            }
+        }
+
+        if (hasText(request.status()) && parseStatus(request.status()) == LotteryStationStatus.ACTIVE) {
+            throw new DomainException(ErrorCode.LOTTERY_STATION_STATUS_USE_WORKFLOW);
+        }
+
         lotteryStationApplicationMapper.updateModel(model, request);
 
+        if (hasText(request.status()) && parseStatus(request.status()) == LotteryStationStatus.INACTIVE) {
+            model.deactivate();
+        }
+
+        if (regionChanged) {
+            stationPrizeStructureSeeder.requireRegionHasPrizeStructures(model.getRegion());
+        }
+
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
+
+        if (regionChanged) {
+            List<PrizeStructureModel> reseeded = stationPrizeStructureSeeder.reseedFromRegion(saved);
+            log.info("Re-seeded {} prize structures after region change for station: {}",
+                    reseeded.size(), saved.getId());
+        }
+
         recalculateInventory(saved);
         log.info("Lottery product updated with id: {}", saved.getId());
 
@@ -164,13 +198,36 @@ public class LotteryStationService implements LotteryStationServicePort {
 
     @Override
     @Transactional
+    public LotteryStationResponse submitForApproval(Long id) {
+        log.info("Submitting lottery product for approval with id: {}", id);
+
+        LotteryStationModel model = getProductOrThrow(id);
+        model.submitForApproval();
+
+        LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
+        recalculateInventory(saved);
+        return lotteryStationApplicationMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public LotteryStationResponse approve(Long id, UUID adminId) {
+        log.info("Approving lottery product with id: {} by admin: {}", id, adminId);
+
+        LotteryStationModel model = getProductOrThrow(id);
+        model.approve(adminId);
+
+        LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
+        recalculateInventory(saved);
+        return lotteryStationApplicationMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
     public LotteryStationResponse uploadImage(Long id, UploadRequest request) {
         LotteryStationModel model = getProductOrThrow(id);
         StorageUtils.validateImageUpload(request);
 
-        // Delete old image if it exists
-        // Wait, LotteryStation doesn't store ImagePublicId in DB, it only stores image url.
-        // Assuming we just overwrite or upload a new one.
         StorageResult result = storagePort.upload(new UploadRequest(
                 request.data(),
                 request.fileName(),
@@ -179,7 +236,6 @@ public class LotteryStationService implements LotteryStationServicePort {
         ));
 
         model.setImage(result.url());
-        // Option to save thumbnail url if needed, for now just image
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         return lotteryStationApplicationMapper.toResponse(saved);
     }
@@ -197,8 +253,6 @@ public class LotteryStationService implements LotteryStationServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
     }
 
-
-
     private LotteryStationStatus parseStatus(String status) {
         if (!hasText(status)) {
             return null;
@@ -209,8 +263,6 @@ public class LotteryStationService implements LotteryStationServicePort {
             return null;
         }
     }
-
-
 
     private PageResponse<LotteryStationResponse> buildPageResponse(
             Page<LotteryStationResponse> pageResult,
