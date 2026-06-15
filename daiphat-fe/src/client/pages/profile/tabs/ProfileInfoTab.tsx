@@ -9,7 +9,7 @@ export const ProfileInfoTab = () => {
     // local state for editing
     const [formData, setFormData] = useState({
         fullName: user?.fullName || user?.username || 'Doe John',
-        phone: user?.phone || '0987 654 321',
+        phone: user?.phoneNumber || user?.phone || '',
         email: user?.email || 'john.doe@gmail.com',
         dob: '1990-05-15',
         gender: 'Nam',
@@ -134,8 +134,8 @@ export const ProfileInfoTab = () => {
                                 />
                             ) : (
                                 <>
-                                    {formData.phone}
-                                    <span className="bg-[#E4F8ED] text-[#1CD162] px-2.5 py-0.5 rounded-md text-[11px] font-bold">Đã xác thực</span>
+                                    {formData.phone || "Chưa cập nhật"}
+                                    {formData.phone && <span className="bg-[#E4F8ED] text-[#1CD162] px-2.5 py-0.5 rounded-md text-[11px] font-bold">Đã xác thực</span>}
                                 </>
                             )}
                         </div>
