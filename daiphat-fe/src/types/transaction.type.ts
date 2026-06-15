@@ -31,6 +31,12 @@ export interface ProcessPaymentRequest {
     gateway: PaymentGateway;
 }
 
+export interface CancelPaymentRequest {
+    transactionId: number;
+    gateway: PaymentGateway;
+    reason?: string;
+}
+
 export interface PaymentResult {
     transactionId: number;
     gateway: PaymentGateway;
@@ -38,4 +44,11 @@ export interface PaymentResult {
     paymentRef: string;
     checkoutUrl: string;
     status: string;
+}
+
+export interface PendingPaymentCountdownResult {
+    orderId: string;
+    remainingSeconds: number;
+    expiresAt: string | null;
+    expired: boolean;
 }
