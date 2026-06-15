@@ -20,6 +20,7 @@ import { BlogDetailPage } from './client/pages/BlogDetailPage';
 import { CartPage } from './client/pages/cart/CartPage';
 import { CheckoutPage } from './client/pages/cart/CheckoutPage';
 import { BuyTicketPage } from './client/pages/buy-ticket/BuyTicketPage';
+import { CheckoutResultPage } from './client/pages/cart/CheckoutResultPage';
 import { LoginPage } from './client/pages/auth/LoginPage';
 import { RegisterPage } from './client/pages/auth/RegisterPage';
 import { ForgotPasswordPage as ClientForgotPasswordPage } from './client/pages/auth/ForgotPasswordPage';
@@ -77,6 +78,9 @@ function App() {
           <Route path="/buy-ticket" element={<BuyTicketPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/checkout/result" element={<CheckoutResultPage />} />
+          <Route path="/payment/payos/return" element={<CheckoutResultPage />} />
+          <Route path="/payment/payos/cancel" element={<CheckoutResultPage />} />
 
           <Route path="/profile" element={<PrivateRoute />}>
             <Route element={<ClientProfilePage />}>
