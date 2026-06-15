@@ -43,8 +43,8 @@ daiphat:
       enabled: true
   payment:
     payos:
-      return-path: ${PAYOS_RETURN_PATH:/checkout/result}
-      cancel-path: ${PAYOS_CANCEL_PATH:/checkout/result}
+      return-path: ${PAYOS_RETURN_PATH:/payment/payos/return}
+      cancel-path: ${PAYOS_CANCEL_PATH:/payment/payos/cancel}
   order:
     seed:
       enabled: false
