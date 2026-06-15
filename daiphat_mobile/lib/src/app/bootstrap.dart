@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:daiphat_mobile/firebase_options.dart';
 import 'package:daiphat_mobile/src/app/app.dart';
@@ -25,6 +26,9 @@ Future<void> bootstrap() async {
   );
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await NotificationService().init();
+
+  await Hive.initFlutter();
+  await Hive.openBox('cartBox');
 
   final dependencies = await AppDependencies.create();
 

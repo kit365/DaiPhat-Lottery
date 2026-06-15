@@ -2,8 +2,8 @@ import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormContro
 import { Breadcrumb } from "../../components/ui/Breadcrumb"
 import { Title } from "../../components/ui/Title"
 import { useState, useMemo } from "react"
-import { UploadFiles } from "../../components/ui/UploadFiles"
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
+import { TicketSerialImageField } from "./components/TicketSerialImageField"
 import { prefixAdmin } from "../../constants/routes";
 import { useCreateTicket } from "./hooks/useTicket";
 import { toast } from "react-toastify";
@@ -16,10 +16,6 @@ import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
-
-interface CustomFile extends File {
-    preview: string;
-}
 
 const SCHEDULE_TO_DAY_MAP: Record<string, number[]> = {
     "Thứ Hai": [1], "T2": [1], "Thứ 2": [1],
@@ -136,12 +132,10 @@ export const TicketCreatePage = () => {
 
         const payload = {
             stationId: data.stationId,
-            serials: data.serials.map(s => {
-                return {
-                    serialNumber: s.serialNumber,
-                    ticketImg: typeof s.ticketImg === 'string' ? s.ticketImg : ""
-                }
-            }),
+            serials: data.serials.map(s => ({
+                serialNumber: s.serialNumber,
+                ticketImg: typeof s.ticketImg === "string" && s.ticketImg.trim() ? s.ticketImg.trim() : undefined,
+            })),
             numbers: data.numbers,
             drawDate: finalDrawDate,
             batchCode: data.batchCode
@@ -399,6 +393,7 @@ export const TicketCreatePage = () => {
                                                     )}
                                                 />
                                             </Box>
+                                            <TicketSerialImageField control={control} index={index} />
                                         </Box>
                                     </Box>
                                 ))}

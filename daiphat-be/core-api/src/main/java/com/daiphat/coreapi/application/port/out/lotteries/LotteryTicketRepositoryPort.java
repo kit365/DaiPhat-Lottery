@@ -21,13 +21,15 @@ public interface LotteryTicketRepositoryPort {
     Page<LotteryTicketModel> findAll(Pageable pageable, Long stationId, LotteryTicketStatus status,
                                      LocalDate drawDate, String search);
 
+    Page<LotteryTicketModel> findAllPublic(Pageable pageable, Long stationId, LocalDate drawDate, String search);
+
     java.util.List<LotteryTicketModel> findExpirableTickets(LocalDate beforeDate, Collection<LotteryTicketStatus> statuses);
 
     void deleteById(Long id);
 
-    boolean existsByUniqueFields(Long stationId, String serialNumber, String numbers, LocalDate drawDate);
+    boolean existsByUniqueFields(Long stationId, String numbers, LocalDate drawDate);
 
-    boolean existsByUniqueFieldsAndIdNot(Long stationId, String serialNumber, String numbers, LocalDate drawDate, Long id);
+    boolean existsByUniqueFieldsAndIdNot(Long stationId, String numbers, LocalDate drawDate, Long id);
 
     long sumQuantityByProductIdAndStatuses(Long stationId, Collection<LotteryTicketStatus> statuses);
 }

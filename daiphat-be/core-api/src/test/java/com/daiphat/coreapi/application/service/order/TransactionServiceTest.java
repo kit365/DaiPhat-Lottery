@@ -75,19 +75,20 @@ class TransactionServiceTest {
                 .transactions(List.of(transaction))
                 .build();
 
-        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
         when(paymentGatewayStrategyFactory.getStrategy(PaymentGateway.PAYOS)).thenReturn(gatewayStrategy);
         when(gatewayStrategy.createPayment(order, transaction)).thenAnswer(invocation -> {
             transaction.setGateway(PaymentGateway.PAYOS);
             transaction.setGatewayOrderCode(5_000_013L);
-            return PaymentResult.builder()
-                    .transactionId(13L)
-                    .type(TransactionType.ONLINE)
-                    .gateway(PaymentGateway.PAYOS)
-                    .gatewayOrderCode(5_000_013L)
-                    .checkoutUrl("https://pay.payos.vn/web/abc")
-                    .status(TransactionStatus.PENDING.name())
-                    .build();
+            return new PaymentResult(
+                    13L,
+                    TransactionType.ONLINE,
+                    PaymentGateway.PAYOS,
+                    5_000_013L,
+                    null,
+                    "https://pay.payos.vn/web/abc",
+                    TransactionStatus.PENDING.name()
+            );
         });
 
         PaymentResult result = transactionService.processPayment(orderId, 13L, PaymentGateway.PAYOS);
@@ -118,7 +119,7 @@ class TransactionServiceTest {
                 .transactions(List.of(transaction))
                 .build();
 
-        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
         when(paymentGatewayStrategyFactory.getStrategy(PaymentGateway.PAYOS)).thenReturn(gatewayStrategy);
         when(orderRepositoryPort.save(order)).thenReturn(order);
         doAnswer(invocation -> {
@@ -156,7 +157,7 @@ class TransactionServiceTest {
                 .transactions(List.of(first, second))
                 .build();
 
-        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
 
         assertThatThrownBy(() -> transactionService.processPayment(orderId, null, PaymentGateway.PAYOS))
                 .isInstanceOf(DomainException.class)
@@ -166,6 +167,7 @@ class TransactionServiceTest {
     @Test
     @DisplayName("processGatewayCallback: success callback map theo gatewayOrderCode và lưu sold ticket")
     void processGatewayCallback_success_mapsByGatewayOrderCode() {
+        UUID orderId = UUID.randomUUID();
         TransactionModel transaction = TransactionModel.builder()
                 .type(TransactionType.ONLINE)
                 .gateway(PaymentGateway.PAYOS)
@@ -176,7 +178,7 @@ class TransactionServiceTest {
                 .lotteryTicketSerialId(101L)
                 .build();
         OrderModel order = OrderModel.builder()
-                .id(UUID.randomUUID())
+                .id(orderId)
                 .orderType(OrderType.ONLINE)
                 .status(OrderStatus.PENDING_PAYMENT)
                 .transactions(List.of(transaction))
@@ -194,6 +196,7 @@ class TransactionServiceTest {
         when(paymentGatewayStrategyFactory.getStrategy(PaymentGateway.PAYOS)).thenReturn(gatewayStrategy);
         when(gatewayStrategy.parseCallback("{payload}")).thenReturn(callbackResult);
         when(orderRepositoryPort.findByGatewayOrderCode(5_000_013L)).thenReturn(Optional.of(order));
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
 
         transactionService.processGatewayCallback(PaymentGateway.PAYOS, "{payload}");
 
@@ -205,6 +208,7 @@ class TransactionServiceTest {
     @Test
     @DisplayName("processGatewayCallback: direct order co online transaction chi complete order sau khi thanh toan xong")
     void processGatewayCallback_success_completesDirectOrderAfterOnlinePayment() {
+        UUID orderId = UUID.randomUUID();
         TransactionModel offlineTransaction = TransactionModel.builder()
                 .type(TransactionType.OFFLINE)
                 .amount(BigDecimal.valueOf(4_000))
@@ -218,7 +222,7 @@ class TransactionServiceTest {
                 .status(TransactionStatus.PENDING)
                 .build();
         OrderModel order = OrderModel.builder()
-                .id(UUID.randomUUID())
+                .id(orderId)
                 .orderType(OrderType.DIRECT)
                 .status(OrderStatus.PENDING_PAYMENT)
                 .totalAmount(BigDecimal.valueOf(10_000))
@@ -236,6 +240,7 @@ class TransactionServiceTest {
         when(paymentGatewayStrategyFactory.getStrategy(PaymentGateway.PAYOS)).thenReturn(gatewayStrategy);
         when(gatewayStrategy.parseCallback("{payload}")).thenReturn(callbackResult);
         when(orderRepositoryPort.findByGatewayOrderCode(5_000_099L)).thenReturn(Optional.of(order));
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
         doAnswer(invocation -> {
             TransactionModel tx = invocation.getArgument(1);
             tx.markPayOsSuccess("PAYOS_REF_99");
@@ -260,8 +265,9 @@ class TransactionServiceTest {
         OrderDetailModel detail = OrderDetailModel.builder()
                 .lotteryTicketSerialId(8L)
                 .build();
+        UUID orderId = UUID.randomUUID();
         OrderModel order = OrderModel.builder()
-                .id(UUID.randomUUID())
+                .id(orderId)
                 .orderType(OrderType.DIRECT)
                 .status(OrderStatus.PENDING_PAYMENT)
                 .totalAmount(BigDecimal.valueOf(10_000))
@@ -269,7 +275,8 @@ class TransactionServiceTest {
                 .orderDetails(List.of(detail))
                 .build();
 
-        when(orderRepositoryPort.findPendingPaymentOrdersCreatedBefore(any())).thenReturn(List.of(order));
+        when(orderRepositoryPort.findPendingPaymentOrderIdsCreatedBefore(any())).thenReturn(List.of(orderId));
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
 
         int expiredCount = transactionService.expirePendingPayments();
 
@@ -293,15 +300,17 @@ class TransactionServiceTest {
                 .amount(BigDecimal.valueOf(6_000))
                 .status(TransactionStatus.PENDING)
                 .build();
+        UUID orderId = UUID.randomUUID();
         OrderModel order = OrderModel.builder()
-                .id(UUID.randomUUID())
+                .id(orderId)
                 .orderType(OrderType.DIRECT)
                 .status(OrderStatus.PENDING_PAYMENT)
                 .totalAmount(BigDecimal.valueOf(10_000))
                 .transactions(List.of(completedTransaction, pendingTransaction))
                 .build();
 
-        when(orderRepositoryPort.findPendingPaymentOrdersCreatedBefore(any())).thenReturn(List.of(order));
+        when(orderRepositoryPort.findPendingPaymentOrderIdsCreatedBefore(any())).thenReturn(List.of(orderId));
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
 
         int expiredCount = transactionService.expirePendingPayments();
 
@@ -332,8 +341,9 @@ class TransactionServiceTest {
                 .orderDetails(List.of(detail))
                 .build();
 
-        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
         when(paymentGatewayStrategyFactory.getStrategy(PaymentGateway.PAYOS)).thenReturn(gatewayStrategy);
+        when(orderRepositoryPort.save(order)).thenReturn(order);
         when(paymentAttemptCachePort.incrementFailureAttempt(eq(21L), any())).thenReturn(3L);
         doAnswer(invocation -> {
             TransactionModel tx = invocation.getArgument(1);

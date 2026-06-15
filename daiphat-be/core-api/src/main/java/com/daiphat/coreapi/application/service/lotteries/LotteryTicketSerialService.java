@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketSerialRequest;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -11,6 +12,8 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
+import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
+import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import lombok.RequiredArgsConstructor;
@@ -19,10 +22,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -55,6 +61,70 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
                 .build();
         serial.initializeImport(importedById);
         return lotteryTicketSerialRepositoryPort.save(serial);
+    }
+
+    @Override
+    @Transactional
+    public void syncSerialsForTicket(
+            LotteryTicketModel ticket,
+            List<UpdateLotteryTicketSerialRequest> serials,
+            UUID editorId
+    ) {
+        if (serials == null || serials.isEmpty()) {
+            return;
+        }
+
+        List<LotteryTicketSerialModel> existingSerials = lotteryTicketSerialRepositoryPort.findAllByTicketId(ticket.getId());
+        Set<Long> requestedIds = serials.stream()
+                .map(UpdateLotteryTicketSerialRequest::id)
+                .filter(id -> id != null)
+                .collect(Collectors.toCollection(HashSet::new));
+
+        for (UpdateLotteryTicketSerialRequest serialReq : serials) {
+            String normalizedSerial = serialReq.serialNumber().trim();
+            if (serialReq.id() != null) {
+                LotteryTicketSerialModel existing = existingSerials.stream()
+                        .filter(serial -> serialReq.id().equals(serial.getId()))
+                        .findFirst()
+                        .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+
+                if (!normalizedSerial.equalsIgnoreCase(existing.getSerialNumber())) {
+                    if (lotteryTicketSerialRepositoryPort.existsByTicketIdAndSerialNumber(ticket.getId(), normalizedSerial)) {
+                        throw new DomainException(ErrorCode.LOTTERY_TICKET_SERIAL_EXISTED);
+                    }
+                    existing.setSerialNumber(normalizedSerial);
+                }
+                if (hasText(serialReq.ticketImg())) {
+                    existing.setTicketImg(serialReq.ticketImg().trim());
+                }
+                lotteryTicketSerialRepositoryPort.save(existing);
+                continue;
+            }
+
+            upsertSerialForTicket(
+                    ticket,
+                    new CreateLotteryTicketSerialRequest(serialReq.ticketImg(), normalizedSerial),
+                    editorId
+            );
+        }
+
+        for (LotteryTicketSerialModel existing : existingSerials) {
+            if (requestedIds.contains(existing.getId())) {
+                continue;
+            }
+            if (existing.getStatus() != LotteryTicketSerialStatus.IN_STOCK) {
+                throw new DomainException(
+                        ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                        "Không thể xóa sê-ri đang ở trạng thái " + existing.getStatus().getDisplayName()
+                );
+            }
+            existing.setDeletedAt(LocalDateTime.now());
+            lotteryTicketSerialRepositoryPort.save(existing);
+        }
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     @Override
@@ -148,5 +218,10 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     @Override
     public List<LotteryTicketSerialModel> findAllByTicketId(Long ticketId) {
         return lotteryTicketSerialRepositoryPort.findAllByTicketId(ticketId);
+    }
+
+    @Override
+    public List<EnumOptionResponse> getStatuses() {
+        return EnumOptionUtils.toEnumOptions(LotteryTicketSerialStatus.values());
     }
 }

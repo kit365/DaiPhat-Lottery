@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 
 class MainLayout extends StatefulWidget {
   final LoginViewModel loginViewModel;
@@ -62,14 +64,15 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
-  // Returns nav index: 0 = Home, 1 = Buy, 2 = Results, 3 = Blog, 4 = History, 5 = Profile
+  // Returns nav index: 0 = Home, 1 = Buy, 2 = Results, 3 = Blog, 4 = Cart, 5 = History, 6 = Profile
   int _getNavIndex(BuildContext context) {
     if (_onBlogPage) return 3;
     final String location = GoRouterState.of(context).uri.path;
     if (location.startsWith(AppRoute.buyTicket.path)) return 1;
     if (location.startsWith('/results')) return 2;
-    if (location.startsWith('/history')) return 4;
-    if (location.startsWith(AppRoute.profile.path)) return 5;
+    if (location.startsWith(AppRoute.cart.path)) return 4;
+    if (location.startsWith('/history')) return 5;
+    if (location.startsWith(AppRoute.profile.path)) return 6;
     return 0; // Home
   }
 
@@ -91,8 +94,12 @@ class _MainLayoutState extends State<MainLayout> {
         break;
       case 4:
         _goToMain();
+        context.go(AppRoute.cart.path);
         break;
       case 5:
+        _goToMain();
+        break;
+      case 6:
         _goToMain();
         if (widget.loginViewModel.isAuthenticated) {
           context.go(AppRoute.profile.path);
@@ -143,33 +150,63 @@ class _MainLayoutState extends State<MainLayout> {
           onDestinationSelected: (i) => _onNavTap(i, context),
           indicatorColor: const Color(0xFFFFF0F0),
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: const [
-            NavigationDestination(
+          destinations: [
+            const NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home, color: AppColors.primary),
               label: 'Trang chủ',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.confirmation_number_outlined),
-              selectedIcon: Icon(Icons.confirmation_number, color: AppColors.primary),
+              selectedIcon: Icon(
+                Icons.confirmation_number,
+                color: AppColors.primary,
+              ),
               label: 'Mua vé',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.emoji_events_outlined),
               selectedIcon: Icon(Icons.emoji_events, color: AppColors.primary),
               label: 'Kết quả',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.article_outlined),
               selectedIcon: Icon(Icons.article, color: AppColors.primary),
               label: 'Tin tức',
             ),
+            // Cart badge wrapped in Consumer to watch cartTicketCountProvider
             NavigationDestination(
+              icon: Consumer(
+                builder: (context, ref, child) {
+                  final count = ref.watch(cartTicketCountProvider);
+                  return Badge(
+                    isLabelVisible: count > 0,
+                    label: Text('$count'),
+                    child: const Icon(Icons.shopping_cart_outlined),
+                  );
+                },
+              ),
+              selectedIcon: Consumer(
+                builder: (context, ref, child) {
+                  final count = ref.watch(cartTicketCountProvider);
+                  return Badge(
+                    isLabelVisible: count > 0,
+                    label: Text('$count'),
+                    child: const Icon(
+                      Icons.shopping_cart,
+                      color: AppColors.primary,
+                    ),
+                  );
+                },
+              ),
+              label: 'Giỏ hàng',
+            ),
+            const NavigationDestination(
               icon: Icon(Icons.history_outlined),
               selectedIcon: Icon(Icons.history, color: AppColors.primary),
               label: 'Lịch sử',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.person_outline),
               selectedIcon: Icon(Icons.person, color: AppColors.primary),
               label: 'Cá nhân',
@@ -180,4 +217,3 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 }
-

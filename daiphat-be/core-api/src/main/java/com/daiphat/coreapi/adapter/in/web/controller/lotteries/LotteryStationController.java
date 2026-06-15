@@ -60,13 +60,11 @@ public class LotteryStationController {
     }
 
     @GetMapping("/draws/today")
-    @PreAuthorize("hasAnyAuthority('ticket:view') or hasAuthority('ROLE_MEMBER')")
     public ApiResponse<List<LotteryStationResponse>> getDrawingToday() {
         return ApiResponse.success(null, lotteryStationServicePort.getDrawingToday());
     }
 
     @GetMapping("/draws/tomorrow")
-    @PreAuthorize("hasAnyAuthority('ticket:view') or hasAuthority('ROLE_MEMBER')")
     public ApiResponse<List<LotteryStationResponse>> getDrawingTomorrow() {
         return ApiResponse.success(null, lotteryStationServicePort.getDrawingTomorrow());
     }
