@@ -5,7 +5,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
-import com.daiphat.coreapi.domain.model.enums.order.TransactionStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -145,6 +145,9 @@ public class OrderModel {
         this.status = OrderStatus.CANCELLED;
         this.cancelReason = cancelReason;
         this.cancelledAt = LocalDateTime.now();
+        if (this.orderDetails != null) {
+            this.orderDetails.forEach(OrderDetailModel::markInactive);
+        }
     }
 
     private void ensureOrderType(OrderType expectedType) {

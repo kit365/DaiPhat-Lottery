@@ -2,7 +2,7 @@ package com.daiphat.coreapi.application.strategy.payment;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;

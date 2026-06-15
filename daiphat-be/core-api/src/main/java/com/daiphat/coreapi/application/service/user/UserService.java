@@ -29,6 +29,7 @@ import com.daiphat.coreapi.domain.model.auth.InviteData;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.shared.util.AuthUtils;
+import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.StatusCountKeys;
@@ -153,9 +154,7 @@ public class UserService implements UserServicePort {
     @Override
     @Transactional(readOnly = true)
     public List<UserStatusResponse> getStatuses() {
-        return Arrays.stream(UserStatus.values())
-                .map(status -> new UserStatusResponse(status.getCode(), status.getLabel()))
-                .toList();
+        return EnumOptionUtils.toCodeLabelResponses(UserStatus.values(), UserStatusResponse::new);
     }
 
     @Override
@@ -383,8 +382,8 @@ public class UserService implements UserServicePort {
         if (roleCode != null && !roleCode.isBlank()) {
             return roleCode;
         }
-        if (roles != null && !roles.isEmpty() && roles.get(0) != null && !roles.get(0).isBlank()) {
-            return roles.get(0);
+        if (roles != null && !roles.isEmpty() && roles.getFirst() != null && !roles.getFirst().isBlank()) {
+            return roles.getFirst();
         }
         return fallback;
     }

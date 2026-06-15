@@ -36,5 +36,6 @@ public record CreateLotteryStationRequest(
         // Hiển thị
         String image,
         String description,
-        Integer displayOrder
+        Integer displayOrder,
+        String status
 ) {}

@@ -14,6 +14,8 @@ public interface LotteryTicketRepositoryPort {
 
     Optional<LotteryTicketModel> findById(Long id);
 
+    java.util.List<LotteryTicketModel> findAllByIds(Collection<Long> ids);
+
     Optional<LotteryTicketModel> findByUniqueFields(Long stationId, String numbers, LocalDate drawDate);
 
     Page<LotteryTicketModel> findAll(Pageable pageable, Long stationId, LotteryTicketStatus status,

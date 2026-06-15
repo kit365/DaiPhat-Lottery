@@ -31,6 +31,8 @@ public interface LotteryTicketRepository
             LocalDate drawDate
     );
 
+    List<LotteryTicketEntity> findAllByIdInAndDeletedAtIsNull(Collection<Long> ids);
+
     List<LotteryTicketEntity> findAllByDrawDateLessThanEqualAndStatusInAndDeletedAtIsNull(LocalDate drawDate, Collection<LotteryTicketStatus> statuses);
 
     @Query("""

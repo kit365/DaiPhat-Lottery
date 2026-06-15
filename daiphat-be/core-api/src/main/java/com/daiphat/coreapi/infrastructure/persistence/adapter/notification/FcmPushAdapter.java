@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out.notification;
+package com.daiphat.coreapi.infrastructure.persistence.adapter.notification;
 
 import com.daiphat.coreapi.application.port.out.notification.FcmPushPort;
 import com.daiphat.coreapi.application.dto.notification.FcmPushData;

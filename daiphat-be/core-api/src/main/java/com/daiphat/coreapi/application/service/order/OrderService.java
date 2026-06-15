@@ -1,9 +1,11 @@
 package com.daiphat.coreapi.application.service.order;
 
 import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
+import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.DirectOrderTransactionRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
+import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
@@ -12,13 +14,17 @@ import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
+import com.daiphat.coreapi.domain.model.enums.order.refund.OrderRefundStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
-import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.valueobject.Phone;
+import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -55,16 +61,15 @@ public class OrderService implements OrderServicePort {
     public OrderModel createOnlineOrder(CreateOnlineOrderRequest request, UUID customerId) {
         log.info("Creating online order for customer: {}", customerId);
 
-        validateTicketIds(request.lotteryTicketIds());
+        List<Long> ticketIds = resolveTicketIds(request.items());
+        validateTicketIds(ticketIds);
         ensureUserExists(customerId);
         ensureValidPhone(request.phone());
         List<OrderDetailModel> orderDetails = new ArrayList<>();
-        List<OrderTicketSnapshot> ticketSnapshots = new ArrayList<>();
+        List<OrderTicketSnapshot> ticketSnapshots = lotteryTicketServicePort.reserveForOrder(ticketIds);
         BigDecimal totalAmount = BigDecimal.ZERO;
 
-        for (Long ticketId : request.lotteryTicketIds()) {
-            OrderTicketSnapshot ticketSnapshot = lotteryTicketServicePort.reserveForOrder(ticketId);
-            ticketSnapshots.add(ticketSnapshot);
+        for (OrderTicketSnapshot ticketSnapshot : ticketSnapshots) {
             orderDetails.add(buildOrderDetail(ticketSnapshot));
             totalAmount = totalAmount.add(ticketSnapshot.price());
         }
@@ -94,19 +99,20 @@ public class OrderService implements OrderServicePort {
     public OrderModel createDirectOrder(CreateDirectOrderRequest request, UUID operatorId) {
         log.info("Creating direct order");
 
-        validateTicketIds(request.lotteryTicketIds());
+        List<Long> ticketIds = resolveTicketIds(request.items());
+        validateTicketIds(ticketIds);
         ensureUserExistsIfPresent(request.customerId());
         ensureUserExists(operatorId);
         ensureValidPhone(request.phone());
         boolean hasPendingOnlinePayment = hasPendingOnlinePayment(request);
 
         List<OrderDetailModel> orderDetails = new ArrayList<>();
+        List<OrderTicketSnapshot> ticketSnapshots = hasPendingOnlinePayment
+                ? lotteryTicketServicePort.reserveForOrder(ticketIds)
+                : lotteryTicketServicePort.sellOfflineForOrder(ticketIds);
         BigDecimal totalAmount = BigDecimal.ZERO;
 
-        for (Long ticketId : request.lotteryTicketIds()) {
-            OrderTicketSnapshot ticketSnapshot = hasPendingOnlinePayment
-                    ? lotteryTicketServicePort.reserveForOrder(ticketId)
-                    : lotteryTicketServicePort.sellOfflineForOrder(ticketId);
+        for (OrderTicketSnapshot ticketSnapshot : ticketSnapshots) {
             orderDetails.add(buildOrderDetail(ticketSnapshot));
             totalAmount = totalAmount.add(ticketSnapshot.price());
         }
@@ -131,6 +137,31 @@ public class OrderService implements OrderServicePort {
         return saved;
     }
 
+    @Override
+    public List<EnumOptionResponse> getOrderTypes() {
+        return EnumOptionUtils.toEnumOptions(OrderType.values());
+    }
+
+    @Override
+    public List<EnumOptionResponse> getOrderStatuses() {
+        return EnumOptionUtils.toEnumOptions(OrderStatus.values());
+    }
+
+    @Override
+    public List<EnumOptionResponse> getOrderReceiveTypes() {
+        return EnumOptionUtils.toEnumOptions(OrderReceiveType.values());
+    }
+
+    @Override
+    public List<EnumOptionResponse> getOrderDetailStatuses() {
+        return EnumOptionUtils.toEnumOptions(OrderDetailStatus.values());
+    }
+
+    @Override
+    public List<EnumOptionResponse> getOrderRefundStatuses() {
+        return EnumOptionUtils.toEnumOptions(OrderRefundStatus.values());
+    }
+
     private OrderDetailModel buildOrderDetail(OrderTicketSnapshot ticketSnapshot) {
         OrderDetailModel detail = orderApplicationMapper.toOrderDetailModel(ticketSnapshot);
         detail.initializeForCreate();
@@ -138,9 +169,25 @@ public class OrderService implements OrderServicePort {
     }
 
     private void validateTicketIds(List<Long> ticketIds) {
-        if (ticketIds == null || ticketIds.isEmpty()) {
+        if (ticketIds == null || ticketIds.isEmpty() || ticketIds.size() > 10) {
             throw new DomainException(ErrorCode.INVALID_INPUT);
         }
+    }
+
+    private List<Long> resolveTicketIds(List<OrderTicketItemRequest> items) {
+        List<Long> resolvedTicketIds = new ArrayList<>();
+        for (OrderTicketItemRequest item : items) {
+            if (item == null
+                    || item.lotteryTicketId() == null
+                    || item.quantity() == null
+                    || item.quantity() <= 0) {
+                throw new DomainException(ErrorCode.INVALID_INPUT);
+            }
+            for (int i = 0; i < item.quantity(); i++) {
+                resolvedTicketIds.add(item.lotteryTicketId());
+            }
+        }
+        return resolvedTicketIds;
     }
 
     private void ensureUserExists(UUID userId) {
@@ -261,4 +308,5 @@ public class OrderService implements OrderServicePort {
         }
         throw new DomainException(ErrorCode.ORDER_CODE_GENERATION_FAILED);
     }
+
 }

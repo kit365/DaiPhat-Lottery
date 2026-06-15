@@ -131,7 +131,19 @@ public class OrderPersistenceMapper {
         return OrderDetailModel.builder()
                 .id(entity.getId())
                 .orderId(entity.getOrder() != null ? entity.getOrder().getId() : null)
+                .lotteryTicketId(
+                        entity.getLotteryTicketSerial() != null
+                                && entity.getLotteryTicketSerial().getTicket() != null
+                                ? entity.getLotteryTicketSerial().getTicket().getId()
+                                : null
+                )
                 .lotteryTicketSerialId(entity.getLotteryTicketSerial() != null ? entity.getLotteryTicketSerial().getId() : null)
+                .replacedByTicketId(
+                        entity.getReplacedByTicketSerial() != null
+                                && entity.getReplacedByTicketSerial().getTicket() != null
+                                ? entity.getReplacedByTicketSerial().getTicket().getId()
+                                : null
+                )
                 .replacedByTicketSerialId(entity.getReplacedByTicketSerial() != null ? entity.getReplacedByTicketSerial().getId() : null)
                 .price(entity.getPrice())
                 .status(entity.getStatus())

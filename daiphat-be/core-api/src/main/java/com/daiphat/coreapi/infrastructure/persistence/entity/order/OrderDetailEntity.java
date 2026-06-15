@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.order;
 
-import com.daiphat.coreapi.domain.model.enums.order.OrderDetailStatus;
+import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import jakarta.persistence.*;
 import lombok.*;

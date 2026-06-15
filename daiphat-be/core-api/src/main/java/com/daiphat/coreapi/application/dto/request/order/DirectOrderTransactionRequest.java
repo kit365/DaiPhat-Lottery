@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.application.dto.request.order;
 
-import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 
