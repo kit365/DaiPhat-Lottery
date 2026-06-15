@@ -16,7 +16,7 @@ import { CreateProviderFormValues, createProviderSchema } from "../../schemas/pr
 import { prefixAdmin } from "../../constants/routes";
 import { toast } from "react-toastify";
 import { LoadingButton } from "../../components/ui/LoadingButton";
-import { UploadFiles } from "../../components/ui/UploadFiles";
+import { FormUploadSingleFile } from "../../components/upload/FormUploadSingleFile";
 
 export const ProviderCreatePage = () => {
     const [expandedDetail, setExpandedDetail] = useState(true);
@@ -76,13 +76,10 @@ export const ProviderCreatePage = () => {
             minNumber: 0,
             maxNumber: 999999,
             drawSchedule: "",
-            drawTime: "",
-            nextDrawDate: "",
+            drawTime: "16:15",
         },
     });
 
-    const [files, setFiles] = useState<any[]>([]);
-    const [resetKey, setResetKey] = useState(0);
     const regionValue = watch("region");
     const provinceOptions = regionValue ? REGION_DATA[regionValue] || [] : [];
 
@@ -92,31 +89,31 @@ export const ProviderCreatePage = () => {
     const onSubmit = (data: CreateProviderFormValues) => {
         const payload = {
             ...data,
-            image: files.length > 0 ? files[0].name : "",
+            image: "", // Image will be uploaded in the second step
         };
 
         create(payload, {
             onSuccess: (response) => {
                 if (response.success) {
                     const createdProviderId = response.data?.id || response.data?._id;
-                    const fileToUpload = files.find(f => f instanceof File);
+                    const fileToUpload = data.image instanceof File ? data.image : null;
 
                     if (createdProviderId && fileToUpload) {
                         uploadImage({ id: createdProviderId, file: fileToUpload }, {
                             onSuccess: () => {
-                                finalizeSuccess();
+                                finalizeSuccess(response.message);
                             },
                             onError: (uploadErr: any) => {
-                                toast.error(uploadErr?.response?.data?.message || uploadErr?.message || "Lỗi tải ảnh lên hệ thống");
-                                finalizeSuccess();
+                                toast.error(uploadErr?.response?.data?.message || uploadErr?.message || "Tạo nhà đài thành công nhưng lỗi tải ảnh lên");
+                                finalizeSuccess(response.message);
                             }
                         });
                     } else {
-                        finalizeSuccess();
+                        finalizeSuccess(response.message);
                     }
 
-                    function finalizeSuccess() {
-                        toast.success(response.message || "Tạo nhà đài thành công");
+                    function finalizeSuccess(msg: string) {
+                        toast.success(msg || "Tạo nhà đài thành công");
                         reset({
                             name: "",
                             description: "",
@@ -129,12 +126,10 @@ export const ProviderCreatePage = () => {
                             minNumber: 0,
                             maxNumber: 999999,
                             drawSchedule: "",
-                            drawTime: "",
-                            nextDrawDate: "",
+                            drawTime: "16:15",
                             displayOrder: 0,
+                            image: "",
                         });
-                        setFiles([]);
-                        setResetKey(prev => prev + 1);
                     }
                 } else {
                     toast.error(response.message);
@@ -353,7 +348,7 @@ export const ProviderCreatePage = () => {
                                             }}
                                         />
                                     </Box>
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
                                         <Controller
                                             name="drawTime"
                                             control={control}
@@ -392,50 +387,6 @@ export const ProviderCreatePage = () => {
                                                                 '& .MuiClockPointer-thumb': {
                                                                     backgroundColor: '#10b981 !important',
                                                                     borderColor: '#10b981 !important',
-                                                                },
-                                                                '& .MuiButton-textPrimary': {
-                                                                    color: '#10b981 !important',
-                                                                }
-                                                            }
-                                                        }
-                                                    }}
-                                                />
-                                            )}
-                                        />
-                                    </Box>
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
-                                        <Controller
-                                            name="nextDrawDate"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <DatePicker
-                                                    label="Ngày quay tiếp theo"
-                                                    format="DD/MM/YYYY"
-                                                    value={field.value ? dayjs(field.value) : null}
-                                                    onChange={(newValue) => {
-                                                        field.onChange(newValue ? newValue.format('YYYY-MM-DD') : '');
-                                                    }}
-                                                    localeText={{ cancelButtonLabel: 'Hủy' }}
-                                                    slotProps={{
-                                                        textField: {
-                                                            fullWidth: true,
-                                                            error: !!fieldState.error,
-                                                            helperText: fieldState.error?.message,
-                                                            InputLabelProps: { shrink: true },
-                                                            sx: {
-                                                                '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                                    borderColor: 'var(--palette-text-primary) !important',
-                                                                },
-                                                                '& .MuiInputLabel-root.Mui-focused': {
-                                                                    color: 'var(--palette-text-primary) !important',
-                                                                }
-                                                            }
-                                                        },
-                                                        popper: {
-                                                            sx: {
-                                                                '& .Mui-selected, & .Mui-selected:hover': {
-                                                                    backgroundColor: '#10b981 !important',
-                                                                    color: '#fff !important',
                                                                 },
                                                                 '& .MuiButton-textPrimary': {
                                                                     color: '#10b981 !important',
@@ -503,10 +454,10 @@ export const ProviderCreatePage = () => {
                                 </Box>
                                 <Box sx={{ mt: 1 }}>
                                     <div className="mb-3 font-semibold">Ảnh nhà đài (Tùy chọn)</div>
-                                    <UploadFiles 
-                                        key={resetKey}
-                                        files={files} 
-                                        onFilesChange={(newFiles) => setFiles(newFiles)} 
+                                    <FormUploadSingleFile
+                                        name="image"
+                                        control={control}
+                                        useRawFile={true}
                                     />
                                 </Box>
                                 <Box sx={{ mt: 1 }}>

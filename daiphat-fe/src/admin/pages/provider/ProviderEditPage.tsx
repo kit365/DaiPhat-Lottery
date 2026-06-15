@@ -16,7 +16,7 @@ import { SwitchButton } from "../../components/ui/SwitchButton";
 import { prefixAdmin } from "../../constants/routes";
 import { toast } from "react-toastify";
 import { LoadingButton } from "../../components/ui/LoadingButton";
-import { UploadFiles } from "../../components/ui/UploadFiles";
+import { FormUploadSingleFile } from "../../components/upload/FormUploadSingleFile";
 import { useParams } from "react-router-dom";
 
 export const ProviderEditPage = () => {
@@ -59,12 +59,17 @@ export const ProviderEditPage = () => {
         }
     }), [outerTheme]);
 
-    const [files, setFiles] = useState<any[]>([]);
-    const [resetKey, setResetKey] = useState(0);
-
     const { data: detailRes, isLoading: isLoadingDetail } = useProviderDetail(id);
     const { mutate: update, isPending: isUpdating } = useUpdateProvider();
-    const { mutate: uploadImage, isPending: isUploadingImage } = useUploadProviderImage();
+    const { mutateAsync: uploadImageAsync, isPending: isUploadingImage } = useUploadProviderImage();
+
+    const customUpload = async (file: File) => {
+        const res = await uploadImageAsync({ id: id!, file });
+        if (!res.success) {
+            throw new Error(res.message || "Lỗi tải ảnh lên");
+        }
+        return res.data?.thumbnailUrl || res.data?.avatar || res.data?.image || "";
+    };
 
     const {
         control,
@@ -86,8 +91,7 @@ export const ProviderEditPage = () => {
             minNumber: 0,
             maxNumber: 999999,
             drawSchedule: "",
-            drawTime: "",
-            nextDrawDate: "",
+            drawTime: "16:15",
             displayOrder: 0,
         },
     });
@@ -109,62 +113,29 @@ export const ProviderEditPage = () => {
                 minNumber: detailRes.minNumber || 0,
                 maxNumber: detailRes.maxNumber || 999999,
                 drawSchedule: detailRes.drawSchedule || "",
-                drawTime: detailRes.drawTime || "",
-                nextDrawDate: detailRes.nextDrawDate || "",
+                drawTime: detailRes.drawTime || "16:15",
                 image: detailRes.image || "",
                 displayOrder: detailRes.displayOrder || 0,
             });
-            if (detailRes.image) {
-                setFiles([detailRes.image]);
-            } else {
-                setFiles([]);
-            }
         }
     }, [detailRes, reset]);
 
     const onSubmit = (data: CreateProviderFormValues) => {
-        let imagePath = detailRes?.image || "";
-        if (files.length > 0 && !(files[0] instanceof File)) {
-            imagePath = files[0];
-        } else if (files.length > 0) {
-            imagePath = files[0].name;
-        } else {
-            imagePath = "";
-        }
-
         const payload = {
             ...data,
-            image: imagePath,
+            image: typeof data.image === 'string' ? data.image : (detailRes?.image || ""),
         };
 
         update({ id: id!, data: payload }, {
             onSuccess: (response) => {
                 if (response.success) {
-                    const fileToUpload = files.find(f => f instanceof File);
-
-                    if (fileToUpload) {
-                        uploadImage({ id: id!, file: fileToUpload }, {
-                            onSuccess: () => {
-                                finalizeSuccess();
-                            },
-                            onError: (uploadErr: any) => {
-                                toast.error(uploadErr?.response?.data?.message || uploadErr?.message || "Lỗi tải ảnh lên hệ thống");
-                                finalizeSuccess();
-                            }
-                        });
-                    } else {
-                        finalizeSuccess();
-                    }
-
-                    function finalizeSuccess() {
-                        toast.success(response.message || "Cập nhật nhà đài thành công");
-                    }
+                    toast.success(response.message || "Cập nhật nhà đài thành công");
                 } else {
                     toast.error(response.message);
                 }
             },
             onError: (err: any) => {
-                const message = err?.response?.data?.message || err?.message || "Có lỗi xảy ra trong quá trình cập nhật";
+                const message = err?.response?.data?.message || err?.message || "Cập nhật nhà đài thất bại";
                 toast.error(message);
             }
         });
@@ -376,7 +347,7 @@ export const ProviderEditPage = () => {
                                             }}
                                         />
                                     </Box>
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
                                         <Controller
                                             name="drawTime"
                                             control={control}
@@ -415,50 +386,6 @@ export const ProviderEditPage = () => {
                                                                 '& .MuiClockPointer-thumb': {
                                                                     backgroundColor: '#10b981 !important',
                                                                     borderColor: '#10b981 !important',
-                                                                },
-                                                                '& .MuiButton-textPrimary': {
-                                                                    color: '#10b981 !important',
-                                                                }
-                                                            }
-                                                        }
-                                                    }}
-                                                />
-                                            )}
-                                        />
-                                    </Box>
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
-                                        <Controller
-                                            name="nextDrawDate"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <DatePicker
-                                                    label="Ngày quay tiếp theo"
-                                                    format="DD/MM/YYYY"
-                                                    value={field.value ? dayjs(field.value) : null}
-                                                    onChange={(newValue) => {
-                                                        field.onChange(newValue ? newValue.format('YYYY-MM-DD') : '');
-                                                    }}
-                                                    localeText={{ cancelButtonLabel: 'Hủy' }}
-                                                    slotProps={{
-                                                        textField: {
-                                                            fullWidth: true,
-                                                            error: !!fieldState.error,
-                                                            helperText: fieldState.error?.message,
-                                                            InputLabelProps: { shrink: true },
-                                                            sx: {
-                                                                '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                                    borderColor: 'var(--palette-text-primary) !important',
-                                                                },
-                                                                '& .MuiInputLabel-root.Mui-focused': {
-                                                                    color: 'var(--palette-text-primary) !important',
-                                                                }
-                                                            }
-                                                        },
-                                                        popper: {
-                                                            sx: {
-                                                                '& .Mui-selected, & .Mui-selected:hover': {
-                                                                    backgroundColor: '#10b981 !important',
-                                                                    color: '#fff !important',
                                                                 },
                                                                 '& .MuiButton-textPrimary': {
                                                                     color: '#10b981 !important',
@@ -527,10 +454,10 @@ export const ProviderEditPage = () => {
 
                                 <Box sx={{ mt: 1 }}>
                                     <div className="mb-3 font-semibold">Ảnh nhà đài (Tùy chọn)</div>
-                                    <UploadFiles 
-                                        key={resetKey}
-                                        files={files} 
-                                        onFilesChange={(newFiles) => setFiles(newFiles)} 
+                                    <FormUploadSingleFile
+                                        name="image"
+                                        control={control}
+                                        customUpload={customUpload}
                                     />
                                 </Box>
 

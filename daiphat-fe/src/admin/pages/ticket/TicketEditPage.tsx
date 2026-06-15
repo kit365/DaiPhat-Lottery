@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react"
 import { UploadFiles } from "../../components/ui/UploadFiles"
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../constants/routes";
-import { useUpdateTicket, useTicketDetail, useUploadTicketImage, useUploadTicketSerialImage } from "./hooks/useTicket";
+import { useUpdateTicket, useTicketDetail } from "./hooks/useTicket";
 import { toast } from "react-toastify";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -75,11 +75,9 @@ export const TicketEditPage = () => {
     const [expandedSerials, setExpandedSerials] = useState(true);
     const [resetKey, setResetKey] = useState(0);
 
-    const { data: providersRes } = useProviders({ limit: 1000 });
+    const { data: providersRes } = useProviders({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
     const { mutate: update, isPending } = useUpdateTicket();
-    const { mutateAsync: uploadImageAsync, isPending: isUploadingImage } = useUploadTicketImage();
-    const { mutateAsync: uploadSerialImageAsync, isPending: isUploadingSerialImage } = useUploadTicketSerialImage();
 
     const outerTheme = useTheme();
 
@@ -120,11 +118,11 @@ export const TicketEditPage = () => {
                 ? ticketDetail.serials.map((serial: any) => ({
                     id: serial.id,
                     serialNumber: serial.serialNumber || "",
-                    ticketImg: serial.ticketImg ? [serial.ticketImg as any] : undefined,
+                    ticketImg: serial.ticketImg || undefined,
                 }))
                 : [{
                     serialNumber: ticketDetail.serialNumber || "",
-                    ticketImg: ticketDetail.ticketImg ? [ticketDetail.ticketImg as any] : undefined,
+                    ticketImg: ticketDetail.ticketImg || undefined,
                 }];
 
             reset({
@@ -138,7 +136,7 @@ export const TicketEditPage = () => {
     }, [ticketDetail, reset]);
 
     const onSubmit = (data: CreateTicketFormValues) => {
-        const selectedProvider = providers.find((p: any) => (p.id || p._id) === data.stationId);
+        const selectedProvider = providers.find((p: any) => String(p.id || p._id) === String(data.stationId));
         let finalDrawDate = "";
         
         if (selectedProvider) {
@@ -167,16 +165,9 @@ export const TicketEditPage = () => {
         const payload = {
             stationId: data.stationId,
             serials: data.serials.map((s, idx) => {
-                let ticketImgPath = "";
-                // If it's a File, upload it later, pass the name. 
-                // If it's a string (old image), pass the string.
-                if (s.ticketImg && s.ticketImg.length > 0) {
-                    if (s.ticketImg[0] instanceof File) {
-                        ticketImgPath = s.ticketImg[0].name;
-                    } else {
-                        ticketImgPath = s.ticketImg[0] as unknown as string;
-                    }
-                } else if (idx === 0 && ticketDetail?.ticketImg) {
+                let ticketImgPath = typeof s.ticketImg === 'string' ? s.ticketImg : "";
+                
+                if (idx === 0 && !ticketImgPath && ticketDetail?.ticketImg) {
                     // Fallback to old image for the first serial if no new image was uploaded
                     ticketImgPath = ticketDetail.ticketImg;
                 }
@@ -193,51 +184,10 @@ export const TicketEditPage = () => {
 
         if (id) {
             update({ id, data: payload }, {
-                onSuccess: async (res: any) => {
+                onSuccess: (res: any) => {
                     if (res.success) {
-                        const allFilesToUpload = data.serials
-                            .filter(s => s.ticketImg && s.ticketImg.length > 0 && s.ticketImg[0] instanceof File)
-                            .map(s => s.ticketImg[0]);
-
-                        if (allFilesToUpload.length > 0) {
-                            try {
-                                const serialImageUploads = data.serials
-                                    .map((serial, index) => {
-                                        const file = serial.ticketImg?.[0];
-                                        if (!(file instanceof File)) {
-                                            return null;
-                                        }
-
-                                        const serialId = serial.id || ticketDetail?.serials?.[index]?.id;
-                                        if (!serialId) {
-                                            return { type: 'ticket' as const, file };
-                                        }
-
-                                        return { type: 'serial' as const, id: serialId, file };
-                                    })
-                                    .filter(Boolean);
-
-                                for (const upload of serialImageUploads) {
-                                    if (!upload) continue;
-                                    if (upload.type === 'serial') {
-                                        await uploadSerialImageAsync({ id: upload.id, file: upload.file });
-                                    } else {
-                                        await uploadImageAsync({ id, file: upload.file });
-                                    }
-                                }
-                                finalizeSuccess();
-                            } catch (err: any) {
-                                toast.error(err?.response?.data?.message || err?.message || "Lỗi tải ảnh lên hệ thống");
-                                finalizeSuccess();
-                            }
-                        } else {
-                            finalizeSuccess();
-                        }
-
-                        function finalizeSuccess() {
-                            toast.success(res.message || "Cập nhật vé số thành công!");
-                            navigate(`/${prefixAdmin}/ticket/list`);
-                        }
+                        toast.success(res.message || "Cập nhật vé số thành công!");
+                        navigate(`/${prefixAdmin}/ticket/list`);
                     } else {
                         toast.error(res.message || "Cập nhật vé số thất bại");
                     }
@@ -392,7 +342,7 @@ export const TicketEditPage = () => {
                                             gridTemplateColumns: "repeat(12, 1fr)",
                                             gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))",
                                         }}>
-                                            <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                            <Box sx={{ gridColumn: { xs: "span 12", md: "span 12" } }}>
                                                 <Controller
                                                     name={`serials.${index}.serialNumber`}
                                                     control={control}
@@ -404,27 +354,6 @@ export const TicketEditPage = () => {
                                                             error={!!fieldState.error}
                                                             helperText={fieldState.error?.message}
                                                         />
-                                                    )}
-                                                />
-                                            </Box>
-                                            <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                                <div className="mb-2 font-medium text-sm text-gray-600">Ảnh vé số</div>
-                                                <Controller
-                                                    name={`serials.${index}.ticketImg`}
-                                                    control={control}
-                                                    render={({ field }) => (
-                                                        <>
-                                                            <UploadFiles
-                                                                key={`${resetKey}-${index}`}
-                                                                files={Array.isArray(field.value) && field.value[0] instanceof File ? field.value : []}
-                                                                onFilesChange={(newFiles) => field.onChange(newFiles)}
-                                                            />
-                                                            {Array.isArray(field.value) && typeof field.value[0] === 'string' && (
-                                                                <div className="mt-2 text-sm text-gray-500">
-                                                                    Ảnh hiện tại: {field.value[0]}
-                                                                </div>
-                                                            )}
-                                                        </>
                                                     )}
                                                 />
                                             </Box>
@@ -446,7 +375,7 @@ export const TicketEditPage = () => {
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: "calc(2 * var(--spacing))" }}>
                             <LoadingButton
                                 type="submit"
-                                loading={isPending || isUploadingImage || isUploadingSerialImage}
+                                loading={isPending}
                                 label={"Lưu thay đổi"}
                                 loadingLabel="Đang lưu..."
                                 sx={{ minHeight: "3rem", minWidth: "4rem" }}
