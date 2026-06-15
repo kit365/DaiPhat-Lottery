@@ -78,27 +78,41 @@ export const BuyTicketPage = () => {
             return false;
         }
 
+        let hasError = false;
         selectedNumbers.forEach(num => {
             const ticketData = availableTickets.find((t: any) => t.numbers === num);
+            if (!ticketData || (!ticketData.id && !ticketData._id)) {
+                hasError = true;
+                toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);
+                return;
+            }
+
             useCartStore.getState().addItem({
-                id: ticketData?.id || ticketData?._id || Math.random().toString(36).substr(2, 9),
+                id: String(ticketData.id || ticketData._id),
                 province: activeProvinceObj.name,
                 date: selectedDate === 'today' ? `Hôm nay, ${dayjs().format('DD/MM/YYYY')}` : `Ngày mai, ${dayjs().add(1, 'day').format('DD/MM/YYYY')}`,
                 time: activeProvinceObj.time,
-                kyHieu: ticketData?.batchCode || "2K2",
+                kyHieu: ticketData.batchCode || "2K2",
                 numbers: num,
                 price: pricePerTicket,
                 quantity: ticketQuantity,
                 color: "#f59e0b"
             });
         });
+        
+        if (hasError) return false;
         toast.success(`Đã thêm ${totalQuantity} vé vào giỏ hàng`);
         return true;
     };
 
     const handleCheckout = () => {
+        if (!activeProvinceObj || selectedNumbers.length === 0) {
+            toast.warning('Vui lòng chọn ít nhất 1 vé số!');
+            return;
+        }
+        useCartStore.getState().clearCart();
         if (addToCart()) {
-            navigate('/cart');
+            navigate('/checkout');
         }
     };
 
