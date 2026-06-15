@@ -10,7 +10,6 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 public interface LotteryStationServicePort {
 
@@ -36,10 +35,6 @@ public interface LotteryStationServicePort {
     LotteryStationResponse update(Long id, UpdateLotteryStationRequest request);
 
     void delete(Long id);
-
-    LotteryStationResponse submitForApproval(Long id);
-
-    LotteryStationResponse approve(Long id, UUID adminId);
 
     LotteryStationResponse uploadImage(Long id, UploadRequest request);
 

@@ -26,7 +26,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,7 +43,6 @@ class LotteryStationServiceTest {
     private static final Long STATION_ID = 42L;
     private static final String STATION_NAME = "TP. Hồ Chí Minh";
     private static final String REGION = "MIEN_NAM";
-    private static final UUID ADMIN_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     @Mock
     private LotteryStationRepositoryPort lotteryStationRepositoryPort;
@@ -164,94 +162,6 @@ class LotteryStationServiceTest {
 
         verify(lotteryStationRepositoryPort, never()).save(any());
         verify(stationPrizeStructureSeeder, never()).seedFromRegion(any());
-    }
-
-    @Test
-    void submitForApproval_success_setsPendingApproval() {
-        LotteryStationModel draftStation = LotteryStationModel.builder()
-                .id(STATION_ID)
-                .name(STATION_NAME)
-                .region(REGION)
-                .type(LotteryStationType.TRADITIONAL)
-                .price(BigDecimal.valueOf(10000))
-                .status(LotteryStationStatus.DRAFT)
-                .build();
-        LotteryStationResponse pendingResponse = LotteryStationResponse.builder()
-                .id(STATION_ID)
-                .name(STATION_NAME)
-                .region(REGION)
-                .type(LotteryStationType.TRADITIONAL.name())
-                .status(LotteryStationStatus.PENDING_APPROVAL.name())
-                .price(BigDecimal.valueOf(10000))
-                .build();
-
-        when(lotteryStationRepositoryPort.findById(STATION_ID)).thenReturn(Optional.of(draftStation));
-        when(lotteryTicketRepositoryPort.sumQuantityByProductIdAndStatuses(eq(STATION_ID), any()))
-                .thenReturn(0L);
-        when(lotteryStationRepositoryPort.save(draftStation)).thenReturn(draftStation);
-        when(lotteryStationApplicationMapper.toResponse(draftStation)).thenReturn(pendingResponse);
-
-        LotteryStationResponse result = lotteryStationService.submitForApproval(STATION_ID);
-
-        assertThat(result.status()).isEqualTo(LotteryStationStatus.PENDING_APPROVAL.name());
-        assertThat(draftStation.getStatus()).isEqualTo(LotteryStationStatus.PENDING_APPROVAL);
-    }
-
-    @Test
-    void approve_success_activatesStation() {
-        LotteryStationModel pendingStation = LotteryStationModel.builder()
-                .id(STATION_ID)
-                .name(STATION_NAME)
-                .region(REGION)
-                .type(LotteryStationType.TRADITIONAL)
-                .price(BigDecimal.valueOf(10000))
-                .status(LotteryStationStatus.PENDING_APPROVAL)
-                .build();
-        LotteryStationResponse activeResponse = LotteryStationResponse.builder()
-                .id(STATION_ID)
-                .name(STATION_NAME)
-                .region(REGION)
-                .type(LotteryStationType.TRADITIONAL.name())
-                .status(LotteryStationStatus.ACTIVE.name())
-                .price(BigDecimal.valueOf(10000))
-                .build();
-
-        when(lotteryStationRepositoryPort.findById(STATION_ID)).thenReturn(Optional.of(pendingStation));
-        when(lotteryTicketRepositoryPort.sumQuantityByProductIdAndStatuses(eq(STATION_ID), any()))
-                .thenReturn(0L);
-        when(lotteryStationRepositoryPort.save(pendingStation)).thenReturn(pendingStation);
-        when(lotteryStationApplicationMapper.toResponse(pendingStation)).thenReturn(activeResponse);
-
-        LotteryStationResponse result = lotteryStationService.approve(STATION_ID, ADMIN_ID);
-
-        assertThat(result.status()).isEqualTo(LotteryStationStatus.ACTIVE.name());
-        assertThat(pendingStation.getStatus()).isEqualTo(LotteryStationStatus.ACTIVE);
-        assertThat(pendingStation.getApprovedById()).isEqualTo(ADMIN_ID);
-        assertThat(pendingStation.getApprovedAt()).isNotNull();
-    }
-
-    @Test
-    void update_withActiveStatus_throwsUseWorkflowError() {
-        LotteryStationModel station = LotteryStationModel.builder()
-                .id(STATION_ID)
-                .name(STATION_NAME)
-                .region(REGION)
-                .type(LotteryStationType.TRADITIONAL)
-                .price(BigDecimal.valueOf(10000))
-                .status(LotteryStationStatus.DRAFT)
-                .build();
-        UpdateLotteryStationRequest request = UpdateLotteryStationRequest.builder()
-                .status(LotteryStationStatus.ACTIVE.name())
-                .build();
-
-        when(lotteryStationRepositoryPort.findById(STATION_ID)).thenReturn(Optional.of(station));
-
-        assertThatThrownBy(() -> lotteryStationService.update(STATION_ID, request))
-                .isInstanceOf(DomainException.class)
-                .extracting(ex -> ((DomainException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.LOTTERY_STATION_STATUS_USE_WORKFLOW);
-
-        verify(lotteryStationRepositoryPort, never()).save(any());
     }
 
     @Test

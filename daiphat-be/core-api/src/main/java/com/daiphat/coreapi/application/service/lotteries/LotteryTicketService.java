@@ -85,7 +85,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         LotteryTicketModel saved = recomputeTicketAggregate(ticket.getId());
 
         log.info("Lottery ticket imported with id: {}", saved.getId());
-        return mapToResponse(saved);
+        return mapToDetailResponse(saved);
     }
 
     @Override
@@ -139,8 +139,46 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PageResponse<LotteryTicketResponse> getPublicTickets(
+            int page, int size, Long stationId, String drawDate,
+            String search, String sortBy, String direction) {
+
+        PageRequest pageable = PageRequest.of(
+                Math.max(0, page - 1),
+                size,
+                SortUtils.createSort(sortBy, direction)
+        );
+
+        LocalDate parsedDrawDate = parseDrawDate(drawDate);
+
+        Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
+                .findAllPublic(pageable, stationId, parsedDrawDate, search);
+
+        Map<Long, String> stationNameCache = new HashMap<>();
+        Map<Long, LotteryTicketSerialModel> serialsByTicketId = lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(
+                ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList()
+        );
+        List<LotteryTicketResponse> responses = ticketPage.getContent().stream()
+                .map(ticket -> mapToResponse(ticket, serialsByTicketId.get(ticket.getId()), stationNameCache))
+                .toList();
+
+        return PageResponse.<LotteryTicketResponse>builder()
+                .recordList(responses)
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(ticketPage.getTotalElements())
+                        .totalPages(ticketPage.getTotalPages())
+                        .currentPage(page)
+                        .limit(size)
+                        .isFirst(ticketPage.isFirst())
+                        .isLast(ticketPage.isLast())
+                        .build())
+                .build();
+    }
+
+    @Override
     @Transactional
-    public LotteryTicketResponse update(Long id, UpdateLotteryTicketRequest request) {
+    public LotteryTicketResponse update(Long id, UpdateLotteryTicketRequest request, UUID editorId) {
         log.info("Updating lottery ticket with id: {}", id);
 
         LotteryTicketModel model = getTicketOrThrow(id);
@@ -175,11 +213,15 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             applyStatusTransition(model, request.status());
         }
 
-        LotteryTicketModel saved = request.drawDate() != null
-                ? recomputeTicketAggregate(model.getId())
-                : lotteryTicketRepositoryPort.save(model);
+        lotteryTicketRepositoryPort.save(model);
+
+        if (request.serials() != null && !request.serials().isEmpty()) {
+            lotteryTicketSerialService.syncSerialsForTicket(model, request.serials(), editorId);
+        }
+
+        LotteryTicketModel saved = recomputeTicketAggregate(model.getId());
         log.info("Lottery ticket updated with id: {}", saved.getId());
-        return mapToResponse(saved);
+        return mapToDetailResponse(saved);
     }
 
     @Override
@@ -204,16 +246,22 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         LotteryTicketModel model = getTicketOrThrow(id);
         StorageUtils.validateImageUpload(request);
 
-        StorageResult result = storagePort.upload(new UploadRequest(
+        StorageResult result = uploadAsset(request);
+
+        model.setTicketImg(result.url());
+        LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
+        return mapToDetailResponse(saved);
+    }
+
+    @Override
+    public StorageResult uploadAsset(UploadRequest request) {
+        StorageUtils.validateImageUpload(request);
+        return storagePort.upload(new UploadRequest(
                 request.data(),
                 request.fileName(),
                 request.contentType(),
                 StorageFolderConstants.TICKET_IMAGE_FOLDER
         ));
-
-        model.setTicketImg(result.url());
-        LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
-        return mapToResponse(saved);
     }
 
     @Override
@@ -226,7 +274,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         model.verify(verifierId);
 
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
-        return mapToResponse(saved);
+        return mapToDetailResponse(saved);
     }
 
     @Override
@@ -253,7 +301,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
         syncStationInventory(model.getStationId());
-        return mapToResponse(saved);
+        return mapToDetailResponse(saved);
     }
 
     @Override
@@ -334,6 +382,14 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private LotteryTicketResponse mapToResponse(LotteryTicketModel model) {
         LotteryTicketSerialModel serial = lotteryTicketSerialService.findFirstByTicketId(model.getId()).orElse(null);
         return mapToResponse(model, serial, new HashMap<>());
+    }
+
+    private LotteryTicketResponse mapToDetailResponse(LotteryTicketModel model) {
+        List<LotteryTicketSerialModel> serials = lotteryTicketSerialService.findAllByTicketId(model.getId());
+        String stationName = lotteryStationServicePort.findModelById(model.getStationId())
+                .map(LotteryStationModel::getName)
+                .orElse(null);
+        return lotteryTicketApplicationMapper.toResponseDetail(model, serials, stationName);
     }
 
     private LotteryTicketResponse mapToResponse(
@@ -490,8 +546,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     private void validateUniqueTicket(Long stationId, String numbers, LocalDate drawDate, Long currentId) {
         boolean existed = currentId == null
-                ? lotteryTicketRepositoryPort.existsByUniqueFields(stationId, null, numbers, drawDate)
-                : lotteryTicketRepositoryPort.existsByUniqueFieldsAndIdNot(stationId, null, numbers, drawDate, currentId);
+                ? lotteryTicketRepositoryPort.existsByUniqueFields(stationId, numbers, drawDate)
+                : lotteryTicketRepositoryPort.existsByUniqueFieldsAndIdNot(stationId, numbers, drawDate, currentId);
 
         if (existed) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_SERIAL_EXISTED);

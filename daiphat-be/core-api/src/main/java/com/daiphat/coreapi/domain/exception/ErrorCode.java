@@ -141,8 +141,7 @@ public enum ErrorCode {
     PRIZE_STRUCTURE_TEMPLATE_REGION_REQUIRED("LT_031", "Miền không được để trống khi tạo đài.", HttpStatus.BAD_REQUEST),
     PRIZE_STRUCTURE_TEMPLATE_ITEM_NOT_FOUND("LT_032", "Mẫu cấu trúc giải không tồn tại.", HttpStatus.NOT_FOUND),
     PRIZE_STRUCTURE_TEMPLATE_DUPLICATE_CODE("LT_033", "Mã giải thưởng bị trùng trong cùng miền.", HttpStatus.BAD_REQUEST),
-    PRIZE_STRUCTURE_TEMPLATE_LIST_REQUIRED("LT_034", "Danh sách mẫu cấu trúc giải không được để trống.", HttpStatus.BAD_REQUEST),
-    LOTTERY_STATION_STATUS_USE_WORKFLOW("LT_035", "Kích hoạt đài phải qua luồng gửi duyệt/phê duyệt.", HttpStatus.BAD_REQUEST);
+    PRIZE_STRUCTURE_TEMPLATE_LIST_REQUIRED("LT_034", "Danh sách mẫu cấu trúc giải không được để trống.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

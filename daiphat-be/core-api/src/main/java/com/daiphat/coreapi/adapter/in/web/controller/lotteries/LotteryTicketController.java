@@ -5,6 +5,7 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.base.Views;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
@@ -81,13 +82,31 @@ public class LotteryTicketController {
         return mappingJacksonValue;
     }
 
+    @GetMapping("/public")
+    public MappingJacksonValue getPublicTickets(
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
+            @RequestParam(required = false) Long stationId,
+            @RequestParam(required = false) String drawDate,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String direction) {
+        log.info("REST public request to query lottery tickets page: {}, size: {}", page, size);
+        PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
+                page, size, stationId, drawDate, search, sortBy, direction);
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(ApiResponse.success(null, response));
+        mappingJacksonValue.setSerializationView(Views.Public.class);
+        return mappingJacksonValue;
+    }
+
     @PutMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:edit')")
     public ApiResponse<LotteryTicketResponse> update(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateLotteryTicketRequest request) {
+            @Valid @RequestBody UpdateLotteryTicketRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to update lottery ticket: {}", id);
-        LotteryTicketResponse response = lotteryTicketServicePort.update(id, request);
+        LotteryTicketResponse response = lotteryTicketServicePort.update(id, request, principal.getId());
         return ApiResponse.success("Cập nhật thông tin vé số thành công.", response);
     }
 
@@ -117,6 +136,16 @@ public class LotteryTicketController {
         log.info("REST request to change lottery ticket status: {} to {}", id, status);
         LotteryTicketResponse response = lotteryTicketServicePort.changeStatus(id, status);
         return ApiResponse.success("Cập nhật trạng thái vé số thành công.", response);
+    }
+
+    @PostMapping(value = "/images/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('ticket:create', 'ticket:edit')")
+    public ApiResponse<StorageResult> uploadAsset(@RequestPart("file") MultipartFile file) {
+        log.info("REST request to upload lottery ticket asset image");
+        return ApiResponse.success(
+                "Tải ảnh lên thành công.",
+                lotteryTicketServicePort.uploadAsset(StorageUtils.toUploadRequest(file))
+        );
     }
 
     @PostMapping(value = ID_PATH + "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

@@ -65,6 +65,16 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
     }
 
     @Override
+    public Page<LotteryTicketModel> findAllPublic(
+            Pageable pageable, Long stationId, LocalDate drawDate, String search) {
+        return lotteryTicketRepository.findAll(
+                        LotteryTicketSpecification.filterPublic(stationId, drawDate, search),
+                        pageable
+                )
+                .map(lotteryTicketPersistenceMapper::toDomain);
+    }
+
+    @Override
     public List<LotteryTicketModel> findExpirableTickets(LocalDate beforeDate, Collection<LotteryTicketStatus> statuses) {
         return lotteryTicketRepository.findAllByDrawDateLessThanEqualAndStatusInAndDeletedAtIsNull(beforeDate, statuses).stream()
                 .map(lotteryTicketPersistenceMapper::toDomain)
@@ -80,13 +90,13 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
     }
 
     @Override
-    public boolean existsByUniqueFields(Long stationId, String serialNumber, String numbers, LocalDate drawDate) {
+    public boolean existsByUniqueFields(Long stationId, String numbers, LocalDate drawDate) {
         return lotteryTicketRepository.existsByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(
                 stationId, numbers, drawDate);
     }
 
     @Override
-    public boolean existsByUniqueFieldsAndIdNot(Long stationId, String serialNumber, String numbers, LocalDate drawDate, Long id) {
+    public boolean existsByUniqueFieldsAndIdNot(Long stationId, String numbers, LocalDate drawDate, Long id) {
         return lotteryTicketRepository.existsByStation_IdAndNumbersAndDrawDateAndIdNotAndDeletedAtIsNull(
                 stationId, numbers, drawDate, id);
     }

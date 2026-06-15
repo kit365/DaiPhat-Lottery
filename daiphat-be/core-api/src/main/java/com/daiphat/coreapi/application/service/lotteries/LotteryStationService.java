@@ -30,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -159,10 +158,6 @@ public class LotteryStationService implements LotteryStationServicePort {
             }
         }
 
-        if (hasText(request.status()) && parseStatus(request.status()) == LotteryStationStatus.ACTIVE) {
-            throw new DomainException(ErrorCode.LOTTERY_STATION_STATUS_USE_WORKFLOW);
-        }
-
         lotteryStationApplicationMapper.updateModel(model, request);
 
         if (hasText(request.status()) && parseStatus(request.status()) == LotteryStationStatus.INACTIVE) {
@@ -194,32 +189,6 @@ public class LotteryStationService implements LotteryStationServicePort {
         getProductOrThrow(id);
         lotteryStationRepositoryPort.deleteById(id);
         log.info("Successfully deleted lottery station: {}", id);
-    }
-
-    @Override
-    @Transactional
-    public LotteryStationResponse submitForApproval(Long id) {
-        log.info("Submitting lottery product for approval with id: {}", id);
-
-        LotteryStationModel model = getProductOrThrow(id);
-        model.submitForApproval();
-
-        LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
-        recalculateInventory(saved);
-        return lotteryStationApplicationMapper.toResponse(saved);
-    }
-
-    @Override
-    @Transactional
-    public LotteryStationResponse approve(Long id, UUID adminId) {
-        log.info("Approving lottery product with id: {} by admin: {}", id, adminId);
-
-        LotteryStationModel model = getProductOrThrow(id);
-        model.approve(adminId);
-
-        LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
-        recalculateInventory(saved);
-        return lotteryStationApplicationMapper.toResponse(saved);
     }
 
     @Override

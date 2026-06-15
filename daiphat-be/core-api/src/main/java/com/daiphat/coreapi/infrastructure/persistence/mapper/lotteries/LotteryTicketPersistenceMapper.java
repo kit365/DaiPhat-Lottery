@@ -15,17 +15,25 @@ import java.util.UUID;
 public interface LotteryTicketPersistenceMapper {
 
     @Mapping(target = "station", source = "stationId", qualifiedByName = "stationIdToStationEntity")
-    @Mapping(target = "importedBy", source = "importedById", qualifiedByName = "userIdToUserEntity")
-    @Mapping(target = "verifiedBy", source = "verifiedById", qualifiedByName = "userIdToUserEntity")
     @Mapping(target = "serials", ignore = true)
+    @Mapping(target = "importedBy", ignore = true)
+    @Mapping(target = "verifiedBy", ignore = true)
+    @Mapping(target = "importedAt", ignore = true)
+    @Mapping(target = "verified", ignore = true)
+    @Mapping(target = "verifiedAt", ignore = true)
+    @Mapping(target = "returnedAt", ignore = true)
     LotteryTicketEntity toEntity(LotteryTicketModel model);
 
     List<LotteryTicketEntity> toEntityList(List<LotteryTicketModel> models);
 
     @Mapping(target = "stationId", source = "station.id")
-    @Mapping(target = "importedById", source = "importedBy.id")
-    @Mapping(target = "verifiedById", source = "verifiedBy.id")
     @Mapping(target = "serials", ignore = true)
+    @Mapping(target = "importedById", ignore = true)
+    @Mapping(target = "verifiedById", ignore = true)
+    @Mapping(target = "importedAt", ignore = true)
+    @Mapping(target = "verified", ignore = true)
+    @Mapping(target = "verifiedAt", ignore = true)
+    @Mapping(target = "returnedAt", ignore = true)
     LotteryTicketModel toDomain(LotteryTicketEntity entity);
 
     List<LotteryTicketModel> toDomainList(List<LotteryTicketEntity> entities);

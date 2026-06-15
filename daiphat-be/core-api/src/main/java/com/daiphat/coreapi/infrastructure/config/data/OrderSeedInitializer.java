@@ -3,6 +3,7 @@ package com.daiphat.coreapi.infrastructure.config.data;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
@@ -22,6 +23,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryStationRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +61,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
     private final UserRepository userRepository;
     private final LotteryStationRepository lotteryStationRepository;
     private final LotteryTicketRepository lotteryTicketRepository;
+    private final LotteryTicketSerialRepository lotteryTicketSerialRepository;
 
     @Override
     @Transactional
@@ -94,16 +97,14 @@ public class OrderSeedInitializer implements ApplicationRunner {
     ) {
         String dailySeedPrefix = "SEED-AVAILABLE-" + drawDate.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE) + "-";
 
-        long todaySeedCount = lotteryTicketRepository.findAll().stream()
-                .filter(ticket -> ticket.getSerialNumber() != null && ticket.getSerialNumber().startsWith(dailySeedPrefix))
-                .filter(ticket -> ticket.getDeletedAt() == null)
-                .count();
+        long todaySeedCount = lotteryTicketSerialRepository
+                .findBySerialNumberStartingWithAndDeletedAtIsNull(dailySeedPrefix)
+                .size();
 
         int nextIndex = 1;
         while (todaySeedCount < AVAILABLE_TICKET_BATCH_SIZE) {
             String serialNumber = dailySeedPrefix + String.format("%03d", nextIndex);
-            if (lotteryTicketRepository.findAll().stream()
-                    .noneMatch(ticket -> serialNumber.equalsIgnoreCase(ticket.getSerialNumber()))) {
+            if (lotteryTicketSerialRepository.findFirstBySerialNumberAndDeletedAtIsNull(serialNumber).isEmpty()) {
                 createSeedAvailableTicket(station, operator, nextIndex, serialNumber, drawDate);
                 todaySeedCount++;
             }
@@ -120,23 +121,37 @@ public class OrderSeedInitializer implements ApplicationRunner {
     ) {
         String numbers = String.format("%06d", index * 111111 % 1_000_000);
         String batchCode = String.format("BATCH-AVAILABLE-%03d", index);
+        LocalDateTime importedAt = LocalDateTime.now().minusHours(2);
 
-        lotteryTicketRepository.save(
+        LotteryTicketEntity ticket = lotteryTicketRepository.save(
                 LotteryTicketEntity.builder()
                         .station(station)
                         .ticketImg("https://picsum.photos/seed/" + serialNumber + "/800/500")
-                        .serialNumber(serialNumber)
                         .numbers(numbers)
                         .drawDate(drawDate)
                         .batchCode(batchCode)
+                        .quantity(1)
                         .priceSnapshot(station.getPrice())
                         .status(LotteryTicketStatus.IN_STOCK)
+                        .createdAt(importedAt)
+                        .updatedAt(LocalDateTime.now().minusHours(1))
+                        .createdBy(SYSTEM_ACTOR)
+                        .lastModifiedBy(SYSTEM_ACTOR)
+                        .build()
+        );
+
+        lotteryTicketSerialRepository.save(
+                LotteryTicketSerialEntity.builder()
+                        .ticket(ticket)
+                        .ticketImg(ticket.getTicketImg())
+                        .serialNumber(serialNumber)
+                        .status(LotteryTicketSerialStatus.IN_STOCK)
                         .importedBy(operator)
-                        .importedAt(LocalDateTime.now().minusHours(2))
+                        .importedAt(importedAt)
                         .verified(true)
                         .verifiedBy(operator)
                         .verifiedAt(LocalDateTime.now().minusHours(1))
-                        .createdAt(LocalDateTime.now().minusHours(2))
+                        .createdAt(importedAt)
                         .updatedAt(LocalDateTime.now().minusHours(1))
                         .createdBy(SYSTEM_ACTOR)
                         .lastModifiedBy(SYSTEM_ACTOR)
@@ -149,7 +164,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
             return;
         }
 
-        LotteryTicketEntity ticket = ensureSeedTicket(
+        LotteryTicketSerialEntity ticketSerial = ensureSeedTicketSerial(
                 station,
                 operator,
                 "SEED-ONLINE-001",
@@ -160,7 +175,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
 
         LocalDateTime now = LocalDateTime.now();
         OrderEntity order = buildOrder(member, SEED_ONLINE_PENDING_CODE, OrderType.ONLINE, station.getPrice(), OrderStatus.PENDING_PAYMENT, now);
-        OrderDetailEntity detail = buildDetail(order, ticket, station.getPrice(), OrderDetailStatus.ACTIVE, now);
+        OrderDetailEntity detail = buildDetail(order, ticketSerial, station.getPrice(), OrderDetailStatus.ACTIVE, now);
         TransactionEntity transaction = buildTransaction(
                 order,
                 station.getPrice(),
@@ -181,7 +196,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
             return;
         }
 
-        LotteryTicketEntity ticket = ensureSeedTicket(
+        LotteryTicketSerialEntity ticketSerial = ensureSeedTicketSerial(
                 station,
                 operator,
                 "SEED-ONLINE-002",
@@ -192,7 +207,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
 
         LocalDateTime now = LocalDateTime.now().minusMinutes(30);
         OrderEntity order = buildOrder(member, SEED_ONLINE_PREPARING_CODE, OrderType.ONLINE, station.getPrice(), OrderStatus.PREPARING, now);
-        OrderDetailEntity detail = buildDetail(order, ticket, station.getPrice(), OrderDetailStatus.ACTIVE, now);
+        OrderDetailEntity detail = buildDetail(order, ticketSerial, station.getPrice(), OrderDetailStatus.ACTIVE, now);
         TransactionEntity transaction = buildTransaction(
                 order,
                 station.getPrice(),
@@ -214,7 +229,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
             return;
         }
 
-        LotteryTicketEntity ticket = ensureSeedTicket(
+        LotteryTicketSerialEntity ticketSerial = ensureSeedTicketSerial(
                 station,
                 operator,
                 "SEED-ONLINE-003",
@@ -225,7 +240,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
 
         LocalDateTime now = LocalDateTime.now().minusHours(1);
         OrderEntity order = buildOrder(member, SEED_ONLINE_PICKUP_CODE, OrderType.ONLINE, station.getPrice(), OrderStatus.PENDING_PICKUP, now);
-        OrderDetailEntity detail = buildDetail(order, ticket, station.getPrice(), OrderDetailStatus.ACTIVE, now);
+        OrderDetailEntity detail = buildDetail(order, ticketSerial, station.getPrice(), OrderDetailStatus.ACTIVE, now);
         TransactionEntity transaction = buildTransaction(
                 order,
                 station.getPrice(),
@@ -247,7 +262,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
             return;
         }
 
-        LotteryTicketEntity ticket = ensureSeedTicket(
+        LotteryTicketSerialEntity ticketSerial = ensureSeedTicketSerial(
                 station,
                 operator,
                 "SEED-DIRECT-001",
@@ -261,7 +276,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
         order.setActualPickedUpAt(now);
         order.setPickedUpBy(operator);
 
-        OrderDetailEntity detail = buildDetail(order, ticket, station.getPrice(), OrderDetailStatus.ACTIVE, now);
+        OrderDetailEntity detail = buildDetail(order, ticketSerial, station.getPrice(), OrderDetailStatus.ACTIVE, now);
         TransactionEntity transaction = buildTransaction(
                 order,
                 station.getPrice(),
@@ -285,7 +300,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
             return;
         }
 
-        LotteryTicketEntity ticket = ensureSeedTicket(
+        LotteryTicketSerialEntity ticketSerial = ensureSeedTicketSerial(
                 station,
                 operator,
                 "SEED-REFUND-001",
@@ -299,7 +314,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
         order.setCancelledAt(now);
         order.setCancelReason("Seed refunded order");
 
-        OrderDetailEntity detail = buildDetail(order, ticket, station.getPrice(), OrderDetailStatus.REFUNDED, now);
+        OrderDetailEntity detail = buildDetail(order, ticketSerial, station.getPrice(), OrderDetailStatus.REFUNDED, now);
         TransactionEntity transaction = buildTransaction(
                 order,
                 station.getPrice(),
@@ -330,7 +345,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
             return;
         }
 
-        LotteryTicketEntity ticket = ensureSeedTicket(
+        LotteryTicketSerialEntity ticketSerial = ensureSeedTicketSerial(
                 station,
                 operator,
                 "SEED-REFUND-002",
@@ -341,7 +356,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
 
         LocalDateTime now = LocalDateTime.now().minusHours(2);
         OrderEntity order = buildOrder(member, SEED_ONLINE_REFUND_REJECTED_CODE, OrderType.ONLINE, station.getPrice(), OrderStatus.PENDING_PICKUP, now);
-        OrderDetailEntity detail = buildDetail(order, ticket, station.getPrice(), OrderDetailStatus.ACTIVE, now);
+        OrderDetailEntity detail = buildDetail(order, ticketSerial, station.getPrice(), OrderDetailStatus.ACTIVE, now);
         TransactionEntity transaction = buildTransaction(
                 order,
                 station.getPrice(),
@@ -366,7 +381,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
             return;
         }
 
-        LotteryTicketEntity oldTicket = ensureSeedTicket(
+        LotteryTicketSerialEntity oldTicketSerial = ensureSeedTicketSerial(
                 station,
                 operator,
                 "SEED-REPLACED-001",
@@ -374,7 +389,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 "BATCH-REPLACED-001",
                 LotteryTicketStatus.SOLD
         );
-        LotteryTicketEntity newTicket = ensureSeedTicket(
+        LotteryTicketSerialEntity newTicketSerial = ensureSeedTicketSerial(
                 station,
                 operator,
                 "SEED-REPLACED-002",
@@ -388,8 +403,8 @@ public class OrderSeedInitializer implements ApplicationRunner {
         order.setActualPickedUpAt(now.plusMinutes(30));
         order.setPickedUpBy(operator);
 
-        OrderDetailEntity detail = buildDetail(order, oldTicket, station.getPrice(), OrderDetailStatus.ACTIVE, now);
-        detail.setReplacedByTicketSerial(ticketSerialRef(newTicket.getId()));
+        OrderDetailEntity detail = buildDetail(order, oldTicketSerial, station.getPrice(), OrderDetailStatus.ACTIVE, now);
+        detail.setReplacedByTicketSerial(newTicketSerial);
         TransactionEntity transaction = buildTransaction(
                 order,
                 station.getPrice(),
@@ -448,7 +463,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 ));
     }
 
-    private LotteryTicketEntity ensureSeedTicket(
+    private LotteryTicketSerialEntity ensureSeedTicketSerial(
             LotteryStationEntity station,
             UserEntity operator,
             String serialNumber,
@@ -456,30 +471,52 @@ public class OrderSeedInitializer implements ApplicationRunner {
             String batchCode,
             LotteryTicketStatus status
     ) {
-        return lotteryTicketRepository.findAll().stream()
-                .filter(ticket -> serialNumber.equalsIgnoreCase(ticket.getSerialNumber()))
-                .findFirst()
-                .orElseGet(() -> lotteryTicketRepository.save(
-                        LotteryTicketEntity.builder()
-                                .station(station)
-                                .ticketImg("https://picsum.photos/seed/" + serialNumber + "/800/500")
-                                .serialNumber(serialNumber)
-                                .numbers(numbers)
-                                .drawDate(LocalDate.now())
-                                .batchCode(batchCode)
-                                .priceSnapshot(station.getPrice())
-                                .status(status)
-                                .importedBy(operator)
-                                .importedAt(LocalDateTime.now().minusHours(2))
-                                .verified(true)
-                                .verifiedBy(operator)
-                                .verifiedAt(LocalDateTime.now().minusHours(1))
-                                .createdAt(LocalDateTime.now().minusHours(2))
-                                .updatedAt(LocalDateTime.now().minusHours(1))
-                                .createdBy(SYSTEM_ACTOR)
-                                .lastModifiedBy(SYSTEM_ACTOR)
-                                .build()
-                ));
+        return lotteryTicketSerialRepository.findFirstBySerialNumberAndDeletedAtIsNull(serialNumber)
+                .orElseGet(() -> {
+                    LocalDateTime importedAt = LocalDateTime.now().minusHours(2);
+                    LotteryTicketEntity ticket = lotteryTicketRepository.save(
+                            LotteryTicketEntity.builder()
+                                    .station(station)
+                                    .ticketImg("https://picsum.photos/seed/" + serialNumber + "/800/500")
+                                    .numbers(numbers)
+                                    .drawDate(LocalDate.now())
+                                    .batchCode(batchCode)
+                                    .quantity(1)
+                                    .priceSnapshot(station.getPrice())
+                                    .status(status)
+                                    .createdAt(importedAt)
+                                    .updatedAt(LocalDateTime.now().minusHours(1))
+                                    .createdBy(SYSTEM_ACTOR)
+                                    .lastModifiedBy(SYSTEM_ACTOR)
+                                    .build()
+                    );
+
+                    return lotteryTicketSerialRepository.save(
+                            LotteryTicketSerialEntity.builder()
+                                    .ticket(ticket)
+                                    .ticketImg(ticket.getTicketImg())
+                                    .serialNumber(serialNumber)
+                                    .status(mapSerialStatus(status))
+                                    .importedBy(operator)
+                                    .importedAt(importedAt)
+                                    .verified(true)
+                                    .verifiedBy(operator)
+                                    .verifiedAt(LocalDateTime.now().minusHours(1))
+                                    .createdAt(importedAt)
+                                    .updatedAt(LocalDateTime.now().minusHours(1))
+                                    .createdBy(SYSTEM_ACTOR)
+                                    .lastModifiedBy(SYSTEM_ACTOR)
+                                    .build()
+                    );
+                });
+    }
+
+    private LotteryTicketSerialStatus mapSerialStatus(LotteryTicketStatus ticketStatus) {
+        return switch (ticketStatus) {
+            case RESERVED -> LotteryTicketSerialStatus.RESERVED;
+            case SOLD -> LotteryTicketSerialStatus.SOLD;
+            default -> LotteryTicketSerialStatus.IN_STOCK;
+        };
     }
 
     private OrderEntity buildOrder(
@@ -508,14 +545,14 @@ public class OrderSeedInitializer implements ApplicationRunner {
 
     private OrderDetailEntity buildDetail(
             OrderEntity order,
-            LotteryTicketEntity ticket,
+            LotteryTicketSerialEntity ticketSerial,
             BigDecimal price,
             OrderDetailStatus status,
             LocalDateTime timestamp
     ) {
         return OrderDetailEntity.builder()
                 .order(order)
-                .lotteryTicketSerial(ticketSerialRef(ticket.getId()))
+                .lotteryTicketSerial(ticketSerial)
                 .price(price)
                 .status(status)
                 .createdAt(timestamp)
@@ -523,15 +560,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 .createdBy(SYSTEM_ACTOR)
                 .lastModifiedBy(SYSTEM_ACTOR)
                 .build();
-    }
-
-    private LotteryTicketSerialEntity ticketSerialRef(Long serialId) {
-        if (serialId == null) {
-            return null;
-        }
-        LotteryTicketSerialEntity entity = new LotteryTicketSerialEntity();
-        entity.setId(serialId);
-        return entity;
     }
 
     private TransactionEntity buildTransaction(
