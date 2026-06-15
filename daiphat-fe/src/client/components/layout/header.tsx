@@ -273,7 +273,7 @@ export const Header = () => {
                         <i className="fa-regular fa-user text-[16px] text-[#637381] w-5 text-center"></i>
                         <span>Tài Khoản</span>
                         </Link>
-                        <Link to="/profile/tickets" className="flex items-center gap-3 px-5 py-3 text-[14.5px] text-[#212B36] hover:bg-slate-50 transition-colors">
+                        <Link to="/profile/orders" className="flex items-center gap-3 px-5 py-3 text-[14.5px] text-[#212B36] hover:bg-slate-50 transition-colors">
                         <i className="fa-solid fa-bag-shopping text-[16px] text-[#637381] w-5 text-center"></i>
                         <span>Đơn Hàng</span>
                         </Link>

@@ -5,12 +5,14 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
+import com.daiphat.coreapi.shared.util.SearchConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +21,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -27,6 +30,11 @@ import java.util.List;
 @Validated
 @Slf4j
 public class OrderController {
+
+    private static final String DEFAULT_PAGE = "1";
+    private static final String DEFAULT_SIZE = "10";
+    private static final String DEFAULT_SORT_BY = SearchConstants.DEFAULT_SORT_BY;
+    private static final String DEFAULT_SORT_DIRECTION = SearchConstants.DEFAULT_SORT_DIRECTION;
 
     private final OrderServicePort orderServicePort;
     private final OrderApplicationMapper orderApplicationMapper;
@@ -49,6 +57,37 @@ public class OrderController {
         log.info("REST request to create direct order by staff: {}", principal.getId());
         OrderModel order = orderServicePort.createDirectOrder(request, principal.getId());
         return ApiResponse.success("Tạo đơn hàng tại quầy thành công.", orderApplicationMapper.toResponse(order));
+    }
+
+    @GetMapping("/my-orders")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<PageResponse<OrderResponse>> getMyOrders(
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_SIZE) int size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
+            @RequestParam(required = false) String orderType,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = DEFAULT_SORT_BY) String sortBy,
+            @RequestParam(defaultValue = DEFAULT_SORT_DIRECTION) String direction,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        log.info("REST request to get my orders by user: {}", principal.getId());
+        return ApiResponse.success(
+                "Lấy danh sách đơn hàng của tôi thành công.",
+                orderServicePort.getMyOrders(
+                        page,
+                        size,
+                        status,
+                        fromDate,
+                        toDate,
+                        orderType,
+                        search,
+                        sortBy,
+                        direction,
+                        principal.getId()
+                )
+        );
     }
 
     @GetMapping("/types")
