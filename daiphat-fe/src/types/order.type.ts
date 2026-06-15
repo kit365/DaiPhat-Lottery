@@ -45,10 +45,27 @@ export interface CreateOnlineOrderRequest {
     note?: string;
 }
 
+export interface GetMyOrdersParams {
+    page?: number;
+    size?: number;
+    status?: string;
+    fromDate?: string;
+    toDate?: string;
+    orderType?: string;
+    search?: string;
+    sortBy?: string;
+    direction?: string;
+}
+
 export interface OrderResponse {
     id: string;
     orderCode: string;
     totalAmount: number;
     status: OrderStatus;
+    orderType: OrderType;
+    receiveType: OrderReceiveType;
+    expectedPickupAt?: string;
+    createdAt: string;
+    orderDetails?: any[];
     transactions: TransactionResponse[];
 }

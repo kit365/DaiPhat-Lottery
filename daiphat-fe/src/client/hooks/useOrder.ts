@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { orderService } from '../services/orderService';
-import { CreateOnlineOrderRequest } from '../../types/order.type';
+import { CreateOnlineOrderRequest, GetMyOrdersParams } from '../../types/order.type';
 import { AppToast as toast } from '../utils/toast.util';
 
 export const useCreateOnlineOrder = () => {
@@ -22,5 +22,19 @@ export const useGetOrderReceiveTypes = () => {
     return useQuery({
         queryKey: ['orderReceiveTypes'],
         queryFn: () => orderService.getOrderReceiveTypes()
+    });
+};
+
+export const useGetOrderStatuses = () => {
+    return useQuery({
+        queryKey: ['orderStatuses'],
+        queryFn: () => orderService.getOrderStatuses()
+    });
+};
+
+export const useGetMyOrders = (params: GetMyOrdersParams) => {
+    return useQuery({
+        queryKey: ['myOrders', params],
+        queryFn: () => orderService.getMyOrders(params)
     });
 };

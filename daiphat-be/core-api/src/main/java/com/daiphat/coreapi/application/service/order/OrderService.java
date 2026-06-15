@@ -1,11 +1,13 @@
 package com.daiphat.coreapi.application.service.order;
 
 import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.DirectOrderTransactionRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
+import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
@@ -25,9 +27,12 @@ import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.valueobject.Phone;
 import com.daiphat.coreapi.shared.util.EnumOptionUtils;
+import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -135,6 +140,55 @@ public class OrderService implements OrderServicePort {
         registerPendingPaymentCountdown(saved);
         log.info("Created direct order with id: {}", saved.getId());
         return saved;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<OrderResponse> getMyOrders(
+            int page,
+            int size,
+            String status,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String orderType,
+            String search,
+            String sortBy,
+            String direction,
+            UUID customerId
+    ) {
+        ensureUserExists(customerId);
+        validateDateRange(fromDate, toDate);
+
+        PageRequest pageable = PageRequest.of(
+                Math.max(0, page - 1),
+                size,
+                SortUtils.createSort(sortBy, direction)
+        );
+
+        OrderStatus statusEnum = parseOrderStatus(status);
+        OrderType orderTypeEnum = parseOrderType(orderType);
+        Page<OrderResponse> resultPage = orderRepositoryPort.findMyOrders(
+                        pageable,
+                        customerId,
+                        statusEnum,
+                        orderTypeEnum,
+                        fromDate,
+                        toDate,
+                        search
+                )
+                .map(orderApplicationMapper::toResponse);
+
+        return PageResponse.<OrderResponse>builder()
+                .recordList(resultPage.getContent())
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(resultPage.getTotalElements())
+                        .totalPages(resultPage.getTotalPages())
+                        .currentPage(page)
+                        .limit(size)
+                        .isFirst(resultPage.isFirst())
+                        .isLast(resultPage.isLast())
+                        .build())
+                .build();
     }
 
     @Override
@@ -307,6 +361,34 @@ public class OrderService implements OrderServicePort {
             }
         }
         throw new DomainException(ErrorCode.ORDER_CODE_GENERATION_FAILED);
+    }
+
+    private OrderStatus parseOrderStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        try {
+            return OrderStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+        }
+    }
+
+    private OrderType parseOrderType(String orderType) {
+        if (orderType == null || orderType.isBlank()) {
+            return null;
+        }
+        try {
+            return OrderType.valueOf(orderType.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+    }
+
+    private void validateDateRange(LocalDate fromDate, LocalDate toDate) {
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
     }
 
 }
