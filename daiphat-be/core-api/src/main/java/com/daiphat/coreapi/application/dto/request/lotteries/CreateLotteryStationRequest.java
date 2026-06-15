@@ -34,6 +34,8 @@ public record CreateLotteryStationRequest(
         LocalDate nextDrawDate,
 
         // Hiển thị
+        String image,
         String description,
-        Integer displayOrder
+        Integer displayOrder,
+        String status
 ) {}

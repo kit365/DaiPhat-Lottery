@@ -25,7 +25,7 @@ public final class LotteryTicketSpecification {
     }
 
     public static Specification<LotteryTicketEntity> filter(
-            Long productId,
+            Long stationId,
             LotteryTicketStatus status,
             LocalDate drawDate,
             String search
@@ -34,8 +34,8 @@ public final class LotteryTicketSpecification {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.isNull(root.get(BaseEntity_.deletedAt)));
 
-            if (productId != null) {
-                predicates.add(cb.equal(root.get(LotteryTicketEntity_.product).get(LotteryStationEntity_.id), productId));
+            if (stationId != null) {
+                predicates.add(cb.equal(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id), stationId));
             }
             if (status != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.status), status));
@@ -46,7 +46,6 @@ public final class LotteryTicketSpecification {
             if (search != null && !search.isBlank()) {
                 String searchPattern = "%" + search.toLowerCase() + "%";
                 predicates.add(cb.or(
-                        cb.like(cb.lower(root.get(LotteryTicketEntity_.serialNumber)), searchPattern),
                         cb.like(cb.lower(root.get(LotteryTicketEntity_.numbers)), searchPattern),
                         cb.like(cb.lower(root.get(LotteryTicketEntity_.batchCode)), searchPattern)
                 ));
@@ -54,9 +53,5 @@ public final class LotteryTicketSpecification {
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
-    }
-
-    public static Specification<LotteryTicketEntity> deleted() {
-        return (root, query, cb) -> cb.isNotNull(root.get(BaseEntity_.deletedAt));
     }
 }

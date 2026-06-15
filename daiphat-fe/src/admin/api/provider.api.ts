@@ -1,108 +1,135 @@
 import { apiApp } from '../../api';
-import Cookies from 'js-cookie';
-import { ApiResponse } from '../config/type';
+import { ApiResponse, PageResponse } from '../config/type';
 
-const BASE_URL = '/admin/provider';
+const BASE_URL = '/lottery-stations';
 
-/** Header auth dùng chung */
-const withAuth = () => {
-    const token = Cookies.get(STORAGE_KEYS.TOKEN);
+export const getProviders = async (params?: any): Promise<ApiResponse<PageResponse<any>>> => {
+    const response = await apiApp.get(BASE_URL, { params });
+    const result = response.data?.data;
+    
+    // Map BE response to match FE expectations
+    const recordList = (result?.recordList || []).map((item: any) => ({
+        ...item,
+        _id: item.id,
+        avatar: item.thumbnailUrl,
+        status: item.status ? item.status.toLowerCase() : 'draft'
+    }));
 
-    return {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    };
-};
-
-/** Lấy tất cả nhà đài/công ty xổ số */
-import { mockProviders } from '../data/providers';
-
-export const getProviders = async (params?: any): Promise<ApiResponse<any>> => {
     return {
         success: true,
+        message: response.data?.message || "",
+        timestamp: response.data?.timestamp || new Date().toISOString(),
         data: {
-            recordList: mockProviders,
-            pagination: {
-                totalRecords: mockProviders.length,
+            recordList,
+            pagination: result?.pagination || {
+                totalRecords: recordList.length,
                 totalPages: 1,
                 currentPage: params?.page || 1,
                 limit: params?.limit || 10
             },
             statusCounts: {
-                all: mockProviders.length,
-                active: mockProviders.filter(b => b.status === 'active').length,
-                inactive: mockProviders.filter(b => b.status === 'inactive').length,
+                all: result?.pagination?.totalRecords || recordList.length,
+                active: recordList.filter((b: any) => b.status === 'active').length,
+                inactive: recordList.filter((b: any) => b.status === 'inactive').length,
             }
         }
-    } as any;
-};
-
-/** Lấy nhà đài theo ID */
-export const getProviderById = async (id: string | number): Promise<any> => {
-    const provider = mockProviders.find(b => b._id === id) || mockProviders[0];
-    return {
-        success: true,
-        data: provider
     };
 };
 
-/** Tạo nhà đài mới */
+export const getProviderById = async (id: string | number): Promise<any> => {
+    const response = await apiApp.get(`${BASE_URL}/${id}`);
+    const item = response.data?.data;
+    if (item) {
+        item._id = item.id;
+        item.avatar = item.thumbnailUrl;
+        item.status = item.status ? item.status.toLowerCase() : 'draft';
+    }
+    return response.data;
+};
+
 export const createProvider = async (data: any): Promise<any> => {
     const payload = {
         name: data.name,
-        slug: data.slug || generateSlug(data.name),
+        province: data.province || '',
+        region: data.region || '',
+        type: data.type || 'TRADITIONAL',
+        numberLength: data.numberLength || 6,
+        minNumber: data.minNumber,
+        maxNumber: data.maxNumber,
+        price: data.price || 10000,
+        drawSchedule: data.drawSchedule || '',
+        drawTime: data.drawTime || '',
+        image: data.image || '',
         description: data.description || '',
-        avatar: data.avatar || '',
-        status: data.status || 'active',
+        displayOrder: data.displayOrder || 0,
+        status: data.status ? data.status.toUpperCase() : 'ACTIVE',
     };
-    const response = await apiApp.post(BASE_URL, payload, withAuth());
+    const response = await apiApp.post(BASE_URL, payload);
     return response.data;
 };
 
-/** Cập nhật nhà đài */
 export const updateProvider = async (id: string | number, data: any): Promise<any> => {
     const payload = {
         name: data.name,
-        slug: data.slug || generateSlug(data.name),
+        province: data.province || '',
+        region: data.region || '',
+        type: data.type || 'TRADITIONAL',
+        numberLength: data.numberLength || 6,
+        minNumber: data.minNumber,
+        maxNumber: data.maxNumber,
+        price: data.price || 10000,
+        drawSchedule: data.drawSchedule || '',
+        drawTime: data.drawTime || '',
+        image: data.image || '',
         description: data.description || '',
-        avatar: data.avatar || '',
-        status: data.status || 'active',
+        displayOrder: data.displayOrder || 0,
+        status: data.status ? data.status.toUpperCase() : 'ACTIVE',
     };
-    const response = await apiApp.patch(`${BASE_URL}/edit/${id}`, payload, withAuth());
+    const response = await apiApp.put(`${BASE_URL}/${id}`, payload);
     return response.data;
 };
 
-/** Xóa nhà đài */
 export const deleteProvider = async (id: string | number): Promise<any> => {
-    const response = await apiApp.patch(`${BASE_URL}/delete/${id}`, {}, withAuth());
+    const response = await apiApp.delete(`${BASE_URL}/${id}`);
     return response.data;
 };
 
-/** Khôi phục nhà đài */
-export const restoreProvider = async (id: string | number): Promise<any> => {
-    const response = await apiApp.patch(`${BASE_URL}/restore/${id}`, {}, withAuth());
-    return response.data;
-};
-
-/** Xóa vĩnh viễn nhà đài */
 export const forceDeleteProvider = async (id: string | number): Promise<any> => {
-    const response = await apiApp.delete(`${BASE_URL}/force-delete/${id}`, withAuth());
+    const response = await apiApp.delete(`${BASE_URL}/${id}`);
     return response.data;
 };
 
-// --- Helper functions ---
+export const getStationsToday = async (): Promise<any> => {
+    const response = await apiApp.get(`${BASE_URL}/draws/today`);
+    const result = response.data?.data || [];
+    // Map BE response to match FE expectations for dynamicProvinces
+    return result.map((item: any) => ({
+        ...item,
+        id: item.id || item._id,
+        avatar: item.thumbnailUrl || item.avatar,
+        status: item.status ? item.status.toLowerCase() : 'draft'
+    }));
+};
 
-/** Generate slug từ name */
-const generateSlug = (name: string): string => {
-    return name
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/đ/g, 'd')
-        .replace(/Đ/g, 'D')
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim();
+export const getStationsTomorrow = async (): Promise<any> => {
+    const response = await apiApp.get(`${BASE_URL}/draws/tomorrow`);
+    const result = response.data?.data || [];
+    // Map BE response to match FE expectations for dynamicProvinces
+    return result.map((item: any) => ({
+        ...item,
+        id: item.id || item._id,
+        avatar: item.thumbnailUrl || item.avatar,
+        status: item.status ? item.status.toLowerCase() : 'draft'
+    }));
+};
+
+export const uploadProviderImage = async (id: string | number, file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiApp.post(`${BASE_URL}/${id}/image`, formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
 };

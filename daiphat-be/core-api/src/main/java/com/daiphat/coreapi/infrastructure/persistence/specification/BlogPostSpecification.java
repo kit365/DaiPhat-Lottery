@@ -12,17 +12,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * JPA Specification cho bài viết blog – dùng trong trang quản trị.
- * Sử dụng static metamodel để đảm bảo type-safety tại compile time.
- * Hỗ trợ:
- *  - Tìm kiếm theo title (ILIKE)
- *  - Lọc theo tag (id)
- *  - Lọc theo category (id)
- *  - Lọc theo loại bài (type)
- *  - Lọc theo trạng thái (status)
- *  - Lọc bài chưa bị xoá mềm
- */
+
 public class BlogPostSpecification {
 
     private BlogPostSpecification() {}

@@ -25,10 +25,10 @@ public final class StorageUtils {
 
     public static void validateImageUpload(UploadRequest request) {
         if (request == null || request.data() == null || request.data().length == 0) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Image file is required");
+            throw new DomainException(ErrorCode.IMAGE_FILE_REQUIRED);
         }
         if (request.contentType() == null || !request.contentType().startsWith("image/")) {
-            throw new DomainException(ErrorCode.INVALID_INPUT, "Only image files are allowed");
+            throw new DomainException(ErrorCode.IMAGE_INVALID_TYPE);
         }
     }
 }

@@ -22,8 +22,8 @@ public class PrizeStructureEntity extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private LotteryStationEntity product;
+    @JoinColumn(name = "station_id", nullable = false)
+    private LotteryStationEntity station;
 
     @Column(length = 20)
     private String region;

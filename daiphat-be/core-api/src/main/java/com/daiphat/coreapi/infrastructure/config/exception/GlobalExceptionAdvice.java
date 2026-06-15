@@ -20,14 +20,15 @@ public class GlobalExceptionAdvice {
     @ExceptionHandler(DomainException.class)
     public ResponseEntity<ApiResponse<?>> handleDomainException(DomainException exception) {
         ErrorCode errorCode = exception.getErrorCode();
+        String responseMessage = resolveDomainMessage(exception);
         log.error("Domain exception: [{} - {}] - Detail: {}",
                 errorCode.getCode(),
-                exception.getMessage(),
+                responseMessage,
                 exception.getInternalMessage() != null ? exception.getInternalMessage() : "No additional detail");
 
         return ResponseEntity
                 .status(errorCode.getStatus())
-                .body(ApiResponse.error(exception.getMessage(), exception.getData()));
+                .body(ApiResponse.error(responseMessage, exception.getData()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -88,10 +89,29 @@ public class GlobalExceptionAdvice {
             return "Hệ thống vẫn đang áp dụng ràng buộc serial_number cũ trong cơ sở dữ liệu. Hãy chạy migration mới để chuyển sang ràng buộc tổ hợp 4 trường.";
         }
 
-        if (rawMessage.contains("uk_lottery_ticket_product_serial_numbers_draw_date")) {
-            return "Vé số với productId, serialNumber, numbers và drawDate này đã tồn tại trong hệ thống.";
+        if (rawMessage.contains("uk_lottery_ticket_station_numbers_draw_date")) {
+            return "Vé số với stationId, numbers và drawDate này đã tồn tại trong hệ thống.";
+        }
+
+        if (rawMessage.contains("uk_lottery_ticket_serials_ticket_serial")) {
+            return "Sê-ri vé đã tồn tại trong cùng một vé số.";
         }
 
         return ErrorCode.INVALID_INPUT.getMessage();
+    }
+
+    private String resolveDomainMessage(DomainException exception) {
+        if (exception.getInternalMessage() == null || exception.getInternalMessage().isBlank()) {
+            return exception.getMessage();
+        }
+
+        ErrorCode errorCode = exception.getErrorCode();
+        if (errorCode == ErrorCode.LOTTERY_TICKET_INVALID_STATUS
+                || errorCode == ErrorCode.LOTTERY_TICKET_EXPIRED
+                || errorCode == ErrorCode.LOTTERY_TICKET_BOOKING_CLOSED) {
+            return exception.getInternalMessage();
+        }
+
+        return exception.getMessage();
     }
 }

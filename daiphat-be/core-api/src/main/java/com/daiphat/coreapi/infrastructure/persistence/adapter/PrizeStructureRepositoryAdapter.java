@@ -18,7 +18,7 @@ public class PrizeStructureRepositoryAdapter implements PrizeStructureRepository
 
     @Override
     public List<PrizeStructureModel> findByProductId(Long productId) {
-        List<PrizeStructureEntity> entities = prizeStructureRepository.findByProduct_IdAndDeletedAtIsNullOrderByDisplayOrderAsc(productId);
+        List<PrizeStructureEntity> entities = prizeStructureRepository.findByStation_IdAndDeletedAtIsNullOrderByDisplayOrderAsc(productId);
         return prizeStructurePersistenceMapper.toDomainList(entities);
     }
 
@@ -31,6 +31,6 @@ public class PrizeStructureRepositoryAdapter implements PrizeStructureRepository
 
     @Override
     public void deleteByProductId(Long productId) {
-        prizeStructureRepository.deleteByProduct_Id(productId);
+        prizeStructureRepository.deleteByStation_Id(productId);
     }
 }
