@@ -6,6 +6,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import 'package:daiphat_mobile/src/features/cart/models/cart_item_model.dart';
+import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import '../viewmodels/buy_ticket_viewmodel.dart';
 
 String _formatTicketPrice(int? price) {
@@ -19,6 +21,19 @@ String _formatTicketPrice(int? price) {
     decimalDigits: 0,
   );
   return '${currencyFormatter.format(price)} / ve';
+}
+
+String _compactPrice(int? price) {
+  if (price == null) {
+    return 'Dang cap nhat';
+  }
+
+  final currencyFormatter = NumberFormat.currency(
+    locale: 'vi_VN',
+    symbol: 'd',
+    decimalDigits: 0,
+  );
+  return currencyFormatter.format(price);
 }
 
 class BuyTicketView extends ConsumerWidget {
@@ -449,19 +464,6 @@ class _TicketCard extends StatelessWidget {
   }
 }
 
-String _compactPrice(int? price) {
-  if (price == null) {
-    return 'Dang cap nhat';
-  }
-
-  final currencyFormatter = NumberFormat.currency(
-    locale: 'vi_VN',
-    symbol: 'd',
-    decimalDigits: 0,
-  );
-  return currencyFormatter.format(price);
-}
-
 class TicketDetailView extends ConsumerWidget {
   const TicketDetailView({super.key, required this.ticket});
 
@@ -735,7 +737,32 @@ class TicketDetailView extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => context.push('/cart'),
+                        onPressed: () {
+                          final cartItem = CartItemData(
+                            province: resolvedTicket.stationDisplayText,
+                            dateLabel: _detailDate(resolvedTicket),
+                            prizeLabel: resolvedTicket.titleText,
+                            number: resolvedTicket.code,
+                            quantity: 1,
+                            unitPrice: resolvedTicket.price ?? 0,
+                            logoText: resolvedTicket.shortName,
+                          );
+                          ref.read(cartProvider.notifier).addItem(cartItem);
+                          ScaffoldMessenger.of(context)
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(
+                              SnackBar(
+                                behavior: SnackBarBehavior.floating,
+                                content: Text(
+                                  'Da them ${resolvedTicket.code} vao gio hang',
+                                ),
+                                action: SnackBarAction(
+                                  label: 'Xem gio hang',
+                                  onPressed: () => context.push('/cart'),
+                                ),
+                              ),
+                            );
+                        },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           side: const BorderSide(color: AppColors.primary),
@@ -754,8 +781,19 @@ class TicketDetailView extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () =>
-                            context.pushNamed(AppRoute.checkout.name),
+                        onPressed: () {
+                          final cartItem = CartItemData(
+                            province: resolvedTicket.stationDisplayText,
+                            dateLabel: _detailDate(resolvedTicket),
+                            prizeLabel: resolvedTicket.titleText,
+                            number: resolvedTicket.code,
+                            quantity: 1,
+                            unitPrice: resolvedTicket.price ?? 0,
+                            logoText: resolvedTicket.shortName,
+                          );
+                          ref.read(cartProvider.notifier).addItem(cartItem);
+                          context.pushNamed(AppRoute.checkout.name);
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,

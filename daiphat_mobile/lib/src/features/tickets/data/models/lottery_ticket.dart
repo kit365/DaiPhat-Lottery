@@ -11,6 +11,7 @@ class LotteryTicket {
     required this.status,
     required this.statusDisplayName,
     required this.verified,
+    this.priceSnapshot,
     this.importedById,
     this.importedAt,
     this.verifiedById,
@@ -33,6 +34,7 @@ class LotteryTicket {
   final String status;
   final String statusDisplayName;
   final bool verified;
+  final int? priceSnapshot;
   final String? importedById;
   final DateTime? importedAt;
   final String? verifiedById;
@@ -56,6 +58,7 @@ class LotteryTicket {
       status: json['status']?.toString() ?? '',
       statusDisplayName: json['statusDisplayName']?.toString() ?? '',
       verified: json['verified'] as bool? ?? false,
+      priceSnapshot: (json['priceSnapshot'] as num?)?.toInt(),
       importedById: json['importedById']?.toString(),
       importedAt: _parseDateTime(json['importedAt']),
       verifiedById: json['verifiedById']?.toString(),

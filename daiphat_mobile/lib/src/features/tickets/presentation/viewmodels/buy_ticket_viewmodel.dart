@@ -235,7 +235,7 @@ LotteryTicketListItem mapLotteryTicketToListItem(LotteryTicket ticket) {
     serialNumber: ticket.serialNumber,
     batchCode: ticket.batchCode,
     imageUrl: ticket.ticketImg,
-    price: null,
+    price: ticket.priceSnapshot,
   );
 }
 
