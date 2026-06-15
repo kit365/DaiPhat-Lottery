@@ -21,13 +21,26 @@ public interface OrderServicePort {
 
     OrderResponse getMyOrderDetail(UUID orderId, UUID customerId);
 
+    PageResponse<OrderResponse> getOrders(
+            int page,
+            int size,
+            List<String> statuses,
+            LocalDate fromDate,
+            LocalDate toDate,
+            List<String> orderTypes,
+            List<String> receiveTypes,
+            String search,
+            String sortBy,
+            String direction
+    );
+
     PageResponse<OrderResponse> getMyOrders(
             int page,
             int size,
-            String status,
+            List<String> statuses,
             LocalDate fromDate,
             LocalDate toDate,
-            String orderType,
+            List<String> orderTypes,
             String search,
             String sortBy,
             String direction,

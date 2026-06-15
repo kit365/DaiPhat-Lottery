@@ -100,10 +100,10 @@ export const CheckoutResultPage = () => {
                                 <i className="fa-solid fa-house"></i> Về trang chủ
                             </Link>
                             <Link 
-                                to="/profile/tickets" 
+                                to={resultData.internalCode ? `/profile/orders/${resultData.internalCode}` : "/profile/orders"} 
                                 className="flex-1 py-3.5 rounded-xl bg-[#ee1314] text-white font-bold text-[15px] hover:bg-[#d00f10] transition-colors shadow-md shadow-[#ee1314]/20 flex items-center justify-center gap-2"
                             >
-                                <i className="fa-solid fa-ticket"></i> Xem đơn của tôi
+                                <i className="fa-solid fa-file-invoice"></i> Xem đơn của tôi
                             </Link>
                         </div>
                     </div>

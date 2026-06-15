@@ -1,51 +1,116 @@
-import { useState } from "react";
-import {
-    Box,
-    Card,
-    Stack,
-    Grid,
-    Avatar,
-    Typography,
-    Button,
-    Chip,
-    IconButton,
-    MenuItem,
-    Select,
-    CircularProgress,
-    alpha
-} from "@mui/material";
-import { Icon } from "@iconify/react";
-import { useNavigate, useParams } from "react-router-dom";
-import dayjs from "dayjs";
-import { useOrderDetail, useUpdateOrderStatus, useUpdateOrder } from "./hooks/useOrderManagement";
-import { toast } from "react-toastify";
-import { exportInvoicePdf } from "../../api/order.api";
+import React from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useOrderDetail, useUpdateOrderStatus } from './hooks/useOrderManagement';
+import { OrderStatus, OrderType } from '../../../types/order.type';
+import dayjs from 'dayjs';
+import { CircularProgress, Box, Typography, Button, Select, MenuItem, Chip, IconButton } from '@mui/material';
+import { Icon } from '@iconify/react';
+import { toast } from 'react-toastify';
+import { prefixAdmin } from '../../constants/routes';
 
-const STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
-    pending: { label: "Chờ xác nhận", color: "var(--palette-warning-dark)", bg: "var(--palette-warning-lighter)" },
-    confirmed: { label: "Đã xác nhận", color: "var(--palette-info-dark)", bg: "var(--palette-info-lighter)" },
-    shipping: { label: "Đang giao", color: "var(--palette-primary-dark)", bg: "var(--palette-primary-lighter)" },
-    shipped: { label: "Đã giao (Chờ nhận)", color: "var(--palette-success-dark)", bg: "var(--palette-success-lighter)" },
-    completed: { label: "Hoàn thành", color: "var(--palette-success-dark)", bg: "var(--palette-success-lighter)" },
-    cancelled: { label: "Đã hủy", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
-    returned: { label: "Trả hàng", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
-    request_cancel: { label: "Yêu cầu hủy", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
+const ORDER_STATUS_MAP: Record<OrderStatus, { label: string, bg: string, text: string, color: any }> = {
+    [OrderStatus.PENDING_PAYMENT]: { label: 'Chờ thanh toán', bg: 'bg-[#FFF9F3]', text: 'text-[#FFB020]', color: 'warning' },
+    [OrderStatus.PAID]: { label: 'Đã thanh toán', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]', color: 'success' },
+    [OrderStatus.PREPARING]: { label: 'Đang chuẩn bị', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]', color: 'info' },
+    [OrderStatus.PENDING_PICKUP]: { label: 'Chờ nhận vé', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]', color: 'primary' },
+    [OrderStatus.COMPLETED]: { label: 'Hoàn thành', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]', color: 'success' },
+    [OrderStatus.CANCELLED]: { label: 'Đã huỷ', bg: 'bg-[#FFF4F4]', text: 'text-[#ee1314]', color: 'error' }
 };
 
-const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
-    unpaid: { label: "Chưa thanh toán", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
-    paid: { label: "Đã thanh toán", color: "var(--palette-success-main)", bg: "rgba(34, 197, 94, 0.16)" },
-    refunded: { label: "Đã hoàn tiền", color: "var(--palette-info-dark)", bg: "var(--palette-info-lighter)" },
+const ORDER_TYPE_MAP: Record<OrderType, { label: string, bg: string, text: string }> = {
+    [OrderType.ONLINE]: { label: 'Online', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
+    [OrderType.DIRECT]: { label: 'Tại quầy', bg: 'bg-[#FFF9F3]', text: 'text-[#FFB020]' }
+};
+
+const AdminOrderStepper = ({ currentStatus }: { currentStatus: OrderStatus }) => {
+    if (currentStatus === OrderStatus.CANCELLED) {
+        return (
+            <div className="bg-[#FFF4F4] rounded-[16px] p-6 border border-[#FFEBEE] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+                <div className="w-14 h-14 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
+                    <i className="fa-solid fa-xmark"></i>
+                </div>
+                <div>
+                    <h3 className="text-[#ee1314] font-bold text-[18px]">Đơn hàng đã bị huỷ</h3>
+                    <p className="text-[#637381] text-[14px] mt-1.5 font-medium">Đơn hàng này đã bị huỷ và không thể tiếp tục thực hiện.</p>
+                </div>
+            </div>
+        );
+    }
+
+    const steps = [
+        { key: 'CREATED', label: 'Đã đặt đơn' },
+        { key: OrderStatus.PAID, label: 'Đã thanh toán' },
+        { key: OrderStatus.PREPARING, label: 'Đang chuẩn bị' },
+        { key: OrderStatus.PENDING_PICKUP, label: 'Chờ nhận vé' }
+    ];
+
+    const getStepIndex = (status: OrderStatus) => {
+        switch (status) {
+            case OrderStatus.PENDING_PAYMENT: return 0;
+            case OrderStatus.PAID: return 1;
+            case OrderStatus.PREPARING: return 2;
+            case OrderStatus.PENDING_PICKUP: return 3;
+            case OrderStatus.COMPLETED: return 3; // Hoàn thành cũng full step
+            default: return 0;
+        }
+    };
+
+    const currentIndex = getStepIndex(currentStatus);
+
+    return (
+        <div className="bg-white rounded-[16px] p-6 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col items-center">
+            <div className="flex items-center justify-between relative w-full max-w-4xl mx-auto mb-6 mt-4">
+                {/* Background Line */}
+                <div className="absolute top-1/2 left-[5%] right-[5%] h-[2px] bg-[#E5E8EB] -translate-y-1/2 z-0"></div>
+
+                {/* Active Line */}
+                <div
+                    className="absolute top-1/2 left-[5%] h-[2px] bg-[#1CD162] -translate-y-1/2 z-0 transition-all duration-700 ease-in-out"
+                    style={{ width: `${(currentIndex / (steps.length - 1)) * 90}%` }}
+                ></div>
+
+                {steps.map((step, index) => {
+                    const isCompleted = index <= currentIndex;
+                    const isLastCompleted = index === currentIndex;
+
+                    return (
+                        <div key={step.key} className="relative z-10 flex flex-col items-center gap-2 bg-white px-4">
+                            <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center text-[14px] transition-all duration-300 ${isCompleted
+                                        ? 'bg-white text-[#1CD162] border-2 border-[#1CD162]'
+                                        : 'bg-white text-[#919EAB] border-2 border-[#E5E8EB]'
+                                    }`}
+                            >
+                                {isCompleted ? <i className="fa-solid fa-check"></i> : (currentStatus === OrderStatus.PENDING_PAYMENT && index === 0 ? <i className="fa-solid fa-check"></i> : <i className="fa-solid fa-lock text-[12px]"></i>)}
+                            </div>
+                            <div className="text-center">
+                                <span className={`block text-[13px] font-bold ${isCompleted ? 'text-[#212B36]' : 'text-[#919EAB]'}`}>
+                                    {step.label}
+                                </span>
+                                {isLastCompleted && (
+                                    <span className="block text-[11px] text-[#919EAB] mt-0.5">
+                                        {dayjs().format('DD/MM/YYYY - HH:mm')}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            <p className="text-[#637381] text-[13px] text-center mt-2">
+                Đơn hàng sẽ được chuẩn bị và sẵn sàng để bạn đến lấy vé.
+            </p>
+        </div>
+    );
 };
 
 export const OrderDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { data: orderRes, isLoading } = useOrderDetail(id || "");
-    const order = orderRes?.data;
     const { mutate: updateStatus } = useUpdateOrderStatus();
-    const { mutate: updateOrder } = useUpdateOrder();
-    const [isExporting, setIsExporting] = useState(false);
+
+    const order = orderRes?.data;
 
     if (isLoading) {
         return (
@@ -59,514 +124,249 @@ export const OrderDetailPage = () => {
         return (
             <Box sx={{ p: 5, textAlign: 'center' }}>
                 <Typography sx={{ color: 'var(--palette-text-primary)' }}>Không tìm thấy đơn hàng</Typography>
+                <Button sx={{ mt: 2 }} variant="contained" onClick={() => navigate(-1)}>Quay lại</Button>
             </Box>
         );
     }
 
-    const currentStatus = STATUS_OPTIONS[order.orderStatus] || STATUS_OPTIONS.pending;
+    const statusConfig = ORDER_STATUS_MAP[order.status as OrderStatus] || ORDER_STATUS_MAP[OrderStatus.PENDING_PAYMENT];
+    const typeConfig = ORDER_TYPE_MAP[order.orderType as OrderType] || ORDER_TYPE_MAP[OrderType.ONLINE];
 
-    const handleStatusChange = (newStatus: string) => {
-        if (newStatus === "completed" && order.paymentStatus !== "paid") {
-            toast.error("Đơn hàng chưa thanh toán, không thể chuyển sang Hoàn thành!");
-            return;
+    const handleCopyOrderCode = () => {
+        if (order.orderCode) {
+            navigator.clipboard.writeText(order.orderCode);
+            toast.success("Đã sao chép mã đơn hàng!");
         }
+    };
 
-        updateStatus({ id: order._id, status: newStatus }, {
+    const handleStatusChange = (newStatus: OrderStatus) => {
+        updateStatus({ id: order.id, status: newStatus }, {
             onSuccess: () => toast.success("Cập nhật trạng thái thành công"),
             onError: (err: any) => toast.error(err?.response?.data?.message || err?.message || "Cập nhật trạng thái thất bại")
         });
     };
 
-    const handlePaymentStatusChange = (newStatus: string) => {
-        if (order.paymentStatus === "paid" && newStatus === "unpaid") {
-            toast.error("Không thể chuyển đơn đã thanh toán về chưa thanh toán!");
-            return;
-        }
-
-        if (["cancelled", "request_cancel"].includes(order.orderStatus) && newStatus === "paid") {
-            toast.error("Đơn hàng đã hủy hoặc yêu cầu hủy không thể chuyển sang Đã thanh toán!");
-            return;
-        }
-
-        updateOrder({ id: order._id, data: { paymentStatus: newStatus } }, {
-            onSuccess: () => toast.success("Cập nhật trạng thái thanh toán thành công"),
-            onError: (err: any) => toast.error(err?.response?.data?.message || err?.message || "Cập nhật trạng thái thanh toán thất bại")
-        });
-    };
-
-    const handleExport = async () => {
-        if (!order) return;
-        setIsExporting(true);
-        try {
-            const blob = await exportInvoicePdf(order.code, order.phone);
-            const url = window.URL.createObjectURL(new Blob([blob]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `invoice_${order.code}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            if (link.parentNode) link.parentNode.removeChild(link);
-            toast.success("Đã tải xuống hóa đơn!");
-        } catch (error) {
-            console.error("Failed to export invoice:", error);
-            toast.error("Xuất hóa đơn thất bại!");
-        } finally {
-            setIsExporting(false);
-        }
-    };
+    const paymentMethod = order.transactions?.[0]?.paymentGateway || 'PayOS (Chuyển khoản QR)';
+    const note = order.transactions?.[0]?.note || 'Không có';
 
     return (
-        <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
-            {/* Header section */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4, mt: 0.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <IconButton
-                        onClick={() => navigate(-1)}
-                        sx={{
-                            color: 'var(--palette-action-active)',
-                            p: 0.75,
-                            mr: 1,
-                            mt: 0.25
-                        }}
-                    >
-                        <Icon icon="eva:arrow-ios-back-fill" width={20} />
-                    </IconButton>
+        <div className="max-w-[1200px] mx-auto pb-10">
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-2 text-[13px] font-medium text-[#637381] mb-4">
+                <Link to={`/${prefixAdmin}/order/list`} className="hover:text-[#212B36] transition-colors flex items-center gap-1">
+                    <i className="fa-solid fa-arrow-left text-[11px]"></i> Đơn mua hộ
+                </Link>
+                <i className="fa-solid fa-chevron-right text-[10px]"></i>
+                <span className="text-[#212B36] underline decoration-gray-300 underline-offset-4 font-semibold">Chi tiết đơn hàng</span>
+            </div>
 
-                    <Stack spacing={0.5}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="h4" sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                Đơn hàng #{order.code || order._id.slice(-6).toUpperCase()}
-                            </Typography>
-                            <Chip
-                                label={currentStatus.label}
-                                size="small"
-                                sx={{
-                                    fontWeight: 700,
-                                    height: 22,
-                                    fontSize: '0.75rem',
-                                    borderRadius: 'var(--shape-borderRadius-sm)',
-                                    color: currentStatus.color,
-                                    bgcolor: currentStatus.bg,
-                                    backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0.48))',
-                                }}
-                            />
-                        </Box>
-                        <Typography variant="body2" sx={{ color: 'var(--palette-text-disabled)', fontSize: '0.875rem' }}>
-                            {dayjs(order.createdAt).format("DD MMM YYYY h:mm a")}
-                        </Typography>
-                    </Stack>
-                </Box>
-
-                <Stack direction="row" spacing={1.5} alignItems="center">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-3">
+                    <h1 className="text-[24px] font-bold text-[#212B36]">Chi tiết đơn hàng</h1>
+                    <span className={`text-[12px] font-bold px-2.5 py-1 rounded-md ${statusConfig.bg} ${statusConfig.text}`}>
+                        <i className="fa-solid fa-check-circle mr-1"></i> {statusConfig.label}
+                    </span>
+                    <span className={`text-[12px] font-bold px-2.5 py-1 rounded-md ${typeConfig.bg} ${typeConfig.text}`}>
+                        {typeConfig.label}
+                    </span>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                    {/* Select Update Status */}
                     <Select
                         size="small"
-                        value={order.orderStatus}
-                        onChange={(e) => handleStatusChange(e.target.value)}
-                        disabled={order.orderStatus === 'completed' || order.orderStatus === 'cancelled' || order.orderStatus === 'returned'}
+                        value={order.status}
+                        onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
+                        disabled={order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED}
                         sx={{
-                            minWidth: 140,
-                            height: 36,
+                            minWidth: 160,
+                            height: 38,
                             borderRadius: '8px',
-                            bgcolor: (theme) => alpha(theme.palette.grey[500], 0.08),
-                            '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: (theme) => alpha(theme.palette.grey[500], 0.32),
-                                transition: (theme) => theme.transitions.create('border-color')
-                            },
-                            '&:hover .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'var(--palette-text-primary)'
-                            },
-                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'var(--palette-text-primary)',
-                                borderWidth: '2px'
-                            },
-                            '& .MuiSelect-select': {
-                                pr: '28px !important',
-                                pl: '12px !important',
-                                fontSize: '0.875rem',
-                                fontWeight: 600,
-                                color: 'var(--palette-text-primary)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                height: '100%',
-                                py: 0
-                            },
-                            '& .MuiSelect-icon': {
-                                width: 18,
-                                height: 18,
-                                color: 'var(--palette-text-primary)',
-                                top: 'calc(50% - 9px)',
-                                right: 6,
-                                transition: (theme) => theme.transitions.create('transform'),
-                            },
-                            '&.Mui-disabled': {
-                                opacity: 0.8,
-                                '& .MuiSelect-icon': { display: 'none' }
-                            }
-                        }}
-                        IconComponent={(props) => (
-                            <Icon icon="eva:chevron-down-fill" {...props} width={20} />
-                        )}
-                        MenuProps={{
-                            PaperProps: {
-                                className: 'background-popup',
-                                sx: {
-                                    px: 0,
-                                    width: 140,
-                                    boxShadow: 'var(--customShadows-z20)',
-                                    borderRadius: '8px',
-                                    mt: 0.5,
-                                    p: 0.5
-                                }
-                            }
+                            fontWeight: 600,
+                            fontSize: '0.875rem',
+                            bgcolor: 'white'
                         }}
                     >
-                        {Object.entries(STATUS_OPTIONS).map(([value, opt]) => (
-                            <MenuItem
-                                key={value}
-                                value={value}
-                                sx={{
-                                    fontSize: '0.875rem',
-                                    borderRadius: '6px',
-                                    px: 1,
-                                    py: 0.5,
-                                    my: 0.25,
-                                    '&.Mui-selected': {
-                                        fontWeight: '600 !important',
-                                        bgcolor: 'var(--palette-action-selected) !important',
-                                        '&:hover': {
-                                            bgcolor: 'var(--palette-action-selected) !important',
-                                        }
-                                    }
-                                }}
-                            >
+                        {Object.entries(ORDER_STATUS_MAP).map(([value, opt]) => (
+                            <MenuItem key={value} value={value} sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
                                 {opt.label}
                             </MenuItem>
                         ))}
                     </Select>
-                    <Button
-                        variant="outlined"
-                        onClick={handleExport}
-                        disabled={isExporting}
-                        startIcon={isExporting ? <CircularProgress size={18} color="inherit" /> : <Icon icon="eva:printer-fill" />}
-                        sx={{
-                            fontWeight: 700,
-                            fontSize: '0.875rem',
-                            minWidth: 64,
-                            height: 36,
-                            lineHeight: 1.71429,
-                            padding: '2px 12px',
-                            textTransform: 'capitalize',
-                            borderRadius: '8px',
-                            borderColor: (theme) => alpha(theme.palette.grey[500], 0.32),
-                            color: 'var(--palette-text-primary)',
-                            transition: (theme) => theme.transitions.create(['background-color', 'box-shadow', 'border-color'], {
-                                duration: 250,
-                            }),
-                            '&:hover': {
-                                bgcolor: (theme) => alpha(theme.palette.grey[500], 0.08),
-                                borderColor: 'currentColor',
-                                boxShadow: 'currentColor 0px 0px 0px 0.75px',
-                            },
-                        }}
+
+                    <button
+                        onClick={() => navigate(`/${prefixAdmin}/order/list`)}
+                        className="px-4 py-2 bg-white border border-[#E5E8EB] rounded-lg text-[14px] font-bold text-[#454F5B] hover:bg-[#F9FAFB] transition-colors shadow-sm cursor-pointer flex items-center gap-2 h-[38px]"
                     >
-                        {isExporting ? "Đang xuất..." : "Export"}
-                    </Button>
-                </Stack>
-            </Box>
+                        <i className="fa-solid fa-arrow-left"></i> Quay lại danh sách
+                    </button>
+                </div>
+            </div>
 
-            <Grid container spacing={3}>
-                {/* Left Column */}
-                <Grid size={{ xs: 12, md: 8 }}>
-                    <Stack spacing={3}>
-                        {/* Details Card */}
-                        <Card sx={{ borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 3, px: 3, pb: 0 }}>
-                                <Typography sx={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--palette-text-primary)' }}>Chi tiết</Typography>
-                            </Stack>
+            {/* General Info Card */}
+            <div className="bg-white rounded-[16px] border border-[#E5E8EB] p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+                    <div className="flex flex-col gap-1.5">
+                        <span className="text-[13px] text-[#637381]">Mã đơn hàng</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[14px] font-bold text-[#00A76F]">{order.orderCode}</span>
+                            <button onClick={handleCopyOrderCode} className="text-[#919EAB] hover:text-[#212B36]">
+                                <i className="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <span className="text-[13px] text-[#637381]">Ngày đặt</span>
+                        <div className="flex items-center gap-2 text-[14px] font-semibold text-[#212B36]">
+                            <i className="fa-regular fa-calendar text-[#919EAB]"></i>
+                            {dayjs(order.createdAt).format('DD/MM/YYYY HH:mm')}
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <span className="text-[13px] text-[#637381]">Giờ lấy vé (dự kiến)</span>
+                        <div className="flex items-center gap-2 text-[14px] font-semibold text-[#212B36]">
+                            <i className="fa-regular fa-clock text-[#919EAB]"></i>
+                            {order.expectedPickupAt ? dayjs(order.expectedPickupAt).format('DD/MM/YYYY HH:mm') : '-'}
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <span className="text-[13px] text-[#637381]">Loại đơn</span>
+                        <span className={`text-[12px] font-bold px-2.5 py-0.5 rounded w-max ${typeConfig.bg} ${typeConfig.text}`}>
+                            {typeConfig.label}
+                        </span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <span className="text-[13px] text-[#637381]">Trạng thái</span>
+                        <span className={`text-[12px] font-bold px-2.5 py-0.5 rounded w-max ${statusConfig.bg} ${statusConfig.text}`}>
+                            {statusConfig.label}
+                        </span>
+                    </div>
+                </div>
+                
+                <div className="mt-6 border-t border-[#F4F6F8] pt-4">
+                    <span className="text-[13px] text-[#637381] block mb-1">Ghi chú</span>
+                    <span className="text-[14px] font-semibold text-[#212B36]">{note}</span>
+                </div>
+            </div>
 
-                            <Box>
-                                {order.items?.map((item: any, idx: number) => (
-                                    <Stack
-                                        key={idx}
-                                        direction="row"
-                                        spacing={2}
-                                        alignItems="center"
-                                        sx={{
-                                            px: 3,
-                                            py: 3,
-                                            borderBottom: 'dashed 2px var(--palette-background-neutral)',
-                                        }}
-                                    >
-                                        <Avatar
-                                            src={item.image}
-                                            variant="rounded"
-                                            sx={{ width: 56, height: 56, bgcolor: 'background.neutral' }}
-                                        >
-                                            <Icon icon="solar:box-bold" width={28} />
-                                        </Avatar>
-                                        <Box sx={{ flexGrow: 1 }}>
-                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>{item.name}</Typography>
-                                            <Typography sx={{ color: 'var(--palette-text-disabled)', fontSize: '0.875rem', mt: 0.5 }}>
-                                                {item.variant?.join(', ') || "Mặc định"}
-                                            </Typography>
-                                        </Box>
-                                        <Typography variant="body2" sx={{ color: 'var(--palette-text-disabled)', minWidth: 40, textAlign: 'center' }}>
-                                            x{item.quantity || 1}
-                                        </Typography>
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, minWidth: 100, textAlign: 'right', color: 'var(--palette-text-primary)' }}>
-                                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.price || 0)}
-                                        </Typography>
-                                    </Stack>
-                                ))}
-                            </Box>
+            {/* Stepper */}
+            <div className="mb-6">
+                <AdminOrderStepper currentStatus={order.status as OrderStatus} />
+            </div>
 
-                            <Box sx={{ p: 3 }}>
-                                <Box sx={{ width: '100%', ml: 'auto', maxWidth: 240 }}>
-                                    <Stack spacing={1.5}>
-                                        <Stack direction="row" justifyContent="space-between">
-                                            <Typography variant="body2" sx={{ color: 'var(--palette-text-disabled)' }}>Tạm tính</Typography>
-                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.subTotal || 0)}
-                                            </Typography>
-                                        </Stack>
-                                        <Stack direction="row" justifyContent="space-between">
-                                            <Typography variant="body2" sx={{ color: 'var(--palette-text-disabled)' }}>Phí vận chuyển</Typography>
-                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'error.main' }}>
-                                                {order.shipping?.fee ? `-${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.shipping.fee)}` : "Miễn phí"}
-                                            </Typography>
-                                        </Stack>
-                                        <Stack direction="row" justifyContent="space-between">
-                                            <Typography variant="body2" sx={{ color: 'var(--palette-text-disabled)' }}>Giảm giá</Typography>
-                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'error.main' }}>
-                                                -{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.discount || 0)}
-                                            </Typography>
-                                        </Stack>
-                                        <Stack direction="row" justifyContent="space-between">
-                                            <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>Tổng tiền</Typography>
-                                            <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.total || 0)}
-                                            </Typography>
-                                        </Stack>
-                                    </Stack>
-                                </Box>
-                            </Box>
-                        </Card>
+            {/* User & Payment Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                {/* Thông tin người đặt */}
+                <div className="bg-white rounded-[16px] border border-[#E5E8EB] p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
+                    <div className="flex items-center gap-2 mb-6">
+                        <i className="fa-regular fa-user text-[#1CD162] text-[18px]"></i>
+                        <h3 className="text-[16px] font-bold text-[#212B36]">Thông tin người đặt</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="flex flex-col gap-1.5">
+                            <span className="text-[13px] text-[#637381]">Họ tên</span>
+                            <span className="text-[15px] font-semibold text-[#212B36]">{order.name || order.userId || 'Admin Super'}</span>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <span className="text-[13px] text-[#637381]">Số điện thoại</span>
+                            <span className="text-[15px] font-semibold text-[#212B36]">{order.phone || '-'}</span>
+                        </div>
+                    </div>
+                </div>
 
-                        {/* History Card - Modern Timeline */}
-                        <Card sx={{ p: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
-                            <Typography sx={{ fontSize: '1.125rem', fontWeight: 600, mb: 3, color: 'var(--palette-text-primary)' }}>Lịch sử đơn hàng</Typography>
+                {/* Thanh toán */}
+                <div className="bg-white rounded-[16px] border border-[#E5E8EB] p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
+                    <div className="flex items-center gap-2 mb-6">
+                        <i className="fa-solid fa-receipt text-[#1CD162] text-[18px]"></i>
+                        <h3 className="text-[16px] font-bold text-[#212B36]">Thanh toán</h3>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="flex flex-col gap-1.5">
+                            <span className="text-[13px] text-[#637381]">Tổng tiền</span>
+                            <span className="text-[18px] font-bold text-[#1CD162]">{(order.totalAmount || 0).toLocaleString('vi-VN')}đ</span>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <span className="text-[13px] text-[#637381]">Phương thức</span>
+                            <div className="flex items-center gap-2 text-[14px] font-semibold text-[#212B36]">
+                                <i className="fa-solid fa-money-bill-transfer text-[#919EAB]"></i> {paymentMethod}
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <span className="text-[13px] text-[#637381]">Trạng thái thanh toán</span>
+                            <span className={`text-[12px] font-bold px-2.5 py-0.5 rounded w-max ${statusConfig.bg} ${statusConfig.text}`}>
+                                {statusConfig.label}
+                            </span>
+                            <span className="text-[11px] text-[#919EAB] mt-1">{dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm')}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                            <Stack spacing={0}>
-                                {[
-                                    { label: "Tạo đơn hàng", date: order.createdAt, active: true, icon: "solar:cart-large-minimalistic-bold", color: "#1877F2" },
-                                    { label: "Xác nhận", date: order.confirmedAt, active: !!order.confirmedAt, icon: "solar:check-read-bold", color: "#1877F2" },
-                                    { label: "Đang giao hàng", date: order.shippingAt, active: !!order.shippingAt, icon: "solar:delivery-bold", color: "#1877F2" },
-                                    { label: "Đã giao đến nơi", date: order.shippedAt, active: !!order.shippedAt, icon: "solar:map-point-wave-bold", color: "#1877F2" },
-                                    { label: "Hoàn thành", date: order.completedAt, active: !!order.completedAt, color: "#22C55E", icon: "solar:verified-check-bold" },
-                                    order.cancelledAt && { label: "Đã hủy", date: order.cancelledAt, active: true, color: "#FF5630", icon: "solar:close-circle-bold" },
-                                    order.returnedAt && { label: "Trả hàng", date: order.returnedAt, active: true, color: "#FFAB00", icon: "solar:back-bold" }
-                                ].filter(Boolean).map((step: any, index: number, array: any[]) => (
-                                    <Stack key={index} direction="row" spacing={2}>
-                                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20 }}>
-                                            <Box
-                                                sx={{
-                                                    width: 12,
-                                                    height: 12,
-                                                    borderRadius: '50%',
-                                                    bgcolor: step.active ? step.color : 'var(--palette-grey-400)',
-                                                    zIndex: 1,
-                                                    mt: 0.75,
-                                                    boxShadow: step.active ? `0 0 0 4px ${alpha(step.color || '#F4F6F8', 0.12)}` : 'none'
-                                                }}
-                                            />
-                                            {index !== array.length - 1 && (
-                                                <Box sx={{
-                                                    width: 2,
-                                                    flexGrow: 1,
-                                                    bgcolor: step.active && array[index + 1]?.active ? 'primary.main' : 'var(--palette-background-neutral)',
-                                                    my: 0.5
-                                                }} />
-                                            )}
-                                        </Box>
+            {/* Danh sách vé */}
+            <div className="bg-white rounded-[16px] border border-[#E5E8EB] p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] mb-6">
+                <div className="flex items-center gap-2 mb-6">
+                    <i className="fa-solid fa-ticket text-[#1CD162] text-[18px]"></i>
+                    <h3 className="text-[16px] font-bold text-[#212B36]">Danh sách vé ({order.orderDetails?.length || 0} vé)</h3>
+                </div>
 
-                                        <Box sx={{ pb: index === array.length - 1 ? 0 : 3, flexGrow: 1 }}>
-                                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                                                <Box>
-                                                    <Typography
-                                                        variant="subtitle2"
-                                                        sx={{
-                                                            fontWeight: 600,
-                                                            color: step.active ? 'var(--palette-text-primary)' : 'var(--palette-text-disabled)',
-                                                            fontSize: '0.875rem'
-                                                        }}
-                                                    >
-                                                        {step.label}
-                                                    </Typography>
-                                                    {step.date && (
-                                                        <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mt: 0.25 }}>
-                                                            {dayjs(step.date).format("DD/MM/YYYY - hh:mm A")}
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                                {step.active && (
-                                                    <Icon
-                                                        icon={step.icon}
-                                                        width={20}
-                                                        color={step.active ? (step.color === 'error.main' ? '#FF5630' : '#1877F2') : '#919EAB'}
-                                                        style={{ opacity: step.active ? 1 : 0.3 }}
-                                                    />
-                                                )}
-                                            </Stack>
-                                        </Box>
-                                    </Stack>
-                                ))}
-                            </Stack>
-                        </Card>
-                    </Stack>
-                </Grid>
+                <div className="space-y-4">
+                    {order.orderDetails && order.orderDetails.length > 0 ? (
+                        order.orderDetails.map((detail: any, index: number) => (
+                            <div key={index} className="flex flex-col md:flex-row items-center gap-4 py-4 border-b border-[#F4F6F8] last:border-0">
+                                <div className="w-[60px] h-[60px] bg-[#ee1314] rounded-lg flex items-center justify-center text-white shrink-0">
+                                    <i className="fa-solid fa-ticket text-[24px]"></i>
+                                </div>
+                                <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
+                                    <div>
+                                        <h4 className="text-[14px] font-bold text-[#212B36]">Vé số {detail.lotteryTicket?.province?.name || 'Đồng Nai'}</h4>
+                                        <div className="text-[18px] font-bold text-[#212B36] mt-1">{detail.lotteryTicket?.symbol || '283749'} <span className="text-[#ee1314] text-[11px] bg-[#FFF4F4] px-1.5 py-0.5 rounded ml-1">Vé thường</span></div>
+                                    </div>
+                                    <div>
+                                        <span className="text-[13px] text-[#637381] block">Ngày xổ</span>
+                                        <div className="flex items-center gap-2 text-[14px] font-semibold text-[#212B36] mt-1">
+                                            <i className="fa-regular fa-calendar text-[#919EAB]"></i> 16/06/2026<br/>
+                                            <span className="text-[12px] text-[#919EAB] font-normal">(Thứ Hai)</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className="text-[13px] text-[#637381] block">Giá</span>
+                                        <div className="text-[14px] font-bold text-[#212B36] mt-1">{(detail.price || 10000).toLocaleString('vi-VN')}đ</div>
+                                    </div>
+                                    <div>
+                                        <span className="text-[13px] text-[#637381] block">Trạng thái</span>
+                                        <div className="mt-1">
+                                            <span className="text-[12px] font-bold px-2.5 py-1 rounded bg-[#E4F8ED] text-[#1CD162]">Đã mua</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="shrink-0">
+                                    <button className="px-4 py-2 border border-[#E5E8EB] rounded-lg text-[13px] font-bold text-[#1CD162] hover:bg-[#F9FAFB] flex items-center gap-2">
+                                        Xem kết quả <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-8 text-[#637381] text-[14px]">Không có dữ liệu vé</div>
+                    )}
+                </div>
+            </div>
 
-                {/* Right Column */}
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <Stack spacing={3}>
-                        {/* Payment Card */}
-                        <Card sx={{ p: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-                                <Typography sx={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--palette-text-primary)' }}>Thanh toán</Typography>
-                                <Select
-                                    size="small"
-                                    value={order.paymentStatus || 'unpaid'}
-                                    onChange={(e) => handlePaymentStatusChange(e.target.value)}
-                                    disabled={order.paymentStatus === "refunded"}
-                                    sx={{
-                                        minWidth: 140,
-                                        height: 32,
-                                        borderRadius: '8px',
-                                        '&.Mui-disabled': {
-                                            opacity: 0.8,
-                                            '-webkit-text-fill-color': 'inherit'
-                                        },
-                                        '& .MuiSelect-select': {
-                                            fontSize: '0.75rem',
-                                            fontWeight: 700,
-                                            py: 0.5,
-                                            px: 1,
-                                            color: (PAYMENT_STATUS_OPTIONS[order.paymentStatus] || PAYMENT_STATUS_OPTIONS.unpaid).color,
-                                            bgcolor: (PAYMENT_STATUS_OPTIONS[order.paymentStatus] || PAYMENT_STATUS_OPTIONS.unpaid).bg,
-                                        }
-                                    }}
-                                >
-                                    {Object.entries(PAYMENT_STATUS_OPTIONS).map(([value, opt]) => {
-                                        if (order.paymentMethod === 'money' && value === 'refunded') return null;
-
-                                        // Hide Paid if cancelled or request_cancel
-                                        if (['cancelled', 'request_cancel'].includes(order.orderStatus) && value === 'paid') return null;
-
-                                        // Hide Refunded if not cancelled or request_cancel
-                                        if (value === 'refunded' && !['cancelled', 'request_cancel'].includes(order.orderStatus)) return null;
-
-                                        return (
-                                            <MenuItem
-                                                key={value}
-                                                value={value}
-                                                sx={{ fontSize: '0.875rem' }}
-                                                disabled={order.paymentStatus === 'paid' && value === 'unpaid'}
-                                            >
-                                                {opt.label}
-                                            </MenuItem>
-                                        );
-                                    })}
-                                </Select>
-                            </Stack>
-                            <Stack direction="row" alignItems="center" spacing={1} justifyContent="space-between">
-                                <Typography variant="body2" sx={{ color: 'var(--palette-text-disabled)' }}>Phương thức</Typography>
-                                <Stack direction="row" alignItems="center" spacing={1}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                        {order.paymentMethod === 'money' ? 'Tiền mặt' :
-                                            order.paymentMethod === 'vnpay' ? 'VNPay' :
-                                                order.paymentMethod === 'zalopay' ? 'ZaloPay' : 'Chưa giao dịch'}
-                                    </Typography>
-                                    <Icon
-                                        icon={
-                                            order.paymentMethod === 'money' ? 'solar:hand-money-bold' :
-                                                order.paymentMethod === 'vnpay' ? 'logos:vnpay' :
-                                                    'logos:zalopay'
-                                        }
-                                        width={order.paymentMethod === 'money' ? 20 : 28}
-                                        style={{ filter: order.paymentMethod === 'money' ? 'grayscale(1)' : 'none', opacity: order.paymentMethod === 'money' ? 0.7 : 1 }}
-                                    />
-                                </Stack>
-                            </Stack>
-                        </Card>
-
-                        {/* Customer Card */}
-                        <Card sx={{ p: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-                                <Typography sx={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--palette-text-primary)' }}>Khách hàng</Typography>
-                            </Stack>
-                            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-                                <Avatar
-                                    src={order.userId?.avatar}
-                                    sx={{ width: 56, height: 56 }}
-                                >
-                                    <Icon icon="eva:person-fill" width={28} />
-                                </Avatar>
-                                <Box>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                        {order.userId ? `${order.userId.lastName} ${order.userId.firstName}` : (order.fullName || "Khách vãng lai")}
-                                    </Typography>
-                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-disabled)', wordBreak: 'break-all' }}>
-                                        {order.userId?.email || "Chưa có email"}
-                                    </Typography>
-                                </Box>
-                            </Stack>
-                        </Card>
-
-                        {/* Delivery Card */}
-                        <Card sx={{ p: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-                                <Typography sx={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--palette-text-primary)' }}>Vận chuyển</Typography>
-                            </Stack>
-                            <Stack spacing={2}>
-                                <Stack direction="row" justifyContent="space-between">
-                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-disabled)' }}>Đơn vị</Typography>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>{order.shipping?.carrierName || "DHL"}</Typography>
-                                </Stack>
-                                <Stack direction="row" justifyContent="space-between">
-                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-disabled)' }}>Phương thức</Typography>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>Tiêu chuẩn</Typography>
-                                </Stack>
-                                <Stack direction="row" justifyContent="space-between">
-                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-disabled)' }}>Mã vận đơn</Typography>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main', textDecoration: 'underline' }}>
-                                        {order.shipping?.goshipOrderId || "SPX037739199373"}
-                                    </Typography>
-                                </Stack>
-                            </Stack>
-                        </Card>
-
-                        {/* Shipping Address Card */}
-                        <Card sx={{ p: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-                                <Typography sx={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--palette-text-primary)' }}>Địa chỉ nhận hàng</Typography>
-                            </Stack>
-                            <Stack spacing={2}>
-                                <Box>
-                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block' }}>Địa chỉ</Typography>
-                                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                        {order.address || "Chưa có địa chỉ"}
-                                    </Typography>
-                                </Box>
-                                <Box>
-                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block' }}>Số điện thoại</Typography>
-                                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                        {order.phone || order.userId?.phone || "Chưa có số ĐT"}
-                                    </Typography>
-                                </Box>
-                            </Stack>
-                        </Card>
-                    </Stack>
-                </Grid>
-            </Grid>
-        </Box>
+            {/* Success Banner */}
+            {order.status === OrderStatus.PAID && (
+                <div className="bg-[#E4F8ED] border border-[#1CD162]/30 rounded-[16px] p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-[#1CD162] text-white flex items-center justify-center text-[20px] shrink-0">
+                            <i className="fa-solid fa-check"></i>
+                        </div>
+                        <div>
+                            <h4 className="text-[#212B36] font-bold text-[15px]">Đơn hàng đã thanh toán thành công!</h4>
+                            <p className="text-[#637381] text-[13px] mt-0.5">Vé của bạn đang được chuẩn bị. Vui lòng đến lấy vé đúng giờ hẹn.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 };

@@ -2,6 +2,7 @@ package com.daiphat.coreapi.infrastructure.persistence.adapter;
 
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
@@ -58,16 +59,59 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
     public Page<OrderModel> findMyOrders(
             Pageable pageable,
             UUID userId,
-            OrderStatus status,
-            OrderType orderType,
+            List<OrderStatus> statuses,
+            List<OrderType> orderTypes,
             LocalDate fromDate,
             LocalDate toDate,
             String search
     ) {
         return orderRepository.findAll(
-                OrderSpecification.myOrders(userId, status, orderType, fromDate, toDate, search),
+                OrderSpecification.myOrders(userId, statuses, orderTypes, fromDate, toDate, search),
                 pageable
         ).map(orderPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Page<OrderModel> findOrders(
+            Pageable pageable,
+            List<OrderStatus> statuses,
+            List<OrderType> orderTypes,
+            List<OrderReceiveType> receiveTypes,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search
+    ) {
+        return orderRepository.findAll(
+                OrderSpecification.orders(statuses, orderTypes, receiveTypes, fromDate, toDate, search),
+                pageable
+        ).map(orderPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public long countAllOrders(
+            List<OrderType> orderTypes,
+            List<OrderReceiveType> receiveTypes,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search
+    ) {
+        return orderRepository.count(
+                OrderSpecification.orders(List.of(), orderTypes, receiveTypes, fromDate, toDate, search)
+        );
+    }
+
+    @Override
+    public long countOrdersByStatus(
+            OrderStatus status,
+            List<OrderType> orderTypes,
+            List<OrderReceiveType> receiveTypes,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search
+    ) {
+        return orderRepository.count(
+                OrderSpecification.orders(List.of(status), orderTypes, receiveTypes, fromDate, toDate, search)
+        );
     }
 
     @Override

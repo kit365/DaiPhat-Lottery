@@ -41,7 +41,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -161,13 +165,58 @@ public class OrderService implements OrderServicePort {
 
     @Override
     @Transactional(readOnly = true)
+    public PageResponse<OrderResponse> getOrders(
+            int page,
+            int size,
+            List<String> statuses,
+            LocalDate fromDate,
+            LocalDate toDate,
+            List<String> orderTypes,
+            List<String> receiveTypes,
+            String search,
+            String sortBy,
+            String direction
+    ) {
+        validateDateRange(fromDate, toDate);
+
+        PageRequest pageable = PageRequest.of(
+                Math.max(0, page - 1),
+                size,
+                SortUtils.createSort(sortBy, direction)
+        );
+
+        List<OrderStatus> statusEnums = parseOrderStatuses(statuses);
+        List<OrderType> orderTypeEnums = parseOrderTypes(orderTypes);
+        List<OrderReceiveType> receiveTypeEnums = parseReceiveTypes(receiveTypes);
+
+        Page<OrderResponse> resultPage = orderRepositoryPort.findOrders(
+                        pageable,
+                        statusEnums,
+                        orderTypeEnums,
+                        receiveTypeEnums,
+                        fromDate,
+                        toDate,
+                        search
+                )
+                .map(orderApplicationMapper::toResponse);
+
+        return buildPageResponse(
+                resultPage,
+                page,
+                size,
+                buildOrderStatusCounts(orderTypeEnums, receiveTypeEnums, fromDate, toDate, search)
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<OrderResponse> getMyOrders(
             int page,
             int size,
-            String status,
+            List<String> statuses,
             LocalDate fromDate,
             LocalDate toDate,
-            String orderType,
+            List<String> orderTypes,
             String search,
             String sortBy,
             String direction,
@@ -182,30 +231,20 @@ public class OrderService implements OrderServicePort {
                 SortUtils.createSort(sortBy, direction)
         );
 
-        OrderStatus statusEnum = parseOrderStatus(status);
-        OrderType orderTypeEnum = parseOrderType(orderType);
+        List<OrderStatus> statusEnums = parseOrderStatuses(statuses);
+        List<OrderType> orderTypeEnums = parseOrderTypes(orderTypes);
         Page<OrderResponse> resultPage = orderRepositoryPort.findMyOrders(
                         pageable,
                         customerId,
-                        statusEnum,
-                        orderTypeEnum,
+                        statusEnums,
+                        orderTypeEnums,
                         fromDate,
                         toDate,
                         search
                 )
                 .map(orderApplicationMapper::toResponse);
 
-        return PageResponse.<OrderResponse>builder()
-                .recordList(resultPage.getContent())
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(resultPage.getTotalElements())
-                        .totalPages(resultPage.getTotalPages())
-                        .currentPage(page)
-                        .limit(size)
-                        .isFirst(resultPage.isFirst())
-                        .isLast(resultPage.isLast())
-                        .build())
-                .build();
+        return buildPageResponse(resultPage, page, size, null);
     }
 
     @Override
@@ -402,6 +441,50 @@ public class OrderService implements OrderServicePort {
         }
     }
 
+    private OrderReceiveType parseReceiveType(String receiveType) {
+        if (receiveType == null || receiveType.isBlank()) {
+            return null;
+        }
+        try {
+            return OrderReceiveType.valueOf(receiveType.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+    }
+
+    private List<OrderStatus> parseOrderStatuses(List<String> statuses) {
+        return normalizeMultiValues(statuses).stream()
+                .map(this::parseOrderStatus)
+                .toList();
+    }
+
+    private List<OrderType> parseOrderTypes(List<String> orderTypes) {
+        return normalizeMultiValues(orderTypes).stream()
+                .map(this::parseOrderType)
+                .toList();
+    }
+
+    private List<OrderReceiveType> parseReceiveTypes(List<String> receiveTypes) {
+        return normalizeMultiValues(receiveTypes).stream()
+                .map(this::parseReceiveType)
+                .toList();
+    }
+
+    private List<String> normalizeMultiValues(List<String> rawValues) {
+        if (rawValues == null || rawValues.isEmpty()) {
+            return List.of();
+        }
+        return rawValues.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .flatMap(value -> Arrays.stream(value.split(",")))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .collect(java.util.stream.Collectors.collectingAndThen(
+                        java.util.stream.Collectors.toCollection(LinkedHashSet::new),
+                        List::copyOf
+                ));
+    }
+
     private void validateDateRange(LocalDate fromDate, LocalDate toDate) {
         if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
             throw new DomainException(ErrorCode.INVALID_INPUT);
@@ -411,6 +494,44 @@ public class OrderService implements OrderServicePort {
     private OrderModel getOrderOrThrow(UUID orderId) {
         return orderRepositoryPort.findById(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
+    }
+
+    private PageResponse<OrderResponse> buildPageResponse(
+            Page<OrderResponse> resultPage,
+            int page,
+            int size,
+            Map<String, Long> statusCounts
+    ) {
+        return PageResponse.<OrderResponse>builder()
+                .recordList(resultPage.getContent())
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(resultPage.getTotalElements())
+                        .totalPages(resultPage.getTotalPages())
+                        .currentPage(page)
+                        .limit(size)
+                        .isFirst(resultPage.isFirst())
+                        .isLast(resultPage.isLast())
+                        .build())
+                .statusCounts(statusCounts)
+                .build();
+    }
+
+    private Map<String, Long> buildOrderStatusCounts(
+            List<OrderType> orderTypes,
+            List<OrderReceiveType> receiveTypes,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search
+    ) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        counts.put("all", orderRepositoryPort.countAllOrders(orderTypes, receiveTypes, fromDate, toDate, search));
+        for (OrderStatus status : OrderStatus.values()) {
+            counts.put(
+                    status.name(),
+                    orderRepositoryPort.countOrdersByStatus(status, orderTypes, receiveTypes, fromDate, toDate, search)
+            );
+        }
+        return counts;
     }
 
 }

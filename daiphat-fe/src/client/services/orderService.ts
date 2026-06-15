@@ -1,8 +1,22 @@
 import { apiApp } from '../../api';
-import { CreateOnlineOrderRequest, GetMyOrdersParams, OrderResponse } from '../../types/order.type';
+import { CreateOnlineOrderRequest, OrderFilterParams, OrderResponse } from '../../types/order.type';
 import { ApiResponse, PageResponse } from '../../types/api.type';
 
 const BASE_URL = '/orders';
+
+const normalizeOrderFilterParams = (params?: OrderFilterParams) => {
+    if (!params) return undefined;
+    const normalized = { ...params } as Record<string, any>;
+
+    (['status', 'orderType', 'receiveType'] as const).forEach((key) => {
+        const value = normalized[key];
+        if (Array.isArray(value)) {
+            normalized[key] = value.length > 0 ? value.join(',') : undefined;
+        }
+    });
+
+    return normalized;
+};
 
 export const orderService = {
     /**
@@ -16,8 +30,10 @@ export const orderService = {
     /**
      * Gets my orders with pagination and filtering
      */
-    getMyOrders: async (params: GetMyOrdersParams): Promise<ApiResponse<PageResponse<OrderResponse>>> => {
-        const response = await apiApp.get(`${BASE_URL}/my-orders`, { params });
+    getMyOrders: async (params: OrderFilterParams): Promise<ApiResponse<PageResponse<OrderResponse>>> => {
+        const response = await apiApp.get(`${BASE_URL}/my-orders`, {
+            params: normalizeOrderFilterParams(params)
+        });
         return response.data;
     },
     
