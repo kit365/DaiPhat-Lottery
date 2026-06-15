@@ -1,8 +1,8 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.order;
 
-import com.daiphat.coreapi.domain.model.enums.order.TransactionStatus;
-import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
-import com.daiphat.coreapi.domain.model.enums.order.PaymentGateway;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;

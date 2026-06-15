@@ -2,8 +2,9 @@ import { apiApp } from '../../api';
 import Cookies from 'js-cookie';
 import { ApiResponse } from '../config/type';
 import { prefixAdmin } from '../constants/routes';
+import { STORAGE_KEYS } from '../../constants/storage.constants';
 
-const BASE_URL = `/${prefixAdmin}/ticket`;
+const BASE_URL = `/lottery-tickets`;
 
 /** Header auth dùng chung */
 const withAuth = () => {
@@ -21,20 +22,46 @@ import { mockCategories } from '../data/categories';
 import { mockProviders } from '../data/providers';
 
 export const getTickets = async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiApp.get(BASE_URL, { 
+        params: {
+            page: params?.page || 1,
+            size: params?.limit || 10,
+            stationId: params?.stationId,
+            status: params?.status,
+            drawDate: params?.drawDate,
+            search: params?.search,
+            sortBy: params?.sortBy,
+            direction: params?.direction
+        },
+        ...withAuth() 
+    });
+    
+    const result = response.data?.data;
+    
+    // Map BE response to match FE expectations
+    const recordList = (result?.recordList || []).map((item: any) => ({
+        ...item,
+        _id: item.id,
+        avatar: item.ticketImg,
+        status: item.status ? item.status.toLowerCase() : 'draft'
+    }));
+
     return {
         success: true,
+        message: response.data?.message || "",
+        timestamp: response.data?.timestamp || new Date().toISOString(),
         data: {
-            recordList: mockTickets,
-            pagination: {
-                totalRecords: mockTickets.length,
+            recordList,
+            pagination: result?.pagination || {
+                totalRecords: recordList.length,
                 totalPages: 1,
                 currentPage: params?.page || 1,
                 limit: params?.limit || 10
             },
             statusCounts: {
-                all: mockTickets.length,
-                active: mockTickets.filter(p => p.status === 'active').length,
-                inactive: mockTickets.filter(p => p.status === 'inactive').length,
+                all: result?.pagination?.totalRecords || recordList.length,
+                active: recordList.filter((b: any) => b.status === 'active').length,
+                inactive: recordList.filter((b: any) => b.status === 'inactive').length,
             }
         }
     } as any;
@@ -56,28 +83,25 @@ export const getCreateTicketData = async (): Promise<ApiResponse<any>> => {
 
 /** Tạo vé mới */
 export const createTicket = async (data: any): Promise<ApiResponse<any>> => {
-    const response = await apiApp.post(`${BASE_URL}/create`, data, withAuth());
+    const response = await apiApp.post(BASE_URL, data, withAuth());
     return response.data;
 };
 
 /** Lấy chi tiết vé cho trang Edit */
 export const getTicketById = async (id: string | number): Promise<ApiResponse<any>> => {
-    const ticket = mockTickets.find(p => p._id === id) || mockTickets[0];
-    return {
-        success: true,
-        data: ticket
-    } as any;
+    const response = await apiApp.get(`${BASE_URL}/${id}`, withAuth());
+    return response.data;
 };
 
 /** Cập nhật vé */
 export const updateTicket = async (id: string | number, data: any): Promise<ApiResponse<any>> => {
-    const response = await apiApp.patch(`${BASE_URL}/edit/${id}`, data, withAuth());
+    const response = await apiApp.put(`${BASE_URL}/${id}`, data, withAuth());
     return response.data;
 };
 
 /** Xóa vé */
 export const deleteTicket = async (id: string | number): Promise<ApiResponse<any>> => {
-    const response = await apiApp.patch(`${BASE_URL}/delete/${id}`, {}, withAuth());
+    const response = await apiApp.delete(`${BASE_URL}/${id}`, withAuth());
     return response.data;
 };
 
@@ -115,4 +139,33 @@ export const scanExpiredTickets = async (): Promise<ApiResponse<any>> => {
         success: true,
         message: "Quét vé số hết hạn thành công!"
     } as any;
+};
+
+/** Tải ảnh vé số */
+export const uploadTicketImage = async (id: string | number, file: File): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiApp.post(`${BASE_URL}/${id}/image`, formData, {
+        ...withAuth(),
+        headers: {
+            ...withAuth().headers,
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
+
+
+/** Tải ảnh sê-ri vé số */
+export const uploadTicketSerialImage = async (id: string | number, file: File): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiApp.post(`/lottery-ticket-serials/${id}/image`, formData, {
+        ...withAuth(),
+        headers: {
+            ...withAuth().headers,
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
 };

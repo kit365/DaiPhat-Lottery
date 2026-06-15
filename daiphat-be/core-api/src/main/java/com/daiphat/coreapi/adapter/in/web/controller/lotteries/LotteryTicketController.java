@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.dto.response.base.Views;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/lottery-tickets")
@@ -109,32 +113,20 @@ public class LotteryTicketController {
     @PreAuthorize("hasAnyAuthority('ticket:edit')")
     public ApiResponse<LotteryTicketResponse> changeStatus(
             @PathVariable Long id,
-            @RequestParam String status) {
+            @RequestParam LotteryTicketStatus status) {
         log.info("REST request to change lottery ticket status: {} to {}", id, status);
         LotteryTicketResponse response = lotteryTicketServicePort.changeStatus(id, status);
         return ApiResponse.success("Cập nhật trạng thái vé số thành công.", response);
     }
 
-    @PostMapping(ID_PATH + "/restore")
-    @PreAuthorize("hasAnyAuthority('ticket:delete')")
-    public ApiResponse<Void> restore(@PathVariable Long id) {
-        log.info("REST request to restore lottery ticket: {}", id);
-        lotteryTicketServicePort.restore(id);
-        return ApiResponse.success("Khôi phục vé số thành công.");
-    }
-
-    @GetMapping("/trash")
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
-    public MappingJacksonValue getAllDeleted(
-            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
-            @RequestParam(defaultValue = DEFAULT_LIMIT) int size) {
-        log.info("REST request to query deleted lottery tickets page: {}, size: {}", page, size);
-        PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getAllDeleted(page, size);
-
-        ApiResponse<PageResponse<LotteryTicketResponse>> apiResponse = ApiResponse.success(null, response);
-        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
-        mappingJacksonValue.setSerializationView(Views.Admin.class);
-        return mappingJacksonValue;
+    @PostMapping(value = ID_PATH + "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    public ApiResponse<LotteryTicketResponse> uploadImage(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file) {
+        log.info("REST request to upload image for lottery ticket: {}", id);
+        return ApiResponse.success("Tải ảnh vé số thành công.",
+                lotteryTicketServicePort.uploadImage(id, StorageUtils.toUploadRequest(file)));
     }
 
     private Class<?> resolveLotteryTicketView(AuthenticatedUserPrincipal principal) {

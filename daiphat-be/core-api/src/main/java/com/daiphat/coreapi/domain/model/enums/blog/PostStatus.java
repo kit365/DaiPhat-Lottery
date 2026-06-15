@@ -2,6 +2,7 @@ package com.daiphat.coreapi.domain.model.enums.blog;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.CodedLabeledEnum;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -10,7 +11,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Getter
 @RequiredArgsConstructor
-public enum PostStatus {
+public enum PostStatus implements CodedLabeledEnum {
     DRAFT("draft", "Bản nháp"),
     PUBLISHED("published", "Đã đăng công khai"),
     UNPUBLISHED("unpublished", "Đã gỡ xuống"),

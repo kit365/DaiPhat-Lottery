@@ -2,7 +2,7 @@ package com.daiphat.coreapi.application.strategy.payment;
 
 import com.daiphat.coreapi.application.dto.order.GatewayCallbackResult;
 import com.daiphat.coreapi.application.dto.order.PaymentResult;
-import com.daiphat.coreapi.domain.model.enums.order.PaymentGateway;
+import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 

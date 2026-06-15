@@ -74,9 +74,6 @@ export const menuManagementData = [
             { id: "street-agent-management", label: "Quản lý Street Agent", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST, permission: PERMISSIONS.USER.VIEW },
         ]
     },
-];
-
-export const menuDevelopmentData = [
     {
         id: "tickets",
         label: "Vé số",
@@ -91,6 +88,9 @@ export const menuDevelopmentData = [
             { id: "expired", label: "Vé hết hạn quay", path: ROUTES.ADMIN.TICKETS.EXPIRED, permission: PERMISSIONS.TICKET.VIEW },
         ]
     },
+];
+
+export const menuDevelopmentData = [
     {
         id: "ticketServices",
         label: "Tiện ích / Tra vé",

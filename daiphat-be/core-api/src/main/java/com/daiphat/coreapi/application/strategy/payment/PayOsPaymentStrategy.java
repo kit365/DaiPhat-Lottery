@@ -7,8 +7,8 @@ import com.daiphat.coreapi.application.port.out.order.PayOsGatewayPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
-import com.daiphat.coreapi.domain.model.enums.order.PaymentGateway;
-import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import lombok.RequiredArgsConstructor;
@@ -29,15 +29,15 @@ public class PayOsPaymentStrategy implements PaymentGatewayStrategy {
     public PaymentResult createPayment(OrderModel order, TransactionModel transaction) {
         transaction.setGateway(PaymentGateway.PAYOS);
         PaymentLinkResult paymentLink = payOsGatewayPort.createOrReusePaymentLink(order, transaction);
-        return PaymentResult.builder()
-                .transactionId(transaction.getId())
-                .type(TransactionType.ONLINE)
-                .gateway(PaymentGateway.PAYOS)
-                .gatewayOrderCode(paymentLink.gatewayOrderCode())
-                .paymentRef(transaction.getPaymentRef())
-                .checkoutUrl(paymentLink.checkoutUrl())
-                .status(transaction.getStatus().name())
-                .build();
+        return new PaymentResult(
+                transaction.getId(),
+                TransactionType.ONLINE,
+                PaymentGateway.PAYOS,
+                paymentLink.gatewayOrderCode(),
+                transaction.getPaymentRef(),
+                paymentLink.checkoutUrl(),
+                transaction.getStatus().name()
+        );
     }
 
     @Override

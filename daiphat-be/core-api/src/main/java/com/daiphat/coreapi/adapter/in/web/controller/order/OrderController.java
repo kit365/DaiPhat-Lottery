@@ -8,7 +8,6 @@ import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderReques
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
-import com.daiphat.coreapi.application.port.in.order.OrderEnumServicePort;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
@@ -30,7 +29,6 @@ import java.util.List;
 public class OrderController {
 
     private final OrderServicePort orderServicePort;
-    private final OrderEnumServicePort orderEnumServicePort;
     private final OrderApplicationMapper orderApplicationMapper;
 
     @PostMapping("/online")
@@ -56,30 +54,30 @@ public class OrderController {
     @GetMapping("/types")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<EnumOptionResponse>> getOrderTypes() {
-        return ApiResponse.success("Lấy danh sách loại đơn hàng thành công.", orderEnumServicePort.getOrderTypes());
+        return ApiResponse.success("Lấy danh sách loại đơn hàng thành công.", orderServicePort.getOrderTypes());
     }
 
     @GetMapping("/statuses")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<EnumOptionResponse>> getOrderStatuses() {
-        return ApiResponse.success("Lấy danh sách trạng thái đơn hàng thành công.", orderEnumServicePort.getOrderStatuses());
+        return ApiResponse.success("Lấy danh sách trạng thái đơn hàng thành công.", orderServicePort.getOrderStatuses());
     }
 
     @GetMapping("/receive-types")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<EnumOptionResponse>> getOrderReceiveTypes() {
-        return ApiResponse.success("Lấy danh sách hình thức nhận vé thành công.", orderEnumServicePort.getOrderReceiveTypes());
+        return ApiResponse.success("Lấy danh sách hình thức nhận vé thành công.", orderServicePort.getOrderReceiveTypes());
     }
 
     @GetMapping("/detail-statuses")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<EnumOptionResponse>> getOrderDetailStatuses() {
-        return ApiResponse.success("Lấy danh sách trạng thái chi tiết đơn hàng thành công.", orderEnumServicePort.getOrderDetailStatuses());
+        return ApiResponse.success("Lấy danh sách trạng thái chi tiết đơn hàng thành công.", orderServicePort.getOrderDetailStatuses());
     }
 
     @GetMapping("/refund-statuses")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<EnumOptionResponse>> getOrderRefundStatuses() {
-        return ApiResponse.success("Lấy danh sách trạng thái hoàn tiền thành công.", orderEnumServicePort.getOrderRefundStatuses());
+        return ApiResponse.success("Lấy danh sách trạng thái hoàn tiền thành công.", orderServicePort.getOrderRefundStatuses());
     }
 }

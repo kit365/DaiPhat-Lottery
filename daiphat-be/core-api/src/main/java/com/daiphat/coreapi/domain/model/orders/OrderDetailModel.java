@@ -2,7 +2,7 @@ package com.daiphat.coreapi.domain.model.orders;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.enums.order.OrderDetailStatus;
+import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -21,7 +21,9 @@ public class OrderDetailModel {
     private Long id;
     private UUID orderId;
     private Long lotteryTicketId;
+    private Long lotteryTicketSerialId;
     private Long replacedByTicketId;
+    private Long replacedByTicketSerialId;
     private BigDecimal price;
 
     @Builder.Default
@@ -49,6 +51,12 @@ public class OrderDetailModel {
         this.status = OrderDetailStatus.REFUND_PENDING;
     }
 
+    public void markInactive() {
+        if (this.status == OrderDetailStatus.ACTIVE) {
+            this.status = OrderDetailStatus.INACTIVE;
+        }
+    }
+
     public void markRefunded() {
         ensureStatus(OrderDetailStatus.REFUND_PENDING);
         this.status = OrderDetailStatus.REFUNDED;
@@ -59,12 +67,13 @@ public class OrderDetailModel {
         this.status = OrderDetailStatus.ACTIVE;
     }
 
-    public void replaceWith(Long replacementTicketId) {
+    public void replaceWith(Long replacementTicketId, Long replacementTicketSerialId) {
         this.replacedByTicketId = replacementTicketId;
+        this.replacedByTicketSerialId = replacementTicketSerialId;
     }
 
     public boolean isReplaced() {
-        return this.replacedByTicketId != null;
+        return this.replacedByTicketSerialId != null;
     }
 
     public boolean isRefunded() {

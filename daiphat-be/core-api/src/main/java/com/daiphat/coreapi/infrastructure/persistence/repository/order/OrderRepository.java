@@ -2,6 +2,8 @@ package com.daiphat.coreapi.infrastructure.persistence.repository.order;
 
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,6 +16,10 @@ import java.util.UUID;
 public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
 
     boolean existsByOrderCode(String orderCode);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select o from OrderEntity o where o.id = :id")
+    Optional<OrderEntity> findByIdWithLock(@Param("id") UUID id);
 
     @Query("""
             select distinct o

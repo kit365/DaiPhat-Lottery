@@ -2,7 +2,7 @@ package com.daiphat.coreapi.application.strategy.payment;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.enums.order.PaymentGateway;
+import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

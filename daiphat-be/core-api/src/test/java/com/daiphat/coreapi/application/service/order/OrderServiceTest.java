@@ -13,8 +13,8 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
-import com.daiphat.coreapi.domain.model.enums.order.TransactionStatus;
-import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,8 +78,8 @@ class OrderServiceTest {
 
         when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(mock(UserModel.class));
         when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(mock(UserModel.class));
-        when(lotteryTicketServicePort.reserveForOrder(101L)).thenReturn(new OrderTicketSnapshot(101L, BigDecimal.valueOf(6_000), LocalDate.now().plusDays(1)));
-        when(lotteryTicketServicePort.reserveForOrder(102L)).thenReturn(new OrderTicketSnapshot(102L, BigDecimal.valueOf(10_000), LocalDate.now().plusDays(1)));
+        when(lotteryTicketServicePort.reserveForOrder(101L)).thenReturn(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(6_000), LocalDate.now().plusDays(1)));
+        when(lotteryTicketServicePort.reserveForOrder(102L)).thenReturn(new OrderTicketSnapshot(102L, 1002L, BigDecimal.valueOf(10_000), LocalDate.now().plusDays(1)));
         when(orderRepositoryPort.existsByOrderCode(anyString())).thenReturn(false);
         when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -120,8 +120,8 @@ class OrderServiceTest {
         );
 
         when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(mock(UserModel.class));
-        when(lotteryTicketServicePort.reserveForOrder(101L)).thenReturn(new OrderTicketSnapshot(101L, BigDecimal.valueOf(6_000), LocalDate.now().plusDays(1)));
-        when(lotteryTicketServicePort.reserveForOrder(102L)).thenReturn(new OrderTicketSnapshot(102L, BigDecimal.valueOf(6_000), LocalDate.now().plusDays(1)));
+        when(lotteryTicketServicePort.reserveForOrder(101L)).thenReturn(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(6_000), LocalDate.now().plusDays(1)));
+        when(lotteryTicketServicePort.reserveForOrder(102L)).thenReturn(new OrderTicketSnapshot(102L, 1002L, BigDecimal.valueOf(6_000), LocalDate.now().plusDays(1)));
 
         assertThatThrownBy(() -> orderService.createDirectOrder(request, operatorId))
                 .isInstanceOf(DomainException.class)
@@ -144,7 +144,7 @@ class OrderServiceTest {
 
         when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(mock(UserModel.class));
         when(lotteryTicketServicePort.reserveForOrder(101L))
-                .thenReturn(new OrderTicketSnapshot(101L, BigDecimal.valueOf(10_000), drawDate));
+                .thenReturn(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(10_000), drawDate));
 
         assertThatThrownBy(() -> orderService.createOnlineOrder(request, customerId))
                 .isInstanceOf(DomainException.class)
@@ -168,7 +168,7 @@ class OrderServiceTest {
 
         when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(mock(UserModel.class));
         when(lotteryTicketServicePort.reserveForOrder(101L))
-                .thenReturn(new OrderTicketSnapshot(101L, BigDecimal.valueOf(10_000), drawDate));
+                .thenReturn(new OrderTicketSnapshot(101L, 1001L, BigDecimal.valueOf(10_000), drawDate));
         when(orderRepositoryPort.existsByOrderCode(anyString())).thenReturn(false);
         when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

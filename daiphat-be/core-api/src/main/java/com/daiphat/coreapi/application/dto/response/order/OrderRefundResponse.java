@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.application.dto.response.order;
 
-import com.daiphat.coreapi.domain.model.enums.order.OrderRefundStatus;
+import com.daiphat.coreapi.domain.model.enums.order.refund.OrderRefundStatus;
 import lombok.Builder;
 
 import java.math.BigDecimal;
