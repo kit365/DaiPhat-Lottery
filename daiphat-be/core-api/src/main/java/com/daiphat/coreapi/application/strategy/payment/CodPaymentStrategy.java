@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.application.strategy.payment;
 
 import com.daiphat.coreapi.application.dto.order.PaymentResult;
-import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import org.springframework.stereotype.Component;
@@ -11,14 +11,15 @@ public class CodPaymentStrategy implements PaymentStrategy {
 
     @Override
     public PaymentResult createPayment(OrderModel order, TransactionModel transaction) {
-        return PaymentResult.builder()
-                .transactionId(transaction.getId())
-                .type(TransactionType.OFFLINE)
-                .gatewayOrderCode(transaction.getGatewayOrderCode())
-                .paymentRef(transaction.getPaymentRef())
-                .checkoutUrl(null)
-                .status(transaction.getStatus().name())
-                .build();
+        return new PaymentResult(
+                transaction.getId(),
+                TransactionType.OFFLINE,
+                null,
+                transaction.getGatewayOrderCode(),
+                transaction.getPaymentRef(),
+                null,
+                transaction.getStatus().name()
+        );
     }
 
     @Override

@@ -38,6 +38,16 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
     }
 
     @Override
+    public List<LotteryTicketModel> findAllByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return lotteryTicketRepository.findAllByIdInAndDeletedAtIsNull(ids).stream()
+                .map(lotteryTicketPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public Optional<LotteryTicketModel> findByUniqueFields(Long stationId, String numbers, LocalDate drawDate) {
         return lotteryTicketRepository.findByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(stationId, numbers, drawDate)
                 .map(lotteryTicketPersistenceMapper::toDomain);

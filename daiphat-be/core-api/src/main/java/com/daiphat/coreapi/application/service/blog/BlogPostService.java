@@ -28,6 +28,7 @@ import com.daiphat.coreapi.domain.model.blogs.BlogCategoryModel;
 import com.daiphat.coreapi.domain.model.blogs.BlogPostModel;
 import com.daiphat.coreapi.domain.model.blogs.BlogTagModel;
 import com.daiphat.coreapi.shared.util.SearchConstants;
+import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.StatusCountKeys;
@@ -40,12 +41,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @Service
 public class BlogPostService implements BlogPostServicePort, BlogPostCoordinationPort {
@@ -296,7 +292,7 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
         boolean allowed = switch (currentStatus) {
             case DRAFT -> Set.of(PostStatus.PUBLISHED, PostStatus.SCHEDULED).contains(nextStatus);
             case SCHEDULED -> Set.of(PostStatus.PUBLISHED, PostStatus.DRAFT).contains(nextStatus);
-            case PUBLISHED -> Set.of(PostStatus.UNPUBLISHED).contains(nextStatus);
+            case PUBLISHED -> Objects.equals(PostStatus.UNPUBLISHED, nextStatus);
             case UNPUBLISHED -> Set.of(PostStatus.PUBLISHED, PostStatus.SCHEDULED).contains(nextStatus);
         };
 
@@ -384,22 +380,12 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
 
     @Override
     public List<BlogPostTypeResponse> getBlogTypes() {
-        return Arrays.stream(PostType.values())
-                .map(type -> BlogPostTypeResponse.builder()
-                        .code(type.getCode())
-                        .name(type.getLabel())
-                        .build())
-                .toList();
+        return EnumOptionUtils.toCodeLabelResponses(PostType.values(), BlogPostTypeResponse::new);
     }
 
     @Override
     public List<BlogPostStatusResponse> getBlogStatuses() {
-        return Arrays.stream(PostStatus.values())
-                .map(status -> BlogPostStatusResponse.builder()
-                        .code(status.getCode())
-                        .name(status.getLabel())
-                        .build())
-                .toList();
+        return EnumOptionUtils.toCodeLabelResponses(PostStatus.values(), BlogPostStatusResponse::new);
     }
 
     @Override

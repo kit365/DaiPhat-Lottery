@@ -34,6 +34,11 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
     }
 
     @Override
+    public Optional<OrderModel> findByIdWithLock(UUID id) {
+        return orderRepository.findByIdWithLock(id).map(orderPersistenceMapper::toDomain);
+    }
+
+    @Override
     public Optional<OrderModel> findByGatewayOrderCode(Long gatewayOrderCode) {
         return orderRepository.findByTransactionGatewayOrderCode(gatewayOrderCode)
                 .map(orderPersistenceMapper::toDomain);
@@ -45,12 +50,7 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
     }
 
     @Override
-    public List<OrderModel> findPendingPaymentOrdersCreatedBefore(LocalDateTime threshold) {
-        return orderRepository.findPendingPaymentOrderIdsCreatedBefore(OrderStatus.PENDING_PAYMENT, threshold)
-                .stream()
-                .map(orderRepository::findById)
-                .flatMap(Optional::stream)
-                .map(orderPersistenceMapper::toDomain)
-                .toList();
+    public List<UUID> findPendingPaymentOrderIdsCreatedBefore(LocalDateTime threshold) {
+        return orderRepository.findPendingPaymentOrderIdsCreatedBefore(OrderStatus.PENDING_PAYMENT, threshold);
     }
 }

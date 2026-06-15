@@ -61,7 +61,7 @@ public class LotteryTicketEntity extends BaseEntity {
     @Builder.Default
     private LotteryTicketStatus status = LotteryTicketStatus.IN_STOCK;
 
-    @OneToMany(mappedBy = "ticket", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "ticket", fetch = FetchType.LAZY)
     @Builder.Default
     private List<LotteryTicketSerialEntity> serials = new ArrayList<>();
 

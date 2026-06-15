@@ -6,7 +6,9 @@ import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicket
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface LotteryTicketServicePort {
@@ -25,17 +27,21 @@ public interface LotteryTicketServicePort {
 
     LotteryTicketResponse verify(Long id, UUID verifierId);
 
-    LotteryTicketResponse changeStatus(Long id, com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus status);
+    LotteryTicketResponse changeStatus(Long id, LotteryTicketStatus status);
 
     LotteryTicketResponse uploadImage(Long id, UploadRequest request);
 
+    List<OrderTicketSnapshot> reserveForOrder(List<Long> ticketIds);
+
     OrderTicketSnapshot reserveForOrder(Long ticketId);
+
+    List<OrderTicketSnapshot> sellOfflineForOrder(List<Long> ticketIds);
 
     OrderTicketSnapshot sellOfflineForOrder(Long ticketId);
 
-    void markSoldForOrder(Long ticketId);
+    void markSoldForOrder(Long ticketSerialId);
 
-    void releaseReservationForOrder(Long ticketId);
+    void releaseReservationForOrder(Long ticketSerialId);
 
     int expireDueTickets();
 }

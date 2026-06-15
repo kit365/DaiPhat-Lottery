@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.order;
 import com.daiphat.coreapi.application.dto.order.GatewayCallbackResult;
 import com.daiphat.coreapi.application.dto.order.PaymentResult;
 import com.daiphat.coreapi.application.dto.order.PendingPaymentCountdownResult;
+import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.order.TransactionServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
@@ -15,11 +16,12 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
-import com.daiphat.coreapi.domain.model.enums.order.PaymentGateway;
-import com.daiphat.coreapi.domain.model.enums.order.TransactionStatus;
-import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
+import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,7 +55,7 @@ public class TransactionService implements TransactionServicePort {
     @Override
     @Transactional
     public PaymentResult processPayment(UUID orderId, Long transactionId, PaymentGateway gateway) {
-        OrderModel order = getOrderOrThrow(orderId);
+        OrderModel order = getOrderWithLockOrThrow(orderId);
         TransactionModel transaction = getPendingOnlineTransaction(order, transactionId, gateway);
 
         PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(gateway);
@@ -65,7 +67,7 @@ public class TransactionService implements TransactionServicePort {
     @Override
     @Transactional
     public OrderModel handleOnlinePaymentSuccess(UUID orderId, Long transactionId, PaymentGateway gateway, String paymentRef) {
-        OrderModel order = getOrderOrThrow(orderId);
+        OrderModel order = getOrderWithLockOrThrow(orderId);
         TransactionModel transaction = getPendingOnlineTransaction(order, transactionId, gateway);
         PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(gateway);
 
@@ -89,7 +91,7 @@ public class TransactionService implements TransactionServicePort {
     @Override
     @Transactional
     public OrderModel handleOnlinePaymentFailure(UUID orderId, Long transactionId, PaymentGateway gateway, String failureReason) {
-        OrderModel order = getOrderOrThrow(orderId);
+        OrderModel order = getOrderWithLockOrThrow(orderId);
         TransactionModel transaction = getPendingOnlineTransaction(order, transactionId, gateway);
         PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(gateway);
 
@@ -111,7 +113,7 @@ public class TransactionService implements TransactionServicePort {
     @Override
     @Transactional
     public OrderModel cancelOnlinePayment(UUID orderId, Long transactionId, PaymentGateway gateway, String reason) {
-        OrderModel order = getOrderOrThrow(orderId);
+        OrderModel order = getOrderWithLockOrThrow(orderId);
         TransactionModel transaction = getPendingOnlineTransaction(order, transactionId, gateway);
         PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(gateway);
 
@@ -136,6 +138,9 @@ public class TransactionService implements TransactionServicePort {
         }
 
         OrderModel order = orderRepositoryPort.findByGatewayOrderCode(callbackResult.gatewayOrderCode())
+                .flatMap(existing -> existing.getId() != null
+                        ? orderRepositoryPort.findByIdWithLock(existing.getId())
+                        : java.util.Optional.<OrderModel>empty())
                 .orElse(null);
         if (order == null) {
             log.warn("Ignoring {} callback for unknown gatewayOrderCode {}.", gateway, callbackResult.gatewayOrderCode());
@@ -170,7 +175,7 @@ public class TransactionService implements TransactionServicePort {
     public OrderModel collectDirectOrderCash(UUID orderId, UUID operatorId, String note) {
         userLookupServicePort.findByIdOrThrow(operatorId);
 
-        OrderModel order = getOrderOrThrow(orderId);
+        OrderModel order = getOrderWithLockOrThrow(orderId);
         TransactionModel transaction = getPendingOfflineTransaction(order);
 
         transaction.setNote(note);
@@ -187,10 +192,14 @@ public class TransactionService implements TransactionServicePort {
     @Transactional
     public int expirePendingPayments() {
         LocalDateTime threshold = LocalDateTime.now().minusSeconds(pendingPaymentTtlSeconds);
-        List<OrderModel> expiredOrders = orderRepositoryPort.findPendingPaymentOrdersCreatedBefore(threshold);
+        List<UUID> expiredOrderIds = orderRepositoryPort.findPendingPaymentOrderIdsCreatedBefore(threshold);
         int expiredCount = 0;
 
-        for (OrderModel order : expiredOrders) {
+        for (UUID orderId : expiredOrderIds) {
+            OrderModel order = orderRepositoryPort.findByIdWithLock(orderId).orElse(null);
+            if (order == null) {
+                continue;
+            }
             if (order.getStatus() != OrderStatus.PENDING_PAYMENT || order.getCompletedTransactionAmount().signum() > 0) {
                 continue;
             }
@@ -219,6 +228,16 @@ public class TransactionService implements TransactionServicePort {
                 remainingSeconds > 0 ? LocalDateTime.now().plusSeconds(remainingSeconds) : null,
                 remainingSeconds <= 0
         );
+    }
+
+    @Override
+    public List<EnumOptionResponse> getTransactionTypes() {
+        return EnumOptionUtils.toEnumOptions(TransactionType.values());
+    }
+
+    @Override
+    public List<EnumOptionResponse> getTransactionStatuses() {
+        return EnumOptionUtils.toEnumOptions(TransactionStatus.values());
     }
 
     private void reconcileDirectOrderPayment(OrderModel order) {
@@ -304,6 +323,11 @@ public class TransactionService implements TransactionServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
     }
 
+    private OrderModel getOrderWithLockOrThrow(UUID orderId) {
+        return orderRepositoryPort.findByIdWithLock(orderId)
+                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
+    }
+
     private TransactionModel getPendingOfflineTransaction(OrderModel order) {
         return order.getTransactions().stream()
                 .filter(transaction -> transaction.getType() == TransactionType.OFFLINE
@@ -322,18 +346,31 @@ public class TransactionService implements TransactionServicePort {
     }
 
     private TransactionModel getPendingOnlineTransaction(OrderModel order, Long transactionId, PaymentGateway gateway) {
+        if (transactionId != null) {
+            TransactionModel matchedTransaction = order.getTransactions().stream()
+                    .filter(candidate -> transactionId.equals(candidate.getId()))
+                    .findFirst()
+                    .orElseThrow(() -> new DomainException(ErrorCode.TRANSACTION_NOT_FOUND));
+
+            if (matchedTransaction.getType() != TransactionType.ONLINE) {
+                throw new DomainException(ErrorCode.TRANSACTION_NOT_FOUND);
+            }
+            if (matchedTransaction.getGateway() != null && matchedTransaction.getGateway() != gateway) {
+                throw new DomainException(ErrorCode.TRANSACTION_NOT_FOUND);
+            }
+            if (matchedTransaction.getStatus() != TransactionStatus.PENDING) {
+                throw new DomainException(
+                        ErrorCode.TRANSACTION_INVALID_STATUS,
+                        "Giao dịch không còn ở trạng thái chờ thanh toán."
+                );
+            }
+            return matchedTransaction;
+        }
+
         List<TransactionModel> pendingTransactions = order.getTransactions().stream()
                 .filter(transaction -> transaction.getType() == TransactionType.ONLINE
                         && transaction.getStatus() == TransactionStatus.PENDING)
                 .toList();
-
-        if (transactionId != null) {
-            return pendingTransactions.stream()
-                    .filter(transaction -> transactionId.equals(transaction.getId()))
-                    .filter(transaction -> transaction.getGateway() == null || transaction.getGateway() == gateway)
-                    .findFirst()
-                    .orElseThrow(() -> new DomainException(ErrorCode.TRANSACTION_NOT_FOUND));
-        }
 
         if (pendingTransactions.size() == 1) {
             TransactionModel transaction = pendingTransactions.getFirst();
@@ -344,4 +381,5 @@ public class TransactionService implements TransactionServicePort {
 
         throw new DomainException(ErrorCode.TRANSACTION_SELECTION_REQUIRED);
     }
+
 }

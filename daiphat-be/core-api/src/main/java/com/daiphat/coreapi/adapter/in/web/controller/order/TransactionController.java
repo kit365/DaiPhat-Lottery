@@ -13,10 +13,9 @@ import com.daiphat.coreapi.application.dto.request.order.ProcessPaymentRequest;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
-import com.daiphat.coreapi.application.port.in.order.OrderEnumServicePort;
 import com.daiphat.coreapi.application.port.in.order.TransactionServicePort;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
-import com.daiphat.coreapi.domain.model.enums.order.PaymentGateway;
+import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +40,6 @@ public class TransactionController {
     private static final String PAYMENT_PATH = "/payment";
 
     private final TransactionServicePort transactionServicePort;
-    private final OrderEnumServicePort orderEnumServicePort;
     private final OrderApplicationMapper orderApplicationMapper;
 
     @PostMapping(ORDER_ID_PATH + PAYMENT_PATH)
@@ -120,12 +118,12 @@ public class TransactionController {
     @GetMapping("/types")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<EnumOptionResponse>> getTransactionTypes() {
-        return ApiResponse.success("Lấy danh sách hình thức thanh toán thành công.", orderEnumServicePort.getTransactionTypes());
+        return ApiResponse.success("Lấy danh sách hình thức thanh toán thành công.", transactionServicePort.getTransactionTypes());
     }
 
     @GetMapping("/statuses")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<EnumOptionResponse>> getTransactionStatuses() {
-        return ApiResponse.success("Lấy danh sách trạng thái giao dịch thành công.", orderEnumServicePort.getTransactionStatuses());
+        return ApiResponse.success("Lấy danh sách trạng thái giao dịch thành công.", transactionServicePort.getTransactionStatuses());
     }
 }

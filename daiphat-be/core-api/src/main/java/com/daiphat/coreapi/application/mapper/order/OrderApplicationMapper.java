@@ -8,9 +8,9 @@ import com.daiphat.coreapi.application.dto.response.order.OrderRefundResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.application.dto.response.order.TransactionResponse;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
-import com.daiphat.coreapi.domain.model.enums.order.OrderDetailStatus;
+import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
-import com.daiphat.coreapi.domain.model.enums.order.TransactionType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.OrderRefundModel;
@@ -71,7 +71,9 @@ public interface OrderApplicationMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "orderId", ignore = true)
-    @Mapping(target = "lotteryTicketSerialId", source = "ticketSerialId")
+    @Mapping(target = "lotteryTicketId", source = "lotteryTicketId")
+    @Mapping(target = "lotteryTicketSerialId", source = "lotteryTicketSerialId")
+    @Mapping(target = "replacedByTicketId", ignore = true)
     @Mapping(target = "replacedByTicketSerialId", ignore = true)
     @Mapping(target = "price", source = "price")
     @Mapping(target = "status", expression = "java(OrderDetailStatus.ACTIVE)")

@@ -2,7 +2,7 @@ package com.daiphat.coreapi.domain.model.orders;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.enums.order.OrderRefundStatus;
+import com.daiphat.coreapi.domain.model.enums.order.refund.OrderRefundStatus;
 import lombok.*;
 
 import java.math.BigDecimal;

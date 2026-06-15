@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.domain.model.lotteries;
+package com.daiphat.coreapi.domain.valueobject;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;

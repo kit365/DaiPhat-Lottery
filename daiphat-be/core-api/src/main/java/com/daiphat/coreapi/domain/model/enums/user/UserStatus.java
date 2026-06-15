@@ -2,6 +2,7 @@ package com.daiphat.coreapi.domain.model.enums.user;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.CodedLabeledEnum;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -10,7 +11,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Getter
 @RequiredArgsConstructor
-public enum UserStatus {
+public enum UserStatus implements CodedLabeledEnum {
     ACTIVE("ACTIVE", "Hoạt động"),
     PENDING("PENDING", "Chờ xử lý"),
     LOCKED("LOCKED", "Bị khóa"),

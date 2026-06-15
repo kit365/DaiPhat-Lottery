@@ -1,11 +1,12 @@
 package com.daiphat.coreapi.domain.model.enums.blog;
 
+import com.daiphat.coreapi.domain.model.enums.CodedLabeledEnum;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum CategoryStatus {
+public enum CategoryStatus implements CodedLabeledEnum {
     ACTIVE("ACTIVE", "Hoạt động"),
     INACTIVE("INACTIVE", "Ngưng hoạt động");
 

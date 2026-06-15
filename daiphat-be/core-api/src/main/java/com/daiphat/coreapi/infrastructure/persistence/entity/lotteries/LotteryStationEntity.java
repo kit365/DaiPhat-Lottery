@@ -67,7 +67,7 @@ public class LotteryStationEntity extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private LotteryStationStatus status = LotteryStationStatus.DRAFT;
+    private LotteryStationStatus status = LotteryStationStatus.ACTIVE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by")

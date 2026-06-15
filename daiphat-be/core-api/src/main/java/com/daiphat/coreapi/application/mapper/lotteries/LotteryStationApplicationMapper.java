@@ -23,7 +23,7 @@ import org.mapstruct.ReportingPolicy;
 public interface LotteryStationApplicationMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "status", source = "status", qualifiedByName = "stringToStatus")
     @Mapping(target = "approvedById", ignore = true)
     @Mapping(target = "approvedAt", ignore = true)
     @Mapping(target = "type", source = "type", qualifiedByName = "stringToType")

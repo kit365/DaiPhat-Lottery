@@ -53,6 +53,9 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
 
         LotteryStationModel model = lotteryStationApplicationMapper.toModel(request);
+        if (model.getStatus() == null) {
+            model.setStatus(LotteryStationStatus.ACTIVE);
+        }
 
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         log.info("Lottery product created with id: {}", saved.getId());
@@ -183,13 +186,9 @@ public class LotteryStationService implements LotteryStationServicePort {
 
     @Override
     @Transactional
-    public void adjustInventory(Long id, int delta) {
+    public void recalculateInventory(Long id) {
         LotteryStationModel model = getProductOrThrow(id);
-        if (delta > 0) {
-            model.increaseInventory(delta);
-        } else if (delta < 0) {
-            model.decreaseInventory(Math.abs(delta));
-        }
+        recalculateInventory(model);
         lotteryStationRepositoryPort.save(model);
     }
 
@@ -198,13 +197,7 @@ public class LotteryStationService implements LotteryStationServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
     }
 
-    private LotteryStationType parseType(String type) {
-        try {
-            return LotteryStationType.valueOf(type.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_TYPE);
-        }
-    }
+
 
     private LotteryStationStatus parseStatus(String status) {
         if (!hasText(status)) {
@@ -217,13 +210,7 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
     }
 
-    private LotteryStationStatus parseStatusOrThrow(String status) {
-        try {
-            return LotteryStationStatus.valueOf(status.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_STATUS);
-        }
-    }
+
 
     private PageResponse<LotteryStationResponse> buildPageResponse(
             Page<LotteryStationResponse> pageResult,
