@@ -14,7 +14,7 @@ public class PaymentProperties {
         private String clientId;
         private String apiKey;
         private String checksumKey;
-        private String returnPath = "/payment/payos/return";
-        private String cancelPath = "/payment/payos/cancel";
+        private String returnPath = "/checkout/result";
+        private String cancelPath = "/checkout/result";
     }
 }
