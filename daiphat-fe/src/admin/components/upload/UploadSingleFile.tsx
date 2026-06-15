@@ -15,10 +15,11 @@ interface UploadSingleFileProps {
     disabled?: boolean;
     error?: string;
     useRawFile?: boolean;
+    customUpload?: (file: File) => Promise<string>;
 }
 
 export const UploadSingleFile = memo(
-    ({ value, onChange, disabled, error, useRawFile }: UploadSingleFileProps) => {
+    ({ value, onChange, disabled, error, useRawFile, customUpload }: UploadSingleFileProps) => {
         const [localFile, setLocalFile] = useState<CustomFile | null>(null);
         const [isUploading, setIsUploading] = useState(false);
         const [previewUrl, setPreviewUrl] = useState<string>("");
@@ -76,12 +77,18 @@ export const UploadSingleFile = memo(
 
             try {
                 setIsUploading(true);
-                const [url] = await uploadImagesToCloudinary([localFile]);
+                let url;
+                if (customUpload) {
+                    url = await customUpload(localFile);
+                } else {
+                    const urls = await uploadImagesToCloudinary([localFile]);
+                    url = urls[0];
+                }
                 onChange(url);
                 setLocalFile(null);
                 toast.success("Tải ảnh lên thành công!");
-            } catch {
-                toast.error("Tải ảnh lên thất bại!");
+            } catch (err: any) {
+                toast.error(err?.message || "Tải ảnh lên thất bại!");
             } finally {
                 setIsUploading(false);
             }

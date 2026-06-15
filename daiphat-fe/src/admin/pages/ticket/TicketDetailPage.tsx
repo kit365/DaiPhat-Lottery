@@ -14,7 +14,7 @@ export const TicketDetailPage = () => {
     const navigate = useNavigate();
 
     const { data: ticketDetail, isLoading: isLoadingTicket } = useTicketDetail(id);
-    const { data: providersRes } = useProviders({ limit: 1000 });
+    const { data: providersRes } = useProviders({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
 
     const [expandedDetail, setExpandedDetail] = useState(true);

@@ -5,7 +5,6 @@ import { Title } from "../../components/ui/Title";
 import { prefixAdmin } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { ProviderList } from "./sections/ProviderList";
-
 export const ProviderListPage = () => {
     const navigate = useNavigate();
 
@@ -51,3 +50,4 @@ export const ProviderListPage = () => {
         </>
     )
 }
+

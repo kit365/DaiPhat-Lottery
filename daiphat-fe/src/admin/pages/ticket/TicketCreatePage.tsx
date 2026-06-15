@@ -5,7 +5,7 @@ import { useState, useMemo } from "react"
 import { UploadFiles } from "../../components/ui/UploadFiles"
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../constants/routes";
-import { useCreateTicket, useUploadTicketImage } from "./hooks/useTicket";
+import { useCreateTicket } from "./hooks/useTicket";
 import { toast } from "react-toastify";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -69,10 +69,9 @@ export const TicketCreatePage = () => {
     const [expandedSerials, setExpandedSerials] = useState(true);
     const [resetKey, setResetKey] = useState(0);
 
-    const { data: providersRes } = useProviders({ limit: 1000 });
+    const { data: providersRes } = useProviders({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
     const { mutateAsync: createAsync, isPending } = useCreateTicket();
-    const { mutateAsync: uploadImageAsync, isPending: isUploadingImage } = useUploadTicketImage();
 
     const outerTheme = useTheme();
 
@@ -109,7 +108,7 @@ export const TicketCreatePage = () => {
 
     const onSubmit = async (data: CreateTicketFormValues) => {
         // Validation for drawDate
-        const selectedProvider = providers.find((p: any) => (p.id || p._id) === data.stationId);
+        const selectedProvider = providers.find((p: any) => String(p.id || p._id) === String(data.stationId));
         let finalDrawDate = "";
         
         if (selectedProvider) {
@@ -138,13 +137,9 @@ export const TicketCreatePage = () => {
         const payload = {
             stationId: data.stationId,
             serials: data.serials.map(s => {
-                let ticketImgPath = "";
-                if (s.ticketImg && s.ticketImg.length > 0) {
-                    ticketImgPath = s.ticketImg[0].name;
-                }
                 return {
                     serialNumber: s.serialNumber,
-                    ticketImg: ticketImgPath
+                    ticketImg: typeof s.ticketImg === 'string' ? s.ticketImg : ""
                 }
             }),
             numbers: data.numbers,
@@ -155,15 +150,6 @@ export const TicketCreatePage = () => {
         try {
             const res: any = await createAsync(payload);
             if (res.success) {
-                const createdTicketId = res.data?.id || res.data?._id;
-                const allFilesToUpload = data.serials
-                    .filter(s => s.ticketImg && s.ticketImg.length > 0 && s.ticketImg[0] instanceof File)
-                    .map(s => s.ticketImg[0]);
-
-                if (createdTicketId && allFilesToUpload.length > 0) {
-                    // Upload first available image for the ticket
-                    await uploadImageAsync({ id: createdTicketId, file: allFilesToUpload[0] });
-                }
                 toast.success("Nhập các vé số vào kho thành công!");
                 reset({
                     stationId: "",
@@ -180,6 +166,60 @@ export const TicketCreatePage = () => {
         }
     };
 
+    const handleQuickCreateBenTre = async () => {
+        const benTre = providers.find((p: any) => p.province === "Bến Tre" || p.name.includes("Bến Tre"));
+        if (!benTre) {
+            toast.error("Không tìm thấy đài Bến Tre trong hệ thống!");
+            return;
+        }
+
+        const confirm = window.confirm("Bạn có chắc muốn tạo nhanh 3 lô vé số Bến Tre (mỗi lô 10 tờ) không?");
+        if (!confirm) return;
+
+        const stationId = benTre.id || benTre._id;
+        const drawSchedule = benTre.drawSchedule;
+        const validDays = getValidDays(drawSchedule);
+        const today = dayjs().startOf('day');
+        const tomorrow = dayjs().add(1, 'day').startOf('day');
+        let finalDrawDate = today.format("YYYY-MM-DD");
+        
+        if (validDays.length > 0) {
+            if (validDays.includes(today.day())) {
+                finalDrawDate = today.format("YYYY-MM-DD");
+            } else if (validDays.includes(tomorrow.day())) {
+                finalDrawDate = tomorrow.format("YYYY-MM-DD");
+            }
+        }
+
+        const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        const batches = [
+            { numbers: "778899", prefix: `BT1_${randomSuffix}_` },
+            { numbers: "556677", prefix: `BT2_${randomSuffix}_` },
+            { numbers: "334455", prefix: `BT3_${randomSuffix}_` }
+        ];
+
+        try {
+            for (const batch of batches) {
+                const serials = Array.from({ length: 10 }).map((_, i) => ({
+                    serialNumber: `${batch.prefix}${String(i + 1).padStart(3, '0')}`,
+                    ticketImg: ""
+                }));
+
+                await createAsync({
+                    stationId,
+                    serials,
+                    numbers: batch.numbers,
+                    drawDate: finalDrawDate,
+                    batchCode: `LOHANG_BT_${batch.prefix}`
+                });
+            }
+            toast.success("Tạo nhanh 3 lô Bến Tre thành công!");
+            window.location.reload();
+        } catch (err) {
+            toast.error("Lỗi khi tạo nhanh Bến Tre!");
+        }
+    };
+
     return (
         <>
             <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
@@ -192,6 +232,30 @@ export const TicketCreatePage = () => {
                             { label: "Nhập vé" }
                         ]}
                     />
+                </div>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                    <Button
+                        onClick={handleQuickCreateBenTre}
+                        disabled={isPending}
+                        sx={{
+                            background: '#10b981',
+                            minHeight: "2.25rem",
+                            fontWeight: 700,
+                            fontSize: "0.875rem",
+                            padding: "6px 12px",
+                            borderRadius: "var(--shape-borderRadius)",
+                            textTransform: "none",
+                            boxShadow: "none",
+                            color: "#fff",
+                            "&:hover": {
+                                background: "#059669",
+                                boxShadow: "var(--customShadows-z8)"
+                            }
+                        }}
+                        variant="contained"
+                    >
+                        {isPending ? "Đang tạo..." : "Tạo mẫu 3 lô Bến Tre"}
+                    </Button>
                 </div>
             </div>
             <ThemeProvider theme={localTheme}>
@@ -320,7 +384,7 @@ export const TicketCreatePage = () => {
                                             gridTemplateColumns: "repeat(12, 1fr)",
                                             gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))",
                                         }}>
-                                            <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                            <Box sx={{ gridColumn: { xs: "span 12", md: "span 12" } }}>
                                                 <Controller
                                                     name={`serials.${index}.serialNumber`}
                                                     control={control}
@@ -331,20 +395,6 @@ export const TicketCreatePage = () => {
                                                             fullWidth
                                                             error={!!fieldState.error}
                                                             helperText={fieldState.error?.message}
-                                                        />
-                                                    )}
-                                                />
-                                            </Box>
-                                            <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                                <div className="mb-2 font-medium text-sm text-gray-600">Ảnh vé số</div>
-                                                <Controller
-                                                    name={`serials.${index}.ticketImg`}
-                                                    control={control}
-                                                    render={({ field }) => (
-                                                        <UploadFiles
-                                                            key={`${resetKey}-${index}`}
-                                                            files={field.value || []}
-                                                            onFilesChange={(newFiles) => field.onChange(newFiles)}
                                                         />
                                                     )}
                                                 />
@@ -367,7 +417,7 @@ export const TicketCreatePage = () => {
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: "calc(2 * var(--spacing))" }}>
                             <LoadingButton
                                 type="submit"
-                                loading={isPending || isUploadingImage}
+                                loading={isPending}
                                 label={"Nhập vé"}
                                 loadingLabel="Đang xử lý..."
                                 sx={{ minHeight: "3rem", minWidth: "4rem" }}

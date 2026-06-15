@@ -36,7 +36,7 @@ export const TicketToolbar = ({
     onSearchChange,
 }: ToolbarProps) => {
     const { t } = useTranslation();
-    const { data: providersData } = useProviders({ limit: 100 });
+    const { data: providersData } = useProviders({ size: 1000 });
     
     const filterFields = useMemo(() => {
         const providerList = providersData?.data?.recordList || [];

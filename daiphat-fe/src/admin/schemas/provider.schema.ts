@@ -19,10 +19,9 @@ export const createProviderSchema = z.object({
 
     drawSchedule: z.string().optional(),
     drawTime: z.string().optional(),
-    nextDrawDate: z.string().optional(),
 
     description: z.string().optional(),
-    image: z.string().optional(),
+    image: z.any().optional(),
     displayOrder: z.number().optional(),
 
     status: z.enum(["active", "inactive"]).optional(),
