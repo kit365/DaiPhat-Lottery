@@ -59,6 +59,16 @@ public class OrderController {
         return ApiResponse.success("Tạo đơn hàng tại quầy thành công.", orderApplicationMapper.toResponse(order));
     }
 
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    public ApiResponse<OrderResponse> getOrderDetail(@PathVariable java.util.UUID id) {
+        log.info("REST request to get order detail: {}", id);
+        return ApiResponse.success(
+                "Lấy chi tiết đơn hàng thành công.",
+                orderServicePort.getOrderDetail(id)
+        );
+    }
+
     @GetMapping("/my-orders")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<PageResponse<OrderResponse>> getMyOrders(
@@ -87,6 +97,18 @@ public class OrderController {
                         direction,
                         principal.getId()
                 )
+        );
+    }
+
+    @GetMapping("/my-orders/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<OrderResponse> getMyOrderDetail(
+            @PathVariable java.util.UUID id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        log.info("REST request to get my order detail: {} by user: {}", id, principal.getId());
+        return ApiResponse.success(
+                "Lấy chi tiết đơn hàng của tôi thành công.",
+                orderServicePort.getMyOrderDetail(id, principal.getId())
         );
     }
 
