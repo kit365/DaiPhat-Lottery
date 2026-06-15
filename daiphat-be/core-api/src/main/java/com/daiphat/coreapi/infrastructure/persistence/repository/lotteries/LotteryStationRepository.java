@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.persistence.repository.lottery;
+package com.daiphat.coreapi.infrastructure.persistence.repository.lotteries;
 
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
