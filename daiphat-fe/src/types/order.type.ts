@@ -59,6 +59,9 @@ export interface GetMyOrdersParams {
 
 export interface OrderResponse {
     id: string;
+    userId: string;
+    name?: string;
+    phone?: string;
     orderCode: string;
     totalAmount: number;
     status: OrderStatus;

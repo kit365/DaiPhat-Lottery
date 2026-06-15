@@ -35,5 +35,13 @@ export const orderService = {
     getOrderStatuses: async (): Promise<ApiResponse<any[]>> => {
         const response = await apiApp.get(`${BASE_URL}/statuses`);
         return response.data;
+    },
+
+    /**
+     * Gets details of a specific order by ID
+     */
+    getMyOrderDetail: async (id: string): Promise<ApiResponse<OrderResponse>> => {
+        const response = await apiApp.get(`${BASE_URL}/my-orders/${id}`);
+        return response.data;
     }
 };
