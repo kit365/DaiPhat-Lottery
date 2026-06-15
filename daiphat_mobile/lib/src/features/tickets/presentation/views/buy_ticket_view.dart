@@ -30,9 +30,9 @@ class BuyTicketView extends ConsumerWidget {
     final viewModel = ref.read(buyTicketViewModelProvider.notifier);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF8),
+      backgroundColor: AppColors.primary,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.primary,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -40,12 +40,16 @@ class BuyTicketView extends ConsumerWidget {
           'Ve so dang mo ban',
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            fontSize: 22,
-            color: AppColors.ink,
+            fontSize: 21,
+            color: Colors.white,
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: Colors.white,
+          ),
           onPressed: () => context.go(AppRoute.home.path),
         ),
         actions: [
@@ -53,28 +57,28 @@ class BuyTicketView extends ConsumerWidget {
             onPressed: () {
               viewModel.refresh();
             },
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
           ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFFBF8), Color(0xFFFFF2ED)],
+      body: DecoratedBox(
+        decoration: const BoxDecoration(color: AppColors.primary),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: state.when(
-            data: (data) => _LoadedView(state: data, viewModel: viewModel),
-            loading: () => const _LoadingState(),
-            error: (error, _) => _ErrorState(
-              message: error.toString(),
-              onRetry: () {
-                viewModel.refresh();
-              },
+          child: SafeArea(
+            top: false,
+            child: state.when(
+              data: (data) => _LoadedView(state: data, viewModel: viewModel),
+              loading: () => const _LoadingState(),
+              error: (error, _) => _ErrorState(
+                message: error.toString(),
+                onRetry: () {
+                  viewModel.refresh();
+                },
+              ),
             ),
           ),
         ),
@@ -94,7 +98,7 @@ class _LoadedView extends StatelessWidget {
     final tickets = state.filteredTickets;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
       children: [
         _SearchField(
           initialValue: state.searchQuery,
@@ -102,12 +106,7 @@ class _LoadedView extends StatelessWidget {
             viewModel.updateSearchQuery(value);
           },
         ),
-        const SizedBox(height: 14),
-        _StockFilterChip(
-          isSelected: state.onlyInStock,
-          onTap: viewModel.toggleOnlyInStock,
-        ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
@@ -129,15 +128,15 @@ class _LoadedView extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
         _ResultSummary(
           visibleCount: tickets.length,
           matchedCount: tickets.length,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         ...tickets.map(
           (ticket) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 14),
             child: _TicketCard(
               ticket: ticket,
               onTap: () => Navigator.of(context).push(
@@ -207,62 +206,11 @@ class _SearchFieldState extends State<_SearchField> {
         contentPadding: const EdgeInsets.symmetric(vertical: 18),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: Color(0xFFE8E8EE)),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
-        ),
-      ),
-    );
-  }
-}
-
-class _StockFilterChip extends StatelessWidget {
-  const _StockFilterChip({required this.isSelected, required this.onTap});
-
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFFFEFEA) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isSelected ? AppColors.primary : const Color(0xFFE8E8EE),
-              width: isSelected ? 1.4 : 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isSelected
-                    ? Icons.check_circle_rounded
-                    : Icons.radio_button_unchecked_rounded,
-                size: 18,
-                color: isSelected ? AppColors.primary : AppColors.textMuted,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Ve IN_STOCK',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: isSelected ? AppColors.primary : AppColors.ink,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -285,29 +233,28 @@ class _DateChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          color: isSelected ? const Color(0xFFFFEEEE) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? AppColors.primary : const Color(0xFFE8E8EE),
+            color: isSelected ? AppColors.primary : const Color(0xFFE9E9EF),
             width: isSelected ? 1.4 : 1,
           ),
-          boxShadow: isSelected
-              ? const [
-                  BoxShadow(
-                    color: Color(0x14D31010),
-                    blurRadius: 16,
-                    offset: Offset(0, 6),
-                  ),
-                ]
-              : null,
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0D101828),
+              blurRadius: 16,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
               title,
@@ -317,13 +264,13 @@ class _DateChip extends StatelessWidget {
                 color: isSelected ? AppColors.primary : AppColors.ink,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(width: 10),
             Text(
               date,
               style: const TextStyle(
                 fontSize: 12,
                 color: AppColors.textMuted,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -356,6 +303,7 @@ class _ResultSummary extends StatelessWidget {
           'Hien thi $visibleCount ve',
           style: const TextStyle(
             color: AppColors.textSecondary,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -364,6 +312,7 @@ class _ResultSummary extends StatelessWidget {
           '$matchedCount ve phu hop',
           style: const TextStyle(
             color: AppColors.primary,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -383,99 +332,113 @@ class _TicketCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFF1E3E0)),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFF1F1F5)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x12000000),
-                blurRadius: 18,
-                offset: Offset(0, 8),
+                color: Color(0x14101828),
+                blurRadius: 24,
+                offset: Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Color(0x0A101828),
+                blurRadius: 8,
+                offset: Offset(0, 2),
               ),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+            child: Column(
               children: [
-                _TicketBadge(
-                  shortName: ticket.shortName,
-                  imageUrl: ticket.imageUrl,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        ticket.titleText,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        ticket.dateLabel,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textMuted,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _TicketBadge(
+                      shortName: ticket.shortName,
+                      imageUrl: ticket.imageUrl,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _formatTicketPrice(ticket.price),
+                            ticket.stationDisplayText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 15,
+                              fontSize: 17,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
+                              color: AppColors.ink,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              ticket.statusDisplayName,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.success,
-                              ),
+                          const SizedBox(height: 4),
+                          Text(
+                            ticket.dateLabel,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBFA),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primary, width: 1.5),
-                  ),
-                  child: Text(
-                    ticket.code,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.confirmation_number_outlined,
+                          size: 16,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'x 1',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        ticket.code,
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                    if (ticket.price != null) ...[
+                      const SizedBox(width: 12),
+                      Text(
+                        _compactPrice(ticket.price),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -484,6 +447,19 @@ class _TicketCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _compactPrice(int? price) {
+  if (price == null) {
+    return 'Dang cap nhat';
+  }
+
+  final currencyFormatter = NumberFormat.currency(
+    locale: 'vi_VN',
+    symbol: 'd',
+    decimalDigits: 0,
+  );
+  return currencyFormatter.format(price);
 }
 
 class TicketDetailView extends ConsumerWidget {
@@ -1129,4 +1105,3 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
-

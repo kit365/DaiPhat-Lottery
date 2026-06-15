@@ -2,7 +2,7 @@ class LotteryTicket {
   const LotteryTicket({
     required this.id,
     required this.productId,
-    required this.productName,
+    required this.stationName,
     required this.ticketImg,
     required this.serialNumber,
     required this.numbers,
@@ -24,7 +24,7 @@ class LotteryTicket {
 
   final int id;
   final int? productId;
-  final String productName;
+  final String stationName;
   final String? ticketImg;
   final String serialNumber;
   final String numbers;
@@ -47,7 +47,7 @@ class LotteryTicket {
     return LotteryTicket(
       id: (json['id'] as num?)?.toInt() ?? 0,
       productId: (json['productId'] as num?)?.toInt(),
-      productName: json['productName']?.toString() ?? '',
+      stationName: json['stationName']?.toString() ?? '',
       ticketImg: json['ticketImg']?.toString(),
       serialNumber: json['serialNumber']?.toString() ?? '',
       numbers: json['numbers']?.toString() ?? '',
