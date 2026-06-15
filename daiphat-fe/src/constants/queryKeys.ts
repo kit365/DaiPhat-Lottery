@@ -30,4 +30,10 @@ export const QUERY_KEYS = {
     BLOG_STATUSES: 'blogStatuses',
     PUBLIC_BLOG_CATEGORIES: 'public-blog-categories',
     PUBLIC_BLOG_POSTS: 'public-posts',
+
+    // Station/Provider
+    PROVIDERS: 'providers',
+    PROVIDER_DETAIL: 'provider',
+    STATIONS_TODAY: 'stations-today',
+    STATIONS_TOMORROW: 'stations-tomorrow',
 } as const;

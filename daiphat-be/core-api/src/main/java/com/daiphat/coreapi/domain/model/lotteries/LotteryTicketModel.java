@@ -5,9 +5,12 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -17,18 +20,22 @@ import java.util.UUID;
 @Builder
 public class LotteryTicketModel {
 
-    private static final LocalTime CUTOFF_TIME = LocalTime.of(15, 0);
-
     private Long id;
-    private Long productId;
+    private Long stationId;
     private String ticketImg;
+    private BigDecimal priceSnapshot;
     private String serialNumber;
     private String numbers;
     private LocalDate drawDate;
     private String batchCode;
+    @Builder.Default
+    private Integer quantity = 1;
 
     @Builder.Default
     private LotteryTicketStatus status = LotteryTicketStatus.IN_STOCK;
+
+    @Builder.Default
+    private List<LotteryTicketSerialModel> serials = new ArrayList<>();
 
     private UUID importedById;
     private LocalDateTime importedAt;
@@ -59,7 +66,6 @@ public class LotteryTicketModel {
 
     public void reserve() {
         ensureStatus(LotteryTicketStatus.IN_STOCK);
-        ensureBookable();
         this.status = LotteryTicketStatus.RESERVED;
     }
 
@@ -69,29 +75,22 @@ public class LotteryTicketModel {
     }
 
     public void sellOnline() {
-        ensureStatusIn(
-                LotteryTicketStatus.IN_STOCK,
-                LotteryTicketStatus.RESERVED);
-        ensureBookable();
+        ensureStatusIn(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.RESERVED, LotteryTicketStatus.SOLD_OUT);
         this.status = LotteryTicketStatus.SOLD;
     }
 
     public void sellOffline() {
-        ensureStatus(LotteryTicketStatus.IN_STOCK);
-        ensureBookable();
+        ensureStatusIn(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.RESERVED, LotteryTicketStatus.SOLD_OUT);
         this.status = LotteryTicketStatus.SOLD;
     }
 
     public void holdForProxy() {
-        ensureStatus(LotteryTicketStatus.IN_STOCK);
+        ensureStatusIn(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.SOLD_OUT);
         this.status = LotteryTicketStatus.PROXY_HOLDING;
     }
 
     public void requestReturn() {
-        ensureStatusIn(
-                LotteryTicketStatus.IN_STOCK,
-                LotteryTicketStatus.RESERVED,
-                LotteryTicketStatus.PROXY_HOLDING);
+        ensureStatusIn(LotteryTicketStatus.SOLD, LotteryTicketStatus.PROXY_HOLDING);
         this.status = LotteryTicketStatus.PENDING_RETURN;
     }
 
@@ -111,31 +110,68 @@ public class LotteryTicketModel {
     }
 
     public void markInternalFault() {
-        if (isSold()) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
-        }
+        ensureStatusIn(
+                LotteryTicketStatus.IN_STOCK,
+                LotteryTicketStatus.RESERVED,
+                LotteryTicketStatus.SOLD_OUT,
+                LotteryTicketStatus.PROXY_HOLDING
+        );
         this.status = LotteryTicketStatus.INTERNAL_FAULT;
     }
 
     public void markIssuerFault() {
-        if (isSold()) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
-        }
+        ensureStatusIn(
+                LotteryTicketStatus.IN_STOCK,
+                LotteryTicketStatus.RESERVED,
+                LotteryTicketStatus.SOLD_OUT,
+                LotteryTicketStatus.PROXY_HOLDING
+        );
         this.status = LotteryTicketStatus.ISSUER_FAULT;
     }
 
     public void expire() {
-        ensureStatusIn(
-                LotteryTicketStatus.IN_STOCK,
-                LotteryTicketStatus.RESERVED,
-                LotteryTicketStatus.PROXY_HOLDING);
         this.status = LotteryTicketStatus.EXPIRED;
     }
 
+    public boolean isExpired(LocalTime cutoffTime) {
+        if (this.drawDate == null) {
+            return false;
+        }
+
+        LocalDate today = LocalDate.now();
+        if (this.drawDate.isBefore(today)) {
+            return true;
+        }
+        return cutoffTime != null
+                && this.drawDate.isEqual(today)
+                && LocalTime.now().isAfter(cutoffTime);
+    }
+
+    public LotteryTicketStatus resolveAggregateStatus(long availableSerialCount, LocalTime cutoffTime) {
+        if (isExpired(cutoffTime)) {
+            return LotteryTicketStatus.EXPIRED;
+        }
+        return availableSerialCount > 0 ? LotteryTicketStatus.IN_STOCK : LotteryTicketStatus.SOLD_OUT;
+    }
+
+    public void syncAggregateState(int availableSerialCount, LocalTime cutoffTime) {
+        this.quantity = availableSerialCount;
+        this.status = resolveAggregateStatus(availableSerialCount, cutoffTime);
+    }
+
+    public void validateDrawDate(LocalDate drawDate) {
+        if (drawDate == null) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_DRAW_DATE_REQUIRED);
+        }
+
+        LocalDate today = LocalDate.now();
+        if (drawDate.isBefore(today)) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_DRAW_DATE_INVALID);
+        }
+    }
+
     public boolean countsTowardInventory() {
-        return this.status == LotteryTicketStatus.IN_STOCK
-                || this.status == LotteryTicketStatus.RESERVED
-                || this.status == LotteryTicketStatus.PROXY_HOLDING;
+        return this.status == LotteryTicketStatus.IN_STOCK;
     }
 
     public void softDelete() {
@@ -159,32 +195,5 @@ public class LotteryTicketModel {
             }
         }
         throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
-    }
-
-    private boolean isSold() {
-        return this.status == LotteryTicketStatus.SOLD;
-    }
-
-    private void ensureBookable() {
-        if (this.drawDate == null) {
-            return;
-        }
-
-        LocalDate today = LocalDate.now();
-        LocalTime now = LocalTime.now();
-
-        if (this.drawDate.isBefore(today)) {
-            throw new DomainException(
-                    ErrorCode.LOTTERY_TICKET_EXPIRED,
-                    "Ve so da qua ngay quay, khong the dat mua hoac giu cho."
-            );
-        }
-
-        if (this.drawDate.isEqual(today) && now.isAfter(CUTOFF_TIME)) {
-            throw new DomainException(
-                    ErrorCode.LOTTERY_TICKET_BOOKING_CLOSED,
-                    "Ve so da qua gio chot dat cua hom nay, khong the dat mua hoac giu cho."
-            );
-        }
     }
 }

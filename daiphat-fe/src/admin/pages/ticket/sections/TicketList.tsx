@@ -26,10 +26,8 @@ declare module '@mui/x-data-grid' {
 
 export const TicketList = ({
     ticketHook,
-    isTrash = false
 }: {
     ticketHook: any;
-    isTrash?: boolean;
 }) => {
     const { settings, setSettings } = useSettings();
     const {
@@ -38,14 +36,14 @@ export const TicketList = ({
         isLoading,
         error,
         filters,
-        setStatusFilter,
-        setStockFilter,
+        setFilter,
+        clearFilters,
         setSearchFilter,
         setPage,
         setLimit,
     } = ticketHook;
 
-    const columns = useTicketColumns(isTrash);
+    const columns = useTicketColumns();
     const localeText = useDataGridLocale();
 
     if (isLoading) {
@@ -92,8 +90,8 @@ export const TicketList = ({
                             onSettingsChange: setSettings,
                             // Pass filter handlers to toolbar
                             filters,
-                            onStatusChange: setStatusFilter,
-                            onStockChange: setStockFilter,
+                            onFilterChange: setFilter,
+                            onClearFilters: clearFilters,
                             onSearchChange: setSearchFilter,
                         } as any,
                     }}

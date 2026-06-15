@@ -69,6 +69,8 @@ public enum ErrorCode {
     INVALID_KEY("SYS_004", "Mã lỗi không hợp lệ.", HttpStatus.BAD_REQUEST),
     SYNC_FAILED("SYS_005", "Đồng bộ dữ liệu thất bại.", HttpStatus.INTERNAL_SERVER_ERROR),
     INVALID_INPUT("SYS_006", "Dữ liệu nhập vào không hợp lệ.", HttpStatus.BAD_REQUEST),
+    IMAGE_FILE_REQUIRED("SYS_007", "Vui lòng chọn một tệp hình ảnh.", HttpStatus.BAD_REQUEST),
+    IMAGE_INVALID_TYPE("SYS_008", "Chỉ hỗ trợ tải lên các tệp định dạng hình ảnh.", HttpStatus.BAD_REQUEST),
     PASSWORD_CONFIRM_MISMATCH("AUTH_030", "Xác nhận mật khẩu không khớp", HttpStatus.BAD_REQUEST),
     ACCESS_DENIED("AUTH_031", "Bạn không có quyền truy cập tài nguyên này.", HttpStatus.FORBIDDEN),
 
@@ -119,7 +121,6 @@ public enum ErrorCode {
     LOTTERY_STATION_INVALID_TYPE("LT_010", "Loại sản phẩm vé số không hợp lệ.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_ALREADY_VERIFIED("LT_011", "Vé số đã được xác minh trước đó.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_STATUS_REQUIRED("LT_012", "Trạng thái vé số không được để trống.", HttpStatus.BAD_REQUEST),
-    LOTTERY_TICKET_NOT_DELETED("LT_013", "Vé số chưa bị xóa.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_NUMBERS_REQUIRED("LT_014", "Dãy số vé không được để trống.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_NUMBERS_INVALID("LT_015", "Dãy số vé chỉ được chứa chữ số.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_NUMBERS_LENGTH_INVALID("LT_016", "Dãy số vé không đúng độ dài yêu cầu.", HttpStatus.BAD_REQUEST),

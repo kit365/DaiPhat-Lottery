@@ -14,6 +14,11 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
+import com.daiphat.coreapi.application.dto.storage.UploadRequest;
+import com.daiphat.coreapi.shared.util.StorageUtils;
+import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +27,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -31,9 +38,10 @@ public class LotteryStationService implements LotteryStationServicePort {
     private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
     private final LotteryStationApplicationMapper lotteryStationApplicationMapper;
+    private final StoragePort storagePort;
 
     private static final List<LotteryTicketStatus> INVENTORY_STATUSES =
-            List.of(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.RESERVED, LotteryTicketStatus.PROXY_HOLDING);
+            List.of(LotteryTicketStatus.IN_STOCK);
 
     @Override
     @Transactional
@@ -45,6 +53,9 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
 
         LotteryStationModel model = lotteryStationApplicationMapper.toModel(request);
+        if (model.getStatus() == null) {
+            model.setStatus(LotteryStationStatus.ACTIVE);
+        }
 
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         log.info("Lottery product created with id: {}", saved.getId());
@@ -57,6 +68,22 @@ public class LotteryStationService implements LotteryStationServicePort {
         LotteryStationModel model = getProductOrThrow(id);
         recalculateInventory(model);
         return lotteryStationApplicationMapper.toResponse(model);
+    }
+
+    @Override
+    public LotteryStationModel getModelById(Long id) {
+        LotteryStationModel model = getProductOrThrow(id);
+        recalculateInventory(model);
+        return model;
+    }
+
+    @Override
+    public Optional<LotteryStationModel> findModelById(Long id) {
+        return lotteryStationRepositoryPort.findById(id)
+                .map(model -> {
+                    recalculateInventory(model);
+                    return model;
+                });
     }
 
     @Override
@@ -85,63 +112,39 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
+    public List<LotteryStationResponse> getByDrawDate(LocalDate drawDate) {
+        return lotteryStationRepositoryPort.findByNextDrawDate(drawDate).stream()
+                .peek(this::recalculateInventory)
+                .map(lotteryStationApplicationMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public List<LotteryStationResponse> getDrawingToday() {
+        return getByDrawDate(LocalDate.now());
+    }
+
+    @Override
+    public List<LotteryStationResponse> getDrawingTomorrow() {
+        return getByDrawDate(LocalDate.now().plusDays(1));
+    }
+
+    @Override
     @Transactional
     public LotteryStationResponse update(Long id, UpdateLotteryStationRequest request) {
         log.info("Updating lottery product with id: {}", id);
 
         LotteryStationModel model = getProductOrThrow(id);
 
-        if (hasText(request.name())
-                && !model.getName().equalsIgnoreCase(request.name())
-                && lotteryStationRepositoryPort.existsByName(request.name())) {
-            throw new DomainException(ErrorCode.LOTTERY_STATION_NAME_EXISTED);
-        }
-
         if (hasText(request.name())) {
+            if (!model.getName().equalsIgnoreCase(request.name())
+                    && lotteryStationRepositoryPort.existsByName(request.name())) {
+                throw new DomainException(ErrorCode.LOTTERY_STATION_NAME_EXISTED);
+            }
             model.setName(request.name().trim());
         }
-        if (request.province() != null) {
-            model.setProvince(request.province());
-        }
-        if (request.region() != null) {
-            model.setRegion(request.region());
-        }
 
-        if (hasText(request.type())) {
-            model.setType(parseType(request.type()));
-        }
-
-        if (request.numberLength() != null) {
-            model.setNumberLength(request.numberLength());
-        }
-        if (request.minNumber() != null) {
-            model.setMinNumber(request.minNumber());
-        }
-        if (request.maxNumber() != null) {
-            model.setMaxNumber(request.maxNumber());
-        }
-        if (request.price() != null) {
-            model.setPrice(request.price());
-        }
-        if (request.drawSchedule() != null) {
-            model.setDrawSchedule(request.drawSchedule());
-        }
-        if (request.drawTime() != null) {
-            model.setDrawTime(request.drawTime());
-        }
-        if (request.nextDrawDate() != null) {
-            model.setNextDrawDate(request.nextDrawDate());
-        }
-        if (request.description() != null) {
-            model.setDescription(request.description());
-        }
-        if (request.displayOrder() != null) {
-            model.setDisplayOrder(request.displayOrder());
-        }
-
-        if (hasText(request.status())) {
-            model.setStatus(parseStatusOrThrow(request.status()));
-        }
+        lotteryStationApplicationMapper.updateModel(model, request);
 
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         recalculateInventory(saved);
@@ -153,10 +156,40 @@ public class LotteryStationService implements LotteryStationServicePort {
     @Override
     @Transactional
     public void delete(Long id) {
-        log.info("Deleting lottery product with id: {}", id);
-
+        log.info("Deleting lottery station with id: {}", id);
         getProductOrThrow(id);
         lotteryStationRepositoryPort.deleteById(id);
+        log.info("Successfully deleted lottery station: {}", id);
+    }
+
+    @Override
+    @Transactional
+    public LotteryStationResponse uploadImage(Long id, UploadRequest request) {
+        LotteryStationModel model = getProductOrThrow(id);
+        StorageUtils.validateImageUpload(request);
+
+        // Delete old image if it exists
+        // Wait, LotteryStation doesn't store ImagePublicId in DB, it only stores image url.
+        // Assuming we just overwrite or upload a new one.
+        StorageResult result = storagePort.upload(new UploadRequest(
+                request.data(),
+                request.fileName(),
+                request.contentType(),
+                StorageFolderConstants.STATION_IMAGE_FOLDER
+        ));
+
+        model.setImage(result.url());
+        // Option to save thumbnail url if needed, for now just image
+        LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
+        return lotteryStationApplicationMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void recalculateInventory(Long id) {
+        LotteryStationModel model = getProductOrThrow(id);
+        recalculateInventory(model);
+        lotteryStationRepositoryPort.save(model);
     }
 
     private LotteryStationModel getProductOrThrow(Long id) {
@@ -164,13 +197,7 @@ public class LotteryStationService implements LotteryStationServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
     }
 
-    private LotteryStationType parseType(String type) {
-        try {
-            return LotteryStationType.valueOf(type.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_TYPE);
-        }
-    }
+
 
     private LotteryStationStatus parseStatus(String status) {
         if (!hasText(status)) {
@@ -183,13 +210,7 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
     }
 
-    private LotteryStationStatus parseStatusOrThrow(String status) {
-        try {
-            return LotteryStationStatus.valueOf(status.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_STATUS);
-        }
-    }
+
 
     private PageResponse<LotteryStationResponse> buildPageResponse(
             Page<LotteryStationResponse> pageResult,
@@ -211,7 +232,7 @@ public class LotteryStationService implements LotteryStationServicePort {
         if (model.getId() == null) {
             return;
         }
-        long ticketCount = lotteryTicketRepositoryPort.countByProductIdAndStatuses(
+        long ticketCount = lotteryTicketRepositoryPort.sumQuantityByProductIdAndStatuses(
                 model.getId(), INVENTORY_STATUSES);
         model.setInventoryCount((int) ticketCount);
     }

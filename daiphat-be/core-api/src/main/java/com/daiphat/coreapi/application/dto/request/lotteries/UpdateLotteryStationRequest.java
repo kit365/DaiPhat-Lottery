@@ -29,6 +29,7 @@ public record UpdateLotteryStationRequest(
         LocalDate nextDrawDate,
 
         // Hiển thị
+        String image,
         String description,
         Integer displayOrder,
         String status

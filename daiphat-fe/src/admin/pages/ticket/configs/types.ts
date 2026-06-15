@@ -2,15 +2,16 @@ import { GridDensity } from '@mui/x-data-grid';
 
 // Định nghĩa kiểu dữ liệu cho một vé số (Row)
 export interface ITicket {
-    id: number;
-    ticket: string;
-    category: string;
+    id: number | string;
+    providerName: string;
+    serialNumber: string;
+    numbers: string;
+    drawDate: string;
+    batchCode: string;
     image: string;
     createdAt: Date;
-    stock: number;
-    price: number;
-    status: 'active' | 'inactive' | 'draft';
-    providerName?: string;
+    status: string;
+    statusDisplayName: string;
 }
 
 // Định nghĩa kiểu dữ liệu cho Settings của Grid

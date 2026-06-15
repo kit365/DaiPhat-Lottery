@@ -4,7 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record OrderTicketSnapshot(
-        Long ticketId,
+        Long lotteryTicketId,
+        Long lotteryTicketSerialId,
         BigDecimal price,
         LocalDate drawDate
 ) {

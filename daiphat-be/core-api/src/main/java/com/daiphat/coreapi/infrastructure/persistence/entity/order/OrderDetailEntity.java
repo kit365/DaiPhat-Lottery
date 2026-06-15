@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.order;
 
-import com.daiphat.coreapi.domain.model.enums.order.OrderDetailStatus;
-import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
+import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -21,12 +21,12 @@ import java.util.List;
         name = "order_details",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_order_details_order_ticket",
-                        columnNames = {"order_id", "lottery_ticket_id"}
+                        name = "uk_order_details_order_ticket_serial",
+                        columnNames = {"order_id", "lottery_ticket_serial_id"}
                 ),
                 @UniqueConstraint(
-                        name = "uk_order_details_replaced_by_ticket",
-                        columnNames = {"replaced_by_ticket_id"}
+                        name = "uk_order_details_replaced_by_ticket_serial",
+                        columnNames = {"replaced_by_ticket_serial_id"}
                 )
         }
 )
@@ -46,12 +46,12 @@ public class OrderDetailEntity {
     private OrderEntity order;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lottery_ticket_id", nullable = false)
-    private LotteryTicketEntity lotteryTicket;
+    @JoinColumn(name = "lottery_ticket_serial_id", nullable = false)
+    private LotteryTicketSerialEntity lotteryTicketSerial;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "replaced_by_ticket_id", unique = true)
-    private LotteryTicketEntity replacedByTicket;
+    @JoinColumn(name = "replaced_by_ticket_serial_id", unique = true)
+    private LotteryTicketSerialEntity replacedByTicketSerial;
 
     @Column(nullable = false, precision = 15)
     private BigDecimal price;

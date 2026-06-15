@@ -1,6 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.order;
 
-import com.daiphat.coreapi.domain.model.enums.order.OrderRefundStatus;
+import com.daiphat.coreapi.domain.model.enums.order.refund.OrderRefundStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;

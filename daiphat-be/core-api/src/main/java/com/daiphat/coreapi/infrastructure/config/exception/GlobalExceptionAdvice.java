@@ -89,8 +89,12 @@ public class GlobalExceptionAdvice {
             return "Hệ thống vẫn đang áp dụng ràng buộc serial_number cũ trong cơ sở dữ liệu. Hãy chạy migration mới để chuyển sang ràng buộc tổ hợp 4 trường.";
         }
 
-        if (rawMessage.contains("uk_lottery_ticket_station_serial_numbers_draw_date")) {
-            return "Vé số với stationId, serialNumber, numbers và drawDate này đã tồn tại trong hệ thống.";
+        if (rawMessage.contains("uk_lottery_ticket_station_numbers_draw_date")) {
+            return "Vé số với stationId, numbers và drawDate này đã tồn tại trong hệ thống.";
+        }
+
+        if (rawMessage.contains("uk_lottery_ticket_serials_ticket_serial")) {
+            return "Sê-ri vé đã tồn tại trong cùng một vé số.";
         }
 
         return ErrorCode.INVALID_INPUT.getMessage();

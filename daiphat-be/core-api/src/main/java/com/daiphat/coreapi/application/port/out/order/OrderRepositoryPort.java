@@ -13,9 +13,11 @@ public interface OrderRepositoryPort {
 
     Optional<OrderModel> findById(UUID id);
 
+    Optional<OrderModel> findByIdWithLock(UUID id);
+
     Optional<OrderModel> findByGatewayOrderCode(Long gatewayOrderCode);
 
     boolean existsByOrderCode(String orderCode);
 
-    List<OrderModel> findPendingPaymentOrdersCreatedBefore(LocalDateTime threshold);
+    List<UUID> findPendingPaymentOrderIdsCreatedBefore(LocalDateTime threshold);
 }

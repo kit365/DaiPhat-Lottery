@@ -1,21 +1,24 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { getTickets, deleteTicket, restoreTicket, forceDeleteTicket } from '../../../api/ticket.api';
+import { getTickets, deleteTicket } from '../../../api/ticket.api';
 
 interface ITicketFilters {
     status?: string[];
-    stock?: string[];
+    batchCode?: string[];
+    provider?: string[];
+    drawDate?: string[];
     search?: string;
     page: number;
     limit: number;
-    isTrash?: boolean;
 }
 
 export const useTickets = () => {
     const queryClient = useQueryClient();
     const [filters, setFilters] = useState<ITicketFilters>({
         status: [],
-        stock: [],
+        batchCode: [],
+        provider: [],
+        drawDate: [],
         search: '',
         page: 1,
         limit: 10,
@@ -26,9 +29,10 @@ export const useTickets = () => {
         queryFn: () => getTickets({
             keyword: filters.search,
             status: filters.status && filters.status.length > 0 ? filters.status.join(',') : undefined,
+            stationId: filters.provider && filters.provider.length > 0 ? filters.provider.join(',') : undefined,
+            drawDate: filters.drawDate && filters.drawDate.length > 0 ? filters.drawDate.join(',') : undefined,
             page: filters.page,
             limit: filters.limit,
-            is_trash: filters.isTrash || undefined,
         }),
         placeholderData: keepPreviousData,
     });
@@ -37,15 +41,19 @@ export const useTickets = () => {
         if (!data?.data?.recordList) return [];
 
         return data.data.recordList.map((item: any) => ({
-            id: item._id,
-            ticket: item.name,
-            category: (item.categoryInfo || []).map((c: any) => c.name).join(', ') || 'Uncategorized',
-            image: item.images?.[0] || '',
-            createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-            stock: item.stock || 0,
-            price: item.priceNew || item.priceOld || 0,
-            status: item.status || 'draft',
-            providerName: item.providerName || 'N/A',
+            ...item,
+            id: item.id || item._id,
+            providerName: item.productName || item.providerName || item.stationName || 'Không xác định',
+            stationName: item.stationName || '',
+            quantity: item.quantity || 0,
+            serialNumber: item.serialNumber || '',
+            numbers: item.numbers || '',
+            drawDate: item.drawDate || '',
+            batchCode: item.batchCode || '',
+            image: item.ticketImg || item.avatar || '',
+            createdAt: item.importedAt || item.createdAt ? new Date(item.importedAt || item.createdAt) : new Date(),
+            status: item.status ? item.status.toLowerCase() : 'draft',
+            statusDisplayName: item.statusDisplayName || item.status,
         }));
     }, [data]);
 
@@ -54,7 +62,6 @@ export const useTickets = () => {
         totalPages: 0,
         currentPage: 1,
         limit: 10,
-        deletedCount: 0,
     };
 
     const deleteMutation = useMutation({
@@ -64,30 +71,8 @@ export const useTickets = () => {
         }
     });
 
-    const restoreMutation = useMutation({
-        mutationFn: restoreTicket,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tickets'] });
-        }
-    });
-
-    const forceDeleteMutation = useMutation({
-        mutationFn: forceDeleteTicket,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tickets'] });
-        }
-    });
-
-    const setStatusFilter = (status: string[]) => {
-        setFilters((prev) => ({ ...prev, status, page: 1 }));
-    };
-
-    const setStockFilter = (stock: string[]) => {
-        setFilters((prev) => ({ ...prev, stock, page: 1 }));
-    };
-
-    const setIsTrashFilter = (isTrash: boolean) => {
-        setFilters((prev) => ({ ...prev, isTrash, page: 1 }));
+    const setFilter = (fieldId: string, values: string[]) => {
+        setFilters((prev) => ({ ...prev, [fieldId]: values, page: 1 }));
     };
 
     const setSearchFilter = (search: string) => {
@@ -105,11 +90,12 @@ export const useTickets = () => {
     const clearFilters = () => {
         setFilters({
             status: [],
-            stock: [],
+            batchCode: [],
+            provider: [],
+            drawDate: [],
             search: '',
             page: 1,
             limit: 10,
-            isTrash: false,
         });
     };
 
@@ -119,15 +105,11 @@ export const useTickets = () => {
         isLoading,
         error,
         filters,
-        setStatusFilter,
-        setStockFilter,
+        setFilter,
         setSearchFilter,
-        setIsTrashFilter,
         setPage,
         setLimit,
         clearFilters,
         deleteTicket: deleteMutation.mutate,
-        restoreTicket: restoreMutation.mutate,
-        forceDeleteTicket: forceDeleteMutation.mutate,
     };
 };

@@ -21,30 +21,7 @@ interface CartStore {
 }
 
 export const useCartStore = create<CartStore>((set) => ({
-    items: [
-        {
-            id: "1",
-            province: "Kiên Giang",
-            date: "Chủ nhật, 09/02/2025",
-            time: "16:10",
-            kyHieu: "2K2",
-            numbers: "853913",
-            price: 10000,
-            quantity: 1,
-            color: "#f59e0b"
-        },
-        {
-            id: "2",
-            province: "TP. Hồ Chí Minh",
-            date: "Thứ hai, 10/02/2025",
-            time: "16:15",
-            kyHieu: "2D2",
-            numbers: "123456",
-            price: 10000,
-            quantity: 1,
-            color: "#ec4899"
-        }
-    ],
+    items: [],
     addItem: (item) => set((state) => {
         // Check if item already exists (same province, numbers, date)
         const existingItem = state.items.find(i => 
