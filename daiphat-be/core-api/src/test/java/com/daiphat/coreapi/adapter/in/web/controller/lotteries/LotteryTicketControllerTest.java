@@ -1186,11 +1186,11 @@ class LotteryTicketControllerTest {
     void update_asAdmin_returnsUpdatedTicket() {
         UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
                 "https://cdn.example.com/tickets/updated.png",
-                "A888888",
                 "888999",
                 LocalDate.of(2026, 7, 5),
                 "BATCH-UPD",
-                com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.RESERVED
+                com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.RESERVED,
+                null
         );
 
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1210,9 +1210,10 @@ class LotteryTicketControllerTest {
                 .lastModifiedBy("admin01")
                 .build();
 
-        when(lotteryTicketServicePort.update(TICKET_ID, request)).thenReturn(expectedResponse);
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
+        when(lotteryTicketServicePort.update(TICKET_ID, request, USER_ID)).thenReturn(expectedResponse);
 
-        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.update(TICKET_ID, request);
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.update(TICKET_ID, request, principal);
 
         assertThat(response).isNotNull();
         assertThat(response.isSuccess()).isTrue();
@@ -1221,7 +1222,7 @@ class LotteryTicketControllerTest {
         assertThat(response.getData().serialNumber()).isEqualTo("A888888");
         assertThat(response.getData().status()).isEqualTo("RESERVED");
 
-        verify(lotteryTicketServicePort).update(TICKET_ID, request);
+        verify(lotteryTicketServicePort).update(TICKET_ID, request, USER_ID);
     }
 
     @Test
@@ -1229,11 +1230,11 @@ class LotteryTicketControllerTest {
     void update_asOperator_returnsUpdatedTicket() {
         UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
                 null,
-                null,
                 "654321",
                 null,
                 null,
-                com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.SOLD
+                com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.SOLD,
+                null
         );
 
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1245,16 +1246,17 @@ class LotteryTicketControllerTest {
                 .lastModifiedBy("operator01")
                 .build();
 
-        when(lotteryTicketServicePort.update(TICKET_ID, request)).thenReturn(expectedResponse);
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "operator01");
+        when(lotteryTicketServicePort.update(TICKET_ID, request, USER_ID)).thenReturn(expectedResponse);
 
-        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.update(TICKET_ID, request);
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.update(TICKET_ID, request, principal);
 
         assertThat(response).isNotNull();
         assertThat(response.isSuccess()).isTrue();
         assertThat(response.getData().numbers()).isEqualTo("654321");
         assertThat(response.getData().status()).isEqualTo("SOLD");
 
-        verify(lotteryTicketServicePort).update(TICKET_ID, request);
+        verify(lotteryTicketServicePort).update(TICKET_ID, request, USER_ID);
     }
 
     @Test
@@ -1278,16 +1280,17 @@ class LotteryTicketControllerTest {
                 .status("IN_STOCK")
                 .build();
 
-        when(lotteryTicketServicePort.update(TICKET_ID, request)).thenReturn(expectedResponse);
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
+        when(lotteryTicketServicePort.update(TICKET_ID, request, USER_ID)).thenReturn(expectedResponse);
 
-        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.update(TICKET_ID, request);
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.update(TICKET_ID, request, principal);
 
         assertThat(response).isNotNull();
         assertThat(response.isSuccess()).isTrue();
         assertThat(response.getData().ticketImg()).isEqualTo("https://cdn.example.com/tickets/new-image.png");
         assertThat(response.getData().serialNumber()).isEqualTo("A123456");
 
-        verify(lotteryTicketServicePort).update(TICKET_ID, request);
+        verify(lotteryTicketServicePort).update(TICKET_ID, request, USER_ID);
     }
 
     // ============================================================
@@ -1584,16 +1587,17 @@ class LotteryTicketControllerTest {
     void update_asMemberOnly_shouldNotBeCalledDirectly() {
         UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
                 "https://cdn.example.com/new.png",
-                "Y999999",
                 "999888",
                 LocalDate.of(2026, 7, 5),
                 "BATCH-UPD",
-                com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.RESERVED
+                com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.RESERVED,
+                null
         );
 
-        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.update(TICKET_ID, request);
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
+        ApiResponse<LotteryTicketResponse> response = lotteryTicketController.update(TICKET_ID, request, principal);
 
-        verify(lotteryTicketServicePort).update(TICKET_ID, request);
+        verify(lotteryTicketServicePort).update(TICKET_ID, request, USER_ID);
     }
 
     @Test
@@ -1634,22 +1638,23 @@ class LotteryTicketControllerTest {
     void update_ticketNotFound_throwsException() {
         UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
                 "https://cdn.example.com/updated.png",
-                "A888888",
                 "888999",
                 LocalDate.of(2026, 7, 5),
                 "BATCH-UPD",
-                com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.RESERVED
+                com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.RESERVED,
+                null
         );
 
-        when(lotteryTicketServicePort.update(TICKET_ID, request))
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
+        when(lotteryTicketServicePort.update(TICKET_ID, request, USER_ID))
                 .thenThrow(new RuntimeException("Vé số không tồn tại"));
 
         org.junit.jupiter.api.Assertions.assertThrows(
                 RuntimeException.class,
-                () -> lotteryTicketController.update(TICKET_ID, request)
+                () -> lotteryTicketController.update(TICKET_ID, request, principal)
         );
 
-        verify(lotteryTicketServicePort).update(TICKET_ID, request);
+        verify(lotteryTicketServicePort).update(TICKET_ID, request, USER_ID);
     }
 
     // ============================================================
@@ -1838,5 +1843,35 @@ class LotteryTicketControllerTest {
 
         verify(lotteryTicketServicePort).delete(TICKET_ID);
         assertThat(response).isNotNull();
+    }
+
+    @Test
+    @DisplayName("GET /lottery-tickets/public: Khách xem vé IN_STOCK không cần đăng nhập")
+    void getPublicTickets_returnsPublicViewWithoutAuth() throws Exception {
+        PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
+        when(lotteryTicketServicePort.getPublicTickets(1, 10, PRODUCT_ID, "2026-06-15", "123456", "createdAt", "desc"))
+                .thenReturn(serviceResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getPublicTickets(
+                1, 10, PRODUCT_ID, "2026-06-15", "123456", "createdAt", "desc");
+
+        assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
+
+        String json = OBJECT_MAPPER
+                .writerWithView((Class<?>) response.getSerializationView())
+                .writeValueAsString(response.getValue());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseMap = OBJECT_MAPPER.readValue(json, Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) responseMap.get("data");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> recordList = (List<Map<String, Object>>) data.get("recordList");
+        Map<String, Object> firstRecord = recordList.getFirst();
+
+        assertThat(firstRecord).containsKeys("id", "stationId", "numbers", "drawDate", "status", "statusDisplayName");
+        assertThat(firstRecord).doesNotContainKeys("batchCode", "importedById", "verified");
+
+        verify(lotteryTicketServicePort).getPublicTickets(1, 10, PRODUCT_ID, "2026-06-15", "123456", "createdAt", "desc");
     }
 }

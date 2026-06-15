@@ -2,7 +2,7 @@ import { Box, Stack, TextField, ThemeProvider, useTheme, CircularProgress } from
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { Tiptap } from "../../components/layouts/titap/Tiptap";
-import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
+import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
 import { useTicketCategoryDetail, useNestedTicketCategories, useUpdateTicketCategory } from "./hooks/useTicketCategory";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +12,7 @@ import { SwitchButton } from "../../components/ui/SwitchButton";
 import { getTicketCategoryTheme } from "./configs/theme";
 import { prefixAdmin } from "../../constants/routes";
 import { FormUploadSingleFile } from "../../components/upload/FormUploadSingleFile";
+import { uploadAdminImage } from "../../api/upload.api";
 import { toast } from "react-toastify";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { CategoryParentSelect } from "../../components/ui/CategoryTreeSelect";
@@ -31,6 +32,7 @@ export const TicketCategoryEditPage = () => {
     const { data: nestedCategories = [] } = useNestedTicketCategories();
 
     const { mutate: update, isPending: isUpdating } = useUpdateTicketCategory();
+    const uploadImage = useCallback(async (file: File) => uploadAdminImage(file), []);
 
     const {
         control,
@@ -77,11 +79,11 @@ export const TicketCategoryEditPage = () => {
                 if (response.success) {
                     toast.success(response.message || "Cập nhật thành công");
                 } else {
-                    toast.error(response.message);
+                    toast.error(response.message || "Cập nhật thất bại");
                 }
             },
-            onError: () => {
-                toast.error("Có lỗi xảy ra trong quá trình cập nhật");
+            onError: (err: any) => {
+                toast.error(err?.response?.data?.message || err?.message || "Có lỗi xảy ra trong quá trình cập nhật");
             }
         });
     };
@@ -155,6 +157,7 @@ export const TicketCategoryEditPage = () => {
                                 <FormUploadSingleFile
                                     name="avatar"
                                     control={control}
+                                    customUpload={uploadImage}
                                 />
                             </Stack>
                         </CollapsibleCard>

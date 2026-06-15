@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:daiphat_mobile/src/features/cart/presentation/views/cart_mock_data.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 class CheckoutView extends StatefulWidget {
@@ -276,11 +278,14 @@ class _CheckoutPaymentCard extends StatelessWidget {
   }
 }
 
-class _CheckoutSummaryCard extends StatelessWidget {
+class _CheckoutSummaryCard extends ConsumerWidget {
   const _CheckoutSummaryCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cartTicketCount = ref.watch(cartTicketCountProvider);
+    final cartSubtotal = ref.watch(cartSubtotalProvider);
+    final cartTotal = ref.watch(cartTotalProvider);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: _cardDecoration(),

@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.port.in.lotteries;
 import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
@@ -21,7 +22,10 @@ public interface LotteryTicketServicePort {
             int page, int size, Long stationId, String status,
             String drawDate, String search, String sortBy, String direction);
 
-    LotteryTicketResponse update(Long id, UpdateLotteryTicketRequest request);
+    PageResponse<LotteryTicketResponse> getPublicTickets(
+            int page, int size, Long stationId, String drawDate, String search, String sortBy, String direction);
+
+    LotteryTicketResponse update(Long id, UpdateLotteryTicketRequest request, UUID editorId);
 
     void delete(Long id);
 
@@ -30,6 +34,8 @@ public interface LotteryTicketServicePort {
     LotteryTicketResponse changeStatus(Long id, LotteryTicketStatus status);
 
     LotteryTicketResponse uploadImage(Long id, UploadRequest request);
+
+    StorageResult uploadAsset(UploadRequest request);
 
     List<OrderTicketSnapshot> reserveForOrder(List<Long> ticketIds);
 

@@ -1,11 +1,15 @@
 package com.daiphat.coreapi.application.dto.response.lotteries;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Builder;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.UUID;
+import java.util.List;
 @Builder
 public record LotteryStationResponse(
         Long id,
@@ -18,8 +22,9 @@ public record LotteryStationResponse(
         Integer maxNumber,
         BigDecimal price,
         Integer inventoryCount,
-        String drawSchedule,
-        String drawTime,
+        List<DayOfWeek> drawDays,
+        @JsonFormat(pattern = "HH:mm")
+        LocalTime drawTime,
         LocalDate nextDrawDate,
         String status,
         UUID approvedById,

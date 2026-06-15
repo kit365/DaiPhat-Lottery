@@ -24,4 +24,6 @@ public interface LotteryStationRepositoryPort {
 
     boolean existsByName(String name);
 
+    int updateNextDrawDate(Long id, LocalDate nextDrawDate);
+
 }

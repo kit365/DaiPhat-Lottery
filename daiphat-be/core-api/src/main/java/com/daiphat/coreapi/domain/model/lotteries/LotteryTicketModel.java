@@ -24,7 +24,6 @@ public class LotteryTicketModel {
     private Long stationId;
     private String ticketImg;
     private BigDecimal priceSnapshot;
-    private String serialNumber;
     private String numbers;
     private LocalDate drawDate;
     private String batchCode;
@@ -156,7 +155,16 @@ public class LotteryTicketModel {
 
     public void syncAggregateState(int availableSerialCount, LocalTime cutoffTime) {
         this.quantity = availableSerialCount;
-        this.status = resolveAggregateStatus(availableSerialCount, cutoffTime);
+        if (!isWorkflowManagedStatus()) {
+            this.status = resolveAggregateStatus(availableSerialCount, cutoffTime);
+        }
+    }
+
+    private boolean isWorkflowManagedStatus() {
+        return switch (this.status) {
+            case RESERVED, SOLD, PROXY_HOLDING, PENDING_RETURN, RETURNED, INTERNAL_FAULT, ISSUER_FAULT -> true;
+            default -> false;
+        };
     }
 
     public void validateDrawDate(LocalDate drawDate) {
