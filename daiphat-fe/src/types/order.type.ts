@@ -45,17 +45,20 @@ export interface CreateOnlineOrderRequest {
     note?: string;
 }
 
-export interface GetMyOrdersParams {
+export interface OrderFilterParams {
     page?: number;
     size?: number;
-    status?: string;
+    status?: string | string[];
     fromDate?: string;
     toDate?: string;
-    orderType?: string;
+    orderType?: string | string[];
+    receiveType?: string | string[];
     search?: string;
     sortBy?: string;
     direction?: string;
 }
+
+export type GetMyOrdersParams = OrderFilterParams;
 
 export interface OrderResponse {
     id: string;

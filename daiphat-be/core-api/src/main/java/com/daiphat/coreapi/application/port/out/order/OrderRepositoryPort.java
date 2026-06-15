@@ -1,6 +1,9 @@
 package com.daiphat.coreapi.application.port.out.order;
 
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
+import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
+import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
+import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -25,8 +28,35 @@ public interface OrderRepositoryPort {
     Page<OrderModel> findMyOrders(
             Pageable pageable,
             UUID userId,
-            com.daiphat.coreapi.domain.model.enums.order.OrderStatus status,
-            com.daiphat.coreapi.domain.model.enums.order.OrderType orderType,
+            List<OrderStatus> statuses,
+            List<OrderType> orderTypes,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search
+    );
+
+    Page<OrderModel> findOrders(
+            Pageable pageable,
+            List<OrderStatus> statuses,
+            List<OrderType> orderTypes,
+            List<OrderReceiveType> receiveTypes,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search
+    );
+
+    long countAllOrders(
+            List<OrderType> orderTypes,
+            List<OrderReceiveType> receiveTypes,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search
+    );
+
+    long countOrdersByStatus(
+            OrderStatus status,
+            List<OrderType> orderTypes,
+            List<OrderReceiveType> receiveTypes,
             LocalDate fromDate,
             LocalDate toDate,
             String search

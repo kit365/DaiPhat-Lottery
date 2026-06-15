@@ -9,6 +9,8 @@ export const QUERY_KEYS = {
     ACCOUNTS_ADMIN: 'accounts-admin',
     ACCOUNT_ADMIN_DETAIL: 'account-admin',
     STAFF_BY_TICKET_SERVICE: 'staff-by-ticketService',
+    ADMIN_ORDERS: 'admin-orders',
+    ADMIN_ORDER_DETAIL: 'admin-order',
 
     // User / Customer
     ACCOUNTS_USER: 'accounts-user',

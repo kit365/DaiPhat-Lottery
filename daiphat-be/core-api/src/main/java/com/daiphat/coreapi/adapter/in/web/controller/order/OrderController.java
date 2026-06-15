@@ -69,15 +69,46 @@ public class OrderController {
         );
     }
 
+    @GetMapping
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    public ApiResponse<PageResponse<OrderResponse>> getOrders(
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_SIZE) int size,
+            @RequestParam(required = false) List<String> status,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
+            @RequestParam(required = false) List<String> orderType,
+            @RequestParam(required = false) List<String> receiveType,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = DEFAULT_SORT_BY) String sortBy,
+            @RequestParam(defaultValue = DEFAULT_SORT_DIRECTION) String direction) {
+        log.info("REST request to get orders page: {}, size: {}", page, size);
+        return ApiResponse.success(
+                "Lấy danh sách đơn hàng thành công.",
+                orderServicePort.getOrders(
+                        page,
+                        size,
+                        status,
+                        fromDate,
+                        toDate,
+                        orderType,
+                        receiveType,
+                        search,
+                        sortBy,
+                        direction
+                )
+        );
+    }
+
     @GetMapping("/my-orders")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<PageResponse<OrderResponse>> getMyOrders(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_SIZE) int size,
-            @RequestParam(required = false) String status,
+            @RequestParam(required = false) List<String> status,
             @RequestParam(required = false) LocalDate fromDate,
             @RequestParam(required = false) LocalDate toDate,
-            @RequestParam(required = false) String orderType,
+            @RequestParam(required = false) List<String> orderType,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = DEFAULT_SORT_BY) String sortBy,
             @RequestParam(defaultValue = DEFAULT_SORT_DIRECTION) String direction,
