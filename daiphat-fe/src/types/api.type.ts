@@ -6,3 +6,8 @@ export interface ApiResponse<T> {
     timestamp?: string;
     data?: T;
 }
+
+export interface EnumOptionResponse {
+    value: string;
+    label: string;
+}

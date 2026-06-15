@@ -1,0 +1,26 @@
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { orderService } from '../services/orderService';
+import { CreateOnlineOrderRequest } from '../../types/order.type';
+import { AppToast as toast } from '../utils/toast.util';
+
+export const useCreateOnlineOrder = () => {
+    return useMutation({
+        mutationFn: (data: CreateOnlineOrderRequest) => orderService.createOnlineOrder(data),
+        onSuccess: (response) => {
+            if (!response.success) {
+                toast.error(response.message || 'Có lỗi xảy ra khi tạo đơn hàng');
+            }
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error.message || 'Lỗi kết nối đến máy chủ';
+            toast.error(message);
+        }
+    });
+};
+
+export const useGetOrderReceiveTypes = () => {
+    return useQuery({
+        queryKey: ['orderReceiveTypes'],
+        queryFn: () => orderService.getOrderReceiveTypes()
+    });
+};

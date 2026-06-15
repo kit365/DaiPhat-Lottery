@@ -12,6 +12,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
+import com.daiphat.coreapi.shared.util.StorageUtils;
+
+import java.util.List;
 
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/lottery-stations")
@@ -54,6 +59,18 @@ public class LotteryStationController {
                 lotteryStationServicePort.getAll(page, size, search, status, type, sortBy, direction));
     }
 
+    @GetMapping("/draws/today")
+    @PreAuthorize("hasAnyAuthority('ticket:view') or hasAuthority('ROLE_MEMBER')")
+    public ApiResponse<List<LotteryStationResponse>> getDrawingToday() {
+        return ApiResponse.success(null, lotteryStationServicePort.getDrawingToday());
+    }
+
+    @GetMapping("/draws/tomorrow")
+    @PreAuthorize("hasAnyAuthority('ticket:view') or hasAuthority('ROLE_MEMBER')")
+    public ApiResponse<List<LotteryStationResponse>> getDrawingTomorrow() {
+        return ApiResponse.success(null, lotteryStationServicePort.getDrawingTomorrow());
+    }
+
     @PutMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:edit')")
     public ApiResponse<LotteryStationResponse> update(
@@ -68,5 +85,14 @@ public class LotteryStationController {
     public ApiResponse<Void> delete(@PathVariable Long id) {
         lotteryStationServicePort.delete(id);
         return ApiResponse.success("Xóa sản phẩm vé số thành công.");
+    }
+
+    @PostMapping(value = ID_PATH + "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    public ApiResponse<LotteryStationResponse> uploadImage(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file) {
+        return ApiResponse.success("Tải ảnh nhà đài thành công.",
+                lotteryStationServicePort.uploadImage(id, StorageUtils.toUploadRequest(file)));
     }
 }

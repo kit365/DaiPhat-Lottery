@@ -14,28 +14,30 @@ import java.util.UUID;
 @Mapper(componentModel = "spring")
 public interface LotteryTicketPersistenceMapper {
 
-    @Mapping(target = "product", source = "productId", qualifiedByName = "productIdToProductEntity")
+    @Mapping(target = "station", source = "stationId", qualifiedByName = "stationIdToStationEntity")
     @Mapping(target = "importedBy", source = "importedById", qualifiedByName = "userIdToUserEntity")
     @Mapping(target = "verifiedBy", source = "verifiedById", qualifiedByName = "userIdToUserEntity")
+    @Mapping(target = "serials", ignore = true)
     LotteryTicketEntity toEntity(LotteryTicketModel model);
 
     List<LotteryTicketEntity> toEntityList(List<LotteryTicketModel> models);
 
-    @Mapping(target = "productId", source = "product.id")
+    @Mapping(target = "stationId", source = "station.id")
     @Mapping(target = "importedById", source = "importedBy.id")
     @Mapping(target = "verifiedById", source = "verifiedBy.id")
+    @Mapping(target = "serials", ignore = true)
     LotteryTicketModel toDomain(LotteryTicketEntity entity);
 
     List<LotteryTicketModel> toDomainList(List<LotteryTicketEntity> entities);
 
-    @Named("productIdToProductEntity")
-    default LotteryStationEntity productIdToProductEntity(Long productId) {
-        if (productId == null) {
+    @Named("stationIdToStationEntity")
+    default LotteryStationEntity stationIdToStationEntity(Long stationId) {
+        if (stationId == null) {
             return null;
         }
-        LotteryStationEntity product = new LotteryStationEntity();
-        product.setId(productId);
-        return product;
+        LotteryStationEntity station = new LotteryStationEntity();
+        station.setId(stationId);
+        return station;
     }
 
     @Named("userIdToUserEntity")

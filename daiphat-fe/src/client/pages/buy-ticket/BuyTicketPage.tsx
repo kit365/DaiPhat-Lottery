@@ -1,23 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
 import { ChevronRight, Calendar as CalendarIcon, CheckCircle2, ShieldCheck, RefreshCw } from 'lucide-react';
 import { useCartStore } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast as toast } from '../../utils/toast.util';
-
-const PROVINCES = [
-    { id: 'hcm', name: 'TP. Hồ Chí Minh', time: '16:15', day: 'Hôm nay', icon: 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png' },
-    { id: 'dn', name: 'Đồng Nai', time: '16:20', day: 'Hôm nay', icon: 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png' },
-    { id: 'ct', name: 'Cần Thơ', time: '16:15', day: 'Hôm nay', icon: 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png' },
-];
-
-const QUICK_NUMBERS = [
-    '00000', '11111', '22222', '33333', '44444',
-    '55555', '66666', '77777', '88888', '99999',
-    '12345', '23456', '34567', '45678', '56789',
-    '67890', '13579', '24680', '112233', '221122'
-];
+import { useStationsToday, useStationsTomorrow } from '../../../admin/pages/provider/hooks/useProvider';
+import { useTicketList } from '../../../admin/pages/ticket/hooks/useTicket';
+import { LotteryTicketStatus } from '../../../constants/lottery.constants';
+import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
 
 export const BuyTicketPage = () => {
     const navigate = useNavigate();
@@ -25,11 +17,46 @@ export const BuyTicketPage = () => {
 
     // State
     const [selectedDate, setSelectedDate] = useState<'today' | 'tomorrow'>('today');
-    const [selectedProvince, setSelectedProvince] = useState('hcm');
+    const [selectedProvince, setSelectedProvince] = useState('');
     const [selectedTab, setSelectedTab] = useState<'quick' | 'manual' | 'birthday'>('quick');
-    const [selectedNumbers, setSelectedNumbers] = useState<string[]>(['853911']);
-
+    const [selectedNumbers, setSelectedNumbers] = useState<string[]>([]);
     const [ticketQuantity, setTicketQuantity] = useState(1);
+
+    // API Hooks
+    const { data: stationsTodayData, isLoading: isLoadingToday } = useStationsToday();
+    const { data: stationsTomorrowData, isLoading: isLoadingTomorrow } = useStationsTomorrow();
+
+    const isLoadingProviders = selectedDate === 'today' ? isLoadingToday : isLoadingTomorrow;
+
+    const dynamicProvinces = useMemo(() => {
+        const sourceData = selectedDate === 'today' ? stationsTodayData : stationsTomorrowData;
+        if (!sourceData) return [];
+        return sourceData.map((p: any) => ({
+            id: p.id || p._id,
+            name: p.name,
+            time: p.drawTime,
+            day: p.drawSchedule,
+            icon: p.image || p.thumbnailUrl,
+            schedule: p.drawSchedule
+        }));
+    }, [selectedDate, stationsTodayData, stationsTomorrowData]);
+
+    // No default province selection, require user to click
+
+    // Fetch tickets
+    const drawDateFilter = selectedDate === 'today' ? dayjs().format('YYYY-MM-DD') : dayjs().add(1, 'day').format('YYYY-MM-DD');
+    const { data: ticketsRes, isLoading: isLoadingTickets } = useTicketList(
+        {
+            stationId: selectedProvince,
+            drawDate: drawDateFilter,
+            status: LotteryTicketStatus.IN_STOCK,
+            limit: 100
+        },
+        {
+            enabled: !!selectedProvince
+        }
+    );
+    const availableTickets = ticketsRes?.data?.recordList || [];
 
     const toggleNumber = (num: string) => {
         setTicketQuantity(1); // Reset quantity when changing number
@@ -40,35 +67,50 @@ export const BuyTicketPage = () => {
         }
     };
 
-    const activeProvinceObj = PROVINCES.find(p => p.id === selectedProvince);
+    const activeProvinceObj = dynamicProvinces.find((p: any) => p.id === selectedProvince);
     const totalQuantity = selectedNumbers.length * ticketQuantity;
     const pricePerTicket = 10000;
     const totalAmount = totalQuantity * pricePerTicket;
 
     const addToCart = () => {
-        if (!token) {
-            openLoginModal();
+        if (!activeProvinceObj || selectedNumbers.length === 0) {
+            toast.warning('Vui lòng chọn ít nhất 1 vé số!');
             return false;
         }
-        if (!activeProvinceObj || selectedNumbers.length === 0) return false;
 
+        let hasError = false;
         selectedNumbers.forEach(num => {
+            const ticketData = availableTickets.find((t: any) => t.numbers === num);
+            if (!ticketData || (!ticketData.id && !ticketData._id)) {
+                hasError = true;
+                toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);
+                return;
+            }
+
             useCartStore.getState().addItem({
+                id: String(ticketData.id || ticketData._id),
                 province: activeProvinceObj.name,
-                date: selectedDate === 'today' ? `Hôm nay, 09/02/2025` : `Ngày mai, 10/02/2025`,
+                date: selectedDate === 'today' ? `Hôm nay, ${dayjs().format('DD/MM/YYYY')}` : `Ngày mai, ${dayjs().add(1, 'day').format('DD/MM/YYYY')}`,
                 time: activeProvinceObj.time,
-                kyHieu: "2K2",
+                kyHieu: ticketData.batchCode || "2K2",
                 numbers: num,
                 price: pricePerTicket,
                 quantity: ticketQuantity,
                 color: "#f59e0b"
             });
         });
+        
+        if (hasError) return false;
         toast.success(`Đã thêm ${totalQuantity} vé vào giỏ hàng`);
         return true;
     };
 
     const handleCheckout = () => {
+        if (!activeProvinceObj || selectedNumbers.length === 0) {
+            toast.warning('Vui lòng chọn ít nhất 1 vé số!');
+            return;
+        }
+        useCartStore.getState().clearCart();
         if (addToCart()) {
             navigate('/checkout');
         }
@@ -119,7 +161,7 @@ export const BuyTicketPage = () => {
                             <div className="grid grid-cols-2 gap-4 max-w-[500px]">
                                 {/* Today */}
                                 <div
-                                    onClick={() => setSelectedDate('today')}
+                                    onClick={() => { setSelectedDate('today'); setSelectedProvince(''); setSelectedNumbers([]); }}
                                     className={`relative p-3.5 rounded-xl border-2 cursor-pointer transition-colors flex gap-3 items-center
                                         ${selectedDate === 'today' ? 'border-[#ee1314] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
                                     `}
@@ -129,7 +171,7 @@ export const BuyTicketPage = () => {
                                     </div>
                                     <div className="flex-1">
                                         <div className={`font-bold text-[14px] ${selectedDate === 'today' ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Hôm nay</div>
-                                        <div className="text-[12px] text-[#637381] mt-0.5">09/02/2025 (Chủ nhật)</div>
+                                        <div className="text-[12px] text-[#637381] mt-0.5">{dayjs().format('DD/MM/YYYY')}</div>
                                     </div>
                                     {selectedDate === 'today' && (
                                         <div className="text-[#ee1314]">
@@ -139,7 +181,7 @@ export const BuyTicketPage = () => {
                                 </div>
                                 {/* Tomorrow */}
                                 <div
-                                    onClick={() => setSelectedDate('tomorrow')}
+                                    onClick={() => { setSelectedDate('tomorrow'); setSelectedProvince(''); setSelectedNumbers([]); }}
                                     className={`relative p-3.5 rounded-xl border-2 cursor-pointer transition-colors flex gap-3 items-center
                                         ${selectedDate === 'tomorrow' ? 'border-[#ee1314] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
                                     `}
@@ -149,7 +191,7 @@ export const BuyTicketPage = () => {
                                     </div>
                                     <div className="flex-1">
                                         <div className={`font-bold text-[14px] ${selectedDate === 'tomorrow' ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Ngày mai</div>
-                                        <div className="text-[12px] text-[#637381] mt-0.5">10/02/2025 (Thứ hai)</div>
+                                        <div className="text-[12px] text-[#637381] mt-0.5">{dayjs().add(1, 'day').format('DD/MM/YYYY')}</div>
                                     </div>
                                     {selectedDate === 'tomorrow' && (
                                         <div className="text-[#ee1314]">
@@ -164,14 +206,16 @@ export const BuyTicketPage = () => {
                         <div className="p-5 border-b border-[#E5E8EB] shrink-0">
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="w-6 h-6 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-[13px] font-bold">2</div>
-                                <h2 className="text-[16px] font-bold text-[#212B36]">Chọn đài mở thưởng (Miền Nam)</h2>
+                                <h2 className="text-[16px] font-bold text-[#212B36]">Chọn đài mở thưởng</h2>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4 max-w-[750px]">
-                                {PROVINCES.map((prov) => (
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-[750px]">
+                                {isLoadingProviders ? (
+                                    <div className="col-span-full py-4 text-center text-[#637381] text-sm">Đang tải danh sách đài...</div>
+                                ) : dynamicProvinces.map((prov: any) => (
                                     <div
                                         key={prov.id}
-                                        onClick={() => setSelectedProvince(prov.id)}
+                                        onClick={() => { setSelectedProvince(prov.id); setSelectedNumbers([]); }}
                                         className={`relative p-3.5 rounded-xl border-2 cursor-pointer transition-colors flex flex-col items-center text-center
                                             ${selectedProvince === prov.id ? 'border-[#ee1314] bg-[#FFF4F4]' : 'border-[#E5E8EB] hover:border-gray-300'}
                                         `}
@@ -180,7 +224,7 @@ export const BuyTicketPage = () => {
                                             <img src={prov.icon} alt={prov.name} className="w-full h-full object-contain" />
                                         </div>
                                         <div className="font-bold text-[13px] text-[#212B36]">{prov.name}</div>
-                                        <div className="text-[11px] mt-0.5 font-medium text-[#ee1314]">{prov.time} • {prov.day}</div>
+                                        <div className="text-[11px] mt-0.5 font-medium text-[#ee1314]">{prov.time}</div>
 
                                         {selectedProvince === prov.id && (
                                             <div className="absolute top-1.5 right-1.5 text-[#ee1314]">
@@ -200,7 +244,7 @@ export const BuyTicketPage = () => {
                                     Chọn số
                                     {activeProvinceObj && (
                                         <span className="text-[#ee1314] text-[14px]">
-                                            • {activeProvinceObj.name} • {activeProvinceObj.time} • {activeProvinceObj.day}
+                                            • {activeProvinceObj.name} • {activeProvinceObj.time}
                                         </span>
                                     )}
                                 </h2>
@@ -243,30 +287,41 @@ export const BuyTicketPage = () => {
                                     >
                                         Số theo ngày sinh
                                     </button>
-                                    <button
-                                        className="whitespace-nowrap px-4 py-2 rounded-full text-[13px] font-bold transition-colors bg-[#F4F6F8] text-[#637381] hover:bg-[#E5E8EB]"
-                                    >
-                                        Số yêu thích
-                                    </button>
                                 </div>
                             </div>
 
                             {/* Numbers Grid (10 columns) */}
-                            <div className="grid grid-cols-5 md:grid-cols-10 gap-2.5 flex-1 content-start shrink-0">
-                                {QUICK_NUMBERS.map((num, i) => {
-                                    const isSelected = selectedNumbers.includes(num);
-                                    return (
-                                        <button
-                                            key={i}
-                                            onClick={() => toggleNumber(num)}
-                                            className={`py-2 rounded-lg border text-[13px] font-bold transition-colors
-                                                ${isSelected ? 'bg-[#ee1314] border-[#ee1314] text-white' : 'border-[#E5E8EB] text-[#ee1314] hover:border-[#ee1314] hover:bg-[#FFF4F4]'}
-                                            `}
-                                        >
-                                            {num}
-                                        </button>
-                                    );
-                                })}
+                            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2.5 flex-1 content-start shrink-0">
+                                {!selectedProvince ? (
+                                    <div className="col-span-full py-10 flex justify-center text-[#637381] font-medium">
+                                        Vui lòng chọn đài mở thưởng để xem vé
+                                    </div>
+                                ) : isLoadingTickets ? (
+                                    <div className="col-span-full py-10 flex justify-center text-[#637381] font-medium">
+                                        <i className="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải vé số...
+                                    </div>
+                                ) : availableTickets.length > 0 ? (
+                                    availableTickets.map((ticket: any, i: number) => {
+                                        const num = ticket.numbers;
+                                        const isSelected = selectedNumbers.includes(num);
+                                        return (
+                                            <button
+                                                key={i}
+                                                onClick={() => toggleNumber(num)}
+                                                className={`py-2 px-1 rounded-lg border text-[14px] font-bold transition-colors tracking-wider cursor-pointer
+                                                    ${isSelected ? 'bg-[#ee1314] border-[#ee1314] text-white shadow-md' : 'bg-gray-50 border-[#E5E8EB] text-[#212B36] hover:border-[#ee1314] hover:text-[#ee1314] hover:bg-[#FFF4F4]'}
+                                                `}
+                                            >
+                                                {num}
+                                            </button>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="col-span-full py-10 flex flex-col items-center justify-center text-[#637381] gap-2">
+                                        <i className="fa-solid fa-box-open text-3xl opacity-50"></i>
+                                        <span>Không có vé số nào cho đài này trong {selectedDate === 'today' ? 'hôm nay' : 'ngày mai'}.</span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Footer Actions */}
@@ -278,7 +333,7 @@ export const BuyTicketPage = () => {
                                     }}
                                     className="flex items-center gap-1.5 text-[#637381] hover:text-[#212B36] text-[13px] font-medium transition-colors"
                                 >
-                                    <RefreshCw size={14} /> Chọn lại
+                                    <RefreshCw size={14} /> Bỏ chọn tất cả
                                 </button>
                             </div>
                         </div>
@@ -287,7 +342,7 @@ export const BuyTicketPage = () => {
 
                     {/* Right Sidebar - Checkout Summary */}
                     <div className="w-full lg:w-[360px] shrink-0 flex flex-col">
-                        <div className="bg-white rounded-[20px] shadow-md border border-[#E5E8EB] flex flex-col flex-1 overflow-hidden">
+                        <div className="bg-white rounded-[20px] shadow-md border border-[#E5E8EB] flex flex-col flex-1 overflow-hidden sticky top-24">
                             <div className="p-5 flex-1 flex flex-col">
                                 <div className="flex items-center gap-3 mb-5 shrink-0">
                                     <div className="bg-[#ee1314] text-white w-6 h-6 rounded flex items-center justify-center text-[12px]">
@@ -305,8 +360,8 @@ export const BuyTicketPage = () => {
                                         </div>
                                         <div className="z-10 relative">
                                             <div className="font-bold text-[14px] text-[#212B36]">Vé số {activeProvinceObj.name}</div>
-                                            <div className="text-[12px] text-[#637381] mt-1">Mở thưởng: {activeProvinceObj.time} • {activeProvinceObj.day}</div>
-                                            <div className="text-[12px] text-[#637381] mt-0.5">Ngày: {selectedDate === 'today' ? '09/02/2025' : '10/02/2025'}</div>
+                                            <div className="text-[12px] text-[#637381] mt-1">Mở thưởng: {activeProvinceObj.time}</div>
+                                            <div className="text-[12px] text-[#637381] mt-0.5">Ngày: {selectedDate === 'today' ? dayjs().format('DD/MM/YYYY') : dayjs().add(1, 'day').format('DD/MM/YYYY')}</div>
                                         </div>
                                     </div>
                                 )}
@@ -315,20 +370,26 @@ export const BuyTicketPage = () => {
 
                                 {/* Selected Numbers & Quantity Selector */}
                                 <div className="mb-5 shrink-0">
-                                    <div className="text-[13px] text-[#637381] font-medium mb-2">Số đã chọn</div>
-                                    <div className="flex items-center gap-2 mb-6">
-                                        <span className="text-[28px] font-black tracking-widest text-[#ee1314]">
-                                            {selectedNumbers[0] || '---'}
-                                        </span>
-                                        {selectedNumbers[0] && (
-                                            <button className="text-[#637381] hover:text-[#212B36] transition-colors ml-1">
-                                                <i className="fa-regular fa-copy text-[18px]"></i>
-                                            </button>
-                                        )}
+                                    <div className="text-[13px] text-[#637381] font-medium mb-2">
+                                        Số đã chọn ({selectedNumbers.length} số)
                                     </div>
+                                    
+                                    {selectedNumbers.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2 mb-6 max-h-[100px] overflow-y-auto">
+                                            {selectedNumbers.map(num => (
+                                                <span key={num} className="px-3 py-1 bg-[#FFF4F4] text-[#ee1314] font-bold text-lg rounded-md border border-[#FFEBEE]">
+                                                    {num}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-[#919EAB] text-sm italic mb-6">
+                                            Vui lòng chọn số ở bên trái
+                                        </div>
+                                    )}
 
                                     <div className="flex items-center justify-between mb-5">
-                                        <span className="text-[13px] text-[#637381] font-medium">Số lượng vé</span>
+                                        <span className="text-[13px] text-[#637381] font-medium">Bội số (Mỗi số)</span>
                                         <div className="flex items-center gap-2 bg-white rounded-lg border border-[#E5E8EB] p-1 h-9 w-[100px]">
                                             <button 
                                                 onClick={() => setTicketQuantity(Math.max(1, ticketQuantity - 1))}
@@ -348,7 +409,7 @@ export const BuyTicketPage = () => {
                                     </div>
 
                                     <div className="flex justify-between items-center text-[13px]">
-                                        <span className="text-[#637381]">Thành tiền (1 vé)</span>
+                                        <span className="text-[#637381]">Giá 1 vé</span>
                                         <span className="text-[#ee1314] font-bold">{pricePerTicket.toLocaleString('vi-VN')} đ</span>
                                     </div>
                                 </div>

@@ -42,7 +42,7 @@ export const ExpiredTicketListPage = () => {
                 refetch();
             },
             onError: (err: any) => {
-                toast.error(err.message || "Lỗi khi quét sản phẩm");
+                toast.error(err.message || "Lỗi khi quét vé số");
             }
         });
     };
@@ -50,7 +50,7 @@ export const ExpiredTicketListPage = () => {
     const columns: GridColDef[] = [
         {
             field: 'name',
-            headerName: 'Tên sản phẩm',
+            headerName: 'Nhà đài',
             flex: 1,
             minWidth: 200,
             renderCell: (params) => (
@@ -95,18 +95,18 @@ export const ExpiredTicketListPage = () => {
     ];
 
     if (isLoading) return <div style={{ padding: '40px', textAlign: 'center', fontSize: '1.125rem' }}>Đang tải dữ liệu...</div>;
-    if (error) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--palette-error-main)', fontSize: '1.125rem' }}>Lỗi khi tải dữ liệu sản phẩm hết hạn.</div>;
+    if (error) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--palette-error-main)', fontSize: '1.125rem' }}>Lỗi khi tải dữ liệu vé số hết hạn.</div>;
 
     return (
         <>
             <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
                 <div className="mr-auto">
-                    <Title title="Sản phẩm hết hạn (Đã hủy)" />
+                    <Title title="Vé số hết hạn (Đã hủy)" />
                     <Breadcrumb
                         items={[
                             { label: t("admin.dashboard.title"), to: "/" },
                             { label: t("admin.ticket.title.list"), to: `/${prefixAdmin}/ticket/list` },
-                            { label: "Sản phẩm hết hạn" }
+                            { label: "Vé số hết hạn" }
                         ]}
                     />
                 </div>
@@ -115,7 +115,7 @@ export const ExpiredTicketListPage = () => {
                     startIcon={<SyncIcon />}
                     onClick={handleScan}
                     loading={isScanning}
-                    label="Quét sản phẩm hết hạn"
+                    label="Quét vé số hết hạn"
                     loadingLabel="Đang quét..."
                     sx={{
                         minHeight: "2.25rem",

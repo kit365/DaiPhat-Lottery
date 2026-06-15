@@ -41,6 +41,13 @@ daiphat:
   blog:
     seed:
       enabled: true
+  payment:
+    payos:
+      return-path: ${PAYOS_RETURN_PATH:/checkout/result}
+      cancel-path: ${PAYOS_CANCEL_PATH:/checkout/result}
+  order:
+    seed:
+      enabled: false
 
 logging:
   level:

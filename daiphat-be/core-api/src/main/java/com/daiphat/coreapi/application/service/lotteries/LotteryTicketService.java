@@ -1,18 +1,27 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
+import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplicationMapper;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
-import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
+import com.daiphat.coreapi.domain.valueobject.LotteryTicketNumber;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
+import com.daiphat.coreapi.application.port.out.file.StoragePort;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
+import com.daiphat.coreapi.application.dto.storage.UploadRequest;
+import com.daiphat.coreapi.shared.util.StorageUtils;
+import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +31,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -30,28 +44,45 @@ import java.util.UUID;
 @Slf4j
 public class LotteryTicketService implements LotteryTicketServicePort {
 
+    private static final List<LotteryTicketStatus> EXPIRABLE_STATUSES = List.of(
+            LotteryTicketStatus.IN_STOCK,
+            LotteryTicketStatus.SOLD_OUT,
+            LotteryTicketStatus.RESERVED
+    );
+
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
-    private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
+    private final LotteryStationServicePort lotteryStationServicePort;
     private final LotteryTicketApplicationMapper lotteryTicketApplicationMapper;
+    private final LotteryTicketSerialServicePort lotteryTicketSerialService;
+    private final StoragePort storagePort;
 
     @Override
     @Transactional
     public LotteryTicketResponse create(CreateLotteryTicketRequest request, UUID importedById) {
-        log.info("Importing lottery ticket with serial: {}", request.serialNumber());
+        log.info("Importing lottery ticket with serials: {}", request.serials().stream().map(com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest::serialNumber).toList());
 
-        LotteryStationModel product = getProductOrThrow(request.productId());
+        LotteryStationModel station = getStationOrThrow(request.stationId());
+        LotteryTicketNumber ticketNumber = toTicketNumber(request.numbers(), station);
+        LotteryTicketModel requestedTicket = lotteryTicketApplicationMapper.toModel(request);
+        requestedTicket.validateDrawDate(request.drawDate());
+        var existingTicket = lotteryTicketRepositoryPort.findByUniqueFields(
+                request.stationId(),
+                ticketNumber.value(),
+                request.drawDate()
+        );
 
-        validateUniqueTicket(request.productId(), request.serialNumber(), request.numbers(), request.drawDate(), null);
+        LotteryTicketModel ticket = existingTicket
+                .orElseGet(() -> {
+                    requestedTicket.setNumbers(ticketNumber.value());
+                    requestedTicket.setPriceSnapshot(station.getPrice());
+                    requestedTicket.setQuantity(0);
+                    requestedTicket.setStatus(LotteryTicketStatus.IN_STOCK);
+                    return lotteryTicketRepositoryPort.save(requestedTicket);
+                });
 
-        LotteryTicketModel model = lotteryTicketApplicationMapper.toModel(request);
-        validateTicketNumbers(request.numbers(), product);
-        validateDrawDate(request.drawDate());
-        model.initializeImport(importedById);
+        request.serials().forEach(serialReq -> lotteryTicketSerialService.upsertSerialForTicket(ticket, serialReq, importedById));
 
-        LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
-        if (saved.countsTowardInventory()) {
-            persistInventoryAdjustment(product, 1);
-        }
+        LotteryTicketModel saved = recomputeTicketAggregate(ticket.getId());
 
         log.info("Lottery ticket imported with id: {}", saved.getId());
         return mapToResponse(saved);
@@ -61,13 +92,17 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     @Transactional(readOnly = true)
     public LotteryTicketResponse getById(Long id) {
         LotteryTicketModel model = getTicketOrThrow(id);
-        return mapToResponse(model);
+        List<LotteryTicketSerialModel> serials = lotteryTicketSerialService.findAllByTicketId(model.getId());
+        String stationName = lotteryStationServicePort.findModelById(model.getStationId())
+                .map(LotteryStationModel::getName)
+                .orElse(null);
+        return lotteryTicketApplicationMapper.toResponseDetail(model, serials, stationName);
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<LotteryTicketResponse> getAll(
-            int page, int size, Long productId, String status, String drawDate,
+            int page, int size, Long stationId, String status, String drawDate,
             String search, String sortBy, String direction) {
 
         PageRequest pageable = PageRequest.of(
@@ -79,11 +114,28 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         LotteryTicketStatus statusEnum = parseStatus(status);
         LocalDate parsedDrawDate = parseDrawDate(drawDate);
 
-        Page<LotteryTicketResponse> resultPage = lotteryTicketRepositoryPort
-                .findAll(pageable, productId, statusEnum, parsedDrawDate, search)
-                .map(this::mapToResponse);
+        Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
+                .findAll(pageable, stationId, statusEnum, parsedDrawDate, search);
 
-        return buildPageResponse(resultPage, page, size);
+        Map<Long, String> stationNameCache = new HashMap<>();
+        Map<Long, LotteryTicketSerialModel> serialsByTicketId = lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(
+                ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList()
+        );
+        List<LotteryTicketResponse> responses = ticketPage.getContent().stream()
+                .map(ticket -> mapToResponse(ticket, serialsByTicketId.get(ticket.getId()), stationNameCache))
+                .toList();
+
+        return PageResponse.<LotteryTicketResponse>builder()
+                .recordList(responses)
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(ticketPage.getTotalElements())
+                        .totalPages(ticketPage.getTotalPages())
+                        .currentPage(page)
+                        .limit(size)
+                        .isFirst(ticketPage.isFirst())
+                        .isLast(ticketPage.isLast())
+                        .build())
+                .build();
     }
 
     @Override
@@ -93,40 +145,39 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
         LotteryTicketModel model = getTicketOrThrow(id);
 
-        String nextSerialNumber = hasText(request.serialNumber()) ? request.serialNumber().trim() : model.getSerialNumber();
-        String nextNumbers = hasText(request.numbers()) ? request.numbers().trim() : model.getNumbers();
+        String nextNumbers = model.getNumbers();
         LocalDate nextDrawDate = request.drawDate() != null ? request.drawDate() : model.getDrawDate();
 
-        LotteryStationModel product = null;
         if (hasText(request.numbers()) || request.drawDate() != null) {
-            product = getProductOrThrow(model.getProductId());
+            LotteryStationModel station = getStationOrThrow(model.getStationId());
+            nextNumbers = hasText(request.numbers())
+                    ? toTicketNumber(request.numbers(), station).value()
+                    : model.getNumbers();
         }
 
-        validateUniqueTicket(model.getProductId(), nextSerialNumber, nextNumbers, nextDrawDate, id);
+        validateUniqueTicket(model.getStationId(), nextNumbers, nextDrawDate, id);
 
         if (request.ticketImg() != null) {
             model.setTicketImg(request.ticketImg());
         }
-        if (hasText(request.serialNumber())) {
-            model.setSerialNumber(nextSerialNumber);
-        }
         if (hasText(request.numbers())) {
-            validateTicketNumbers(nextNumbers, product);
             model.setNumbers(nextNumbers);
         }
         if (request.drawDate() != null) {
-            validateDrawDate(nextDrawDate);
+            model.validateDrawDate(nextDrawDate);
             model.setDrawDate(nextDrawDate);
         }
         if (hasText(request.batchCode())) {
             model.setBatchCode(request.batchCode().trim());
         }
 
-        if (hasText(request.status())) {
-            model.setStatus(parseStatusOrThrow(request.status()));
+        if (request.status() != null && request.status() != model.getStatus()) {
+            applyStatusTransition(model, request.status());
         }
 
-        LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
+        LotteryTicketModel saved = request.drawDate() != null
+                ? recomputeTicketAggregate(model.getId())
+                : lotteryTicketRepositoryPort.save(model);
         log.info("Lottery ticket updated with id: {}", saved.getId());
         return mapToResponse(saved);
     }
@@ -142,13 +193,27 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
         }
 
-        if (model.countsTowardInventory()) {
-            LotteryStationModel product = getProductOrThrow(model.getProductId());
-            persistInventoryAdjustment(product, -1);
-        }
-
         model.softDelete();
         lotteryTicketRepositoryPort.save(model);
+        syncStationInventory(model.getStationId());
+    }
+
+    @Override
+    @Transactional
+    public LotteryTicketResponse uploadImage(Long id, UploadRequest request) {
+        LotteryTicketModel model = getTicketOrThrow(id);
+        StorageUtils.validateImageUpload(request);
+
+        StorageResult result = storagePort.upload(new UploadRequest(
+                request.data(),
+                request.fileName(),
+                request.contentType(),
+                StorageFolderConstants.TICKET_IMAGE_FOLDER
+        ));
+
+        model.setTicketImg(result.url());
+        LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
+        return mapToResponse(saved);
     }
 
     @Override
@@ -166,107 +231,123 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     @Override
     @Transactional
-    public LotteryTicketResponse changeStatus(Long id, String status) {
+    public LotteryTicketResponse changeStatus(Long id, LotteryTicketStatus status) {
         log.info("Changing status of lottery ticket with id: {} to {}", id, status);
 
-        LotteryTicketModel model = getTicketOrThrow(id);
-
-        if (status == null || status.isBlank()) {
+        if (status == null) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_STATUS_REQUIRED);
         }
 
-        boolean wasInInventory = model.countsTowardInventory();
+        LotteryTicketModel model = getTicketOrThrow(id);
 
-        switch (status.toUpperCase()) {
-            case "RESERVED" -> model.reserve();
-            case "SOLD_ONLINE" -> model.sellOnline();
-            case "SOLD_OFFLINE" -> model.sellOffline();
-            case "RETURNED_TO_ISSUER" -> model.returnToIssuer();
-            case "DAMAGED" -> model.damage();
-            case "EXPIRED" -> model.expire();
+        switch (status) {
+            case RESERVED -> model.reserve();
+            case SOLD -> model.sellOnline();
+            case PROXY_HOLDING -> model.holdForProxy();
+            case PENDING_RETURN -> model.requestReturn();
+            case RETURNED -> model.confirmReturned();
+            case INTERNAL_FAULT -> model.markInternalFault();
+            case ISSUER_FAULT -> model.markIssuerFault();
             default -> throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
 
-        boolean isInInventory = model.countsTowardInventory();
-        if (wasInInventory != isInInventory) {
-            LotteryStationModel product = getProductOrThrow(model.getProductId());
-            persistInventoryAdjustment(product, isInInventory ? 1 : -1);
-        }
-
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(model);
+        syncStationInventory(model.getStationId());
         return mapToResponse(saved);
     }
 
     @Override
     @Transactional
-    public void restore(Long id) {
-        log.info("Restoring lottery ticket with id: {}", id);
+    public List<OrderTicketSnapshot> reserveForOrder(List<Long> ticketIds) {
+        List<LotteryTicketModel> tickets = getTicketsOrThrow(ticketIds);
+        validateRequestedSerialAvailability(tickets, false);
 
-        LotteryTicketModel model = getTicketIncludingDeletedOrThrow(id);
-
-        if (!model.isDeleted()) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_NOT_DELETED);
-        }
-
-        model.setDeletedAt(null);
-        model.setStatus(LotteryTicketStatus.IN_STOCK);
-
-        if (model.countsTowardInventory()) {
-            LotteryStationModel product = getProductOrThrow(model.getProductId());
-            persistInventoryAdjustment(product, 1);
-        }
-
-        lotteryTicketRepositoryPort.save(model);
-        log.info("Lottery ticket restored with id: {}", id);
+        return tickets.stream()
+                .map(this::reserveForValidatedTicket)
+                .toList();
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public PageResponse<LotteryTicketResponse> getAllDeleted(int page, int size) {
-        log.info("Getting all deleted lottery tickets, page: {}, size: {}", page, size);
+    @Transactional
+    public OrderTicketSnapshot reserveForOrder(Long ticketId) {
+        LotteryTicketModel ticket = getTicketOrThrow(ticketId);
+        ensureTicketAvailableForReserve(ticket);
+        return reserveForValidatedTicket(ticket);
+    }
 
-        PageRequest pageable = PageRequest.of(
-                Math.max(0, page - 1),
-                size,
-                SortUtils.createSort("deletedAt", "desc")
-        );
+    @Override
+    @Transactional
+    public List<OrderTicketSnapshot> sellOfflineForOrder(List<Long> ticketIds) {
+        List<LotteryTicketModel> tickets = getTicketsOrThrow(ticketIds);
+        validateRequestedSerialAvailability(tickets, true);
 
-        Page<LotteryTicketResponse> resultPage = lotteryTicketRepositoryPort
-                .findAllDeleted(pageable)
-                .map(this::mapToResponse);
+        return tickets.stream()
+                .map(this::sellOfflineForValidatedTicket)
+                .toList();
+    }
 
-        return buildPageResponse(resultPage, page, size);
+    @Override
+    @Transactional
+    public OrderTicketSnapshot sellOfflineForOrder(Long ticketId) {
+        LotteryTicketModel ticket = getTicketOrThrow(ticketId);
+        ensureTicketAvailableForDirectSale(ticket);
+        return sellOfflineForValidatedTicket(ticket);
+    }
+
+    @Override
+    @Transactional
+    public void markSoldForOrder(Long ticketSerialId) {
+        LotteryTicketSerialModel serial = lotteryTicketSerialService.getByIdOrThrow(ticketSerialId);
+        lotteryTicketSerialService.markSold(ticketSerialId);
+        recomputeTicketAggregate(serial.getTicketId());
+    }
+
+    @Override
+    @Transactional
+    public void releaseReservationForOrder(Long ticketSerialId) {
+        LotteryTicketSerialModel serial = lotteryTicketSerialService.getByIdOrThrow(ticketSerialId);
+        LotteryTicketModel ticket = getTicketOrThrow(serial.getTicketId());
+        LotteryStationModel station = getStationOrThrow(ticket.getStationId());
+        boolean expireAfterRelease = ticket.isExpired(parseDrawTime(station.getDrawTime()));
+        serial = lotteryTicketSerialService.releaseReservation(ticketSerialId, expireAfterRelease);
+        recomputeTicketAggregate(serial.getTicketId());
+    }
+
+    @Override
+    @Transactional
+    public int expireDueTickets() {
+        List<LotteryTicketModel> tickets = lotteryTicketRepositoryPort.findExpirableTickets(LocalDate.now(), EXPIRABLE_STATUSES);
+        int expiredCount = 0;
+        for (LotteryTicketModel ticket : tickets) {
+            LotteryStationModel station = getStationOrThrow(ticket.getStationId());
+            if (!ticket.isExpired(parseDrawTime(station.getDrawTime()))) {
+                continue;
+            }
+            ticket.expire();
+            lotteryTicketRepositoryPort.save(ticket);
+            syncStationInventory(ticket.getStationId());
+            expiredCount++;
+        }
+        return expiredCount;
     }
 
     private LotteryTicketResponse mapToResponse(LotteryTicketModel model) {
-        String productName = lotteryStationRepositoryPort.findById(model.getProductId())
-                .map(LotteryStationModel::getName)
-                .orElse(null);
+        LotteryTicketSerialModel serial = lotteryTicketSerialService.findFirstByTicketId(model.getId()).orElse(null);
+        return mapToResponse(model, serial, new HashMap<>());
+    }
 
-        LotteryTicketResponse base = lotteryTicketApplicationMapper.toResponse(model);
-
-        return LotteryTicketResponse.builder()
-                .id(base.id())
-                .productId(base.productId())
-                .productName(productName)
-                .ticketImg(base.ticketImg())
-                .serialNumber(base.serialNumber())
-                .numbers(base.numbers())
-                .drawDate(base.drawDate())
-                .batchCode(base.batchCode())
-                .status(base.status())
-                .statusDisplayName(base.statusDisplayName())
-                .importedById(base.importedById())
-                .importedAt(base.importedAt())
-                .verified(base.verified())
-                .verifiedById(base.verifiedById())
-                .verifiedAt(base.verifiedAt())
-                .returnedAt(base.returnedAt())
-                .createdAt(base.createdAt())
-                .updatedAt(base.updatedAt())
-                .createdBy(base.createdBy())
-                .lastModifiedBy(base.lastModifiedBy())
-                .build();
+    private LotteryTicketResponse mapToResponse(
+            LotteryTicketModel model,
+            LotteryTicketSerialModel serial,
+            Map<Long, String> stationNameCache
+    ) {
+        String stationName = stationNameCache.computeIfAbsent(
+                model.getStationId(),
+                id -> lotteryStationServicePort.findModelById(id)
+                        .map(LotteryStationModel::getName)
+                        .orElse(null)
+        );
+        return lotteryTicketApplicationMapper.toResponse(model, serial, stationName);
     }
 
     private LotteryTicketStatus parseStatus(String status) {
@@ -276,14 +357,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         try {
             return LotteryTicketStatus.valueOf(status.toUpperCase());
         } catch (IllegalArgumentException ignored) {
-            return null;
-        }
-    }
-
-    private LotteryTicketStatus parseStatusOrThrow(String status) {
-        try {
-            return LotteryTicketStatus.valueOf(status.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
     }
@@ -295,22 +368,62 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         try {
             return LocalDate.parse(drawDate);
         } catch (DateTimeParseException ignored) {
-            return null;
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_DRAW_DATE_INVALID);
         }
     }
 
-    private void persistInventoryAdjustment(LotteryStationModel product, int delta) {
-        if (delta > 0) {
-            product.increaseInventory(delta);
-        } else if (delta < 0) {
-            product.decreaseInventory(Math.abs(delta));
+    private void ensureTicketAvailableForReserve(LotteryTicketModel ticket) {
+        if (ticket.getStatus() != LotteryTicketStatus.IN_STOCK) {
+            throw invalidTicketStatus(ticket, List.of(LotteryTicketStatus.IN_STOCK));
         }
-        lotteryStationRepositoryPort.save(product);
     }
 
-    private LotteryStationModel getProductOrThrow(Long id) {
-        return lotteryStationRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_STATION_NOT_FOUND));
+    private void ensureTicketAvailableForDirectSale(LotteryTicketModel ticket) {
+        if (ticket.getStatus() != LotteryTicketStatus.IN_STOCK) {
+            throw invalidTicketStatusForDirectSale(ticket);
+        }
+    }
+
+    private DomainException invalidTicketStatus(LotteryTicketModel ticket, List<LotteryTicketStatus> allowedStatuses) {
+        String allowedStatusText = allowedStatuses.stream().map(Enum::name).toList().toString();
+        return new DomainException(
+                ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                String.format(
+                        "Ve so #%d dang o trang thai %s nen khong the thuc hien thao tac nay. Trang thai hop le: %s.",
+                        ticket.getId(),
+                        ticket.getStatus().name(),
+                        allowedStatusText
+                )
+        );
+    }
+
+    private DomainException invalidTicketStatusForDirectSale(LotteryTicketModel ticket) {
+        if (ticket.getStatus() == LotteryTicketStatus.SOLD_OUT) {
+            return new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Vé đã được bán."
+            );
+        }
+        return invalidTicketStatus(ticket, List.of(LotteryTicketStatus.IN_STOCK));
+    }
+
+    private DomainException insufficientSerials(LotteryTicketModel ticket, int requestedQuantity, long availableSerials) {
+        String ticketRef = ticket.getNumbers() != null && !ticket.getNumbers().isBlank()
+                ? "Vé số " + ticket.getNumbers()
+                : "Vé #" + ticket.getId();
+        return new DomainException(
+                ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                String.format(
+                        "%s chỉ còn %d sê-ri khả dụng, không đủ số lượng yêu cầu %d.",
+                        ticketRef,
+                        availableSerials,
+                        requestedQuantity
+                )
+        );
+    }
+
+    private LotteryStationModel getStationOrThrow(Long id) {
+        return lotteryStationServicePort.getModelById(id);
     }
 
     private LotteryTicketModel getTicketOrThrow(Long id) {
@@ -318,66 +431,120 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
     }
 
-    private LotteryTicketModel getTicketIncludingDeletedOrThrow(Long id) {
-        return lotteryTicketRepositoryPort.findByIdIncludingDeleted(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+    private List<LotteryTicketModel> getTicketsOrThrow(List<Long> ticketIds) {
+        Map<Long, LotteryTicketModel> ticketsById = new LinkedHashMap<>();
+        lotteryTicketRepositoryPort.findAllByIds(ticketIds).forEach(ticket -> ticketsById.put(ticket.getId(), ticket));
+
+        return ticketIds.stream()
+                .map(ticketId -> {
+                    LotteryTicketModel ticket = ticketsById.get(ticketId);
+                    if (ticket == null) {
+                        throw new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
+                    }
+                    return ticket;
+                })
+                .toList();
     }
 
-    private PageResponse<LotteryTicketResponse> buildPageResponse(
-            Page<LotteryTicketResponse> pageResult,
-            int page,
-            int size
-    ) {
-        return PageResponse.<LotteryTicketResponse>builder()
-                .recordList(pageResult.getContent())
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(pageResult.getTotalElements())
-                        .totalPages(pageResult.getTotalPages())
-                        .currentPage(page)
-                        .limit(size)
-                        .build())
-                .build();
-    }
+    private void validateRequestedSerialAvailability(List<LotteryTicketModel> requestedTickets, boolean directSale) {
+        Map<Long, Integer> requestedCounts = new LinkedHashMap<>();
+        Map<Long, LotteryTicketModel> ticketById = new LinkedHashMap<>();
 
-    private void validateTicketNumbers(String numbers, LotteryStationModel product) {
-        if (numbers == null || numbers.isBlank()) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_NUMBERS_REQUIRED);
+        for (LotteryTicketModel ticket : requestedTickets) {
+            ticketById.putIfAbsent(ticket.getId(), ticket);
+            requestedCounts.merge(ticket.getId(), 1, Integer::sum);
         }
 
-        String normalizedNumbers = numbers.trim();
-        if (!normalizedNumbers.matches("\\d+")) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_NUMBERS_INVALID);
-        }
+        for (Map.Entry<Long, Integer> entry : requestedCounts.entrySet()) {
+            LotteryTicketModel ticket = ticketById.get(entry.getKey());
+            if (directSale) {
+                ensureTicketAvailableForDirectSale(ticket);
+            } else {
+                ensureTicketAvailableForReserve(ticket);
+            }
 
-        Integer requiredLength = product.getNumberLength();
-        if (requiredLength != null && normalizedNumbers.length() != requiredLength) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_NUMBERS_LENGTH_INVALID);
-        }
-    }
-
-    private void validateDrawDate(LocalDate drawDate) {
-        if (drawDate == null) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_DRAW_DATE_REQUIRED);
-        }
-
-        LocalDate today = LocalDate.now();
-        LocalDate tomorrow = today.plusDays(1);
-        if (!drawDate.equals(today) && !drawDate.equals(tomorrow)) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_DRAW_DATE_INVALID);
+            long availableSerials = lotteryTicketSerialService.countAvailableSerials(ticket.getId());
+            int requestedQuantity = entry.getValue();
+            if (availableSerials < requestedQuantity) {
+                throw insufficientSerials(ticket, requestedQuantity, availableSerials);
+            }
         }
     }
 
-    private void validateUniqueTicket(Long productId, String serialNumber, String numbers, LocalDate drawDate, Long currentId) {
+    private void applyStatusTransition(LotteryTicketModel model, LotteryTicketStatus status) {
+        switch (status) {
+            case RESERVED -> model.reserve();
+            case SOLD -> model.sellOnline();
+            case PROXY_HOLDING -> model.holdForProxy();
+            case PENDING_RETURN -> model.requestReturn();
+            case RETURNED -> model.confirmReturned();
+            case INTERNAL_FAULT -> model.markInternalFault();
+            case ISSUER_FAULT -> model.markIssuerFault();
+            default -> throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        }
+    }
+
+    private LotteryTicketNumber toTicketNumber(String numbers, LotteryStationModel station) {
+        return LotteryTicketNumber.from(numbers, station.getNumberLength());
+    }
+
+    private void validateUniqueTicket(Long stationId, String numbers, LocalDate drawDate, Long currentId) {
         boolean existed = currentId == null
-                ? lotteryTicketRepositoryPort.existsByUniqueFields(productId, serialNumber, numbers, drawDate)
-                : lotteryTicketRepositoryPort.existsByUniqueFieldsAndIdNot(productId, serialNumber, numbers, drawDate, currentId);
+                ? lotteryTicketRepositoryPort.existsByUniqueFields(stationId, null, numbers, drawDate)
+                : lotteryTicketRepositoryPort.existsByUniqueFieldsAndIdNot(stationId, null, numbers, drawDate, currentId);
 
         if (existed) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_SERIAL_EXISTED);
         }
     }
 
+    private LotteryTicketModel recomputeTicketAggregate(Long ticketId) {
+        LotteryTicketModel ticket = getTicketOrThrow(ticketId);
+        LotteryStationModel station = getStationOrThrow(ticket.getStationId());
+        LocalTime cutoffTime = parseDrawTime(station.getDrawTime());
+        if (ticket.isExpired(cutoffTime)) {
+            lotteryTicketSerialService.expireActiveSerials(ticketId);
+        }
+        long availableSerialCount = lotteryTicketSerialService.countAvailableSerials(ticketId);
+        ticket.syncAggregateState((int) availableSerialCount, cutoffTime);
+        LotteryTicketModel saved = lotteryTicketRepositoryPort.save(ticket);
+        syncStationInventory(saved.getStationId());
+        return saved;
+    }
+
+    private OrderTicketSnapshot reserveForValidatedTicket(LotteryTicketModel ticket) {
+        LotteryTicketSerialModel serial = lotteryTicketSerialService.reserveFirstAvailable(ticket.getId(), null, null);
+        LotteryTicketModel refreshed = recomputeTicketAggregate(ticket.getId());
+
+        return new OrderTicketSnapshot(refreshed.getId(), serial.getId(), refreshed.getPriceSnapshot(), refreshed.getDrawDate());
+    }
+
+    private OrderTicketSnapshot sellOfflineForValidatedTicket(LotteryTicketModel ticket) {
+        LotteryTicketSerialModel serial = lotteryTicketSerialService.sellFirstAvailable(ticket.getId());
+        LotteryTicketModel refreshed = recomputeTicketAggregate(ticket.getId());
+
+        return new OrderTicketSnapshot(refreshed.getId(), serial.getId(), refreshed.getPriceSnapshot(), refreshed.getDrawDate());
+    }
+
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private LocalTime parseDrawTime(String drawTime) {
+        if (drawTime == null || drawTime.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalTime.parse(drawTime.trim());
+        } catch (DateTimeParseException ignored) {
+            log.warn("Invalid draw time format for station: {}", drawTime);
+            return null;
+        }
+    }
+
+    private void syncStationInventory(Long stationId) {
+        if (stationId != null) {
+            lotteryStationServicePort.recalculateInventory(stationId);
+        }
     }
 }

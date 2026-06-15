@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 @Component
 @RequiredArgsConstructor
@@ -37,26 +38,37 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
     }
 
     @Override
-    public Optional<LotteryTicketModel> findByIdIncludingDeleted(Long id) {
-        return lotteryTicketRepository.findById(id)
+    public List<LotteryTicketModel> findAllByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return lotteryTicketRepository.findAllByIdInAndDeletedAtIsNull(ids).stream()
+                .map(lotteryTicketPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public Optional<LotteryTicketModel> findByUniqueFields(Long stationId, String numbers, LocalDate drawDate) {
+        return lotteryTicketRepository.findByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(stationId, numbers, drawDate)
                 .map(lotteryTicketPersistenceMapper::toDomain);
     }
 
     @Override
     public Page<LotteryTicketModel> findAll(
-            Pageable pageable, Long productId, LotteryTicketStatus status,
+            Pageable pageable, Long stationId, LotteryTicketStatus status,
             LocalDate drawDate, String search) {
         return lotteryTicketRepository.findAll(
-                        LotteryTicketSpecification.filter(productId, status, drawDate, search),
+                        LotteryTicketSpecification.filter(stationId, status, drawDate, search),
                         pageable
                 )
                 .map(lotteryTicketPersistenceMapper::toDomain);
     }
 
     @Override
-    public Page<LotteryTicketModel> findAllDeleted(Pageable pageable) {
-        return lotteryTicketRepository.findAll(LotteryTicketSpecification.deleted(), pageable)
-                .map(lotteryTicketPersistenceMapper::toDomain);
+    public List<LotteryTicketModel> findExpirableTickets(LocalDate beforeDate, Collection<LotteryTicketStatus> statuses) {
+        return lotteryTicketRepository.findAllByDrawDateLessThanEqualAndStatusInAndDeletedAtIsNull(beforeDate, statuses).stream()
+                .map(lotteryTicketPersistenceMapper::toDomain)
+                .toList();
     }
 
     @Override
@@ -68,19 +80,19 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
     }
 
     @Override
-    public boolean existsByUniqueFields(Long productId, String serialNumber, String numbers, LocalDate drawDate) {
-        return lotteryTicketRepository.existsByProduct_IdAndSerialNumberAndNumbersAndDrawDateAndDeletedAtIsNull(
-                productId, serialNumber, numbers, drawDate);
+    public boolean existsByUniqueFields(Long stationId, String serialNumber, String numbers, LocalDate drawDate) {
+        return lotteryTicketRepository.existsByStation_IdAndNumbersAndDrawDateAndDeletedAtIsNull(
+                stationId, numbers, drawDate);
     }
 
     @Override
-    public boolean existsByUniqueFieldsAndIdNot(Long productId, String serialNumber, String numbers, LocalDate drawDate, Long id) {
-        return lotteryTicketRepository.existsByProduct_IdAndSerialNumberAndNumbersAndDrawDateAndIdNotAndDeletedAtIsNull(
-                productId, serialNumber, numbers, drawDate, id);
+    public boolean existsByUniqueFieldsAndIdNot(Long stationId, String serialNumber, String numbers, LocalDate drawDate, Long id) {
+        return lotteryTicketRepository.existsByStation_IdAndNumbersAndDrawDateAndIdNotAndDeletedAtIsNull(
+                stationId, numbers, drawDate, id);
     }
 
     @Override
-    public long countByProductIdAndStatuses(Long productId, Collection<LotteryTicketStatus> statuses) {
-        return lotteryTicketRepository.countByProduct_IdAndStatusInAndDeletedAtIsNull(productId, statuses);
+    public long sumQuantityByProductIdAndStatuses(Long stationId, Collection<LotteryTicketStatus> statuses) {
+        return lotteryTicketRepository.sumQuantityByStationIdAndStatusInAndDeletedAtIsNull(stationId, statuses);
     }
 }

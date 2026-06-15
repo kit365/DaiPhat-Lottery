@@ -8,15 +8,18 @@ import {
     deleteTicket,
     restoreTicket,
     forceDeleteTicket,
-    scanExpiredTickets
+    scanExpiredTickets,
+    uploadTicketImage,
+    uploadTicketSerialImage
 } from '../../../api/ticket.api';
 import { ApiResponse } from '../../../config/type';
 
 // --- TICKETS ---
-export const useTicketList = (params?: any) => {
+export const useTicketList = (params?: any, options?: any) => {
     return useQuery({
         queryKey: ['tickets', params],
         queryFn: () => getTickets(params),
+        ...options,
     });
 };
 
@@ -103,6 +106,19 @@ export const useScanExpiredTickets = () => {
             queryClient.invalidateQueries({ queryKey: ['expired-tickets'] });
             queryClient.invalidateQueries({ queryKey: ['ticket-expired-list'] });
         },
+    });
+};
+
+export const useUploadTicketImage = () => {
+    return useMutation({
+        mutationFn: ({ id, file }: { id: string | number; file: File }) => uploadTicketImage(id, file),
+    });
+};
+
+
+export const useUploadTicketSerialImage = () => {
+    return useMutation({
+        mutationFn: ({ id, file }: { id: string | number; file: File }) => uploadTicketSerialImage(id, file),
     });
 };
 

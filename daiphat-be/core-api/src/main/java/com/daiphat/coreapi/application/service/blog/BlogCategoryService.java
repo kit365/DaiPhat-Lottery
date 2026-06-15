@@ -18,13 +18,13 @@ import lombok.RequiredArgsConstructor;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.SlugUtils;
+import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -72,9 +72,7 @@ public class BlogCategoryService implements BlogCategoryServicePort {
     @Override
     @Transactional(readOnly = true)
     public List<CategoryStatusResponse> getStatuses() {
-        return Arrays.stream(CategoryStatus.values())
-                .map(status -> new CategoryStatusResponse(status.getCode(), status.getLabel()))
-                .toList();
+        return EnumOptionUtils.toCodeLabelResponses(CategoryStatus.values(), CategoryStatusResponse::new);
     }
 
     private BlogCategoryTreeResponse buildTree(BlogCategoryModel category, List<BlogCategoryModel> all) {

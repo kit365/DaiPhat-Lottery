@@ -5,6 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 public interface PrizeStructureRepository extends JpaRepository<PrizeStructureEntity, Long> {
-    List<PrizeStructureEntity> findByProduct_IdAndDeletedAtIsNullOrderByDisplayOrderAsc(Long productId);
-    void deleteByProduct_Id(Long productId);
+    List<PrizeStructureEntity> findByStation_IdAndDeletedAtIsNullOrderByDisplayOrderAsc(Long productId);
+    void deleteByStation_Id(Long productId);
 }

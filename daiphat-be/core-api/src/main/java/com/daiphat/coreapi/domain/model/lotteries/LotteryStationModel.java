@@ -42,12 +42,13 @@ public class LotteryStationModel {
 
     // Trạng thái
     @Builder.Default
-    private LotteryStationStatus status = LotteryStationStatus.DRAFT;
+    private LotteryStationStatus status = LotteryStationStatus.ACTIVE;
 
     private UUID approvedById;
     private LocalDateTime approvedAt;
 
     // Hiển thị
+    private String image;
     private String thumbnailUrl;
     private String thumbnailPublicId;
     private String description;

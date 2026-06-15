@@ -13,8 +13,11 @@ import { ReloadIcon } from "../../../assets/icons/index";
 
 // Vé số
 export const RenderTicketCell = (params: GridRenderCellParams) => {
-    const { ticket, category, image } = params.row;
+    const { stationName, numbers, avatar, ticketImg, batchCode, quantity } = params.row;
     const navigate = useNavigate();
+
+    const displayImage = avatar || ticketImg;
+    const displayName = stationName || params.row.providerName || "Không xác định";
 
     return (
         <Box
@@ -27,8 +30,8 @@ export const RenderTicketCell = (params: GridRenderCellParams) => {
             }}>
 
             <Avatar
-                alt={ticket}
-                src={image}
+                alt={displayName}
+                src={displayImage}
                 variant="rounded"
                 sx={{
                     width: "64px",
@@ -55,10 +58,10 @@ export const RenderTicketCell = (params: GridRenderCellParams) => {
                             }
                         }}
                     >
-                        {ticket}
+                        {displayName}
                     </Box>
                 }
-                secondary={category}
+                secondary={`Mã lô: ${batchCode || 'N/A'} - Dãy số: ${numbers || 'N/A'} - SL: ${quantity ?? 0}`}
                 slotProps={{
                     primary: {
                         component: 'span',
@@ -113,81 +116,38 @@ export const RenderCreatedAtCell = (params: GridRenderCellParams) => {
     );
 }
 
-// Số lượng (Stock)
-export const RenderStockCell = (params: GridRenderCellParams) => {
-    const stockValue = params.row.stock || 0;
-
-    let label = "";
-    let color = "";
-    let bgColor = "";
-    let percentage = 0;
-
-    if (stockValue === 0) {
-        label = "Hết vé";
-        bgColor = "rgba(255, 86, 48, 0.24)";
-        percentage = 0;
-    } else if (stockValue > 0 && stockValue <= 20) {
-        label = `${stockValue} vé (Sắp hết)`;
-        color = "#FFAB00";
-        bgColor = "rgba(255 171 0 / 24%)";
-        percentage = (stockValue / 20) * 100;
-    } else {
-        label = `${stockValue} vé (Sẵn sàng)`;
-        color = "#22C55E";
-        bgColor = "rgba(34, 197, 94, 0.24)";
-        percentage = 90;
-    }
-
-    return (
-        <Box
-            sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                height: '100%',
-                width: '100%',
-                fontSize: "0.75rem",
-                color: "var(--palette-text-secondary)"
-            }}
-        >
-            <LinearProgress
-                variant="determinate"
-                value={percentage}
-                sx={{
-                    width: "80px",
-                    height: "6px",
-                    borderRadius: "var(--shape-borderRadius-lg)",
-                    marginBottom: "8px",
-                    backgroundColor: bgColor,
-                    "& .MuiLinearProgress-bar": {
-                        backgroundColor: color,
-                        borderRadius: "var(--shape-borderRadius-lg)",
-                    },
-                }}
-            />
-            {label}
-        </Box>
-    );
-}
-
 // Status
 export const RenderStatusCell = (params: GridRenderCellParams) => {
-    const { t } = useTranslation();
-    const status = params.row.status;
+    const { status, statusDisplayName } = params.row;
 
-    let label = t("admin.ticket.status.draft");
     let bg = "var(--palette-text-disabled)29";
     let text = "var(--palette-text-primary)";
+    let label = statusDisplayName;
 
-    if (status === "active") {
-        label = t("admin.ticket.status.active");
+    if (status === "in_stock") {
         bg = "var(--palette-info-lighter)";
         text = "var(--palette-info-dark)";
-    } else if (status === "inactive") {
-        label = t("admin.ticket.status.inactive");
+        if (!label) label = "Trong kho";
+    } else if (status === "sold") {
+        bg = "var(--palette-success-lighter)";
+        text = "var(--palette-success-dark)";
+        if (!label) label = "Đã bán";
+    } else if (status === "expired") {
         bg = "var(--palette-error-lighter)";
         text = "var(--palette-error-dark)";
+        if (!label) label = "Hết hạn";
+    } else if (status === "internal_fault" || status === "issuer_fault") {
+        bg = "var(--palette-error-lighter)";
+        text = "var(--palette-error-dark)";
+        if (!label) label = "Lỗi / Hỏng";
+    } else if (status === "reserved" || status === "proxy_holding" || status === "pending_return" || status === "returned") {
+        bg = "rgba(255 171 0 / 24%)";
+        text = "#FFAB00";
+        if (!label && status === "reserved") label = "Đã đặt trước";
+        if (!label && status === "proxy_holding") label = "Đại lý giữ";
     }
+
+    if (!label) label = status;
 
     return (
         <span
@@ -202,27 +162,19 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
     );
 }
 
-interface RenderActionsCellProps extends GridRenderCellParams {
-    isTrash: boolean;
-}
-
 // Actions
-export const RenderActionsCell = (params: RenderActionsCellProps) => {
+export const RenderActionsCell = (params: GridRenderCellParams) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const { deleteTicket, restoreTicket, forceDeleteTicket } = useTickets();
-    const { isTrash, ...paramsRest } = params;
+    const { deleteTicket } = useTickets();
 
     const handleEdit = () => {
         navigate(`/${prefixAdmin}/ticket/edit/${params.row.id}`);
     };
 
     const handleDelete = () => {
-        const message = isTrash ? "Bạn có chắc chắn muốn xóa vĩnh viễn vé số này?" : "Bạn có chắc chắn muốn xóa vé số này?";
-        const action = isTrash ? forceDeleteTicket : deleteTicket;
-
-        confirmDelete(message, () => {
-            action(params.row.id, {
+        confirmDelete("Bạn có chắc chắn muốn xóa vé số này?", () => {
+            deleteTicket(params.row.id, {
                 onSuccess: (res: any) => {
                     if (res.success) {
                         toast.success(res.message || "Thao tác thành công");
@@ -237,75 +189,40 @@ export const RenderActionsCell = (params: RenderActionsCellProps) => {
         });
     };
 
-    const handleRestore = () => {
-        restoreTicket(params.row.id, {
-            onSuccess: (res: any) => {
-                if (res.success) {
-                    toast.success("Khôi phục vé số thành công");
-                } else {
-                    toast.error(res.message || "Khôi phục vé số thất bại");
-                }
-            },
-            onError: (err: any) => {
-                toast.error(err.response?.data?.message || err.message || "Khôi phục vé số không thành công");
-            }
-        });
-    };
-
     return (
-        <GridActionsCell {...paramsRest}>
-            {!isTrash ? (
-                <>
-                    <GridActionsCellItem
-                        icon={<EyeIcon />}
-                        label={t("admin.common.details")}
-                        onClick={handleEdit}
-                        showInMenu
-                        {...({
-                            sx: {
-                                '& .MuiTypography-root': {
-                                    fontSize: '0.8125rem',
-                                    fontWeight: "600"
-                                },
-                            },
-                        } as any)}
-                    />
-                    <GridActionsCellItem
-                        icon={<EditIcon />}
-                        label={t("admin.common.edit")}
-                        onClick={handleEdit}
-                        showInMenu
-                        {...({
-                            sx: {
-                                '& .MuiTypography-root': {
-                                    fontSize: '0.8125rem',
-                                    fontWeight: "600"
-                                },
-                            },
-                        } as any)}
-                    />
-                </>
-            ) : (
-                <GridActionsCellItem
-                    icon={<ReloadIcon />}
-                    label="Khôi phục"
-                    onClick={handleRestore}
-                    showInMenu
-                    {...({
-                        sx: {
-                            '& .MuiTypography-root': {
-                                fontSize: '0.8125rem',
-                                fontWeight: "600",
-                                color: "var(--palette-info-main)"
-                            },
+        <GridActionsCell {...params}>
+            <GridActionsCellItem
+                icon={<EyeIcon />}
+                label={t("admin.common.details")}
+                onClick={() => navigate(`/${prefixAdmin}/ticket/detail/${params.row.id}`)}
+                showInMenu
+                {...({
+                    sx: {
+                        '& .MuiTypography-root': {
+                            fontSize: '0.8125rem',
+                            fontWeight: "600"
                         },
-                    } as any)}
-                />
-            )}
+                    },
+                } as any)}
+            />
+            <GridActionsCellItem
+                icon={<EditIcon />}
+                label={t("admin.common.edit")}
+                onClick={handleEdit}
+                showInMenu
+                {...({
+                    sx: {
+                        '& .MuiTypography-root': {
+                            fontSize: '0.8125rem',
+                            fontWeight: "600"
+                        },
+                    },
+                } as any)}
+            />
 
             <GridActionsCellItem
                 icon={<DeleteIcon />}
-                label={isTrash ? "Xóa vĩnh viễn" : t("admin.common.delete")}
+                label={t("admin.common.delete")}
                 onClick={handleDelete}
                 showInMenu
                 {...({
