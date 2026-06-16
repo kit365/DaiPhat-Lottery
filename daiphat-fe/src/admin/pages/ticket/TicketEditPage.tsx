@@ -78,6 +78,10 @@ export const TicketEditPage = () => {
 
     const originalStatus = normalizeTicketStatus(ticketDetail?.status);
     const allowedStatusValues = new Set(getAllowedTicketStatusTransitions(ticketDetail?.status));
+    const canManuallyChangeStatus = allowedStatusValues.size > 1;
+    const ticketSerials = Array.isArray(ticketDetail?.serials) ? ticketDetail.serials : [];
+    const hasLockedSerials = ticketSerials.some((serial: any) => ["RESERVED", "SOLD"].includes(normalizeTicketStatus(serial?.status)));
+    const isTicketEditable = ["IN_STOCK", "ISSUER_FAULT"].includes(originalStatus) && !hasLockedSerials;
 
     const [expandedDetail, setExpandedDetail] = useState(true);
     const [expandedSerials, setExpandedSerials] = useState(true);
@@ -86,6 +90,14 @@ export const TicketEditPage = () => {
     const { data: providersRes } = useProviders({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
     const { mutate: update, isPending } = useUpdateTicket();
+
+    const isExistingLockedSerial = (index: number) => {
+        const serial = ticketDetail?.serials?.[index];
+        if (!serial?.id) {
+            return false;
+        }
+        return normalizeTicketStatus(serial.status) !== "IN_STOCK";
+    };
 
     const outerTheme = useTheme();
 
@@ -186,15 +198,7 @@ export const TicketEditPage = () => {
             })),
         };
 
-        if (nextStatus && nextStatus !== originalStatus) {
-            if (!canTransitionTicketStatus(ticketDetail?.status, nextStatus)) {
-                toast.error(
-                    `Không thể chuyển từ "${getTicketStatusLabel(ticketDetail?.status)}" sang "${getTicketStatusLabel(nextStatus)}". ${getTicketStatusTransitionHint(ticketDetail?.status)}`
-                );
-                return;
-            }
-            payload.status = nextStatus;
-        }
+        // Status is automatically updated, manual transition removed.
 
         if (id) {
             update({ id, data: payload }, {
@@ -262,6 +266,7 @@ export const TicketEditPage = () => {
                                                     <Select
                                                         {...field}
                                                         displayEmpty
+                                                        disabled={!isTicketEditable}
                                                         input={<OutlinedInput label={"Nhà đài"} notched />}
                                                     >
                                                         <MenuItem value="">
@@ -291,6 +296,7 @@ export const TicketEditPage = () => {
                                                     {...field}
                                                     label="Mã lô nhập"
                                                     fullWidth
+                                                    disabled={!isTicketEditable}
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
                                                 />
@@ -299,35 +305,15 @@ export const TicketEditPage = () => {
                                     </Box>
 
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                        <Controller
-                                            name="status"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <FormControl fullWidth error={!!fieldState.error}>
-                                                    <InputLabel shrink>Trạng thái</InputLabel>
-                                                    <Select
-                                                        {...field}
-                                                        displayEmpty
-                                                        input={<OutlinedInput label="Trạng thái" notched />}
-                                                    >
-                                                        {TICKET_STATUS_OPTIONS.map((opt) => (
-                                                            <MenuItem
-                                                                key={opt.value}
-                                                                value={opt.value}
-                                                                disabled={!allowedStatusValues.has(opt.value)}
-                                                            >
-                                                                {opt.label}
-                                                            </MenuItem>
-                                                        ))}
-                                                    </Select>
-                                                    <FormHelperText>
-                                                        {getTicketStatusTransitionHint(ticketDetail?.status)}
-                                                    </FormHelperText>
-                                                    {fieldState.error && (
-                                                        <p className="text-red-500 text-xs mt-1 ml-3">{fieldState.error.message}</p>
-                                                    )}
-                                                </FormControl>
-                                            )}
+                                        <TextField
+                                            label="Trạng thái"
+                                            fullWidth
+                                            disabled
+                                            value={getTicketStatusLabel(ticketDetail?.status)}
+                                            helperText="Trạng thái lô vé được cập nhật tự động."
+                                            InputProps={{
+                                                readOnly: true,
+                                            }}
                                         />
                                     </Box>
 
@@ -340,6 +326,7 @@ export const TicketEditPage = () => {
                                                     {...field}
                                                     label="Dãy số"
                                                     fullWidth
+                                                    disabled={!isTicketEditable}
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
                                                 />
@@ -357,6 +344,11 @@ export const TicketEditPage = () => {
                             onToggle={() => setExpandedSerials(!expandedSerials)}
                         >
                             <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
+                                {!isTicketEditable && (
+                                    <Typography variant="body2" color="warning.main">
+                                        Vé này chỉ được sửa khi ở trạng thái Trong kho hoặc Lỗi in ấn, và không có sê-ri nào đang giữ chỗ hoặc đã bán.
+                                    </Typography>
+                                )}
                                 {fields.map((item, index) => (
                                     <Box key={item.id} sx={{
                                         p: 3,
@@ -377,6 +369,7 @@ export const TicketEditPage = () => {
                                                 <IconButton 
                                                     size="small" 
                                                     color="error"
+                                                    disabled={isExistingLockedSerial(index)}
                                                     onClick={() => remove(index)}
                                                 >
                                                     <DeleteOutlineIcon />
@@ -398,13 +391,31 @@ export const TicketEditPage = () => {
                                                             {...field}
                                                             label="Số sê-ri"
                                                             fullWidth
+                                                            disabled={isExistingLockedSerial(index)}
                                                             error={!!fieldState.error}
                                                             helperText={fieldState.error?.message}
                                                         />
                                                     )}
                                                 />
                                             </Box>
-                                            <TicketSerialImageField control={control} index={index} />
+                                            <TicketSerialImageField
+                                                control={control}
+                                                index={index}
+                                                disabled={isExistingLockedSerial(index)}
+                                            />
+                                            <Box sx={{ gridColumn: { xs: "span 12", md: "span 12" } }}>
+                                                <Stack direction={{ xs: "column", md: "row" }} gap={2}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Trạng thái: <strong>{ticketDetail?.serials?.[index]?.statusDisplayName || "N/A"}</strong>
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Ngày tạo: <strong>{ticketDetail?.serials?.[index]?.createdAt ? dayjs(ticketDetail.serials[index].createdAt).format("DD/MM/YYYY HH:mm") : "N/A"}</strong>
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Người tạo: <strong>{ticketDetail?.serials?.[index]?.createdBy || "N/A"}</strong>
+                                                    </Typography>
+                                                </Stack>
+                                            </Box>
                                         </Box>
                                     </Box>
                                 ))}
@@ -412,6 +423,7 @@ export const TicketEditPage = () => {
                                 <Button
                                     variant="outlined"
                                     startIcon={<AddIcon />}
+                                    disabled={!isTicketEditable}
                                     onClick={() => append({ serialNumber: "", ticketImg: undefined })}
                                     sx={{ alignSelf: "flex-start", mt: 1 }}
                                 >
@@ -424,6 +436,7 @@ export const TicketEditPage = () => {
                             <LoadingButton
                                 type="submit"
                                 loading={isPending}
+                                disabled={!isTicketEditable && !canManuallyChangeStatus}
                                 label={"Lưu thay đổi"}
                                 loadingLabel="Đang lưu..."
                                 sx={{ minHeight: "3rem", minWidth: "4rem" }}

@@ -6,6 +6,7 @@ import com.daiphat.coreapi.domain.model.auth.RoleModel;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -21,9 +22,10 @@ public class UserModel {
     private String username;
     private String email;
     private String phoneNumber;
-    private String address;
     private String imagePublicId;
     private String imageUrl;
+    private String gender;
+    private LocalDate dob;
     private RoleModel role;
     private UserStatus status;
     private String zodiac;

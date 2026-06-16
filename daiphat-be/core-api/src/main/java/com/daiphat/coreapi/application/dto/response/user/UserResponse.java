@@ -4,6 +4,8 @@ import com.daiphat.coreapi.application.dto.response.auth.RoleResponse;
 import com.daiphat.coreapi.application.dto.response.base.Views;
 import com.fasterxml.jackson.annotation.JsonView;
 import lombok.Builder;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
@@ -22,10 +24,12 @@ public record UserResponse(
 
         @JsonView(Views.Public.class) String fullName,
 
+        @JsonView(Views.Public.class) String gender,
+
+        @JsonView(Views.Public.class) LocalDate dob,
+
         @JsonView({
                 Views.Me.class, Views.Admin.class }) String phone,
-
-        @JsonView({ Views.Me.class, Views.Admin.class }) String address,
 
         @JsonView(Views.Public.class) String avatarUrl,
 

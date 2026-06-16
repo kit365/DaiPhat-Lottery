@@ -53,39 +53,30 @@ public class LotteryTicketModel {
     private String createdBy;
     private String lastModifiedBy;
 
-    public void initializeImport(UUID importedById) {
-        this.importedById = importedById;
-        this.importedAt = LocalDateTime.now();
-        this.status = LotteryTicketStatus.IN_STOCK;
-        this.verified = false;
-        this.verifiedById = null;
-        this.verifiedAt = null;
-        this.returnedAt = null;
-    }
+
 
     public void reserve() {
         ensureStatus(LotteryTicketStatus.IN_STOCK);
         this.status = LotteryTicketStatus.RESERVED;
     }
 
-    public void releaseReservation() {
-        ensureStatus(LotteryTicketStatus.RESERVED);
-        this.status = LotteryTicketStatus.IN_STOCK;
-    }
+
 
     public void sellOnline() {
         ensureStatusIn(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.RESERVED, LotteryTicketStatus.SOLD_OUT);
         this.status = LotteryTicketStatus.SOLD;
     }
 
-    public void sellOffline() {
-        ensureStatusIn(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.RESERVED, LotteryTicketStatus.SOLD_OUT);
-        this.status = LotteryTicketStatus.SOLD;
-    }
+
 
     public void holdForProxy() {
         ensureStatusIn(LotteryTicketStatus.IN_STOCK, LotteryTicketStatus.SOLD_OUT);
         this.status = LotteryTicketStatus.PROXY_HOLDING;
+    }
+
+    public void recallFromProxy() {
+        ensureStatus(LotteryTicketStatus.PROXY_HOLDING);
+        this.status = LotteryTicketStatus.IN_STOCK;
     }
 
     public void requestReturn() {
@@ -146,17 +137,35 @@ public class LotteryTicketModel {
                 && LocalTime.now().isAfter(cutoffTime);
     }
 
-    public LotteryTicketStatus resolveAggregateStatus(long availableSerialCount, LocalTime cutoffTime) {
+
+    public LotteryTicketStatus resolveAggregateStatus(
+            long availableSerialCount,
+            long totalSerialCount,
+            long soldSerialCount,
+            LocalTime cutoffTime
+    ) {
         if (isExpired(cutoffTime)) {
             return LotteryTicketStatus.EXPIRED;
         }
-        return availableSerialCount > 0 ? LotteryTicketStatus.IN_STOCK : LotteryTicketStatus.SOLD_OUT;
+        if (availableSerialCount > 0) {
+            return LotteryTicketStatus.IN_STOCK;
+        }
+        if (totalSerialCount == 0) {
+            return LotteryTicketStatus.IN_STOCK;
+        }
+        return soldSerialCount > 0 ? LotteryTicketStatus.SOLD_OUT : LotteryTicketStatus.IN_STOCK;
     }
 
-    public void syncAggregateState(int availableSerialCount, LocalTime cutoffTime) {
+
+    public void syncAggregateState(
+            int availableSerialCount,
+            int totalSerialCount,
+            int soldSerialCount,
+            LocalTime cutoffTime
+    ) {
         this.quantity = availableSerialCount;
         if (!isWorkflowManagedStatus()) {
-            this.status = resolveAggregateStatus(availableSerialCount, cutoffTime);
+            this.status = resolveAggregateStatus(availableSerialCount, totalSerialCount, soldSerialCount, cutoffTime);
         }
     }
 
@@ -178,8 +187,16 @@ public class LotteryTicketModel {
         }
     }
 
-    public boolean countsTowardInventory() {
-        return this.status == LotteryTicketStatus.IN_STOCK;
+
+
+    public boolean isEditableStatus() {
+        return this.status == LotteryTicketStatus.IN_STOCK || this.status == LotteryTicketStatus.ISSUER_FAULT;
+    }
+
+    public boolean isSoftDeletableStatus() {
+        return this.status == LotteryTicketStatus.IN_STOCK
+                || this.status == LotteryTicketStatus.ISSUER_FAULT
+                || this.status == LotteryTicketStatus.EXPIRED;
     }
 
     public void softDelete() {

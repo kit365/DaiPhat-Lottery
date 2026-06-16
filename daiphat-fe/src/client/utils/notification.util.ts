@@ -5,6 +5,9 @@ type RouteResolver = (referenceId?: string | null) => string | null;
 const NOTIFICATION_ROUTES: Record<string, RouteResolver> = {
     [NOTIFICATION_REFERENCE_TYPE.BLOG_POST]: (referenceId) =>
         referenceId ? `/blogs/detail/${referenceId}` : null,
+    [NOTIFICATION_REFERENCE_TYPE.ORDER]: (referenceId) =>
+        referenceId ? `/profile/orders/${referenceId}` : null,
+    [NOTIFICATION_REFERENCE_TYPE.LOTTERY_STATION]: () => "/buy-ticket",
     [NOTIFICATION_REFERENCE_TYPE.AUTH]: () => null,
     [NOTIFICATION_REFERENCE_TYPE.SYSTEM]: () => null,
 };

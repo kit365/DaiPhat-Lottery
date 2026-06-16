@@ -148,15 +148,8 @@ export const useAuth = () => {
         mutationFn: ({ id, data }: { id: string; data: any }) => updateUser(id, data),
         onSuccess: (response: any) => {
             const isSuccess = response.isSuccess ?? response.success;
-            if (isSuccess && response.data) {
-                queryClient.setQueryData(
-                    [QUERY_KEYS.CLIENT_ME, token],
-                    (oldData: any) => ({
-                        ...oldData,
-                        data: response.data,
-                    })
-                );
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_ME, token] });
+            if (isSuccess) {
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_ME] });
                 AppToast.success(response.message || "Cập nhật thành công");
             } else {
                 AppToast.error(response.message || "Cập nhật thất bại");

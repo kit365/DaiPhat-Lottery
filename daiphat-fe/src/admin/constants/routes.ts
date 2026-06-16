@@ -50,6 +50,7 @@ export const ROUTES = {
         },
         ORDERS: {
             LIST: `/${prefixAdmin}/order/list`,
+            DETAIL: `/${prefixAdmin}/order/detail/`,
         },
         TICKET_SERVICE_ORDERS: {
             LIST: `/${prefixAdmin}/ticketServiceOrder/list`,
