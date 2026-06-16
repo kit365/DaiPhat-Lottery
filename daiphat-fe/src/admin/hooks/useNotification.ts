@@ -7,7 +7,7 @@ import { QUERY_KEYS } from "../../constants/queryKeys";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 5;
-const ADMIN_NOTIFICATION_REFETCH_INTERVAL_MS = 30_000;
+const ADMIN_NOTIFICATION_REFETCH_INTERVAL_MS = 5_000;
 
 export const useNotifications = (params?: api.GetNotificationsParams) => {
     const limit = params?.limit ?? DEFAULT_LIMIT;
