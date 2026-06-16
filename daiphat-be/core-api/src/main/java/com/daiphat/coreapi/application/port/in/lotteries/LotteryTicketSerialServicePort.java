@@ -2,6 +2,8 @@ package com.daiphat.coreapi.application.port.in.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketSerialRequest;
+import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
@@ -20,6 +22,12 @@ public interface LotteryTicketSerialServicePort {
             LotteryTicketModel ticket,
             CreateLotteryTicketSerialRequest request,
             UUID importedById
+    );
+
+    void syncSerialsForTicket(
+            LotteryTicketModel ticket,
+            List<UpdateLotteryTicketSerialRequest> serials,
+            UUID editorId
     );
 
     LotteryTicketSerialModel reserveFirstAvailable(Long ticketId, UUID orderId, LocalDateTime expiresAt);
@@ -45,4 +53,6 @@ public interface LotteryTicketSerialServicePort {
     LotteryTicketSerialModel uploadImage(Long ticketSerialId, UploadRequest request);
 
     List<LotteryTicketSerialModel> findAllByTicketId(Long ticketId);
+
+    List<EnumOptionResponse> getStatuses();
 }

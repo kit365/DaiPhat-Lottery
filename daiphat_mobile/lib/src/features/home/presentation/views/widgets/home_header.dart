@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -6,10 +7,9 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 
 class HomeHeader extends StatelessWidget {
-  static const int _cartItemCount = 3;
-
   final LoginViewModel loginViewModel;
   final NotificationViewModel notificationViewModel;
 
@@ -95,39 +95,45 @@ class HomeHeader extends StatelessWidget {
             ),
           ],
           const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => context.pushNamed(AppRoute.cart.name),
-            child: Stack(
-              children: [
-                _iconBtn(Icons.shopping_cart_outlined),
-                Positioned(
-                  right: 2,
-                  top: 2,
-                  child: Container(
-                    constraints: const BoxConstraints(
-                      minWidth: 18,
-                      minHeight: 18,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: Colors.white, width: 1.5),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$_cartItemCount',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
+          Consumer(
+            builder: (context, ref, child) {
+              final cartItemCount = ref.watch(cartTicketCountProvider);
+              return GestureDetector(
+                onTap: () => context.pushNamed(AppRoute.cart.name),
+                child: Stack(
+                  children: [
+                    _iconBtn(Icons.shopping_cart_outlined),
+                    if (cartItemCount > 0)
+                      Positioned(
+                        right: 2,
+                        top: 2,
+                        child: Container(
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$cartItemCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -153,4 +159,3 @@ class HomeHeader extends StatelessWidget {
     );
   }
 }
-

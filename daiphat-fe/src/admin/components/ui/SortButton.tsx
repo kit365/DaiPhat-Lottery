@@ -6,17 +6,20 @@ import { ArrowIcon } from '../../assets/icons';
 interface SortButtonProps {
     value?: string;
     onChange?: (value: string) => void;
+    options?: { value: string; label: string }[];
 }
 
-export const SortButton = ({ value = 'latest', onChange }: SortButtonProps) => {
+export const SortButton = ({ value = 'latest', onChange, options }: SortButtonProps) => {
     const { t } = useTranslation();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
-    const SORT_OPTIONS = useMemo(() => [
+    const defaultOptions = useMemo(() => [
         { value: 'latest', label: t("admin.common.sort_options.latest") },
         { value: 'oldest', label: t("admin.common.sort_options.oldest") },
         { value: 'popular', label: t("admin.common.sort_options.popular") },
     ], [t]);
+
+    const activeOptions = options || defaultOptions;
 
     const open = Boolean(anchorEl);
 
@@ -54,7 +57,7 @@ export const SortButton = ({ value = 'latest', onChange }: SortButtonProps) => {
             >
                 {t("admin.common.sort_by")}
                 <Box component="span" sx={{ fontWeight: 700, ml: "4px" }}>
-                    {SORT_OPTIONS.find(opt => opt.value === value)?.label}
+                    {activeOptions.find(opt => opt.value === value)?.label}
                 </Box>
             </Button>
 
@@ -75,7 +78,7 @@ export const SortButton = ({ value = 'latest', onChange }: SortButtonProps) => {
                     }
                 }}
             >
-                {SORT_OPTIONS.map((option) => (
+                {activeOptions.map((option) => (
                     <MenuItem
                         key={option.value}
                         selected={option.value === value}

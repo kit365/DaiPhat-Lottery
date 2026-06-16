@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
+
 @Component
 @RequiredArgsConstructor
 public class PrizeStructureRepositoryAdapter implements PrizeStructureRepositoryPort {
@@ -20,6 +22,12 @@ public class PrizeStructureRepositoryAdapter implements PrizeStructureRepository
     public List<PrizeStructureModel> findByProductId(Long productId) {
         List<PrizeStructureEntity> entities = prizeStructureRepository.findByStation_IdAndDeletedAtIsNullOrderByDisplayOrderAsc(productId);
         return prizeStructurePersistenceMapper.toDomainList(entities);
+    }
+
+    @Override
+    public Optional<PrizeStructureModel> findById(Long id) {
+        return prizeStructureRepository.findByIdAndDeletedAtIsNull(id)
+                .map(prizeStructurePersistenceMapper::toDomain);
     }
 
     @Override

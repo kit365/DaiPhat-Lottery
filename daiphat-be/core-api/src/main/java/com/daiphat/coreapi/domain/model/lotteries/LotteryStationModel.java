@@ -1,14 +1,15 @@
 package com.daiphat.coreapi.domain.model.lotteries;
 
-import com.daiphat.coreapi.domain.exception.DomainException;
-import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -36,8 +37,8 @@ public class LotteryStationModel {
     private Integer inventoryCount = 0;
 
     // Lịch quay
-    private String drawSchedule;
-    private String drawTime;
+    private List<DayOfWeek> drawDays;
+    private LocalTime drawTime;
     private LocalDate nextDrawDate;
 
     // Trạng thái
@@ -64,22 +65,6 @@ public class LotteryStationModel {
     private String lastModifiedBy;
 
     // ---- Business methods ----
-
-    public void submitForApproval() {
-        if (this.status != LotteryStationStatus.DRAFT) {
-            throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_STATUS);
-        }
-        this.status = LotteryStationStatus.PENDING_APPROVAL;
-    }
-
-    public void approve(UUID adminId) {
-        if (this.status != LotteryStationStatus.PENDING_APPROVAL) {
-            throw new DomainException(ErrorCode.LOTTERY_STATION_INVALID_STATUS);
-        }
-        this.status = LotteryStationStatus.ACTIVE;
-        this.approvedById = adminId;
-        this.approvedAt = LocalDateTime.now();
-    }
 
     public void deactivate() {
         this.status = LotteryStationStatus.INACTIVE;

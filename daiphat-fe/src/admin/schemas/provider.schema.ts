@@ -17,8 +17,8 @@ export const createProviderSchema = z.object({
 
     price: z.number().min(1, "Giá vé phải lớn hơn 0"),
 
-    drawSchedule: z.string().optional(),
-    drawTime: z.string().optional(),
+    drawDays: z.array(z.string()).min(1, "Danh sách ngày quay không được để trống"),
+    drawTime: z.string().min(1, "Giờ quay không được để trống"),
 
     description: z.string().optional(),
     image: z.any().optional(),

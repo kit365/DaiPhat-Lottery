@@ -1,11 +1,12 @@
 package com.daiphat.coreapi.domain.model.enums.lottery;
 
+import com.daiphat.coreapi.domain.model.enums.LabeledEnum;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum LotteryTicketSerialStatus {
+public enum LotteryTicketSerialStatus implements LabeledEnum {
     IN_STOCK("Trong kho"),
     RESERVED("Đang giữ chỗ"),
     SOLD("Đã bán"),
@@ -17,4 +18,9 @@ public enum LotteryTicketSerialStatus {
     ISSUER_FAULT("Lỗi in ấn từ nhà cung cấp");
 
     private final String displayName;
+
+    @Override
+    public String getLabel() {
+        return displayName;
+    }
 }

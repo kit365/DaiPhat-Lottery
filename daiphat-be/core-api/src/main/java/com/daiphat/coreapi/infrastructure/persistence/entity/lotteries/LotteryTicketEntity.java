@@ -65,10 +65,6 @@ public class LotteryTicketEntity extends BaseEntity {
     @Builder.Default
     private List<LotteryTicketSerialEntity> serials = new ArrayList<>();
 
-
-    @Transient
-    private String serialNumber;
-
     @Transient
     private UserEntity importedBy;
 

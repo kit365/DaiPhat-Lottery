@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.persistence.repository.lottery;
+package com.daiphat.coreapi.infrastructure.persistence.repository.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
@@ -22,6 +22,10 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
     );
 
     boolean existsByTicket_IdAndSerialNumberAndDeletedAtIsNull(Long ticketId, String serialNumber);
+
+    Optional<LotteryTicketSerialEntity> findFirstBySerialNumberAndDeletedAtIsNull(String serialNumber);
+
+    List<LotteryTicketSerialEntity> findBySerialNumberStartingWithAndDeletedAtIsNull(String serialNumberPrefix);
 
     long countByTicket_IdAndStatusInAndDeletedAtIsNull(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 

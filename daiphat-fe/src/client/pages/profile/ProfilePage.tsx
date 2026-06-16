@@ -6,7 +6,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useNotifications } from "../../hooks/useNotifications";
 
-type TabId = 'overview' | 'info' | 'address' | 'tickets' | 'history' | 'notifications' | 'settings' | 'favorites';
+type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'notifications' | 'settings' | 'favorites';
 
 interface TabConfig {
     id: TabId;
@@ -20,6 +20,7 @@ const TABS: TabConfig[] = [
     { id: 'overview', path: '/profile/overview', label: 'Tổng quan', icon: 'fa-solid fa-border-all' },
     { id: 'info', path: '/profile/info', label: 'Tài khoản cá nhân', icon: 'fa-regular fa-user' },
     { id: 'tickets', path: '/profile/tickets', label: 'Vé của tôi', icon: 'fa-solid fa-ticket-simple' },
+    { id: 'orders', path: '/profile/orders', label: 'Đơn hàng của tôi', icon: 'fa-solid fa-file-invoice-dollar' },
     { id: 'favorites', path: '/profile/favorites', label: 'Số yêu thích', icon: 'fa-regular fa-star' },
     { id: 'notifications', path: '/profile/notifications', label: 'Thông báo', icon: 'fa-regular fa-bell' },
     { id: 'settings', path: '/profile/settings', label: 'Bảo mật', icon: 'fa-solid fa-shield-halved' },
@@ -127,7 +128,7 @@ export const ProfilePage = () => {
                                     <div className="relative z-10 w-full px-4 flex flex-col items-center">
                                         <h2 className="text-[18px] font-black text-[#212B36] mb-2">{user.fullName || user.username}</h2>
                                         <p className="text-[12px] font-medium text-[#454F5B] mb-0.5">{user.email || 'john.doe@gmail.com'}</p>
-                                        <p className="text-[12px] font-medium text-[#454F5B]">{user.phoneNumber || user.phone || 'Chưa cập nhật'}</p>
+                                        <p className="text-[12px] font-medium text-[#454F5B]">{user.phone || 'Chưa cập nhật'}</p>
                                     </div>
                                 </div>
 

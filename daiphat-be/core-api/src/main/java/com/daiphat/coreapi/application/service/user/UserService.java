@@ -109,11 +109,14 @@ public class UserService implements UserServicePort {
 
         updateIfPresent(request.firstName(), user::setFirstName);
         updateIfPresent(request.lastName(), user::setLastName);
-        updateNullableText(request.address(), user::setAddress);
         
         userValidationService.ensurePhoneAvailable(request.phone(), user.getPhoneNumber());
-
         updateIfPresent(request.phone(), user::setPhoneNumber);
+        
+        updateIfPresent(request.gender(), user::setGender);
+        if (request.dob() != null) {
+            user.setDob(request.dob());
+        }
         
         UserStatus newStatus = UserStatus.from(request.status());
         if (newStatus != null) user.setStatus(newStatus);
@@ -224,12 +227,16 @@ public class UserService implements UserServicePort {
         userValidationService.validateProfileSetup(request.getPhoneNumber(), user.getPhoneNumber());
 
         syncPasswordIfProvided(user, request.getPassword());
-        updateNullableText(request.getAddress(), user::setAddress);
 
         user.completeFirstTimeProfile(
                 (request.getPhoneNumber() != null && !request.getPhoneNumber().isBlank()) ? request.getPhoneNumber() : user.getPhoneNumber(),
                 request.isAgreedToTerms()
         );
+        
+        updateIfPresent(request.getGender(), user::setGender);
+        if (request.getDob() != null) {
+            user.setDob(request.getDob());
+        }
 
         log.info("Successfully finalized first-time profile setup for user: {}", username);
         userRepositoryPort.save(user);

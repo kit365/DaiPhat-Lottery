@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { useAuth } from "../../admin/pages/authen/hooks/useAuth";
 import { useAuthStore } from "../../stores/useAuthStore";
 
 /**
@@ -8,8 +7,7 @@ import { useAuthStore } from "../../stores/useAuthStore";
  * It uses the useAuth hook which automatically fetches the user profile if a token exists.
  */
 export const AuthInitializer = () => {
-    const { token, isHydrated, user, isProfileSetupModalOpen, openProfileSetupModal } = useAuthStore();
-    const { getMe } = useAuth();
+    const { isHydrated, user, isProfileSetupModalOpen, openProfileSetupModal } = useAuthStore();
 
     useEffect(() => {
         // DP-32 Setup Enforcement: Check if user needs to complete profile on load

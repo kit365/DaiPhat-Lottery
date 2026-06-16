@@ -113,6 +113,7 @@ public enum ErrorCode {
     LOTTERY_STATION_NAME_EXISTED("LT_002", "Tên sản phẩm vé số đã tồn tại.", HttpStatus.BAD_REQUEST),
     LOTTERY_STATION_INVALID_STATUS("LT_003", "Trạng thái sản phẩm không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
     LOTTERY_STATION_INSUFFICIENT_INVENTORY("LT_004", "Tồn kho không đủ.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_INVALID_DRAW_SCHEDULE("LT_030", "Lịch quay không hợp lệ.", HttpStatus.BAD_REQUEST),
     PRIZE_STRUCTURE_NOT_FOUND("LT_005", "Cấu trúc giải thưởng không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_TICKET_NOT_FOUND("LT_006", "Vé số không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_TICKET_INVALID_STATUS("LT_007", "Trạng thái vé số không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
@@ -136,7 +137,12 @@ public enum ErrorCode {
     LOTTERY_TICKET_EXPIRED("LT_026", "Vé số đã hết hạn.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_BOOKING_CLOSED("LT_027", "Đã quá giờ chốt đặt vé cho kỳ quay hôm nay.", HttpStatus.BAD_REQUEST),
     PRIZE_STRUCTURE_REGION_INVALID("LT_028", "Cấu trúc giải dùng chung miền phải có region trùng với sản phẩm.", HttpStatus.BAD_REQUEST),
-    PRIZE_STRUCTURE_MATCH_DIGITS_INVALID("LT_029", "Số chữ số khớp không hợp lệ.", HttpStatus.BAD_REQUEST);
+    PRIZE_STRUCTURE_MATCH_DIGITS_INVALID("LT_029", "Số chữ số khớp không hợp lệ.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_TEMPLATE_NOT_FOUND("LT_030", "Không tìm thấy mẫu cấu trúc giải cho miền này.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_TEMPLATE_REGION_REQUIRED("LT_031", "Miền không được để trống khi tạo đài.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_TEMPLATE_ITEM_NOT_FOUND("LT_032", "Mẫu cấu trúc giải không tồn tại.", HttpStatus.NOT_FOUND),
+    PRIZE_STRUCTURE_TEMPLATE_DUPLICATE_CODE("LT_033", "Mã giải thưởng bị trùng trong cùng miền.", HttpStatus.BAD_REQUEST),
+    PRIZE_STRUCTURE_TEMPLATE_LIST_REQUIRED("LT_034", "Danh sách mẫu cấu trúc giải không được để trống.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;

@@ -1,17 +1,21 @@
 package com.daiphat.coreapi.application.service.order;
 
 import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.DirectOrderTransactionRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
+import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategy;
+import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategyFactory;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
@@ -19,15 +23,19 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.OrderRefundStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.valueobject.Phone;
 import com.daiphat.coreapi.shared.util.EnumOptionUtils;
+import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +44,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -55,6 +67,7 @@ public class OrderService implements OrderServicePort {
     private final UserLookupServicePort userLookupServicePort;
     private final OrderApplicationMapper orderApplicationMapper;
     private final PaymentCountdownCachePort paymentCountdownCachePort;
+    private final PaymentGatewayStrategyFactory paymentGatewayStrategyFactory;
 
     @Override
     @Transactional
@@ -138,6 +151,126 @@ public class OrderService implements OrderServicePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public OrderResponse getOrderDetail(UUID orderId) {
+        return orderApplicationMapper.toResponse(getOrderOrThrow(orderId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OrderResponse getMyOrderDetail(UUID orderId, UUID customerId) {
+        ensureUserExists(customerId);
+        OrderModel order = getOrderOrThrow(orderId);
+        if (order.getUserId() == null || !order.getUserId().equals(customerId)) {
+            throw new DomainException(ErrorCode.ACCESS_DENIED);
+        }
+        return orderApplicationMapper.toResponse(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse updateOrderStatus(UUID orderId, OrderStatus status, String reason, UUID operatorId) {
+        ensureUserExists(operatorId);
+        if (status == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+
+        OrderModel order = getOrderOrThrow(orderId);
+        if (order.getStatus() == status) {
+            return orderApplicationMapper.toResponse(order);
+        }
+
+        applyOrderStatusTransition(order, status, reason, operatorId);
+        OrderModel saved = orderRepositoryPort.save(order);
+        clearPendingPaymentCountdownIfResolved(saved);
+        return orderApplicationMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<OrderResponse> getOrders(
+            int page,
+            int size,
+            List<String> statuses,
+            LocalDate fromDate,
+            LocalDate toDate,
+            List<String> orderTypes,
+            List<String> receiveTypes,
+            String search,
+            String sortBy,
+            String direction
+    ) {
+        validateDateRange(fromDate, toDate);
+
+        PageRequest pageable = PageRequest.of(
+                Math.max(0, page - 1),
+                size,
+                SortUtils.createSort(sortBy, direction)
+        );
+
+        List<OrderStatus> statusEnums = parseOrderStatuses(statuses);
+        List<OrderType> orderTypeEnums = parseOrderTypes(orderTypes);
+        List<OrderReceiveType> receiveTypeEnums = parseReceiveTypes(receiveTypes);
+
+        Page<OrderResponse> resultPage = orderRepositoryPort.findOrders(
+                        pageable,
+                        statusEnums,
+                        orderTypeEnums,
+                        receiveTypeEnums,
+                        fromDate,
+                        toDate,
+                        search
+                )
+                .map(orderApplicationMapper::toResponse);
+
+        return buildPageResponse(
+                resultPage,
+                page,
+                size,
+                buildOrderStatusCounts(orderTypeEnums, receiveTypeEnums, fromDate, toDate, search)
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<OrderResponse> getMyOrders(
+            int page,
+            int size,
+            List<String> statuses,
+            LocalDate fromDate,
+            LocalDate toDate,
+            List<String> orderTypes,
+            String search,
+            String sortBy,
+            String direction,
+            UUID customerId
+    ) {
+        ensureUserExists(customerId);
+        validateDateRange(fromDate, toDate);
+
+        PageRequest pageable = PageRequest.of(
+                Math.max(0, page - 1),
+                size,
+                SortUtils.createSort(sortBy, direction)
+        );
+
+        List<OrderStatus> statusEnums = parseOrderStatuses(statuses);
+        List<OrderType> orderTypeEnums = parseOrderTypes(orderTypes);
+        Page<OrderResponse> resultPage = orderRepositoryPort.findMyOrders(
+                        pageable,
+                        customerId,
+                        statusEnums,
+                        orderTypeEnums,
+                        fromDate,
+                        toDate,
+                        search
+                )
+                .map(orderApplicationMapper::toResponse);
+
+        return buildPageResponse(resultPage, page, size, null);
+    }
+
+    @Override
     public List<EnumOptionResponse> getOrderTypes() {
         return EnumOptionUtils.toEnumOptions(OrderType.values());
     }
@@ -171,6 +304,89 @@ public class OrderService implements OrderServicePort {
     private void validateTicketIds(List<Long> ticketIds) {
         if (ticketIds == null || ticketIds.isEmpty() || ticketIds.size() > 10) {
             throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+    }
+
+    private void applyOrderStatusTransition(OrderModel order, OrderStatus targetStatus, String reason, UUID operatorId) {
+        switch (targetStatus) {
+            case PAID -> {
+                if (!order.isFullyPaid()) {
+                    throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+                }
+                order.markPaid();
+            }
+            case PREPARING -> order.markPreparing();
+            case PENDING_PICKUP -> order.markPendingPickup();
+            case COMPLETED -> {
+                if (order.getOrderType() == OrderType.DIRECT) {
+                    order.completeDirectOrder(operatorId);
+                } else {
+                    order.completeOnlineOrder(operatorId);
+                }
+            }
+            case CANCELLED -> cancelOrderFromAdmin(order, reason);
+            case PENDING_PAYMENT -> throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+        }
+    }
+
+    private void cancelOrderFromAdmin(OrderModel order, String reason) {
+        String effectiveReason = reason != null && !reason.isBlank()
+                ? reason
+                : "Đơn hàng bị hủy bởi quản trị viên.";
+
+        if (order.getStatus() == OrderStatus.PENDING_PAYMENT) {
+            cancelPendingTransactions(order, effectiveReason);
+            releaseReservedTickets(order);
+            order.cancelPendingPayment(effectiveReason);
+            return;
+        }
+
+        if (order.getOrderType() == OrderType.DIRECT) {
+            order.cancelDirectOrder(effectiveReason);
+            return;
+        }
+
+        order.cancelAfterPayment(effectiveReason);
+    }
+
+    private void cancelPendingTransactions(OrderModel order, String reason) {
+        if (order.getTransactions() == null) {
+            return;
+        }
+
+        for (TransactionModel transaction : order.getTransactions()) {
+            if (transaction.getStatus() != TransactionStatus.PENDING) {
+                continue;
+            }
+
+            if (transaction.getType() == TransactionType.ONLINE
+                    && transaction.getGateway() != null
+                    && transaction.getGatewayOrderCode() != null) {
+                PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(transaction.getGateway());
+                try {
+                    strategy.cancelPayment(order, transaction, reason);
+                } catch (DomainException ex) {
+                    log.warn("Could not cancel gateway link for admin-cancelled order {} transaction {}: {}",
+                            order.getId(), transaction.getId(), ex.getMessage());
+                }
+            }
+
+            if (transaction.getStatus() == TransactionStatus.PENDING) {
+                transaction.markCancelled(reason);
+            }
+        }
+    }
+
+    private void releaseReservedTickets(OrderModel order) {
+        if (order.getOrderDetails() == null) {
+            return;
+        }
+        order.getOrderDetails().forEach(detail -> lotteryTicketServicePort.releaseReservationForOrder(detail.getLotteryTicketSerialId()));
+    }
+
+    private void clearPendingPaymentCountdownIfResolved(OrderModel order) {
+        if (order.getStatus() != OrderStatus.PENDING_PAYMENT && order.getId() != null) {
+            paymentCountdownCachePort.clear(order.getId());
         }
     }
 
@@ -307,6 +523,121 @@ public class OrderService implements OrderServicePort {
             }
         }
         throw new DomainException(ErrorCode.ORDER_CODE_GENERATION_FAILED);
+    }
+
+    private OrderStatus parseOrderStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        try {
+            return OrderStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+        }
+    }
+
+    private OrderType parseOrderType(String orderType) {
+        if (orderType == null || orderType.isBlank()) {
+            return null;
+        }
+        try {
+            return OrderType.valueOf(orderType.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+    }
+
+    private OrderReceiveType parseReceiveType(String receiveType) {
+        if (receiveType == null || receiveType.isBlank()) {
+            return null;
+        }
+        try {
+            return OrderReceiveType.valueOf(receiveType.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+    }
+
+    private List<OrderStatus> parseOrderStatuses(List<String> statuses) {
+        return normalizeMultiValues(statuses).stream()
+                .map(this::parseOrderStatus)
+                .toList();
+    }
+
+    private List<OrderType> parseOrderTypes(List<String> orderTypes) {
+        return normalizeMultiValues(orderTypes).stream()
+                .map(this::parseOrderType)
+                .toList();
+    }
+
+    private List<OrderReceiveType> parseReceiveTypes(List<String> receiveTypes) {
+        return normalizeMultiValues(receiveTypes).stream()
+                .map(this::parseReceiveType)
+                .toList();
+    }
+
+    private List<String> normalizeMultiValues(List<String> rawValues) {
+        if (rawValues == null || rawValues.isEmpty()) {
+            return List.of();
+        }
+        return rawValues.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .flatMap(value -> Arrays.stream(value.split(",")))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .collect(java.util.stream.Collectors.collectingAndThen(
+                        java.util.stream.Collectors.toCollection(LinkedHashSet::new),
+                        List::copyOf
+                ));
+    }
+
+    private void validateDateRange(LocalDate fromDate, LocalDate toDate) {
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+    }
+
+    private OrderModel getOrderOrThrow(UUID orderId) {
+        return orderRepositoryPort.findById(orderId)
+                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
+    }
+
+    private PageResponse<OrderResponse> buildPageResponse(
+            Page<OrderResponse> resultPage,
+            int page,
+            int size,
+            Map<String, Long> statusCounts
+    ) {
+        return PageResponse.<OrderResponse>builder()
+                .recordList(resultPage.getContent())
+                .pagination(PageResponse.PaginationMetadata.builder()
+                        .totalRecords(resultPage.getTotalElements())
+                        .totalPages(resultPage.getTotalPages())
+                        .currentPage(page)
+                        .limit(size)
+                        .isFirst(resultPage.isFirst())
+                        .isLast(resultPage.isLast())
+                        .build())
+                .statusCounts(statusCounts)
+                .build();
+    }
+
+    private Map<String, Long> buildOrderStatusCounts(
+            List<OrderType> orderTypes,
+            List<OrderReceiveType> receiveTypes,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String search
+    ) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        counts.put("all", orderRepositoryPort.countAllOrders(orderTypes, receiveTypes, fromDate, toDate, search));
+        for (OrderStatus status : OrderStatus.values()) {
+            counts.put(
+                    status.name(),
+                    orderRepositoryPort.countOrdersByStatus(status, orderTypes, receiveTypes, fromDate, toDate, search)
+            );
+        }
+        return counts;
     }
 
 }

@@ -2,7 +2,7 @@ class LotteryTicket {
   const LotteryTicket({
     required this.id,
     required this.productId,
-    required this.productName,
+    required this.stationName,
     required this.ticketImg,
     required this.serialNumber,
     required this.numbers,
@@ -11,6 +11,7 @@ class LotteryTicket {
     required this.status,
     required this.statusDisplayName,
     required this.verified,
+    this.priceSnapshot,
     this.importedById,
     this.importedAt,
     this.verifiedById,
@@ -24,7 +25,7 @@ class LotteryTicket {
 
   final int id;
   final int? productId;
-  final String productName;
+  final String stationName;
   final String? ticketImg;
   final String serialNumber;
   final String numbers;
@@ -33,6 +34,7 @@ class LotteryTicket {
   final String status;
   final String statusDisplayName;
   final bool verified;
+  final int? priceSnapshot;
   final String? importedById;
   final DateTime? importedAt;
   final String? verifiedById;
@@ -47,7 +49,7 @@ class LotteryTicket {
     return LotteryTicket(
       id: (json['id'] as num?)?.toInt() ?? 0,
       productId: (json['productId'] as num?)?.toInt(),
-      productName: json['productName']?.toString() ?? '',
+      stationName: json['stationName']?.toString() ?? '',
       ticketImg: json['ticketImg']?.toString(),
       serialNumber: json['serialNumber']?.toString() ?? '',
       numbers: json['numbers']?.toString() ?? '',
@@ -56,6 +58,7 @@ class LotteryTicket {
       status: json['status']?.toString() ?? '',
       statusDisplayName: json['statusDisplayName']?.toString() ?? '',
       verified: json['verified'] as bool? ?? false,
+      priceSnapshot: (json['priceSnapshot'] as num?)?.toInt(),
       importedById: json['importedById']?.toString(),
       importedAt: _parseDateTime(json['importedAt']),
       verifiedById: json['verifiedById']?.toString(),
