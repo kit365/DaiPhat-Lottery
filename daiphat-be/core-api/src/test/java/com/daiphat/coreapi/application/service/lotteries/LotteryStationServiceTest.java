@@ -59,6 +59,9 @@ class LotteryStationServiceTest {
     @Mock
     private StoragePort storagePort;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
+
     private LotteryStationService lotteryStationService;
 
     private CreateLotteryStationRequest createRequest;
@@ -74,7 +77,8 @@ class LotteryStationServiceTest {
                 lotteryTicketRepositoryPort,
                 stationPrizeStructureSeeder,
                 lotteryStationApplicationMapper,
-                storagePort
+                storagePort,
+                applicationEventPublisher
         );
 
         createRequest = CreateLotteryStationRequest.builder()
@@ -84,6 +88,8 @@ class LotteryStationServiceTest {
                 .type(LotteryStationType.TRADITIONAL.name())
                 .numberLength(6)
                 .price(BigDecimal.valueOf(10000))
+                .drawDays(List.of(java.time.DayOfWeek.TUESDAY, java.time.DayOfWeek.WEDNESDAY))
+                .drawTime(java.time.LocalTime.of(16, 15))
                 .build();
 
         stationModel = LotteryStationModel.builder()
@@ -93,6 +99,8 @@ class LotteryStationServiceTest {
                 .type(LotteryStationType.TRADITIONAL)
                 .numberLength(6)
                 .price(BigDecimal.valueOf(10000))
+                .drawDays(List.of(java.time.DayOfWeek.TUESDAY, java.time.DayOfWeek.WEDNESDAY))
+                .drawTime(java.time.LocalTime.of(16, 15))
                 .build();
 
         savedStationModel = LotteryStationModel.builder()
@@ -104,6 +112,8 @@ class LotteryStationServiceTest {
                 .numberLength(6)
                 .price(BigDecimal.valueOf(10000))
                 .status(LotteryStationStatus.DRAFT)
+                .drawDays(List.of(java.time.DayOfWeek.TUESDAY, java.time.DayOfWeek.WEDNESDAY))
+                .drawTime(java.time.LocalTime.of(16, 15))
                 .build();
 
         stationResponse = LotteryStationResponse.builder()
@@ -173,6 +183,8 @@ class LotteryStationServiceTest {
                 .type(LotteryStationType.TRADITIONAL)
                 .price(BigDecimal.valueOf(10000))
                 .status(LotteryStationStatus.DRAFT)
+                .drawDays(List.of(java.time.DayOfWeek.TUESDAY, java.time.DayOfWeek.WEDNESDAY))
+                .drawTime(java.time.LocalTime.of(16, 15))
                 .build();
 
         UpdateLotteryStationRequest request = UpdateLotteryStationRequest.builder()
