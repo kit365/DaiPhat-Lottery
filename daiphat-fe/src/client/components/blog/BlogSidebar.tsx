@@ -97,7 +97,10 @@ export const BlogFeaturedWidget = () => {
                 key={post.id} 
                 className={`flex gap-3 group cursor-pointer ${isLast ? '' : 'border-b border-[#F4F6F8] pb-3 mb-3'}`} 
                 onClick={() => {
-                  navigate(`/blogs/detail/${post.id}`);
+                  if (!post.slug) {
+                    return;
+                  }
+                  navigate(`/blogs/detail/${post.slug}`);
                   window.scrollTo(0, 0);
                 }}
               >

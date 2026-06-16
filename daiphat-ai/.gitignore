@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ML / data (do not commit weights or raw ticket images)
+*.pt
+*.pth
+*.onnx
+data/raw/
+data/labeled/
+models/*.pt
+models/**/*.pt
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Env secrets
+.env
+.env.*

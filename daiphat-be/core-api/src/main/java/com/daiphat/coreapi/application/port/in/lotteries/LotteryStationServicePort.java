@@ -41,4 +41,6 @@ public interface LotteryStationServicePort {
     void recalculateInventory(Long id);
 
     int recalculateNextDrawDates();
+
+    int sendUpcomingDrawReminderNotifications();
 }

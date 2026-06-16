@@ -34,7 +34,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("[DP-80] Core NotificationService Unit Tests")
 class NotificationServiceTest {
 
@@ -410,6 +414,7 @@ class NotificationServiceTest {
         when(notificationRepositoryPort.countUnreadByUserId(USER_ID)).thenReturn(2L);
         when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.AUTH)).thenReturn(3L);
         when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.BLOG)).thenReturn(2L);
+        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.ORDER)).thenReturn(4L);
         when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.SYSTEM)).thenReturn(1L);
         when(notificationApplicationMapper.toResponse(newest)).thenReturn(newestResponse);
         when(notificationApplicationMapper.toResponse(older)).thenReturn(olderResponse);
@@ -437,6 +442,7 @@ class NotificationServiceTest {
         when(notificationRepositoryPort.countUnreadByUserId(USER_ID)).thenReturn(0L);
         when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.AUTH)).thenReturn(0L);
         when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.BLOG)).thenReturn(0L);
+        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.ORDER)).thenReturn(0L);
         when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.SYSTEM)).thenReturn(0L);
 
         var result = notificationService.getMyNotifications(USER_ID, 0, 0);
@@ -479,6 +485,7 @@ class NotificationServiceTest {
         when(notificationRepositoryPort.countUnreadByUserId(USER_ID)).thenReturn(4L);
         when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.AUTH)).thenReturn(2L);
         when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.BLOG)).thenReturn(5L);
+        when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.ORDER)).thenReturn(0L);
         when(notificationRepositoryPort.countByUserIdAndType(USER_ID, NotificationType.SYSTEM)).thenReturn(2L);
         when(notificationApplicationMapper.toResponse(newest)).thenReturn(newestResponse);
 

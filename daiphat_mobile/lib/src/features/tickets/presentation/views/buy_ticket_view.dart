@@ -739,9 +739,11 @@ class TicketDetailView extends ConsumerWidget {
                       child: OutlinedButton.icon(
                         onPressed: () {
                           final cartItem = CartItemData(
+                            lotteryTicketId: resolvedTicket.id,
                             province: resolvedTicket.stationDisplayText,
                             dateLabel: _detailDate(resolvedTicket),
-                            prizeLabel: resolvedTicket.titleText,
+                            drawTime: '',
+                            kyHieu: resolvedTicket.batchCode ?? '',
                             number: resolvedTicket.code,
                             quantity: 1,
                             unitPrice: resolvedTicket.price ?? 0,
@@ -783,9 +785,11 @@ class TicketDetailView extends ConsumerWidget {
                       child: ElevatedButton.icon(
                         onPressed: () {
                           final cartItem = CartItemData(
+                            lotteryTicketId: resolvedTicket.id,
                             province: resolvedTicket.stationDisplayText,
                             dateLabel: _detailDate(resolvedTicket),
-                            prizeLabel: resolvedTicket.titleText,
+                            drawTime: '',
+                            kyHieu: resolvedTicket.batchCode ?? '',
                             number: resolvedTicket.code,
                             quantity: 1,
                             unitPrice: resolvedTicket.price ?? 0,

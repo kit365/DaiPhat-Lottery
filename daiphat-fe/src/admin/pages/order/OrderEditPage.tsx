@@ -60,7 +60,7 @@ export const OrderEditPage = () => {
 
     useEffect(() => {
         if (order) {
-            setSelectedUser(order.userId || { fullName: order.fullName, phone: order.phone, address: order.address, _id: order.userId?._id });
+            setSelectedUser(order.userId || { fullName: order.fullName, phone: order.phone, _id: order.userId?._id });
             setItems(order.items?.map((item: any) => ({
                 ticketId: item.ticketId?._id || item.ticketId,
                 name: item.name,
@@ -132,7 +132,6 @@ export const OrderEditPage = () => {
             userId: selectedUser._id,
             fullName: selectedUser.fullName,
             phone: selectedUser.phone,
-            address: selectedUser.address || "N/A",
             items: items.map(item => ({
                 ticketId: item.ticketId,
                 quantity: item.quantity,
@@ -221,7 +220,6 @@ export const OrderEditPage = () => {
                                 <Box sx={{ mt: 2, p: 2, bgcolor: 'var(--palette-background-neutral)', borderRadius: 1 }}>
                                     <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{selectedUser.fullName}</Typography>
                                     <Typography variant="body2" color="text.secondary">{selectedUser.phone}</Typography>
-                                    <Typography variant="body2" color="text.secondary">{selectedUser.address || "Chưa có địa chỉ"}</Typography>
                                 </Box>
                             )}
                         </Card>

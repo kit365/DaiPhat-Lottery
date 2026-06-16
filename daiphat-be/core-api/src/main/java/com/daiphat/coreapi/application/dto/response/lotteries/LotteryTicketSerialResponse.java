@@ -25,6 +25,10 @@ public record LotteryTicketSerialResponse(
         @JsonView(Views.Admin.class) LocalDateTime verifiedAt,
         @JsonView(Views.Admin.class) LocalDateTime returnedAt,
         @JsonView(Views.Admin.class) String damagedEvidenceUrl,
-        @JsonView(Views.Admin.class) String damagedReason
+        @JsonView(Views.Admin.class) String damagedReason,
+        @JsonView(Views.Admin.class) LocalDateTime createdAt,
+        @JsonView(Views.Admin.class) LocalDateTime updatedAt,
+        @JsonView(Views.Admin.class) String createdBy,
+        @JsonView(Views.Admin.class) String lastModifiedBy
 ) {
 }
