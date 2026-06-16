@@ -14,7 +14,6 @@ import { OrdersTab } from './client/pages/profile/tabs/OrdersTab';
 import { OrderDetailTab } from './client/pages/profile/tabs/OrderDetailTab';
 import { FavoritesTab } from './client/pages/profile/tabs/FavoritesTab';
 import { NotificationsTab } from './client/pages/profile/tabs/NotificationsTab';
-import { AddressTab } from './client/pages/profile/tabs/AddressTab';
 import { SecurityTab } from './client/pages/profile/tabs/SecurityTab';
 
 import { BlogListPage } from './client/pages/BlogListPage';
@@ -95,7 +94,6 @@ function App() {
               <Route path="tickets" element={<TicketsTab />} />
               <Route path="favorites" element={<FavoritesTab />} />
               <Route path="notifications" element={<NotificationsTab />} />
-              <Route path="address" element={<AddressTab />} />
               <Route path="settings" element={<SecurityTab />} />
             </Route>
           </Route>
