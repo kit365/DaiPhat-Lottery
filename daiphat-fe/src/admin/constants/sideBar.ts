@@ -88,6 +88,13 @@ export const menuManagementData = [
             { id: "expired", label: "Vé hết hạn quay", path: ROUTES.ADMIN.TICKETS.EXPIRED, permission: PERMISSIONS.TICKET.VIEW },
         ]
     },
+    {
+        id: "orders",
+        label: "Đơn mua hộ",
+        Icon: ArticleIcon,
+        path: ROUTES.ADMIN.ORDERS.LIST,
+        permission: PERMISSIONS.TICKET.VIEW,
+    },
 ];
 
 export const menuDevelopmentData = [
@@ -101,13 +108,6 @@ export const menuDevelopmentData = [
             { id: "create", label: "Tạo tiện ích mới", path: ROUTES.ADMIN.TICKET_SERVICES.CREATE, permission: PERMISSIONS.TICKET_SERVICE.CREATE },
             { id: "category", label: "Danh mục tiện ích", path: ROUTES.ADMIN.TICKET_SERVICES.CATEGORIES, permission: PERMISSIONS.TICKET_SERVICE.VIEW },
         ]
-    },
-    {
-        id: "orders",
-        label: "Đơn mua hộ",
-        Icon: ArticleIcon,
-        path: ROUTES.ADMIN.ORDERS.LIST,
-        permission: PERMISSIONS.TICKET.VIEW,
     },
     {
         id: "ticketServiceOrders",

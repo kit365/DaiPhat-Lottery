@@ -28,9 +28,10 @@ interface JiraFilterProps {
     selectedFilters: Record<string, string[]>;
     onFilterChange: (fieldId: string, values: string[]) => void;
     onClearAll: () => void;
+    trigger?: (props: { onClick: (e: React.MouseEvent<HTMLButtonElement>) => void; totalFilterCount: number }) => React.ReactNode;
 }
 
-export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters, onFilterChange, onClearAll }) => {
+export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters, onFilterChange, onClearAll, trigger }) => {
     const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
     const [activeTabId, setActiveTabId] = useState<string>(fields[0]?.id || '');
     const [searchQuery, setSearchQuery] = useState('');
@@ -88,45 +89,47 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
 
     return (
         <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <Button
-                    aria-describedby={id}
-                    variant={totalFilterCount > 0 ? "contained" : "outlined"}
-                    onClick={handleClick}
-                    startIcon={<FilterListIcon sx={{ fontSize: '1.25rem', mr: '-4px' }} />}
-                    sx={{
-                        textTransform: 'none',
-                        color: totalFilterCount > 0 ? '#fff' : '#42526E',
-                        backgroundColor: totalFilterCount > 0 ? '#00A76F' : '#091E420F',
-                        borderColor: totalFilterCount > 0 ? '#00A76F' : 'transparent',
-                        fontWeight: 500,
-                        height: '32px',
-                        padding: '0 12px',
-                        '&:hover': {
-                            backgroundColor: totalFilterCount > 0 ? '#007851' : '#091E4224',
-                            borderColor: totalFilterCount > 0 ? '#007851' : 'transparent',
-                        },
-                        boxShadow: 'none',
-                        borderRadius: '3px'
-                    }}
-                >
-                    Bộ lọc {totalFilterCount > 0 && <span style={{ marginLeft: '6px', background: '#fff', color: '#00A76F', borderRadius: '10px', padding: '0 6px', fontSize: '11px', fontWeight: 700 }}>{totalFilterCount}</span>}
-                </Button>
-                {totalFilterCount > 0 && (
-                    <Button 
-                        variant="text" 
-                        onClick={onClearAll}
-                        sx={{ 
-                            textTransform: 'none', 
-                            color: '#42526E', 
+            {trigger ? trigger({ onClick: handleClick, totalFilterCount }) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <Button
+                        aria-describedby={id}
+                        variant={totalFilterCount > 0 ? "contained" : "outlined"}
+                        onClick={handleClick}
+                        startIcon={<FilterListIcon sx={{ fontSize: '1.25rem', mr: '-4px' }} />}
+                        sx={{
+                            textTransform: 'none',
+                            color: totalFilterCount > 0 ? '#fff' : '#42526E',
+                            backgroundColor: totalFilterCount > 0 ? '#00A76F' : '#091E420F',
+                            borderColor: totalFilterCount > 0 ? '#00A76F' : 'transparent',
                             fontWeight: 500,
-                            '&:hover': { background: 'transparent', textDecoration: 'underline' } 
+                            height: '32px',
+                            padding: '0 12px',
+                            '&:hover': {
+                                backgroundColor: totalFilterCount > 0 ? '#007851' : '#091E4224',
+                                borderColor: totalFilterCount > 0 ? '#007851' : 'transparent',
+                            },
+                            boxShadow: 'none',
+                            borderRadius: '3px'
                         }}
                     >
-                        Xóa tất cả bộ lọc
+                        Bộ lọc {totalFilterCount > 0 && <span style={{ marginLeft: '6px', background: '#fff', color: '#00A76F', borderRadius: '10px', padding: '0 6px', fontSize: '11px', fontWeight: 700 }}>{totalFilterCount}</span>}
                     </Button>
-                )}
-            </div>
+                    {totalFilterCount > 0 && (
+                        <Button 
+                            variant="text" 
+                            onClick={onClearAll}
+                            sx={{ 
+                                textTransform: 'none', 
+                                color: '#42526E', 
+                                fontWeight: 500,
+                                '&:hover': { background: 'transparent', textDecoration: 'underline' } 
+                            }}
+                        >
+                            Xóa tất cả bộ lọc
+                        </Button>
+                    )}
+                </div>
+            )}
 
             <Popover
                 id={id}
