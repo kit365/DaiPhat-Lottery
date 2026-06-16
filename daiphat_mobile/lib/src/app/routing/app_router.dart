@@ -8,6 +8,8 @@ import 'package:daiphat_mobile/src/features/profile/presentation/viewmodels/prof
 import 'package:daiphat_mobile/src/features/tickets/presentation/views/buy_ticket_view.dart';
 import 'package:daiphat_mobile/src/features/cart/presentation/views/cart_view.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/views/checkout_view.dart';
+import 'package:daiphat_mobile/src/features/checkout/presentation/views/checkout_result_view.dart';
+import 'package:daiphat_mobile/src/features/checkout/presentation/views/payment_webview.dart';
 import 'package:daiphat_mobile/src/features/home/presentation/views/home_view.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/views/login_view.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/views/register_view.dart';
@@ -33,6 +35,53 @@ GoRouter createAppRouter({
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: AppRoute.home.path,
+    // Handle deep links from PayOS redirect
+    redirect: (context, state) {
+      final uri = state.uri;
+
+      // Deep link: daiphat://payment?code=...&orderCode=...
+      if (uri.scheme == 'daiphat' && uri.host == 'payment') {
+        final queryParams = uri.queryParameters;
+        // Redirect to checkout result with payment params
+        return Uri(
+          path: AppRoute.checkoutResult.path,
+          queryParameters: {
+            if (queryParams.containsKey('code')) 'code': queryParams['code']!,
+            if (queryParams.containsKey('orderCode'))
+              'orderCode': queryParams['orderCode']!,
+            if (queryParams.containsKey('internalCode'))
+              'internalCode': queryParams['internalCode']!,
+            if (queryParams.containsKey('status'))
+              'status': queryParams['status']!,
+            if (queryParams.containsKey('cancel'))
+              'cancel': queryParams['cancel']!,
+          },
+        ).toString();
+      }
+
+      // Deep link: https://dai-phat.vn/payment?code=...&orderCode=...
+      if (uri.scheme == 'https' &&
+          uri.host.contains('dai-phat') &&
+          uri.path.startsWith('/payment')) {
+        final queryParams = uri.queryParameters;
+        return Uri(
+          path: AppRoute.checkoutResult.path,
+          queryParameters: {
+            if (queryParams.containsKey('code')) 'code': queryParams['code']!,
+            if (queryParams.containsKey('orderCode'))
+              'orderCode': queryParams['orderCode']!,
+            if (queryParams.containsKey('internalCode'))
+              'internalCode': queryParams['internalCode']!,
+            if (queryParams.containsKey('status'))
+              'status': queryParams['status']!,
+            if (queryParams.containsKey('cancel'))
+              'cancel': queryParams['cancel']!,
+          },
+        ).toString();
+      }
+
+      return null; // No redirect
+    },
     routes: [
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -106,6 +155,22 @@ GoRouter createAppRouter({
         notificationViewModel,
       ),
       _route(
+        AppRoute.checkoutResult,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.paymentWebView,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
         AppRoute.profileEdit,
         loginViewModel,
         registerViewModel,
@@ -115,6 +180,14 @@ GoRouter createAppRouter({
       ),
       _route(
         AppRoute.profileDetail,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
+      _route(
+        AppRoute.deepLinkPayment,
         loginViewModel,
         registerViewModel,
         forgotPasswordViewModel,
@@ -147,6 +220,7 @@ GoRoute _route(
     name: route.name,
     builder: (context, state) => _buildRoute(
       route,
+      state,
       loginViewModel,
       registerViewModel,
       forgotPasswordViewModel,
@@ -158,6 +232,7 @@ GoRoute _route(
 
 Widget _buildRoute(
   AppRoute route,
+  GoRouterState state,
   LoginViewModel loginViewModel,
   RegisterViewModel registerViewModel,
   ForgotPasswordViewModel forgotPasswordViewModel,
@@ -182,14 +257,50 @@ Widget _buildRoute(
       return const CartView();
     case AppRoute.checkout:
       return const CheckoutView();
+    case AppRoute.checkoutResult:
+      final code = state.uri.queryParameters['code'];
+      final orderCode = state.uri.queryParameters['orderCode'];
+      final internalCode = state.uri.queryParameters['internalCode'];
+      final status = state.uri.queryParameters['status'];
+      final cancel = state.uri.queryParameters['cancel'];
+      final checkoutUrl = state.uri.queryParameters['checkoutUrl'];
+      return CheckoutResultView(
+        code: code,
+        orderCode: orderCode,
+        internalCode: internalCode,
+        status: status,
+        cancel: cancel,
+        checkoutUrl: checkoutUrl,
+      );
+    case AppRoute.paymentWebView:
+      final checkoutUrl = state.uri.queryParameters['checkoutUrl'] ?? '';
+      final callbackBaseUrl = state.uri.queryParameters['callbackBaseUrl'];
+      return PaymentWebView(
+        checkoutUrl: checkoutUrl,
+        callbackBaseUrl: callbackBaseUrl,
+      );
     case AppRoute.profile:
       return ProfileView(viewModel: profileViewModel);
     case AppRoute.profileEdit:
       return ProfileEditView(viewModel: profileViewModel);
     case AppRoute.profileDetail:
       return ProfileDetailView(viewModel: profileViewModel);
+    case AppRoute.deepLinkPayment:
+      // This route is handled by the redirect above; if somehow reached
+      // directly, forward to checkout result
+      final code = state.uri.queryParameters['code'];
+      final orderCode = state.uri.queryParameters['orderCode'];
+      final internalCode = state.uri.queryParameters['internalCode'];
+      final status = state.uri.queryParameters['status'];
+      final cancel = state.uri.queryParameters['cancel'];
+      return CheckoutResultView(
+        code: code,
+        orderCode: orderCode,
+        internalCode: internalCode,
+        status: status,
+        cancel: cancel,
+      );
     case AppRoute.notifications:
       return NotificationView(viewModel: notificationViewModel);
   }
 }
-
