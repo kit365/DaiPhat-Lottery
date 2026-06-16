@@ -18,6 +18,7 @@ export const TicketDetailPage = () => {
     const providers = (providersRes as any)?.data?.recordList || [];
 
     const [expandedDetail, setExpandedDetail] = useState(true);
+    const [expandedSerials, setExpandedSerials] = useState(true);
     const outerTheme = useTheme();
 
     const localTheme = useMemo(() => createTheme(outerTheme, {
@@ -48,6 +49,14 @@ export const TicketDetailPage = () => {
     const providerId = ticketDetail.stationId || ticketDetail.productId || ticketDetail.providerId;
     const provider = providers.find((p: any) => (p.id || p._id)?.toString() === providerId?.toString());
     const providerName = provider ? provider.name : 'Không xác định';
+    const canEditTicket = ["IN_STOCK", "ISSUER_FAULT"].includes((ticketDetail.status || "").toUpperCase())
+        && !(ticketDetail.serials || []).some((serial: any) => ["RESERVED", "SOLD"].includes((serial.status || "").toUpperCase()));
+    const ticketStatus = (ticketDetail.status || "").toUpperCase();
+    const ticketStatusColor =
+        ticketStatus === "IN_STOCK" ? "success" :
+        ticketStatus === "SOLD_OUT" || ticketStatus === "EXPIRED" ? "warning" :
+        ticketStatus === "SOLD" || ticketStatus === "INTERNAL_FAULT" || ticketStatus === "ISSUER_FAULT" ? "error" :
+        "default";
 
     return (
         <>
@@ -62,7 +71,12 @@ export const TicketDetailPage = () => {
                         ]}
                     />
                 </div>
-                <Button variant="contained" color="primary" onClick={() => navigate(`/${prefixAdmin}/ticket/edit/${id}`)}>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    disabled={!canEditTicket}
+                    onClick={() => navigate(`/${prefixAdmin}/ticket/edit/${id}`)}
+                >
                     Chỉnh sửa
                 </Button>
             </div>
@@ -118,11 +132,11 @@ export const TicketDetailPage = () => {
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Trạng thái</Typography>
                                     <Box mt={0.5}>
-                                        {ticketDetail.status === 'SOLD' ? (
-                                            <Chip label="Đã bán" color="error" size="small" />
-                                        ) : (
-                                            <Chip label="Trong kho" color="success" size="small" />
-                                        )}
+                                        <Chip
+                                            label={ticketDetail.statusDisplayName || ticketDetail.status || "N/A"}
+                                            color={ticketStatusColor as any}
+                                            size="small"
+                                        />
                                     </Box>
                                 </Box>
                             </Box>
@@ -159,6 +173,77 @@ export const TicketDetailPage = () => {
                                     </Box>
                                 )}
                             </Box>
+                        </Stack>
+                    </CollapsibleCard>
+
+                    <CollapsibleCard
+                        title={"Danh sách sê-ri"}
+                        subheader={"Thông tin từng tờ vé vật lý trong cùng ticket"}
+                        expanded={expandedSerials}
+                        onToggle={() => setExpandedSerials(!expandedSerials)}
+                    >
+                        <Stack p="calc(3 * var(--spacing))" gap="calc(2 * var(--spacing))">
+                            {(ticketDetail.serials || []).length === 0 ? (
+                                <Typography variant="body2" color="text.secondary">Không có sê-ri.</Typography>
+                            ) : (
+                                (ticketDetail.serials || []).map((serial: any, index: number) => (
+                                    <Box
+                                        key={serial.id || index}
+                                        sx={{
+                                            p: 2.5,
+                                            border: "1px solid var(--palette-divider)",
+                                            borderRadius: 2,
+                                        }}
+                                    >
+                                        <Stack gap={2}>
+                                            <Typography variant="subtitle2" fontWeight={700}>
+                                                Sê-ri #{index + 1}
+                                            </Typography>
+                                            <Box
+                                                sx={{
+                                                    display: "grid",
+                                                    gridTemplateColumns: "repeat(12, 1fr)",
+                                                    gap: "calc(2 * var(--spacing))",
+                                                }}
+                                            >
+                                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
+                                                    <Typography variant="caption" color="text.secondary">Số sê-ri</Typography>
+                                                    <Typography variant="body2" fontWeight={600}>{serial.serialNumber || "N/A"}</Typography>
+                                                </Box>
+                                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
+                                                    <Typography variant="caption" color="text.secondary">Trạng thái</Typography>
+                                                    <Typography variant="body2" fontWeight={600}>{serial.statusDisplayName || serial.status || "N/A"}</Typography>
+                                                </Box>
+                                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
+                                                    <Typography variant="caption" color="text.secondary">Ngày tạo</Typography>
+                                                    <Typography variant="body2" fontWeight={600}>
+                                                        {serial.createdAt ? dayjs(serial.createdAt).format("DD/MM/YYYY HH:mm") : "N/A"}
+                                                    </Typography>
+                                                </Box>
+                                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
+                                                    <Typography variant="caption" color="text.secondary">Người tạo</Typography>
+                                                    <Typography variant="body2" fontWeight={600}>{serial.createdBy || "N/A"}</Typography>
+                                                </Box>
+                                            </Box>
+
+                                            {serial.ticketImg ? (
+                                                <Box
+                                                    component="img"
+                                                    src={serial.ticketImg}
+                                                    sx={{
+                                                        width: 160,
+                                                        maxWidth: "100%",
+                                                        height: 160,
+                                                        objectFit: "cover",
+                                                        borderRadius: 1.5,
+                                                        border: "1px solid #DFE1E6",
+                                                    }}
+                                                />
+                                            ) : null}
+                                        </Stack>
+                                    </Box>
+                                ))
+                            )}
                         </Stack>
                     </CollapsibleCard>
 

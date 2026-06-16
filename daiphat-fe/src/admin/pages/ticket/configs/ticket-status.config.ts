@@ -18,16 +18,13 @@ export const TICKET_STATUS_OPTIONS: TicketStatusOption[] = [
 ];
 
 /**
- * Luồng chuyển trạng thái hợp lệ — khớp LotteryTicketModel (reserve, sellOnline, …).
+ * Chỉ cho phép các transition ngoại lệ do admin/operator xử lý thủ công.
  * Key = trạng thái hiện tại, value = các trạng thái có thể chọn.
  */
 export const TICKET_STATUS_TRANSITIONS: Record<string, string[]> = {
-    IN_STOCK: ["RESERVED", "SOLD", "PROXY_HOLDING", "INTERNAL_FAULT", "ISSUER_FAULT"],
-    SOLD_OUT: ["SOLD", "PROXY_HOLDING", "INTERNAL_FAULT", "ISSUER_FAULT"],
-    RESERVED: ["SOLD", "INTERNAL_FAULT", "ISSUER_FAULT"],
-    SOLD: ["PENDING_RETURN"],
-    PROXY_HOLDING: ["PENDING_RETURN", "INTERNAL_FAULT", "ISSUER_FAULT"],
-    PENDING_RETURN: ["RETURNED"],
+    IN_STOCK: ["SOLD_OUT", "EXPIRED"],
+    SOLD_OUT: ["IN_STOCK", "EXPIRED"],
+    EXPIRED: [],
 };
 
 export const normalizeTicketStatus = (status?: string | null): string => {
@@ -62,7 +59,7 @@ export const getTicketStatusTransitionHint = (currentStatus?: string | null): st
     const normalized = normalizeTicketStatus(currentStatus);
     const nextStatuses = TICKET_STATUS_TRANSITIONS[normalized] || [];
     if (nextStatuses.length === 0) {
-        return "Trạng thái hiện tại không thể chuyển thủ công.";
+        return "Trạng thái này do hệ thống tự tính, không thể đổi thủ công.";
     }
     return `Có thể chuyển sang: ${nextStatuses.map(getTicketStatusLabel).join(", ")}.`;
 };

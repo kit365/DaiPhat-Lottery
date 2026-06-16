@@ -4,5 +4,6 @@ public enum NotificationReferenceType {
     AUTH,
     BLOG_POST,
     ORDER,
+    LOTTERY_STATION,
     SYSTEM
 }

@@ -20,6 +20,7 @@ export const NOTIFICATION_REFERENCE_TYPE = {
     AUTH: "AUTH",
     BLOG_POST: "BLOG_POST",
     ORDER: "ORDER",
+    LOTTERY_STATION: "LOTTERY_STATION",
     SYSTEM: "SYSTEM",
 } as const;
 
