@@ -10,6 +10,9 @@ import 'package:daiphat_mobile/src/app/app.dart';
 import 'package:daiphat_mobile/src/app/dependencies/app_dependencies.dart';
 import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/services/notification_service.dart';
+import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
+import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
+import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -21,9 +24,7 @@ Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await NotificationService().init();
 
@@ -32,10 +33,15 @@ Future<void> bootstrap() async {
 
   final dependencies = await AppDependencies.create();
 
+  final orderService = OrderService(dependencies.apiClient);
+  final transactionService = TransactionService(dependencies.apiClient);
+
   runApp(
     ProviderScope(
       overrides: [
         apiClientProvider.overrideWithValue(dependencies.apiClient),
+        orderServiceProvider.overrideWithValue(orderService),
+        transactionServiceProvider.overrideWithValue(transactionService),
       ],
       child: DaiPhatMobileApp(router: dependencies.router),
     ),
