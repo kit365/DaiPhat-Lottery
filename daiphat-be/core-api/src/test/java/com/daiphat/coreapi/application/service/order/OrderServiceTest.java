@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePor
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategyFactory;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
@@ -54,6 +55,7 @@ class OrderServiceTest {
     private final LotteryTicketServicePort lotteryTicketServicePort = mock(LotteryTicketServicePort.class);
     private final UserLookupServicePort userLookupServicePort = mock(UserLookupServicePort.class);
     private final PaymentCountdownCachePort paymentCountdownCachePort = mock(PaymentCountdownCachePort.class);
+    private final PaymentGatewayStrategyFactory paymentGatewayStrategyFactory = mock(PaymentGatewayStrategyFactory.class);
 
     private OrderService orderService;
 
@@ -64,7 +66,8 @@ class OrderServiceTest {
                 lotteryTicketServicePort,
                 userLookupServicePort,
                 Mappers.getMapper(OrderApplicationMapper.class),
-                paymentCountdownCachePort
+                paymentCountdownCachePort,
+                paymentGatewayStrategyFactory
         );
     }
 
