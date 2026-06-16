@@ -1,0 +1,21 @@
+[project]
+name = "daiphat-ai"
+version = "0.1.0"
+description = "DaiPhat AI services monorepo (ticket vision, analytics)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+
+[tool.uv.workspace]
+members = [
+    "libs/*",
+    "services/*",
+]
+
+# Phase 1: add service dependencies here
+# [project.optional-dependencies]
+# dev = ["ruff", "pytest"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
