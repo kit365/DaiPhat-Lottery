@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -37,14 +38,17 @@ public class UserEntity extends BaseEntity {
     @Column(name = "last_name", length = 50)
     private String lastName;
 
-    @Column(length = 500)
-    private String address;
-
     @Column(name = "image_public_id", length = 255)
     private String imagePublicId;
 
     @Column(name = "image_url", length = 500)
     private String imageUrl;
+
+    @Column(length = 20)
+    private String gender;
+
+    @Column
+    private LocalDate dob;
 
     @Column(length = 20)
     private String zodiac;

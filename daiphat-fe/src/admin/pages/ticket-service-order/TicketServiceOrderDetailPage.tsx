@@ -962,7 +962,7 @@ export const TicketServiceOrderDetailPage = () => {
                                 <Box>
                                     <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block' }}>Địa chỉ</Typography>
                                     <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                        {ticketServiceOrder.userId?.address || "Tại cửa hàng"}
+                                        Tại cửa hàng
                                     </Typography>
                                 </Box>
                                 <Box>

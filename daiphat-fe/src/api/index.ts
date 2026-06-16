@@ -37,11 +37,42 @@ interface PendingRequest {
 let isRefreshing = false;
 let failedQueue: PendingRequest[] = [];
 
+const AUTH_REQUIRED_PATHS = [
+    "/users/me",
+    "/notifications/me",
+    "/orders/my-orders",
+    "/transactions/",
+];
+
 const clearAuthSession = () => {
     const authStore = useAuthStore.getState();
     authStore.logout();
     Cookies.remove(STORAGE_KEYS.TOKEN, { path: "/" });
     Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: "/" });
+};
+
+const isAuthEndpoint = (url?: string) => {
+    if (!url) {
+        return false;
+    }
+
+    return url.includes("/auth/login") || url.includes("/auth/refresh-token");
+};
+
+const isAuthRequiredRequest = (url?: string) => {
+    if (!url) {
+        return false;
+    }
+
+    return AUTH_REQUIRED_PATHS.some((path) => url.includes(path));
+};
+
+const handleExpiredSession = (showToast: boolean = true) => {
+    clearAuthSession();
+
+    if (showToast) {
+        AppToast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+    }
 };
 
 const persistAccessToken = (accessToken: string, expiresIn?: number) => {
@@ -83,11 +114,7 @@ apiApp.interceptors.response.use(
 
             if (status === 401 && originalRequest && !originalRequest._retry) {
                 // Skip refresh logic for auth endpoints (login, refresh-token itself)
-                const isAuthEndpoint = 
-                    originalRequest.url?.includes('/auth/login') ||
-                    originalRequest.url?.includes('/auth/refresh-token');
-
-                if (isAuthEndpoint) {
+                if (isAuthEndpoint(originalRequest.url)) {
                     // For login endpoint: just show the real error from backend
                     // Don't clear session, don't redirect, don't show "session expired"
                     if (originalRequest.url?.includes('/auth/refresh-token')) {
@@ -128,15 +155,13 @@ apiApp.interceptors.response.use(
                                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                                 resolve(apiApp(originalRequest));
                             } else {
-                                clearAuthSession();
-                                AppToast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+                                handleExpiredSession();
                                 reject(new Error("No access token returned"));
                             }
                         })
                         .catch((err) => {
                             processQueue(err, null);
-                            clearAuthSession();
-                            AppToast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+                            handleExpiredSession();
                             reject(err);
                         })
                         .finally(() => {
@@ -145,15 +170,16 @@ apiApp.interceptors.response.use(
                 });
             }
 
+            if (status === 403 && isAuthRequiredRequest(originalRequest?.url)) {
+                handleExpiredSession();
+                return Promise.reject(error);
+            }
+
             switch (status) {
                 case 401: {
                     // Don't clear session or show session expired for auth endpoints
-                    const isAuthEndpoint = 
-                        originalRequest?.url?.includes('/auth/login') ||
-                        originalRequest?.url?.includes('/auth/refresh-token');
-                    if (!isAuthEndpoint) {
-                        clearAuthSession();
-                        AppToast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+                    if (!isAuthEndpoint(originalRequest?.url)) {
+                        handleExpiredSession();
                     }
                     break;
                 }

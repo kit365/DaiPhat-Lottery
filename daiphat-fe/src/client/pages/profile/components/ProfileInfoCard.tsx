@@ -1,6 +1,6 @@
 import React from 'react';
-import { User } from "../../../types/user.type";
-import { Edit2, Mail, Phone, MapPin, Calendar, MessageSquare } from "lucide-react";
+import { User } from "../../../../types/user.type";
+import { Edit2, Mail, Phone, Calendar, MessageSquare, User as UserIcon } from "lucide-react";
 
 interface ProfileInfoCardProps {
     user: User;
@@ -63,10 +63,18 @@ export const ProfileInfoCard: React.FC<ProfileInfoCardProps> = ({ user, onEdit }
                     </div>
 
                     <div className="flex flex-col gap-1">
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Địa chỉ</span>
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Giới tính</span>
                         <div className="flex items-start gap-3 text-sm font-bold text-[#102937]">
-                            <MapPin size={16} className="text-slate-300 mt-0.5 shrink-0" />
-                            <span className="leading-relaxed">{user.address || "Chưa cập nhật"}</span>
+                            <UserIcon size={16} className="text-slate-300 mt-0.5 shrink-0" />
+                            <span className="leading-relaxed">{user.gender === 'MALE' ? 'Nam' : user.gender === 'FEMALE' ? 'Nữ' : 'Khác'}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Ngày sinh</span>
+                        <div className="flex items-start gap-3 text-sm font-bold text-[#102937]">
+                            <Calendar size={16} className="text-slate-300 mt-0.5 shrink-0" />
+                            <span className="leading-relaxed">{user.dob ? new Date(user.dob).toLocaleDateString('vi-VN') : "Chưa cập nhật"}</span>
                         </div>
                     </div>
 
