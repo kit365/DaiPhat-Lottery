@@ -388,14 +388,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         return lotteryTicketApplicationMapper.toResponseDetail(model, serials, stationName);
     }
 
-    private LotteryTicketResponse mapToDetailResponse(LotteryTicketModel model) {
-        List<LotteryTicketSerialModel> serials = lotteryTicketSerialService.findAllByTicketId(model.getId());
-        String stationName = lotteryStationServicePort.findModelById(model.getStationId())
-                .map(LotteryStationModel::getName)
-                .orElse(null);
-        return lotteryTicketApplicationMapper.toResponseDetail(model, serials, stationName);
-    }
-
     private LotteryTicketResponse mapToResponse(
             LotteryTicketModel model,
             LotteryTicketSerialModel serial,
