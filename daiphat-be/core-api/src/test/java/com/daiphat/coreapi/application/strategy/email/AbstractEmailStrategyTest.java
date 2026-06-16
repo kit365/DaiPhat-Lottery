@@ -7,7 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.ITemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.util.Map;
@@ -23,12 +23,12 @@ import static org.mockito.Mockito.when;
 class AbstractEmailStrategyTest {
 
     private MailPort mailPort;
-    private TemplateEngine templateEngine;
+    private ITemplateEngine templateEngine;
 
     @BeforeEach
     void setUp() {
         mailPort = mock(MailPort.class);
-        templateEngine = mock(TemplateEngine.class);
+        templateEngine = mock(ITemplateEngine.class);
     }
 
     @Test
@@ -75,7 +75,7 @@ class AbstractEmailStrategyTest {
 
     private static class TestEmailStrategy extends AbstractEmailStrategy {
 
-        TestEmailStrategy(MailPort mailPort, TemplateEngine templateEngine) {
+        TestEmailStrategy(MailPort mailPort, ITemplateEngine templateEngine) {
             super(mailPort, templateEngine);
         }
 

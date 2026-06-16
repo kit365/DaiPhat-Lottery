@@ -427,7 +427,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         try {
             return LotteryTicketStatus.valueOf(status.toUpperCase());
         } catch (IllegalArgumentException ignored) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+            return null;
         }
     }
 
@@ -438,7 +438,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         try {
             return LocalDate.parse(drawDate);
         } catch (DateTimeParseException ignored) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_DRAW_DATE_INVALID);
+            return null;
         }
     }
 

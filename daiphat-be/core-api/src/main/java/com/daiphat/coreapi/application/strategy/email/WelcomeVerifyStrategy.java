@@ -4,7 +4,7 @@ import com.daiphat.coreapi.application.config.AuthProperties;
 import com.daiphat.coreapi.application.port.out.mail.MailPort;
 import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import org.springframework.stereotype.Component;
-import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.ITemplateEngine;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +16,7 @@ public class WelcomeVerifyStrategy extends AbstractEmailStrategy {
 
     public WelcomeVerifyStrategy(
             MailPort mailPort,
-            TemplateEngine templateEngine,
+            ITemplateEngine templateEngine,
             AuthProperties authProperties
     ) {
         super(mailPort, templateEngine);
