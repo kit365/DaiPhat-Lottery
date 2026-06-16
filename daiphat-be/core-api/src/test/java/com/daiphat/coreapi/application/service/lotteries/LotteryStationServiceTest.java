@@ -19,10 +19,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -226,5 +230,61 @@ class LotteryStationServiceTest {
                 .matchFrom(matchFrom)
                 .displayOrder(displayOrder)
                 .build();
+    }
+
+    @Test
+    @DisplayName("[DP-551] sendUpcomingDrawReminderNotifications sends notifications for stations matching reminder time")
+    void sendUpcomingDrawReminderNotifications_sendsNotifications() {
+        // Arrange
+        ReflectionTestUtils.setField(lotteryStationService, "drawReminderMinutes", 30L);
+        LocalDate today = LocalDate.now();
+        LocalTime currentMinute = LocalTime.now().withSecond(0).withNano(0);
+
+        LotteryStationModel station1 = LotteryStationModel.builder()
+                .id(101L)
+                .name("Station 1")
+                .status(LotteryStationStatus.ACTIVE)
+                .drawTime(currentMinute.plusMinutes(30))
+                .build();
+
+        LotteryStationModel station2 = LotteryStationModel.builder()
+                .id(102L)
+                .name("Station 2")
+                .status(LotteryStationStatus.ACTIVE)
+                .drawTime(currentMinute.plusMinutes(30))
+                .build();
+
+        LotteryStationModel stationNotMatchingTime = LotteryStationModel.builder()
+                .id(103L)
+                .name("Station 3")
+                .status(LotteryStationStatus.ACTIVE)
+                .drawTime(currentMinute.plusMinutes(60)) // Does not match 30 min reminder
+                .build();
+
+        LotteryStationModel stationInactive = LotteryStationModel.builder()
+                .id(104L)
+                .name("Station 4")
+                .status(LotteryStationStatus.INACTIVE)
+                .drawTime(currentMinute.plusMinutes(30)) // Matches time but inactive
+                .build();
+
+        when(lotteryStationRepositoryPort.findByNextDrawDate(today))
+                .thenReturn(List.of(station1, station2, stationNotMatchingTime, stationInactive));
+
+        // Act
+        int result = lotteryStationService.sendUpcomingDrawReminderNotifications();
+
+        // Assert
+        assertThat(result).isEqualTo(1); // 1 group of matching draw time
+
+        ArgumentCaptor<com.daiphat.coreapi.application.event.LotteryStationDrawReminderEvent> captor =
+                ArgumentCaptor.forClass(com.daiphat.coreapi.application.event.LotteryStationDrawReminderEvent.class);
+        verify(applicationEventPublisher).publishEvent(captor.capture());
+
+        com.daiphat.coreapi.application.event.LotteryStationDrawReminderEvent event = captor.getValue();
+        assertThat(event.stationIds()).containsExactly(101L, 102L);
+        assertThat(event.stationNames()).containsExactly("Station 1", "Station 2");
+        assertThat(event.drawTime()).isEqualTo(currentMinute.plusMinutes(30));
+        assertThat(event.remainingMinutes()).isEqualTo(30L);
     }
 }
