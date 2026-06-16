@@ -9,6 +9,8 @@ export const QUERY_KEYS = {
     ACCOUNTS_ADMIN: 'accounts-admin',
     ACCOUNT_ADMIN_DETAIL: 'account-admin',
     STAFF_BY_TICKET_SERVICE: 'staff-by-ticketService',
+    ADMIN_ORDERS: 'admin-orders',
+    ADMIN_ORDER_DETAIL: 'admin-order',
 
     // User / Customer
     ACCOUNTS_USER: 'accounts-user',
@@ -36,4 +38,14 @@ export const QUERY_KEYS = {
     PROVIDER_DETAIL: 'provider',
     STATIONS_TODAY: 'stations-today',
     STATIONS_TOMORROW: 'stations-tomorrow',
+
+    // Order (Client)
+    CLIENT_ORDER_RECEIVE_TYPES: 'client-order-receive-types',
+    CLIENT_ORDER_STATUSES: 'client-order-statuses',
+    CLIENT_MY_ORDERS: 'client-my-orders',
+    CLIENT_MY_ORDER_DETAIL: 'client-my-order-detail',
+    CLIENT_PENDING_PAYMENT_COUNTDOWN: 'client-pending-payment-countdown',
+
+    // Transaction (Client)
+    CLIENT_TRANSACTION_TYPES: 'client-transaction-types',
 } as const;
