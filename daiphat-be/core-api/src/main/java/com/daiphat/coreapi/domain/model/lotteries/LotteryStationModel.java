@@ -5,8 +5,11 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -34,8 +37,8 @@ public class LotteryStationModel {
     private Integer inventoryCount = 0;
 
     // Lịch quay
-    private String drawSchedule;
-    private String drawTime;
+    private List<DayOfWeek> drawDays;
+    private LocalTime drawTime;
     private LocalDate nextDrawDate;
 
     // Trạng thái

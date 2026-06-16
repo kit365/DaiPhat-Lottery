@@ -74,5 +74,10 @@ public class LotteryStationRepositoryAdapter implements LotteryStationRepository
         return lotteryStationRepository.existsByNameAndDeletedAtIsNull(name);
     }
 
+    @Override
+    public int updateNextDrawDate(Long id, LocalDate nextDrawDate) {
+        return lotteryStationRepository.updateNextDrawDate(id, nextDrawDate);
+    }
+
 
 }

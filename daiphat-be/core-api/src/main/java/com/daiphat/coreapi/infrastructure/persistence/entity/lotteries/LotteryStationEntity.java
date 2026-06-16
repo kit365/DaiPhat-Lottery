@@ -7,9 +7,14 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
 @Entity
 @Table(name = "lottery_stations")
 @Getter
@@ -55,11 +60,12 @@ public class LotteryStationEntity extends BaseEntity {
     private Integer inventoryCount = 0;
 
     // Lịch quay
-    @Column(name = "draw_schedule", length = 100)
-    private String drawSchedule;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "draw_days", columnDefinition = "jsonb")
+    private List<DayOfWeek> drawDays;
 
-    @Column(name = "draw_time", length = 10)
-    private String drawTime;
+    @Column(name = "draw_time")
+    private LocalTime drawTime;
 
     @Column(name = "next_draw_date")
     private LocalDate nextDrawDate;

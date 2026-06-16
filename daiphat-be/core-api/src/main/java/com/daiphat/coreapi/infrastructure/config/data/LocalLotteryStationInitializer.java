@@ -12,6 +12,10 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalTime;
+import java.util.Arrays;
+
 
 @Component
 @Profile("local")
@@ -39,8 +43,8 @@ public class LocalLotteryStationInitializer implements ApplicationRunner {
                 .minNumber(0)
                 .maxNumber(999999)
                 .price(BigDecimal.valueOf(10_000))
-                .drawSchedule("Mon-Sun")
-                .drawTime("16:15")
+                .drawDays(Arrays.asList(DayOfWeek.values()))
+                .drawTime(LocalTime.of(16, 15))
                 .description("Station seed for local manual testing.")
                 .displayOrder(0)
                 .build());

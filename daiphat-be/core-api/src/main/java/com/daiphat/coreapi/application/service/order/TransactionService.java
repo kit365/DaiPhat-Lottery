@@ -116,10 +116,19 @@ public class TransactionService implements TransactionServicePort {
         OrderModel order = getOrderWithLockOrThrow(orderId);
         TransactionModel transaction = getPendingOnlineTransaction(order, transactionId, gateway);
         PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(gateway);
-
-        strategy.cancelPayment(order, transaction, reason != null && !reason.isBlank()
+        String effectiveReason = reason != null && !reason.isBlank()
                 ? reason
-                : "Cancelled payment link on gateway " + gateway.name());
+                : "Cancelled payment link on gateway " + gateway.name();
+
+        strategy.cancelPayment(order, transaction, effectiveReason);
+        if (transaction.getStatus() == TransactionStatus.PENDING) {
+            transaction.markCancelled(effectiveReason);
+        }
+        clearFailureAttempts(transaction);
+        if (order.getCompletedTransactionAmount().signum() == 0 && order.getStatus() == OrderStatus.PENDING_PAYMENT) {
+            releaseReservedTickets(order);
+            order.cancelPendingPayment(effectiveReason);
+        }
 
         OrderModel saved = orderRepositoryPort.save(order);
         clearCountdownIfResolved(saved);

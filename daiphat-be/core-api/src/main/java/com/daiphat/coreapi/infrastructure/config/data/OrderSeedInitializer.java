@@ -25,6 +25,7 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.Lotte
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderRepository;
+import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -34,8 +35,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -448,9 +451,12 @@ public class OrderSeedInitializer implements ApplicationRunner {
                                 .maxNumber(999999)
                                 .price(BigDecimal.valueOf(10_000))
                                 .inventoryCount(100)
-                                .drawSchedule("MONDAY")
-                                .drawTime("16:15")
-                                .nextDrawDate(LocalDate.now().plusDays(1))
+                                .drawDays(List.of(DayOfWeek.MONDAY))
+                                .drawTime(LocalTime.of(16, 15))
+                                .nextDrawDate(DrawScheduleUtils.resolveNextDrawDate(
+                                        List.of(DayOfWeek.MONDAY),
+                                        LocalTime.of(16, 15)
+                                ))
                                 .status(LotteryStationStatus.ACTIVE)
                                 .approvedBy(operator)
                                 .approvedAt(LocalDateTime.now())

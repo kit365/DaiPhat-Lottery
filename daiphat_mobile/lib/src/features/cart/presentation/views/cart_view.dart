@@ -112,7 +112,6 @@ class _CartViewState extends ConsumerState<CartView> {
             ),
             _CartBottomBar(
               subtotal: _subtotal,
-              handlingFee: _items.isEmpty ? 0 : cartHandlingFee,
               total: _total,
               enabled: _items.isNotEmpty,
             ),
@@ -124,10 +123,7 @@ class _CartViewState extends ConsumerState<CartView> {
 }
 
 class _CartOverview extends StatelessWidget {
-  const _CartOverview({
-    required this.itemCount,
-    required this.ticketCount,
-  });
+  const _CartOverview({required this.itemCount, required this.ticketCount});
 
   final int itemCount;
   final int ticketCount;
@@ -223,7 +219,7 @@ class _CartTicketCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         _InfoPill(
                           icon: Icons.local_offer_outlined,
-                          label: item.prizeLabel,
+                          label: '${item.drawTime} • ${item.kyHieu}',
                           color: AppColors.primary,
                           backgroundColor: const Color(0xFFFFF1EF),
                         ),
@@ -259,8 +255,10 @@ class _CartTicketCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF7F4),
                   borderRadius: BorderRadius.circular(18),
@@ -331,8 +329,9 @@ class _CartMeta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
           label,
@@ -399,13 +398,11 @@ class _InfoPill extends StatelessWidget {
 class _CartBottomBar extends StatelessWidget {
   const _CartBottomBar({
     required this.subtotal,
-    required this.handlingFee,
     required this.total,
     required this.enabled,
   });
 
   final int subtotal;
-  final int handlingFee;
   final int total;
   final bool enabled;
 
@@ -439,14 +436,6 @@ class _CartBottomBar extends StatelessWidget {
                 _summaryValue(_money(subtotal)),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _summaryLabel('Phí xử lý'),
-                _summaryValue(_money(handlingFee)),
-              ],
-            ),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -473,8 +462,9 @@ class _CartBottomBar extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed:
-                    enabled ? () => context.pushNamed(AppRoute.checkout.name) : null,
+                onPressed: enabled
+                    ? () => context.pushNamed(AppRoute.checkout.name)
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   disabledBackgroundColor: const Color(0xFFF3B5B2),
@@ -485,10 +475,7 @@ class _CartBottomBar extends StatelessWidget {
                 ),
                 child: const Text(
                   'Tiến hành thanh toán',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
               ),
             ),
@@ -690,4 +677,3 @@ String _money(int amount) {
   );
   return formatter.format(amount);
 }
-

@@ -39,4 +39,6 @@ public interface LotteryStationServicePort {
     LotteryStationResponse uploadImage(Long id, UploadRequest request);
 
     void recalculateInventory(Long id);
+
+    int recalculateNextDrawDates();
 }

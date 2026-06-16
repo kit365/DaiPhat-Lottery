@@ -66,6 +66,9 @@ public class SecurityConfig {
                                 ApiConstants.API_V1 + "/blogs/public",
                                 ApiConstants.API_V1 + "/blogs/categories/public",
                                 ApiConstants.API_V1 + "/lottery-tickets/public",
+                                ApiConstants.API_V1 + "/lottery-tickets/home",
+                                ApiConstants.API_V1 + "/lottery-stations/draws/today",
+                                ApiConstants.API_V1 + "/lottery-stations/draws/tomorrow",
                                 ApiConstants.API_V1 + "/transactions/payment/webhook/*"
                         ).permitAll()
                         .requestMatchers(HttpMethod.PATCH,

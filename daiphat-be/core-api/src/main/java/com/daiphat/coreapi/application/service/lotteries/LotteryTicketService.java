@@ -43,7 +43,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class LotteryTicketService implements LotteryTicketServicePort {
-
     private static final List<LotteryTicketStatus> EXPIRABLE_STATUSES = List.of(
             LotteryTicketStatus.IN_STOCK,
             LotteryTicketStatus.SOLD_OUT,
@@ -356,7 +355,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         LotteryTicketSerialModel serial = lotteryTicketSerialService.getByIdOrThrow(ticketSerialId);
         LotteryTicketModel ticket = getTicketOrThrow(serial.getTicketId());
         LotteryStationModel station = getStationOrThrow(ticket.getStationId());
-        boolean expireAfterRelease = ticket.isExpired(parseDrawTime(station.getDrawTime()));
+        boolean expireAfterRelease = ticket.isExpired(station.getDrawTime());
         serial = lotteryTicketSerialService.releaseReservation(ticketSerialId, expireAfterRelease);
         recomputeTicketAggregate(serial.getTicketId());
     }
@@ -368,7 +367,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         int expiredCount = 0;
         for (LotteryTicketModel ticket : tickets) {
             LotteryStationModel station = getStationOrThrow(ticket.getStationId());
-            if (!ticket.isExpired(parseDrawTime(station.getDrawTime()))) {
+            if (!ticket.isExpired(station.getDrawTime())) {
                 continue;
             }
             ticket.expire();
@@ -379,9 +378,14 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         return expiredCount;
     }
 
-    private LotteryTicketResponse mapToResponse(LotteryTicketModel model) {
-        LotteryTicketSerialModel serial = lotteryTicketSerialService.findFirstByTicketId(model.getId()).orElse(null);
-        return mapToResponse(model, serial, new HashMap<>());
+
+
+    private LotteryTicketResponse mapToDetailResponse(LotteryTicketModel model) {
+        List<LotteryTicketSerialModel> serials = lotteryTicketSerialService.findAllByTicketId(model.getId());
+        String stationName = lotteryStationServicePort.findModelById(model.getStationId())
+                .map(LotteryStationModel::getName)
+                .orElse(null);
+        return lotteryTicketApplicationMapper.toResponseDetail(model, serials, stationName);
     }
 
     private LotteryTicketResponse mapToDetailResponse(LotteryTicketModel model) {
@@ -557,7 +561,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private LotteryTicketModel recomputeTicketAggregate(Long ticketId) {
         LotteryTicketModel ticket = getTicketOrThrow(ticketId);
         LotteryStationModel station = getStationOrThrow(ticket.getStationId());
-        LocalTime cutoffTime = parseDrawTime(station.getDrawTime());
+        LocalTime cutoffTime = station.getDrawTime();
         if (ticket.isExpired(cutoffTime)) {
             lotteryTicketSerialService.expireActiveSerials(ticketId);
         }
@@ -584,18 +588,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
-    }
-
-    private LocalTime parseDrawTime(String drawTime) {
-        if (drawTime == null || drawTime.isBlank()) {
-            return null;
-        }
-        try {
-            return LocalTime.parse(drawTime.trim());
-        } catch (DateTimeParseException ignored) {
-            log.warn("Invalid draw time format for station: {}", drawTime);
-            return null;
-        }
     }
 
     private void syncStationInventory(Long stationId) {

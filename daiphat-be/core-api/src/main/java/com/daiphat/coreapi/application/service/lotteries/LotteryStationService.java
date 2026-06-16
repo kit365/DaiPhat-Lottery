@@ -19,6 +19,7 @@ import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
+import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,7 +57,10 @@ public class LotteryStationService implements LotteryStationServicePort {
 
         LotteryStationModel model = lotteryStationApplicationMapper.toModel(request);
         stationPrizeStructureSeeder.requireRegionHasPrizeStructures(model.getRegion());
-        model.setStatus(LotteryStationStatus.DRAFT);
+        if (model.getStatus() == null) {
+            model.setStatus(LotteryStationStatus.ACTIVE);
+        }
+        syncNextDrawDate(model);
 
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         log.info("Lottery product created with id: {}", saved.getId());
@@ -159,6 +163,7 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
 
         lotteryStationApplicationMapper.updateModel(model, request);
+        syncNextDrawDate(model);
 
         if (hasText(request.status()) && parseStatus(request.status()) == LotteryStationStatus.INACTIVE) {
             model.deactivate();
@@ -215,6 +220,34 @@ public class LotteryStationService implements LotteryStationServicePort {
         LotteryStationModel model = getProductOrThrow(id);
         recalculateInventory(model);
         lotteryStationRepositoryPort.save(model);
+    }
+
+    @Override
+    @Transactional
+    public int recalculateNextDrawDates() {
+        int updatedCount = 0;
+        for (LotteryStationModel station : lotteryStationRepositoryPort.findAll()) {
+            if (station.getId() == null) {
+                continue;
+            }
+            try {
+                updatedCount += lotteryStationRepositoryPort.updateNextDrawDate(
+                        station.getId(),
+                        resolveNextDrawDate(station)
+                );
+            } catch (DomainException ex) {
+                log.warn("Skipping nextDrawDate recalculation for station {}: {}", station.getId(), ex.getMessage());
+            }
+        }
+        return updatedCount;
+    }
+
+    private void syncNextDrawDate(LotteryStationModel station) {
+        station.setNextDrawDate(resolveNextDrawDate(station));
+    }
+
+    private LocalDate resolveNextDrawDate(LotteryStationModel station) {
+        return DrawScheduleUtils.resolveNextDrawDate(station.getDrawDays(), station.getDrawTime());
     }
 
     private LotteryStationModel getProductOrThrow(Long id) {

@@ -4,6 +4,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,21 +14,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
+public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSpecificationExecutor<OrderEntity> {
 
     boolean existsByOrderCode(String orderCode);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select o from OrderEntity o where o.id = :id")
-    Optional<OrderEntity> findByIdWithLock(@Param("id") UUID id);
+    Optional<OrderEntity> findOrderEntityById(UUID id);
 
-    @Query("""
-            select distinct o
-            from OrderEntity o
-            left join fetch o.transactions t
-            where t.gatewayOrderCode = :gatewayOrderCode
-            """)
-    Optional<OrderEntity> findByTransactionGatewayOrderCode(@Param("gatewayOrderCode") Long gatewayOrderCode);
+    Optional<OrderEntity> findDistinctByTransactions_GatewayOrderCode(Long gatewayOrderCode);
 
     @Query("""
             select o.id

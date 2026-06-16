@@ -36,6 +36,9 @@ public class LotteryTicketController {
     private static final String DEFAULT_PAGE = "1";
     private static final String DEFAULT_LIMIT = "10";
     private static final String ID_PATH = "/{id}";
+    private static final String DEFAULT_HOME_SORT_BY = "displayOrder";
+    private static final String DEFAULT_HOME_SORT_DIRECTION = "asc";
+    private static final String HOME_DEFAULT_DRAW_DATE = "today";
 
     private final LotteryTicketServicePort lotteryTicketServicePort;
 
@@ -94,6 +97,23 @@ public class LotteryTicketController {
         log.info("REST public request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
                 page, size, stationId, drawDate, search, sortBy, direction);
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(ApiResponse.success(null, response));
+        mappingJacksonValue.setSerializationView(Views.Public.class);
+        return mappingJacksonValue;
+    }
+
+    @GetMapping("/home")
+    public MappingJacksonValue getHomeTickets(
+            @RequestParam(defaultValue = DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
+            @RequestParam(required = false) Long stationId,
+            @RequestParam(defaultValue = HOME_DEFAULT_DRAW_DATE) String drawDate,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = DEFAULT_HOME_SORT_BY) String sortBy,
+            @RequestParam(defaultValue = DEFAULT_HOME_SORT_DIRECTION) String direction) {
+        log.info("REST home request to query lottery tickets page: {}, size: {}", page, size);
+        PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
+                page, size, stationId, resolveHomeDrawDate(drawDate), search, sortBy, direction);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(ApiResponse.success(null, response));
         mappingJacksonValue.setSerializationView(Views.Public.class);
         return mappingJacksonValue;
@@ -174,5 +194,12 @@ public class LotteryTicketController {
                         || "ticket:view".equals(authority));
 
         return isMemberOnly ? Views.Public.class : Views.Admin.class;
+    }
+
+    private String resolveHomeDrawDate(String drawDate) {
+        if (drawDate == null || drawDate.isBlank() || HOME_DEFAULT_DRAW_DATE.equalsIgnoreCase(drawDate)) {
+            return java.time.LocalDate.now().toString();
+        }
+        return drawDate;
     }
 }

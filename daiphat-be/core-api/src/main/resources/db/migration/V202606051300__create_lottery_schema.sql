@@ -16,12 +16,12 @@ CREATE TABLE IF NOT EXISTS lottery_stations (
     inventory_count     INTEGER NOT NULL DEFAULT 0,
 
     -- Lịch quay
-    draw_schedule       VARCHAR(100),
-    draw_time           VARCHAR(10),
+    draw_days           JSONB,
+    draw_time           TIME,
     next_draw_date      DATE,
 
     -- Trạng thái & Duyệt
-    status              VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    status              VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     approved_by         UUID,
     approved_at         TIMESTAMP,
 
