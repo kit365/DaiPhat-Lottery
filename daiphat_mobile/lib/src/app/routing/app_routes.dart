@@ -6,6 +6,9 @@ enum AppRoute {
   buyTicket,
   cart,
   checkout,
+  checkoutResult,
+  paymentWebView,
+  deepLinkPayment,
   profile,
   profileEdit,
   profileDetail,
@@ -29,6 +32,12 @@ extension AppRouteDefinition on AppRoute {
         return '/cart';
       case AppRoute.checkout:
         return '/checkout';
+      case AppRoute.checkoutResult:
+        return '/checkout/result';
+      case AppRoute.paymentWebView:
+        return '/checkout/payment-webview';
+      case AppRoute.deepLinkPayment:
+        return '/payment';
       case AppRoute.profile:
         return '/profile';
       case AppRoute.profileEdit:
@@ -56,6 +65,12 @@ extension AppRouteDefinition on AppRoute {
         return 'cart';
       case AppRoute.checkout:
         return 'checkout';
+      case AppRoute.checkoutResult:
+        return 'checkout_result';
+      case AppRoute.paymentWebView:
+        return 'payment_webview';
+      case AppRoute.deepLinkPayment:
+        return 'deep_link_payment';
       case AppRoute.profile:
         return 'profile';
       case AppRoute.profileEdit:
@@ -74,6 +89,9 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.forgotPassword:
       case AppRoute.cart:
       case AppRoute.checkout:
+      case AppRoute.checkoutResult:
+      case AppRoute.paymentWebView:
+      case AppRoute.deepLinkPayment:
         return true;
       case AppRoute.profileEdit:
       case AppRoute.profileDetail:
