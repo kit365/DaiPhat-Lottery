@@ -4,6 +4,7 @@ public enum NotificationType {
     SYSTEM,
     AUTH,
     BLOG,
+    ORDER,
     SUCCESS,
     OFFER,
     PAYMENT,

@@ -4,6 +4,8 @@ import com.daiphat.coreapi.application.dto.order.GatewayCallbackResult;
 import com.daiphat.coreapi.application.dto.order.PaymentResult;
 import com.daiphat.coreapi.application.dto.order.PendingPaymentCountdownResult;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
+import com.daiphat.coreapi.application.event.OrderPaidForProcessingEvent;
+import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.order.TransactionServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
@@ -24,6 +26,7 @@ import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +54,7 @@ public class TransactionService implements TransactionServicePort {
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final PaymentCountdownCachePort paymentCountdownCachePort;
     private final PaymentAttemptCachePort paymentAttemptCachePort;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -84,6 +88,7 @@ public class TransactionService implements TransactionServicePort {
         OrderModel saved = orderRepositoryPort.save(order);
         clearFailureAttempts(transaction);
         clearCountdownIfResolved(saved);
+        publishPaymentSuccessNotifications(saved);
         log.info("Handled online payment success for order: {}", orderId);
         return saved;
     }
@@ -174,8 +179,11 @@ public class TransactionService implements TransactionServicePort {
             enforceFailureAttemptLimit(order, transaction);
         }
 
-        orderRepositoryPort.save(order);
-        clearCountdownIfResolved(order);
+        OrderModel saved = orderRepositoryPort.save(order);
+        clearCountdownIfResolved(saved);
+        if (callbackResult.success()) {
+            publishPaymentSuccessNotifications(saved);
+        }
         log.info("Processed {} callback for gatewayOrderCode {}", gateway, callbackResult.gatewayOrderCode());
     }
 
@@ -261,6 +269,28 @@ public class TransactionService implements TransactionServicePort {
             order.markPaid();
         }
         order.completeDirectOrder(operatorId);
+    }
+
+    private void publishPaymentSuccessNotifications(OrderModel order) {
+        if (order.getId() == null) {
+            return;
+        }
+
+        eventPublisher.publishEvent(OrderPaidForProcessingEvent.builder()
+                .orderId(order.getId())
+                .orderCode(order.getOrderCode())
+                .build());
+
+        if (order.getUserId() == null || order.getStatus() == null) {
+            return;
+        }
+
+        eventPublisher.publishEvent(OrderStatusChangedEvent.builder()
+                .orderId(order.getId())
+                .customerId(order.getUserId())
+                .orderCode(order.getOrderCode())
+                .status(order.getStatus())
+                .build());
     }
 
     private void cancelPendingTransactions(OrderModel order) {

@@ -30,6 +30,7 @@ public class NotificationService implements NotificationServicePort {
 
     private static final String AUTH = "auth";
     private static final String BLOG = "blog";
+    private static final String ORDER = "order";
     private static final String SYSTEM = "system";
 
     private final NotificationRepositoryPort notificationRepositoryPort;
@@ -175,6 +176,7 @@ public class NotificationService implements NotificationServicePort {
         counts.put(StatusCountKeys.UNREAD, notificationRepositoryPort.countUnreadByUserId(userId));
         counts.put(AUTH, notificationRepositoryPort.countByUserIdAndType(userId, NotificationType.AUTH));
         counts.put(BLOG, notificationRepositoryPort.countByUserIdAndType(userId, NotificationType.BLOG));
+        counts.put(ORDER, notificationRepositoryPort.countByUserIdAndType(userId, NotificationType.ORDER));
         counts.put(SYSTEM, notificationRepositoryPort.countByUserIdAndType(userId, NotificationType.SYSTEM));
         return counts;
     }

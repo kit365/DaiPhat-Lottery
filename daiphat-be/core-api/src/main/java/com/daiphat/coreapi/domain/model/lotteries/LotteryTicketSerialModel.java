@@ -91,13 +91,28 @@ public class LotteryTicketSerialModel {
 
     public void expire() {
         if (this.status != LotteryTicketSerialStatus.IN_STOCK
-                && this.status != LotteryTicketSerialStatus.RESERVED) {
+                && this.status != LotteryTicketSerialStatus.RESERVED
+                && this.status != LotteryTicketSerialStatus.PROXY_HOLDING) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
         }
         this.status = LotteryTicketSerialStatus.EXPIRED;
         this.reservedAt = null;
         this.reservationExpiresAt = null;
         this.reservedByOrderId = null;
+    }
+
+    public boolean isEditableStatus() {
+        return this.status == LotteryTicketSerialStatus.IN_STOCK;
+    }
+
+    public boolean isSoftDeletableStatus() {
+        return this.status == LotteryTicketSerialStatus.IN_STOCK
+                || this.status == LotteryTicketSerialStatus.EXPIRED
+                || this.status == LotteryTicketSerialStatus.INTERNAL_FAULT;
+    }
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
     }
 
     private void ensureStatus(LotteryTicketSerialStatus expectedStatus) {
