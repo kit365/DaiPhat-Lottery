@@ -175,7 +175,7 @@ export const OrderEditPage = () => {
     }
 
     return (
-        <Box sx={{ maxWidth: '1200px', mx: 'auto', p: 'calc(3 * var(--spacing))' }}>
+        <Box sx={{ width: '100%', mx: 'auto', p: 'calc(3 * var(--spacing))' }}>
             <Box sx={{ mb: 4 }}>
                 <Title title={`Chỉnh sửa đơn hàng #${order?.code || id?.slice(-6).toUpperCase()}`} />
                 <Breadcrumb

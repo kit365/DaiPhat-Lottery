@@ -630,7 +630,7 @@ export const TicketServiceOrderEditPage = () => {
 
     return (
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
-            <Box sx={{ maxWidth: '1200px', mx: 'auto', p: "calc(3 * var(--spacing))" }}>
+            <Box sx={{ width: '100%', mx: 'auto', p: "calc(3 * var(--spacing))" }}>
                 <BulkRescheduleDialog
                     open={rescheduleOpen}
                     onClose={() => setRescheduleOpen(false)}

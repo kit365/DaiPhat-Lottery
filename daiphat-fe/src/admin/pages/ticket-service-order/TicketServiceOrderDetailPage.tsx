@@ -246,7 +246,7 @@ export const TicketServiceOrderDetailPage = () => {
     const isTerminalStatus = ['completed', 'cancelled'].includes(ticketServiceOrder.ticketServiceOrderStatus);
 
     return (
-        <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
+        <Box sx={{ width: '100%', mx: 'auto' }}>
             <BulkRescheduleDialog
                 open={rescheduleOpen}
                 onClose={() => setRescheduleOpen(false)}
