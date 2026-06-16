@@ -16,7 +16,7 @@ export const TicketServiceOrderListPage = () => {
 
     return (
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
-            <Box sx={{ maxWidth: '1200px', mx: 'auto', p: "calc(3 * var(--spacing))" }}>
+            <Box sx={{ width: '100%', mx: 'auto', p: "calc(3 * var(--spacing))" }}>
                 <Box sx={{ mb: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Box>
                         <Title title={t("admin.ticketServiceOrder.title.list")} />

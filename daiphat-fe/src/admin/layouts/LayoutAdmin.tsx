@@ -52,13 +52,7 @@ const LayoutAdminContent = () => {
                 <ThemeProvider theme={adminTheme}><Header /></ThemeProvider>
 
                 <ThemeProvider theme={adminTheme}>
-                    <main
-                        className={
-                            isFullWidthPage
-                                ? "max-w-[1536px] mx-auto px-[calc(5*var(--spacing))] pt-[8px] pb-[64px]"
-                                : "w-[1200px] mx-auto px-[40px] pt-[8px] pb-[64px]"
-                        }
-                    >
+                    <main className="max-w-[1536px] w-full mx-auto px-[40px] pt-[8px] pb-[64px]">
                         <Suspense fallback={<LoadingScreen />}>
                             <Outlet />
                         </Suspense>
