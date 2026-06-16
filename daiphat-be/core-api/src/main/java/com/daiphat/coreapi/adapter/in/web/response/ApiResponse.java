@@ -31,7 +31,7 @@ public class ApiResponse<T> {
     @JsonView(Views.Public.class)
     String message;
 
-    @JsonView(Views.Public.class)
+    @JsonView({Views.Public.class, Views.Me.class, Views.Admin.class})
     T data;
 
     public static <T> ApiResponse<T> success(String message) {

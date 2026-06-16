@@ -6,7 +6,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useNotifications } from "../../hooks/useNotifications";
 
-type TabId = 'overview' | 'info' | 'address' | 'tickets' | 'history' | 'notifications' | 'settings' | 'favorites';
+type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'notifications' | 'settings' | 'favorites';
 
 interface TabConfig {
     id: TabId;
@@ -128,7 +128,7 @@ export const ProfilePage = () => {
                                     <div className="relative z-10 w-full px-4 flex flex-col items-center">
                                         <h2 className="text-[18px] font-black text-[#212B36] mb-2">{user.fullName || user.username}</h2>
                                         <p className="text-[12px] font-medium text-[#454F5B] mb-0.5">{user.email || 'john.doe@gmail.com'}</p>
-                                        <p className="text-[12px] font-medium text-[#454F5B]">{user.phoneNumber || user.phone || 'Chưa cập nhật'}</p>
+                                        <p className="text-[12px] font-medium text-[#454F5B]">{user.phone || 'Chưa cập nhật'}</p>
                                     </div>
                                 </div>
 
