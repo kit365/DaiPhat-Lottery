@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.dto.request.order.DirectOrderTransactionR
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
+import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
@@ -34,6 +35,7 @@ import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -68,6 +70,7 @@ public class OrderService implements OrderServicePort {
     private final OrderApplicationMapper orderApplicationMapper;
     private final PaymentCountdownCachePort paymentCountdownCachePort;
     private final PaymentGatewayStrategyFactory paymentGatewayStrategyFactory;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -183,6 +186,7 @@ public class OrderService implements OrderServicePort {
         applyOrderStatusTransition(order, status, reason, operatorId);
         OrderModel saved = orderRepositoryPort.save(order);
         clearPendingPaymentCountdownIfResolved(saved);
+        publishCustomerOrderStatusChanged(saved);
         return orderApplicationMapper.toResponse(saved);
     }
 
@@ -388,6 +392,19 @@ public class OrderService implements OrderServicePort {
         if (order.getStatus() != OrderStatus.PENDING_PAYMENT && order.getId() != null) {
             paymentCountdownCachePort.clear(order.getId());
         }
+    }
+
+    private void publishCustomerOrderStatusChanged(OrderModel order) {
+        if (order.getId() == null || order.getUserId() == null || order.getStatus() == null) {
+            return;
+        }
+
+        eventPublisher.publishEvent(OrderStatusChangedEvent.builder()
+                .orderId(order.getId())
+                .customerId(order.getUserId())
+                .orderCode(order.getOrderCode())
+                .status(order.getStatus())
+                .build());
     }
 
     private List<Long> resolveTicketIds(List<OrderTicketItemRequest> items) {

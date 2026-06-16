@@ -7,6 +7,7 @@ export const NOTIFICATION_TYPE = {
     SYSTEM: "SYSTEM",
     AUTH: "AUTH",
     BLOG: "BLOG",
+    ORDER: "ORDER",
 } as const;
 
 export const NOTIFICATION_STATUS = {
@@ -18,6 +19,7 @@ export const NOTIFICATION_STATUS = {
 export const NOTIFICATION_REFERENCE_TYPE = {
     AUTH: "AUTH",
     BLOG_POST: "BLOG_POST",
+    ORDER: "ORDER",
     SYSTEM: "SYSTEM",
 } as const;
 
