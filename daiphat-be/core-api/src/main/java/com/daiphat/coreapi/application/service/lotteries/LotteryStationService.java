@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStatio
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
+import com.daiphat.coreapi.application.event.LotteryStationDrawReminderEvent;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryStationApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
@@ -23,13 +24,19 @@ import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -42,9 +49,13 @@ public class LotteryStationService implements LotteryStationServicePort {
     private final StationPrizeStructureSeeder stationPrizeStructureSeeder;
     private final LotteryStationApplicationMapper lotteryStationApplicationMapper;
     private final StoragePort storagePort;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final List<LotteryTicketStatus> INVENTORY_STATUSES =
             List.of(LotteryTicketStatus.IN_STOCK);
+
+    @Value("${daiphat.lottery.draw-reminder-minutes:30}")
+    private long drawReminderMinutes;
 
     @Override
     @Transactional
@@ -157,7 +168,7 @@ public class LotteryStationService implements LotteryStationServicePort {
 
         if (request.region() != null) {
             String newRegion = request.region().trim();
-            if (hasText(newRegion) && (previousRegion == null || !newRegion.equalsIgnoreCase(previousRegion))) {
+            if (hasText(newRegion) && !newRegion.equalsIgnoreCase(previousRegion != null ? previousRegion : "")) {
                 regionChanged = true;
             }
         }
@@ -240,6 +251,43 @@ public class LotteryStationService implements LotteryStationServicePort {
             }
         }
         return updatedCount;
+    }
+
+    @Override
+    @Transactional
+    public int sendUpcomingDrawReminderNotifications() {
+        LocalDate today = LocalDate.now();
+        LocalTime currentMinute = LocalTime.now().withSecond(0).withNano(0);
+        Map<LocalTime, List<LotteryStationModel>> stationsByReminderSlot = new LinkedHashMap<>();
+
+        for (LotteryStationModel station : lotteryStationRepositoryPort.findByNextDrawDate(today)) {
+            if (station.getId() == null
+                    || station.getStatus() != LotteryStationStatus.ACTIVE
+                    || station.getDrawTime() == null) {
+                continue;
+            }
+
+            LocalTime reminderTime = station.getDrawTime()
+                    .minusMinutes(drawReminderMinutes)
+                    .withSecond(0)
+                    .withNano(0);
+            if (!currentMinute.equals(reminderTime)) {
+                continue;
+            }
+
+            stationsByReminderSlot.computeIfAbsent(station.getDrawTime(), ignored -> new ArrayList<>()).add(station);
+        }
+
+        stationsByReminderSlot.forEach((drawTime, stations) -> eventPublisher.publishEvent(
+                LotteryStationDrawReminderEvent.builder()
+                        .stationIds(stations.stream().map(LotteryStationModel::getId).toList())
+                        .stationNames(stations.stream().map(LotteryStationModel::getName).toList())
+                        .drawTime(drawTime)
+                        .remainingMinutes(drawReminderMinutes)
+                        .build()
+        ));
+
+        return stationsByReminderSlot.size();
     }
 
     private void syncNextDrawDate(LotteryStationModel station) {

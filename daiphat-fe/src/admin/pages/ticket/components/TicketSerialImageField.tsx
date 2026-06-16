@@ -8,9 +8,10 @@ import { CreateTicketFormValues } from "../../../schemas/ticket.schema";
 interface TicketSerialImageFieldProps {
     control: Control<CreateTicketFormValues>;
     index: number;
+    disabled?: boolean;
 }
 
-export const TicketSerialImageField = ({ control, index }: TicketSerialImageFieldProps) => {
+export const TicketSerialImageField = ({ control, index, disabled }: TicketSerialImageFieldProps) => {
     const uploadImage = useCallback(async (file: File) => uploadAdminImage(file), []);
 
     return (
@@ -21,6 +22,7 @@ export const TicketSerialImageField = ({ control, index }: TicketSerialImageFiel
             <FormUploadSingleFile
                 name={`serials.${index}.ticketImg`}
                 control={control}
+                disabled={disabled}
                 customUpload={uploadImage}
             />
         </Box>

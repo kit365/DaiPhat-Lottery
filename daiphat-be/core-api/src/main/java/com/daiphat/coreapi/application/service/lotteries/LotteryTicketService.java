@@ -5,13 +5,16 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicket
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
+import com.daiphat.coreapi.application.event.LotteryTicketProxyExpiredEvent;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
+import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
@@ -27,17 +30,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -46,14 +46,24 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private static final List<LotteryTicketStatus> EXPIRABLE_STATUSES = List.of(
             LotteryTicketStatus.IN_STOCK,
             LotteryTicketStatus.SOLD_OUT,
-            LotteryTicketStatus.RESERVED
+            LotteryTicketStatus.RESERVED,
+            LotteryTicketStatus.PROXY_HOLDING
     );
+    private static final List<LotteryTicketSerialStatus> NON_EDITABLE_SERIAL_STATUSES =
+            List.of(
+                    LotteryTicketSerialStatus.RESERVED,
+                    LotteryTicketSerialStatus.SOLD
+            );
+    private static final List<LotteryTicketSerialStatus> SOLD_SERIAL_STATUSES =
+            List.of(LotteryTicketSerialStatus.SOLD);
 
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
     private final LotteryStationServicePort lotteryStationServicePort;
     private final LotteryTicketApplicationMapper lotteryTicketApplicationMapper;
     private final LotteryTicketSerialServicePort lotteryTicketSerialService;
     private final StoragePort storagePort;
+    private final OrderRepositoryPort orderRepositoryPort;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -181,6 +191,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         log.info("Updating lottery ticket with id: {}", id);
 
         LotteryTicketModel model = getTicketOrThrow(id);
+        ensureTicketEditable(model);
 
         String nextNumbers = model.getNumbers();
         LocalDate nextDrawDate = request.drawDate() != null ? request.drawDate() : model.getDrawDate();
@@ -233,6 +244,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         if (model.isDeleted()) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
         }
+
+        ensureTicketSoftDeletable(model);
 
         model.softDelete();
         lotteryTicketRepositoryPort.save(model);
@@ -288,11 +301,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         LotteryTicketModel model = getTicketOrThrow(id);
 
         switch (status) {
-            case RESERVED -> model.reserve();
-            case SOLD -> model.sellOnline();
             case PROXY_HOLDING -> model.holdForProxy();
-            case PENDING_RETURN -> model.requestReturn();
-            case RETURNED -> model.confirmReturned();
+            case IN_STOCK -> model.recallFromProxy();
             case INTERNAL_FAULT -> model.markInternalFault();
             case ISSUER_FAULT -> model.markIssuerFault();
             default -> throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
@@ -370,9 +380,17 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             if (!ticket.isExpired(station.getDrawTime())) {
                 continue;
             }
+            LotteryTicketStatus previousStatus = ticket.getStatus();
+            lotteryTicketSerialService.expireActiveSerials(ticket.getId());
             ticket.expire();
             lotteryTicketRepositoryPort.save(ticket);
             syncStationInventory(ticket.getStationId());
+            if (previousStatus == LotteryTicketStatus.PROXY_HOLDING) {
+                eventPublisher.publishEvent(LotteryTicketProxyExpiredEvent.builder()
+                        .ticketId(ticket.getId())
+                        .ticketNumber(ticket.getNumbers())
+                        .build());
+            }
             expiredCount++;
         }
         return expiredCount;
@@ -558,7 +576,13 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             lotteryTicketSerialService.expireActiveSerials(ticketId);
         }
         long availableSerialCount = lotteryTicketSerialService.countAvailableSerials(ticketId);
-        ticket.syncAggregateState((int) availableSerialCount, cutoffTime);
+        int totalSerialCount = lotteryTicketSerialService.findAllByTicketId(ticketId).size();
+        int soldSerialCount = (int) lotteryTicketSerialService.countByStatuses(ticketId, SOLD_SERIAL_STATUSES);
+        if (ticket.getStatus() == LotteryTicketStatus.PROXY_HOLDING && ticket.isExpired(cutoffTime)) {
+            ticket.expire();
+        } else {
+            ticket.syncAggregateState((int) availableSerialCount, totalSerialCount, soldSerialCount, cutoffTime);
+        }
         LotteryTicketModel saved = lotteryTicketRepositoryPort.save(ticket);
         syncStationInventory(saved.getStationId());
         return saved;
@@ -585,6 +609,47 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private void syncStationInventory(Long stationId) {
         if (stationId != null) {
             lotteryStationServicePort.recalculateInventory(stationId);
+        }
+    }
+
+    private void ensureTicketEditable(LotteryTicketModel ticket) {
+        if (!ticket.isEditableStatus()) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Chỉ được chỉnh sửa vé ở trạng thái IN_STOCK hoặc ISSUER_FAULT."
+            );
+        }
+
+        long lockedSerialCount = lotteryTicketSerialService.countByStatuses(ticket.getId(), NON_EDITABLE_SERIAL_STATUSES);
+        if (lockedSerialCount > 0) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Không thể chỉnh sửa vé khi đang có sê-ri RESERVED hoặc SOLD."
+            );
+        }
+    }
+
+    private void ensureTicketSoftDeletable(LotteryTicketModel ticket) {
+        if (!ticket.isSoftDeletableStatus()) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Không thể xóa vé ở trạng thái hiện tại."
+            );
+        }
+
+        long soldSerialCount = lotteryTicketSerialService.countByStatuses(ticket.getId(), SOLD_SERIAL_STATUSES);
+        if (soldSerialCount > 0) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Không thể xóa vé đã có sê-ri SOLD."
+            );
+        }
+
+        if (orderRepositoryPort.existsByLotteryTicketId(ticket.getId())) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_INVALID_STATUS,
+                    "Không thể xóa vé đã có lịch sử đơn hàng tham chiếu."
+            );
         }
     }
 }
