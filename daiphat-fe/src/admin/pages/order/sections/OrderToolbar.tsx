@@ -1,14 +1,115 @@
 import { Toolbar, Box, Button, Badge, SvgIcon } from "@mui/material";
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
-import { IGridSettings } from "../../ticket/configs/types";
 import { Search } from "../../../components/ui/Search";
 import { JiraFilter } from "../../ticket/sections/JiraFilter";
-import { Columns } from "../../../components/ui/Columns";
-import { ExportButton } from "../../../components/ui/ExportButton";
 import { SettingsList } from "../../../components/ui/SettingsList";
 import { SortButton } from "../../../components/ui/SortButton";
 import { toolbarStyles } from "../../ticket/configs/styles.config";
+import Tooltip from '@mui/material/Tooltip';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import { toast } from "react-toastify";
+import { useRef, useState } from "react";
+
+const CustomViewColumnIcon = (props: any) => (
+    <SvgIcon {...props} viewBox="0 0 24 24">
+        <path
+            fill="#1C252E"
+            fillRule="evenodd"
+            d="M15 4H9v16h6zm2 16h3a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3zM4 4h3v16H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2"
+            clipRule="evenodd"
+        />
+    </SvgIcon>
+);
+
+const CustomExportIcon = (props: any) => (
+    <SvgIcon {...props} viewBox="0 0 24 24">
+        <g fill="none" fillRule="evenodd">
+            <path fill="#1C252E" d="M12 1.25a.75.75 0 0 0-.75.75v10.973l-1.68-1.961a.75.75 0 1 0-1.14.976l3 3.5a.75.75 0 0 0 1.14 0l3-3.5a.75.75 0 1 0-1.14-.976l-1.68 1.96V2a.75.75 0 0 0-.75-.75" />
+            <path
+                fill="#1C252E"
+                d="M14.25 9v.378a2.249 2.249 0 0 1 2.458 3.586l-3 3.5a2.25 2.25 0 0 1-3.416 0l-3-3.5A2.25 2.25 0 0 1 9.75 9.378V9H8c-2.828 0-4.243 0-5.121.879C2 10.757 2 12.172 2 15v1c0 2.828 0 4.243.879 5.121C3.757 22 5.172 22 8 22h8c2.828 0 4.243 0 5.121-.879C22 20.243 22 18.828 22 16v-1c0-2.828 0-4.243-.879-5.121C20.243 9 18.828 9 16 9z"
+            />
+        </g>
+    </SvgIcon>
+);
+
+const DummyColumns = () => {
+    return (
+        <Tooltip title="Cột">
+            <Button
+                variant="text"
+                size="small"
+                disableElevation
+                startIcon={<CustomViewColumnIcon />}
+                onClick={() => toast.info("Đã bật chế độ xem toàn bộ cột mặc định")}
+                sx={{
+                    textTransform: 'none',
+                    minWidth: '64px',
+                    minHeight: "30px",
+                    fontSize: "0.8125rem",
+                    padding: '4px',
+                    fontWeight: "700",
+                    borderRadius: "8px",
+                    gap: "6px",
+                    color: '#1C252E',
+                    '& .MuiButton-startIcon': { margin: 0 },
+                    '&:hover': { backgroundColor: '#919eab14' },
+                    '& .MuiButton-icon': { mt: "-2px !important" }
+                }}
+            >
+                Cột
+            </Button>
+        </Tooltip>
+    );
+};
+
+const DummyExportButton = () => {
+    const [open, setOpen] = useState(false);
+    const anchorRef = useRef<HTMLButtonElement>(null);
+
+    return (
+        <>
+            <Tooltip title="Tải dữ liệu">
+                <Button
+                    ref={anchorRef}
+                    variant="text"
+                    size="small"
+                    disableElevation
+                    startIcon={<CustomExportIcon sx={{ fontSize: '1.125rem !important' }} />}
+                    onClick={() => setOpen(true)}
+                    sx={{
+                        textTransform: 'none',
+                        minWidth: '64px',
+                        minHeight: '30px',
+                        fontSize: '0.8125rem',
+                        padding: '4px',
+                        fontWeight: 700,
+                        borderRadius: '8px',
+                        gap: '6px',
+                        color: '#1C252E',
+                        '& .MuiButton-startIcon': { margin: 0 },
+                        '&:hover': { backgroundColor: '#919eab14' },
+                        '& .MuiButton-icon': { mt: "-2px !important" }
+                    }}
+                >
+                    Tải về
+                </Button>
+            </Tooltip>
+            <Menu
+                anchorEl={anchorRef.current}
+                open={open}
+                onClose={() => setOpen(false)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <MenuItem onClick={() => { setOpen(false); toast.success("Đang chuẩn bị trang in..."); }}>In</MenuItem>
+                <MenuItem onClick={() => { setOpen(false); toast.success("Đang xuất file CSV..."); }}>Tải xuống (CSV)</MenuItem>
+            </Menu>
+        </>
+    );
+};
 import dayjs from "dayjs";
 import { OrderFilterParams } from "../../../../types/order.type";
 
@@ -152,8 +253,8 @@ export const OrderToolbar = ({
                     value={sortByUI}
                     onChange={onSortChange}
                 />
-                <Columns />
-                <ExportButton />
+                <DummyColumns />
+                <DummyExportButton />
                 <SettingsList
                     settings={settings}
                     onSettingsChange={onSettingsChange}

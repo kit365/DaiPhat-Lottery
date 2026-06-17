@@ -43,6 +43,7 @@ class TransactionServiceTest {
     private final PaymentCountdownCachePort paymentCountdownCachePort = mock(PaymentCountdownCachePort.class);
     private final PaymentAttemptCachePort paymentAttemptCachePort = mock(PaymentAttemptCachePort.class);
     private final PaymentGatewayStrategy gatewayStrategy = mock(PaymentGatewayStrategy.class);
+    private final org.springframework.context.ApplicationEventPublisher applicationEventPublisher = mock(org.springframework.context.ApplicationEventPublisher.class);
 
     private TransactionService transactionService;
 
@@ -54,7 +55,8 @@ class TransactionServiceTest {
                 paymentGatewayStrategyFactory,
                 lotteryTicketServicePort,
                 paymentCountdownCachePort,
-                paymentAttemptCachePort
+                paymentAttemptCachePort,
+                applicationEventPublisher
         );
     }
 
@@ -131,8 +133,8 @@ class TransactionServiceTest {
         OrderModel result = transactionService.cancelOnlinePayment(orderId, 13L, PaymentGateway.PAYOS, "Khách hủy link");
 
         assertThat(result).isSameAs(order);
-        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.PENDING);
-        assertThat(transaction.getGatewayOrderCode()).isNull();
+        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.CANCELLED);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         verify(orderRepositoryPort).save(order);
     }
 
@@ -197,6 +199,7 @@ class TransactionServiceTest {
         when(gatewayStrategy.parseCallback("{payload}")).thenReturn(callbackResult);
         when(orderRepositoryPort.findByGatewayOrderCode(5_000_013L)).thenReturn(Optional.of(order));
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+        when(orderRepositoryPort.save(any())).thenReturn(order);
 
         transactionService.processGatewayCallback(PaymentGateway.PAYOS, "{payload}");
 
@@ -241,6 +244,7 @@ class TransactionServiceTest {
         when(gatewayStrategy.parseCallback("{payload}")).thenReturn(callbackResult);
         when(orderRepositoryPort.findByGatewayOrderCode(5_000_099L)).thenReturn(Optional.of(order));
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+        when(orderRepositoryPort.save(any())).thenReturn(order);
         doAnswer(invocation -> {
             TransactionModel tx = invocation.getArgument(1);
             tx.markPayOsSuccess("PAYOS_REF_99");

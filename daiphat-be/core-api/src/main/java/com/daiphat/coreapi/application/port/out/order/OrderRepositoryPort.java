@@ -63,4 +63,8 @@ public interface OrderRepositoryPort {
     );
 
     List<UUID> findPendingPaymentOrderIdsCreatedBefore(LocalDateTime threshold);
+
+    boolean existsByLotteryTicketId(Long lotteryTicketId);
+
+    boolean existsByLotteryTicketSerialId(Long lotteryTicketSerialId);
 }

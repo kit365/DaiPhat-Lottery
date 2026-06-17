@@ -3,7 +3,7 @@ package com.daiphat.coreapi.application.strategy.email;
 import com.daiphat.coreapi.application.port.out.mail.MailPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.ITemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.util.Map;
@@ -12,7 +12,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public abstract class AbstractEmailStrategy implements EmailStrategy {
     protected final MailPort mailPort;
-    protected final TemplateEngine templateEngine;
+    protected final ITemplateEngine templateEngine;
 
     protected abstract String getSubject(Map<String, Object> data);
 
