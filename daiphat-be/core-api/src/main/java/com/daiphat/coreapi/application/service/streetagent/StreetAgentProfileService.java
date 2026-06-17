@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.streetagent;
 
 import com.daiphat.coreapi.application.dto.request.streetagent.CreateStreetAgentProfileRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.UpdateStreetAgentProfileRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfileResponse;
 import com.daiphat.coreapi.application.mapper.streetagent.StreetAgentProfileApplicationMapper;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -79,10 +81,40 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         return streetAgentProfileApplicationMapper.toResponse(saved);
     }
 
+    @Override
+    @Transactional
+    public StreetAgentProfileResponse update(Long id, UpdateStreetAgentProfileRequest request) {
+        log.info("Updating street agent profile id: {}", id);
+
+        StreetAgentProfileModel profile = streetAgentProfileRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
+
+        if (streetAgentProfileRepositoryPort.existsByPhoneAndIdNot(request.phone(), id)) {
+            throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_PHONE_EXISTED);
+        }
+        if (streetAgentProfileRepositoryPort.existsByCccdAndIdNot(request.cccd(), id)) {
+            throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_CCCD_EXISTED);
+        }
+        validateContractDates(request.contractStartDate(), request.contractEndDate());
+
+        streetAgentProfileApplicationMapper.updateModel(profile, request);
+        if (request.depositBalance() != null) {
+            profile.setDepositBalance(request.depositBalance());
+        }
+
+        StreetAgentProfileModel saved = streetAgentProfileRepositoryPort.save(profile);
+        log.info("Street agent profile updated with id: {}", saved.getId());
+        return streetAgentProfileApplicationMapper.toResponse(saved);
+    }
+
     private void validateContractDates(CreateStreetAgentProfileRequest request) {
-        if (request.contractStartDate() != null
-                && request.contractEndDate() != null
-                && request.contractEndDate().isBefore(request.contractStartDate())) {
+        validateContractDates(request.contractStartDate(), request.contractEndDate());
+    }
+
+    private void validateContractDates(LocalDate contractStartDate, LocalDate contractEndDate) {
+        if (contractStartDate != null
+                && contractEndDate != null
+                && contractEndDate.isBefore(contractStartDate)) {
             throw new DomainException(ErrorCode.STREET_AGENT_PROFILE_INVALID_CONTRACT_DATE);
         }
     }

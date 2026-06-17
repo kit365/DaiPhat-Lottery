@@ -13,6 +13,8 @@ import org.springframework.stereotype.Repository;
 public interface StreetAgentProfileRepository extends JpaRepository<StreetAgentProfileEntity, Long> {
     boolean existsByPhone(String phone);
     boolean existsByCccd(String cccd);
+    boolean existsByPhoneAndIdNot(String phone, Long id);
+    boolean existsByCccdAndIdNot(String cccd, Long id);
 
     @Query("""
             SELECT p FROM StreetAgentProfileEntity p

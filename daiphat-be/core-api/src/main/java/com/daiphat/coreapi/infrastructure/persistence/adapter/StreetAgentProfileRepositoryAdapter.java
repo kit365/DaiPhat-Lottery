@@ -10,12 +10,21 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
+
 @Component
 @RequiredArgsConstructor
 public class StreetAgentProfileRepositoryAdapter implements StreetAgentProfileRepositoryPort {
 
     private final StreetAgentProfileRepository streetAgentProfileRepository;
     private final StreetAgentProfilePersistenceMapper streetAgentProfilePersistenceMapper;
+
+    @Override
+    public Optional<StreetAgentProfileModel> findById(Long id) {
+        return streetAgentProfileRepository.findById(id)
+                .filter(entity -> entity.getDeletedAt() == null)
+                .map(streetAgentProfilePersistenceMapper::toDomain);
+    }
 
     @Override
     public StreetAgentProfileModel save(StreetAgentProfileModel profile) {
@@ -31,6 +40,16 @@ public class StreetAgentProfileRepositoryAdapter implements StreetAgentProfileRe
     @Override
     public boolean existsByCccd(String cccd) {
         return streetAgentProfileRepository.existsByCccd(cccd);
+    }
+
+    @Override
+    public boolean existsByPhoneAndIdNot(String phone, Long id) {
+        return streetAgentProfileRepository.existsByPhoneAndIdNot(phone, id);
+    }
+
+    @Override
+    public boolean existsByCccdAndIdNot(String cccd, Long id) {
+        return streetAgentProfileRepository.existsByCccdAndIdNot(cccd, id);
     }
 
     @Override
