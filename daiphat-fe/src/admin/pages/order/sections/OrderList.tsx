@@ -1,5 +1,43 @@
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { Card, Tabs, Tab, Box, Typography, styled } from '@mui/material';
+import { useState, SyntheticEvent } from "react";
+import React from 'react';
+import {
+    Box,
+    Card,
+    Tabs,
+    Tab,
+    styled,
+    CircularProgress,
+    Typography,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    IconButton,
+    Checkbox,
+    TablePagination,
+    Collapse,
+    Stack,
+    Avatar,
+    Chip,
+    Menu,
+    MenuItem
+} from "@mui/material";
+import { Icon } from "@iconify/react";
+import dayjs from "dayjs";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { confirmAction } from "../../../utils/swal";
+import { Search } from "../../../components/ui/Search";
+import { prefixAdmin } from "../../../constants/routes";
+import { useAdminOrderList, useUpdateOrderStatus } from "../hooks/useOrderManagement";
+import { OrderStatus, OrderType } from "../../../types/order.type";
+import { STATUS_LABEL_MAP } from '../hooks/useOrderColumns';
+
+import { OrderToolbar } from './OrderToolbar';
+import { useSettings } from '../../ticket/hooks/useSettings';
 
 const TabBadge = styled('span')(() => ({
     height: "24px",
@@ -14,57 +52,122 @@ const TabBadge = styled('span')(() => ({
     fontWeight: 700,
     transition: 'all 0.2s',
 }));
-import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../assets/icons';
-import { OrderToolbar } from './OrderToolbar';
-import { useDataGridLocale } from '../../../hooks/useDataGridLocale';
-import { useSettings } from '../../ticket/hooks/useSettings';
-import { useOrderColumns, STATUS_LABEL_MAP } from '../hooks/useOrderColumns';
-import {
-    dataGridCardStyles,
-    dataGridContainerStyles,
-    columnsPanelStyles,
-    filterPanelStyles,
-    dataGridStyles,
-} from '../../ticket/configs/styles.config';
-
-import { useAdminOrderList } from '../hooks/useOrderManagement';
 
 export const OrderList = () => {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
     const { settings, setSettings } = useSettings();
-    const orderHook = useAdminOrderList();
+    
+    const [tabStatus, setTabStatus] = useState('all');
+    const [selected, setSelected] = useState<string[]>([]);
+    const [openRows, setOpenRows] = useState<string[]>([]);
+    const [anchorEl, setAnchorEl] = useState<{ [key: string]: HTMLElement | null }>({});
+
+    const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, id: string) => {
+        setAnchorEl({ ...anchorEl, [id]: event.currentTarget });
+    };
+
+    const handleCloseMenu = (id: string) => {
+        setAnchorEl({ ...anchorEl, [id]: null });
+    };
+
     const {
         orders,
         pagination,
+        statusCounts = {},
         isLoading,
-        error,
         filters,
         setFilter,
         clearFilters,
         setSearchFilter,
-        setPage,
-        setLimit,
         sortByUI,
         setSortBy,
-        statusCounts = {},
-    } = orderHook;
+        setPage,
+        setLimit,
+        refetch
+    } = useAdminOrderList({ status: tabStatus !== 'all' ? tabStatus : undefined } as any);
 
-    const tabStatus = Array.isArray(filters.status)
-        ? (filters.status[0] || 'all')
-        : (filters.status || 'all');
-
-    const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
+    const handleTabChange = (_event: SyntheticEvent, newValue: string) => {
+        setTabStatus(newValue);
         setFilter('status', newValue === 'all' ? [] : [newValue]);
+        setPage(1);
     };
 
-    const TABS = [
-        { value: 'all', label: 'Tất cả', color: 'var(--palette-common-white)', bg: 'var(--palette-grey-800)', activeColor: 'var(--palette-common-white)', activeBg: 'var(--palette-grey-800)' },
-        { value: 'PENDING_PAYMENT', label: 'Chờ thanh toán', color: 'var(--palette-warning-dark)', bg: 'var(--palette-warning-lighter)', activeColor: 'var(--palette-warning-contrastText)', activeBg: 'var(--palette-warning-main)' },
-        { value: 'PAID', label: 'Đã thanh toán', color: 'var(--palette-success-dark)', bg: 'var(--palette-success-lighter)', activeColor: 'var(--palette-success-contrastText)', activeBg: 'var(--palette-success-main)' },
-        { value: 'PREPARING', label: 'Đang chuẩn bị', color: 'var(--palette-info-dark)', bg: 'var(--palette-info-lighter)', activeColor: 'var(--palette-info-contrastText)', activeBg: 'var(--palette-info-main)' },
-        { value: 'PENDING_PICKUP', label: 'Chờ nhận vé', color: 'var(--palette-primary-dark)', bg: 'var(--palette-primary-lighter)', activeColor: 'var(--palette-primary-contrastText)', activeBg: 'var(--palette-primary-main)' },
-        { value: 'COMPLETED', label: 'Hoàn thành', color: 'var(--palette-success-dark)', bg: 'var(--palette-success-lighter)', activeColor: 'var(--palette-success-contrastText)', activeBg: 'var(--palette-success-main)' },
-        { value: 'CANCELLED', label: 'Đã huỷ', color: 'var(--palette-error-dark)', bg: 'var(--palette-error-lighter)', activeColor: 'var(--palette-error-contrastText)', activeBg: 'var(--palette-error-main)' },
-    ];
+    const handleChangePage = (_event: unknown, newPage: number) => {
+        setPage(newPage + 1);
+    };
+
+    const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setLimit(parseInt(event.target.value, 10));
+    };
+
+    const { mutate: updateStatus } = useUpdateOrderStatus();
+
+    const handleStatusUpdate = (id: string, status: string) => {
+        const update = () => {
+            updateStatus({ id, status }, {
+                onSuccess: () => toast.success("Cập nhật thành công")
+            });
+        };
+
+        if (status === 'COMPLETED') {
+            confirmAction(
+                "Xác nhận Hoàn thành?",
+                "Bạn có chắc chắn muốn hoàn thành đơn hàng này?",
+                update,
+                'info'
+            );
+        } else if (status === 'CANCELLED') {
+            confirmAction(
+                "Xác nhận Huỷ đơn?",
+                "Bạn có chắc chắn muốn huỷ đơn hàng này?",
+                update,
+                'warning'
+            );
+        } else {
+            update();
+        }
+    };
+
+    const handleViewDetail = (id: string) => {
+        navigate(`/${prefixAdmin}/order/detail/${id}`);
+    };
+
+
+
+    const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.checked) {
+            const newSelected = orders.map((n: any) => n.id);
+            setSelected(newSelected);
+            return;
+        }
+        setSelected([]);
+    };
+
+    const handleSelectRow = (id: string) => {
+        const selectedIndex = selected.indexOf(id);
+        let newSelected: string[] = [];
+
+        if (selectedIndex === -1) {
+            newSelected = [...selected, id];
+        } else if (selectedIndex === 0) {
+            newSelected = selected.slice(1);
+        } else if (selectedIndex === selected.length - 1) {
+            newSelected = selected.slice(0, -1);
+        } else if (selectedIndex > 0) {
+            newSelected = [
+                ...selected.slice(0, selectedIndex),
+                ...selected.slice(selectedIndex + 1),
+            ];
+        }
+        setSelected(newSelected);
+    };
+
+    const toggleRow = (id: string) => {
+        setOpenRows(prev =>
+            prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+        );
+    };
 
     const safeStatusCounts = statusCounts || {};
     const totalCount = Object.keys(safeStatusCounts)
@@ -72,26 +175,15 @@ export const OrderList = () => {
         .reduce((sum, key) => sum + (Number(safeStatusCounts[key]) || 0), 0);
     safeStatusCounts['all'] = safeStatusCounts['all'] ?? totalCount;
 
-    const columns = useOrderColumns();
-    const localeText = useDataGridLocale();
-
-    if (isLoading) {
-        return <div style={{ padding: '40px', textAlign: 'center', fontSize: '1.125rem' }}>Đang tải danh sách đơn hàng...</div>;
-    }
-
-    if (error) {
-        return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--palette-error-main)', fontSize: '1.125rem' }}>Lỗi khi tải danh sách đơn hàng. Vui lòng thử lại.</div>;
-    }
-
     return (
-        <Card
-            elevation={0}
-            sx={{
-                ...dataGridCardStyles,
-                display: 'flex',
-                flexDirection: 'column'
-            }}
-        >
+        <Card sx={{
+            borderRadius: 'var(--shape-borderRadius-lg)',
+            bgcolor: 'var(--palette-background-paper)',
+            boxShadow: "var(--customShadows-card)",
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+        }}>
             <Tabs
                 value={tabStatus}
                 onChange={handleTabChange}
@@ -105,7 +197,15 @@ export const OrderList = () => {
                     '& .MuiTabs-indicator': { backgroundColor: 'var(--palette-text-primary)', height: 2 },
                 }}
             >
-                {TABS.map((tab) => (
+                {[
+                    { value: 'all', label: 'Tất cả', color: 'var(--palette-common-white)', bg: 'var(--palette-grey-800)', activeColor: 'var(--palette-common-white)', activeBg: 'var(--palette-grey-800)' },
+                    { value: 'PENDING_PAYMENT', label: 'Chờ thanh toán', color: 'var(--palette-warning-dark)', bg: 'var(--palette-warning-lighter)', activeColor: 'var(--palette-warning-contrastText)', activeBg: 'var(--palette-warning-main)' },
+                    { value: 'PAID', label: 'Đã thanh toán', color: 'var(--palette-success-dark)', bg: 'var(--palette-success-lighter)', activeColor: 'var(--palette-success-contrastText)', activeBg: 'var(--palette-success-main)' },
+                    { value: 'PREPARING', label: 'Đang chuẩn bị', color: 'var(--palette-info-dark)', bg: 'var(--palette-info-lighter)', activeColor: 'var(--palette-info-contrastText)', activeBg: 'var(--palette-info-main)' },
+                    { value: 'PENDING_PICKUP', label: 'Chờ nhận vé', color: 'var(--palette-primary-dark)', bg: 'var(--palette-primary-lighter)', activeColor: 'var(--palette-primary-contrastText)', activeBg: 'var(--palette-primary-main)' },
+                    { value: 'COMPLETED', label: 'Hoàn thành', color: 'var(--palette-success-dark)', bg: 'var(--palette-success-lighter)', activeColor: 'var(--palette-success-contrastText)', activeBg: 'var(--palette-success-main)' },
+                    { value: 'CANCELLED', label: 'Đã huỷ', color: 'var(--palette-error-dark)', bg: 'var(--palette-error-lighter)', activeColor: 'var(--palette-error-contrastText)', activeBg: 'var(--palette-error-main)' },
+                ].map((tab) => (
                     <Tab
                         key={tab.value}
                         value={tab.value}
@@ -115,8 +215,7 @@ export const OrderList = () => {
                                 <Typography sx={{
                                     fontSize: '0.875rem',
                                     fontWeight: tabStatus === tab.value ? 700 : 500,
-                                    color: tabStatus === tab.value ? 'var(--palette-text-primary)' : 'inherit',
-                                    transition: 'color 0.2s ease',
+                                    color: tabStatus === tab.value ? 'var(--palette-text-primary)' : 'inherit'
                                 }}>
                                     {tab.label}
                                 </Typography>
@@ -144,67 +243,297 @@ export const OrderList = () => {
                     />
                 ))}
             </Tabs>
-            <div style={dataGridContainerStyles}>
-                <DataGrid
-                    rows={orders}
-                    columns={columns}
-                    density={settings?.density || 'standard'}
-                    showCellVerticalBorder={settings?.showCellBorders}
-                    showColumnVerticalBorder={settings?.showColumnBorders}
-                    showToolbar
-                    slots={{
-                        toolbar: OrderToolbar as any,
-                        columnSortedAscendingIcon: SortAscendingIcon,
-                        columnSortedDescendingIcon: SortDescendingIcon,
-                        columnUnsortedIcon: UnsortedIcon,
-                    }}
-                    slotProps={{
-                        columnsManagement: {
-                            getTogglableColumns: (columns: GridColDef[]) =>
-                                columns.filter(col => col.field !== '__check__' && col.field !== 'actions')
-                                    .map(col => col.field),
-                        },
-                        columnsPanel: {
-                            sx: columnsPanelStyles,
-                        },
-                        filterPanel: {
-                            sx: filterPanelStyles,
-                        },
-                        toolbar: {
-                            settings,
-                            onSettingsChange: setSettings,
-                            filters,
-                            onFilterChange: setFilter,
-                            onClearFilters: clearFilters,
-                            onSearchChange: setSearchFilter,
-                            sortByUI,
-                            onSortChange: setSortBy,
-                        } as any,
-                    }}
-                    localeText={localeText}
-                    pagination
-                    paginationMode="server"
-                    loading={isLoading}
-                    rowCount={pagination?.totalRecords || 0}
-                    paginationModel={{
-                        page: (filters.page || 1) - 1,
-                        pageSize: filters.limit || 10,
-                    }}
-                    onPaginationModelChange={(model) => {
-                        if (model.page + 1 !== filters.page) {
-                            setPage(model.page + 1);
-                        }
-                        if (model.pageSize !== filters.limit) {
-                            setLimit(model.pageSize);
-                        }
-                    }}
-                    pageSizeOptions={[5, 10, 20, 50]}
-                    getRowHeight={() => 'auto'}
-                    checkboxSelection
-                    disableRowSelectionOnClick
-                    sx={dataGridStyles}
+
+            <Box sx={{ borderBottom: `1px dashed var(--palette-background-neutral)` }}>
+                <OrderToolbar
+                    settings={settings}
+                    onSettingsChange={setSettings as any}
+                    filters={filters as any}
+                    onFilterChange={setFilter}
+                    onClearFilters={clearFilters}
+                    onSearchChange={setSearchFilter}
+                    sortByUI={sortByUI}
+                    onSortChange={setSortBy}
                 />
-            </div>
+            </Box>
+
+            <TableContainer sx={{ position: 'relative', overflow: 'unset' }}>
+                <Table sx={{ minWidth: 960 }} size={settings.density === 'compact' ? 'small' : 'medium'}>
+                    <TableHead sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
+                        <TableRow>
+                            <TableCell padding="checkbox" sx={{ borderBottom: 'none', textAlign: 'center' }}>
+                                <Checkbox
+                                    indeterminate={selected.length > 0 && selected.length < orders.length}
+                                    checked={orders.length > 0 && selected.length === orders.length}
+                                    onChange={handleSelectAllClick}
+                                    sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
+                                />
+                            </TableCell>
+                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Mã đơn</TableCell>
+                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Khách hàng</TableCell>
+                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Loại đơn</TableCell>
+                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Ngày tạo</TableCell>
+                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }}>Tổng tiền</TableCell>
+                            <TableCell sx={{ borderBottom: 'none', color: 'var(--palette-text-secondary)', fontWeight: 600, fontSize: '0.875rem' }} align="right">Trạng thái</TableCell>
+                            <TableCell sx={{ borderBottom: 'none', width: 80 }} align="right" />
+                        </TableRow>
+                    </TableHead>
+
+                    <TableBody>
+                        {isLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={8} align="center" sx={{ py: 10 }}>
+                                    <CircularProgress size={32} />
+                                </TableCell>
+                            </TableRow>
+                        ) : orders.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={8} align="center" sx={{ py: 10 }}>
+                                    <Typography sx={{ color: 'var(--palette-text-secondary)' }}>
+                                        Không có dữ liệu
+                                    </Typography>
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            orders.map((row: any) => {
+                                const isItemSelected = selected.indexOf(row.id) !== -1;
+                                const isOpen = openRows.includes(row.id);
+
+                                return (
+                                    <React.Fragment key={row.id}>
+                                        <TableRow
+                                            hover
+                                            selected={isItemSelected}
+                                            sx={{
+                                                '&:hover': { bgcolor: 'var(--palette-action-hover)' },
+                                                ...(isOpen && {
+                                                    bgcolor: 'transparent'
+                                                }),
+                                                transition: 'background-color 0.2s'
+                                            }}
+                                        >
+                                            <TableCell padding="checkbox" sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', textAlign: 'center' }}>
+                                                <Checkbox
+                                                    checked={isItemSelected}
+                                                    onClick={() => handleSelectRow(row.id)}
+                                                    sx={{ color: 'var(--palette-text-disabled)', p: 0 }}
+                                                />
+                                            </TableCell>
+
+                                            <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
+                                                <Typography
+                                                    onClick={() => handleViewDetail(row.id)}
+                                                    sx={{
+                                                        fontWeight: 600,
+                                                        fontSize: '0.875rem',
+                                                        color: 'var(--palette-text-primary)',
+                                                        textDecoration: 'underline',
+                                                        cursor: 'pointer',
+                                                        '&:hover': { color: 'var(--palette-primary-main)' }
+                                                    }}
+                                                >
+                                                    #{row.orderCode || 'N/A'}
+                                                </Typography>
+                                            </TableCell>
+
+                                            <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
+                                                <Stack direction="row" spacing={2} alignItems="center">
+                                                    <Avatar
+                                                        src={row.user?.avatar || ""}
+                                                        sx={{ width: 40, height: 40, borderRadius: 'var(--shape-borderRadius-sm)' }}
+                                                    >
+                                                        <Icon icon="eva:person-fill" width={24} />
+                                                    </Avatar>
+                                                    <Stack spacing={0.25}>
+                                                        <Typography sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
+                                                            {row.name || row.user?.fullName || 'Khách vãng lai'}
+                                                        </Typography>
+                                                        <Typography sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.75rem' }}>
+                                                            {row.phone || row.user?.phone || row.user?.email || "Không có thông tin"}
+                                                        </Typography>
+                                                    </Stack>
+                                                </Stack>
+                                            </TableCell>
+
+                                            <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
+                                                {(() => {
+                                                    const typeMap: any = {
+                                                        'ONLINE': { label: 'Online', color: 'var(--palette-info-dark)', bg: 'var(--palette-info-lighter)' },
+                                                        'DIRECT': { label: 'Tại quầy', color: 'var(--palette-warning-dark)', bg: 'var(--palette-warning-lighter)' }
+                                                    };
+                                                    const tInfo = typeMap[row.orderType] || { label: row.orderType, color: 'var(--palette-text-disabled)', bg: 'var(--palette-background-neutral)' };
+                                                    return (
+                                                        <Chip
+                                                            label={tInfo.label}
+                                                            size="small"
+                                                            sx={{
+                                                                borderRadius: "var(--shape-borderRadius-sm)",
+                                                                fontWeight: 700,
+                                                                fontSize: '0.6875rem',
+                                                                color: tInfo.color,
+                                                                bgcolor: tInfo.bg,
+                                                                height: '24px'
+                                                            }}
+                                                        />
+                                                    );
+                                                })()}
+                                            </TableCell>
+
+                                            <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
+                                                <Stack spacing={0}>
+                                                    <Typography sx={{ fontWeight: 400, fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
+                                                        {dayjs(row.createdAt).format("DD MMM YYYY")}
+                                                    </Typography>
+                                                    <Typography sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.75rem' }}>
+                                                        {dayjs(row.createdAt).format("h:mm a")}
+                                                    </Typography>
+                                                </Stack>
+                                            </TableCell>
+
+
+                                            <TableCell sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
+                                                <Typography sx={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--palette-text-primary)' }}>
+                                                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(row.totalAmount || 0)}
+                                                </Typography>
+                                            </TableCell>
+
+                                            <TableCell align="right" sx={{ borderBottom: '1px dashed var(--palette-background-neutral)' }}>
+                                                {(() => {
+                                                    const statusMap: any = {
+                                                        'PENDING_PAYMENT': { label: 'Chờ thanh toán', color: "var(--palette-warning-dark)", bg: "var(--palette-warning-lighter)" },
+                                                        'PAID': { label: 'Đã thanh toán', color: "var(--palette-success-dark)", bg: "var(--palette-success-lighter)" },
+                                                        'PREPARING': { label: 'Đang chuẩn bị', color: "var(--palette-info-dark)", bg: "var(--palette-info-lighter)" },
+                                                        'PENDING_PICKUP': { label: 'Chờ nhận vé', color: "var(--palette-primary-dark)", bg: "var(--palette-primary-lighter)" },
+                                                        'COMPLETED': { label: 'Hoàn thành', color: "var(--palette-success-dark)", bg: "var(--palette-success-lighter)" },
+                                                        'CANCELLED': { label: 'Đã huỷ', color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
+                                                    };
+                                                    const status = statusMap[row.status] || { label: row.status, color: 'var(--palette-text-disabled)', bg: "var(--palette-background-neutral)" };
+                                                    return (
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                                            <Chip
+                                                                label={status.label}
+                                                                size="small"
+                                                                sx={{
+                                                                    borderRadius: "var(--shape-borderRadius-sm)",
+                                                                    fontWeight: 700,
+                                                                    fontSize: '0.6875rem',
+                                                                    color: status.color,
+                                                                    bgcolor: status.bg,
+                                                                    height: '24px'
+                                                                }}
+                                                            />
+                                                        </Box>
+                                                    );
+                                                })()}
+                                            </TableCell>
+
+                                            <TableCell align="right" sx={{ borderBottom: '1px dashed var(--palette-background-neutral)', width: 80 }}>
+                                                <Stack direction="row" spacing={0} justifyContent="flex-end">
+                                                    <IconButton
+                                                        onClick={(e) => handleOpenMenu(e, row.id)}
+                                                        sx={{
+                                                            color: 'var(--palette-text-primary)',
+                                                            bgcolor: Boolean(anchorEl[row.id]) ? 'var(--palette-action-hover)' : 'transparent',
+                                                            '&:hover': {
+                                                                bgcolor: 'rgba(var(--palette-action-activeChannel) / var(--palette-action-hoverOpacity))',
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Icon icon="eva:more-vertical-fill" width={20} />
+                                                    </IconButton>
+                                                </Stack>
+
+                                                <Menu
+                                                    anchorEl={anchorEl[row.id]}
+                                                    open={Boolean(anchorEl[row.id])}
+                                                    onClose={() => handleCloseMenu(row.id)}
+                                                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                                    slotProps={{
+                                                        paper: {
+                                                            sx: {
+                                                                width: 160,
+                                                                boxShadow: 'var(--customShadows-z20)',
+                                                                borderRadius: 'var(--shape-borderRadius-md)',
+                                                                p: 0.5
+                                                            }
+                                                        }
+                                                    }}
+                                                >
+                                                    <MenuItem onClick={() => { handleCloseMenu(row.id); handleViewDetail(row.id); }}>
+                                                        <Icon icon="eva:eye-fill" width={18} style={{ marginRight: 8 }} />
+                                                        Chi tiết
+                                                    </MenuItem>
+
+                                                    {['PENDING_PAYMENT'].includes(row.status) && (
+                                                        <MenuItem
+                                                            onClick={() => { handleCloseMenu(row.id); handleStatusUpdate(row.id, 'PAID'); }}
+                                                            sx={{ color: 'var(--palette-success-main)' }}
+                                                        >
+                                                            <Icon icon="solar:wallet-money-bold" width={18} style={{ marginRight: 8 }} />
+                                                            Đã thu tiền
+                                                        </MenuItem>
+                                                    )}
+
+                                                    {['PAID'].includes(row.status) && (
+                                                        <MenuItem
+                                                            onClick={() => { handleCloseMenu(row.id); handleStatusUpdate(row.id, 'PREPARING'); }}
+                                                            sx={{ color: 'var(--palette-info-main)' }}
+                                                        >
+                                                            <Icon icon="solar:box-bold" width={18} style={{ marginRight: 8 }} />
+                                                            Đang chuẩn bị
+                                                        </MenuItem>
+                                                    )}
+
+                                                    {['PREPARING'].includes(row.status) && (
+                                                        <MenuItem
+                                                            onClick={() => { handleCloseMenu(row.id); handleStatusUpdate(row.id, 'PENDING_PICKUP'); }}
+                                                            sx={{ color: 'var(--palette-primary-main)' }}
+                                                        >
+                                                            <Icon icon="solar:shop-2-bold" width={18} style={{ marginRight: 8 }} />
+                                                            Chờ nhận vé
+                                                        </MenuItem>
+                                                    )}
+
+                                                    {['PENDING_PICKUP'].includes(row.status) && (
+                                                        <MenuItem
+                                                            onClick={() => { handleCloseMenu(row.id); handleStatusUpdate(row.id, 'COMPLETED'); }}
+                                                            sx={{ color: 'var(--palette-success-main)' }}
+                                                        >
+                                                            <Icon icon="eva:checkmark-circle-2-fill" width={18} style={{ marginRight: 8 }} />
+                                                            Hoàn thành
+                                                        </MenuItem>
+                                                    )}
+
+                                                    {['PENDING_PAYMENT', 'PAID', 'PREPARING'].includes(row.status) && (
+                                                        <MenuItem
+                                                            onClick={() => { handleCloseMenu(row.id); handleStatusUpdate(row.id, 'CANCELLED'); }}
+                                                            sx={{ color: 'var(--palette-error-main)' }}
+                                                        >
+                                                            <Icon icon="eva:close-circle-fill" width={18} style={{ marginRight: 8 }} />
+                                                            Hủy đơn
+                                                        </MenuItem>
+                                                    )}
+                                                </Menu>
+                                            </TableCell>
+                                        </TableRow>
+                                    </React.Fragment>
+                                );
+                            })
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+
+            <TablePagination
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                component="div"
+                count={pagination?.totalRecords || 0}
+                rowsPerPage={filters.limit || 10}
+                page={(filters.page || 1) - 1}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+            />
         </Card>
-    )
-}
+    );
+};

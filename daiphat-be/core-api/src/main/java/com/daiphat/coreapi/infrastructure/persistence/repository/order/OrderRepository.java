@@ -33,4 +33,22 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSp
             @Param("status") OrderStatus status,
             @Param("threshold") LocalDateTime threshold
     );
+
+    @Query("""
+            select (count(od) > 0)
+            from OrderDetailEntity od
+            left join od.replacedByTicketSerial replacedSerial
+            where od.lotteryTicketSerial.ticket.id = :lotteryTicketId
+               or replacedSerial.ticket.id = :lotteryTicketId
+            """)
+    boolean existsOrderDetailByLotteryTicketId(@Param("lotteryTicketId") Long lotteryTicketId);
+
+    @Query("""
+            select (count(od) > 0)
+            from OrderDetailEntity od
+            left join od.replacedByTicketSerial replacedSerial
+            where od.lotteryTicketSerial.id = :lotteryTicketSerialId
+               or replacedSerial.id = :lotteryTicketSerialId
+            """)
+    boolean existsOrderDetailByLotteryTicketSerialId(@Param("lotteryTicketSerialId") Long lotteryTicketSerialId);
 }
