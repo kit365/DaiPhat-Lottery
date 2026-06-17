@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.streetagent;
 
 import com.daiphat.coreapi.application.dto.request.streetagent.CreateStreetAgentProfileRequest;
+import com.daiphat.coreapi.application.dto.request.streetagent.UpdateStreetAgentProfileRequest;
 import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfileResponse;
 import com.daiphat.coreapi.application.mapper.streetagent.StreetAgentProfileApplicationMapper;
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
@@ -19,18 +20,21 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("StreetAgentProfileService - create")
+@DisplayName("StreetAgentProfileService")
 class StreetAgentProfileServiceTest {
 
     private static final String FIRST_NAME = "Nguyen";
@@ -231,6 +235,165 @@ class StreetAgentProfileServiceTest {
             verify(streetAgentProfileRepositoryPort, never()).save(any());
             verifyNoInteractions(streetAgentProfileApplicationMapper);
         }
+    }
+
+    @Nested
+    @DisplayName("Cập nhật hồ sơ thành công")
+    class UpdateSuccess {
+
+        @Test
+        @DisplayName("cập nhật hồ sơ đầy đủ thông tin")
+        void update_withFullPayload() {
+            UpdateStreetAgentProfileRequest request = buildUpdateRequest(
+                    LocalDate.of(2026, 2, 1),
+                    LocalDate.of(2026, 11, 30),
+                    new BigDecimal("7000000"),
+                    "Tăng ký quỹ",
+                    "INACTIVE"
+            );
+            StreetAgentProfileModel existing = buildSavedModel();
+            StreetAgentProfileModel saved = buildSavedModel();
+            saved.setDepositBalance(new BigDecimal("7000000"));
+            saved.setStatus(StreetAgentProfileStatus.INACTIVE);
+            StreetAgentProfileResponse response = buildResponse();
+
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(existing));
+            when(streetAgentProfileRepositoryPort.existsByPhoneAndIdNot(PHONE, PROFILE_ID)).thenReturn(false);
+            when(streetAgentProfileRepositoryPort.existsByCccdAndIdNot(CCCD, PROFILE_ID)).thenReturn(false);
+            doAnswer(invocation -> {
+                StreetAgentProfileModel model = invocation.getArgument(0);
+                UpdateStreetAgentProfileRequest req = invocation.getArgument(1);
+                model.setFirstName(req.firstName());
+                model.setLastName(req.lastName());
+                model.setStatus(StreetAgentProfileStatus.INACTIVE);
+                model.setDepositAdjustmentReason(req.depositAdjustmentReason());
+                return null;
+            }).when(streetAgentProfileApplicationMapper).updateModel(eq(existing), eq(request));
+            when(streetAgentProfileRepositoryPort.save(existing)).thenReturn(saved);
+            when(streetAgentProfileApplicationMapper.toResponse(saved)).thenReturn(response);
+
+            StreetAgentProfileResponse result = streetAgentProfileService.update(PROFILE_ID, request);
+
+            assertThat(result.id()).isEqualTo(PROFILE_ID);
+            verify(streetAgentProfileRepositoryPort).findById(PROFILE_ID);
+            verify(streetAgentProfileRepositoryPort).existsByPhoneAndIdNot(PHONE, PROFILE_ID);
+            verify(streetAgentProfileRepositoryPort).existsByCccdAndIdNot(CCCD, PROFILE_ID);
+            verify(streetAgentProfileApplicationMapper).updateModel(existing, request);
+            verify(streetAgentProfileRepositoryPort).save(existing);
+        }
+
+        @Test
+        @DisplayName("giữ nguyên depositBalance khi null")
+        void update_keepsDepositBalanceWhenNull() {
+            UpdateStreetAgentProfileRequest request = buildUpdateRequest(null, null, null, null, "ACTIVE");
+            StreetAgentProfileModel existing = buildSavedModel();
+
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(existing));
+            when(streetAgentProfileRepositoryPort.existsByPhoneAndIdNot(PHONE, PROFILE_ID)).thenReturn(false);
+            when(streetAgentProfileRepositoryPort.existsByCccdAndIdNot(CCCD, PROFILE_ID)).thenReturn(false);
+            when(streetAgentProfileRepositoryPort.save(existing)).thenReturn(existing);
+            when(streetAgentProfileApplicationMapper.toResponse(existing)).thenReturn(buildResponse());
+
+            streetAgentProfileService.update(PROFILE_ID, request);
+
+            assertThat(existing.getDepositBalance()).isEqualByComparingTo("5000000");
+        }
+    }
+
+    @Nested
+    @DisplayName("Cập nhật thất bại")
+    class UpdateValidationFailure {
+
+        @Test
+        @DisplayName("không tìm thấy hồ sơ")
+        void update_notFound() {
+            UpdateStreetAgentProfileRequest request = buildUpdateRequest(null, null, BigDecimal.ZERO, null, "ACTIVE");
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> streetAgentProfileService.update(PROFILE_ID, request))
+                    .isInstanceOf(DomainException.class)
+                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
+
+            verify(streetAgentProfileRepositoryPort, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("số điện thoại đã tồn tại")
+        void update_phoneExisted() {
+            UpdateStreetAgentProfileRequest request = buildUpdateRequest(null, null, BigDecimal.ZERO, null, "ACTIVE");
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(buildSavedModel()));
+            when(streetAgentProfileRepositoryPort.existsByPhoneAndIdNot(PHONE, PROFILE_ID)).thenReturn(true);
+
+            assertThatThrownBy(() -> streetAgentProfileService.update(PROFILE_ID, request))
+                    .isInstanceOf(DomainException.class)
+                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.STREET_AGENT_PROFILE_PHONE_EXISTED));
+
+            verify(streetAgentProfileRepositoryPort, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("CCCD đã tồn tại")
+        void update_cccdExisted() {
+            UpdateStreetAgentProfileRequest request = buildUpdateRequest(null, null, BigDecimal.ZERO, null, "ACTIVE");
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(buildSavedModel()));
+            when(streetAgentProfileRepositoryPort.existsByPhoneAndIdNot(PHONE, PROFILE_ID)).thenReturn(false);
+            when(streetAgentProfileRepositoryPort.existsByCccdAndIdNot(CCCD, PROFILE_ID)).thenReturn(true);
+
+            assertThatThrownBy(() -> streetAgentProfileService.update(PROFILE_ID, request))
+                    .isInstanceOf(DomainException.class)
+                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.STREET_AGENT_PROFILE_CCCD_EXISTED));
+
+            verify(streetAgentProfileRepositoryPort, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("ngày kết thúc hợp đồng trước ngày bắt đầu")
+        void update_invalidContractDate() {
+            UpdateStreetAgentProfileRequest request = buildUpdateRequest(
+                    LocalDate.of(2026, 6, 1),
+                    LocalDate.of(2026, 1, 1),
+                    BigDecimal.ZERO,
+                    null,
+                    "ACTIVE"
+            );
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(buildSavedModel()));
+            when(streetAgentProfileRepositoryPort.existsByPhoneAndIdNot(PHONE, PROFILE_ID)).thenReturn(false);
+            when(streetAgentProfileRepositoryPort.existsByCccdAndIdNot(CCCD, PROFILE_ID)).thenReturn(false);
+
+            assertThatThrownBy(() -> streetAgentProfileService.update(PROFILE_ID, request))
+                    .isInstanceOf(DomainException.class)
+                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.STREET_AGENT_PROFILE_INVALID_CONTRACT_DATE));
+
+            verify(streetAgentProfileRepositoryPort, never()).save(any());
+        }
+    }
+
+    private UpdateStreetAgentProfileRequest buildUpdateRequest(
+            LocalDate startDate,
+            LocalDate endDate,
+            BigDecimal depositBalance,
+            String depositAdjustmentReason,
+            String status) {
+        return new UpdateStreetAgentProfileRequest(
+                FIRST_NAME,
+                LAST_NAME,
+                PHONE,
+                CCCD,
+                IMAGE_URL,
+                "123 Nguyen Hue",
+                "Ho Chi Minh",
+                "Quan 1, Quan 3",
+                new BigDecimal("0.05"),
+                startDate,
+                endDate,
+                depositBalance,
+                depositAdjustmentReason,
+                status
+        );
     }
 
     private void stubUniqueConstraintsPass() {
