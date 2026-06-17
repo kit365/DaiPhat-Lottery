@@ -1,116 +1,57 @@
-import React from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useOrderDetail, useUpdateOrderStatus } from './hooks/useOrderManagement';
-import { OrderStatus, OrderType } from '../../../types/order.type';
-import dayjs from 'dayjs';
-import { CircularProgress, Box, Typography, Button } from '@mui/material';
-import { Icon } from '@iconify/react';
-import { toast } from 'react-toastify';
-import { prefixAdmin } from '../../constants/routes';
+import { useState } from "react";
+import {
+    Box,
+    Card,
+    Stack,
+    Grid,
+    Avatar,
+    Typography,
+    Button,
+    Chip,
+    IconButton,
+    MenuItem,
+    Select,
+    CircularProgress,
+    alpha,
+    Divider,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow
+} from "@mui/material";
+import { Icon } from "@iconify/react";
+import { useNavigate, useParams } from "react-router-dom";
+import dayjs from "dayjs";
+import { useOrderDetail, useUpdateOrderStatus } from "./hooks/useOrderManagement";
+import { OrderStatus } from "../../../types/order.type";
+import { toast } from "react-toastify";
+import { prefixAdmin } from "../../constants/routes";
+import { confirmAction, confirmInputText } from "../../utils/swal";
 
-const ORDER_STATUS_MAP: Record<OrderStatus, { label: string, bg: string, text: string, color: any }> = {
-    [OrderStatus.PENDING_PAYMENT]: { label: 'Chờ thanh toán', bg: 'bg-[#FFF9F3]', text: 'text-[#FFB020]', color: 'warning' },
-    [OrderStatus.PAID]: { label: 'Đã thanh toán', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]', color: 'success' },
-    [OrderStatus.PREPARING]: { label: 'Đang chuẩn bị', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]', color: 'info' },
-    [OrderStatus.PENDING_PICKUP]: { label: 'Chờ nhận vé', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]', color: 'primary' },
-    [OrderStatus.COMPLETED]: { label: 'Hoàn thành', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]', color: 'success' },
-    [OrderStatus.CANCELLED]: { label: 'Đã huỷ', bg: 'bg-[#FFF4F4]', text: 'text-[#ee1314]', color: 'error' }
+const STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
+    [OrderStatus.PENDING_PAYMENT]: { label: "Chờ thanh toán", color: "var(--palette-warning-dark)", bg: "var(--palette-warning-lighter)" },
+    [OrderStatus.PAID]: { label: "Đã thanh toán", color: "var(--palette-info-dark)", bg: "var(--palette-info-lighter)" },
+    [OrderStatus.PREPARING]: { label: "Đang chuẩn bị", color: "var(--palette-primary-dark)", bg: "var(--palette-primary-lighter)" },
+    [OrderStatus.PENDING_PICKUP]: { label: "Chờ nhận vé", color: "var(--palette-primary-dark)", bg: "var(--palette-primary-lighter)" },
+    [OrderStatus.COMPLETED]: { label: "Hoàn thành", color: "var(--palette-success-dark)", bg: "var(--palette-success-lighter)" },
+    [OrderStatus.CANCELLED]: { label: "Đã hủy", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" }
 };
 
-const ORDER_TYPE_MAP: Record<OrderType, { label: string, bg: string, text: string }> = {
-    [OrderType.ONLINE]: { label: 'Online', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
-    [OrderType.DIRECT]: { label: 'Tại quầy', bg: 'bg-[#FFF9F3]', text: 'text-[#FFB020]' }
-};
-
-const AdminOrderStepper = ({ currentStatus }: { currentStatus: OrderStatus }) => {
-    if (currentStatus === OrderStatus.CANCELLED) {
-        return (
-            <div className="bg-[#FFF4F4] rounded-[16px] p-6 border border-[#FFEBEE] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-                <div className="w-14 h-14 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
-                    <i className="fa-solid fa-xmark"></i>
-                </div>
-                <div>
-                    <h3 className="text-[#ee1314] font-bold text-[18px]">Đơn hàng đã bị huỷ</h3>
-                    <p className="text-[#637381] text-[14px] mt-1.5 font-medium">Đơn hàng này đã bị huỷ và không thể tiếp tục thực hiện.</p>
-                </div>
-            </div>
-        );
-    }
-
-    const steps = [
-        { key: 'CREATED', label: 'Đã đặt đơn' },
-        { key: OrderStatus.PAID, label: 'Đã thanh toán' },
-        { key: OrderStatus.PREPARING, label: 'Đang chuẩn bị' },
-        { key: OrderStatus.PENDING_PICKUP, label: 'Chờ nhận vé' }
-    ];
-
-    const getStepIndex = (status: OrderStatus) => {
-        switch (status) {
-            case OrderStatus.PENDING_PAYMENT: return 0;
-            case OrderStatus.PAID: return 1;
-            case OrderStatus.PREPARING: return 2;
-            case OrderStatus.PENDING_PICKUP: return 3;
-            case OrderStatus.COMPLETED: return 3; // Hoàn thành cũng full step
-            default: return 0;
-        }
-    };
-
-    const currentIndex = getStepIndex(currentStatus);
-
-    return (
-        <div className="bg-white rounded-[16px] p-6 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col items-center">
-            <div className="flex items-center justify-between relative w-full max-w-4xl mx-auto mb-6 mt-4">
-                {/* Background Line */}
-                <div className="absolute top-1/2 left-[5%] right-[5%] h-[2px] bg-[#E5E8EB] -translate-y-1/2 z-0"></div>
-
-                {/* Active Line */}
-                <div
-                    className="absolute top-1/2 left-[5%] h-[2px] bg-[#1CD162] -translate-y-1/2 z-0 transition-all duration-700 ease-in-out"
-                    style={{ width: `${(currentIndex / (steps.length - 1)) * 90}%` }}
-                ></div>
-
-                {steps.map((step, index) => {
-                    const isCompleted = index <= currentIndex;
-                    const isLastCompleted = index === currentIndex;
-
-                    return (
-                        <div key={step.key} className="relative z-10 flex flex-col items-center gap-2 bg-white px-4">
-                            <div
-                                className={`w-8 h-8 rounded-full flex items-center justify-center text-[14px] transition-all duration-300 ${isCompleted
-                                        ? 'bg-white text-[#1CD162] border-2 border-[#1CD162]'
-                                        : 'bg-white text-[#919EAB] border-2 border-[#E5E8EB]'
-                                    }`}
-                            >
-                                {isCompleted ? <i className="fa-solid fa-check"></i> : (currentStatus === OrderStatus.PENDING_PAYMENT && index === 0 ? <i className="fa-solid fa-check"></i> : <i className="fa-solid fa-lock text-[12px]"></i>)}
-                            </div>
-                            <div className="text-center">
-                                <span className={`block text-[13px] font-bold ${isCompleted ? 'text-[#212B36]' : 'text-[#919EAB]'}`}>
-                                    {step.label}
-                                </span>
-                                {isLastCompleted && (
-                                    <span className="block text-[11px] text-[#919EAB] mt-0.5">
-                                        {dayjs().format('DD/MM/YYYY - HH:mm')}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-            <p className="text-[#637381] text-[13px] text-center mt-2">
-                Đơn hàng sẽ được chuẩn bị và sẵn sàng để bạn đến lấy vé.
-            </p>
-        </div>
-    );
+const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
+    unpaid: { label: "Chưa thanh toán", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
+    partially_paid: { label: "Thanh toán một phần", color: "var(--palette-warning-dark)", bg: "var(--palette-warning-lighter)" },
+    paid: { label: "Đã thanh toán", color: "var(--palette-success-main)", bg: "rgba(34, 197, 94, 0.16)" },
+    refunded: { label: "Đã hoàn tiền", color: "var(--palette-info-dark)", bg: "var(--palette-info-lighter)" },
 };
 
 export const OrderDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { data: orderRes, isLoading } = useOrderDetail(id || "");
-    const { mutate: updateStatus } = useUpdateOrderStatus();
-
+    const { data: orderRes, isLoading, refetch } = useOrderDetail(id || "");
     const order = orderRes?.data;
+    const { mutate: updateStatus } = useUpdateOrderStatus();
 
     if (isLoading) {
         return (
@@ -124,248 +65,494 @@ export const OrderDetailPage = () => {
         return (
             <Box sx={{ p: 5, textAlign: 'center' }}>
                 <Typography sx={{ color: 'var(--palette-text-primary)' }}>Không tìm thấy đơn hàng</Typography>
-                <Button sx={{ mt: 2 }} variant="contained" onClick={() => navigate(-1)}>Quay lại</Button>
             </Box>
         );
     }
 
-    const statusConfig = ORDER_STATUS_MAP[order.status as OrderStatus] || ORDER_STATUS_MAP[OrderStatus.PENDING_PAYMENT];
-    const typeConfig = ORDER_TYPE_MAP[order.orderType as OrderType] || ORDER_TYPE_MAP[OrderType.ONLINE];
+    const currentStatus = STATUS_OPTIONS[order.status] || STATUS_OPTIONS[OrderStatus.PENDING_PAYMENT];
+    const isTerminalStatus = [OrderStatus.COMPLETED, OrderStatus.CANCELLED].includes(order.status as OrderStatus);
 
-    const handleCopyOrderCode = () => {
-        if (order.orderCode) {
-            navigator.clipboard.writeText(order.orderCode);
-            toast.success("Đã sao chép mã đơn hàng!");
+    const handleStatusChange = (newStatus: string) => {
+        const update = () => {
+            updateStatus({ id: order.id, status: newStatus as OrderStatus }, {
+                onSuccess: () => toast.success("Cập nhật trạng thái thành công")
+            });
+        };
+
+        if (newStatus === OrderStatus.PREPARING) {
+            confirmAction(
+                "Bắt đầu chuẩn bị?",
+                "Xác nhận bắt đầu chuẩn bị đơn hàng này.",
+                update,
+                'info'
+            );
+        } else if (newStatus === OrderStatus.COMPLETED) {
+            confirmAction(
+                "Hoàn thành đơn hàng?",
+                "Bạn có chắc chắn muốn xác nhận hoàn thành đơn hàng này?",
+                update,
+                'success'
+            );
+        } else if (newStatus === OrderStatus.CANCELLED) {
+            confirmInputText(
+                "Xác nhận hủy đơn",
+                "Nhập lý do hủy đơn",
+                "Ví dụ: Khách yêu cầu huỷ",
+                (reason) => {
+                    updateStatus({ id: order.id, status: newStatus as OrderStatus, reason: reason || "Hủy bởi Admin" }, {
+                        onSuccess: () => {
+                            toast.success("Hủy đơn thành công");
+                            refetch();
+                        },
+                        onError: (err: any) => toast.error(err.response?.data?.message || "Lỗi khi hủy đơn")
+                    });
+                },
+                'warning'
+            );
+        } else {
+            update();
         }
     };
 
-    const handleStatusChange = (newStatus: OrderStatus) => {
-        let reason = undefined;
-        if (newStatus === OrderStatus.CANCELLED) {
-            const input = window.prompt("Nhập lý do huỷ đơn hàng (tùy chọn):");
-            if (input === null) return; // User cancelled
-            reason = input;
-        }
+    const paymentStatus = order.status === OrderStatus.PENDING_PAYMENT ? 'unpaid' : 
+                          order.status === OrderStatus.CANCELLED ? 'refunded' : 'paid';
 
-        updateStatus({ id: order.id, status: newStatus, reason }, {
-            onSuccess: () => toast.success("Cập nhật trạng thái thành công"),
-            onError: (err: any) => toast.error(err?.response?.data?.message || err?.message || "Cập nhật trạng thái thất bại")
-        });
+    const handlePrint = () => {
+        toast.info("Chức năng in đang được cập nhật");
     };
-
-    const paymentMethod = order.transactions?.[0]?.paymentGateway || 'PayOS (Chuyển khoản QR)';
-    const note = order.transactions?.[0]?.note || 'Không có';
 
     return (
-        <div className="max-w-[1200px] mx-auto pb-10">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-[13px] font-medium text-[#637381] mb-4">
-                <Link to={`/${prefixAdmin}/order/list`} className="hover:text-[#212B36] transition-colors flex items-center gap-1">
-                    <i className="fa-solid fa-arrow-left text-[11px]"></i> Đơn mua hộ
-                </Link>
-                <i className="fa-solid fa-chevron-right text-[10px]"></i>
-                <span className="text-[#212B36] underline decoration-gray-300 underline-offset-4 font-semibold">Chi tiết đơn hàng</span>
-            </div>
-
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                <div className="flex items-center gap-3">
-                    <h1 className="text-[24px] font-bold text-[#212B36]">Chi tiết đơn hàng</h1>
-                    <span className={`text-[12px] font-bold px-2.5 py-1 rounded-md ${statusConfig.bg} ${statusConfig.text}`}>
-                        <i className="fa-solid fa-check-circle mr-1"></i> {statusConfig.label}
-                    </span>
-                    <span className={`text-[12px] font-bold px-2.5 py-1 rounded-md ${typeConfig.bg} ${typeConfig.text}`}>
-                        {typeConfig.label}
-                    </span>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                    {/* Select Update Status */}
-                    <select
-                        value={order.status}
-                        onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
-                        disabled={order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED}
-                        className="h-[38px] px-3 pr-8 bg-white border border-[#E5E8EB] rounded-lg text-[14px] font-semibold text-[#212B36] outline-none cursor-pointer hover:border-[#919EAB] transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[#F9FAFB] min-w-[160px]"
+        <Box sx={{ width: '100%', mx: 'auto' }}>
+            {/* Header section */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4, mt: 0.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                    <IconButton
+                        onClick={() => navigate(-1)}
+                        sx={{
+                            color: 'var(--palette-action-active)',
+                            p: 0.75,
+                            mr: 1,
+                            mt: 0.25
+                        }}
                     >
-                        {Object.entries(ORDER_STATUS_MAP).map(([value, opt]) => (
-                            <option key={value} value={value} className="font-medium">
-                                {opt.label}
-                            </option>
-                        ))}
-                    </select>
+                        <Icon icon="eva:arrow-ios-back-fill" width={20} />
+                    </IconButton>
 
-                    <button
-                        onClick={() => navigate(`/${prefixAdmin}/order/list`)}
-                        className="px-4 py-2 bg-white border border-[#E5E8EB] rounded-lg text-[14px] font-bold text-[#454F5B] hover:bg-[#F9FAFB] transition-colors shadow-sm cursor-pointer flex items-center gap-2 h-[38px]"
+                    <Stack spacing={0.5}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="h4" sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                                Đơn mua hộ #{order.orderCode || order.id?.slice(-6).toUpperCase() || 'ERROR'}
+                            </Typography>
+                        </Box>
+                        <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+                            <Chip
+                                label={currentStatus.label}
+                                size="small"
+                                sx={{
+                                    fontWeight: 700,
+                                    height: 22,
+                                    fontSize: '0.75rem',
+                                    borderRadius: 'var(--shape-borderRadius-sm)',
+                                    color: currentStatus.color,
+                                    bgcolor: currentStatus.bg,
+                                    backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0.48))',
+                                }}
+                            />
+                            <Chip
+                                label="Tại quầy"
+                                size="small"
+                                sx={{
+                                    fontWeight: 700,
+                                    height: 22,
+                                    fontSize: '0.75rem',
+                                    borderRadius: 'var(--shape-borderRadius-sm)',
+                                    color: "var(--palette-info-dark)",
+                                    bgcolor: "var(--palette-info-lighter)",
+                                    backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0.48))',
+                                }}
+                            />
+                        </Stack>
+                    </Stack>
+                </Box>
+
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Button 
+                        variant="contained" 
+                        color="success"
+                        startIcon={<Icon icon="solar:refresh-circle-linear" />}
+                        sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
                     >
-                        <i className="fa-solid fa-arrow-left"></i> Quay lại danh sách
-                    </button>
-                </div>
-            </div>
+                        Chuyển sang "Chờ nhận vé"
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={<Icon icon="eva:printer-fill" />}
+                        onClick={handlePrint}
+                        sx={{
+                            fontWeight: 700,
+                            fontSize: '0.875rem',
+                            minWidth: 64,
+                            height: 36,
+                            lineHeight: 1.71429,
+                            padding: '2px 12px',
+                            textTransform: 'capitalize',
+                            borderRadius: '8px',
+                            borderColor: (theme) => alpha(theme.palette.grey[500], 0.32),
+                            color: 'var(--palette-text-primary)',
+                            transition: (theme) => theme.transitions.create(['background-color', 'box-shadow', 'border-color'], {
+                                duration: 250,
+                            }),
+                            '&:hover': {
+                                bgcolor: (theme) => alpha(theme.palette.grey[500], 0.08),
+                                borderColor: 'currentColor',
+                                boxShadow: 'currentColor 0px 0px 0px 0.75px',
+                            },
+                        }}
+                    >
+                        In đơn
+                    </Button>
+                </Stack>
+            </Box>
 
-            {/* General Info Card */}
-            <div className="bg-white rounded-[16px] border border-[#E5E8EB] p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] mb-6">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-                    <div className="flex flex-col gap-1.5">
-                        <span className="text-[13px] text-[#637381]">Mã đơn hàng</span>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[14px] font-bold text-[#00A76F]">{order.orderCode}</span>
-                            <button onClick={handleCopyOrderCode} className="text-[#919EAB] hover:text-[#212B36]">
-                                <i className="fa-regular fa-copy"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <span className="text-[13px] text-[#637381]">Ngày đặt</span>
-                        <div className="flex items-center gap-2 text-[14px] font-semibold text-[#212B36]">
-                            <i className="fa-regular fa-calendar text-[#919EAB]"></i>
-                            {dayjs(order.createdAt).format('DD/MM/YYYY HH:mm')}
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <span className="text-[13px] text-[#637381]">Giờ lấy vé (dự kiến)</span>
-                        <div className="flex items-center gap-2 text-[14px] font-semibold text-[#212B36]">
-                            <i className="fa-regular fa-clock text-[#919EAB]"></i>
-                            {order.expectedPickupAt ? dayjs(order.expectedPickupAt).format('DD/MM/YYYY HH:mm') : '-'}
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <span className="text-[13px] text-[#637381]">Loại đơn</span>
-                        <span className={`text-[12px] font-bold px-2.5 py-0.5 rounded w-max ${typeConfig.bg} ${typeConfig.text}`}>
-                            {typeConfig.label}
-                        </span>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <span className="text-[13px] text-[#637381]">Trạng thái</span>
-                        <span className={`text-[12px] font-bold px-2.5 py-0.5 rounded w-max ${statusConfig.bg} ${statusConfig.text}`}>
-                            {statusConfig.label}
-                        </span>
-                    </div>
-                </div>
-                
-                <div className="mt-6 border-t border-[#F4F6F8] pt-4">
-                    <span className="text-[13px] text-[#637381] block mb-1">Ghi chú</span>
-                    <span className="text-[14px] font-semibold text-[#212B36]">{note}</span>
-                </div>
-            </div>
+            {/* Stepper Card (Full Width) */}
+            <Card sx={{ p: 4, mb: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
+                <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                    {/* Track Background */}
+                    <Box sx={{ 
+                        position: 'absolute', 
+                        top: 15, 
+                        left: '12%', 
+                        right: '12%', 
+                        height: 2, 
+                        bgcolor: '#E5E8EB',
+                        zIndex: 0
+                    }} />
+                    
+                    {/* Active Track */}
+                    <Box sx={{ 
+                        position: 'absolute', 
+                        top: 15, 
+                        left: '12%', 
+                        width: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? 
+                               (['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? 
+                               (['PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? '76%' : '50%') : '25%') : '0%', 
+                        height: 2, 
+                        bgcolor: 'var(--palette-success-main)',
+                        zIndex: 0,
+                        transition: 'width 0.3s ease'
+                    }} />
 
-            {/* Stepper */}
-            <div className="mb-6">
-                <AdminOrderStepper currentStatus={order.status as OrderStatus} />
-            </div>
+                    {[
+                        { label: 'Đã đặt đơn', date: dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm'), completed: true },
+                        { label: 'Đã thanh toán', date: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm') : '', completed: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) },
+                        { label: 'Đang chuẩn bị', date: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm') : '', completed: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) },
+                        { label: 'Chờ nhận vé', date: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm') : '', completed: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status) },
+                    ].map((step, index) => (
+                        <Box key={index} sx={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '25%' }}>
+                            <Box sx={{ 
+                                width: 32, 
+                                height: 32, 
+                                borderRadius: '50%', 
+                                bgcolor: 'white',
+                                border: step.completed ? '2px solid var(--palette-success-main)' : '2px solid #DFE3E8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                mb: 1.5
+                            }}>
+                                {step.completed ? 
+                                    <Icon icon="solar:check-read-linear" color="var(--palette-success-main)" width={20} /> :
+                                    <Icon icon="solar:lock-password-linear" color="#919EAB" width={16} />
+                                }
+                            </Box>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)', mb: 0.5, fontSize: '0.8125rem' }}>{step.label}</Typography>
+                            {step.date && <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>{step.date}</Typography>}
+                        </Box>
+                    ))}
+                </Box>
+            </Card>
 
-            {/* User & Payment Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                {/* Thông tin người đặt */}
-                <div className="bg-white rounded-[16px] border border-[#E5E8EB] p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
-                    <div className="flex items-center gap-2 mb-6">
-                        <i className="fa-regular fa-user text-[#1CD162] text-[18px]"></i>
-                        <h3 className="text-[16px] font-bold text-[#212B36]">Thông tin người đặt</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="flex flex-col gap-1.5">
-                            <span className="text-[13px] text-[#637381]">Họ tên</span>
-                            <span className="text-[15px] font-semibold text-[#212B36]">{order.name || order.userId || 'Admin Super'}</span>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <span className="text-[13px] text-[#637381]">Số điện thoại</span>
-                            <span className="text-[15px] font-semibold text-[#212B36]">{order.phone || '-'}</span>
-                        </div>
-                    </div>
-                </div>
+            <Grid container spacing={3}>
+                {/* Left Column */}
+                <Grid size={{ xs: 12, md: 8, lg: 9 }}>
+                    <Stack spacing={3}>
+                        {/* Summary Info Card */}
+                        <Card sx={{ p: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
+                            <Grid container spacing={3}>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Mã đơn hàng</Typography>
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-primary-main)' }}>
+                                            {order.orderCode || order.id?.slice(-6).toUpperCase() || 'ERROR'}
+                                        </Typography>
+                                        <IconButton size="small" sx={{ p: 0.5, color: 'var(--palette-primary-main)' }} onClick={() => {
+                                            navigator.clipboard.writeText(order.orderCode || order.id?.slice(-6).toUpperCase() || 'ERROR');
+                                            toast.success("Đã copy mã đơn hàng");
+                                        }}>
+                                            <Icon icon="solar:copy-bold-duotone" width={16} />
+                                        </IconButton>
+                                    </Stack>
+                                </Grid>
+                                
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Ngày đặt</Typography>
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        <Icon icon="solar:calendar-date-bold-duotone" width={18} style={{ color: 'var(--palette-text-secondary)' }} />
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                            {dayjs(order.createdAt).format("DD/MM/YYYY HH:mm")}
+                                        </Typography>
+                                    </Stack>
+                                </Grid>
 
-                {/* Thanh toán */}
-                <div className="bg-white rounded-[16px] border border-[#E5E8EB] p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
-                    <div className="flex items-center gap-2 mb-6">
-                        <i className="fa-solid fa-receipt text-[#1CD162] text-[18px]"></i>
-                        <h3 className="text-[16px] font-bold text-[#212B36]">Thanh toán</h3>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <span className="text-[13px] text-[#637381]">Tổng tiền</span>
-                            <span className="text-[18px] font-bold text-[#1CD162]">{(order.totalAmount || 0).toLocaleString('vi-VN')}đ</span>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <span className="text-[13px] text-[#637381]">Phương thức</span>
-                            <div className="flex items-center gap-2 text-[14px] font-semibold text-[#212B36]">
-                                <i className="fa-solid fa-money-bill-transfer text-[#919EAB]"></i> {paymentMethod}
-                            </div>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <span className="text-[13px] text-[#637381]">Trạng thái thanh toán</span>
-                            <span className={`text-[12px] font-bold px-2.5 py-0.5 rounded w-max ${statusConfig.bg} ${statusConfig.text}`}>
-                                {statusConfig.label}
-                            </span>
-                            <span className="text-[11px] text-[#919EAB] mt-1">{dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm')}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Giờ lấy vé (dự kiến)</Typography>
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        <Icon icon="solar:clock-circle-bold-duotone" width={18} style={{ color: 'var(--palette-text-secondary)' }} />
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                            {order.expectedPickupAt ? dayjs(order.expectedPickupAt).format("DD/MM/YYYY HH:mm") : "Chưa xác định"}
+                                        </Typography>
+                                    </Stack>
+                                </Grid>
 
-            {/* Danh sách vé */}
-            <div className="bg-white rounded-[16px] border border-[#E5E8EB] p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] mb-6">
-                <div className="flex items-center gap-2 mb-6">
-                    <i className="fa-solid fa-ticket text-[#1CD162] text-[18px]"></i>
-                    <h3 className="text-[16px] font-bold text-[#212B36]">Danh sách vé ({order.orderDetails?.length || 0} vé)</h3>
-                </div>
+                                <Grid size={{ xs: 12, sm: 6, md: 1.5 }}>
+                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Loại đơn</Typography>
+                                    <Chip
+                                        label="Tại quầy"
+                                        size="small"
+                                        sx={{
+                                            fontWeight: 700,
+                                            height: 24,
+                                            fontSize: '0.75rem',
+                                            borderRadius: '6px',
+                                            color: "var(--palette-info-dark)",
+                                            bgcolor: "var(--palette-info-lighter)",
+                                        }}
+                                    />
+                                </Grid>
 
-                <div className="space-y-4">
-                    {order.orderDetails && order.orderDetails.length > 0 ? (
-                        order.orderDetails.map((detail: any, index: number) => (
-                            <div key={index} className="flex flex-col md:flex-row items-center gap-4 py-4 border-b border-[#F4F6F8] last:border-0">
-                                <div className="w-[60px] h-[60px] bg-[#ee1314] rounded-lg flex items-center justify-center text-white shrink-0">
-                                    <i className="fa-solid fa-ticket text-[24px]"></i>
-                                </div>
-                                <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
-                                    <div>
-                                        <h4 className="text-[14px] font-bold text-[#212B36]">Vé số {detail.lotteryTicket?.province?.name || 'Đồng Nai'}</h4>
-                                        <div className="text-[18px] font-bold text-[#212B36] mt-1">{detail.lotteryTicket?.symbol || '283749'} <span className="text-[#ee1314] text-[11px] bg-[#FFF4F4] px-1.5 py-0.5 rounded ml-1">Vé thường</span></div>
-                                    </div>
-                                    <div>
-                                        <span className="text-[13px] text-[#637381] block">Ngày xổ</span>
-                                        <div className="flex items-center gap-2 text-[14px] font-semibold text-[#212B36] mt-1">
-                                            <i className="fa-regular fa-calendar text-[#919EAB]"></i> 16/06/2026<br/>
-                                            <span className="text-[12px] text-[#919EAB] font-normal">(Thứ Hai)</span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <span className="text-[13px] text-[#637381] block">Giá</span>
-                                        <div className="text-[14px] font-bold text-[#212B36] mt-1">{(detail.price || 10000).toLocaleString('vi-VN')}đ</div>
-                                    </div>
-                                    <div>
-                                        <span className="text-[13px] text-[#637381] block">Trạng thái</span>
-                                        <div className="mt-1">
-                                            <span className="text-[12px] font-bold px-2.5 py-1 rounded bg-[#E4F8ED] text-[#1CD162]">Đã mua</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="shrink-0">
-                                    <button className="px-4 py-2 border border-[#E5E8EB] rounded-lg text-[13px] font-bold text-[#1CD162] hover:bg-[#F9FAFB] flex items-center gap-2">
-                                        Xem kết quả <i className="fa-solid fa-arrow-up-right-from-square"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="text-center py-8 text-[#637381] text-[14px]">Không có dữ liệu vé</div>
-                    )}
-                </div>
-            </div>
+                                <Grid size={{ xs: 12, sm: 6, md: 1.5 }}>
+                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Trạng thái</Typography>
+                                    <Chip
+                                        label={currentStatus.label}
+                                        size="small"
+                                        sx={{
+                                            fontWeight: 700,
+                                            height: 24,
+                                            fontSize: '0.75rem',
+                                            borderRadius: '6px',
+                                            color: currentStatus.color,
+                                            bgcolor: currentStatus.bg,
+                                        }}
+                                    />
+                                </Grid>
+                            </Grid>
 
-            {/* Success Banner */}
-            {order.status === OrderStatus.PAID && (
-                <div className="bg-[#E4F8ED] border border-[#1CD162]/30 rounded-[16px] p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-[#1CD162] text-white flex items-center justify-center text-[20px] shrink-0">
-                            <i className="fa-solid fa-check"></i>
-                        </div>
-                        <div>
-                            <h4 className="text-[#212B36] font-bold text-[15px]">Đơn hàng đã thanh toán thành công!</h4>
-                            <p className="text-[#637381] text-[13px] mt-0.5">Vé của bạn đang được chuẩn bị. Vui lòng đến lấy vé đúng giờ hẹn.</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+                            <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
+
+                            <Box>
+                                <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Ghi chú</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                    {order.note || "Không có"}
+                                </Typography>
+                            </Box>
+                        </Card>
+
+
+
+                        {/* Danh sách vé Card */}
+                        <Card sx={{ borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
+                                    <Stack direction="row" spacing={1} alignItems="center" sx={{ pt: 3, px: 3, pb: 3 }}>
+                                        <Icon icon="solar:ticket-bold-duotone" width={24} style={{ color: 'var(--palette-success-main)' }} />
+                                        <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>Danh sách vé</Typography>
+                                        <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', ml: 1 }}>({order.orderDetails?.length || 0} vé)</Typography>
+                                    </Stack>
+                                    
+                                    <TableContainer>
+                                        <Table sx={{ minWidth: 600 }}>
+                                            <TableHead>
+                                                <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
+                                                    <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Vé số</TableCell>
+                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Đài</TableCell>
+                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Ngày xổ</TableCell>
+                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Loại vé</TableCell>
+                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
+                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
+                                                    <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Thao tác</TableCell>
+                                                </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                                {(order.orderDetails || []).map((detail: any, idx: number) => (
+                                                    <TableRow key={idx} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                                        <TableCell align="center">
+                                                            <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+                                                                <Avatar variant="rounded" sx={{ width: 32, height: 32, bgcolor: '#ee1314', color: 'white' }}>
+                                                                    <Icon icon="solar:ticket-bold-duotone" width={20} />
+                                                                </Avatar>
+                                                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                                                                    {detail.lotteryTicket?.symbol || '283749'}
+                                                                </Typography>
+                                                            </Stack>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                                {detail.lotteryTicket?.province?.name || 'Đồng Nai'}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                                                                {detail.lotteryTicket?.drawDate ? dayjs(detail.lotteryTicket.drawDate).format("DD/MM/YYYY") : '16/06/2026'}
+                                                            </Typography>
+                                                            <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)' }}>
+                                                                ({detail.lotteryTicket?.drawDate ? dayjs(detail.lotteryTicket.drawDate).locale('vi').format("dddd") : 'Thứ Hai'})
+                                                            </Typography>
+                                                        </TableCell>
+
+                                                        <TableCell>
+                                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                                Vé thường
+                                                            </Typography>
+                                                        </TableCell>
+
+                                                        <TableCell>
+                                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                                {(detail.price || 10000).toLocaleString('vi-VN')}đ
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Chip label="Đã mua" size="small" sx={{ fontWeight: 700, height: 24, fontSize: '0.75rem', borderRadius: '6px', color: "var(--palette-success-dark)", bgcolor: "var(--palette-success-lighter)" }} />
+                                                        </TableCell>
+                                                        <TableCell align="center">
+                                                            <Button variant="outlined" size="small" endIcon={<Icon icon="solar:square-top-down-linear" style={{ transform: 'rotate(-45deg)' }} />} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, color: 'var(--palette-success-main)', borderColor: 'var(--palette-success-main)', '&:hover': { bgcolor: 'var(--palette-success-lighter)', borderColor: 'var(--palette-success-main)' } }}>
+                                                                Xem kết quả
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </TableContainer>
+                                    <Divider sx={{ borderStyle: 'dashed' }} />
+                                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 3 }}>
+                                        <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
+                                            Tổng số vé: {order.orderDetails?.length || 2}
+                                        </Typography>
+                                        <Stack direction="row" alignItems="center" spacing={1}>
+                                            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>Tổng tiền:</Typography>
+                                            <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--palette-success-main)' }}>
+                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 20000)}
+                                            </Typography>
+                                        </Stack>
+                                    </Stack>
+                                </Card>
+
+                    </Stack>
+                </Grid>
+
+                {/* Right Column */}
+                <Grid size={{ xs: 12, md: 4, lg: 3 }}>
+                    <Stack spacing={3}>
+                        {/* Customer Card */}
+                        <Card sx={{ p: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
+                            <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 3 }}>
+                                <Icon icon="solar:user-bold" width={24} style={{ color: 'var(--palette-success-main)' }} />
+                                <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>Thông tin khách hàng</Typography>
+                            </Stack>
+                            <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ mb: 3 }}>
+                                <Avatar
+                                    src={order.user?.avatar}
+                                    sx={{ width: 64, height: 64, bgcolor: 'var(--palette-background-neutral)', color: 'var(--palette-text-secondary)' }}
+                                >
+                                    <Icon icon="solar:user-rounded-bold" width={32} />
+                                </Avatar>
+                                <Stack spacing={1}>
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                                            {order.name || order.user?.fullName || "Admin Super"}
+                                        </Typography>
+                                    </Stack>
+                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-primary)', fontWeight: 500 }}>
+                                        {order.phone || order.user?.phone || "0764349959"}
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-primary)', fontWeight: 500 }}>
+                                        {order.user?.email || "admin@daiphat.com"}
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', mt: 0.5, lineHeight: 1.5 }}>
+                                        {order.address || "123 Đường ABC, P. Tân Bình, Q. Tân Bình, TP. HCM"}
+                                    </Typography>
+                                </Stack>
+                            </Stack>
+                            
+                            <Button 
+                                fullWidth 
+                                variant="outlined" 
+                                startIcon={<Icon icon="solar:user-id-linear" />}
+                                onClick={() => navigate(`/${prefixAdmin}/account-admin/detail/${order.user?.id}`)}
+                                sx={{ 
+                                    py: 1, 
+                                    fontWeight: 700, 
+                                    color: 'var(--palette-text-primary)',
+                                    borderColor: 'var(--palette-divider)',
+                                    borderRadius: '8px',
+                                    textTransform: 'none',
+                                    '&:hover': {
+                                        bgcolor: 'var(--palette-action-hover)',
+                                        borderColor: 'var(--palette-text-primary)'
+                                    }
+                                }}
+                            >
+                                Xem chi tiết khách hàng
+                            </Button>
+                        </Card>
+
+
+
+                        {/* Thanh toán Card */}
+                        <Card sx={{ p: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 3 }}>
+                                <Icon icon="solar:wallet-money-bold-duotone" width={24} style={{ color: 'var(--palette-success-main)' }} />
+                                <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>Thanh toán</Typography>
+                            </Stack>
+
+                            <Stack spacing={2}>
+                                <Box>
+                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 0.5 }}>Tổng tiền</Typography>
+                                    <Typography variant="h5" sx={{ fontWeight: 700, color: 'var(--palette-success-main)' }}>
+                                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 20000)}
+                                    </Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 0.5 }}>Phương thức</Typography>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                                        {order.paymentMethod === 'BANK_TRANSFER' ? 'PayOS (Chuyển khoản QR)' : (order.paymentMethod || 'Tiền mặt')}
+                                    </Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 0.5 }}>Thời gian thanh toán</Typography>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                        {['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format("DD/MM/YYYY - HH:mm") : "Chưa thanh toán"}
+                                    </Typography>
+                                </Box>
+                                <Divider sx={{ borderStyle: 'dashed', my: 1 }} />
+                                <Box>
+                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Trạng thái thanh toán</Typography>
+                                    <Chip
+                                        label={['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? "Đã thanh toán" : "Chưa thanh toán"}
+                                        size="small"
+                                        sx={{
+                                            fontWeight: 700,
+                                            height: 24,
+                                            fontSize: '0.75rem',
+                                            borderRadius: '6px',
+                                            color: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? "var(--palette-success-dark)" : "var(--palette-warning-dark)",
+                                            bgcolor: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? "var(--palette-success-lighter)" : "var(--palette-warning-lighter)",
+                                        }}
+                                    />
+                                </Box>
+                            </Stack>
+                        </Card>
+                    </Stack>
+                </Grid>
+            </Grid>
+        </Box>
     );
 };

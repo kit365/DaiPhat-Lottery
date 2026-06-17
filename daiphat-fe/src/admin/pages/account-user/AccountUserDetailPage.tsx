@@ -55,7 +55,6 @@ export const AccountUserDetailPage = () => {
             lastName: "",
             email: "",
             phone: "",
-            address: "",
             status: UserStatus.ACTIVE,
             avatar: "",
         },
@@ -70,7 +69,6 @@ export const AccountUserDetailPage = () => {
                 lastName: user.lastName,
                 email: user.email,
                 phone: user.phone || "",
-                address: user.address || "",
                 status: user.status,
                 avatar: user.avatar || "",
             });
@@ -376,22 +374,7 @@ export const AccountUserDetailPage = () => {
                                         )}
                                     />
 
-                                    <Controller
-                                        name="address"
-                                        control={control}
-                                        render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                label="Địa chỉ"
-                                                fullWidth
-                                                multiline
-                                                minRows={3}
-                                                sx={{ gridColumn: '1 / -1' }}
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message}
-                                            />
-                                        )}
-                                    />
+
                                 </Box>
 
                                 <Stack direction="row" justifyContent="flex-end" sx={{ mt: 3 }}>

@@ -72,7 +72,7 @@ export const TicketServiceDetailPage = () => {
     };
 
     return (
-        <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+        <Box sx={{ width: "100%", mx: "auto" }}>
             {/* Header */}
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 4, mt: 0.5 }}>
                 <Box sx={{ display: "flex", alignItems: "flex-start" }}>

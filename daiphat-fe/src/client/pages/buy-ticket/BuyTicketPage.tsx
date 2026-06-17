@@ -67,6 +67,13 @@ export const BuyTicketPage = () => {
         }
     };
 
+    const maxAvailable = useMemo(() => {
+        if (selectedNumbers.length === 0) return 1;
+        const num = selectedNumbers[0];
+        const ticketData = availableTickets.find((t: any) => t.numbers === num);
+        return ticketData?.quantity || 1;
+    }, [selectedNumbers, availableTickets]);
+
     const activeProvinceObj = dynamicProvinces.find((p: any) => p.id === selectedProvince);
     const totalQuantity = selectedNumbers.length * ticketQuantity;
     const pricePerTicket = 10000;
@@ -84,6 +91,18 @@ export const BuyTicketPage = () => {
             if (!ticketData || (!ticketData.id && !ticketData._id)) {
                 hasError = true;
                 toast.error(`Lỗi: Không tìm thấy ID cho vé số ${num}`);
+                return;
+            }
+
+            const maxAvailableQty = ticketData?.quantity || 1;
+            const currentCartItem = useCartStore.getState().items.find(i => 
+                i.id === String(ticketData.id || ticketData._id)
+            );
+            const currentCartQty = currentCartItem ? currentCartItem.quantity : 0;
+
+            if (currentCartQty + ticketQuantity > maxAvailableQty) {
+                hasError = true;
+                toast.error(`Vé số ${num} chỉ còn ${maxAvailableQty} vé (bạn đã có ${currentCartQty} vé trong giỏ)`);
                 return;
             }
 
@@ -400,8 +419,9 @@ export const BuyTicketPage = () => {
                                             </button>
                                             <span className="w-8 text-center text-[14px] font-bold text-[#212B36] border-x border-[#E5E8EB] h-full flex items-center justify-center">{ticketQuantity}</span>
                                             <button 
-                                                onClick={() => setTicketQuantity(ticketQuantity + 1)}
-                                                className="flex-1 h-full flex items-center justify-center text-[#212B36] hover:bg-gray-50 transition-colors"
+                                                onClick={() => setTicketQuantity(Math.min(maxAvailable, ticketQuantity + 1))}
+                                                disabled={ticketQuantity >= maxAvailable}
+                                                className="flex-1 h-full flex items-center justify-center text-[#212B36] hover:bg-gray-50 disabled:opacity-50 transition-colors"
                                             >
                                                 <i className="fa-solid fa-plus text-[12px]"></i>
                                             </button>
