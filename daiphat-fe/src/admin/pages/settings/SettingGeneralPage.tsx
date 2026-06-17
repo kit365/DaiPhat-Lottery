@@ -152,7 +152,7 @@ export const SettingGeneralPage = () => {
     }
 
     return (
-        <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
+        <Box sx={{ width: '100%', mx: 'auto' }}>
             <Box sx={{ mb: 5 }}>
                 <Title title="Cài đặt hệ thống" />
                 <Breadcrumb
