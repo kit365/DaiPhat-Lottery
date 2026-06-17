@@ -528,7 +528,7 @@ export const TicketServiceOrderCreatePage = () => {
 
     return (
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
-            <Box sx={{ maxWidth: '1200px', mx: 'auto', p: "calc(3 * var(--spacing))" }}>
+            <Box sx={{ width: '100%', mx: 'auto', p: "calc(3 * var(--spacing))" }}>
                 <Box sx={{ mb: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Box>
                         <Title title="Tạo đơn dịch vụ mới" />
