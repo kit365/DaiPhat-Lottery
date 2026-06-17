@@ -135,6 +135,7 @@ export const useUpdateOrderStatus = () => {
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDERS] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDER_DETAIL, variables.id] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_NOTIFICATIONS] });
         },
     });
 };

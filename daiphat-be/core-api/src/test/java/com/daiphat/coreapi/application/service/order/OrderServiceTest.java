@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -56,6 +57,7 @@ class OrderServiceTest {
     private final UserLookupServicePort userLookupServicePort = mock(UserLookupServicePort.class);
     private final PaymentCountdownCachePort paymentCountdownCachePort = mock(PaymentCountdownCachePort.class);
     private final PaymentGatewayStrategyFactory paymentGatewayStrategyFactory = mock(PaymentGatewayStrategyFactory.class);
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
 
     private OrderService orderService;
 
@@ -67,7 +69,8 @@ class OrderServiceTest {
                 userLookupServicePort,
                 Mappers.getMapper(OrderApplicationMapper.class),
                 paymentCountdownCachePort,
-                paymentGatewayStrategyFactory
+                paymentGatewayStrategyFactory,
+                eventPublisher
         );
     }
 

@@ -17,6 +17,8 @@ export const getAdminNotificationPath = (notification: AdminNotificationItem): s
     switch (referenceType) {
         case "BLOG_POST":
             return `${ROUTES.ADMIN.BLOGS.DETAIL}${referenceId}`;
+        case "ORDER":
+            return `${ROUTES.ADMIN.ORDERS.DETAIL}${referenceId}`;
         default:
             return null;
     }
@@ -26,12 +28,12 @@ export const getAdminNotificationCategoryLabel = (notification: AdminNotificatio
     switch (notification.type?.trim().toLowerCase()) {
         case "blog":
             return "Bài viết";
+        case "order":
+            return "Đơn hàng";
         case "ticketserviceorder":
             return "Dịch vụ";
         case "boarding":
             return "Khách sạn";
-        case "order":
-            return "Đơn hàng";
         case "overrun":
         case "system":
             return "Hệ thống";
@@ -44,6 +46,8 @@ export const getAdminNotificationIcon = (notification: AdminNotificationItem): s
     switch (notification.type?.trim().toLowerCase()) {
         case "blog":
             return "solar:document-text-bold-duotone";
+        case "order":
+            return "solar:cart-large-2-bold-duotone";
         case "ticketserviceorder":
             return "solar:calendar-mark-bold-duotone";
         case "boarding":
@@ -60,6 +64,8 @@ export const getAdminNotificationAccentColor = (notification: AdminNotificationI
     switch (notification.type?.trim().toLowerCase()) {
         case "blog":
             return "#7A0916";
+        case "order":
+            return "#00A76F";
         case "boarding":
             return "#FFAB00";
         case "overrun":
@@ -74,6 +80,8 @@ export const getAdminNotificationAccentBackground = (notification: AdminNotifica
     switch (notification.type?.trim().toLowerCase()) {
         case "blog":
             return "rgba(122, 9, 22, 0.12)";
+        case "order":
+            return "rgba(0, 167, 111, 0.12)";
         case "ticketserviceorder":
             return "rgba(0, 184, 217, 0.12)";
         case "boarding":

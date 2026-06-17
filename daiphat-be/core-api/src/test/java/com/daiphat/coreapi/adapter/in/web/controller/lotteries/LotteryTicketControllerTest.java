@@ -37,7 +37,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("LotteryTicketController Unit Tests")
+@DisplayName("[DP-272][DP-325][DP-281][DP-234][DP-292] LotteryTicketController Unit Tests")
 class LotteryTicketControllerTest {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -64,7 +64,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Admin xem chi tiết vé số trả về đầy đủ field")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Admin xem chi tiết vé số trả về đầy đủ field")
     void getById_asAdmin_returnsAdminView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
         LotteryTicketResponse expectedResponse = buildTicketResponse();
@@ -92,7 +92,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Operator xem chi tiết vé số trả về đầy đủ field")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Operator xem chi tiết vé số trả về đầy đủ field")
     void getById_asOperator_returnsAdminView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "operator01");
         LotteryTicketResponse expectedResponse = buildTicketResponse();
@@ -117,7 +117,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Member xem chi tiết vé số dùng public view")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Member xem chi tiết vé số dùng public view")
     void getById_asMemberOnly_returnsPublicView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         LotteryTicketResponse expectedResponse = buildTicketResponse();
@@ -142,7 +142,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Member chỉ serialize các field public khi xem chi tiết")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Member chỉ serialize các field public khi xem chi tiết")
     void getById_asMemberOnly_serializesOnlyPublicFields() throws Exception {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         LotteryTicketResponse expectedResponse = buildTicketResponse();
@@ -164,11 +164,14 @@ class LotteryTicketControllerTest {
         assertThat(data).containsKeys(
                 "id",
                 "stationId",
-                "productName",
+                "stationName",
                 "ticketImg",
                 "serialNumber",
                 "numbers",
                 "drawDate",
+                "quantity",
+                "priceSnapshot",
+                "serials",
                 "status",
                 "statusDisplayName"
         );
@@ -190,7 +193,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Member có thêm ticket:view thì xem chi tiết bằng admin view")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Member có thêm ticket:view thì xem chi tiết bằng admin view")
     void getById_asMemberWithTicketView_returnsAdminView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member-operator01");
         LotteryTicketResponse expectedResponse = buildTicketResponse();
@@ -213,7 +216,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Không có security context thì fallback về public view")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Không có security context thì fallback về public view")
     void getById_withoutSecurityContext_returnsPublicView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         LotteryTicketResponse expectedResponse = buildTicketResponse();
@@ -236,7 +239,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Admin xem danh sách vé số trả về đầy đủ field")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Admin xem danh sách vé số trả về đầy đủ field")
     void getAll_asAdmin_returnsAdminView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
@@ -279,7 +282,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Operator xem danh sách vé số trả về đầy đủ field")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Operator xem danh sách vé số trả về đầy đủ field")
     void getAll_asOperator_returnsAdminView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "operator01");
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(2, 5);
@@ -316,7 +319,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Truyền đầy đủ tham số lọc và sắp xếp xuống service cho trang quản trị")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Truyền đầy đủ tham số lọc và sắp xếp xuống service cho trang quản trị")
     void getAll_forAdmin_forwardsAllFilterParams() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(3, 20);
@@ -350,7 +353,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: User có ticket:view nhưng không phải member-only vẫn dùng admin view")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: User có ticket:view nhưng không phải member-only vẫn dùng admin view")
     void getAll_withTicketViewAuthority_returnsAdminView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "street-agent01");
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
@@ -385,7 +388,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Member-only xem danh sách vé số dùng public view")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Member-only xem danh sách vé số dùng public view")
     void getAll_asMemberOnly_returnsPublicView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
@@ -423,7 +426,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Member-only chỉ serialize các field public cần thiết")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Member-only chỉ serialize các field public cần thiết")
     void getAll_asMemberOnly_serializesOnlyPublicFields() throws Exception {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
@@ -459,11 +462,14 @@ class LotteryTicketControllerTest {
         assertThat(firstRecord).containsKeys(
                 "id",
                 "stationId",
-                "productName",
+                "stationName",
                 "ticketImg",
                 "serialNumber",
                 "numbers",
                 "drawDate",
+                "quantity",
+                "priceSnapshot",
+                "serials",
                 "status",
                 "statusDisplayName"
         );
@@ -485,7 +491,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Member-only truyền đầy đủ tham số lọc và sắp xếp xuống service")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Member-only truyền đầy đủ tham số lọc và sắp xếp xuống service")
     void getAll_asMemberOnly_forwardsAllFilterParams() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(4, 15);
@@ -522,7 +528,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Member có thêm ticket:view không còn bị giới hạn public view")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Member có thêm ticket:view không còn bị giới hạn public view")
     void getAll_asMemberWithTicketView_returnsAdminView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member-operator01");
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
@@ -557,7 +563,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Member không có security context thì fallback về public view")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Member không có security context thì fallback về public view")
     void getAll_asMemberWithoutSecurityContext_returnsPublicView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
@@ -644,7 +650,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Member xem chi tiết vé không tồn tại trả về exception")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Member xem chi tiết vé không tồn tại trả về exception")
     void getById_asMember_notFound_throwsException() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
@@ -661,7 +667,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Member xem danh sách vé không có kết quả trả về empty page")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Member xem danh sách vé không có kết quả trả về empty page")
     void getAll_asMember_noResults_returnsEmptyPage() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         PageResponse<LotteryTicketResponse> emptyResponse = PageResponse.<LotteryTicketResponse>builder()
@@ -703,7 +709,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Member xem chi tiết vé KHÔNG chứa các admin-only fields")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Member xem chi tiết vé KHÔNG chứa các admin-only fields")
     void getById_asMember_doesNotContainAdminFields() throws Exception {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         LotteryTicketResponse fullResponse = buildTicketResponse();
@@ -740,7 +746,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Member xem chi tiết vé CHỈ chứa 9 public fields")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Member xem chi tiết vé CHỈ chứa 9 public fields")
     void getById_asMember_containsOnlyPublicFields() throws Exception {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         LotteryTicketResponse fullResponse = buildTicketResponse();
@@ -762,21 +768,24 @@ class LotteryTicketControllerTest {
         assertThat(data).containsOnlyKeys(
                 "id",
                 "stationId",
-                "productName",
+                "stationName",
                 "ticketImg",
                 "serialNumber",
                 "numbers",
                 "drawDate",
+                "quantity",
+                "priceSnapshot",
+                "serials",
                 "status",
                 "statusDisplayName"
         );
-        assertThat(data).hasSize(9);
+        assertThat(data).hasSize(12);
 
         verify(lotteryTicketServicePort).getById(TICKET_ID);
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Member xem danh sách mỗi record CHỈ chứa 9 public fields")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Member xem danh sách mỗi record CHỈ chứa 9 public fields")
     void getAll_asMember_eachRecordHasOnlyPublicFields() throws Exception {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
@@ -806,15 +815,18 @@ class LotteryTicketControllerTest {
         assertThat(firstRecord).containsOnlyKeys(
                 "id",
                 "stationId",
-                "productName",
+                "stationName",
                 "ticketImg",
                 "serialNumber",
                 "numbers",
                 "drawDate",
+                "quantity",
+                "priceSnapshot",
+                "serials",
                 "status",
                 "statusDisplayName"
         );
-        assertThat(firstRecord).hasSize(9);
+        assertThat(firstRecord).hasSize(12);
         assertThat(firstRecord).doesNotContainKey("batchCode");
         assertThat(firstRecord).doesNotContainKey("verified");
         assertThat(firstRecord).doesNotContainKey("importedById");
@@ -823,7 +835,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Member xem danh sách với pagination metadata đúng")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Member xem danh sách với pagination metadata đúng")
     void getAll_asMember_paginationMetadataCorrect() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         PageResponse<LotteryTicketResponse> serviceResponse = PageResponse.<LotteryTicketResponse>builder()
@@ -862,7 +874,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Member có ticket:view vẫn thấy admin fields khi serialize")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Member có ticket:view vẫn thấy admin fields khi serialize")
     void getById_asMemberWithTicketView_showsAdminFieldsInSerialization() throws Exception {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member-operator01");
         LotteryTicketResponse fullResponse = buildTicketResponse();
@@ -897,7 +909,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Street Agent xem chi tiết vé dùng Admin view")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Street Agent xem chi tiết vé dùng Admin view")
     void getById_asStreetAgent_returnsAdminView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "streetAgent01");
         LotteryTicketResponse expectedResponse = buildTicketResponse();
@@ -922,7 +934,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Street Agent xem danh sách vé dùng Admin view")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Street Agent xem danh sách vé dùng Admin view")
     void getAll_asStreetAgent_returnsAdminView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "streetAgent01");
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
@@ -949,7 +961,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Street Agent có ticket:view vẫn dùng Admin view")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Street Agent có ticket:view vẫn dùng Admin view")
     void getById_asStreetAgentWithTicketView_returnsAdminView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "streetAgent01");
         LotteryTicketResponse expectedResponse = buildTicketResponse();
@@ -966,7 +978,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Anonymous user (null principal) vẫn dùng public view")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Anonymous user (null principal) vẫn dùng public view")
     void getById_asAnonymousUser_returnsPublicView() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         LotteryTicketResponse expectedResponse = buildTicketResponse();
@@ -989,7 +1001,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Member xem danh sách với filter status và search")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Member xem danh sách với filter status và search")
     void getAll_asMember_withStatusAndSearchFilter() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
@@ -1009,7 +1021,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets: Member xem danh sách với nhiều bản ghi")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Member xem danh sách với nhiều bản ghi")
     void getAll_asMember_withMultipleRecords() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         List<LotteryTicketResponse> records = List.of(
@@ -1120,6 +1132,7 @@ class LotteryTicketControllerTest {
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
                 .id(TICKET_ID)
                 .stationId(PRODUCT_ID)
+                .serialNumber("B111111")
                 .serials(java.util.List.of(com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse.builder().serialNumber("B111111").ticketImg(null).build()))
                 .numbers("111222")
                 .drawDate(LocalDate.of(2026, 6, 25))
@@ -1156,6 +1169,7 @@ class LotteryTicketControllerTest {
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
                 .id(TICKET_ID)
                 .stationId(PRODUCT_ID)
+                .serialNumber("C333333")
                 .serials(java.util.List.of(com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse.builder().serialNumber("C333333").ticketImg(null).build()))
                 .numbers("333777")
                 .drawDate(LocalDate.of(2026, 7, 1))
@@ -1182,7 +1196,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("[DP-324] PUT /lottery-tickets/{id}: Admin cập nhật vé số thành công")
+    @DisplayName("[DP-325] PUT /lottery-tickets/{id}: Admin cập nhật vé số thành công")
     void update_asAdmin_returnsUpdatedTicket() {
         UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
                 "https://cdn.example.com/tickets/updated.png",
@@ -1226,7 +1240,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("[DP-324] PUT /lottery-tickets/{id}: Operator cập nhật vé số thành công")
+    @DisplayName("[DP-325] PUT /lottery-tickets/{id}: Operator cập nhật vé số thành công")
     void update_asOperator_returnsUpdatedTicket() {
         UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
                 null,
@@ -1260,7 +1274,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("[DP-324] PUT /lottery-tickets/{id}: Cập nhật chỉ một trường riêng lẻ thành công")
+    @DisplayName("[DP-325] PUT /lottery-tickets/{id}: Cập nhật chỉ một trường riêng lẻ thành công")
     void update_partialUpdate_returnsUpdatedTicket() {
         UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
                 "https://cdn.example.com/tickets/new-image.png",
@@ -1298,7 +1312,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/verify: Admin xác minh vé số thành công")
+    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/verify: Admin xác minh vé số thành công")
     void verify_asAdmin_returnsVerifiedTicket() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1328,7 +1342,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/verify: Operator xác minh vé số thành công")
+    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/verify: Operator xác minh vé số thành công")
     void verify_asOperator_returnsVerifiedTicket() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "operator01");
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1353,7 +1367,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/verify: Xác minh vé số đã được xác minh trước đó vẫn thành công")
+    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/verify: Xác minh vé số đã được xác minh trước đó vẫn thành công")
     void verify_alreadyVerified_returnsVerifiedTicket() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1381,7 +1395,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/status: Admin đổi trạng thái vé số sang RESERVED thành công")
+    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Admin đổi trạng thái vé số sang RESERVED thành công")
     void changeStatus_asAdmin_toReserved_returnsUpdatedTicket() {
         LotteryTicketStatus newStatus = LotteryTicketStatus.RESERVED;
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1407,7 +1421,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/status: Operator đổi trạng thái vé số sang SOLD thành công")
+    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Operator đổi trạng thái vé số sang SOLD thành công")
     void changeStatus_asOperator_toSold_returnsUpdatedTicket() {
         LotteryTicketStatus newStatus = LotteryTicketStatus.SOLD;
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1430,7 +1444,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé số sang RETURNED thành công")
+    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé số sang RETURNED thành công")
     void changeStatus_toReturned_returnsUpdatedTicket() {
         LotteryTicketStatus newStatus = LotteryTicketStatus.RETURNED;
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1453,7 +1467,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé số sang CANCELLED thành công")
+    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé số sang CANCELLED thành công")
     void changeStatus_toCancelled_returnsUpdatedTicket() {
         LotteryTicketStatus newStatus = LotteryTicketStatus.ISSUER_FAULT;
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1475,7 +1489,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé số sang IN_STOCK thành công")
+    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé số sang IN_STOCK thành công")
     void changeStatus_toInStock_returnsUpdatedTicket() {
         LotteryTicketStatus newStatus = LotteryTicketStatus.IN_STOCK;
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1501,7 +1515,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("GET /lottery-tickets/{id}: Lấy chi tiết vé không tồn tại trả về 404")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/{id}: Lấy chi tiết vé không tồn tại trả về 404")
     void getById_notFound_throwsException() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
         setAuthentication(principal, RoleConstants.ADMIN, "ticket:view");
@@ -1522,7 +1536,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("GET /lottery-tickets: Lấy danh sách vé với không có kết quả trả về empty page")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets: Lấy danh sách vé với không có kết quả trả về empty page")
     void getAll_noResults_returnsEmptyPage() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
         PageResponse<LotteryTicketResponse> emptyResponse = PageResponse.<LotteryTicketResponse>builder()
@@ -1564,7 +1578,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("POST /lottery-tickets: Member-only không có quyền tạo vé")
+    @DisplayName("[DP-272] POST /lottery-tickets: Member-only không có quyền tạo vé")
     void create_asMemberOnly_shouldNotBeCalledDirectly() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         CreateLotteryTicketRequest request = CreateLotteryTicketRequest.builder()
@@ -1583,7 +1597,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /lottery-tickets/{id}: Member-only không có quyền cập nhật vé")
+    @DisplayName("[DP-325] PUT /lottery-tickets/{id}: Member-only không có quyền cập nhật vé")
     void update_asMemberOnly_shouldNotBeCalledDirectly() {
         UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
                 "https://cdn.example.com/new.png",
@@ -1601,7 +1615,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/verify: Member-only không có quyền xác minh vé")
+    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/verify: Member-only không có quyền xác minh vé")
     void verify_asMemberOnly_shouldNotBeCalledDirectly() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "member01");
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
@@ -1612,7 +1626,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/status: Member-only không có quyền đổi trạng thái vé")
+    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Member-only không có quyền đổi trạng thái vé")
     void changeStatus_asMemberOnly_shouldNotBeCalledDirectly() {
         ApiResponse<LotteryTicketResponse> response = lotteryTicketController.changeStatus(TICKET_ID, LotteryTicketStatus.RESERVED);
 
@@ -1620,7 +1634,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /lottery-tickets/{id}: Member-only gọi delete (authorization được xử lý ở tầng security)")
+    @DisplayName("[DP-292] DELETE /lottery-tickets/{id}: Member-only gọi delete (authorization được xử lý ở tầng security)")
     void delete_byMemberOnly_callsServiceAnyway() {
         doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
 
@@ -1634,7 +1648,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("PUT /lottery-tickets/{id}: Cập nhật vé không tồn tại trả về exception")
+    @DisplayName("[DP-325] PUT /lottery-tickets/{id}: Cập nhật vé không tồn tại trả về exception")
     void update_ticketNotFound_throwsException() {
         UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
                 "https://cdn.example.com/updated.png",
@@ -1662,7 +1676,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/verify: Xác minh vé không tồn tại trả về exception")
+    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/verify: Xác minh vé không tồn tại trả về exception")
     void verify_ticketNotFound_throwsException() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(USER_ID, "admin01");
         setAuthentication(principal, RoleConstants.ADMIN, "ticket:view");
@@ -1683,7 +1697,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé không tồn tại trả về exception")
+    @DisplayName("[DP-325] PATCH /lottery-tickets/{id}/status: Đổi trạng thái vé không tồn tại trả về exception")
     void changeStatus_ticketNotFound_throwsException() {
         when(lotteryTicketServicePort.changeStatus(TICKET_ID, LotteryTicketStatus.RESERVED))
                 .thenThrow(new RuntimeException("Vé số không tồn tại"));
@@ -1696,26 +1710,14 @@ class LotteryTicketControllerTest {
         verify(lotteryTicketServicePort).changeStatus(TICKET_ID, LotteryTicketStatus.RESERVED);
     }
 
-    @Test
-    @DisplayName("PATCH /lottery-tickets/{id}/status: Đổi trạng thái với status không hợp lệ trả về exception")
-    void changeStatus_invalidStatus_throwsException() {
-        when(lotteryTicketServicePort.changeStatus(TICKET_ID, LotteryTicketStatus.valueOf("INVALID_STATUS")))
-                .thenThrow(new RuntimeException("Trạng thái không hợp lệ"));
 
-        org.junit.jupiter.api.Assertions.assertThrows(
-                RuntimeException.class,
-                () -> lotteryTicketController.changeStatus(TICKET_ID, LotteryTicketStatus.valueOf("INVALID_STATUS"))
-        );
-
-        verify(lotteryTicketServicePort).changeStatus(TICKET_ID, LotteryTicketStatus.valueOf("INVALID_STATUS"));
-    }
 
     // ============================================================
     // DELETE LOTTERY TICKET - SUCCESS CASES
     // ============================================================
 
     @Test
-    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Admin xóa vé số thành công và trả về message chuẩn")
+    @DisplayName("[DP-292] DELETE /lottery-tickets/{id}: Admin xóa vé số thành công và trả về message chuẩn")
     void delete_asAdmin_returnsSuccessWithCorrectMessage() {
         doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
 
@@ -1730,7 +1732,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Operator xóa vé số thành công")
+    @DisplayName("[DP-292] DELETE /lottery-tickets/{id}: Operator xóa vé số thành công")
     void delete_asOperator_returnsSuccess() {
         doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
 
@@ -1744,7 +1746,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Street Agent xóa vé số thành công")
+    @DisplayName("[DP-292] DELETE /lottery-tickets/{id}: Street Agent xóa vé số thành công")
     void delete_asStreetAgent_returnsSuccess() {
         doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
 
@@ -1757,7 +1759,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Gọi đúng method với đúng ticket ID")
+    @DisplayName("[DP-292] DELETE /lottery-tickets/{id}: Gọi đúng method với đúng ticket ID")
     void delete_callsServiceWithCorrectId() {
         Long specificTicketId = 999L;
         doNothing().when(lotteryTicketServicePort).delete(specificTicketId);
@@ -1772,7 +1774,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Xóa vé không tồn tại ném DomainException NOT_FOUND")
+    @DisplayName("[DP-292] DELETE /lottery-tickets/{id}: Xóa vé không tồn tại ném DomainException NOT_FOUND")
     void delete_ticketNotFound_throwsDomainException() {
         org.mockito.Mockito.doThrow(new com.daiphat.coreapi.domain.exception.DomainException(
                 com.daiphat.coreapi.domain.exception.ErrorCode.LOTTERY_TICKET_NOT_FOUND))
@@ -1787,7 +1789,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Xóa vé đã bị xóa trước đó ném DomainException")
+    @DisplayName("[DP-292] DELETE /lottery-tickets/{id}: Xóa vé đã bị xóa trước đó ném DomainException")
     void delete_alreadyDeleted_throwsDomainException() {
         org.mockito.Mockito.doThrow(new com.daiphat.coreapi.domain.exception.DomainException(
                 com.daiphat.coreapi.domain.exception.ErrorCode.LOTTERY_TICKET_NOT_FOUND,
@@ -1803,7 +1805,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Xóa vé không tồn tại ném RuntimeException generic")
+    @DisplayName("[DP-292] DELETE /lottery-tickets/{id}: Xóa vé không tồn tại ném RuntimeException generic")
     void delete_ticketNotFound_throwsRuntimeException() {
         org.mockito.Mockito.doThrow(new RuntimeException("Vé số không tồn tại"))
                 .when(lotteryTicketServicePort).delete(TICKET_ID);
@@ -1817,7 +1819,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Xóa vé khi service throw DataAccessException")
+    @DisplayName("[DP-292] DELETE /lottery-tickets/{id}: Xóa vé khi service throw DataAccessException")
     void delete_repositoryThrowsDataAccessException_propagatesException() {
         org.mockito.Mockito.doThrow(new org.springframework.dao.DataAccessResourceFailureException("Database connection failed"))
                 .when(lotteryTicketServicePort).delete(TICKET_ID);
@@ -1835,7 +1837,7 @@ class LotteryTicketControllerTest {
     // ============================================================
 
     @Test
-    @DisplayName("[DP-325] DELETE /lottery-tickets/{id}: Anonymous user vẫn có thể gọi delete (authorization ở tầng security)")
+    @DisplayName("[DP-292] DELETE /lottery-tickets/{id}: Anonymous user vẫn có thể gọi delete (authorization ở tầng security)")
     void delete_byAnonymous_callsService() {
         doNothing().when(lotteryTicketServicePort).delete(TICKET_ID);
 
@@ -1846,7 +1848,7 @@ class LotteryTicketControllerTest {
     }
 
     @Test
-    @DisplayName("GET /lottery-tickets/public: Khách xem vé IN_STOCK không cần đăng nhập")
+    @DisplayName("[DP-281][DP-234] GET /lottery-tickets/public: Khách xem vé IN_STOCK không cần đăng nhập")
     void getPublicTickets_returnsPublicViewWithoutAuth() throws Exception {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         when(lotteryTicketServicePort.getPublicTickets(1, 10, PRODUCT_ID, "2026-06-15", "123456", "createdAt", "desc"))

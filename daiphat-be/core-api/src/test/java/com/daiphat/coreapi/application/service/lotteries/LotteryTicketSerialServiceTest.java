@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.lotteries;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
+import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,10 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.jupiter.api.DisplayName;
+
 @ExtendWith(MockitoExtension.class)
+@DisplayName("[DP-37] LotteryTicketSerialService Unit Tests")
 class LotteryTicketSerialServiceTest {
 
     @Mock
@@ -23,17 +27,22 @@ class LotteryTicketSerialServiceTest {
     @Mock
     private StoragePort storagePort;
 
+    @Mock
+    private OrderRepositoryPort orderRepositoryPort;
+
     private LotteryTicketSerialService lotteryTicketSerialService;
 
     @BeforeEach
     void setUp() {
         lotteryTicketSerialService = new LotteryTicketSerialService(
                 lotteryTicketSerialRepositoryPort,
-                storagePort
+                storagePort,
+                orderRepositoryPort
         );
     }
 
     @Test
+    @DisplayName("[DP-37] GET_STATUSES: Lấy danh sách trạng thái sê-ri vé số thành công")
     void getStatuses_returnsAllSerialStatusesForFe() {
         List<EnumOptionResponse> statuses = lotteryTicketSerialService.getStatuses();
 

@@ -118,4 +118,14 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
     public List<UUID> findPendingPaymentOrderIdsCreatedBefore(LocalDateTime threshold) {
         return orderRepository.findPendingPaymentOrderIdsCreatedBefore(OrderStatus.PENDING_PAYMENT, threshold);
     }
+
+    @Override
+    public boolean existsByLotteryTicketId(Long lotteryTicketId) {
+        return orderRepository.existsOrderDetailByLotteryTicketId(lotteryTicketId);
+    }
+
+    @Override
+    public boolean existsByLotteryTicketSerialId(Long lotteryTicketSerialId) {
+        return orderRepository.existsOrderDetailByLotteryTicketSerialId(lotteryTicketSerialId);
+    }
 }
