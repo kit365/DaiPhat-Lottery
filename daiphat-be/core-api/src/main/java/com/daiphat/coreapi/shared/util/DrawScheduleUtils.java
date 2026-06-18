@@ -18,7 +18,6 @@ public final class DrawScheduleUtils {
         validate(drawDays, drawTime);
 
         LocalDate today = LocalDate.now();
-        LocalTime now = LocalTime.now();
 
         List<DayOfWeek> sortedDays = drawDays.stream()
                 .distinct()
@@ -28,9 +27,6 @@ public final class DrawScheduleUtils {
         for (int i = 0; i < 7; i++) {
             LocalDate candidate = today.plusDays(i);
             if (!sortedDays.contains(candidate.getDayOfWeek())) {
-                continue;
-            }
-            if (i == 0 && now.isAfter(drawTime)) {
                 continue;
             }
             return candidate;

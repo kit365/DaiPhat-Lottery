@@ -77,9 +77,8 @@ public class GlobalExceptionAdvice {
     }
 
     private String resolveDataIntegrityMessage(DataIntegrityViolationException exception) {
-        String rawMessage = exception.getMostSpecificCause() != null
-                ? exception.getMostSpecificCause().getMessage()
-                : exception.getMessage();
+        exception.getMostSpecificCause();
+        String rawMessage = exception.getMostSpecificCause().getMessage();
         if (rawMessage == null) {
             return ErrorCode.INVALID_INPUT.getMessage();
         }
@@ -108,7 +107,16 @@ public class GlobalExceptionAdvice {
         ErrorCode errorCode = exception.getErrorCode();
         if (errorCode == ErrorCode.LOTTERY_TICKET_INVALID_STATUS
                 || errorCode == ErrorCode.LOTTERY_TICKET_EXPIRED
-                || errorCode == ErrorCode.LOTTERY_TICKET_BOOKING_CLOSED) {
+                || errorCode == ErrorCode.LOTTERY_TICKET_BOOKING_CLOSED
+                || errorCode == ErrorCode.LOTTERY_STATION_INVALID_DRAW_SCHEDULE
+                || errorCode == ErrorCode.LOTTERY_STATION_SYNC_SOURCE_UNSUPPORTED
+                || errorCode == ErrorCode.LOTTERY_STATION_SYNC_REGION_UNSUPPORTED
+                || errorCode == ErrorCode.LOTTERY_STATION_SYNC_SOURCE_EMPTY
+                || errorCode == ErrorCode.LOTTERY_STATION_SYNC_SOURCE_COUNT_MISMATCH
+                || errorCode == ErrorCode.LOTTERY_STATION_SYNC_SOURCE_INVALID
+                || errorCode == ErrorCode.LOTTERY_STATION_SYNC_SOURCE_DUPLICATE
+                || errorCode == ErrorCode.LOTTERY_STATION_SYNC_DEFAULT_PRICE_REQUIRED
+                || errorCode == ErrorCode.LOTTERY_STATION_SYNC_CANONICAL_NAME_REQUIRED) {
             return exception.getInternalMessage();
         }
 

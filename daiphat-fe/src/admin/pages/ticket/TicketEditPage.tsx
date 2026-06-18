@@ -337,6 +337,63 @@ export const TicketEditPage = () => {
                             </Stack>
                         </CollapsibleCard>
 
+                        {ticketDetail && (
+                            <CollapsibleCard
+                                title={"Thông tin bổ sung"}
+                                subheader={"Các thông tin chi tiết khác của lô vé này"}
+                                expanded={true}
+                            >
+                                <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
+                                    <Box
+                                        sx={{
+                                            display: "grid",
+                                            gridTemplateColumns: "repeat(12, 1fr)",
+                                            gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))",
+                                        }}
+                                    >
+                                        <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                            <Typography variant="caption" color="text.secondary">Ngày quay</Typography>
+                                            <Typography variant="body1" fontWeight={600}>
+                                                {ticketDetail.drawDate ? dayjs(ticketDetail.drawDate).format('DD/MM/YYYY') : 'N/A'}
+                                            </Typography>
+                                            {providers?.find((p: any) => (p.id || p._id)?.toString() === (ticketDetail.stationId || ticketDetail.providerId)?.toString())?.drawTime && (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {providers.find((p: any) => (p.id || p._id)?.toString() === (ticketDetail.stationId || ticketDetail.providerId)?.toString())?.drawTime}
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                        
+                                        <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                            <Typography variant="caption" color="text.secondary">Số lượng</Typography>
+                                            <Typography variant="body1" fontWeight={600}>{ticketDetail.quantity ?? 'N/A'} tờ</Typography>
+                                        </Box>
+
+                                        <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                            <Typography variant="caption" color="text.secondary">Giá (mỗi vé)</Typography>
+                                            <Typography variant="body1" fontWeight={600}>{ticketDetail.priceSnapshot ? `${ticketDetail.priceSnapshot.toLocaleString('vi-VN')} đ` : 'N/A'}</Typography>
+                                        </Box>
+
+                                        <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                            <Typography variant="caption" color="text.secondary">Đã duyệt</Typography>
+                                            <Typography variant="body1" fontWeight={600}>{ticketDetail.verified ? 'Có' : 'Không'}</Typography>
+                                        </Box>
+
+                                        <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                            <Typography variant="caption" color="text.secondary">Người tạo</Typography>
+                                            <Typography variant="body1" fontWeight={600}>{ticketDetail.createdBy || 'N/A'}</Typography>
+                                        </Box>
+
+                                        <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                            <Typography variant="caption" color="text.secondary">Ngày tạo</Typography>
+                                            <Typography variant="body1" fontWeight={600}>
+                                                {ticketDetail.createdAt ? dayjs(ticketDetail.createdAt).format('DD/MM/YYYY HH:mm') : (ticketDetail.importedAt ? dayjs(ticketDetail.importedAt).format('DD/MM/YYYY HH:mm') : 'N/A')}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                </Stack>
+                            </CollapsibleCard>
+                        )}
+
                         <CollapsibleCard
                             title={"Danh sách vé số (Sê-ri)"}
                             subheader={"Thêm các số sê-ri và ảnh vé số thuộc lô này"}

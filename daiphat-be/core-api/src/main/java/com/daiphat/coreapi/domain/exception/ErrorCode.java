@@ -143,6 +143,17 @@ public enum ErrorCode {
     PRIZE_STRUCTURE_TEMPLATE_ITEM_NOT_FOUND("LT_032", "Mẫu cấu trúc giải không tồn tại.", HttpStatus.NOT_FOUND),
     PRIZE_STRUCTURE_TEMPLATE_DUPLICATE_CODE("LT_033", "Mã giải thưởng bị trùng trong cùng miền.", HttpStatus.BAD_REQUEST),
     PRIZE_STRUCTURE_TEMPLATE_LIST_REQUIRED("LT_034", "Danh sách mẫu cấu trúc giải không được để trống.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_SYNC_SOURCE_UNSUPPORTED("LT_035", "Nguồn dữ liệu đồng bộ nhà đài chưa được hỗ trợ.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_SYNC_REGION_REQUIRED("LT_036", "Vui lòng chọn miền cần đồng bộ.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_SYNC_REGION_UNSUPPORTED("LT_037", "Miền này chưa được hỗ trợ đồng bộ.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_SYNC_SOURCE_EMPTY("LT_038", "Nguồn dữ liệu không trả về danh sách nhà đài hợp lệ.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_SYNC_SOURCE_COUNT_MISMATCH("LT_039", "Số lượng nhà đài từ nguồn dữ liệu không khớp kỳ vọng.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_SYNC_SOURCE_INVALID("LT_040", "Nguồn dữ liệu chưa đủ sạch để đồng bộ nhà đài.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_SYNC_SOURCE_DUPLICATE("LT_041", "Nguồn dữ liệu chứa nhà đài bị trùng, chưa thể đồng bộ an toàn.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_SYNC_DEFAULT_PRICE_REQUIRED("LT_042", "Cần truyền giá mặc định để tạo mới nhà đài.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_SYNC_CANONICAL_NAME_REQUIRED("LT_043", "Nhà đài từ nguồn dữ liệu thiếu tên chuẩn.", HttpStatus.BAD_REQUEST),
+    LOTTERY_REGION_NOT_FOUND("LT_044", "Miền không tồn tại.", HttpStatus.NOT_FOUND),
+    LOTTERY_REGION_NUMBER_RANGE_INVALID("LT_045", "Khoảng số của miền không hợp lệ.", HttpStatus.BAD_REQUEST),
 
     // Street Agent Profile Errors
     STREET_AGENT_PROFILE_NOT_FOUND("SAG_001", "Hồ sơ đại lý bán dạo không tồn tại.", HttpStatus.NOT_FOUND),
