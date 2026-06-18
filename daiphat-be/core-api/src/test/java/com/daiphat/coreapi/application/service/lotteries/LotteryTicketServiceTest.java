@@ -14,6 +14,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import org.junit.jupiter.api.BeforeEach;
@@ -117,9 +118,13 @@ class LotteryTicketServiceTest {
                 .id(PRODUCT_ID)
                 .name(PRODUCT_NAME)
                 .province("Hồ Chí Minh")
-                .region("Miền Nam")
-                .type(LotteryStationType.TRADITIONAL)
-                .numberLength(5)
+                .region(LotteryRegionModel.builder()
+                        .code("MIEN_NAM")
+                        .name("Miền Nam")
+                        .type(LotteryStationType.TRADITIONAL)
+                        .minNumber(0)
+                        .maxNumber(99_999)
+                        .build())
                 .price(BigDecimal.valueOf(10000))
                 .inventoryCount(10)
                 .nextDrawDate(LocalDate.now())

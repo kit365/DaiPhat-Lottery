@@ -9,6 +9,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.enums.lottery.MatchFrom;
 import com.daiphat.coreapi.domain.model.enums.lottery.PrizeLevel;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,8 +56,13 @@ class StationPrizeStructureServiceTest {
         stationModel = LotteryStationModel.builder()
                 .id(STATION_ID)
                 .name("TP.HCM")
-                .region(REGION)
-                .type(LotteryStationType.TRADITIONAL)
+                .region(LotteryRegionModel.builder()
+                        .code(REGION)
+                        .name("Miền Nam")
+                        .type(LotteryStationType.TRADITIONAL)
+                        .minNumber(0)
+                        .maxNumber(999_999)
+                        .build())
                 .build();
     }
 

@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.response.streetagent.StreetAgentProfi
 
 public interface StreetAgentProfileServicePort {
     PageResponse<StreetAgentProfileResponse> getAll(int page, int limit, String search, String status);
+    StreetAgentProfileResponse getById(Long id);
     StreetAgentProfileResponse create(CreateStreetAgentProfileRequest request);
     StreetAgentProfileResponse update(Long id, UpdateStreetAgentProfileRequest request);
 }
