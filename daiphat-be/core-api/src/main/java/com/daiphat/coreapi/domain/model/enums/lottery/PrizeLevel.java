@@ -7,8 +7,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum PrizeLevel {
     SPECIAL("Giải Đặc Biệt"),
-    JACKPOT("Giải Jackpot"),
-    JACKPOT2("Giải Jackpot 2"),
     FIRST("Giải Nhất"),
     SECOND("Giải Nhì"),
     THIRD("Giải Ba"),
