@@ -391,7 +391,11 @@ class ProfileView extends StatelessWidget {
             },
           ),
           _buildListItem(Icons.star_outline, 'Số yêu thích'),
-          _buildListItem(Icons.history, 'Lịch sử mua vé'),
+          _buildListItem(
+            Icons.history,
+            'Lịch sử mua vé',
+            onTap: () => context.push(AppRoute.myOrders.path),
+          ),
           _buildListItem(Icons.favorite_outline, 'Giới thiệu bạn bè', showDivider: false),
         ],
       ),

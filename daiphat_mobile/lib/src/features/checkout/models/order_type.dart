@@ -15,15 +15,16 @@ enum OrderReceiveType {
 }
 
 enum OrderStatus {
-  pendingPayment('PENDING_PAYMENT'),
-  paid('PAID'),
-  preparing('PREPARING'),
-  pendingPickup('PENDING_PICKUP'),
-  completed('COMPLETED'),
-  cancelled('CANCELLED');
+  pendingPayment('PENDING_PAYMENT', 'Chờ thanh toán'),
+  paid('PAID', 'Đã thanh toán'),
+  preparing('PREPARING', 'Đang chuẩn bị'),
+  pendingPickup('PENDING_PICKUP', 'Chờ lấy hàng'),
+  completed('COMPLETED', 'Hoàn thành'),
+  cancelled('CANCELLED', 'Đã hủy');
 
   final String value;
-  const OrderStatus(this.value);
+  final String label;
+  const OrderStatus(this.value, this.label);
 
   static OrderStatus fromValue(String value) {
     return OrderStatus.values.firstWhere(
@@ -80,6 +81,12 @@ class OrderResponse {
   final String orderCode;
   final int totalAmount;
   final String status;
+  final String? name;
+  final String? phone;
+  final String? orderType;
+  final String? receiveType;
+  final String? expectedPickupAt;
+  final String? createdAt;
   final List<TransactionResponse>? transactions;
 
   const OrderResponse({
@@ -87,6 +94,12 @@ class OrderResponse {
     required this.orderCode,
     required this.totalAmount,
     required this.status,
+    this.name,
+    this.phone,
+    this.orderType,
+    this.receiveType,
+    this.expectedPickupAt,
+    this.createdAt,
     this.transactions,
   });
 
@@ -96,9 +109,63 @@ class OrderResponse {
       orderCode: json['orderCode']?.toString() ?? '',
       totalAmount: json['totalAmount'] as int? ?? 0,
       status: json['status']?.toString() ?? '',
+      name: json['name']?.toString(),
+      phone: json['phone']?.toString(),
+      orderType: json['orderType']?.toString(),
+      receiveType: json['receiveType']?.toString(),
+      expectedPickupAt: json['expectedPickupAt']?.toString(),
+      createdAt: json['createdAt']?.toString(),
       transactions: (json['transactions'] as List<dynamic>?)
           ?.map((e) => TransactionResponse.fromJson(e as Map<String, dynamic>))
           .toList(),
+    );
+  }
+}
+
+class PaginationMeta {
+  final int totalRecords;
+  final int totalPages;
+  final int currentPage;
+  final int limit;
+  final bool isLast;
+
+  const PaginationMeta({
+    required this.totalRecords,
+    required this.totalPages,
+    required this.currentPage,
+    required this.limit,
+    required this.isLast,
+  });
+
+  factory PaginationMeta.fromJson(Map<String, dynamic> json) {
+    return PaginationMeta(
+      totalRecords: json['totalRecords'] as int? ?? 0,
+      totalPages: json['totalPages'] as int? ?? 0,
+      currentPage: json['currentPage'] as int? ?? 1,
+      limit: json['limit'] as int? ?? 10,
+      isLast: json['isLast'] as bool? ?? true,
+    );
+  }
+}
+
+class OrdersPageResponse {
+  final List<OrderResponse> records;
+  final PaginationMeta pagination;
+
+  const OrdersPageResponse({
+    required this.records,
+    required this.pagination,
+  });
+
+  factory OrdersPageResponse.fromJson(Map<String, dynamic> json) {
+    final list = json['recordList'] as List<dynamic>? ?? [];
+    return OrdersPageResponse(
+      records: list
+          .map((e) => OrderResponse.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      pagination: PaginationMeta.fromJson(
+        json['pagination'] as Map<String, dynamic>? ?? {},
+      ),
     );
   }
 }
