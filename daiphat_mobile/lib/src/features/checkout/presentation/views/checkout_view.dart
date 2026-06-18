@@ -19,16 +19,22 @@ class CheckoutView extends ConsumerStatefulWidget {
 class _CheckoutViewState extends ConsumerState<CheckoutView> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _dateController = TextEditingController();
   final _timeController = TextEditingController();
   final _noteController = TextEditingController();
   bool _initialLoadDone = false;
+  late DateTime _pickupDate;
+  bool _submitted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pickupDate = DateTime.now();
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    _dateController.dispose();
     _timeController.dispose();
     _noteController.dispose();
     super.dispose();
@@ -47,6 +53,7 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   }
 
   Future<void> _handleCheckout() async {
+    setState(() => _submitted = true);
     final notifier = ref.read(checkoutProvider.notifier);
     final success = await notifier.submitOrder();
 
@@ -293,19 +300,44 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   }
 
   Widget _buildUserInfoForm(CheckoutState state) {
+    final nameError = _submitted && state.name.trim().isEmpty
+        ? 'Vui lòng nhập họ và tên'
+        : null;
+    final phoneError = _submitted && state.phone.trim().isEmpty
+        ? 'Vui lòng nhập số điện thoại'
+        : null;
+    final timeError = _submitted && _timeController.text.trim().isEmpty
+        ? 'Vui lòng nhập giờ nhận vé'
+        : null;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
             controller: _nameController,
             onChanged: (v) => ref.read(checkoutProvider.notifier).setName(v),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Họ và tên *',
               hintText: 'Nhập họ và tên',
-              prefixIcon: Icon(Icons.person_outline),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.person_outline),
+              errorText: nameError,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: nameError != null ? Colors.red : const Color(0xFFE5E7EB),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: nameError != null ? Colors.red : AppColors.primary,
+                  width: 1.5,
+                ),
+              ),
             ),
             textInputAction: TextInputAction.next,
           ),
@@ -313,81 +345,159 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
           TextField(
             controller: _phoneController,
             onChanged: (v) => ref.read(checkoutProvider.notifier).setPhone(v),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Số điện thoại *',
               hintText: 'Nhập số điện thoại',
-              prefixIcon: Icon(Icons.phone_outlined),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.phone_outlined),
+              errorText: phoneError,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: phoneError != null ? Colors.red : const Color(0xFFE5E7EB),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: phoneError != null ? Colors.red : AppColors.primary,
+                  width: 1.5,
+                ),
+              ),
             ),
             keyboardType: TextInputType.phone,
             textInputAction: TextInputAction.next,
           ),
+          const SizedBox(height: 16),
+          _buildDateSelector(),
           const SizedBox(height: 12),
-          _buildDateTimeInputs(state),
+          _buildTimeInputField(timeError),
           const SizedBox(height: 12),
           TextField(
             controller: _noteController,
             onChanged: (v) => ref.read(checkoutProvider.notifier).setNote(v),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Ghi chú',
               hintText: 'VD: Tới lấy vào giờ nghỉ trưa...',
-              prefixIcon: Icon(Icons.note_outlined),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.note_alt_outlined),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              ),
             ),
             textInputAction: TextInputAction.done,
+            minLines: 1,
+            maxLines: 3,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDateTimeInputs(CheckoutState state) {
-    return Row(
+  Widget _buildDateSelector() {
+    final today = DateTime.now();
+    final tomorrow = today.add(const Duration(days: 1));
+    final isToday = _pickupDate.year == today.year &&
+        _pickupDate.month == today.month &&
+        _pickupDate.day == today.day;
+
+    String fmtDay(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: TextField(
-            controller: _dateController,
-            onChanged: (v) => _updatePickupDateTime(),
-            decoration: const InputDecoration(
-              labelText: 'Ngày đến lấy *',
-              hintText: '2026-06-16',
-              prefixIcon: Icon(Icons.calendar_today),
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.datetime,
-            textInputAction: TextInputAction.next,
+        const Text(
+          'Ngày nhận vé *',
+          style: TextStyle(
+            color: Color(0xFF374151),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: TextField(
-            controller: _timeController,
-            onChanged: (v) => _updatePickupDateTime(),
-            decoration: const InputDecoration(
-              labelText: 'Giờ đến lấy *',
-              hintText: '14:30',
-              prefixIcon: Icon(Icons.access_time),
-              border: OutlineInputBorder(),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _DateChipButton(
+                label: 'Hôm nay',
+                subLabel: fmtDay(today),
+                isSelected: isToday,
+                onTap: () {
+                  setState(() => _pickupDate = today);
+                  _updatePickupDateTime();
+                },
+              ),
             ),
-            keyboardType: TextInputType.datetime,
-            textInputAction: TextInputAction.done,
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _DateChipButton(
+                label: 'Ngày mai',
+                subLabel: fmtDay(tomorrow),
+                isSelected: !isToday,
+                onTap: () {
+                  setState(() => _pickupDate = tomorrow);
+                  _updatePickupDateTime();
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  void _updatePickupDateTime() {
-    final dateStr = _dateController.text.trim();
-    final timeStr = _timeController.text.trim();
-    if (dateStr.isEmpty || timeStr.isEmpty) return;
+  Widget _buildTimeInputField(String? error) {
+    return TextField(
+      controller: _timeController,
+      onChanged: (_) => _updatePickupDateTime(),
+      decoration: InputDecoration(
+        labelText: 'Giờ nhận vé *',
+        hintText: '14:30',
+        prefixIcon: const Icon(Icons.access_time_rounded),
+        errorText: error,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: error != null ? Colors.red : const Color(0xFFE5E7EB),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: error != null ? Colors.red : AppColors.primary,
+            width: 1.5,
+          ),
+        ),
+      ),
+      keyboardType: TextInputType.datetime,
+      textInputAction: TextInputAction.next,
+    );
+  }
 
+  void _updatePickupDateTime() {
+    final timeStr = _timeController.text.trim();
+    if (timeStr.isEmpty) return;
     try {
-      final iso = DateTime.parse('${dateStr}T${timeStr}:00').toIso8601String();
-      ref.read(checkoutProvider.notifier).setExpectedPickupAt(iso);
-    } catch (_) {
-      // Invalid date/time format, ignore
-    }
+      final parts = timeStr.split(':');
+      if (parts.length != 2) return;
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      final dt = DateTime(
+        _pickupDate.year,
+        _pickupDate.month,
+        _pickupDate.day,
+        hour,
+        minute,
+      );
+      ref.read(checkoutProvider.notifier).setExpectedPickupAt(dt.toIso8601String());
+    } catch (_) {}
   }
 
   Widget _buildReceiveTypeSelector(
@@ -806,5 +916,73 @@ class _CartItemCard extends StatelessWidget {
       (match) => '${match[1]}.',
     );
     return '${value}đ';
+  }
+}
+
+// ─── Date Chip Button ────────────────────────────────────────────────────────
+class _DateChipButton extends StatelessWidget {
+  const _DateChipButton({
+    required this.label,
+    required this.subLabel,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String subLabel;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : const Color(0xFFE5E7EB),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 16,
+              color: isSelected ? Colors.white : const Color(0xFF6B7280),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF15213B),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  subLabel,
+                  style: TextStyle(
+                    color: isSelected
+                        ? Colors.white.withValues(alpha: 0.85)
+                        : const Color(0xFF6B7280),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
