@@ -5,7 +5,9 @@ import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStatio
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryStationApplicationMapper;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotteryRegionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationSourceSyncPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -13,6 +15,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.enums.lottery.MatchFrom;
 import com.daiphat.coreapi.domain.model.enums.lottery.PrizeLevel;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +55,12 @@ class LotteryStationServiceTest {
     private LotteryStationRepositoryPort lotteryStationRepositoryPort;
 
     @Mock
+    private LotteryRegionRepositoryPort lotteryRegionRepositoryPort;
+
+    @Mock
+    private LotteryStationSourceSyncPort lotteryStationSourceSyncPort;
+
+    @Mock
     private LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
 
     @Mock
@@ -68,6 +77,8 @@ class LotteryStationServiceTest {
 
     private LotteryStationService lotteryStationService;
 
+    private LotteryRegionModel southRegion;
+    private LotteryRegionModel northRegion;
     private CreateLotteryStationRequest createRequest;
     private LotteryStationModel stationModel;
     private LotteryStationModel savedStationModel;
@@ -78,6 +89,8 @@ class LotteryStationServiceTest {
     void setUp() {
         lotteryStationService = new LotteryStationService(
                 lotteryStationRepositoryPort,
+                lotteryRegionRepositoryPort,
+                lotteryStationSourceSyncPort,
                 lotteryTicketRepositoryPort,
                 stationPrizeStructureSeeder,
                 lotteryStationApplicationMapper,
@@ -85,12 +98,13 @@ class LotteryStationServiceTest {
                 applicationEventPublisher
         );
 
+        southRegion = buildRegion(REGION);
+        northRegion = buildRegion("MIEN_BAC");
+
         createRequest = CreateLotteryStationRequest.builder()
                 .name(STATION_NAME)
                 .province("Hồ Chí Minh")
                 .region(REGION)
-                .type(LotteryStationType.TRADITIONAL.name())
-                .numberLength(6)
                 .price(BigDecimal.valueOf(10000))
                 .drawDays(List.of(java.time.DayOfWeek.TUESDAY, java.time.DayOfWeek.WEDNESDAY))
                 .drawTime(java.time.LocalTime.of(16, 15))
@@ -99,9 +113,6 @@ class LotteryStationServiceTest {
         stationModel = LotteryStationModel.builder()
                 .name(STATION_NAME)
                 .province("Hồ Chí Minh")
-                .region(REGION)
-                .type(LotteryStationType.TRADITIONAL)
-                .numberLength(6)
                 .price(BigDecimal.valueOf(10000))
                 .drawDays(List.of(java.time.DayOfWeek.TUESDAY, java.time.DayOfWeek.WEDNESDAY))
                 .drawTime(java.time.LocalTime.of(16, 15))
@@ -111,9 +122,7 @@ class LotteryStationServiceTest {
                 .id(STATION_ID)
                 .name(STATION_NAME)
                 .province("Hồ Chí Minh")
-                .region(REGION)
-                .type(LotteryStationType.TRADITIONAL)
-                .numberLength(6)
+                .region(southRegion)
                 .price(BigDecimal.valueOf(10000))
                 .status(LotteryStationStatus.DRAFT)
                 .drawDays(List.of(java.time.DayOfWeek.TUESDAY, java.time.DayOfWeek.WEDNESDAY))
@@ -146,6 +155,9 @@ class LotteryStationServiceTest {
 
     @Test
     void create_success_seedsPrizeStructuresFromRegion() {
+        when(lotteryRegionRepositoryPort.findByCode(REGION)).thenReturn(Optional.of(southRegion));
+        when(lotteryRegionRepositoryPort.save(any(LotteryRegionModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(lotteryStationRepositoryPort.existsByName(STATION_NAME)).thenReturn(false);
         when(lotteryStationApplicationMapper.toModel(createRequest)).thenReturn(stationModel);
         when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(savedStationModel);
@@ -155,7 +167,7 @@ class LotteryStationServiceTest {
         LotteryStationResponse result = lotteryStationService.create(createRequest);
 
         assertThat(result.id()).isEqualTo(STATION_ID);
-        verify(stationPrizeStructureSeeder).requireRegionHasPrizeStructures(REGION);
+        verify(stationPrizeStructureSeeder).requireRegionHasPrizeStructures(southRegion);
         verify(stationPrizeStructureSeeder).seedFromRegion(savedStationModel);
 
         assertThat(seededPrizeStructures).hasSize(11);
@@ -183,8 +195,7 @@ class LotteryStationServiceTest {
         LotteryStationModel station = LotteryStationModel.builder()
                 .id(STATION_ID)
                 .name(STATION_NAME)
-                .region("MIEN_NAM")
-                .type(LotteryStationType.TRADITIONAL)
+                .region(southRegion)
                 .price(BigDecimal.valueOf(10000))
                 .status(LotteryStationStatus.DRAFT)
                 .drawDays(List.of(java.time.DayOfWeek.TUESDAY, java.time.DayOfWeek.WEDNESDAY))
@@ -199,16 +210,41 @@ class LotteryStationServiceTest {
                 prizeStructure(PrizeLevel.SPECIAL, "DB", 1, 6, MatchFrom.LAST, 0)
         );
 
+        LotteryStationModel updatedStation = LotteryStationModel.builder()
+                .id(STATION_ID)
+                .name(STATION_NAME)
+                .region(northRegion)
+                .price(BigDecimal.valueOf(10000))
+                .status(LotteryStationStatus.DRAFT)
+                .drawDays(List.of(java.time.DayOfWeek.TUESDAY, java.time.DayOfWeek.WEDNESDAY))
+                .drawTime(java.time.LocalTime.of(16, 15))
+                .build();
+
+        when(lotteryRegionRepositoryPort.findByCode("MIEN_BAC")).thenReturn(Optional.of(northRegion));
+        when(lotteryRegionRepositoryPort.save(any(LotteryRegionModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(lotteryStationRepositoryPort.findById(STATION_ID)).thenReturn(Optional.of(station));
-        when(lotteryStationRepositoryPort.save(station)).thenReturn(station);
+        when(lotteryStationRepositoryPort.save(station)).thenReturn(updatedStation);
         when(lotteryTicketRepositoryPort.sumQuantityByProductIdAndStatuses(eq(STATION_ID), any()))
                 .thenReturn(0L);
-        when(stationPrizeStructureSeeder.reseedFromRegion(station)).thenReturn(northPrizes);
-        when(lotteryStationApplicationMapper.toResponse(station)).thenReturn(stationResponse);
+        when(stationPrizeStructureSeeder.reseedFromRegion(updatedStation)).thenReturn(northPrizes);
+        when(lotteryStationApplicationMapper.toResponse(updatedStation)).thenReturn(stationResponse);
 
         lotteryStationService.update(STATION_ID, request);
 
-        verify(stationPrizeStructureSeeder).reseedFromRegion(station);
+        verify(stationPrizeStructureSeeder).reseedFromRegion(updatedStation);
+    }
+
+    private LotteryRegionModel buildRegion(String code) {
+        return LotteryRegionModel.builder()
+                .id(1L)
+                .code(code)
+                .name(code)
+                .type(LotteryStationType.TRADITIONAL)
+                .minNumber(0)
+                .maxNumber(999_999)
+                .stationCount(0)
+                .build();
     }
 
     private PrizeStructureModel prizeStructure(
