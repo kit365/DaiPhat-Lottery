@@ -16,15 +16,13 @@ import java.time.LocalDateTime;
 public class PrizeStructureModel {
 
     private Long id;
-    private Long productId;
-    private String region;
-
-    @Builder.Default
-    private boolean isOnly = false;
+    private Long regionId;
+    private String regionCode;
 
     private PrizeLevel prizeLevel;
     private String prizeDisplayName;
     private String prizeCode;
+    private String description;
     private BigDecimal prizeValue;
     private Integer quantity;
     private Integer matchDigits;
@@ -34,21 +32,15 @@ public class PrizeStructureModel {
     @Builder.Default
     private Integer displayOrder = 0;
 
+    @Builder.Default
+    private boolean isActive = true;
+
     private LocalDateTime deletedAt;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
     private String lastModifiedBy;
-
-    public void applyProductDefaults(String productRegion) {
-        if (this.region == null || this.region.isBlank()) {
-            this.region = productRegion;
-        }
-        if (this.displayOrder == null) {
-            this.displayOrder = 0;
-        }
-    }
 
     public String resolvePrizeDisplayName() {
         if (prizeDisplayName != null && !prizeDisplayName.isBlank()) {
@@ -64,7 +56,10 @@ public class PrizeStructureModel {
         return matchFrom != null ? matchFrom.getDisplayName() : null;
     }
 
-    public void validate(String productRegion) {
+    public void validate() {
+        if (regionId == null && (regionCode == null || regionCode.isBlank())) {
+            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_REGION_INVALID);
+        }
         if (prizeLevel == null) {
             throw new DomainException(ErrorCode.PRIZE_STRUCTURE_INVALID_LEVEL);
         }
@@ -80,11 +75,6 @@ public class PrizeStructureModel {
         if (matchFrom == null) {
             throw new DomainException(ErrorCode.PRIZE_STRUCTURE_MATCH_RULE_INVALID);
         }
-        if (!isOnly && productRegion != null && region != null
-                && !region.equalsIgnoreCase(productRegion)) {
-            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_REGION_INVALID);
-        }
-
         validateMatchDigits();
     }
 
@@ -98,9 +88,7 @@ public class PrizeStructureModel {
         }
     }
 
-    public void softDelete() {
-        this.deletedAt = LocalDateTime.now();
-    }
+
 
     public boolean isDeleted() {
         return this.deletedAt != null;

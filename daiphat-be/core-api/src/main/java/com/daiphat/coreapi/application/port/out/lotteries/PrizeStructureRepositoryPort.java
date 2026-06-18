@@ -6,11 +6,21 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PrizeStructureRepositoryPort {
-    List<PrizeStructureModel> findByProductId(Long productId);
+    List<PrizeStructureModel> findByRegionCode(String regionCode);
+
+    List<String> findDistinctRegionCodes();
 
     Optional<PrizeStructureModel> findById(Long id);
 
-    List<PrizeStructureModel> saveAll(Long productId, List<PrizeStructureModel> models);
+    boolean existsByRegionCodeAndPrizeCode(String regionCode, String prizeCode);
 
-    void deleteByProductId(Long productId);
+    boolean existsByRegionCodeAndPrizeCodeExcludingId(String regionCode, String prizeCode, Long excludeId);
+
+    PrizeStructureModel save(PrizeStructureModel model);
+
+    List<PrizeStructureModel> saveAll(List<PrizeStructureModel> models);
+
+    void deleteById(Long id);
+
+    void deleteByRegionCode(String regionCode);
 }
