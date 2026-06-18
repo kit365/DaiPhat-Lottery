@@ -16,6 +16,8 @@ export const QUERY_KEYS = {
     ACCOUNTS_USER: 'accounts-user',
     ACCOUNT_USER_DETAIL: 'account-user',
     USER_STATUSES: 'user-statuses',
+    STREET_AGENT_PROFILES: 'street-agent-profiles',
+    STREET_AGENT_PROFILE_DETAIL: 'street-agent-profile',
 
     // Role
     ROLES: 'roles',
