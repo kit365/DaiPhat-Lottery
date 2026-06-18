@@ -79,6 +79,29 @@ class StreetAgentProfileControllerTest {
     }
 
     @Test
+    @DisplayName("GET /street-agent-profiles/{id}: lấy chi tiết hồ sơ thành công")
+    void getById_success() {
+        Long profileId = 1L;
+        StreetAgentProfileResponse serviceResponse = StreetAgentProfileResponse.builder()
+                .id(profileId)
+                .firstName(FIRST_NAME)
+                .lastName(LAST_NAME)
+                .phone(PHONE)
+                .cccd(CCCD)
+                .status("ACTIVE")
+                .build();
+
+        when(streetAgentProfileServicePort.getById(profileId)).thenReturn(serviceResponse);
+
+        ApiResponse<StreetAgentProfileResponse> response = streetAgentProfileController.getById(profileId);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData()).isEqualTo(serviceResponse);
+        verify(streetAgentProfileServicePort).getById(profileId);
+    }
+
+    @Test
     @DisplayName("PUT /street-agent-profiles/{id}: cập nhật hồ sơ thành công")
     void update_success() {
         Long profileId = 1L;

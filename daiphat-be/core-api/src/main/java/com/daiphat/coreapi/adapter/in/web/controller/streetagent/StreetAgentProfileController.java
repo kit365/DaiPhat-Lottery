@@ -42,6 +42,12 @@ public class StreetAgentProfileController {
                 streetAgentProfileServicePort.getAll(page, limit, search, status));
     }
 
+    @GetMapping(ID_PATH)
+    @PreAuthorize("hasAuthority('member:view')")
+    public ApiResponse<StreetAgentProfileResponse> getById(@PathVariable Long id) {
+        return ApiResponse.success(null, streetAgentProfileServicePort.getById(id));
+    }
+
     @PostMapping
     @PreAuthorize("hasAuthority('member:create')")
     public ApiResponse<StreetAgentProfileResponse> create(
