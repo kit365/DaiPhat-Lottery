@@ -82,6 +82,7 @@ export const ROUTES = {
             STREET_AGENT: {
                 LIST: `/${prefixAdmin}/street-agent/list`,
                 CREATE: `/${prefixAdmin}/street-agent/create`,
+                EDIT: `/${prefixAdmin}/street-agent/edit`,
             }
         },
         CHAT: `/${prefixAdmin}/chat`,
