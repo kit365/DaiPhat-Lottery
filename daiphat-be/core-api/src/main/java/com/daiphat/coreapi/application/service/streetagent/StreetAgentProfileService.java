@@ -59,6 +59,14 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public StreetAgentProfileResponse getById(Long id) {
+        StreetAgentProfileModel profile = streetAgentProfileRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
+        return streetAgentProfileApplicationMapper.toResponse(profile);
+    }
+
+    @Override
     @Transactional
     public StreetAgentProfileResponse create(CreateStreetAgentProfileRequest request) {
         log.info("Creating street agent profile for phone: {}", request.phone());

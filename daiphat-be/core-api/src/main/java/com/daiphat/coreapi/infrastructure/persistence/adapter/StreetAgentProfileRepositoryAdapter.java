@@ -5,6 +5,7 @@ import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStat
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.streetagent.StreetAgentProfilePersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.streetagent.StreetAgentProfileRepository;
+import com.daiphat.coreapi.infrastructure.persistence.specification.StreetAgentProfileSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -55,7 +56,10 @@ public class StreetAgentProfileRepositoryAdapter implements StreetAgentProfileRe
     @Override
     public Page<StreetAgentProfileModel> findAll(
             Pageable pageable, String search, StreetAgentProfileStatus status) {
-        return streetAgentProfileRepository.search(search, status, pageable)
+        String normalizedSearch = (search == null || search.isBlank()) ? null : search.trim();
+        return streetAgentProfileRepository.findAll(
+                        StreetAgentProfileSpecification.filter(normalizedSearch, status),
+                        pageable)
                 .map(streetAgentProfilePersistenceMapper::toDomain);
     }
 }
