@@ -23,6 +23,7 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
+import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import com.daiphat.coreapi.shared.util.SortUtils;
@@ -73,11 +74,13 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         LotteryStationModel station = getStationOrThrow(request.stationId());
         LotteryTicketNumber ticketNumber = toTicketNumber(request.numbers(), station);
         LotteryTicketModel requestedTicket = lotteryTicketApplicationMapper.toModel(request);
-        requestedTicket.validateDrawDate(request.drawDate());
+        LocalDate resolvedDrawDate = resolveRequestedDrawDate(request.drawDate(), station);
+        requestedTicket.validateDrawDate(resolvedDrawDate);
+        requestedTicket.setDrawDate(resolvedDrawDate);
         var existingTicket = lotteryTicketRepositoryPort.findByUniqueFields(
                 request.stationId(),
                 ticketNumber.value(),
-                request.drawDate()
+                resolvedDrawDate
         );
 
         LotteryTicketModel ticket = existingTicket
@@ -194,13 +197,17 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         ensureTicketEditable(model);
 
         String nextNumbers = model.getNumbers();
-        LocalDate nextDrawDate = request.drawDate() != null ? request.drawDate() : model.getDrawDate();
+        LocalDate nextDrawDate = model.getDrawDate();
+        LotteryStationModel station;
 
         if (hasText(request.numbers()) || request.drawDate() != null) {
-            LotteryStationModel station = getStationOrThrow(model.getStationId());
+            station = getStationOrThrow(model.getStationId());
             nextNumbers = hasText(request.numbers())
                     ? toTicketNumber(request.numbers(), station).value()
                     : model.getNumbers();
+            if (request.drawDate() != null) {
+                nextDrawDate = resolveRequestedDrawDate(request.drawDate(), station);
+            }
         }
 
         validateUniqueTicket(model.getStationId(), nextNumbers, nextDrawDate, id);
@@ -555,7 +562,31 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     }
 
     private LotteryTicketNumber toTicketNumber(String numbers, LotteryStationModel station) {
-        return LotteryTicketNumber.from(numbers, station.getNumberLength());
+        if (station.getRegion() == null) {
+            throw new DomainException(ErrorCode.LOTTERY_STATION_SYNC_REGION_REQUIRED);
+        }
+        return LotteryTicketNumber.from(numbers, station.getRegion().numberLength());
+    }
+
+    private LocalDate resolveCurrentStationDrawDate(LotteryStationModel station) {
+        DrawScheduleUtils.validate(station.getDrawDays(), station.getDrawTime());
+        return DrawScheduleUtils.resolveNextDrawDate(station.getDrawDays(), station.getDrawTime());
+    }
+
+    private LocalDate resolveRequestedDrawDate(LocalDate requestedDrawDate, LotteryStationModel station) {
+        if (requestedDrawDate == null) {
+            return resolveCurrentStationDrawDate(station);
+        }
+
+        DrawScheduleUtils.validate(station.getDrawDays(), station.getDrawTime());
+        if (!station.getDrawDays().contains(requestedDrawDate.getDayOfWeek())) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_TICKET_DRAW_DATE_INVALID,
+                    "Ngày quay " + requestedDrawDate + " không khớp lịch quay của đài " + station.getName() + "."
+            );
+        }
+
+        return requestedDrawDate;
     }
 
     private void validateUniqueTicket(Long stationId, String numbers, LocalDate drawDate, Long currentId) {

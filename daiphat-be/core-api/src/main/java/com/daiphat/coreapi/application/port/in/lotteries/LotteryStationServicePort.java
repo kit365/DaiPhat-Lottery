@@ -1,10 +1,12 @@
 package com.daiphat.coreapi.application.port.in.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncResponse;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 
 import java.time.LocalDate;
@@ -21,10 +23,9 @@ public interface LotteryStationServicePort {
 
     Optional<LotteryStationModel> findModelById(Long id);
 
-    PageResponse<LotteryStationResponse> getAll(
-            int page, int size, String search,
-            String status, String type,
-            String sortBy, String direction);
+    PageResponse<LotteryStationResponse> getAll(int page, int size, String search,
+                                                String status, String type, String region, List<String> drawDay,
+                                                String sortBy, String direction);
 
     List<LotteryStationResponse> getByDrawDate(LocalDate drawDate);
 
@@ -37,6 +38,8 @@ public interface LotteryStationServicePort {
     void delete(Long id);
 
     LotteryStationResponse uploadImage(Long id, UploadRequest request);
+
+    LotteryStationSyncResponse syncStations(SyncLotteryStationsRequest request);
 
     void recalculateInventory(Long id);
 

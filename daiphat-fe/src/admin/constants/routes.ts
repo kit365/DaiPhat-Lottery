@@ -33,7 +33,7 @@ export const ROUTES = {
         TICKETS: {
             LIST: `/${prefixAdmin}/ticket/list`,
             PROVIDER: `/${prefixAdmin}/provider/list`,
-            CATEGORY: `/${prefixAdmin}/ticket-category/list`,
+            REGION: `/${prefixAdmin}/region/list`,
             ATTRIBUTE: `/${prefixAdmin}/ticket/attribute/list`,
             EXPIRED: `/${prefixAdmin}/ticket/expired`,
         },

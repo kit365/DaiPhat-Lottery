@@ -100,14 +100,25 @@ export const TicketDetailPage = () => {
                                     gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))",
                                 }}
                             >
-                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Nhà đài</Typography>
                                     <Typography variant="body1" fontWeight={600}>{providerName}</Typography>
                                 </Box>
 
-                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Mã lô nhập</Typography>
                                     <Typography variant="body1" fontWeight={600}>{ticketDetail.batchCode || 'N/A'}</Typography>
+                                </Box>
+
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Trạng thái</Typography>
+                                    <Box mt={0.5}>
+                                        <Chip
+                                            label={ticketDetail.statusDisplayName || ticketDetail.status || "N/A"}
+                                            color={ticketStatusColor as any}
+                                            size="small"
+                                        />
+                                    </Box>
                                 </Box>
 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
@@ -127,18 +138,57 @@ export const TicketDetailPage = () => {
                                     <Typography variant="body1" fontWeight={600}>
                                         {ticketDetail.drawDate ? dayjs(ticketDetail.drawDate).format('DD/MM/YYYY') : 'N/A'}
                                     </Typography>
+                                    {provider?.drawTime && (
+                                        <Typography variant="body2" color="text.secondary">
+                                            {provider.drawTime}
+                                        </Typography>
+                                    )}
                                 </Box>
-                                
+
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
-                                    <Typography variant="caption" color="text.secondary">Trạng thái</Typography>
-                                    <Box mt={0.5}>
-                                        <Chip
-                                            label={ticketDetail.statusDisplayName || ticketDetail.status || "N/A"}
-                                            color={ticketStatusColor as any}
-                                            size="small"
-                                        />
-                                    </Box>
+                                    <Typography variant="caption" color="text.secondary">Số lượng</Typography>
+                                    <Typography variant="body1" fontWeight={600}>{ticketDetail.quantity ?? 'N/A'} tờ</Typography>
                                 </Box>
+
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Giá (mỗi vé)</Typography>
+                                    <Typography variant="body1" fontWeight={600}>{ticketDetail.priceSnapshot ? `${ticketDetail.priceSnapshot.toLocaleString('vi-VN')} đ` : 'N/A'}</Typography>
+                                </Box>
+
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Đã duyệt</Typography>
+                                    <Typography variant="body1" fontWeight={600}>{ticketDetail.verified ? 'Có' : 'Không'}</Typography>
+                                </Box>
+
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Người tạo</Typography>
+                                    <Typography variant="body1" fontWeight={600}>{ticketDetail.createdBy || 'N/A'}</Typography>
+                                </Box>
+
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Ngày tạo</Typography>
+                                    <Typography variant="body1" fontWeight={600}>
+                                        {ticketDetail.createdAt ? dayjs(ticketDetail.createdAt).format('DD/MM/YYYY HH:mm') : (ticketDetail.importedAt ? dayjs(ticketDetail.importedAt).format('DD/MM/YYYY HH:mm') : 'N/A')}
+                                    </Typography>
+                                </Box>
+
+                                {ticketDetail.updatedAt && (
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                        <Typography variant="caption" color="text.secondary">Cập nhật lúc</Typography>
+                                        <Typography variant="body1" fontWeight={600}>
+                                            {dayjs(ticketDetail.updatedAt).format('DD/MM/YYYY HH:mm')}
+                                        </Typography>
+                                    </Box>
+                                )}
+
+                                {ticketDetail.returnedAt && (
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                        <Typography variant="caption" color="text.secondary">Ngày trả vé</Typography>
+                                        <Typography variant="body1" fontWeight={600} color="error.main">
+                                            {dayjs(ticketDetail.returnedAt).format('DD/MM/YYYY HH:mm')}
+                                        </Typography>
+                                    </Box>
+                                )}
                             </Box>
 
                             <Box sx={{ mt: 2 }}>

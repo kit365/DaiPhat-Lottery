@@ -1,15 +1,31 @@
+CREATE TABLE IF NOT EXISTS lottery_regions (
+    id                  BIGSERIAL PRIMARY KEY,
+    code                VARCHAR(20) NOT NULL UNIQUE,
+    name                VARCHAR(100) NOT NULL,
+    type                VARCHAR(20) NOT NULL,
+    min_number          INTEGER NOT NULL DEFAULT 0,
+    max_number          INTEGER NOT NULL,
+    station_count       INTEGER NOT NULL DEFAULT 0,
+
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by          VARCHAR(100) DEFAULT 'SYSTEM',
+    last_modified_by    VARCHAR(100) DEFAULT 'SYSTEM'
+);
+
+INSERT INTO lottery_regions (code, name, type, min_number, max_number, station_count)
+VALUES
+    ('MIEN_NAM', 'Miền Nam', 'TRADITIONAL', 0, 999999, 0),
+    ('MIEN_TRUNG', 'Miền Trung', 'TRADITIONAL', 0, 999999, 0),
+    ('MIEN_BAC', 'Miền Bắc', 'TRADITIONAL', 0, 99999, 0)
+ON CONFLICT (code) DO NOTHING;
+
 -- lottery_stations
 CREATE TABLE IF NOT EXISTS lottery_stations (
     id                  BIGSERIAL PRIMARY KEY,
     name                VARCHAR(100) NOT NULL,
     province            VARCHAR(100),
-    region              VARCHAR(20),
-    type                VARCHAR(20) NOT NULL,
-
-    -- Quy tắc số
-    number_length       INTEGER,
-    min_number          INTEGER,
-    max_number          INTEGER,
+    region_id           BIGINT NOT NULL,
 
     -- Giá & Tồn kho
     price               NUMERIC(15, 0) NOT NULL,
@@ -30,7 +46,6 @@ CREATE TABLE IF NOT EXISTS lottery_stations (
     thumbnail_url       VARCHAR(500),
     thumbnail_public_id VARCHAR(255),
     description         TEXT,
-    display_order       INTEGER NOT NULL DEFAULT 0,
 
     -- Audit
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -40,11 +55,13 @@ CREATE TABLE IF NOT EXISTS lottery_stations (
     deleted_at          TIMESTAMP,
 
     CONSTRAINT fk_lottery_stations_approved_by
-        FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
+        FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_lottery_stations_region_id
+        FOREIGN KEY (region_id) REFERENCES lottery_regions(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_lottery_stations_status ON lottery_stations(status);
-CREATE INDEX IF NOT EXISTS idx_lottery_stations_type   ON lottery_stations(type);
+CREATE INDEX IF NOT EXISTS idx_lottery_stations_region_id ON lottery_stations(region_id);
 
 -- prize_structures
 CREATE TABLE IF NOT EXISTS prize_structures (
