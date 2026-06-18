@@ -1,24 +1,25 @@
 package com.daiphat.coreapi.application.dto.response.lotteries;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.SyncAction;
 import lombok.Builder;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Builder
-public record RegionPrizeStructureResponse(
-        Long id,
-        String region,
-        boolean isOnly,
+public record PrizeStructureSyncItemResponse(
+        Long prizeStructureId,
         String prizeLevel,
         String prizeDisplayName,
         String prizeCode,
+        String description,
         BigDecimal prizeValue,
         Integer quantity,
         Integer matchDigits,
         String matchFrom,
         String matchFromDisplayName,
         Integer displayOrder,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
-) {}
+        boolean isActive,
+        SyncAction action,
+        String note
+) {
+}

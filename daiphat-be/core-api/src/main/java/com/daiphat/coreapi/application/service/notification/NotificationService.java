@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -147,22 +146,12 @@ public class NotificationService implements NotificationServicePort {
                 PageableUtils.of(resolvedPage, resolvedLimit, SortUtils.byCreatedAtDesc())
         );
 
-        List<NotificationResponse> recordList = notificationPage.getContent().stream()
-                .map(notificationApplicationMapper::toResponse)
-                .toList();
-
-        return PageResponse.<NotificationResponse>builder()
-                .recordList(recordList)
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(notificationPage.getTotalElements())
-                        .totalPages(notificationPage.getTotalPages())
-                        .currentPage(resolvedPage)
-                        .limit(resolvedLimit)
-                        .isFirst(notificationPage.isFirst())
-                        .isLast(notificationPage.isLast())
-                        .build())
-                .statusCounts(buildCounts(userId))
-                .build();
+        return PageResponse.from(
+                notificationPage.map(notificationApplicationMapper::toResponse),
+                resolvedPage,
+                resolvedLimit,
+                buildCounts(userId)
+        );
     }
 
     private NotificationModel findNotificationOrThrow(Long notificationId) {

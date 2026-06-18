@@ -43,10 +43,16 @@ public class LotteryStationRepositoryAdapter implements LotteryStationRepository
     }
 
     @Override
-    public Page<LotteryStationModel> findAll(Pageable pageable, String search,
-                                             LotteryStationStatus status, String type, String region) {
+    public Page<LotteryStationModel> findAll(
+            Pageable pageable,
+            String search,
+            LotteryStationStatus status,
+            String type,
+            String region,
+            List<String> drawDay
+    ) {
         return lotteryStationRepository.findAll(
-                        LotteryStationSpecification.filter(search, status, type, region),
+                        LotteryStationSpecification.filter(search, status, type, region, drawDay),
                         pageable
                 )
                 .map(lotteryStationPersistenceMapper::toDomain);

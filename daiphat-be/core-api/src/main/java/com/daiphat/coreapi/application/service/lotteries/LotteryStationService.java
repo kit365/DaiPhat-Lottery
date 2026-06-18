@@ -16,15 +16,16 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryRegionRepositor
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationSourceSyncPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.SyncAction;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
-import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
@@ -46,16 +47,7 @@ import java.text.Normalizer;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.LinkedHashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -66,7 +58,7 @@ public class LotteryStationService implements LotteryStationServicePort {
     private final LotteryRegionRepositoryPort lotteryRegionRepositoryPort;
     private final LotteryStationSourceSyncPort lotteryStationSourceSyncPort;
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
-    private final StationPrizeStructureSeeder stationPrizeStructureSeeder;
+    private final PrizeStructureRepositoryPort prizeStructureRepositoryPort;
     private final LotteryStationApplicationMapper lotteryStationApplicationMapper;
     private final StoragePort storagePort;
     private final ApplicationEventPublisher eventPublisher;
@@ -90,7 +82,7 @@ public class LotteryStationService implements LotteryStationServicePort {
 
         LotteryStationModel model = lotteryStationApplicationMapper.toModel(request);
         model.setRegion(resolveRegion(request.region()));
-        stationPrizeStructureSeeder.requireRegionHasPrizeStructures(model.getRegion());
+        requireRegionHasPrizeStructures(model.getRegion());
         if (model.getStatus() == null) {
             model.setStatus(LotteryStationStatus.ACTIVE);
         }
@@ -99,10 +91,6 @@ public class LotteryStationService implements LotteryStationServicePort {
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         increaseRegionStationCount(saved.getRegion());
         log.info("Lottery product created with id: {}", saved.getId());
-
-        List<PrizeStructureModel> defaultPrizeStructures = stationPrizeStructureSeeder.seedFromRegion(saved);
-        log.info("Seeded {} default prize structures for lottery product: {}",
-                defaultPrizeStructures.size(), saved.getId());
 
         return lotteryStationApplicationMapper.toResponse(saved);
     }
@@ -138,89 +126,8 @@ public class LotteryStationService implements LotteryStationServicePort {
 
         LotteryStationStatus statusEnum = parseStatus(status);
 
-        if (hasDrawDayFilter(drawDay)) {
-            PageRequest unpaged = PageRequest.of(0, 1000);
-            Page<LotteryStationModel> allPage = lotteryStationRepositoryPort
-                    .findAll(unpaged, search, statusEnum, type, region);
-
-            List<LotteryStationModel> allModels = allPage.getContent().stream()
-                    .filter(model -> matchesDrawDay(model, drawDay))
-                    .toList();
-
-            List<LotteryStationModel> sortedModels = new ArrayList<>(allModels);
-            if (sortBy == null || sortBy.isBlank()) {
-                sortedModels.sort((a, b) -> {
-                    int minA = getMinDayValue(a.getDrawDays());
-                    int minB = getMinDayValue(b.getDrawDays());
-                    if (minA != minB) {
-                        return Integer.compare(minA, minB);
-                    }
-                    if (a.getName() != null && b.getName() != null) {
-                        return a.getName().compareToIgnoreCase(b.getName());
-                    }
-                    return 0;
-                });
-            }
-
-            int total = sortedModels.size();
-            int start = Math.max(0, (page - 1) * size);
-            int end = Math.min(total, start + size);
-            List<LotteryStationModel> pagedModels = start <= total ? sortedModels.subList(start, end) : List.of();
-
-            List<LotteryStationResponse> responseList = pagedModels.stream().map(model -> {
-                recalculateInventory(model);
-                return lotteryStationApplicationMapper.toResponse(model);
-            }).toList();
-
-            return PageResponse.<LotteryStationResponse>builder()
-                    .recordList(responseList)
-                    .pagination(PageResponse.PaginationMetadata.builder()
-                            .totalRecords(total)
-                            .totalPages((int) Math.ceil((double) total / size))
-                            .currentPage(page)
-                            .limit(size)
-                            .build())
-                    .build();
-        }
-
         if (sortBy == null || sortBy.isBlank()) {
-            PageRequest unpaged = PageRequest.of(0, 1000);
-            Page<LotteryStationModel> allPage = lotteryStationRepositoryPort
-                    .findAll(unpaged, search, statusEnum, type, region);
-
-            List<LotteryStationModel> allModels = new ArrayList<>(allPage.getContent());
-
-            allModels.sort((a, b) -> {
-                int minA = getMinDayValue(a.getDrawDays());
-                int minB = getMinDayValue(b.getDrawDays());
-                if (minA != minB) {
-                    return Integer.compare(minA, minB);
-                }
-                if (a.getName() != null && b.getName() != null) {
-                    return a.getName().compareToIgnoreCase(b.getName());
-                }
-                return 0;
-            });
-
-            int total = allModels.size();
-            int start = Math.max(0, (page - 1) * size);
-            int end = Math.min(total, start + size);
-            List<LotteryStationModel> pagedModels = start <= total ? allModels.subList(start, end) : List.of();
-
-            List<LotteryStationResponse> responseList = pagedModels.stream().map(model -> {
-                recalculateInventory(model);
-                return lotteryStationApplicationMapper.toResponse(model);
-            }).toList();
-
-            return PageResponse.<LotteryStationResponse>builder()
-                    .recordList(responseList)
-                    .pagination(PageResponse.PaginationMetadata.builder()
-                            .totalRecords(total)
-                            .totalPages((int) Math.ceil((double) total / size))
-                            .currentPage(page)
-                            .limit(size)
-                            .build())
-                    .build();
+            return getAllWithDefaultSorting(page, size, search, statusEnum, type, region, drawDay);
         } else {
             PageRequest pageable = PageRequest.of(
                     Math.max(0, page - 1),
@@ -229,61 +136,63 @@ public class LotteryStationService implements LotteryStationServicePort {
             );
 
             Page<LotteryStationModel> resultPage = lotteryStationRepositoryPort
-                    .findAll(pageable, search, statusEnum, type, region);
+                    .findAll(pageable, search, statusEnum, type, region, drawDay);
 
             Page<LotteryStationResponse> responsePage = resultPage.map(model -> {
                 recalculateInventory(model);
                 return lotteryStationApplicationMapper.toResponse(model);
             });
 
-            return buildPageResponse(responsePage, page, size);
+            return PageResponse.from(responsePage, page, size);
         }
+    }
+
+    private PageResponse<LotteryStationResponse> getAllWithDefaultSorting(
+            int page,
+            int size,
+            String search,
+            LotteryStationStatus status,
+            String type,
+            String region,
+            List<String> drawDay
+    ) {
+        PageRequest unpaged = PageRequest.of(0, 1000);
+        Page<LotteryStationModel> allPage = lotteryStationRepositoryPort
+                .findAll(unpaged, search, status, type, region, drawDay);
+
+        List<LotteryStationModel> allModels = sortStationsByDrawDayThenName(allPage.getContent());
+        int total = allModels.size();
+        int start = Math.max(0, (page - 1) * size);
+        int end = Math.min(total, start + size);
+        List<LotteryStationModel> pagedModels = start <= total ? allModels.subList(start, end) : List.of();
+
+        List<LotteryStationResponse> responseList = pagedModels.stream().map(model -> {
+            recalculateInventory(model);
+            return lotteryStationApplicationMapper.toResponse(model);
+        }).toList();
+
+        return PageResponse.from(responseList, total, page, size);
+    }
+
+    private List<LotteryStationModel> sortStationsByDrawDayThenName(List<LotteryStationModel> stations) {
+        List<LotteryStationModel> sortedModels = new ArrayList<>(stations);
+        sortedModels.sort((a, b) -> {
+            int minA = getMinDayValue(a.getDrawDays());
+            int minB = getMinDayValue(b.getDrawDays());
+            if (minA != minB) {
+                return Integer.compare(minA, minB);
+            }
+            if (a.getName() != null && b.getName() != null) {
+                return a.getName().compareToIgnoreCase(b.getName());
+            }
+            return 0;
+        });
+        return sortedModels;
     }
 
     private int getMinDayValue(List<DayOfWeek> days) {
         if (days == null || days.isEmpty()) return 99;
         return days.stream().mapToInt(DayOfWeek::getValue).min().orElse(99);
-    }
-
-    private boolean matchesDrawDay(LotteryStationModel model, List<String> drawDay) {
-        if (!hasDrawDayFilter(drawDay)) {
-            return true;
-        }
-        if (model.getDrawDays() == null || model.getDrawDays().isEmpty()) {
-            return false;
-        }
-        Set<DayOfWeek> expectedDays = parseRequestedDrawDays(drawDay);
-        if (expectedDays.isEmpty()) {
-            return false;
-        }
-        return model.getDrawDays().stream().anyMatch(expectedDays::contains);
-    }
-
-    private boolean hasDrawDayFilter(List<String> drawDay) {
-        return drawDay != null && drawDay.stream().anyMatch(this::hasText);
-    }
-
-    private Set<DayOfWeek> parseRequestedDrawDays(List<String> drawDay) {
-        if (!hasDrawDayFilter(drawDay)) {
-            return EnumSet.noneOf(DayOfWeek.class);
-        }
-
-        Set<DayOfWeek> expectedDays = new LinkedHashSet<>();
-        drawDay.stream()
-                .filter(this::hasText)
-                .flatMap(value -> Arrays.stream(value.split(",")))
-                .map(String::trim)
-                .filter(this::hasText)
-                .map(value -> value.toUpperCase(Locale.ROOT))
-                .forEach(value -> {
-                    try {
-                        expectedDays.add(DayOfWeek.valueOf(value));
-                    } catch (IllegalArgumentException ignored) {
-                        log.warn("Ignoring unsupported drawDay filter value: {}", value);
-                    }
-                });
-
-        return expectedDays;
     }
 
     @Override
@@ -340,7 +249,7 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
 
         if (regionChanged) {
-            stationPrizeStructureSeeder.requireRegionHasPrizeStructures(model.getRegion());
+            requireRegionHasPrizeStructures(model.getRegion());
         }
 
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
@@ -349,12 +258,6 @@ public class LotteryStationService implements LotteryStationServicePort {
             increaseRegionStationCount(saved.getRegion());
         }
         realignActiveTicketsToCurrentDraw(saved, previousNextDrawDate);
-
-        if (regionChanged) {
-            List<PrizeStructureModel> reseeded = stationPrizeStructureSeeder.reseedFromRegion(saved);
-            log.info("Re-seeded {} prize structures after region change for station: {}",
-                    reseeded.size(), saved.getId());
-        }
 
         recalculateInventory(saved);
         log.info("Lottery product updated with id: {}", saved.getId());
@@ -412,7 +315,7 @@ public class LotteryStationService implements LotteryStationServicePort {
                 LotteryStationModel created = createStationFromSource(previewItem, request.defaultPrice(), stationRegion);
                 existingStations.put(normalizedKey, created);
                 createdCount++;
-                items.add(buildSyncItem(created, canonicalName, "CREATED", "Tạo mới từ nguồn " + preview.source()));
+                items.add(buildSyncItem(created, canonicalName, SyncAction.CREATED, "Tạo mới từ nguồn " + preview.source()));
                 continue;
             }
 
@@ -426,7 +329,7 @@ public class LotteryStationService implements LotteryStationServicePort {
             String updateNote = request.defaultPrice() != null
                     ? "Cập nhật lịch quay và áp lại giá mặc định từ nguồn " + preview.source()
                     : "Cập nhật lịch quay từ nguồn " + preview.source();
-            items.add(buildSyncItem(updated, canonicalName, "UPDATED", updateNote));
+            items.add(buildSyncItem(updated, canonicalName, SyncAction.UPDATED, updateNote));
         }
 
         return LotteryStationSyncResponse.builder()
@@ -613,10 +516,9 @@ public class LotteryStationService implements LotteryStationServicePort {
                 .build();
 
         syncNextDrawDate(station);
-        stationPrizeStructureSeeder.requireRegionHasPrizeStructures(station.getRegion());
+        requireRegionHasPrizeStructures(station.getRegion());
         LotteryStationModel saved = lotteryStationRepositoryPort.save(station);
         increaseRegionStationCount(saved.getRegion());
-        stationPrizeStructureSeeder.seedFromRegion(saved);
         return saved;
     }
 
@@ -644,7 +546,7 @@ public class LotteryStationService implements LotteryStationServicePort {
     private LotteryStationSyncItemResponse buildSyncItem(
             LotteryStationModel station,
             String canonicalName,
-            String action,
+            SyncAction action,
             String note
     ) {
         return LotteryStationSyncItemResponse.builder()
@@ -719,22 +621,6 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
     }
 
-    private PageResponse<LotteryStationResponse> buildPageResponse(
-            Page<LotteryStationResponse> pageResult,
-            int page,
-            int size
-    ) {
-        return PageResponse.<LotteryStationResponse>builder()
-                .recordList(pageResult.getContent())
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(pageResult.getTotalElements())
-                        .totalPages(pageResult.getTotalPages())
-                        .currentPage(page)
-                        .limit(size)
-                        .build())
-                .build();
-    }
-
     private void recalculateInventory(LotteryStationModel model) {
         if (model.getId() == null) {
             return;
@@ -772,6 +658,15 @@ public class LotteryStationService implements LotteryStationServicePort {
                         ErrorCode.LOTTERY_STATION_SYNC_REGION_UNSUPPORTED,
                         "Miền chưa được hỗ trợ để đồng bộ: " + rawRegion
                 ));
+    }
+
+    private void requireRegionHasPrizeStructures(LotteryRegionModel region) {
+        if (region == null) {
+            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_TEMPLATE_REGION_REQUIRED);
+        }
+        if (prizeStructureRepositoryPort.findByRegionCode(region.region()).isEmpty()) {
+            throw new DomainException(ErrorCode.PRIZE_STRUCTURE_TEMPLATE_NOT_FOUND);
+        }
     }
 
     private void increaseRegionStationCount(LotteryRegionModel region) {
