@@ -137,12 +137,12 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
             text = "var(--palette-warning-dark)";
             break;
         case 'active':
-            label = "Đang bán";
+            label = "Đang hoạt động";
             bg = "var(--palette-info-lighter)";
             text = "var(--palette-info-dark)";
             break;
         case 'inactive':
-            label = "Tạm ngừng";
+            label = "Ngừng hoạt động";
             bg = "var(--palette-error-lighter)";
             text = "var(--palette-error-dark)";
             break;

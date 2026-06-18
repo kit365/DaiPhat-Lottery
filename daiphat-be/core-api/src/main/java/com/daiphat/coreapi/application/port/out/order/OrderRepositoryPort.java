@@ -17,6 +17,8 @@ public interface OrderRepositoryPort {
 
     OrderModel save(OrderModel order);
 
+    void deleteById(UUID id);
+
     Optional<OrderModel> findById(UUID id);
 
     Optional<OrderModel> findByIdWithLock(UUID id);
