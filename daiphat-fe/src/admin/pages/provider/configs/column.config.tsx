@@ -19,11 +19,26 @@ export const columnsConfig: GridColDef<any>[] = [
         field: "drawSchedule",
         headerName: "Lịch quay",
         width: 150,
-        renderCell: (params) => (
-            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>
-                {params.value || 'Chưa có'}
-            </span>
-        )
+        renderCell: (params) => {
+            const drawDays = params.row.drawDays;
+            const drawTime = params.row.drawTime;
+            
+            let formatted = 'Chưa có';
+            if (drawDays && drawDays.length > 0) {
+                const dayMap: Record<string, string> = {
+                    'MONDAY': 'T2', 'TUESDAY': 'T3', 'WEDNESDAY': 'T4',
+                    'THURSDAY': 'T5', 'FRIDAY': 'T6', 'SATURDAY': 'T7', 'SUNDAY': 'CN'
+                };
+                const days = drawDays.map((d: string) => dayMap[d] || d).join(', ');
+                formatted = `${days} (${drawTime || '--:--'})`;
+            }
+            
+            return (
+                <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>
+                    {formatted}
+                </span>
+            );
+        }
     },
     {
         field: "createdAt",

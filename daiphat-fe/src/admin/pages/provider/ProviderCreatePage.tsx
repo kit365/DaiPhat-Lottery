@@ -9,6 +9,7 @@ import { Tiptap } from "../../components/layouts/titap/Tiptap"
 import { useState, useMemo, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
 import { useCreateProvider, useUploadProviderImage } from "./hooks/useProvider";
+import { useRegions } from "../region/hooks/useRegion";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { CreateProviderFormValues, createProviderSchema } from "../../schemas/provider.schema";
@@ -68,17 +69,16 @@ export const ProviderCreatePage = () => {
             name: "",
             description: "",
             status: "active",
-            type: "TRADITIONAL",
             price: 10000,
             province: "",
             region: "",
-            numberLength: 6,
-            minNumber: 0,
-            maxNumber: 999999,
             drawDays: [],
             drawTime: "16:15",
         },
     });
+
+    const { data: regionsRes } = useRegions();
+    const regions = regionsRes?.data || [];
 
     const regionValue = watch("region");
     const provinceOptions = regionValue ? REGION_DATA[regionValue] || [] : [];
@@ -191,24 +191,7 @@ export const ProviderCreatePage = () => {
                                             )}
                                         />
                                     </Box>
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                        <Controller
-                                            name="type"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    select
-                                                    label="Loại vé"
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                    fullWidth
-                                                >
-                                                    <MenuItem value="TRADITIONAL">Truyền thống</MenuItem>
-                                                </TextField>
-                                            )}
-                                        />
-                                    </Box>
+
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
                                         <Controller
                                             name="price"
@@ -250,9 +233,9 @@ export const ProviderCreatePage = () => {
                                                     }}
                                                     fullWidth
                                                 >
-                                                    {REGION_OPTIONS.map((option) => (
-                                                        <MenuItem key={option.value} value={option.value}>
-                                                            {option.label}
+                                                    {regions.map((option) => (
+                                                        <MenuItem key={option.code} value={option.code}>
+                                                            {option.name}
                                                         </MenuItem>
                                                     ))}
                                                 </TextField>
@@ -400,58 +383,7 @@ export const ProviderCreatePage = () => {
                                     </Box>
                                 </Box>
 
-                                <Box sx={{ mt: 1 }}>
-                                    <Typography variant="subtitle2" sx={{ mb: '12px', fontWeight: 600, color: 'text.primary' }}>
-                                        Cấu hình vé (dùng cho máy quét)
-                                    </Typography>
-                                    <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "calc(2 * var(--spacing))" }}>
-                                        <Controller
-                                            name="numberLength"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    type="number"
-                                                    label="Độ dài số"
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                    onChange={(e) => field.onChange(Number(e.target.value))}
-                                                    fullWidth
-                                                />
-                                            )}
-                                        />
-                                        <Controller
-                                            name="minNumber"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    type="number"
-                                                    label="Số nhỏ nhất"
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                    onChange={(e) => field.onChange(Number(e.target.value))}
-                                                    fullWidth
-                                                />
-                                            )}
-                                        />
-                                        <Controller
-                                            name="maxNumber"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    type="number"
-                                                    label="Số lớn nhất"
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                    onChange={(e) => field.onChange(Number(e.target.value))}
-                                                    fullWidth
-                                                />
-                                            )}
-                                        />
-                                    </Box>
-                                </Box>
+
                                 <Box sx={{ mt: 1 }}>
                                     <div className="mb-3 font-semibold">Ảnh nhà đài (Tùy chọn)</div>
                                     <FormUploadSingleFile

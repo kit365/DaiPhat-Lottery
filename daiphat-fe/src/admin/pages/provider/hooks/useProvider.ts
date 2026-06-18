@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProviders, createProvider, getProviderById, updateProvider, deleteProvider, getStationsToday, getStationsTomorrow, uploadProviderImage } from '../../../api/provider.api';
+import { getProviders, createProvider, getProviderById, updateProvider, deleteProvider, getStationsToday, getStationsTomorrow, uploadProviderImage, syncProviders } from '../../../api/provider.api';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 
 
@@ -81,6 +81,17 @@ export const useStationsTomorrow = () => {
 export const useUploadProviderImage = () => {
     return useMutation({
         mutationFn: ({ id, file }: { id: string | number; file: File }) => uploadProviderImage(id, file),
+    });
+};
+
+export const useSyncProviders = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: syncProviders,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PROVIDERS] });
+        },
     });
 };
 
