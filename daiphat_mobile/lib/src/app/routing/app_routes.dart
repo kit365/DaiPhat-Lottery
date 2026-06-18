@@ -13,6 +13,7 @@ enum AppRoute {
   profileEdit,
   profileDetail,
   notifications,
+  myOrders,
 }
 
 extension AppRouteDefinition on AppRoute {
@@ -46,6 +47,8 @@ extension AppRouteDefinition on AppRoute {
         return '/profile/detail';
       case AppRoute.notifications:
         return '/notifications';
+      case AppRoute.myOrders:
+        return '/profile/tickets';
     }
   }
 
@@ -79,6 +82,8 @@ extension AppRouteDefinition on AppRoute {
         return 'profile_detail';
       case AppRoute.notifications:
         return 'notifications';
+      case AppRoute.myOrders:
+        return 'my_orders';
     }
   }
 
@@ -96,6 +101,7 @@ extension AppRouteDefinition on AppRoute {
       case AppRoute.profileEdit:
       case AppRoute.profileDetail:
       case AppRoute.notifications:
+      case AppRoute.myOrders:
         return true;
       case AppRoute.home:
       case AppRoute.buyTicket:

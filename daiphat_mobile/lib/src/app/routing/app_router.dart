@@ -20,6 +20,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/profile_e
 import 'package:daiphat_mobile/src/features/profile/presentation/views/profile_detail_view.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_view.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/my_orders_view.dart';
 import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -202,6 +203,14 @@ GoRouter createAppRouter({
         profileViewModel,
         notificationViewModel,
       ),
+      _route(
+        AppRoute.myOrders,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
     ],
   );
 }
@@ -302,5 +311,7 @@ Widget _buildRoute(
       );
     case AppRoute.notifications:
       return NotificationView(viewModel: notificationViewModel);
+    case AppRoute.myOrders:
+      return const MyOrdersView();
   }
 }
