@@ -227,7 +227,7 @@ public class OrderService implements OrderServicePort {
                 )
                 .map(orderApplicationMapper::toResponse);
 
-        return buildPageResponse(
+        return PageResponse.from(
                 resultPage,
                 page,
                 size,
@@ -271,7 +271,7 @@ public class OrderService implements OrderServicePort {
                 )
                 .map(orderApplicationMapper::toResponse);
 
-        return buildPageResponse(resultPage, page, size, null);
+        return PageResponse.from(resultPage, page, size, null);
     }
 
     @Override
@@ -617,26 +617,6 @@ public class OrderService implements OrderServicePort {
     private OrderModel getOrderOrThrow(UUID orderId) {
         return orderRepositoryPort.findById(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
-    }
-
-    private PageResponse<OrderResponse> buildPageResponse(
-            Page<OrderResponse> resultPage,
-            int page,
-            int size,
-            Map<String, Long> statusCounts
-    ) {
-        return PageResponse.<OrderResponse>builder()
-                .recordList(resultPage.getContent())
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(resultPage.getTotalElements())
-                        .totalPages(resultPage.getTotalPages())
-                        .currentPage(page)
-                        .limit(size)
-                        .isFirst(resultPage.isFirst())
-                        .isLast(resultPage.isLast())
-                        .build())
-                .statusCounts(statusCounts)
-                .build();
     }
 
     private Map<String, Long> buildOrderStatusCounts(
