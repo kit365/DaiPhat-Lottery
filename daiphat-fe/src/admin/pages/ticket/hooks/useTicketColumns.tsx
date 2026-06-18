@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { GridColDef } from '@mui/x-data-grid';
-import { RenderActionsCell, RenderTicketCell, RenderStatusCell, RenderCreatedAtCell } from '../utils/render-cells';
+import { RenderActionsCell, RenderTicketCell, RenderStatusCell, RenderCreatedAtCell, RenderDrawDateCell } from '../utils/render-cells';
 import { ITicket } from '../configs/types';
 import { useMemo } from 'react';
 
@@ -21,6 +21,7 @@ export const useTicketColumns = () => {
             headerName: "Ngày quay",
             width: 140,
             filterable: true,
+            renderCell: (params) => <RenderDrawDateCell {...params} />,
         },
         {
             field: "batchCode",

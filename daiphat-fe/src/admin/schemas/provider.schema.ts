@@ -9,12 +9,6 @@ export const createProviderSchema = z.object({
     province: z.string().optional(),
     region: z.string().optional(),
 
-    type: z.string().min(1, "Loại vé không được để trống"),
-
-    numberLength: z.number().optional(),
-    minNumber: z.number().optional(),
-    maxNumber: z.number().optional(),
-
     price: z.number().min(1, "Giá vé phải lớn hơn 0"),
 
     drawDays: z.array(z.string()).min(1, "Danh sách ngày quay không được để trống"),
@@ -22,7 +16,6 @@ export const createProviderSchema = z.object({
 
     description: z.string().optional(),
     image: z.any().optional(),
-    displayOrder: z.number().optional(),
 
     status: z.enum(["active", "inactive"]).optional(),
 });

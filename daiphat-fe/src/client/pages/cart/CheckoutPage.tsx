@@ -4,6 +4,7 @@ import { Header } from '../../components/layout/header';
 import { Trash2, ChevronRight, Minus, Plus, ShieldCheck, ArrowLeft, Store, CreditCard, CheckCircle2 } from 'lucide-react';
 import { useCartStore } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { useAuth } from '../../hooks/useAuth';
 import { AppToast as toast } from '../../utils/toast.util';
 import dayjs from 'dayjs';
 import { CheckoutDateTimePicker } from '../../components/cart/CheckoutDateTimePicker';
@@ -15,7 +16,8 @@ import { useProcessPayment, useGetTransactionTypes } from '../../hooks/useTransa
 export const CheckoutPage = () => {
     const navigate = useNavigate();
     const { items, updateQuantity, removeItem, clearCart } = useCartStore();
-    const { token, user, openLoginModal } = useAuthStore();
+    const { token, openLoginModal } = useAuthStore();
+    const { user } = useAuth();
     
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');

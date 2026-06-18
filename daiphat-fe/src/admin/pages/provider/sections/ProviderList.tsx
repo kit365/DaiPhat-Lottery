@@ -1,78 +1,131 @@
-import { useState } from 'react';
-import { DataGrid } from '@mui/x-data-grid';
+import {
+    DataGrid,
+    GridColDef,
+} from '@mui/x-data-grid';
 import Card from '@mui/material/Card';
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../assets/icons';
-import { columnsConfig, columnsInitialState } from '../configs/column.config';
+import { IGridSettings } from '../../ticket/configs/types';
 import { ProviderToolbar } from './ProviderToolbar';
-import { DATA_GRID_LOCALE_VN } from '../configs/localeText.config';
+import { useDataGridLocale } from '../../../hooks/useDataGridLocale';
+import { useSettings } from '../../ticket/hooks/useSettings';
+import { columnsConfig, columnsInitialState } from '../configs/column.config';
 import {
     dataGridCardStyles,
     dataGridContainerStyles,
-    dataGridStyles
+    dataGridStyles,
 } from '../configs/styles.config';
-import { useProviders } from '../hooks/useProvider';
+import {
+    columnsPanelStyles,
+    filterPanelStyles,
+} from '../../ticket/configs/styles.config';
 
-export const ProviderList = ({ isTrash = false }: { isTrash?: boolean }) => {
-    const [page, setPage] = useState(0);
-    const [pageSize, setPageSize] = useState(10);
-    const [search, setSearch] = useState('');
-    const [status, setStatus] = useState<string[]>([]);
+declare module '@mui/x-data-grid' {
+    interface ToolbarPropsOverrides {
+        settings: IGridSettings;
+        onSettingsChange: import("react").Dispatch<import("react").SetStateAction<IGridSettings>>;
+    }
+}
 
-    const params = {
-        page: page + 1,
-        limit: pageSize,
-        keyword: search,
-        status: status.length > 0 ? status.join(',') : undefined,
-        is_trash: isTrash
-    };
+export const ProviderList = ({
+    providerHook,
+}: {
+    providerHook: any;
+}) => {
+    const { settings, setSettings } = useSettings();
+    const {
+        providers,
+        pagination,
+        isLoading,
+        error,
+        filters,
+        setFilter,
+        clearFilters,
+        setSearchFilter,
+        setPage,
+        setLimit,
+        setSort,
+    } = providerHook;
 
-    const { data: res, isLoading } = useProviders(params);
-    const providers = res?.data?.recordList || [];
-    const pagination = res?.data?.pagination || { totalRecords: 0 };
+    const localeText = useDataGridLocale();
+
+    if (isLoading) {
+        return <div style={{ padding: '40px', textAlign: 'center', fontSize: '1.125rem' }}>Đang tải danh sách nhà đài...</div>;
+    }
+
+    if (error) {
+        return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--palette-error-main)', fontSize: '1.125rem' }}>Lỗi khi tải danh sách nhà đài. Vui lòng thử lại.</div>;
+    }
 
     return (
-        <Card elevation={0} sx={dataGridCardStyles}>
+        <Card
+            elevation={0}
+            sx={dataGridCardStyles}
+        >
             <div style={dataGridContainerStyles}>
                 <DataGrid
                     rows={providers}
                     getRowId={(row) => row._id || row.id}
-                    loading={isLoading}
                     columns={columnsConfig}
-                    density="comfortable"
+                    density={settings.density}
+                    showCellVerticalBorder={settings.showCellBorders}
+                    showColumnVerticalBorder={settings.showColumnBorders}
+                    showToolbar
                     slots={{
                         toolbar: ProviderToolbar as any,
                         columnSortedAscendingIcon: SortAscendingIcon,
                         columnSortedDescendingIcon: SortDescendingIcon,
                         columnUnsortedIcon: UnsortedIcon,
-                        noRowsOverlay: () => (
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                                {isLoading ? <CircularProgress size={32} /> : <span className='text-[1.125rem]'>Không có dữ liệu để hiển thị</span>}
-                            </Box>
-                        )
                     }}
                     slotProps={{
+                        columnsManagement: {
+                            getTogglableColumns: (columns: GridColDef[]) =>
+                                columns.filter(col => col.field !== '__check__' && col.field !== 'actions')
+                                    .map(col => col.field),
+                        },
+                        columnsPanel: {
+                            sx: columnsPanelStyles,
+                        },
+                        filterPanel: {
+                            sx: filterPanelStyles,
+                        },
                         toolbar: {
-                            search,
-                            onSearchChange: (val: string) => { setSearch(val); setPage(0); },
-                            status,
-                            onStatusChange: (val: string[]) => { setStatus(val); setPage(0); }
-                        } as any
+                            settings,
+                            onSettingsChange: setSettings,
+                            // Pass filter handlers to toolbar
+                            filters,
+                            onFilterChange: setFilter,
+                            onClearFilters: clearFilters,
+                            onSearchChange: setSearchFilter,
+                        } as any,
                     }}
-                    localeText={DATA_GRID_LOCALE_VN}
+                    localeText={localeText}
                     pagination
                     paginationMode="server"
-                    rowCount={pagination.totalRecords || 0}
+                    sortingMode="server"
+                    sortModel={filters.sortBy ? [{ field: filters.sortBy === 'drawTime' ? 'drawSchedule' : filters.sortBy, sort: filters.direction as any }] : []}
+                    onSortModelChange={(newModel) => {
+                        if (newModel.length > 0) {
+                            const field = newModel[0].field === 'drawSchedule' ? 'drawTime' : newModel[0].field;
+                            setSort(field, newModel[0].sort);
+                        } else {
+                            setSort(undefined, undefined);
+                        }
+                    }}
+                    loading={isLoading}
+                    rowCount={pagination?.totalRecords || 0}
                     paginationModel={{
-                        page,
-                        pageSize,
+                        page: filters.page - 1,
+                        pageSize: filters.limit,
                     }}
                     onPaginationModelChange={(model) => {
-                        setPage(model.page);
-                        setPageSize(model.pageSize);
+                        if (model.page + 1 !== filters.page) {
+                            setPage(model.page + 1);
+                        }
+                        if (model.pageSize !== filters.limit) {
+                            setLimit(model.pageSize);
+                        }
                     }}
-                    pageSizeOptions={[5, 10, 20]}
+                    pageSizeOptions={[5, 10, 20, 50]}
                     initialState={columnsInitialState}
                     getRowHeight={() => 'auto'}
                     checkboxSelection

@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategy;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategyFactory;
 import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
@@ -29,6 +30,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
@@ -101,6 +103,49 @@ class TransactionServiceTest {
         assertThat(transaction.getGateway()).isEqualTo(PaymentGateway.PAYOS);
         assertThat(transaction.getGatewayOrderCode()).isEqualTo(5_000_013L);
         verify(orderRepositoryPort).save(order);
+    }
+
+    @Test
+    @DisplayName("processPayment: nếu tạo payment link lỗi thì phải xóa order vừa tạo và release vé")
+    void processPayment_cleansUpPendingOrderWhenGatewayCreateLinkFails() {
+        UUID orderId = UUID.randomUUID();
+        TransactionModel transaction = TransactionModel.builder()
+                .id(13L)
+                .type(TransactionType.ONLINE)
+                .amount(BigDecimal.valueOf(100_000))
+                .status(TransactionStatus.PENDING)
+                .build();
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .lotteryTicketSerialId(101L)
+                .build();
+        OrderModel order = OrderModel.builder()
+                .id(orderId)
+                .orderCode("ORD-001")
+                .orderType(OrderType.ONLINE)
+                .status(OrderStatus.PENDING_PAYMENT)
+                .transactions(List.of(transaction))
+                .orderDetails(List.of(detail))
+                .build();
+
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+        when(paymentGatewayStrategyFactory.getStrategy(PaymentGateway.PAYOS)).thenReturn(gatewayStrategy);
+        when(orderRepositoryPort.save(order)).thenReturn(order);
+        when(gatewayStrategy.createPayment(order, transaction))
+                .thenThrow(new DomainException(ErrorCode.INTERNAL_SERVER_ERROR, "Could not allocate a fresh PayOS order code."));
+
+        DomainException exception = catchThrowableOfType(
+                () -> transactionService.processPayment(orderId, 13L, PaymentGateway.PAYOS),
+                DomainException.class
+        );
+
+        assertThat(exception).isNotNull();
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INTERNAL_SERVER_ERROR);
+        assertThat(exception.getInternalMessage()).isEqualTo("Could not allocate a fresh PayOS order code.");
+        assertThat(transaction.getStatus()).isEqualTo(TransactionStatus.CANCELLED);
+        verify(lotteryTicketServicePort).releaseReservationForOrder(101L);
+        verify(paymentCountdownCachePort).clear(orderId);
+        verify(orderRepositoryPort).deleteById(orderId);
+        verify(orderRepositoryPort, never()).save(order);
     }
 
     @Test

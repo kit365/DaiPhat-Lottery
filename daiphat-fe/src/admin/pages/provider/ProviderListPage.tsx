@@ -1,12 +1,21 @@
-import Button from "@mui/material/Button";
 import AddIcon from '@mui/icons-material/Add';
+import SyncIcon from '@mui/icons-material/Sync';
+import Button from '@mui/material/Button';
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { prefixAdmin } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { ProviderList } from "./sections/ProviderList";
+import { LoadingButton } from "../../components/ui/LoadingButton";
+import { useProviderList } from "./hooks/useProviderList";
+import { toast } from 'react-toastify';
+import { SyncProviderModal } from './sections/SyncProviderModal';
+import { useState } from 'react';
+
 export const ProviderListPage = () => {
     const navigate = useNavigate();
+    const providerHook = useProviderList();
+    const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
     return (
         <>
@@ -23,31 +32,38 @@ export const ProviderListPage = () => {
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <Button
-                        onClick={() => navigate(`/${prefixAdmin}/provider/create`)}
+                        onClick={() => setIsSyncModalOpen(true)}
+                        variant="contained"
+                        startIcon={<SyncIcon />}
                         sx={{
-                            background: 'var(--palette-text-primary)',
                             minHeight: "2.25rem",
-                            minWidth: "4rem",
-                            fontWeight: 700,
-                            fontSize: "0.875rem",
-                            padding: "6px 12px",
-                            borderRadius: "var(--shape-borderRadius)",
+                            padding: "6px 16px",
                             textTransform: "none",
-                            boxShadow: "none",
+                            fontWeight: 600,
+                            background: "var(--palette-grey-800)",
                             "&:hover": {
-                                background: "var(--palette-grey-700)",
-                                boxShadow: "var(--customShadows-z8)"
+                                background: "var(--palette-grey-700)"
                             }
                         }}
-                        variant="contained"
-                        startIcon={<AddIcon />}
                     >
-                        Thêm nhà đài
+                        Đồng bộ đài
                     </Button>
+                    <LoadingButton
+                        onClick={() => navigate(`/${prefixAdmin}/provider/create`)}
+                        label="Thêm nhà đài"
+                        startIcon={<AddIcon />}
+                        sx={{
+                            minHeight: "2.25rem",
+                            padding: "var(--shape-borderRadius-sm) calc(2 * var(--spacing))",
+                        }}
+                    />
                 </div>
             </div>
-            <ProviderList isTrash={false} />
+            <ProviderList providerHook={providerHook} />
+            <SyncProviderModal 
+                open={isSyncModalOpen} 
+                onClose={() => setIsSyncModalOpen(false)} 
+            />
         </>
     )
 }
-

@@ -1,5 +1,5 @@
 import { GridColDef } from "@mui/x-data-grid";
-import { RenderActionsCell, RenderCreatedAtCell, RenderTicketCell, RenderStatusCell, RenderStockCell } from '../utils/render-cells';
+import { RenderActionsCell, RenderCreatedAtCell, RenderTicketCell, RenderStatusCell, RenderStockCell, RenderDrawDateCell } from '../utils/render-cells';
 import { ITicket } from "./types";
 
 export const columnsConfig: GridColDef<ITicket>[] = [
@@ -16,6 +16,7 @@ export const columnsConfig: GridColDef<ITicket>[] = [
         headerName: "Ngày quay",
         width: 140,
         filterable: true,
+        renderCell: RenderDrawDateCell,
     },
     {
         field: "batchCode",

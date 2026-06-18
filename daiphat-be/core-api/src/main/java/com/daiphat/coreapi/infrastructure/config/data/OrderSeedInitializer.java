@@ -2,7 +2,6 @@ package com.daiphat.coreapi.infrastructure.config.data;
 
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
@@ -12,6 +11,7 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryRegionEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
@@ -21,6 +21,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderRefundEn
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryRegionRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryStationRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
@@ -62,6 +63,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final LotteryRegionRepository lotteryRegionRepository;
     private final LotteryStationRepository lotteryStationRepository;
     private final LotteryTicketRepository lotteryTicketRepository;
     private final LotteryTicketSerialRepository lotteryTicketSerialRepository;
@@ -437,6 +439,8 @@ public class OrderSeedInitializer implements ApplicationRunner {
     }
 
     private LotteryStationEntity ensureSeedStation(UserEntity operator) {
+        LotteryRegionEntity mienNam = lotteryRegionRepository.findByCodeIgnoreCase("MIEN_NAM")
+                .orElseThrow();
         return lotteryStationRepository.findAll().stream()
                 .filter(station -> SEED_STATION_NAME.equalsIgnoreCase(station.getName()))
                 .findFirst()
@@ -444,11 +448,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                         LotteryStationEntity.builder()
                                 .name(SEED_STATION_NAME)
                                 .province("Ho Chi Minh")
-                                .region("Mien Nam")
-                                .type(LotteryStationType.TRADITIONAL)
-                                .numberLength(6)
-                                .minNumber(0)
-                                .maxNumber(999999)
+                                .region(mienNam)
                                 .price(BigDecimal.valueOf(10_000))
                                 .inventoryCount(100)
                                 .drawDays(List.of(DayOfWeek.MONDAY))
