@@ -9,13 +9,12 @@ const TicketCreatePage = lazy(() => import("../pages/ticket/TicketCreatePage").t
 const TicketEditPage = lazy(() => import("../pages/ticket/TicketEditPage").then(m => ({ default: m.TicketEditPage })));
 const TicketDetailPage = lazy(() => import("../pages/ticket/TicketDetailPage").then(m => ({ default: m.TicketDetailPage })));
 const ExpiredTicketListPage = lazy(() => import("../pages/ticket/ExpiredTicketListPage").then(m => ({ default: m.ExpiredTicketListPage })));
-const TicketCategoryListPage = lazy(() => import("../pages/ticket-category/TicketCategoryListPage").then(m => ({ default: m.TicketCategoryListPage })));
-const TicketCategoryCreatePage = lazy(() => import("../pages/ticket-category/TicketCategoryCreatePage").then(m => ({ default: m.TicketCategoryCreatePage })));
-const TicketCategoryEditPage = lazy(() => import("../pages/ticket-category/TicketCategoryEditPage").then(m => ({ default: m.TicketCategoryEditPage })));
+
 const ProviderListPage = lazy(() => import("../pages/provider/ProviderListPage").then(m => ({ default: m.ProviderListPage })));
 const ProviderCreatePage = lazy(() => import("../pages/provider/ProviderCreatePage").then(m => ({ default: m.ProviderCreatePage })));
 const ProviderEditPage = lazy(() => import("../pages/provider/ProviderEditPage").then(m => ({ default: m.ProviderEditPage })));
 const ProviderDetailPage = lazy(() => import("../pages/provider/ProviderDetailPage").then(m => ({ default: m.ProviderDetailPage })));
+const RegionListPage = lazy(() => import("../pages/region/RegionListPage").then(m => ({ default: m.RegionListPage })));
 const BlogListPage = lazy(() => import("../pages/blog/BlogListPage").then(m => ({ default: m.BlogListPage })));
 const BlogCategoryListPage = lazy(() => import("../pages/blog-category/BlogCategoryListPage").then(m => ({ default: m.BlogCategoryListPage })));
 const BlogCategoryCreatePage = lazy(() => import("../pages/blog-category/BlogCategoryCreatePage").then(m => ({ default: m.BlogCategoryCreatePage })));
@@ -103,14 +102,11 @@ export const AdminRoutes = [
     { path: "ticket/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.EDIT}><TicketEditPage /></PermissionGuard> },
     { path: "ticket/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketDetailPage /></PermissionGuard> },
     { path: "ticket/expired", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><ExpiredTicketListPage /></PermissionGuard> },
-    { path: "ticket-category/list", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketCategoryListPage /></PermissionGuard> },
-    { path: "ticket-category/create", element: <PermissionGuard permission={PERMISSIONS.TICKET.CREATE}><TicketCategoryCreatePage /></PermissionGuard> },
-    { path: "ticket-category/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.EDIT}><TicketCategoryEditPage /></PermissionGuard> },
-    { path: "ticket-category/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketCategoryEditPage /></PermissionGuard> },
     { path: "provider/list", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><ProviderListPage /></PermissionGuard> },
     { path: "provider/create", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.CREATE}><ProviderCreatePage /></PermissionGuard> },
     { path: "provider/edit/:id", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.EDIT}><ProviderEditPage /></PermissionGuard> },
     { path: "provider/detail/:id", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><ProviderDetailPage /></PermissionGuard> },
+    { path: "region/list", element: <RegionListPage /> },
     { path: "ticketService/list", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE.VIEW}><TicketServiceListPage /></PermissionGuard> },
     { path: "ticketService/create", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE.CREATE}><TicketServiceCreatePage /></PermissionGuard> },
     { path: "ticketService/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE.EDIT}><TicketServiceEditPage /></PermissionGuard> },

@@ -89,16 +89,11 @@ export const createProvider = async (data: any): Promise<any> => {
         name: data.name,
         province: data.province || '',
         region: data.region || '',
-        type: data.type || 'TRADITIONAL',
-        numberLength: data.numberLength || 6,
-        minNumber: data.minNumber,
-        maxNumber: data.maxNumber,
         price: data.price || 10000,
         drawDays: normalizeDrawDaysForBackend(data.drawDays),
         drawTime: data.drawTime || '',
         image: data.image || '',
         description: data.description || '',
-        displayOrder: data.displayOrder || 0,
         status: data.status ? data.status.toUpperCase() : 'ACTIVE',
     };
     const response = await apiApp.post(BASE_URL, payload);
@@ -110,16 +105,11 @@ export const updateProvider = async (id: string | number, data: any): Promise<an
         name: data.name,
         province: data.province || '',
         region: data.region || '',
-        type: data.type || 'TRADITIONAL',
-        numberLength: data.numberLength || 6,
-        minNumber: data.minNumber,
-        maxNumber: data.maxNumber,
         price: data.price || 10000,
         drawDays: normalizeDrawDaysForBackend(data.drawDays),
         drawTime: data.drawTime || '',
         image: data.image || '',
         description: data.description || '',
-        displayOrder: data.displayOrder || 0,
         status: data.status ? data.status.toUpperCase() : 'ACTIVE',
     };
     const response = await apiApp.put(`${BASE_URL}/${id}`, payload);
@@ -172,5 +162,10 @@ export const uploadProviderImage = async (id: string | number, file: File): Prom
             'Content-Type': 'multipart/form-data',
         },
     });
+    return response.data;
+};
+
+export const syncProviders = async (data: any): Promise<any> => {
+    const response = await apiApp.post(`${BASE_URL}/sync`, data);
     return response.data;
 };

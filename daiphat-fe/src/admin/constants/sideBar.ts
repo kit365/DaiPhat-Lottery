@@ -83,7 +83,7 @@ export const menuManagementData = [
         children: [
             { id: "list", label: "Kho vé số", tKey: "admin.sidebar.list", path: ROUTES.ADMIN.TICKETS.LIST, permission: PERMISSIONS.TICKET.VIEW },
             { id: "provider", label: "Nhà đài", tKey: "admin.sidebar.provider", path: ROUTES.ADMIN.TICKETS.PROVIDER, permission: PERMISSIONS.PROVIDER.VIEW },
-            { id: "category", label: "Loại hình xổ số", tKey: "admin.sidebar.category", path: ROUTES.ADMIN.TICKETS.CATEGORY, permission: PERMISSIONS.TICKET.VIEW },
+            { id: "region", label: "Vùng miền", path: ROUTES.ADMIN.TICKETS.REGION, permission: PERMISSIONS.PROVIDER.VIEW },
             { id: "attribute", label: "Thông số vé", tKey: "admin.sidebar.attribute", path: ROUTES.ADMIN.TICKETS.ATTRIBUTE, permission: PERMISSIONS.TICKET.VIEW },
             { id: "expired", label: "Vé hết hạn quay", path: ROUTES.ADMIN.TICKETS.EXPIRED, permission: PERMISSIONS.TICKET.VIEW },
         ]

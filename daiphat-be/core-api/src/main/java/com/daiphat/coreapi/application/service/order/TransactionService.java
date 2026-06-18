@@ -57,15 +57,23 @@ public class TransactionService implements TransactionServicePort {
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = DomainException.class)
     public PaymentResult processPayment(UUID orderId, Long transactionId, PaymentGateway gateway) {
         OrderModel order = getOrderWithLockOrThrow(orderId);
         TransactionModel transaction = getPendingOnlineTransaction(order, transactionId, gateway);
 
-        PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(gateway);
-        PaymentResult paymentResult = strategy.createPayment(order, transaction);
-        orderRepositoryPort.save(order);
-        return paymentResult;
+        try {
+            PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(gateway);
+            PaymentResult paymentResult = strategy.createPayment(order, transaction);
+            orderRepositoryPort.save(order);
+            return paymentResult;
+        } catch (DomainException ex) {
+            handlePaymentLinkCreationFailure(order, transaction, ex.getMessage());
+            throw ex;
+        } catch (Exception ex) {
+            handlePaymentLinkCreationFailure(order, transaction, "Không thể khởi tạo liên kết thanh toán.");
+            throw new DomainException(ErrorCode.INTERNAL_SERVER_ERROR, ex);
+        }
     }
 
     @Override
@@ -154,7 +162,7 @@ public class TransactionService implements TransactionServicePort {
         OrderModel order = orderRepositoryPort.findByGatewayOrderCode(callbackResult.gatewayOrderCode())
                 .flatMap(existing -> existing.getId() != null
                         ? orderRepositoryPort.findByIdWithLock(existing.getId())
-                        : java.util.Optional.<OrderModel>empty())
+                        : java.util.Optional.empty())
                 .orElse(null);
         if (order == null) {
             log.warn("Ignoring {} callback for unknown gatewayOrderCode {}.", gateway, callbackResult.gatewayOrderCode());
@@ -355,6 +363,32 @@ public class TransactionService implements TransactionServicePort {
         if (transaction.getId() != null) {
             paymentAttemptCachePort.clearFailureAttempts(transaction.getId());
         }
+    }
+
+    private void handlePaymentLinkCreationFailure(OrderModel order, TransactionModel transaction, String reason) {
+        String effectiveReason = (reason != null && !reason.isBlank())
+                ? reason
+                : "Không thể khởi tạo liên kết thanh toán.";
+
+        log.warn("Payment link creation failed for order {} transaction {}: {}",
+                order.getId(), transaction.getId(), effectiveReason);
+
+        if (transaction.getStatus() == TransactionStatus.PENDING) {
+            transaction.markCancelled(effectiveReason);
+        }
+        clearFailureAttempts(transaction);
+
+        if (order.getCompletedTransactionAmount().signum() == 0
+                && order.getStatus() == OrderStatus.PENDING_PAYMENT
+                && order.getId() != null) {
+            releaseReservedTickets(order);
+            orderRepositoryPort.deleteById(order.getId());
+            paymentCountdownCachePort.clear(order.getId());
+            return;
+        }
+
+        OrderModel saved = orderRepositoryPort.save(order);
+        clearCountdownIfResolved(saved);
     }
 
     private OrderModel getOrderOrThrow(UUID orderId) {

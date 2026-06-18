@@ -3,9 +3,11 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,13 @@ public class LotteryStationController {
         return ApiResponse.success("Tạo sản phẩm vé số thành công.", response);
     }
 
+    @PostMapping("/sync")
+    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    public ApiResponse<LotteryStationSyncResponse> syncStations(
+            @Valid @RequestBody SyncLotteryStationsRequest request) {
+        return ApiResponse.success("Đồng bộ nhà đài thành công.", lotteryStationServicePort.syncStations(request));
+    }
+
     @GetMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('ticket:view')")
     public ApiResponse<LotteryStationResponse> getById(@PathVariable Long id) {
@@ -52,11 +61,13 @@ public class LotteryStationController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String type,
+            @RequestParam(required = false) String region,
+            @RequestParam(required = false) List<String> drawDay,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction) {
 
         return ApiResponse.success(null,
-                lotteryStationServicePort.getAll(page, size, search, status, type, sortBy, direction));
+                lotteryStationServicePort.getAll(page, size, search, status, type, region, drawDay, sortBy, direction));
     }
 
     @GetMapping("/draws/today")
