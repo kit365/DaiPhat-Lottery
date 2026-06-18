@@ -97,9 +97,10 @@ class _CartViewState extends ConsumerState<CartView> {
                           final index = entry.key;
                           final item = entry.value;
                           return Padding(
+                            key: ValueKey(identityHashCode(item)),
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Dismissible(
-                              key: ValueKey('${item.number}-$index'),
+                              key: UniqueKey(),
                               direction: DismissDirection.endToStart,
                               background: const _DeleteSwipeBackground(),
                               onDismissed: (_) => _removeItem(item, index),
@@ -217,11 +218,16 @@ class _CartTicketCard extends StatelessWidget {
                           backgroundColor: Color(0xFFE6F8EC),
                         ),
                         const SizedBox(width: 8),
-                        _InfoPill(
-                          icon: Icons.local_offer_outlined,
-                          label: '${item.drawTime} • ${item.kyHieu}',
-                          color: AppColors.primary,
-                          backgroundColor: const Color(0xFFFFF1EF),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: _InfoPill(
+                              icon: Icons.local_offer_outlined,
+                              label: '${item.drawTime} • ${item.kyHieu}',
+                              color: AppColors.primary,
+                              backgroundColor: const Color(0xFFFFF1EF),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -381,12 +387,15 @@ class _InfoPill extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
