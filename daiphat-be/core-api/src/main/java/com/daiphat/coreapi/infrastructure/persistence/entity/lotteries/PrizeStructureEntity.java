@@ -22,15 +22,8 @@ public class PrizeStructureEntity extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "station_id", nullable = false)
-    private LotteryStationEntity station;
-
-    @Column(length = 20)
-    private String region;
-
-    @Column(name = "is_only", nullable = false)
-    @Builder.Default
-    private boolean isOnly = false;
+    @JoinColumn(name = "region_id", nullable = false)
+    private LotteryRegionEntity region;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "prize_level", nullable = false, length = 50)
@@ -42,6 +35,9 @@ public class PrizeStructureEntity extends BaseEntity {
     @Column(name = "prize_code", nullable = false, length = 20)
     private String prizeCode;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @Column(name = "prize_value", nullable = false, precision = 15)
     private BigDecimal prizeValue;
 
@@ -52,7 +48,7 @@ public class PrizeStructureEntity extends BaseEntity {
     private Integer matchDigits;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "match_from", nullable = false, length = 20)
+    @Column(name = "match_from", nullable = false, length = 50)
     private MatchFrom matchFrom;
 
     @Column(name = "match_from_display_name", length = 100)
@@ -61,4 +57,8 @@ public class PrizeStructureEntity extends BaseEntity {
     @Column(name = "display_order")
     @Builder.Default
     private Integer displayOrder = 0;
+
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private boolean isActive = true;
 }

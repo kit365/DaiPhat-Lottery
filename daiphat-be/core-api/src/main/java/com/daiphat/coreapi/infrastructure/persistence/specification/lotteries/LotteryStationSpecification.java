@@ -10,7 +10,10 @@ import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public final class LotteryStationSpecification {
 
@@ -21,7 +24,8 @@ public final class LotteryStationSpecification {
             String search,
             LotteryStationStatus status,
             String type,
-            String region
+            String region,
+            List<String> drawDay
     ) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -60,7 +64,36 @@ public final class LotteryStationSpecification {
                 ));
             }
 
+            Set<String> normalizedDrawDays = normalizeDrawDays(drawDay);
+            if (!normalizedDrawDays.isEmpty()) {
+                List<Predicate> drawDayPredicates = new ArrayList<>();
+                for (String day : normalizedDrawDays) {
+                    drawDayPredicates.add(
+                            cb.like(
+                                    cb.upper(root.get(LotteryStationEntity_.drawDays).as(String.class)),
+                                    "%" + day + "%"
+                            )
+                    );
+                }
+                predicates.add(cb.or(drawDayPredicates.toArray(new Predicate[0])));
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    private static Set<String> normalizeDrawDays(List<String> drawDays) {
+        Set<String> normalized = new LinkedHashSet<>();
+        if (drawDays == null) {
+            return normalized;
+        }
+
+        for (String drawDay : drawDays) {
+            if (drawDay == null || drawDay.isBlank()) {
+                continue;
+            }
+            normalized.add(drawDay.trim().toUpperCase(Locale.ROOT));
+        }
+        return normalized;
     }
 }
