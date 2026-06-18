@@ -8,6 +8,8 @@ import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import '../../models/cart_item_model.dart';
 import '../../providers/cart_provider.dart';
+import '../../../tickets/presentation/viewmodels/buy_ticket_viewmodel.dart';
+import '../../../tickets/presentation/views/buy_ticket_view.dart';
 
 class CartView extends ConsumerStatefulWidget {
   const CartView({super.key});
@@ -17,6 +19,28 @@ class CartView extends ConsumerStatefulWidget {
 }
 
 class _CartViewState extends ConsumerState<CartView> {
+  void _openDetail(BuildContext context, CartItemData item) {
+    final listItem = LotteryTicketListItem(
+      id: item.lotteryTicketId,
+      displayName: item.province,
+      code: item.number,
+      shortName: item.logoText,
+      dateLabel: item.dateLabel,
+      dayFilter: item.dateLabel.contains('nay')
+          ? TicketDayFilter.today
+          : TicketDayFilter.tomorrow,
+      drawDate: DateTime.now(),
+      status: 'reserved',
+      statusDisplayName: 'Đang giữ vé',
+      stationName: item.kyHieu,
+    );
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => TicketDetailView(ticket: listItem),
+      ),
+    );
+  }
+
   void _removeItem(CartItemData item, int index) {
     ref.read(cartProvider.notifier).removeAtIndex(index);
 
@@ -97,13 +121,17 @@ class _CartViewState extends ConsumerState<CartView> {
                           final index = entry.key;
                           final item = entry.value;
                           return Padding(
+                            key: ValueKey(identityHashCode(item)),
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Dismissible(
-                              key: ValueKey('${item.number}-$index'),
+                              key: UniqueKey(),
                               direction: DismissDirection.endToStart,
                               background: const _DeleteSwipeBackground(),
                               onDismissed: (_) => _removeItem(item, index),
-                              child: _CartTicketCard(item: item),
+                              child: _CartTicketCard(
+                                item: item,
+                                onTap: () => _openDetail(context, item),
+                              ),
                             ),
                           );
                         }),
@@ -159,13 +187,16 @@ class _CartOverview extends StatelessWidget {
 }
 
 class _CartTicketCard extends StatelessWidget {
-  const _CartTicketCard({required this.item});
+  const _CartTicketCard({required this.item, this.onTap});
 
   final CartItemData item;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -215,13 +246,6 @@ class _CartTicketCard extends StatelessWidget {
                           label: 'Đang giữ vé',
                           color: Color(0xFF12985E),
                           backgroundColor: Color(0xFFE6F8EC),
-                        ),
-                        const SizedBox(width: 8),
-                        _InfoPill(
-                          icon: Icons.local_offer_outlined,
-                          label: '${item.drawTime} • ${item.kyHieu}',
-                          color: AppColors.primary,
-                          backgroundColor: const Color(0xFFFFF1EF),
                         ),
                       ],
                     ),
@@ -309,6 +333,7 @@ class _CartTicketCard extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }
@@ -381,12 +406,15 @@ class _InfoPill extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
