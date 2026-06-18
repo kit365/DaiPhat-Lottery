@@ -4,10 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { ROUTES } from "../../constants/routes";
-import { AccountUserList } from "../account-user/sections/AccountUserList";
-import { RoleEnum } from "../account-user/configs/constants";
-
-const STREET_AGENT_ROLE_IDS = [RoleEnum.STREET_AGENT];
+import { StreetAgentList } from "./sections/StreetAgentList";
 
 export const StreetAgentListPage = () => {
     const navigate = useNavigate();
@@ -16,11 +13,12 @@ export const StreetAgentListPage = () => {
         <>
             <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
                 <div className="mr-auto">
-                    <Title title="Danh sách Street Agent" />
+                    <Title title="Danh sách đại lý bán dạo" />
                     <Breadcrumb
                         items={[
                             { label: "Dashboard", to: "/" },
-                            { label: "Street Agent", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
+                            { label: "Quản lý tài khoản", to: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST },
+                            { label: "Đại lý bán dạo", to: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST },
                             { label: "Danh sách" },
                         ]}
                     />
@@ -44,16 +42,11 @@ export const StreetAgentListPage = () => {
                     variant="contained"
                     startIcon={<AddIcon />}
                 >
-                    Tạo Street Agent
+                    Tạo hồ sơ
                 </Button>
             </div>
 
-            <AccountUserList
-                roleIds={STREET_AGENT_ROLE_IDS}
-                searchPlaceholder="Tìm kiếm Street Agent..."
-                deleteMessage="Bạn có chắc chắn muốn xóa hồ sơ Street Agent này?"
-                showInviteStaffAction={false}
-            />
+            <StreetAgentList />
         </>
     );
 };
