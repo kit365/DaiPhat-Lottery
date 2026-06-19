@@ -18,15 +18,23 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.shared.util.StatusCountKeys;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Optional;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -58,6 +66,192 @@ class StreetAgentProfileServiceTest {
                 streetAgentProfileRepositoryPort,
                 streetAgentProfileApplicationMapper
         );
+    }
+
+    @Nested
+    @DisplayName("Danh sách hồ sơ")
+    class GetAll {
+
+        @Test
+        @DisplayName("trả về danh sách phân trang và statusCounts")
+        void getAll_returnsPagedListWithStatusCounts() {
+            StreetAgentProfileModel saved = buildSavedModel();
+            StreetAgentProfileResponse response = buildResponse();
+            Page<StreetAgentProfileModel> profilePage = new PageImpl<>(List.of(saved));
+
+            when(streetAgentProfileRepositoryPort.findAll(any(Pageable.class), isNull(), isNull()))
+                    .thenReturn(profilePage);
+            when(streetAgentProfileRepositoryPort.countAll(isNull())).thenReturn(2L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.ACTIVE, null))
+                    .thenReturn(1L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.INACTIVE, null))
+                    .thenReturn(1L);
+            when(streetAgentProfileApplicationMapper.toResponse(saved)).thenReturn(response);
+
+            PageResponse<StreetAgentProfileResponse> result =
+                    streetAgentProfileService.getAll(1, 10, null, null);
+
+            assertThat(result.getRecordList()).hasSize(1);
+            assertThat(result.getRecordList().getFirst().id()).isEqualTo(PROFILE_ID);
+            assertThat(result.getRecordList().getFirst().phone()).isEqualTo(PHONE);
+            assertThat(result.getPagination().getTotalRecords()).isEqualTo(1L);
+            assertThat(result.getPagination().getCurrentPage()).isEqualTo(1);
+            assertThat(result.getPagination().getLimit()).isEqualTo(10);
+            assertThat(result.getStatusCounts())
+                    .containsEntry(StatusCountKeys.ALL, 2L)
+                    .containsEntry(StreetAgentProfileStatus.ACTIVE.getCode(), 1L)
+                    .containsEntry(StreetAgentProfileStatus.INACTIVE.getCode(), 1L);
+
+            verify(streetAgentProfileRepositoryPort).findAll(any(Pageable.class), isNull(), isNull());
+            verify(streetAgentProfileApplicationMapper).toResponse(saved);
+        }
+
+        @Test
+        @DisplayName("tìm kiếm theo từ khóa")
+        void getAll_withSearch() {
+            String search = "Van A";
+            Page<StreetAgentProfileModel> emptyPage = new PageImpl<>(List.of());
+
+            when(streetAgentProfileRepositoryPort.findAll(any(Pageable.class), eq(search), isNull()))
+                    .thenReturn(emptyPage);
+            when(streetAgentProfileRepositoryPort.countAll(search)).thenReturn(0L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.ACTIVE, search))
+                    .thenReturn(0L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.INACTIVE, search))
+                    .thenReturn(0L);
+
+            PageResponse<StreetAgentProfileResponse> result =
+                    streetAgentProfileService.getAll(1, 10, search, null);
+
+            assertThat(result.getRecordList()).isEmpty();
+            assertThat(result.getStatusCounts()).containsEntry(StatusCountKeys.ALL, 0L);
+            verify(streetAgentProfileRepositoryPort).findAll(any(Pageable.class), eq(search), isNull());
+        }
+
+        @Test
+        @DisplayName("lọc theo trạng thái ACTIVE")
+        void getAll_withActiveStatusFilter() {
+            Page<StreetAgentProfileModel> profilePage = new PageImpl<>(List.of(buildSavedModel()));
+
+            when(streetAgentProfileRepositoryPort.findAll(
+                    any(Pageable.class),
+                    isNull(),
+                    eq(StreetAgentProfileStatus.ACTIVE)))
+                    .thenReturn(profilePage);
+            when(streetAgentProfileRepositoryPort.countAll(isNull())).thenReturn(1L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.ACTIVE, null))
+                    .thenReturn(1L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.INACTIVE, null))
+                    .thenReturn(0L);
+            when(streetAgentProfileApplicationMapper.toResponse(any())).thenReturn(buildResponse());
+
+            PageResponse<StreetAgentProfileResponse> result =
+                    streetAgentProfileService.getAll(1, 10, null, "ACTIVE");
+
+            assertThat(result.getRecordList()).hasSize(1);
+            verify(streetAgentProfileRepositoryPort).findAll(
+                    any(Pageable.class),
+                    isNull(),
+                    eq(StreetAgentProfileStatus.ACTIVE));
+        }
+
+        @Test
+        @DisplayName("lọc theo trạng thái INACTIVE")
+        void getAll_withInactiveStatusFilter() {
+            StreetAgentProfileModel inactive = buildSavedModel();
+            inactive.setStatus(StreetAgentProfileStatus.INACTIVE);
+            Page<StreetAgentProfileModel> profilePage = new PageImpl<>(List.of(inactive));
+
+            when(streetAgentProfileRepositoryPort.findAll(
+                    any(Pageable.class),
+                    isNull(),
+                    eq(StreetAgentProfileStatus.INACTIVE)))
+                    .thenReturn(profilePage);
+            when(streetAgentProfileRepositoryPort.countAll(isNull())).thenReturn(1L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.ACTIVE, null))
+                    .thenReturn(0L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.INACTIVE, null))
+                    .thenReturn(1L);
+            when(streetAgentProfileApplicationMapper.toResponse(inactive)).thenReturn(
+                    StreetAgentProfileResponse.builder()
+                            .id(PROFILE_ID)
+                            .status(StreetAgentProfileStatus.INACTIVE.getCode())
+                            .build()
+            );
+
+            PageResponse<StreetAgentProfileResponse> result =
+                    streetAgentProfileService.getAll(1, 10, null, "INACTIVE");
+
+            assertThat(result.getRecordList()).hasSize(1);
+            assertThat(result.getRecordList().getFirst().status()).isEqualTo("INACTIVE");
+        }
+
+        @Test
+        @DisplayName("bỏ qua filter khi status = ALL hoặc không hợp lệ")
+        void getAll_ignoresAllOrInvalidStatusFilter() {
+            Page<StreetAgentProfileModel> emptyPage = new PageImpl<>(List.of());
+
+            when(streetAgentProfileRepositoryPort.findAll(any(Pageable.class), isNull(), isNull()))
+                    .thenReturn(emptyPage);
+            when(streetAgentProfileRepositoryPort.countAll(isNull())).thenReturn(0L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.ACTIVE, null))
+                    .thenReturn(0L);
+            when(streetAgentProfileRepositoryPort.countByStatus(StreetAgentProfileStatus.INACTIVE, null))
+                    .thenReturn(0L);
+
+            streetAgentProfileService.getAll(1, 10, null, "ALL");
+            streetAgentProfileService.getAll(1, 10, null, "UNKNOWN");
+
+            verify(streetAgentProfileRepositoryPort, org.mockito.Mockito.times(2))
+                    .findAll(any(Pageable.class), isNull(), isNull());
+        }
+    }
+
+    @Nested
+    @DisplayName("Chi tiết hồ sơ")
+    class GetById {
+
+        @Test
+        @DisplayName("lấy chi tiết hồ sơ thành công")
+        void getById_success() {
+            StreetAgentProfileModel saved = buildSavedModel();
+            StreetAgentProfileResponse response = buildResponse();
+
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(saved));
+            when(streetAgentProfileApplicationMapper.toResponse(saved)).thenReturn(response);
+
+            StreetAgentProfileResponse result = streetAgentProfileService.getById(PROFILE_ID);
+
+            assertThat(result.id()).isEqualTo(PROFILE_ID);
+            assertThat(result.firstName()).isEqualTo(FIRST_NAME);
+            assertThat(result.lastName()).isEqualTo(LAST_NAME);
+            assertThat(result.phone()).isEqualTo(PHONE);
+            assertThat(result.cccd()).isEqualTo(CCCD);
+            assertThat(result.imageUrl()).isEqualTo(IMAGE_URL);
+            assertThat(result.contactAddress()).isEqualTo("123 Nguyen Hue");
+            assertThat(result.contactProvince()).isEqualTo("Ho Chi Minh");
+            assertThat(result.coverageArea()).isEqualTo("Quan 1, Quan 3");
+            assertThat(result.commissionRate()).isEqualByComparingTo("0.05");
+            assertThat(result.depositBalance()).isEqualByComparingTo("5000000");
+            assertThat(result.status()).isEqualTo("ACTIVE");
+            assertThat(result.createdBy()).isEqualTo("operator");
+
+            verify(streetAgentProfileRepositoryPort).findById(PROFILE_ID);
+            verify(streetAgentProfileApplicationMapper).toResponse(saved);
+        }
+
+        @Test
+        @DisplayName("không tìm thấy hồ sơ")
+        void getById_notFound() {
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> streetAgentProfileService.getById(PROFILE_ID))
+                    .isInstanceOf(DomainException.class)
+                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
+
+            verifyNoInteractions(streetAgentProfileApplicationMapper);
+        }
     }
 
     @Nested
