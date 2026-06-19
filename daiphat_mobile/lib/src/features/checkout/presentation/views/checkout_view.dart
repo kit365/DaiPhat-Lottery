@@ -24,6 +24,8 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   bool _initialLoadDone = false;
   late DateTime _pickupDate;
   bool _submitted = false;
+  bool _nameTouched = false;
+  bool _phoneTouched = false;
 
   @override
   void initState() {
@@ -50,6 +52,27 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
     if (_noteController.text != state.note) {
       _noteController.text = state.note;
     }
+  }
+
+  String? _getNameError() {
+    if (!_nameTouched && !_submitted) return null;
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return 'Vui lòng nhập họ và tên';
+    if (!RegExp(r'^[a-zA-ZÀ-ɏḀ-ỿ\s]+$').hasMatch(name)) {
+      return 'Họ và tên chỉ được chứa chữ cái';
+    }
+    if (name.length >= 50) return 'Họ và tên phải ít hơn 50 ký tự';
+    return null;
+  }
+
+  String? _getPhoneError() {
+    if (!_phoneTouched && !_submitted) return null;
+    final phone = _phoneController.text.trim();
+    if (phone.isEmpty) return 'Vui lòng nhập số điện thoại';
+    if (!RegExp(r'^\d+$').hasMatch(phone)) return 'Số điện thoại chỉ được chứa số';
+    if (!phone.startsWith('0')) return 'Số điện thoại phải bắt đầu bằng 0';
+    if (phone.length > 11) return 'Số điện thoại không được dài hơn 11 số';
+    return null;
   }
 
   Future<void> _handleCheckout() async {
@@ -300,12 +323,8 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
   }
 
   Widget _buildUserInfoForm(CheckoutState state) {
-    final nameError = _submitted && state.name.trim().isEmpty
-        ? 'Vui lòng nhập họ và tên'
-        : null;
-    final phoneError = _submitted && state.phone.trim().isEmpty
-        ? 'Vui lòng nhập số điện thoại'
-        : null;
+    final nameError = _getNameError();
+    final phoneError = _getPhoneError();
     final timeError = _submitted && _timeController.text.trim().isEmpty
         ? 'Vui lòng nhập giờ nhận vé'
         : null;
@@ -318,7 +337,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
         children: [
           TextField(
             controller: _nameController,
-            onChanged: (v) => ref.read(checkoutProvider.notifier).setName(v),
+            onChanged: (v) {
+              setState(() => _nameTouched = true);
+              ref.read(checkoutProvider.notifier).setName(v);
+            },
             decoration: InputDecoration(
               labelText: 'Họ và tên *',
               hintText: 'Nhập họ và tên',
@@ -344,7 +366,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
           const SizedBox(height: 12),
           TextField(
             controller: _phoneController,
-            onChanged: (v) => ref.read(checkoutProvider.notifier).setPhone(v),
+            onChanged: (v) {
+              setState(() => _phoneTouched = true);
+              ref.read(checkoutProvider.notifier).setPhone(v);
+            },
             decoration: InputDecoration(
               labelText: 'Số điện thoại *',
               hintText: 'Nhập số điện thoại',
