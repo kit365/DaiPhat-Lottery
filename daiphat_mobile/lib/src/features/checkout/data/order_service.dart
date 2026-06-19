@@ -52,4 +52,12 @@ class OrderService {
     final data = response['data'] as Map<String, dynamic>;
     return OrderResponse.fromJson(data);
   }
+
+  Future<void> cancelOrder(String id) async {
+    await _apiClient.post('/orders/$id/cancel');
+  }
+
+  Future<void> refundOrder(String id) async {
+    await _apiClient.post('/orders/$id/refund');
+  }
 }
