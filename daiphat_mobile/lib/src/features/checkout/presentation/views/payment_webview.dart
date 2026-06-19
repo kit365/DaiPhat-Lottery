@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import '../providers/checkout_provider.dart';
 
 /// In-app WebView for PayOS payment.
 ///
@@ -14,24 +18,36 @@ import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 ///    the checkout result screen with those params.
 /// 3. If the user presses the Android back button or taps "Hủy thanh toán",
 ///    the WebView is popped and we navigate to checkout result with cancel=true.
-class PaymentWebView extends StatefulWidget {
+/// 4. Shows a live countdown timer fetched from the payment countdown endpoint.
+/// 5. Supports pull-to-refresh and an AppBar refresh button.
+class PaymentWebView extends ConsumerStatefulWidget {
   final String checkoutUrl;
   final String? callbackBaseUrl;
+  final String? orderId;
 
   const PaymentWebView({
     super.key,
     required this.checkoutUrl,
     this.callbackBaseUrl,
+    this.orderId,
   });
 
   @override
-  State<PaymentWebView> createState() => _PaymentWebViewState();
+  ConsumerState<PaymentWebView> createState() => _PaymentWebViewState();
 }
 
-class _PaymentWebViewState extends State<PaymentWebView> {
+class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
   late final WebViewController _controller;
   bool _isNavigatedToResult = false;
   int _loadingProgress = 0;
+
+  // Countdown
+  int _remainingSeconds = 15 * 60; // default 15 min, synced from API
+  bool _isExpired = false;
+  Timer? _countdownTimer;
+
+  // Pull-to-refresh
+  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -47,39 +63,102 @@ class _PaymentWebViewState extends State<PaymentWebView> {
           onPageFinished: (_) {},
           onNavigationRequest: (request) {
             final url = request.url;
-
-            // Detect PayOS callback / return URL
             if (_isPayOSCallbackUrl(url)) {
               _navigateToResult(url);
               return NavigationDecision.prevent;
             }
-
             return NavigationDecision.navigate;
           },
         ),
       )
       ..loadRequest(Uri.parse(widget.checkoutUrl));
+
+    if (widget.orderId != null) {
+      // Defer to post-frame so mounted = true before starting timer/setState
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _startCountdown(_remainingSeconds); // default 15 min
+        _fetchAndStartCountdown(); // sync real value from server
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchAndStartCountdown() async {
+    if (widget.orderId == null) return;
+    try {
+      final service = ref.read(transactionServiceProvider);
+      final result =
+          await service.getPendingPaymentCountdown(widget.orderId!);
+      if (!mounted) return;
+      _startCountdown(result.remainingSeconds, alreadyExpired: result.expired);
+    } catch (_) {
+      // Countdown sync failed silently — local countdown continues
+    }
+  }
+
+  void _startCountdown(int seconds, {bool alreadyExpired = false}) {
+    _countdownTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _remainingSeconds = seconds;
+      _isExpired = alreadyExpired || seconds <= 0;
+    });
+    if (_isExpired) return;
+
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _remainingSeconds--;
+        if (_remainingSeconds <= 0) {
+          _remainingSeconds = 0;
+          _isExpired = true;
+          timer.cancel();
+        }
+      });
+    });
+  }
+
+  Future<void> _handleRefresh() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    try {
+      await _controller.reload();
+      if (widget.orderId != null) {
+        await _fetchAndStartCountdown();
+      }
+    } finally {
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (mounted) setState(() => _isRefreshing = false);
+    }
+  }
+
+  String _formatCountdown(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
   }
 
   /// Check if the URL is the PayOS callback/return URL.
   bool _isPayOSCallbackUrl(String url) {
-    // PayOS typically redirects to the cancel/return URL configured in the
-    // payment link. Common patterns:
-    //   - URLs containing "cancel" or "return" query params
-    //   - URLs matching the app's deep link scheme
-    //   - URLs containing payment status params (code, orderCode, status)
-
     final uri = Uri.tryParse(url);
     if (uri == null) return false;
 
-    // Check for deep link scheme (daiphat:// or https://daiphat.vn)
+    // Deep link scheme (daiphat:// or https://daiphat.vn)
     if (uri.scheme == 'daiphat' ||
         uri.host.contains('daiphat') ||
         uri.host.contains('dai-phat')) {
       return true;
     }
 
-    // Check for payment result query parameters
+    // Payment result query parameters
     final hasCode = uri.queryParameters.containsKey('code');
     final hasOrderCode = uri.queryParameters.containsKey('orderCode');
     final hasStatus = uri.queryParameters.containsKey('status');
@@ -145,19 +224,8 @@ class _PaymentWebViewState extends State<PaymentWebView> {
             onPressed: _handleCancel,
           ),
           actions: [
-            if (_loadingProgress < 100)
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    value: _loadingProgress / 100,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
+            if (widget.orderId != null) _buildCountdownChip(),
+            const SizedBox(width: 12),
           ],
         ),
         body: Column(
@@ -171,9 +239,82 @@ class _PaymentWebViewState extends State<PaymentWebView> {
                 ),
                 minHeight: 3,
               ),
-            Expanded(child: WebViewWidget(controller: _controller)),
+
+            // WebView with pull-to-refresh
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _handleRefresh,
+                color: AppColors.primary,
+                displacement: 40,
+                child: LayoutBuilder(
+                  builder: (context, constraints) => ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    children: [
+                      SizedBox(
+                        height: constraints.maxHeight,
+                        child: WebViewWidget(controller: _controller),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCountdownChip() {
+    final Color bgColor;
+    final Color textColor;
+    final Color iconColor;
+    final String label;
+    final IconData icon;
+
+    if (_isExpired) {
+      bgColor = const Color(0xFFFEF2F2);
+      textColor = const Color(0xFFB91C1C);
+      iconColor = const Color(0xFFDC2626);
+      label = 'Hết giờ';
+      icon = Icons.timer_off_rounded;
+    } else if (_remainingSeconds <= 120) {
+      bgColor = const Color(0xFFFFF7ED);
+      textColor = const Color(0xFFC2410C);
+      iconColor = const Color(0xFFEA580C);
+      label = _formatCountdown(_remainingSeconds);
+      icon = Icons.timer_rounded;
+    } else {
+      bgColor = const Color(0xFFF0FDF4);
+      textColor = const Color(0xFF15803D);
+      iconColor = const Color(0xFF22C55E);
+      label = _formatCountdown(_remainingSeconds);
+      icon = Icons.timer_rounded;
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: iconColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -284,9 +284,11 @@ Widget _buildRoute(
     case AppRoute.paymentWebView:
       final checkoutUrl = state.uri.queryParameters['checkoutUrl'] ?? '';
       final callbackBaseUrl = state.uri.queryParameters['callbackBaseUrl'];
+      final orderId = state.uri.queryParameters['orderId'];
       return PaymentWebView(
         checkoutUrl: checkoutUrl,
         callbackBaseUrl: callbackBaseUrl,
+        orderId: orderId,
       );
     case AppRoute.profile:
       return ProfileView(viewModel: profileViewModel);

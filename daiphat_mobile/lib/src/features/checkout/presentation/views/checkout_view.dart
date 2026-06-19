@@ -90,7 +90,10 @@ class _CheckoutViewState extends ConsumerState<CheckoutView> {
       if (!mounted) return;
       context.pushNamed(
         AppRoute.paymentWebView.name,
-        queryParameters: {'checkoutUrl': checkoutState.checkoutUrl!},
+        queryParameters: {
+          'checkoutUrl': checkoutState.checkoutUrl!,
+          if (checkoutState.orderId != null) 'orderId': checkoutState.orderId!,
+        },
       );
     } else if (success) {
       // Offline payment success
