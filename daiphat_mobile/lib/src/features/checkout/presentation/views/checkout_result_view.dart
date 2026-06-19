@@ -12,6 +12,7 @@ class CheckoutResultView extends StatelessWidget {
   final String? status;
   final String? cancel;
   final String? checkoutUrl;
+  final String? orderId;
 
   const CheckoutResultView({
     super.key,
@@ -21,6 +22,7 @@ class CheckoutResultView extends StatelessWidget {
     this.status,
     this.cancel,
     this.checkoutUrl,
+    this.orderId,
   });
 
   bool get isSuccess {
@@ -270,7 +272,16 @@ class CheckoutResultView extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => context.go('/profile/tickets'),
+                      onPressed: () {
+                        if (orderId != null && orderId!.isNotEmpty) {
+                          context.pushNamed(
+                            AppRoute.orderDetail.name,
+                            pathParameters: {'id': orderId!},
+                          );
+                        } else {
+                          context.go(AppRoute.myOrders.path);
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -281,7 +292,7 @@ class CheckoutResultView extends StatelessWidget {
                         elevation: 2,
                       ),
                       child: const Text(
-                        'Xem đơn của tôi',
+                        'Xem chi tiết đơn',
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 15,

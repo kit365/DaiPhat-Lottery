@@ -186,6 +186,7 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
         'internalCode': queryParams['internalCode'] ?? '',
         'status': queryParams['status'] ?? '',
         'cancel': queryParams['cancel'] ?? '',
+        if (widget.orderId != null) 'orderId': widget.orderId!,
       },
     );
   }
@@ -196,7 +197,12 @@ class _PaymentWebViewState extends ConsumerState<PaymentWebView> {
 
     context.pushReplacementNamed(
       AppRoute.checkoutResult.name,
-      queryParameters: {'code': '', 'cancel': 'true', 'status': 'cancelled'},
+      queryParameters: {
+        'code': '',
+        'cancel': 'true',
+        'status': 'cancelled',
+        if (widget.orderId != null) 'orderId': widget.orderId!,
+      },
     );
   }
 

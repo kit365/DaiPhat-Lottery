@@ -21,6 +21,7 @@ import 'package:daiphat_mobile/src/features/profile/presentation/views/profile_d
 import 'package:daiphat_mobile/src/features/notifications/presentation/views/notification_view.dart';
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/my_orders_view.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/views/order_detail_view.dart';
 import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -211,6 +212,14 @@ GoRouter createAppRouter({
         profileViewModel,
         notificationViewModel,
       ),
+      _route(
+        AppRoute.orderDetail,
+        loginViewModel,
+        registerViewModel,
+        forgotPasswordViewModel,
+        profileViewModel,
+        notificationViewModel,
+      ),
     ],
   );
 }
@@ -273,6 +282,7 @@ Widget _buildRoute(
       final status = state.uri.queryParameters['status'];
       final cancel = state.uri.queryParameters['cancel'];
       final checkoutUrl = state.uri.queryParameters['checkoutUrl'];
+      final orderId = state.uri.queryParameters['orderId'];
       return CheckoutResultView(
         code: code,
         orderCode: orderCode,
@@ -280,6 +290,7 @@ Widget _buildRoute(
         status: status,
         cancel: cancel,
         checkoutUrl: checkoutUrl,
+        orderId: orderId,
       );
     case AppRoute.paymentWebView:
       final checkoutUrl = state.uri.queryParameters['checkoutUrl'] ?? '';
@@ -315,5 +326,8 @@ Widget _buildRoute(
       return NotificationView(viewModel: notificationViewModel);
     case AppRoute.myOrders:
       return const MyOrdersView();
+    case AppRoute.orderDetail:
+      final id = state.pathParameters['id'] ?? '';
+      return OrderDetailView(orderId: id);
   }
 }
