@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.port.in.streetagent.StreetAgentProfileSer
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -63,5 +64,12 @@ public class StreetAgentProfileController {
             @Valid @RequestBody UpdateStreetAgentProfileRequest request) {
         StreetAgentProfileResponse response = streetAgentProfileServicePort.update(id, request);
         return ApiResponse.success("Cập nhật hồ sơ đại lý bán dạo thành công.", response);
+    }
+
+    @DeleteMapping(ID_PATH)
+    @PreAuthorize("hasAuthority('member:delete')")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        streetAgentProfileServicePort.delete(id);
+        return ApiResponse.success("Xóa hồ sơ đại lý bán dạo thành công.", null);
     }
 }
