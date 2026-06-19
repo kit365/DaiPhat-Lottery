@@ -8,8 +8,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface StreetAgentProfileRepository extends JpaRepository<StreetAgentProfileEntity, Long>,
         JpaSpecificationExecutor<StreetAgentProfileEntity> {
-    boolean existsByPhone(String phone);
-    boolean existsByCccd(String cccd);
-    boolean existsByPhoneAndIdNot(String phone, Long id);
-    boolean existsByCccdAndIdNot(String cccd, Long id);
+    boolean existsByPhoneAndDeletedAtIsNull(String phone);
+    boolean existsByCccdAndDeletedAtIsNull(String cccd);
+    boolean existsByPhoneAndIdNotAndDeletedAtIsNull(String phone, Long id);
+    boolean existsByCccdAndIdNotAndDeletedAtIsNull(String cccd, Long id);
 }
