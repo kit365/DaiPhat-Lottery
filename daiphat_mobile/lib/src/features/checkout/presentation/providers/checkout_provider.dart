@@ -38,6 +38,7 @@ class CheckoutState {
   final bool isSubmitting;
   final String? errorMessage;
   final String? checkoutUrl;
+  final String? orderId;
 
   const CheckoutState({
     this.name = '',
@@ -49,6 +50,7 @@ class CheckoutState {
     this.isSubmitting = false,
     this.errorMessage,
     this.checkoutUrl,
+    this.orderId,
   });
 
   CheckoutState copyWith({
@@ -61,6 +63,7 @@ class CheckoutState {
     bool? isSubmitting,
     String? errorMessage,
     String? checkoutUrl,
+    String? orderId,
   }) {
     return CheckoutState(
       name: name ?? this.name,
@@ -73,6 +76,7 @@ class CheckoutState {
       isSubmitting: isSubmitting ?? this.isSubmitting,
       errorMessage: errorMessage,
       checkoutUrl: checkoutUrl ?? this.checkoutUrl,
+      orderId: orderId ?? this.orderId,
     );
   }
 
@@ -174,6 +178,7 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
           // Do NOT clear cart here – caller will clear after navigation
           state = state.copyWith(
             checkoutUrl: paymentResult.checkoutUrl,
+            orderId: orderResponse.id,
             isSubmitting: false,
           );
           return true;
