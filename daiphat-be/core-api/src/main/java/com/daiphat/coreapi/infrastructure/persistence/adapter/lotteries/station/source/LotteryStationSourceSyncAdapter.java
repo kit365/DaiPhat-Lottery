@@ -9,9 +9,9 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationSourceSy
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
+import com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.source.LotterySourceDocumentSupport;
 import com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.station.source.strategy.LotteryStationSourceStrategy;
 import lombok.extern.slf4j.Slf4j;
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Component;
 
@@ -55,7 +55,7 @@ public class LotteryStationSourceSyncAdapter implements LotteryStationSourceSync
         for (String sourceUrl : sourceUrls) {
             LotterySourceCrawlData pageData = lotterySourceCrawlerPort.fetch(sourceUrl);
             crawlDataByUrl.put(sourceUrl, pageData);
-            documentByUrl.put(sourceUrl, Jsoup.parse(pageData.rawHtml(), pageData.requestUrl()));
+            documentByUrl.put(sourceUrl, LotterySourceDocumentSupport.parse(pageData));
         }
 
         String primaryUrl = sourceUrls.isEmpty() ? null : sourceUrls.getFirst();
@@ -75,7 +75,7 @@ public class LotteryStationSourceSyncAdapter implements LotteryStationSourceSync
                 .items(items.stream()
                         .map(this::toPreviewItem)
                         .collect(Collectors.toList()))
-                .rawPreview(primaryDocument != null ? buildRawPreview(primaryDocument) : null)
+                .rawPreview(LotterySourceDocumentSupport.rawPreview(primaryDocument))
                 .build();
     }
 
@@ -89,10 +89,5 @@ public class LotteryStationSourceSyncAdapter implements LotteryStationSourceSync
                 .sourcePath(item.sourcePath())
                 .note(item.note())
                 .build();
-    }
-
-    private String buildRawPreview(Document document) {
-        String html = document.outerHtml();
-        return html.length() <= 2000 ? html : html.substring(0, 2000);
     }
 }

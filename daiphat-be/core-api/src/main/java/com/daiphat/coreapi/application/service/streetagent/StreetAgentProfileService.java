@@ -19,10 +19,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -41,21 +39,15 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         Page<StreetAgentProfileModel> resultPage =
                 streetAgentProfileRepositoryPort.findAll(pageable, search, statusFilter);
 
-        List<StreetAgentProfileResponse> recordList = resultPage.getContent().stream()
-                .map(streetAgentProfileApplicationMapper::toResponse)
-                .toList();
+        return PageResponse.from(resultPage.map(streetAgentProfileApplicationMapper::toResponse), page, limit);
+    }
 
-        return PageResponse.<StreetAgentProfileResponse>builder()
-                .recordList(recordList)
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(resultPage.getTotalElements())
-                        .totalPages(resultPage.getTotalPages())
-                        .currentPage(page)
-                        .limit(limit)
-                        .isFirst(resultPage.isFirst())
-                        .isLast(resultPage.isLast())
-                        .build())
-                .build();
+    @Override
+    @Transactional(readOnly = true)
+    public StreetAgentProfileResponse getById(Long id) {
+        StreetAgentProfileModel profile = streetAgentProfileRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
+        return streetAgentProfileApplicationMapper.toResponse(profile);
     }
 
     @Override
