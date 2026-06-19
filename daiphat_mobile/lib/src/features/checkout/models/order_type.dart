@@ -76,6 +76,65 @@ class OrderItemRequest {
   };
 }
 
+class LotteryTicketSnapshot {
+  final int id;
+  final String? province;
+  final String? drawDate;
+  final String? ticketType;
+  final String? symbol;
+
+  const LotteryTicketSnapshot({
+    required this.id,
+    this.province,
+    this.drawDate,
+    this.ticketType,
+    this.symbol,
+  });
+
+  factory LotteryTicketSnapshot.fromJson(Map<String, dynamic> json) {
+    return LotteryTicketSnapshot(
+      id: json['id'] as int? ?? 0,
+      province: json['province']?.toString(),
+      drawDate: json['drawDate']?.toString(),
+      ticketType: json['ticketType']?.toString(),
+      symbol: json['symbol']?.toString(),
+    );
+  }
+}
+
+class OrderDetailItem {
+  final int id;
+  final String status;
+  final int price;
+  final int quantity;
+  final int? lotteryTicketSerialId;
+  final LotteryTicketSnapshot? lotteryTicket;
+
+  const OrderDetailItem({
+    required this.id,
+    required this.status,
+    required this.price,
+    required this.quantity,
+    this.lotteryTicketSerialId,
+    this.lotteryTicket,
+  });
+
+  factory OrderDetailItem.fromJson(Map<String, dynamic> json) {
+    return OrderDetailItem(
+      id: json['id'] as int? ?? 0,
+      status: json['status']?.toString() ?? 'ACTIVE',
+      price: json['price'] as int? ?? 0,
+      quantity: json['quantity'] as int? ?? 1,
+      lotteryTicketSerialId: json['lotteryTicketSerialId'] as int?,
+      lotteryTicket: json['lotteryTicket'] != null
+          ? LotteryTicketSnapshot.fromJson(
+              json['lotteryTicket'] as Map<String, dynamic>,
+            )
+          : null,
+    );
+  }
+}
+
 class OrderResponse {
   final String id;
   final String orderCode;
@@ -88,6 +147,7 @@ class OrderResponse {
   final String? expectedPickupAt;
   final String? createdAt;
   final List<TransactionResponse>? transactions;
+  final List<OrderDetailItem>? orderDetails;
 
   const OrderResponse({
     required this.id,
@@ -101,6 +161,7 @@ class OrderResponse {
     this.expectedPickupAt,
     this.createdAt,
     this.transactions,
+    this.orderDetails,
   });
 
   factory OrderResponse.fromJson(Map<String, dynamic> json) {
@@ -117,6 +178,9 @@ class OrderResponse {
       createdAt: json['createdAt']?.toString(),
       transactions: (json['transactions'] as List<dynamic>?)
           ?.map((e) => TransactionResponse.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      orderDetails: (json['orderDetails'] as List<dynamic>?)
+          ?.map((e) => OrderDetailItem.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
   }
