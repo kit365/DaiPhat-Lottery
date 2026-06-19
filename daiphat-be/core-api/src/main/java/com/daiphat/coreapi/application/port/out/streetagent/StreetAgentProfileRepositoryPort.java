@@ -15,4 +15,6 @@ public interface StreetAgentProfileRepositoryPort {
     boolean existsByPhoneAndIdNot(String phone, Long id);
     boolean existsByCccdAndIdNot(String cccd, Long id);
     Page<StreetAgentProfileModel> findAll(Pageable pageable, String search, StreetAgentProfileStatus status);
+    long countAll(String search);
+    long countByStatus(StreetAgentProfileStatus status, String search);
 }

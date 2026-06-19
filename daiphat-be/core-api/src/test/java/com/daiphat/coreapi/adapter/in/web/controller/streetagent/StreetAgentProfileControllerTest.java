@@ -54,8 +54,7 @@ class StreetAgentProfileControllerTest {
                 new BigDecimal("0.05"),
                 LocalDate.of(2026, 1, 1),
                 LocalDate.of(2026, 12, 31),
-                BigDecimal.ZERO,
-                "ACTIVE"
+                BigDecimal.ZERO
         );
         StreetAgentProfileResponse serviceResponse = StreetAgentProfileResponse.builder()
                 .id(1L)
@@ -194,6 +193,19 @@ class StreetAgentProfileControllerTest {
             assertThat(response.getData().status()).isEqualTo("INACTIVE");
             verify(streetAgentProfileServicePort).update(profileId, request);
         }
+    }
+
+    @Test
+    @DisplayName("DELETE /street-agent-profiles/{id}: xóa hồ sơ thành công")
+    void delete_success() {
+        Long profileId = 1L;
+
+        ApiResponse<Void> response = streetAgentProfileController.delete(profileId);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("Xóa hồ sơ đại lý bán dạo thành công.");
+        verify(streetAgentProfileServicePort).delete(profileId);
     }
 
     private UpdateStreetAgentProfileRequest buildUpdateRequest() {

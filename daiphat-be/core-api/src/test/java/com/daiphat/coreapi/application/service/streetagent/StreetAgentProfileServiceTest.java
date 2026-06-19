@@ -70,8 +70,7 @@ class StreetAgentProfileServiceTest {
             CreateStreetAgentProfileRequest request = buildRequest(
                     LocalDate.of(2026, 1, 1),
                     LocalDate.of(2026, 12, 31),
-                    new BigDecimal("5000000"),
-                    "ACTIVE"
+                    new BigDecimal("5000000")
             );
             StreetAgentProfileModel model = buildModel();
             StreetAgentProfileModel saved = buildSavedModel();
@@ -107,7 +106,7 @@ class StreetAgentProfileServiceTest {
         @Test
         @DisplayName("mặc định depositBalance = 0 khi null")
         void create_defaultsDepositBalanceWhenNull() {
-            CreateStreetAgentProfileRequest request = buildRequest(null, null, null, "ACTIVE");
+            CreateStreetAgentProfileRequest request = buildRequest(null, null, null);
             StreetAgentProfileModel model = buildModel();
             model.setDepositBalance(null);
 
@@ -129,33 +128,36 @@ class StreetAgentProfileServiceTest {
         }
 
         @Test
-        @DisplayName("chỉ có ngày bắt đầu hợp đồng")
-        void create_withOnlyContractStartDate() {
+        @DisplayName("luôn tạo với trạng thái ACTIVE")
+        void create_alwaysActive() {
             CreateStreetAgentProfileRequest request = buildRequest(
                     LocalDate.of(2026, 3, 1),
                     null,
-                    BigDecimal.ZERO,
-                    "PENDING"
+                    BigDecimal.ZERO
             );
             StreetAgentProfileModel model = buildModel();
-            model.setStatus(StreetAgentProfileStatus.PENDING);
+            model.setStatus(StreetAgentProfileStatus.INACTIVE);
             model.setContractStartDate(LocalDate.of(2026, 3, 1));
             model.setContractEndDate(null);
 
             stubUniqueConstraintsPass();
             when(streetAgentProfileApplicationMapper.toModel(request)).thenReturn(model);
-            when(streetAgentProfileRepositoryPort.save(model)).thenReturn(buildSavedModel());
+            when(streetAgentProfileRepositoryPort.save(any())).thenReturn(buildSavedModel());
             when(streetAgentProfileApplicationMapper.toResponse(any())).thenReturn(buildResponse());
 
-            assertThat(streetAgentProfileService.create(request).id()).isEqualTo(PROFILE_ID);
-            verify(streetAgentProfileRepositoryPort).save(model);
+            streetAgentProfileService.create(request);
+
+            ArgumentCaptor<StreetAgentProfileModel> captor =
+                    ArgumentCaptor.forClass(StreetAgentProfileModel.class);
+            verify(streetAgentProfileRepositoryPort).save(captor.capture());
+            assertThat(captor.getValue().getStatus()).isEqualTo(StreetAgentProfileStatus.ACTIVE);
         }
 
         @Test
         @DisplayName("ngày bắt đầu và kết thúc trùng nhau")
         void create_withSameContractDates() {
             LocalDate sameDate = LocalDate.of(2026, 6, 1);
-            CreateStreetAgentProfileRequest request = buildRequest(sameDate, sameDate, BigDecimal.ZERO, "ACTIVE");
+            CreateStreetAgentProfileRequest request = buildRequest(sameDate, sameDate, BigDecimal.ZERO);
 
             stubUniqueConstraintsPass();
             when(streetAgentProfileApplicationMapper.toModel(request)).thenReturn(buildModel());
@@ -168,7 +170,7 @@ class StreetAgentProfileServiceTest {
         @Test
         @DisplayName("không có thông tin hợp đồng")
         void create_withoutContractDates() {
-            CreateStreetAgentProfileRequest request = buildRequest(null, null, BigDecimal.ZERO, "ACTIVE");
+            CreateStreetAgentProfileRequest request = buildRequest(null, null, BigDecimal.ZERO);
 
             stubUniqueConstraintsPass();
             when(streetAgentProfileApplicationMapper.toModel(request)).thenReturn(buildModel());
@@ -186,7 +188,7 @@ class StreetAgentProfileServiceTest {
         @Test
         @DisplayName("số điện thoại đã tồn tại")
         void create_phoneExisted() {
-            CreateStreetAgentProfileRequest request = buildRequest(null, null, BigDecimal.ZERO, "ACTIVE");
+            CreateStreetAgentProfileRequest request = buildRequest(null, null, BigDecimal.ZERO);
             when(streetAgentProfileRepositoryPort.existsByPhone(PHONE)).thenReturn(true);
 
             assertThatThrownBy(() -> streetAgentProfileService.create(request))
@@ -202,7 +204,7 @@ class StreetAgentProfileServiceTest {
         @Test
         @DisplayName("CCCD đã tồn tại")
         void create_cccdExisted() {
-            CreateStreetAgentProfileRequest request = buildRequest(null, null, BigDecimal.ZERO, "ACTIVE");
+            CreateStreetAgentProfileRequest request = buildRequest(null, null, BigDecimal.ZERO);
             when(streetAgentProfileRepositoryPort.existsByPhone(PHONE)).thenReturn(false);
             when(streetAgentProfileRepositoryPort.existsByCccd(CCCD)).thenReturn(true);
 
@@ -221,8 +223,7 @@ class StreetAgentProfileServiceTest {
             CreateStreetAgentProfileRequest request = buildRequest(
                     LocalDate.of(2026, 6, 1),
                     LocalDate.of(2026, 1, 1),
-                    BigDecimal.ZERO,
-                    "ACTIVE"
+                    BigDecimal.ZERO
             );
             when(streetAgentProfileRepositoryPort.existsByPhone(PHONE)).thenReturn(false);
             when(streetAgentProfileRepositoryPort.existsByCccd(CCCD)).thenReturn(false);
@@ -354,7 +355,7 @@ class StreetAgentProfileServiceTest {
                     null,
                     BigDecimal.ZERO,
                     null,
-                    "PENDING"
+                    "INACTIVE"
             );
             StreetAgentProfileModel existing = buildSavedModel();
 
@@ -416,37 +417,6 @@ class StreetAgentProfileServiceTest {
             verify(streetAgentProfileRepositoryPort).existsByPhoneAndIdNot(PHONE, PROFILE_ID);
             verify(streetAgentProfileRepositoryPort).existsByCccdAndIdNot(CCCD, PROFILE_ID);
             verify(streetAgentProfileRepositoryPort).save(existing);
-        }
-
-        @Test
-        @DisplayName("cập nhật trạng thái sang PENDING")
-        void update_statusToPending() {
-            UpdateStreetAgentProfileRequest request = buildUpdateRequest(null, null, null, null, "PENDING");
-            StreetAgentProfileModel existing = buildSavedModel();
-            StreetAgentProfileModel saved = buildSavedModel();
-            saved.setStatus(StreetAgentProfileStatus.PENDING);
-
-            stubUpdateUniqueConstraintsPass(existing);
-            doAnswer(invocation -> {
-                StreetAgentProfileModel model = invocation.getArgument(0);
-                model.setStatus(StreetAgentProfileStatus.PENDING);
-                return null;
-            }).when(streetAgentProfileApplicationMapper).updateModel(existing, request);
-            when(streetAgentProfileRepositoryPort.save(existing)).thenReturn(saved);
-            when(streetAgentProfileApplicationMapper.toResponse(saved)).thenReturn(
-                    StreetAgentProfileResponse.builder()
-                            .id(PROFILE_ID)
-                            .firstName(FIRST_NAME)
-                            .lastName(LAST_NAME)
-                            .phone(PHONE)
-                            .cccd(CCCD)
-                            .status(StreetAgentProfileStatus.PENDING.getCode())
-                            .build()
-            );
-
-            StreetAgentProfileResponse result = streetAgentProfileService.update(PROFILE_ID, request);
-
-            assertThat(result.status()).isEqualTo("PENDING");
         }
     }
 
@@ -529,6 +499,39 @@ class StreetAgentProfileServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("Xóa hồ sơ")
+    class DeleteSuccess {
+
+        @Test
+        @DisplayName("xóa mềm hồ sơ thành công")
+        void delete_success() {
+            StreetAgentProfileModel existing = buildSavedModel();
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.of(existing));
+            when(streetAgentProfileRepositoryPort.save(existing)).thenReturn(existing);
+
+            streetAgentProfileService.delete(PROFILE_ID);
+
+            ArgumentCaptor<StreetAgentProfileModel> captor =
+                    ArgumentCaptor.forClass(StreetAgentProfileModel.class);
+            verify(streetAgentProfileRepositoryPort).save(captor.capture());
+            assertThat(captor.getValue().isDeleted()).isTrue();
+        }
+
+        @Test
+        @DisplayName("không tìm thấy hồ sơ")
+        void delete_notFound() {
+            when(streetAgentProfileRepositoryPort.findById(PROFILE_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> streetAgentProfileService.delete(PROFILE_ID))
+                    .isInstanceOf(DomainException.class)
+                    .satisfies(ex -> assertThat(((DomainException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
+
+            verify(streetAgentProfileRepositoryPort, never()).save(any());
+        }
+    }
+
     private UpdateStreetAgentProfileRequest buildUpdateRequest(
             LocalDate startDate,
             LocalDate endDate,
@@ -567,8 +570,7 @@ class StreetAgentProfileServiceTest {
     private CreateStreetAgentProfileRequest buildRequest(
             LocalDate startDate,
             LocalDate endDate,
-            BigDecimal depositBalance,
-            String status) {
+            BigDecimal depositBalance) {
         return new CreateStreetAgentProfileRequest(
                 FIRST_NAME,
                 LAST_NAME,
@@ -581,8 +583,7 @@ class StreetAgentProfileServiceTest {
                 new BigDecimal("0.05"),
                 startDate,
                 endDate,
-                depositBalance,
-                status
+                depositBalance
         );
     }
 
