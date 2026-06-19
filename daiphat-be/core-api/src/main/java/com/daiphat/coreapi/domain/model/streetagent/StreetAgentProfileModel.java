@@ -32,4 +32,13 @@ public class StreetAgentProfileModel {
     private LocalDateTime updatedAt;
     private String createdBy;
     private String lastModifiedBy;
+    private LocalDateTime deletedAt;
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
+    }
 }

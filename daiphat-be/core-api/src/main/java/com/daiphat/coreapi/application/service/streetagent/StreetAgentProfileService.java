@@ -13,6 +13,7 @@ import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStat
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
+import com.daiphat.coreapi.shared.util.StatusCountKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -21,6 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +44,22 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         Page<StreetAgentProfileModel> resultPage =
                 streetAgentProfileRepositoryPort.findAll(pageable, search, statusFilter);
 
-        return PageResponse.from(resultPage.map(streetAgentProfileApplicationMapper::toResponse), page, limit);
+        return PageResponse.from(
+                resultPage.map(streetAgentProfileApplicationMapper::toResponse),
+                page,
+                limit,
+                buildStatusCounts(search));
+    }
+
+    private Map<String, Long> buildStatusCounts(String search) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        counts.put(StatusCountKeys.ALL, streetAgentProfileRepositoryPort.countAll(search));
+        Arrays.stream(StreetAgentProfileStatus.values())
+                .forEach(status -> counts.put(
+                        status.getCode(),
+                        streetAgentProfileRepositoryPort.countByStatus(status, search)
+                ));
+        return counts;
     }
 
     @Override
@@ -64,6 +84,7 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         validateContractDates(request);
 
         StreetAgentProfileModel model = streetAgentProfileApplicationMapper.toModel(request);
+        model.setStatus(StreetAgentProfileStatus.ACTIVE);
         if (model.getDepositBalance() == null) {
             model.setDepositBalance(BigDecimal.ZERO);
         }
@@ -97,6 +118,19 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         StreetAgentProfileModel saved = streetAgentProfileRepositoryPort.save(profile);
         log.info("Street agent profile updated with id: {}", saved.getId());
         return streetAgentProfileApplicationMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        log.info("Soft deleting street agent profile id: {}", id);
+
+        StreetAgentProfileModel profile = streetAgentProfileRepositoryPort.findById(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.STREET_AGENT_PROFILE_NOT_FOUND));
+
+        profile.softDelete();
+        streetAgentProfileRepositoryPort.save(profile);
+        log.info("Street agent profile soft deleted with id: {}", id);
     }
 
     private void validateContractDates(CreateStreetAgentProfileRequest request) {
