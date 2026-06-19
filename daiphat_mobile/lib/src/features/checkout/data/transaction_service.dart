@@ -28,4 +28,14 @@ class TransactionService {
     final data = response['data'] as Map<String, dynamic>;
     return PaymentResult.fromJson(data);
   }
+
+  Future<PendingPaymentCountdownResult> getPendingPaymentCountdown(
+    String orderId,
+  ) async {
+    final response = await _apiClient.get(
+      '/transactions/$orderId/payment/countdown',
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return PendingPaymentCountdownResult.fromJson(data);
+  }
 }
