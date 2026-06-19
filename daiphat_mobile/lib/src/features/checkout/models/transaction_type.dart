@@ -90,6 +90,29 @@ class PaymentResult {
   }
 }
 
+class PendingPaymentCountdownResult {
+  final String orderId;
+  final int remainingSeconds;
+  final String? expiresAt;
+  final bool expired;
+
+  const PendingPaymentCountdownResult({
+    required this.orderId,
+    required this.remainingSeconds,
+    this.expiresAt,
+    required this.expired,
+  });
+
+  factory PendingPaymentCountdownResult.fromJson(Map<String, dynamic> json) {
+    return PendingPaymentCountdownResult(
+      orderId: json['orderId']?.toString() ?? '',
+      remainingSeconds: json['remainingSeconds'] as int? ?? 0,
+      expiresAt: json['expiresAt']?.toString(),
+      expired: json['expired'] as bool? ?? false,
+    );
+  }
+}
+
 class EnumOption {
   final String value;
   final String label;

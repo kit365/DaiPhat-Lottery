@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
@@ -188,9 +189,16 @@ class _MyOrdersViewState extends ConsumerState<MyOrdersView> {
               ),
             );
           }
+          final order = _viewModel.orders[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: _buildOrderCard(_viewModel.orders[index]),
+            child: GestureDetector(
+              onTap: () => context.pushNamed(
+                AppRoute.orderDetail.name,
+                pathParameters: {'id': order.id},
+              ),
+              child: _buildOrderCard(order),
+            ),
           );
         },
       ),
