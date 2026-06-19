@@ -10,4 +10,5 @@ public interface StreetAgentProfileServicePort {
     StreetAgentProfileResponse getById(Long id);
     StreetAgentProfileResponse create(CreateStreetAgentProfileRequest request);
     StreetAgentProfileResponse update(Long id, UpdateStreetAgentProfileRequest request);
+    void delete(Long id);
 }

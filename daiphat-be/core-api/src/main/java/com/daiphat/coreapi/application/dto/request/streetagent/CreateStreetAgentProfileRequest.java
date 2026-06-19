@@ -52,7 +52,5 @@ public record CreateStreetAgentProfileRequest(
         LocalDate contractEndDate,
 
         @DecimalMin(value = "0", message = "Số dư ký quỹ phải từ 0 trở lên")
-        BigDecimal depositBalance,
-
-        String status
+        BigDecimal depositBalance
 ) {}
