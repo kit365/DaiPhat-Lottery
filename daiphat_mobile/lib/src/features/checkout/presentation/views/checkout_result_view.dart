@@ -176,13 +176,18 @@ class CheckoutResultView extends StatelessWidget {
                               fontSize: 15,
                             ),
                           ),
-                          const Spacer(),
-                          Text(
-                            displayCode,
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 15,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              displayCode,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.end,
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                              ),
                             ),
                           ),
                         ],

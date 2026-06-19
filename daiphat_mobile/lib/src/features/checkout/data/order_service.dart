@@ -28,4 +28,28 @@ class OrderService {
     final data = response['data'] as Map<String, dynamic>;
     return OrderResponse.fromJson(data);
   }
+
+  Future<OrdersPageResponse> getMyOrders({
+    int page = 1,
+    int size = 10,
+    String? status,
+  }) async {
+    final params = <String, dynamic>{
+      'page': page,
+      'size': size,
+      if (status != null && status.isNotEmpty) 'status': status,
+    };
+    final response = await _apiClient.get(
+      '/orders/my-orders',
+      queryParameters: params,
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return OrdersPageResponse.fromJson(data);
+  }
+
+  Future<OrderResponse> getMyOrderDetail(String id) async {
+    final response = await _apiClient.get('/orders/my-orders/$id');
+    final data = response['data'] as Map<String, dynamic>;
+    return OrderResponse.fromJson(data);
+  }
 }

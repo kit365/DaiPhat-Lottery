@@ -137,17 +137,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .map(ticket -> mapToResponse(ticket, serialsByTicketId.get(ticket.getId()), stationNameCache))
                 .toList();
 
-        return PageResponse.<LotteryTicketResponse>builder()
-                .recordList(responses)
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(ticketPage.getTotalElements())
-                        .totalPages(ticketPage.getTotalPages())
-                        .currentPage(page)
-                        .limit(size)
-                        .isFirst(ticketPage.isFirst())
-                        .isLast(ticketPage.isLast())
-                        .build())
-                .build();
+        return PageResponse.from(responses, ticketPage.getTotalElements(), page, size);
     }
 
     @Override
@@ -175,17 +165,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .map(ticket -> mapToResponse(ticket, serialsByTicketId.get(ticket.getId()), stationNameCache))
                 .toList();
 
-        return PageResponse.<LotteryTicketResponse>builder()
-                .recordList(responses)
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(ticketPage.getTotalElements())
-                        .totalPages(ticketPage.getTotalPages())
-                        .currentPage(page)
-                        .limit(size)
-                        .isFirst(ticketPage.isFirst())
-                        .isLast(ticketPage.isLast())
-                        .build())
-                .build();
+        return PageResponse.from(responses, ticketPage.getTotalElements(), page, size);
     }
 
     @Override

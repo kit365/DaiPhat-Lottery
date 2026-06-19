@@ -19,9 +19,15 @@ public class PrizeStructureRepositoryAdapter implements PrizeStructureRepository
     private final PrizeStructurePersistenceMapper prizeStructurePersistenceMapper;
 
     @Override
-    public List<PrizeStructureModel> findByProductId(Long productId) {
-        List<PrizeStructureEntity> entities = prizeStructureRepository.findByStation_IdAndDeletedAtIsNullOrderByDisplayOrderAsc(productId);
+    public List<PrizeStructureModel> findByRegionCode(String regionCode) {
+        List<PrizeStructureEntity> entities = prizeStructureRepository
+                .findByRegion_CodeIgnoreCaseAndDeletedAtIsNullOrderByDisplayOrderAsc(regionCode);
         return prizeStructurePersistenceMapper.toDomainList(entities);
+    }
+
+    @Override
+    public List<String> findDistinctRegionCodes() {
+        return prizeStructureRepository.findDistinctRegionCodes();
     }
 
     @Override
@@ -31,14 +37,40 @@ public class PrizeStructureRepositoryAdapter implements PrizeStructureRepository
     }
 
     @Override
-    public List<PrizeStructureModel> saveAll(Long productId, List<PrizeStructureModel> models) {
+    public boolean existsByRegionCodeAndPrizeCode(String regionCode, String prizeCode) {
+        return prizeStructureRepository.existsByRegion_CodeIgnoreCaseAndPrizeCodeIgnoreCaseAndDeletedAtIsNull(
+                regionCode, prizeCode
+        );
+    }
+
+    @Override
+    public boolean existsByRegionCodeAndPrizeCodeExcludingId(String regionCode, String prizeCode, Long excludeId) {
+        return prizeStructureRepository.existsByRegion_CodeIgnoreCaseAndPrizeCodeIgnoreCaseAndDeletedAtIsNullAndIdNot(
+                regionCode, prizeCode, excludeId
+        );
+    }
+
+    @Override
+    public PrizeStructureModel save(PrizeStructureModel model) {
+        return prizeStructurePersistenceMapper.toDomain(
+                prizeStructureRepository.save(prizeStructurePersistenceMapper.toEntity(model))
+        );
+    }
+
+    @Override
+    public List<PrizeStructureModel> saveAll(List<PrizeStructureModel> models) {
         List<PrizeStructureEntity> entities = prizeStructurePersistenceMapper.toEntityList(models);
         List<PrizeStructureEntity> saved = prizeStructureRepository.saveAll(entities);
         return prizeStructurePersistenceMapper.toDomainList(saved);
     }
 
     @Override
-    public void deleteByProductId(Long productId) {
-        prizeStructureRepository.deleteByStation_Id(productId);
+    public void deleteById(Long id) {
+        prizeStructureRepository.deleteById(id);
+    }
+
+    @Override
+    public void deleteByRegionCode(String regionCode) {
+        prizeStructureRepository.deleteByRegion_CodeIgnoreCase(regionCode);
     }
 }

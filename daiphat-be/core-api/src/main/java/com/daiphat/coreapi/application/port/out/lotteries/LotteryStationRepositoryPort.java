@@ -14,7 +14,14 @@ public interface LotteryStationRepositoryPort {
 
     Optional<LotteryStationModel> findById(Long id);
 
-    Page<LotteryStationModel> findAll(Pageable pageable, String search, LotteryStationStatus status, String type, String region);
+    Page<LotteryStationModel> findAll(
+            Pageable pageable,
+            String search,
+            LotteryStationStatus status,
+            String type,
+            String region,
+            List<String> drawDay
+    );
 
     List<LotteryStationModel> findAll();
 

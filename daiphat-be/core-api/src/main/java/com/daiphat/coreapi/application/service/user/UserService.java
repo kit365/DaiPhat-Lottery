@@ -182,22 +182,12 @@ public class UserService implements UserServicePort {
                 roleIds
         );
 
-        List<UserResponse> recordList = userPage.getContent().stream()
-                .map(userApplicationMapper::mapToUserResponse)
-                .collect(Collectors.toList());
-
-        return PageResponse.<UserResponse>builder()
-                .recordList(recordList)
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(userPage.getTotalElements())
-                        .totalPages(userPage.getTotalPages())
-                        .currentPage(page)
-                        .limit(size)
-                        .isFirst(userPage.isFirst())
-                        .isLast(userPage.isLast())
-                        .build())
-                .statusCounts(buildStatusCounts(search, roleIds))
-                .build();
+        return PageResponse.from(
+                userPage.map(userApplicationMapper::mapToUserResponse),
+                page,
+                size,
+                buildStatusCounts(search, roleIds)
+        );
     }
 
     private Map<String, Long> buildStatusCounts(String search, List<String> roleIds) {
@@ -409,10 +399,6 @@ public class UserService implements UserServicePort {
         }
     }
 
-    private void updateNullableText(String newValue, java.util.function.Consumer<String> setter) {
-        if (newValue != null) {
-            setter.accept(newValue.isBlank() ? null : newValue);
-        }
-    }
+
 
 }
