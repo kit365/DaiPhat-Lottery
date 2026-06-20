@@ -6,9 +6,12 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStatio
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSchedulePublicResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -87,6 +90,21 @@ public class LotteryStationController {
     @GetMapping("/schedule/tomorrow")
     public ApiResponse<List<LotteryStationResponse>> getDrawingTomorrow() {
         return ApiResponse.success(null, lotteryStationServicePort.getDrawingTomorrow());
+    }
+
+    @GetMapping("/schedule/all")
+    @Operation(
+            summary = "Lay lich quay mo thuong public",
+            description = "API public phuc vu trang lich mo thuong. Tra ve danh sach nha dai dang active, chi gom ten dai, ma mien, thu quay va gio quay."
+    )
+    public ApiResponse<List<LotteryStationSchedulePublicResponse>> getPublicSchedule(
+            @Parameter(
+                    description = "Loc theo ma mien neu can. Bo trong de lay toan quoc.",
+                    example = "MIEN_NAM"
+            )
+            @RequestParam(required = false) String region
+    ) {
+        return ApiResponse.success(null, lotteryStationServicePort.getPublicSchedule(region));
     }
 
     @PutMapping(ID_PATH)

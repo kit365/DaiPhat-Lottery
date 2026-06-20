@@ -26,6 +26,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 
+import java.util.List;
+
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/lottery-tickets")
 @RequiredArgsConstructor
@@ -70,6 +72,7 @@ public class LotteryTicketController {
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
             @RequestParam(required = false) Long stationId,
+            @RequestParam(required = false) List<Long> stationIds,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String drawDate,
             @RequestParam(required = false) String search,
@@ -78,7 +81,7 @@ public class LotteryTicketController {
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getAll(
-                page, size, stationId, status, drawDate, search, sortBy, direction);
+                page, size, stationId, stationIds, status, drawDate, search, sortBy, direction);
         ApiResponse<PageResponse<LotteryTicketResponse>> apiResponse = ApiResponse.success(null, response);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
         mappingJacksonValue.setSerializationView(resolveLotteryTicketView(principal));
@@ -90,13 +93,14 @@ public class LotteryTicketController {
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
             @RequestParam(required = false) Long stationId,
+            @RequestParam(required = false) List<Long> stationIds,
             @RequestParam(required = false) String drawDate,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction) {
         log.info("REST public request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
-                page, size, stationId, drawDate, search, sortBy, direction);
+                page, size, stationId, stationIds, drawDate, search, sortBy, direction);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(ApiResponse.success(null, response));
         mappingJacksonValue.setSerializationView(Views.Public.class);
         return mappingJacksonValue;
@@ -107,13 +111,14 @@ public class LotteryTicketController {
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
             @RequestParam(required = false) Long stationId,
+            @RequestParam(required = false) List<Long> stationIds,
             @RequestParam(defaultValue = HOME_DEFAULT_DRAW_DATE) String drawDate,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = DEFAULT_HOME_SORT_BY) String sortBy,
             @RequestParam(defaultValue = DEFAULT_HOME_SORT_DIRECTION) String direction) {
         log.info("REST home request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
-                page, size, stationId, resolveHomeDrawDate(drawDate), search, sortBy, direction);
+                page, size, stationId, stationIds, resolveHomeDrawDate(drawDate), search, sortBy, direction);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(ApiResponse.success(null, response));
         mappingJacksonValue.setSerializationView(Views.Public.class);
         return mappingJacksonValue;

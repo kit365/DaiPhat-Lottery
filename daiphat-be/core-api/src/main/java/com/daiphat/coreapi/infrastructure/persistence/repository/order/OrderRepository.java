@@ -4,6 +4,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,6 +33,19 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSp
     List<UUID> findPendingPaymentOrderIdsCreatedBefore(
             @Param("status") OrderStatus status,
             @Param("threshold") LocalDateTime threshold
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update OrderEntity o
+               set o.user.id = :userId
+             where o.user is null
+               and o.email is not null
+               and lower(o.email) = lower(:email)
+            """)
+    int assignGuestOrdersToUserByEmail(
+            @Param("userId") UUID userId,
+            @Param("email") String email
     );
 
     @Query("""

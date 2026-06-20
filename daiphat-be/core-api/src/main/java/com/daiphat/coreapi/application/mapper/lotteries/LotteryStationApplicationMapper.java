@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.mapper.lotteries;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSchedulePublicResponse;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
@@ -15,6 +16,9 @@ import org.mapstruct.MappingTarget;
 import org.mapstruct.Named;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.ReportingPolicy;
+
+import java.time.DayOfWeek;
+import java.util.List;
 
 @Mapper(
         componentModel = "spring",
@@ -33,6 +37,13 @@ public interface LotteryStationApplicationMapper {
     @Mapping(target = "type", expression = "java(model.getRegion() != null && model.getRegion().getType() != null ? model.getRegion().getType().name() : null)")
     @Mapping(target = "status", expression = "java(model.getStatus() != null ? model.getStatus().name() : null)")
     LotteryStationResponse toResponse(LotteryStationModel model);
+
+    @Mapping(target = "stationId", source = "id")
+    @Mapping(target = "stationName", source = "name")
+    @Mapping(target = "region", source = "region", qualifiedByName = "regionToString")
+    @Mapping(target = "drawDays", source = "drawDays", qualifiedByName = "drawDaysToCodes")
+    @Mapping(target = "drawDaysDisplay", source = "drawDays", qualifiedByName = "drawDaysToDisplayNames")
+    LotteryStationSchedulePublicResponse toSchedulePublicResponse(LotteryStationModel model);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
@@ -56,5 +67,37 @@ public interface LotteryStationApplicationMapper {
     @Named("regionToString")
     default String regionToString(LotteryRegionModel region) {
         return region != null ? region.region() : null;
+    }
+
+    @Named("drawDaysToCodes")
+    default List<String> drawDaysToCodes(List<DayOfWeek> drawDays) {
+        if (drawDays == null) {
+            return List.of();
+        }
+        return drawDays.stream()
+                .map(DayOfWeek::name)
+                .toList();
+    }
+
+    @Named("drawDaysToDisplayNames")
+    default List<String> drawDaysToDisplayNames(List<DayOfWeek> drawDays) {
+        if (drawDays == null) {
+            return List.of();
+        }
+        return drawDays.stream()
+                .map(this::toVietnameseDayLabel)
+                .toList();
+    }
+
+    default String toVietnameseDayLabel(DayOfWeek dayOfWeek) {
+        return switch (dayOfWeek) {
+            case MONDAY -> "Thứ 2";
+            case TUESDAY -> "Thứ 3";
+            case WEDNESDAY -> "Thứ 4";
+            case THURSDAY -> "Thứ 5";
+            case FRIDAY -> "Thứ 6";
+            case SATURDAY -> "Thứ 7";
+            case SUNDAY -> "Chủ nhật";
+        };
     }
 }
