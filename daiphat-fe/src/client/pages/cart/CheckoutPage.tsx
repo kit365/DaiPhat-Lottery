@@ -12,6 +12,7 @@ import { CreateOnlineOrderRequest, OrderReceiveType } from '../../../types/order
 import { PaymentGateway, TransactionType } from '../../../types/transaction.type';
 import { useCreateOnlineOrder, useGetOrderReceiveTypes } from '../../hooks/useOrder';
 import { useProcessPayment, useGetTransactionTypes } from '../../hooks/useTransaction';
+import OrderSummary from './components/OrderSummary';
 
 export const CheckoutPage = () => {
     const navigate = useNavigate();
@@ -28,6 +29,7 @@ export const CheckoutPage = () => {
         return now.add(remainder + 30, 'minute').startOf('minute').toISOString();
     });
     const [note, setNote] = useState('');
+    const [email, setEmail] = useState('');
     const [receiveType, setReceiveType] = useState<string>('');
     const [transactionType, setTransactionType] = useState<string>('');
 
@@ -179,44 +181,63 @@ export const CheckoutPage = () => {
                                 <h2 className="text-[16px] font-bold text-[#212B36]">Danh sách vé</h2>
                             </div>
                             
-                            <div className="space-y-4">
+                            {/* Table Column Headers (Desktop only) */}
+                            <div className="hidden lg:grid grid-cols-[1.5fr_1.5fr_100px_100px_100px_80px] gap-4 mb-4 mt-2 text-[13px] font-bold text-[#212B36] uppercase items-center border-b border-[#E5E8EB] pb-3">
+                                <div className="text-left">Vé số</div>
+                                <div className="text-left">Đài & Ngày quay</div>
+                                <div className="text-center">Số lượng</div>
+                                <div className="text-center">Đơn giá</div>
+                                <div className="text-center">Thành tiền</div>
+                                <div className="text-center">Thao tác</div>
+                            </div>
+
+                            <div className="flex flex-col">
                                 {items.map((item) => (
-                                    <div key={item.id} className="flex flex-col sm:flex-row gap-4 p-4 border border-[#E5E8EB] rounded-xl hover:border-gray-300 transition-colors bg-gray-50/50">
+                                    <div key={item.id} className="flex flex-col lg:grid lg:grid-cols-[1.5fr_1.5fr_100px_100px_100px_80px] gap-4 items-center py-4 border-b border-dashed border-[#E5E8EB] last:border-b-0">
                                         
-                                        <div className="w-[120px] sm:w-[180px] h-[100px] rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-sm border border-gray-100 bg-white p-2">
-                                            <img src="https://i.imgur.com/V4b7V3x.jpeg" alt="Vé số" className="w-full h-full object-cover rounded" />
+                                        {/* Vé số */}
+                                        <div className="flex items-center gap-3">
+                                            <img src={item.ticketImg || 'https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png'} alt="Vé" className="w-[80px] h-[50px] object-cover mix-blend-multiply border border-gray-100 rounded shrink-0" />
+                                            <div className="font-bold text-[16px] text-[#212B36] tracking-tight">{item.numbers}</div>
                                         </div>
 
-                                        <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center">
-                                            <div>
-                                                <h3 className="font-bold text-[#212B36] text-[15px] mb-1">Xổ số {item.province}</h3>
-                                                <div className="text-[13px] text-[#637381] space-y-1 mt-2 bg-white p-2 rounded border border-[#E5E8EB]">
-                                                    <p className="flex items-center gap-2"><i className="fa-regular fa-calendar w-4 text-[#ee1314] text-center"></i> <span>Mở thưởng: <strong>{item.date}</strong></span></p>
-                                                    <p className="flex items-center gap-2"><i className="fa-regular fa-clock w-4 text-[#ee1314] text-center"></i> <span>Giờ chốt: <strong>{item.time}</strong></span></p>
-                                                    <p className="flex items-center gap-2"><i className="fa-solid fa-ticket w-4 text-[#ee1314] text-center"></i> <span>Ký hiệu: <strong>{item.kyHieu}</strong></span></p>
-                                                </div>
-                                                <div className="mt-3 flex items-center gap-2 bg-[#FFF4F4] rounded px-3 py-1.5 w-max border border-[#FFEBEE]">
-                                                    <span className="text-[12px] text-[#637381]">Mã vé:</span>
-                                                    <span className="text-[16px] font-bold text-[#ee1314] tracking-widest">{item.numbers}</span>
-                                                </div>
+                                        {/* Đài & Ngày quay */}
+                                        <div className="flex flex-col items-start gap-1">
+                                            <div className="flex items-center gap-2">
+                                                <img src={item.provinceIcon || 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png'} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
+                                                <span className="font-bold text-[13px] text-[#212B36]">{item.province}</span>
                                             </div>
+                                            <div className="flex items-center gap-1.5 text-[12px] text-[#637381] pl-7">
+                                                <span className="font-medium text-[#212B36]">{item.date}</span>
+                                                <span>•</span>
+                                                <span>{item.time}</span>
+                                            </div>
+                                        </div>
 
-                                            <div className="flex flex-col items-end gap-2 justify-center border-t md:border-t-0 md:border-l border-dashed border-[#E5E8EB] pt-3 md:pt-0 md:pl-5">
-                                                <span className="text-[12px] text-[#637381] font-medium">Số lượng / Giá vé</span>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex items-center border border-[#E5E8EB] rounded-lg bg-white h-8 overflow-hidden">
-                                                        <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-full flex items-center justify-center text-[#637381] hover:bg-gray-50 transition-colors"><Minus size={14}/></button>
-                                                        <span className="w-8 text-center text-[14px] font-bold border-x border-[#E5E8EB] flex items-center justify-center text-[#212B36]">{item.quantity}</span>
-                                                        <button onClick={() => updateQuantity(item.id, 1)} className="w-8 h-full flex items-center justify-center text-[#637381] hover:bg-gray-50 transition-colors"><Plus size={14}/></button>
-                                                    </div>
-                                                    <button onClick={() => removeItem(item.id)} className="w-8 h-8 flex items-center justify-center text-[#637381] hover:text-[#ee1314] hover:bg-[#FFF4F4] rounded-lg transition-colors border border-transparent hover:border-[#FFEBEE]">
-                                                        <Trash2 size={16}/>
-                                                    </button>
-                                                </div>
-                                                <div className="text-[18px] font-black text-[#ee1314] mt-2 leading-none">
-                                                    {(item.price * item.quantity).toLocaleString('vi-VN')} đ
-                                                </div>
+                                        {/* Số lượng */}
+                                        <div className="flex flex-col items-center">
+                                            <div className="flex items-center border border-[#E5E8EB] rounded bg-white h-7 w-[80px] overflow-hidden">
+                                                <button onClick={() => updateQuantity(item.id, -1)} className="flex-1 h-full flex items-center justify-center text-[#637381] hover:bg-gray-50"><Minus size={12} /></button>
+                                                <span className="w-7 h-full flex items-center justify-center text-[13px] font-bold text-[#212B36] border-x border-[#E5E8EB]">{item.quantity}</span>
+                                                <button onClick={() => updateQuantity(item.id, 1)} className="flex-1 h-full flex items-center justify-center text-[#637381] hover:bg-gray-50"><Plus size={12} /></button>
                                             </div>
+                                        </div>
+
+                                        {/* Đơn giá */}
+                                        <div className="text-center text-[13px] text-[#637381]">
+                                            {(item.price).toLocaleString('vi-VN')}đ
+                                        </div>
+
+                                        {/* Thành tiền */}
+                                        <div className="text-center text-[14px] font-bold text-[#ee1314]">
+                                            {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+                                        </div>
+
+                                        {/* Thao tác */}
+                                        <div className="flex justify-center">
+                                            <button onClick={() => removeItem(item.id)} className="text-[#ee1314] hover:text-[#d00f10] transition-colors w-8 h-8 rounded-full hover:bg-[#FFF4F4] flex items-center justify-center">
+                                                <Trash2 size={16} />
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
@@ -250,6 +271,16 @@ export const CheckoutPage = () => {
                                         onChange={(e) => setPhone(e.target.value)}
                                         className="w-full h-11 px-3 py-2 border border-[#E5E8EB] rounded-lg text-[14px] focus:outline-none focus:border-[#ee1314] transition-colors"
                                         placeholder="Nhập số điện thoại"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[13px] font-medium text-[#212B36] mb-1.5">Email</label>
+                                    <input 
+                                        type="email" 
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full h-11 px-3 py-2 border border-[#E5E8EB] rounded-lg text-[14px] focus:outline-none focus:border-[#ee1314] transition-colors"
+                                        placeholder="Nhập email (không bắt buộc)"
                                     />
                                 </div>
                                 <div>
@@ -330,49 +361,11 @@ export const CheckoutPage = () => {
                     {/* Right Sidebar - Checkout Summary */}
                     <div className="w-full lg:w-[360px] shrink-0 flex flex-col gap-5">
                         
-                        <div className="bg-white rounded-[20px] shadow-md border border-[#E5E8EB] flex flex-col flex-1 overflow-hidden sticky top-24">
-                            <div className="p-5 flex-1 flex flex-col">
-                                <div className="flex items-center gap-3 mb-5 shrink-0">
-                                    <div className="bg-[#ee1314] text-white w-6 h-6 rounded flex items-center justify-center text-[12px]">
-                                        <i className="fa-solid fa-receipt"></i>
-                                    </div>
-                                    <h3 className="text-[16px] font-bold text-[#212B36]">Đơn hàng của bạn</h3>
-                                </div>
-                                
-                                <div className="space-y-3 mb-5 text-[14px]">
-                                    <div className="flex justify-between items-center text-[#637381]">
-                                        <span>Tổng số lượng</span>
-                                        <span className="font-bold text-[#212B36]">{totalTickets} vé</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-[#637381]">
-                                        <span>Tạm tính</span>
-                                        <span className="font-medium text-[#212B36]">{subTotal.toLocaleString('vi-VN')} đ</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-[#637381]">
-                                        <span>Phí dịch vụ</span>
-                                        <span className="font-medium text-[#00A76F]">Miễn phí</span>
-                                    </div>
-                                </div>
-
-                                <div className="border-t border-dashed border-[#E5E8EB] -mx-5 mb-5"></div>
-
-                                <div className="bg-[#FFF4F4] border border-[#FFEBEE] rounded-xl p-4 flex gap-3 mb-2 shadow-sm">
-                                    <ShieldCheck className="text-[#ee1314] shrink-0" size={24} strokeWidth={1.5} />
-                                    <div>
-                                        <div className="font-bold text-[13px] text-[#212B36]">Giao dịch bảo mật 100%</div>
-                                        <div className="text-[12px] text-[#637381] mt-0.5 leading-tight">Mọi thông tin thanh toán của bạn luôn được mã hóa an toàn</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Total & Action Bottom */}
-                            <div className="bg-[#FFF4F4] px-5 py-5 flex flex-col gap-4 mt-auto border-t border-[#FFEBEE]">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[14px] font-bold text-[#212B36]">Tổng thanh toán</span>
-                                    <span className="text-[26px] font-black text-[#ee1314] leading-none">{totalAmount.toLocaleString('vi-VN')} đ</span>
-                                </div>
-
-                                <div className="flex flex-col gap-3 mt-2">
+                        <OrderSummary 
+                            totalTickets={totalTickets}
+                            totalAmount={subTotal}
+                            actions={
+                                <>
                                     <button 
                                         onClick={handleCheckout}
                                         disabled={items.length === 0 || isSubmitting}
@@ -391,9 +384,9 @@ export const CheckoutPage = () => {
                                     >
                                         <ArrowLeft size={16} /> Về giỏ hàng
                                     </button>
-                                </div>
-                            </div>
-                        </div>
+                                </>
+                            }
+                        />
 
                     </div>
                 </div>

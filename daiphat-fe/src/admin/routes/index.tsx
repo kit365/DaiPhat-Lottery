@@ -85,6 +85,7 @@ const ShiftListPage = lazy(() => import("../pages/hr/ShiftListPage").then(m => (
 const DepartmentListPage = lazy(() => import("../pages/hr/DepartmentListPage").then(m => ({ default: m.DepartmentListPage })));
 const OrderListPage = lazy(() => import("../pages/order/OrderListPage").then(m => ({ default: m.OrderListPage })));
 const OrderDetailPage = lazy(() => import("../pages/order/OrderDetailPage").then(m => ({ default: m.OrderDetailPage })));
+const CounterOrderCreatePage = lazy(() => import("../pages/order/CounterOrderCreatePage").then(m => ({ default: m.CounterOrderCreatePage })));
 const ChatPage = lazy(() => import("../pages/chat/ChatPage").then(m => ({ default: m.ChatPage })));
 const ReviewListPage = lazy(() => import("../pages/review/ReviewListPage").then(m => ({ default: m.ReviewListPage })));
 const NotificationListPage = lazy(() => import("../pages/notification/NotificationListPage").then(m => ({ default: m.NotificationListPage })));
@@ -159,6 +160,7 @@ export const AdminRoutes = [
     { path: "ticketServiceOrder/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.VIEW}><TicketServiceOrderDetailPage /></PermissionGuard> },
     { path: "ticketServiceOrder/config", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.VIEW}><TicketServiceOrderConfigPage /></PermissionGuard> },
     { path: "order/list", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><OrderListPage /></PermissionGuard> },
+    { path: "order/create-counter", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><CounterOrderCreatePage /></PermissionGuard> },
     { path: "order/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><OrderDetailPage /></PermissionGuard> },
     { path: "calendar", element: <PermissionGuard permission={PERMISSIONS.CALENDAR.VIEW}><CalendarPage /></PermissionGuard> },
     { path: "dashboard/settings/*", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><SettingsPage /></PermissionGuard> },
