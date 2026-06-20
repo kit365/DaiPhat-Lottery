@@ -80,7 +80,7 @@ export const ProfilePage = () => {
                 <main className="max-w-[1440px] mx-auto px-4 lg:px-6 pt-6 pb-12">
 
                     {/* Main Content Grid */}
-                    <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+                    <div className="flex flex-col lg:flex-row gap-6 items-start">
 
                         {/* Left Sidebar */}
                         <div className="w-full lg:w-[280px] shrink-0 flex flex-col gap-6">

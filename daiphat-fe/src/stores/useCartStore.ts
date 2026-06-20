@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export interface CartItem {
     id: string;
     province: string;
+    provinceIcon?: string;
     date: string;
     time: string;
     kyHieu: string;
@@ -10,6 +11,7 @@ export interface CartItem {
     price: number;
     quantity: number;
     color: string;
+    ticketImg?: string;
 }
 
 interface CartStore {
