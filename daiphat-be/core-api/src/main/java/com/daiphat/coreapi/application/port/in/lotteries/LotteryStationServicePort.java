@@ -23,6 +23,10 @@ public interface LotteryStationServicePort {
 
     Optional<LotteryStationModel> findModelById(Long id);
 
+    List<LotteryStationModel> getModelsByDrawDate(LocalDate drawDate);
+
+    List<LotteryStationModel> getScheduleModelsByDrawDate(LocalDate drawDate);
+
     PageResponse<LotteryStationResponse> getAll(int page, int size, String search,
                                                 String status, String type, String region, List<String> drawDay,
                                                 String sortBy, String direction);

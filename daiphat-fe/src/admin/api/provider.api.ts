@@ -127,7 +127,7 @@ export const forceDeleteProvider = async (id: string | number): Promise<any> => 
 };
 
 export const getStationsToday = async (): Promise<any> => {
-    const response = await apiApp.get(`${BASE_URL}/draws/today`);
+    const response = await apiApp.get(`${BASE_URL}/schedule/today`);
     const result = response.data?.data || [];
     // Map BE response to match FE expectations for dynamicProvinces
     return result.map((item: any) => ({
@@ -141,7 +141,7 @@ export const getStationsToday = async (): Promise<any> => {
 };
 
 export const getStationsTomorrow = async (): Promise<any> => {
-    const response = await apiApp.get(`${BASE_URL}/draws/tomorrow`);
+    const response = await apiApp.get(`${BASE_URL}/schedule/tomorrow`);
     const result = response.data?.data || [];
     // Map BE response to match FE expectations for dynamicProvinces
     return result.map((item: any) => ({
