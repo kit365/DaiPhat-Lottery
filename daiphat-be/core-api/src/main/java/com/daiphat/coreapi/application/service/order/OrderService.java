@@ -84,7 +84,7 @@ public class OrderService implements OrderServicePort {
 
         List<Long> ticketIds = resolveTicketIds(request.items());
         validateTicketIds(ticketIds);
-        ensureUserExists(customerId);
+        var customer = userLookupServicePort.findByIdOrThrow(customerId);
         ensureValidPhone(request.phone());
         List<OrderDetailModel> orderDetails = new ArrayList<>();
         List<OrderTicketSnapshot> ticketSnapshots = lotteryTicketServicePort.reserveForOrder(ticketIds);
@@ -102,6 +102,7 @@ public class OrderService implements OrderServicePort {
 
         OrderModel order = orderApplicationMapper.toOnlineOrderModel(request);
         order.setUserId(customerId);
+        order.setEmail(customer.getEmail());
         order.setOrderCode(generateOrderCode());
         order.setReceiveType(resolveReceiveType(request.receiveType()));
         order.setTotalAmount(totalAmount);

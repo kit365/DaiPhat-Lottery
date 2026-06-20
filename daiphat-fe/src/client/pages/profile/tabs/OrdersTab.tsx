@@ -314,7 +314,11 @@ export const OrdersTab = () => {
                                                     <span className="text-[14px] text-[#454F5B]">{format(new Date(order.createdAt), 'dd/MM/yyyy HH:mm')}</span>
                                                 </td>
                                                 <td className="py-4 px-5 align-top">
-                                                    {order.expectedPickupAt ? (
+                                                    {order.actualPickedUpAt ? (
+                                                        <span className="text-[14px] text-[#212B36] font-medium">
+                                                            {format(new Date(order.actualPickedUpAt), 'dd/MM/yyyy HH:mm')}
+                                                        </span>
+                                                    ) : order.expectedPickupAt ? (
                                                         <span className={`text-[14px] ${isUrgent ? 'text-[#ee1314] font-medium' : 'text-[#454F5B]'}`}>
                                                             {format(new Date(order.expectedPickupAt), 'dd/MM/yyyy HH:mm')}
                                                         </span>

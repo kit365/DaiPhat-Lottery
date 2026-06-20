@@ -31,28 +31,28 @@ public final class OrderSpecification {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            predicates.add(cb.equal(root.get(OrderEntity_.user).get(UserEntity_.id), userId));
+            predicates.add(cb.equal(root.get(OrderEntity_.USER).get(UserEntity_.ID), userId));
 
             if (statuses != null && !statuses.isEmpty()) {
-                predicates.add(root.get(OrderEntity_.status).in(statuses));
+                predicates.add(root.get(OrderEntity_.STATUS).in(statuses));
             }
 
             if (orderTypes != null && !orderTypes.isEmpty()) {
-                predicates.add(root.get(OrderEntity_.orderType).in(orderTypes));
+                predicates.add(root.get(OrderEntity_.ORDER_TYPE).in(orderTypes));
             }
 
             if (fromDate != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get(OrderEntity_.createdAt), fromDate.atStartOfDay()));
+                predicates.add(cb.greaterThanOrEqualTo(root.get(OrderEntity_.CREATED_AT), fromDate.atStartOfDay()));
             }
 
             if (toDate != null) {
                 LocalDateTime endOfDayExclusive = toDate.plusDays(1).atStartOfDay();
-                predicates.add(cb.lessThan(root.get(OrderEntity_.createdAt), endOfDayExclusive));
+                predicates.add(cb.lessThan(root.get(OrderEntity_.CREATED_AT), endOfDayExclusive));
             }
 
             if (search != null && !search.isBlank()) {
                 String likePattern = "%" + search.trim().toLowerCase() + "%";
-                predicates.add(cb.like(cb.lower(root.get(OrderEntity_.orderCode)), likePattern));
+                predicates.add(cb.like(cb.lower(root.get(OrderEntity_.ORDER_CODE)), likePattern));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -71,32 +71,32 @@ public final class OrderSpecification {
             List<Predicate> predicates = new ArrayList<>();
 
             if (statuses != null && !statuses.isEmpty()) {
-                predicates.add(root.get(OrderEntity_.status).in(statuses));
+                predicates.add(root.get(OrderEntity_.STATUS).in(statuses));
             }
 
             if (orderTypes != null && !orderTypes.isEmpty()) {
-                predicates.add(root.get(OrderEntity_.orderType).in(orderTypes));
+                predicates.add(root.get(OrderEntity_.ORDER_TYPE).in(orderTypes));
             }
 
             if (receiveTypes != null && !receiveTypes.isEmpty()) {
-                predicates.add(root.get(OrderEntity_.receiveType).in(receiveTypes));
+                predicates.add(root.get(OrderEntity_.RECEIVE_TYPE).in(receiveTypes));
             }
 
             if (fromDate != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get(OrderEntity_.createdAt), fromDate.atStartOfDay()));
+                predicates.add(cb.greaterThanOrEqualTo(root.get(OrderEntity_.CREATED_AT), fromDate.atStartOfDay()));
             }
 
             if (toDate != null) {
                 LocalDateTime endOfDayExclusive = toDate.plusDays(1).atStartOfDay();
-                predicates.add(cb.lessThan(root.get(OrderEntity_.createdAt), endOfDayExclusive));
+                predicates.add(cb.lessThan(root.get(OrderEntity_.CREATED_AT), endOfDayExclusive));
             }
 
             if (search != null && !search.isBlank()) {
                 String likePattern = "%" + search.trim().toLowerCase() + "%";
                 predicates.add(cb.or(
-                        cb.like(cb.lower(root.get(OrderEntity_.orderCode)), likePattern),
-                        cb.like(cb.lower(root.get(OrderEntity_.name)), likePattern),
-                        cb.like(cb.lower(root.get(OrderEntity_.phone)), likePattern)
+                        cb.like(cb.lower(root.get(OrderEntity_.ORDER_CODE)), likePattern),
+                        cb.like(cb.lower(root.get(OrderEntity_.NAME)), likePattern),
+                        cb.like(cb.lower(root.get(OrderEntity_.PHONE)), likePattern)
                 ));
             }
 
