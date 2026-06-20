@@ -8,7 +8,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.PrizeStructureResp
 import com.daiphat.coreapi.application.dto.response.lotteries.PrizeStructureSyncItemResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.PrizeStructureSyncResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.PrizeStructureApplicationMapper;
-import com.daiphat.coreapi.application.port.in.lotteries.RegionPrizeStructureServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.PrizeStructureServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryRegionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureSourceSyncPort;
@@ -23,18 +23,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PrizeStructureService implements RegionPrizeStructureServicePort {
+public class PrizeStructureService implements PrizeStructureServicePort {
 
     private final PrizeStructureRepositoryPort prizeStructureRepositoryPort;
     private final LotteryRegionRepositoryPort lotteryRegionRepositoryPort;
@@ -62,6 +56,25 @@ public class PrizeStructureService implements RegionPrizeStructureServicePort {
         PrizeStructureModel model = getPrizeStructureOrThrow(id);
         assertBelongsToRegion(model, resolvedRegion.region());
         return prizeStructureApplicationMapper.toResponse(model);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PrizeStructureModel getModelById(Long id) {
+        return getPrizeStructureOrThrow(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<PrizeStructureModel> findModelById(Long id) {
+        return prizeStructureRepositoryPort.findById(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PrizeStructureModel> getModelsByRegion(String region) {
+        LotteryRegionModel resolvedRegion = resolveRegion(region);
+        return prizeStructureRepositoryPort.findByRegionCode(resolvedRegion.region());
     }
 
     @Override
