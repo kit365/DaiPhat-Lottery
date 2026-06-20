@@ -106,5 +106,6 @@ export const ROUTES = {
     PUBLIC: {
         HOME: "/",
         SETUP_PROFILE: "/setup-profile",
+        SCHEDULE: "/lich-mo-thuong",
     }
 } as const;

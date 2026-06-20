@@ -125,6 +125,14 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
     }
 
     @Override
+    public void assignGuestOrdersToUserByEmail(UUID userId, String email) {
+        if (userId == null || email == null || email.isBlank()) {
+            return;
+        }
+        orderRepository.assignGuestOrdersToUserByEmail(userId, email);
+    }
+
+    @Override
     public boolean existsByLotteryTicketId(Long lotteryTicketId) {
         return orderRepository.existsOrderDetailByLotteryTicketId(lotteryTicketId);
     }
