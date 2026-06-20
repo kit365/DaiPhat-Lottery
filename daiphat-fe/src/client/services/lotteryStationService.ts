@@ -3,6 +3,7 @@ import { apiApp } from '../../api';
 import {
   LotteryStationDraw,
   LotteryStationDrawApiResponse,
+  LotteryStationSchedulePublicResponse,
   formatDisplayDateToApi,
   mapStationDrawToClient,
 } from '../types/lottery';
@@ -18,5 +19,12 @@ export const lotteryStationService = {
     });
 
     return (response.data.data || []).map(mapStationDrawToClient);
+  },
+
+  async getPublicSchedule(region?: string): Promise<LotteryStationSchedulePublicResponse[]> {
+    const response = await apiApp.get<ApiResponse<LotteryStationSchedulePublicResponse[]>>(`${BASE_URL}/schedule/all`, {
+      params: { region },
+    });
+    return response.data.data || [];
   },
 };
