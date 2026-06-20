@@ -106,6 +106,19 @@ public enum ErrorCode {
     INVALID_TRANSACTION_AMOUNT("ORD_013", "Số tiền thanh toán không hợp lệ.", HttpStatus.BAD_REQUEST),
     TRANSACTION_SELECTION_REQUIRED("ORD_014", "Cần chỉ định giao dịch thanh toán.", HttpStatus.BAD_REQUEST),
     ONLINE_PAYMENT_MIN_AMOUNT("ORD_015", "Số tiền thanh toán online phải từ 10.000đ.", HttpStatus.BAD_REQUEST),
+    USER_BANK_ACCOUNT_NOT_FOUND("ORD_016", "Tài khoản ngân hàng không tồn tại.", HttpStatus.NOT_FOUND),
+    USER_BANK_ACCOUNT_ACCESS_DENIED("ORD_017", "Bạn không có quyền truy cập tài khoản ngân hàng này.", HttpStatus.FORBIDDEN),
+    USER_BANK_ACCOUNT_INVALID_BIN("ORD_018", "Mã BIN ngân hàng không hợp lệ hoặc chưa được VietQR hỗ trợ.", HttpStatus.BAD_REQUEST),
+    USER_BANK_ACCOUNT_DUPLICATE("ORD_019", "Tài khoản ngân hàng này đã được lưu.", HttpStatus.BAD_REQUEST),
+    USER_BANK_ACCOUNT_IN_USE("ORD_020", "Không thể xóa tài khoản đang gắn yêu cầu hoàn tiền đang chờ xử lý.", HttpStatus.BAD_REQUEST),
+    REFUND_REQUEST_NOT_FOUND("ORD_021", "Yêu cầu hoàn tiền không tồn tại.", HttpStatus.NOT_FOUND),
+    REFUND_REQUEST_INVALID_STATUS("ORD_022", "Trạng thái yêu cầu hoàn tiền không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    REFUND_REQUEST_ORDER_MISMATCH("ORD_023", "Chi tiết đơn hàng không thuộc đơn hàng đã chọn.", HttpStatus.BAD_REQUEST),
+    REFUND_REQUEST_BANK_ACCOUNT_MISMATCH("ORD_024", "Tài khoản ngân hàng không thuộc người yêu cầu hoàn tiền.", HttpStatus.BAD_REQUEST),
+    REFUND_REQUEST_ACCESS_DENIED("ORD_025", "Bạn không có quyền truy cập yêu cầu hoàn tiền này.", HttpStatus.FORBIDDEN),
+    REFUND_REQUEST_INVALID_AMOUNT("ORD_026", "Số tiền hoàn phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
+    REFUND_REQUEST_ORDER_DETAIL_REQUIRED("ORD_027", "Cần chỉ định chi tiết đơn hàng cho loại hoàn từng vé.", HttpStatus.BAD_REQUEST),
+    VIETQR_BANK_LIST_UNAVAILABLE("ORD_028", "Không thể lấy danh sách ngân hàng từ VietQR.", HttpStatus.BAD_GATEWAY),
 
     // Lottery Errors
     // Lottery Product Errors
