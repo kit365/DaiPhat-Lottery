@@ -53,6 +53,11 @@ daiphat:
   lottery:
     crawler:
       user-agent: ${LOTTERY_CRAWLER_USER_AGENT:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36}
+    result-live-window-check-cron: ${LOTTERY_RESULT_LIVE_WINDOW_CHECK_CRON:0 * * * * *}
+    result-live-poll-seconds: ${LOTTERY_RESULT_LIVE_POLL_SECONDS:10}
+    result-backlog-sync-cron: ${LOTTERY_RESULT_BACKLOG_SYNC_CRON:*/10 * * * * *}
+    result-sync-backlog-batch-size: ${LOTTERY_RESULT_SYNC_BACKLOG_BATCH_SIZE:20}
+    draw-deadline-minutes: ${LOTTERY_DRAW_DEADLINE_MINUTES:30}
   storage:
     cloudinary:
       cloud-name: ${CLOUDINARY_CLOUD_NAME}
