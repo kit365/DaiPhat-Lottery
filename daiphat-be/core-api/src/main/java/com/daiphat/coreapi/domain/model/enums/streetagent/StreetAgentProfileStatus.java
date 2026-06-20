@@ -10,8 +10,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum StreetAgentProfileStatus implements CodedLabeledEnum {
     ACTIVE("ACTIVE", "Hoạt động"),
-    INACTIVE("INACTIVE", "Ngưng hoạt động"),
-    PENDING("PENDING", "Chờ xử lý");
+    INACTIVE("INACTIVE", "Ngưng hoạt động");
 
     private final String code;
     private final String label;

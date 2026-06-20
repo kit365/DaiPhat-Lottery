@@ -19,14 +19,6 @@ public record CreateLotteryStationRequest(
         String province,
         String region,
 
-        @NotBlank(message = "Loại vé không được để trống")
-        String type,
-
-        // Quy tắc số
-        Integer numberLength,
-        Integer minNumber,
-        Integer maxNumber,
-
         @NotNull(message = "Giá không được để trống")
         @DecimalMin(value = "0", inclusive = false, message = "Giá phải lớn hơn 0")
         BigDecimal price,
@@ -42,6 +34,5 @@ public record CreateLotteryStationRequest(
         // Hiển thị
         String image,
         String description,
-        Integer displayOrder,
         String status
 ) {}

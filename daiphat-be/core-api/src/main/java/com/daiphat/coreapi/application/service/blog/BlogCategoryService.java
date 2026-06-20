@@ -42,21 +42,7 @@ public class BlogCategoryService implements BlogCategoryServicePort {
         
         Page<BlogCategoryModel> resultPage = blogCategoryRepositoryPort.findAll(pageable, search, isTrash);
         
-        List<BlogCategoryResponse> recordList = resultPage.getContent().stream()
-                .map(blogCategoryApplicationMapper::toResponse)
-                .toList();
-
-        return PageResponse.<BlogCategoryResponse>builder()
-                .recordList(recordList)
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(resultPage.getTotalElements())
-                        .totalPages(resultPage.getTotalPages())
-                        .currentPage(page)
-                        .limit(limit)
-                        .isFirst(resultPage.isFirst())
-                        .isLast(resultPage.isLast())
-                        .build())
-                .build();
+        return PageResponse.from(resultPage.map(blogCategoryApplicationMapper::toResponse), page, limit);
     }
 
     @Override

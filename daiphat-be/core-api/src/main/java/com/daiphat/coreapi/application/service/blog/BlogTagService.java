@@ -44,21 +44,7 @@ public class BlogTagService implements BlogTagServicePort {
         Pageable pageable = PageableUtils.of(page, limit, SortUtils.byCreatedAtDesc());
         Page<BlogTagModel> resultPage = blogTagRepositoryPort.findAll(pageable, search);
 
-        List<BlogTagResponse> recordList = resultPage.getContent().stream()
-                .map(blogTagApplicationMapper::toResponse)
-                .toList();
-
-        return PageResponse.<BlogTagResponse>builder()
-                .recordList(recordList)
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(resultPage.getTotalElements())
-                        .totalPages(resultPage.getTotalPages())
-                        .currentPage(page)
-                        .limit(limit)
-                        .isFirst(resultPage.isFirst())
-                        .isLast(resultPage.isLast())
-                        .build())
-                .build();
+        return PageResponse.from(resultPage.map(blogTagApplicationMapper::toResponse), page, limit);
     }
 
     @Override

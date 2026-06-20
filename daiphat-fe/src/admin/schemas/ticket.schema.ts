@@ -8,13 +8,13 @@ export const createTicketSchema = z.object({
         ticketImg: z.any().optional(),
     })).min(1, "Phải có ít nhất 1 số sê-ri"),
     numbers: z.string().min(1, "Dãy số không được để trống"),
-    drawDate: z.string().optional(),
     batchCode: z.string().min(1, "Mã lô nhập không được để trống"),
 });
 
 export type CreateTicketFormValues = z.infer<typeof createTicketSchema>;
 
 export const updateTicketSchema = createTicketSchema.extend({
+    drawDate: z.string().optional(),
     status: z.string().optional(),
 });
 
