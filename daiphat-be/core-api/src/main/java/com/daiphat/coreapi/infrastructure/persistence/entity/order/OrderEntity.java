@@ -47,6 +47,9 @@ public class OrderEntity {
     @Column(nullable = false, length = 20)
     private String phone;
 
+    @Column(length = 100)
+    private String email;
+
     @Column(name = "order_code", nullable = false, length = 50)
     private String orderCode;
 
@@ -58,7 +61,7 @@ public class OrderEntity {
     @Column(name = "receive_type", nullable = false, length = 30)
     private OrderReceiveType receiveType;
 
-    @Column(name = "total_amount", nullable = false, precision = 15, scale = 0)
+    @Column(name = "total_amount", nullable = false, precision = 15)
     private BigDecimal totalAmount;
 
     @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)

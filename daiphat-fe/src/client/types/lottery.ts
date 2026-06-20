@@ -85,6 +85,15 @@ export interface LotteryStationDrawApiResponse {
   image?: string | null;
 }
 
+export interface LotteryStationSchedulePublicResponse {
+  stationId: number;
+  stationName: string;
+  region: string;
+  drawDays: string[];
+  drawDaysDisplay: string[];
+  drawTime: string;
+}
+
 export interface LotteryStationDraw {
   id: number;
   province: string;

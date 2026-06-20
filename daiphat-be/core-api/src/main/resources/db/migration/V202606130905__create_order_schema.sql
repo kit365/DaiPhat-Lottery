@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS orders (
     user_id UUID,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(20) NOT NULL,
+    email VARCHAR(100),
     order_code VARCHAR(50) NOT NULL,
     order_type VARCHAR(20) NOT NULL,
     receive_type VARCHAR(30) NOT NULL,

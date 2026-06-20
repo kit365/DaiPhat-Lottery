@@ -27,6 +27,7 @@ public final class LotteryTicketSpecification {
 
     public static Specification<LotteryTicketEntity> filter(
             Long stationId,
+            List<Long> stationIds,
             LotteryTicketStatus status,
             LocalDate drawDate,
             String search
@@ -37,6 +38,9 @@ public final class LotteryTicketSpecification {
 
             if (stationId != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id), stationId));
+            }
+            if (stationIds != null && !stationIds.isEmpty()) {
+                predicates.add(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id).in(stationIds));
             }
             if (status != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.status), status));
@@ -58,6 +62,7 @@ public final class LotteryTicketSpecification {
 
     public static Specification<LotteryTicketEntity> filterPublic(
             Long stationId,
+            List<Long> stationIds,
             LocalDate drawDate,
             String search
     ) {
@@ -74,6 +79,9 @@ public final class LotteryTicketSpecification {
 
             if (stationId != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id), stationId));
+            }
+            if (stationIds != null && !stationIds.isEmpty()) {
+                predicates.add(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id).in(stationIds));
             }
             if (drawDate != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.drawDate), drawDate));
