@@ -1,71 +1,277 @@
-import { useState, useEffect } from 'react';
-import { DisplayType, LotteryResult } from '../types/lottery';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { lotteryService } from '../services/lotteryService';
+import { lotteryStationService } from '../services/lotteryStationService';
+import {
+  EMPTY_PRIZES,
+  LotteryResult,
+  DisplayType,
+  LotteryStationDraw,
+  buildRecentDateOptions,
+  formatDisplayDateToApi,
+  getDayOfWeekLabel,
+  isTodayDisplayDate,
+} from '../types/lottery';
 
-export const useLottery = (initialProvinces: string[] = ["TP. Hồ Chí Minh", "Đồng Tháp", "Cà Mau"]) => {
-  const [selectedProvinces, setSelectedProvinces] = useState<string[]>(initialProvinces);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null); // Null means latest
+export const useLottery = () => {
+  const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>(buildRecentDateOptions(1)[0]);
   const [displayType, setDisplayType] = useState<DisplayType>('full');
   const [showLoto, setShowLoto] = useState(true);
   const [selectedDigit, setSelectedDigit] = useState<string | null>(null);
   const [hoveredDigit, setHoveredDigit] = useState<string | null>(null);
   const [lotteryData, setLotteryData] = useState<LotteryResult[]>([]);
-  const [historyData, setHistoryData] = useState<LotteryResult[]>([]);
+  const [boardData, setBoardData] = useState<LotteryResult[]>([]);
+  const [scheduleStations, setScheduleStations] = useState<LotteryStationDraw[]>([]);
+  const [availableProvinces, setAvailableProvinces] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isWaitingForResults, setIsWaitingForResults] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const initializedSelectionRef = useRef(false);
+  const summaryRetryDelayMs = 5000;
+  const maxSummaryRetries = 24;
 
-  // Fetch history whenever province changes (using first selected province for now)
+  const availableDates = useMemo(() => buildRecentDateOptions(14), []);
+
   useEffect(() => {
-    const fetchHistory = async () => {
-      if (selectedProvinces.length === 0) return;
-      const res = await lotteryService.getHistoryByProvince(selectedProvinces[0]);
-      if (res.success && res.data) {
-        setHistoryData(res.data);
-      } else {
-        setHistoryData([]);
+    let isCancelled = false;
+
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const loadDetailsWithPolling = async (summaryResults: LotteryResult[]) => {
+      const resultIds = summaryResults
+        .map((result) => result.id)
+        .filter((resultId): resultId is number => typeof resultId === 'number');
+
+      if (resultIds.length === 0) {
+        return;
       }
-    };
-    fetchHistory();
-    setSelectedDate(null); // Reset date to latest when province changes
-  }, [selectedProvinces]);
 
-  // Fetch specific result whenever province or date changes
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        if (selectedProvinces.length === 0) {
-          setLotteryData([]);
-          setIsLoading(false);
+      const fetchItems = async () => lotteryService.getDetails(resultIds);
+      let resultItems = await fetchItems();
+      let mergedBoard = lotteryService.mergeBoardWithDetails(summaryResults, resultItems);
+
+      if (!isCancelled) {
+        setBoardData(mergedBoard);
+        // Always sync availableProvinces from the merged board to keep names consistent
+        const mergedProvinces = mergedBoard.map((item) => item.province);
+        setAvailableProvinces(mergedProvinces);
+      }
+
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        const pollAfterSeconds = resultItems
+          .map((item) => item.pollAfterSeconds)
+          .filter((seconds): seconds is number => typeof seconds === 'number' && seconds > 0)
+          .reduce<number | null>((min, seconds) => {
+            if (min === null) {
+              return seconds;
+            }
+            return Math.min(min, seconds);
+          }, null);
+
+        if (pollAfterSeconds === null) {
+          break;
+        }
+
+        await delay(pollAfterSeconds * 1000);
+        if (isCancelled) {
           return;
         }
 
-        const promises = selectedProvinces.map(prov => 
-          selectedDate 
-            ? lotteryService.getResultByDate(prov, selectedDate)
-            : lotteryService.getResultsByProvince(prov)
-        );
-        
-        const results = await Promise.all(promises);
-        const validData = results.map(r => r.data).filter(Boolean) as LotteryResult[];
-        
-        if (validData.length > 0) {
-          setLotteryData(validData);
-        } else {
-          setLotteryData([]);
-          setError("Không thể tải dữ liệu");
+        resultItems = await fetchItems();
+        mergedBoard = lotteryService.mergeBoardWithDetails(summaryResults, resultItems);
+
+        if (!isCancelled) {
+          setBoardData(mergedBoard);
+          const mergedProvinces = mergedBoard.map((item) => item.province);
+          setAvailableProvinces(mergedProvinces);
         }
-      } catch (err) {
-        setError("Lỗi kết nối máy chủ");
-        setLotteryData([]);
+      }
+    };
+
+    const fetchData = async () => {
+      const isSameDate = boardData.length > 0 && boardData[0]?.date === selectedDate;
+      
+      if (isSameDate) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+        if (!isCancelled) {
+          setBoardData([]);
+        }
+      }
+      
+      setError(null);
+
+      try {
+        const fetchSummary = () => lotteryService.getBoard(selectedDate);
+
+        // Board API is the single source of truth for provinces
+        // Schedule API is only used for drawTime (countdown)
+        const [initialSummaryResult, stationSchedulesResult] = await Promise.allSettled([
+          fetchSummary(),
+          lotteryStationService.getScheduleForDate(selectedDate),
+        ]);
+
+        const stationSchedules = stationSchedulesResult.status === 'fulfilled' ? stationSchedulesResult.value : [];
+        let response = initialSummaryResult.status === 'fulfilled' ? initialSummaryResult.value : null;
+        let summaryResults = response?.data?.results || [];
+
+        // Province list comes from board API results first, then board API availableProvinces
+        const boardProvinces = summaryResults.length > 0
+          ? summaryResults.map((r) => r.province)
+          : (response?.data?.availableProvinces || []);
+
+        // If board has no results yet but schedule has stations, build placeholders
+        // using schedule station names (these will be replaced once board returns data)
+        const placeholderBoard = summaryResults.length === 0 && stationSchedules.length > 0
+          ? stationSchedules.map((station) => {
+              const drawDateIso = formatDisplayDateToApi(selectedDate);
+              return {
+                stationId: station.id,
+                province: station.province,
+                date: selectedDate,
+                dayOfWeek: getDayOfWeekLabel(drawDateIso),
+                drawDateIso,
+                status: 'PENDING',
+                prizes: { ...EMPTY_PRIZES },
+              } as LotteryResult;
+            })
+          : [];
+
+        const provinces = boardProvinces.length > 0
+          ? boardProvinces
+          : placeholderBoard.map((p) => p.province);
+
+        if (!isCancelled) {
+          setBoardData(summaryResults.length > 0 ? summaryResults : placeholderBoard);
+          setScheduleStations(stationSchedules);
+          setAvailableProvinces(provinces);
+        }
+
+        if (provinces.length > 0) {
+          const hasAnySelectionMatch = selectedProvinces.some((province) => provinces.includes(province));
+          if (!hasAnySelectionMatch && !isCancelled) {
+            setSelectedProvinces(provinces);
+          }
+          if (!initializedSelectionRef.current) {
+            initializedSelectionRef.current = true;
+          }
+        }
+
+        if (initialSummaryResult.status === 'rejected') {
+          if (stationSchedulesResult.status === 'rejected') {
+            setError('Không thể tải dữ liệu quay số');
+            return;
+          }
+        }
+
+        if (summaryResults.length === 0) {
+          if (placeholderBoard.length > 0) {
+            if (!isCancelled) {
+              setError(null);
+              setIsWaitingForResults(true);
+            }
+
+            if (isTodayDisplayDate(selectedDate)) {
+              for (let attempt = 0; attempt < maxSummaryRetries; attempt += 1) {
+                await delay(summaryRetryDelayMs);
+                if (isCancelled) {
+                  return;
+                }
+
+                try {
+                  response = await fetchSummary();
+                  summaryResults = response?.data?.results || [];
+
+                  if (summaryResults.length > 0) {
+                    const newProvinces = summaryResults.map((r) => r.province);
+                    if (!isCancelled) {
+                      setBoardData(summaryResults);
+                      setAvailableProvinces(newProvinces);
+                      setSelectedProvinces(newProvinces);
+                      setIsWaitingForResults(false);
+                    }
+                    await loadDetailsWithPolling(summaryResults);
+                    return;
+                  }
+                } catch {
+                  // Keep placeholder board visible while background polling summary.
+                }
+              }
+            }
+
+            if (!isCancelled) {
+              setIsWaitingForResults(false);
+            }
+            return;
+          }
+
+          if (!isCancelled) {
+            setIsWaitingForResults(false);
+          }
+          setError(response?.message || 'Chưa có kết quả cho ngày đã chọn');
+          return;
+        }
+
+        try {
+          if (!isCancelled) {
+            setIsWaitingForResults(false);
+          }
+          await loadDetailsWithPolling(summaryResults);
+        } catch {
+          // Keep summary data so header/station state still renders even if detail sync is not ready.
+        }
+      } catch {
+        if (!isCancelled) {
+          setBoardData([]);
+          setScheduleStations([]);
+          setAvailableProvinces([]);
+          setIsWaitingForResults(false);
+          setError('Không thể tải kết quả xổ số');
+        }
       } finally {
-        setIsLoading(false);
+        if (!isCancelled) {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
       }
     };
 
     fetchData();
-  }, [selectedProvinces, selectedDate]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedDate]);
+
+  useEffect(() => {
+    const filteredResults = boardData.filter((item) => selectedProvinces.includes(item.province));
+    setLotteryData(filteredResults);
+
+    if (boardData.length === 0) {
+      return;
+    }
+
+    if (selectedProvinces.length > 0 && filteredResults.length === 0) {
+      // Province names might have changed after detail merge - re-sync
+      const boardProvinces = boardData.map((item) => item.province);
+      setSelectedProvinces(boardProvinces);
+      setAvailableProvinces(boardProvinces);
+      setError(null);
+      return;
+    }
+
+    setError(null);
+  }, [boardData, selectedProvinces]);
+
+  const historyData = useMemo(() => {
+    if (selectedProvinces.length === 0) {
+      return [];
+    }
+
+    return boardData.filter((item) => item.province === selectedProvinces[0]).slice(0, 1);
+  }, [boardData, selectedProvinces]);
 
   return {
     selectedProvinces,
@@ -82,7 +288,12 @@ export const useLottery = (initialProvinces: string[] = ["TP. Hồ Chí Minh", "
     setHoveredDigit,
     lotteryData,
     historyData,
+    availableDates,
+    availableProvinces,
+    scheduleStations,
     isLoading,
-    error
+    isRefreshing,
+    isWaitingForResults,
+    error,
   };
 };
