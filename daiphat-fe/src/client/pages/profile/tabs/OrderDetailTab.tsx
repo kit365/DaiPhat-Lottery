@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../hooks/useOrder';
 import { useProcessPayment } from '../../../hooks/useTransaction';
 import { OrderStatus, OrderType, OrderReceiveType } from '../../../../types/order.type';
@@ -43,7 +44,9 @@ const getMockTicketType = (serialId: number) => {
     return types[serialId % types.length];
 };
 
-const OrderStepper = ({ currentStatus }: { currentStatus: OrderStatus }) => {
+const OrderStepper = ({ order }: { order: any }) => {
+    const currentStatus = order?.status;
+
     if (currentStatus === OrderStatus.CANCELLED) {
         return (
             <div className="bg-[#FFF4F4] rounded-[20px] p-6 lg:p-8 border border-[#FFEBEE] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
@@ -58,11 +61,13 @@ const OrderStepper = ({ currentStatus }: { currentStatus: OrderStatus }) => {
         );
     }
 
+    const isAtStore = order?.receiveType === OrderReceiveType.AT_STORE || order?.orderType === OrderType.DIRECT;
+
     const steps = [
-        { key: 'PENDING', label: 'Chờ xác nhận', icon: 'fa-regular fa-file-lines', date: '13/03/2025 - 16:37' },
+        { key: 'PENDING', label: 'Chờ xác nhận', icon: 'fa-regular fa-file-lines', date: order?.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy - HH:mm') : '' },
         { key: OrderStatus.PREPARING, label: 'Đang chuẩn bị', icon: 'fa-solid fa-box-open', date: '' },
-        { key: OrderStatus.PENDING_PICKUP, label: 'Đang giao vé', icon: 'fa-solid fa-truck', date: '' },
-        { key: OrderStatus.COMPLETED, label: 'Hoàn thành', icon: 'fa-solid fa-location-dot', date: '' }
+        { key: OrderStatus.PENDING_PICKUP, label: isAtStore ? 'Chờ nhận vé' : 'Đang giao vé', icon: isAtStore ? 'fa-solid fa-store' : 'fa-solid fa-truck', date: '' },
+        { key: OrderStatus.COMPLETED, label: 'Hoàn thành', icon: 'fa-solid fa-location-dot', date: order?.actualPickedUpAt ? format(new Date(order.actualPickedUpAt), 'dd/MM/yyyy - HH:mm') : '' }
     ];
 
     const getStepIndex = (status: OrderStatus) => {
@@ -93,8 +98,7 @@ const OrderStepper = ({ currentStatus }: { currentStatus: OrderStatus }) => {
 
                 {steps.map((step, index) => {
                     const isCompleted = index <= currentIndex;
-                    const isActive = index === currentIndex;
-
+                    
                     return (
                         <div key={step.key} className="relative z-10 flex flex-col items-center gap-3 bg-white px-2">
                             <div
@@ -109,7 +113,7 @@ const OrderStepper = ({ currentStatus }: { currentStatus: OrderStatus }) => {
                                 <span className={`text-[13px] font-bold text-center ${isCompleted ? 'text-[#ee1314]' : 'text-[#919EAB]'}`}>
                                     {step.label}
                                 </span>
-                                {step.date && isActive && (
+                                {step.date && isCompleted && (
                                     <span className="text-[11px] text-[#919EAB] mt-0.5">{step.date}</span>
                                 )}
                             </div>
@@ -300,7 +304,6 @@ export const OrderDetailTab = () => {
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
                 <div className="flex items-center gap-3">
-                    <i className="fa-solid fa-file-invoice text-2xl text-[#212B36]"></i>
                     <h1 className="text-[20px] sm:text-[24px] font-bold text-[#212B36]">Chi tiết đơn hàng</h1>
                 </div>
                 <button
@@ -360,11 +363,11 @@ export const OrderDetailTab = () => {
             )}
 
             {/* Header Box */}
-            <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] grid grid-cols-2 md:grid-cols-5 gap-6">
+            <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col md:flex-row md:items-start justify-between gap-6">
                 <div className="flex flex-col gap-1.5">
                     <span className="text-[13px] font-medium text-[#637381]">Mã đơn hàng</span>
-                    <div className="flex items-center gap-2">
-                        <span className="text-[16px] font-bold text-[#212B36]">{order.orderCode}</span>
+                    <div className="flex items-center gap-2 min-h-[26px]">
+                        <span className="text-[14px] font-medium text-[#212B36] break-all">{order.orderCode}</span>
                         <button
                             onClick={handleCopyOrderCode}
                             className="text-[#919EAB] hover:text-[#ee1314] transition-colors cursor-pointer flex items-center justify-center"
@@ -377,33 +380,36 @@ export const OrderDetailTab = () => {
 
                 <div className="flex flex-col gap-1.5">
                     <span className="text-[13px] font-medium text-[#637381]">Ngày đặt</span>
-                    <span className="text-[15px] font-bold text-[#212B36]">
-                        {order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy - HH:mm') : '-'}
-                    </span>
+                    <div className="flex items-center min-h-[26px]">
+                        <span className="text-[14px] font-medium text-[#212B36]">
+                            {order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy - HH:mm') : '-'}
+                        </span>
+                    </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                     <span className="text-[13px] font-medium text-[#637381]">Loại đơn</span>
-                    <span className="text-[15px] font-bold text-[#212B36]">
-                        {order.orderType === 'ONLINE' ? 'Mua online' : 'Mua trực tiếp'}
-                    </span>
+                    <div className="flex items-center min-h-[26px]">
+                        <span className="text-[14px] font-medium text-[#212B36]">
+                            {order.orderType === 'ONLINE' ? 'Mua online' : 'Mua trực tiếp'}
+                        </span>
+                    </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5 items-start">
-                    <span className="text-[13px] font-medium text-[#637381]">Thanh toán</span>
-                    {getPaymentBadge()}
-                </div>
-
-                <div className="flex flex-col gap-1.5 items-start">
+                <div className="flex flex-col gap-1.5 items-start md:items-end">
                     <span className="text-[13px] font-medium text-[#637381]">Trạng thái</span>
-                    <span className={`text-[12px] font-bold px-3 py-1 rounded-full border ${statusConfig.bg} ${statusConfig.text} border-current/20`}>
-                        {statusConfig.label}
-                    </span>
+                    <div className="flex items-center min-h-[26px]">
+                        <span className={`text-[12px] font-bold px-3 py-1 rounded-full border ${statusConfig.bg} ${statusConfig.text} border-current/20`}>
+                            {statusConfig.label}
+                        </span>
+                    </div>
                 </div>
             </div>
 
             {/* Stepper trạng thái đơn hàng */}
-            <OrderStepper currentStatus={order.status} />
+            {order.orderType !== 'DIRECT' && (
+                <OrderStepper order={order} />
+            )}
 
             {/* Danh sách vé chi tiết */}
             <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col gap-6 mt-6 mb-6">
@@ -420,57 +426,59 @@ export const OrderDetailTab = () => {
                 <div className="space-y-4">
                     {order.orderDetails && order.orderDetails.length > 0 ? (
                         order.orderDetails.map((detail: any, index: number) => {
-                            const stationName = detail.lotteryTicket?.station?.name || "Miền Nam";
-                            const drawDate = detail.lotteryTicket?.drawDate ? format(new Date(detail.lotteryTicket.drawDate), 'dd/MM/yyyy') : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy') : '-');
-                            const numbers = detail.lotteryTicket?.numbers || "123456";
+                            const stationName = detail.stationName || detail.lotteryTicket?.station?.name || "Chưa rõ đài";
+                            const drawDate = detail.drawDate ? format(new Date(detail.drawDate), 'dd/MM/yyyy') : detail.lotteryTicket?.drawDate ? format(new Date(detail.lotteryTicket.drawDate), 'dd/MM/yyyy') : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy') : '-');
+                            const numbers = detail.numbers || detail.lotteryTicket?.numbers || "---";
                             const price = detail.price || 10000;
                             const ticketImg = detail.ticketImg || detail.lotteryTicket?.imageUrl || "https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png";
 
                             return (
-                                <div key={index} className="flex flex-col sm:flex-row gap-5 p-5 border border-[#E5E8EB] rounded-2xl hover:border-gray-300 transition-colors bg-white shadow-sm hover:shadow-md">
-                                    <div className="w-full sm:w-[160px] h-[100px] rounded-xl flex items-center justify-center shrink-0 overflow-hidden shadow-sm border border-gray-100 bg-[#F9FAFB]">
-                                        <img src={ticketImg} alt={`Vé ${stationName}`} className="w-full h-full object-cover mix-blend-multiply" />
+                                <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 border border-[#E5E8EB] rounded-2xl hover:border-[#ee1314]/30 transition-colors bg-white shadow-sm hover:shadow-md gap-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 w-full sm:w-auto">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-[80px] h-[50px] rounded shrink-0 overflow-hidden border border-gray-100 bg-[#F9FAFB] relative">
+                                                <img src={ticketImg} alt={`Vé ${stationName}`} className="w-full h-full object-cover mix-blend-multiply" />
+                                                <div className="absolute inset-0 bg-black/5 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                                                    <i className="fa-solid fa-magnifying-glass-plus text-white text-[14px]"></i>
+                                                </div>
+                                            </div>
+                                            <div className="font-bold text-[18px] text-[#212B36] tracking-tight">{numbers}</div>
+                                        </div>
+
+                                        <div className="flex flex-col items-start gap-1 sm:border-l sm:border-[#E5E8EB] sm:pl-6">
+                                            <div className="flex items-center gap-2">
+                                                <img src={detail.lotteryTicket?.station?.logoUrl || 'https://i.ibb.co/XrKTHt8g/t-i-xu-ng.png'} alt="Logo" className="w-5 h-5 rounded-full border border-gray-200" />
+                                                <span className="font-bold text-[14px] text-[#212B36]">{stationName}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-[13px] text-[#637381] pl-7">
+                                                <span className="font-medium text-[#212B36]">{drawDate}</span>
+                                                <span>•</span>
+                                                <span>16:15</span>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5 items-center">
-                                        <div className="flex flex-col">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <h3 className="font-bold text-[#212B36] text-[16px]">Xổ số {stationName}</h3>
-                                                {getTicketStatusBadge(detail.status || 'ACTIVE')}
-                                            </div>
-                                            
-                                            <div className="flex flex-wrap gap-x-8 gap-y-3 mt-1">
-                                                <div className="flex flex-col gap-1.5">
-                                                    <span className="text-[12px] text-[#637381]">Kỳ mở thưởng</span>
-                                                    <span className="text-[14px] font-bold text-[#212B36] flex items-center gap-1.5">
-                                                        <i className="fa-regular fa-calendar text-[#ee1314]"></i> {drawDate}
-                                                    </span>
-                                                </div>
-                                                <div className="flex flex-col gap-1.5">
-                                                    <span className="text-[12px] text-[#637381]">Dãy số dự thưởng</span>
-                                                    <div className="flex items-center gap-1">
-                                                        {String(numbers).split('').map((num: string, i: number) => (
-                                                            <span key={i} className="w-7 h-7 rounded-full bg-[#FFF4F4] text-[#ee1314] font-bold text-[14px] flex items-center justify-center border border-[#FFEBEE] shadow-sm">{num}</span>
-                                                        ))}
-                                                    </div>
-                                                </div>
+                                    <div className="flex items-center gap-6 sm:gap-10 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-4 sm:pt-0 border-dashed border-[#E5E8EB] mt-2 sm:mt-0">
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-[12px] text-[#637381] mb-1">Số lượng</span>
+                                            <span className="text-[14px] font-bold text-[#212B36]">{detail.quantity || 1}</span>
+                                        </div>
+
+                                        <div className="flex flex-col items-end min-w-[100px]">
+                                            <span className="text-[12px] text-[#637381] mb-1">Giá vé</span>
+                                            <div className="text-[16px] font-bold text-[#ee1314] leading-none">
+                                                {price.toLocaleString('vi-VN')} đ
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-col items-end justify-center border-t md:border-t-0 md:border-l border-dashed border-[#E5E8EB] pt-4 md:pt-0 md:pl-6 min-w-[120px]">
-                                            <span className="text-[13px] font-medium text-[#637381]">Giá vé</span>
-                                            <div className="text-[18px] font-bold text-[#ee1314] mt-1 leading-none">
-                                                {price.toLocaleString('vi-VN')} đ
-                                            </div>
-                                            {isPaidOrCompleted && (
-                                                <Link
-                                                    to="/results"
-                                                    className="mt-4 text-[#ee1314] hover:text-[#c80f11] text-[13px] font-bold flex items-center gap-1.5 hover:underline bg-[#FFF4F4] px-3 py-1.5 rounded-lg border border-[#FFEBEE]"
-                                                >
-                                                    Tra kết quả <i className="fa-solid fa-arrow-up-right-from-square text-[11px]"></i>
-                                                </Link>
-                                            )}
-                                        </div>
+                                        {isPaidOrCompleted && (
+                                            <Link
+                                                to="/results"
+                                                className="hidden lg:flex text-[#ee1314] hover:text-[#c80f11] text-[13px] font-bold items-center gap-1.5 hover:underline bg-[#FFF4F4] px-3 py-1.5 rounded-lg border border-[#FFEBEE]"
+                                            >
+                                                Tra kết quả <i className="fa-solid fa-arrow-up-right-from-square text-[11px]"></i>
+                                            </Link>
+                                        )}
                                     </div>
                                 </div>
                             );
@@ -484,7 +492,7 @@ export const OrderDetailTab = () => {
             </div>
 
             {/* Grid 3 boxes */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`grid grid-cols-1 ${order.orderType !== 'DIRECT' ? 'lg:grid-cols-2' : ''} gap-6`}>
                 {/* Box 1: Thông tin đơn hàng */}
                 <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] h-full flex flex-col">
                     <h3 className="text-[16px] font-bold text-[#212B36] mb-6">Thông tin đơn hàng</h3>
@@ -492,75 +500,97 @@ export const OrderDetailTab = () => {
                     <div className="flex justify-between items-start mb-6">
                         <div className="flex flex-col gap-1.5">
                             <span className="text-[13px] text-[#637381]">Sản phẩm</span>
-                            <span className="text-[15px] font-bold text-[#212B36]">Vé số truyền thống</span>
+                            <span className="text-[14px] font-medium text-[#212B36]">Vé số truyền thống</span>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-6 mb-6">
                         <div className="flex flex-col gap-1.5">
                             <span className="text-[13px] text-[#637381]">Kỳ mở thưởng</span>
-                            <span className="text-[15px] font-bold text-[#212B36]">
-                                {order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy') : '-'}
+                            <span className="text-[14px] font-medium text-[#212B36]">
+                                {order.orderDetails?.[0]?.drawDate ? format(new Date(order.orderDetails[0].drawDate), 'dd/MM/yyyy') : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy') : '-')}
                             </span>
                         </div>
                         <div className="flex flex-col gap-1.5">
                             <span className="text-[13px] text-[#637381]">Số lượng vé</span>
-                            <span className="text-[15px] font-bold text-[#212B36]">{order.orderDetails?.length || 0} vé</span>
+                            <span className="text-[14px] font-medium text-[#212B36]">{order.orderDetails?.length || 0} vé</span>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6 mb-6">
+                    <div className="grid grid-cols-1 gap-6 mb-6">
                         <div className="flex flex-col gap-1.5">
                             <span className="text-[13px] text-[#637381]">Tổng tiền hàng</span>
-                            <span className="text-[15px] font-bold text-[#212B36]">{(order.totalAmount || 0).toLocaleString('vi-VN')}đ</span>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <span className="text-[13px] text-[#637381]">Phí dịch vụ</span>
-                            <span className="text-[15px] font-bold text-[#212B36]">10.000đ</span>
+                            <span className="text-[14px] font-medium text-[#212B36]">{(order.totalAmount || 0).toLocaleString('vi-VN')}đ</span>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-6 pb-6 border-b border-dashed border-[#E5E8EB] mb-6">
                         <div className="flex flex-col gap-1.5">
                             <span className="text-[13px] text-[#637381]">Phương thức thanh toán</span>
-                            <span className="text-[15px] font-bold text-[#212B36]">Thanh toán online</span>
+                            <span className="text-[14px] font-medium text-[#212B36]">
+                                {(() => {
+                                    if (!order.transactions || order.transactions.length === 0) {
+                                        return order.orderType === 'DIRECT' ? 'Thanh toán tiền mặt' : 'Thanh toán online';
+                                    }
+                                    const types = new Set(order.transactions.map((t: any) => t.type));
+                                    if (types.has('OFFLINE') && types.has('ONLINE')) {
+                                        return 'Tiền mặt & Online';
+                                    }
+                                    return types.has('OFFLINE') ? 'Thanh toán tiền mặt' : 'Thanh toán online';
+                                })()}
+                            </span>
                         </div>
                         <div className="flex flex-col gap-1.5">
                             <span className="text-[13px] text-[#637381]">Ngày thanh toán</span>
-                            <span className="text-[15px] font-bold text-[#212B36]">
+                            <span className="text-[14px] font-medium text-[#212B36]">
                                 {(!isPendingPayment && order.status !== OrderStatus.CANCELLED) 
-                                    ? (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy - HH:mm') : '-')
+                                    ? (order.transactions?.[0]?.createdAt ? format(new Date(order.transactions[0].createdAt), 'dd/MM/yyyy - HH:mm') : (order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yyyy - HH:mm') : '-'))
                                     : '-'}
                             </span>
                         </div>
                     </div>
 
-                    <div className="flex justify-between items-center mt-auto">
+                    <div className="flex justify-between items-center">
                         <span className="text-[14px] font-bold text-[#212B36]">Tổng thanh toán</span>
-                        <span className="text-[24px] font-bold text-[#ee1314]">{((order.totalAmount || 0) + 10000).toLocaleString('vi-VN')}đ</span>
+                        <span className="text-[24px] font-bold text-[#ee1314]">{(order.totalAmount || 0).toLocaleString('vi-VN')}đ</span>
                     </div>
                 </div>
 
                 {/* Right Column: 1 Box */}
-                <div className="flex flex-col gap-6">
-                    {/* Thông tin nhận vé */}
-                    <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col h-full">
-                        <h3 className="text-[16px] font-bold text-[#212B36] mb-6">Thông tin nhận vé</h3>
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-8 h-8 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center text-[14px]">
-                                <i className="fa-solid fa-store"></i>
+                {order.orderType !== 'DIRECT' && (
+                    <div className="flex flex-col gap-6">
+                        {/* Thông tin nhận vé */}
+                        <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col">
+                            <h3 className="text-[16px] font-bold text-[#212B36] mb-6">Thông tin nhận vé</h3>
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-8 h-8 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center text-[14px]">
+                                    <i className="fa-solid fa-store"></i>
+                                </div>
+                                <span className="text-[15px] font-bold text-[#212B36]">Nhận vé tại quầy</span>
                             </div>
-                            <span className="text-[15px] font-bold text-[#212B36]">Nhận vé tại quầy</span>
-                        </div>
-                        <p className="text-[13px] text-[#637381] mb-4">Quý khách vui lòng mang theo mã đơn hàng và CMND/CCCD để nhận vé.</p>
-                        <div className="bg-[#F9FAFB] rounded-xl p-4 border border-[#E5E8EB]">
-                            <span className="text-[12px] text-[#637381] block mb-1">Địa chỉ nhận vé</span>
-                            <span className="text-[14px] text-[#212B36] font-medium leading-relaxed">
-                                123 Đường Lý Chính Thắng, Phường 7, Quận 3, TP. Hồ Chí Minh
-                            </span>
+                            <p className="text-[13px] text-[#637381] mb-6">
+                                {order.orderType === 'DIRECT'
+                                    ? 'Quý khách vui lòng mang theo mã đơn hàng và CMND/CCCD để nhận vé.'
+                                    : 'Quý khách vui lòng mang theo mã QR này hoặc mã đơn hàng và CMND/CCCD để nhận vé.'}
+                            </p>
+                            
+                            {order.orderType !== 'DIRECT' && (
+                                <div className="flex flex-col items-center justify-center mb-6">
+                                    <div className="p-4 bg-white border border-[#E5E8EB] rounded-2xl shadow-sm inline-block">
+                                        <QRCode value={order.orderCode} size={140} fgColor="#212B36" />
+                                    </div>
+                                    <span className="text-[12px] text-[#637381] mt-3">Quét mã QR để nhận vé tại quầy</span>
+                                </div>
+                            )}
+                            <div className="bg-[#F9FAFB] rounded-xl p-4 border border-[#E5E8EB]">
+                                <span className="text-[12px] text-[#637381] block mb-1">Địa chỉ nhận vé</span>
+                                <span className="text-[14px] text-[#212B36] font-medium leading-relaxed">
+                                    123 Đường Lý Chính Thắng, Phường 7, Quận 3, TP. Hồ Chí Minh
+                                </span>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
             
         </div>

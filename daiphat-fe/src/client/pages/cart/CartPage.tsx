@@ -136,9 +136,9 @@ export const CartPage = () => {
                                             {/* Số lượng */}
                                             <div className="flex flex-col items-center">
                                                 <div className="flex items-center border border-[#E5E8EB] rounded bg-white h-7 w-[80px] overflow-hidden">
-                                                    <button onClick={() => updateQuantity(item.id, -1)} className="flex-1 h-full flex items-center justify-center text-[#637381] hover:bg-gray-50"><Minus size={12} /></button>
+                                                    <button onClick={() => updateQuantity(item.id, -1)} disabled={item.quantity <= 1} className="flex-1 h-full flex items-center justify-center text-[#637381] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"><Minus size={12} /></button>
                                                     <span className="w-7 h-full flex items-center justify-center text-[13px] font-bold text-[#212B36] border-x border-[#E5E8EB]">{item.quantity}</span>
-                                                    <button onClick={() => updateQuantity(item.id, 1)} className="flex-1 h-full flex items-center justify-center text-[#637381] hover:bg-gray-50"><Plus size={12} /></button>
+                                                    <button onClick={() => updateQuantity(item.id, 1)} disabled={item.quantity >= (item.maxStock || 999)} className="flex-1 h-full flex items-center justify-center text-[#637381] hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"><Plus size={12} /></button>
                                                 </div>
                                             </div>
 

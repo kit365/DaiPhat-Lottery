@@ -12,6 +12,7 @@ export interface CartItem {
     quantity: number;
     color: string;
     ticketImg?: string;
+    maxStock?: number;
 }
 
 interface CartStore {
@@ -52,7 +53,9 @@ export const useCartStore = create<CartStore>((set) => ({
     updateQuantity: (id, delta) => set((state) => ({
         items: state.items.map(item => {
             if (item.id === id) {
-                return { ...item, quantity: Math.max(1, item.quantity + delta) };
+                const newQty = item.quantity + delta;
+                const max = item.maxStock || 999;
+                return { ...item, quantity: Math.min(Math.max(1, newQty), max) };
             }
             return item;
         })

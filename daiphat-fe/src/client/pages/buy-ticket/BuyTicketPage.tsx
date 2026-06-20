@@ -34,9 +34,9 @@ const BannerSection = React.memo(() => (
         <a href="#" className="relative block transition-transform hover:-translate-y-1 rounded-2xl overflow-hidden shadow-sm group">
             <img src="https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png" alt="Vé số Đại Phát" className="w-full h-auto object-cover" />
             <div className="absolute inset-0 flex flex-col items-center pt-8 px-4 text-center">
-                <h3 className="text-[#FFDF70] font-black text-[32px] leading-[1.1] mb-2 drop-shadow-md" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>VÉ SỐ<br />ĐẠI PHÁT</h3>
-                <p className="text-white text-[13px] font-medium mb-3 drop-shadow-md">Nền tảng mua vé số<br />uy tín hàng đầu</p>
-                <button className="bg-gradient-to-r from-[#FFE58F] to-[#FFD666] text-[#D82A2A] font-bold px-5 py-1.5 rounded-full shadow-md group-hover:scale-105 transition-transform text-[13px]">
+                <h3 className="text-[#FFDF70] font-black text-[36px] leading-[1.1] mb-2 drop-shadow-md" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>VÉ SỐ<br />ĐẠI PHÁT</h3>
+                <p className="text-white text-[14px] font-medium mb-3 drop-shadow-md">Nền tảng mua vé số<br />uy tín hàng đầu</p>
+                <button className="bg-gradient-to-r from-[#FFE58F] to-[#FFD666] text-[#D82A2A] font-bold px-5 py-1.5 rounded-full shadow-md group-hover:scale-105 transition-transform text-[14px]">
                     Mua vé ngay
                 </button>
             </div>
@@ -47,8 +47,8 @@ const BannerSection = React.memo(() => (
             <img src="https://i.ibb.co/LXLSg1qx/07bf0bdd-3932-4bbd-8df4-c08e72c52800.png" alt="Tìm số may mắn" className="w-full h-auto object-cover" />
             <div className="absolute inset-0 flex flex-col justify-center items-start p-4 pb-10 w-[65%]">
                 <h3 className="text-[#FFDF70] font-bold text-[14px] mb-2 drop-shadow-md">TÌM SỐ MAY MẮN</h3>
-                <p className="text-white text-[11px] font-medium mb-3 drop-shadow-md leading-snug">Chọn dãy số yêu thích<br />nhận ngay lộc lớn!</p>
-                <button className="bg-gradient-to-r from-[#FFE58F] to-[#FFD666] text-[#D82A2A] font-bold px-4 py-1.5 rounded-full shadow-md group-hover:scale-105 transition-transform text-[12px]">
+                <p className="text-white text-[14px] font-medium mb-3 drop-shadow-md leading-snug">Chọn dãy số yêu thích<br />nhận ngay lộc lớn!</p>
+                <button className="bg-gradient-to-r from-[#FFE58F] to-[#FFD666] text-[#D82A2A] font-bold px-4 py-1.5 rounded-full shadow-md group-hover:scale-105 transition-transform text-[14px]">
                     Chọn số ngay
                 </button>
             </div>
@@ -58,10 +58,10 @@ const BannerSection = React.memo(() => (
         <a href="#" className="relative block transition-transform hover:-translate-y-1 rounded-2xl overflow-hidden shadow-sm group">
             <img src="https://i.ibb.co/tpJtrscQ/d0ea187b-cfe0-4a28-9366-c10db2e6a96c.png" alt="Dịch vụ vé số" className="w-full h-auto object-cover" />
             <div className="absolute inset-0 flex flex-col justify-center items-start p-4 w-[70%]">
-                <h3 className="text-white font-bold text-[12px] mb-1.5 drop-shadow-md">DỊCH VỤ VÉ SỐ</h3>
-                <div className="text-white font-bold text-[11px] mb-0.5">Nhận ảnh vé thật <span className="text-[16px]">100%</span></div>
-                <p className="text-white text-[10px] mb-3 opacity-90">Bảo mật & An toàn tuyệt đối</p>
-                <button className="bg-white text-[#ee1314] font-bold px-4 py-1.5 rounded-full shadow-md group-hover:scale-105 transition-transform text-[11px]">
+                <h3 className="text-white font-bold text-[14px] mb-1.5 drop-shadow-md">DỊCH VỤ VÉ SỐ</h3>
+                <div className="text-white font-bold text-[14px] mb-0.5">Nhận ảnh vé thật <span className="text-[14px]">100%</span></div>
+                <p className="text-white text-[12px] mb-3 opacity-90">Bảo mật & An toàn tuyệt đối</p>
+                <button className="bg-white text-[#ee1314] font-bold px-4 py-1.5 rounded-full shadow-md group-hover:scale-105 transition-transform text-[14px]">
                     Tìm hiểu thêm
                 </button>
             </div>
@@ -136,7 +136,7 @@ export const BuyTicketPage = () => {
     const drawDateFilter = selectedDates.map(d => d === 'today' ? dayjs().format('YYYY-MM-DD') : dayjs().add(1, 'day').format('YYYY-MM-DD')).join(',');
     const { data: ticketsRes, isLoading: isLoadingTickets } = useTicketList(
         {
-            stationId: selectedProvinces.join(','),
+            stationIds: selectedProvinces,
             drawDate: drawDateFilter,
             status: LotteryTicketStatus.IN_STOCK,
             limit: 100
@@ -164,6 +164,24 @@ export const BuyTicketPage = () => {
     }, [selectedNumbers, availableTickets]);
 
     const activeProvinces = dynamicProvinces.filter((p: any) => selectedProvinces.includes(p.id));
+
+    const selectedTicketProvinces = useMemo(() => {
+        if (selectedNumbers.length === 0) return activeProvinces;
+        
+        const provs = new Map();
+        selectedNumbers.forEach(num => {
+            const ticketData = availableTickets.find((t: any) => t.numbers === num);
+            if (ticketData) {
+                const prov = dynamicProvinces.find((p: any) => p.id === ticketData.providerId || p.id === ticketData.stationId);
+                if (prov && !provs.has(prov.id)) {
+                    provs.set(prov.id, prov);
+                }
+            }
+        });
+        
+        const arr = Array.from(provs.values());
+        return arr.length > 0 ? arr : activeProvinces;
+    }, [selectedNumbers, availableTickets, dynamicProvinces, activeProvinces]);
     const totalQuantity = selectedNumbers.length * ticketQuantity;
     const pricePerTicket = 10000;
     const totalAmount = totalQuantity * pricePerTicket;
@@ -208,7 +226,8 @@ export const BuyTicketPage = () => {
                 price: pricePerTicket,
                 quantity: ticketQuantity,
                 color: "#f59e0b",
-                ticketImg: ticketData.ticketImg
+                ticketImg: ticketData.ticketImg,
+                maxStock: maxAvailableQty
             });
         });
 
@@ -256,7 +275,7 @@ export const BuyTicketPage = () => {
                                     <div className="flex-1">
                                         <div className="text-[12px] text-[#637381] font-bold uppercase tracking-wider mb-1">Ngày quay</div>
                                         <div className="flex items-center justify-between">
-                                            <div className="font-bold text-[16px] text-[#212B36]">
+                                            <div className="font-bold text-[14px] text-[#212B36]">
                                                 {selectedDates.length === 2 ? 'Hôm nay, Ngày mai' : (selectedDates[0] === 'today' ? 'Hôm nay' : (selectedDates[0] === 'tomorrow' ? 'Ngày mai' : 'Vui lòng chọn'))}
                                             </div>
                                             {isDateOpen ? <ChevronUp size={20} className="text-[#212B36]" /> : <ChevronDown size={20} className="text-[#212B36]" />}
@@ -283,12 +302,12 @@ export const BuyTicketPage = () => {
                                         >
                                             <div>
                                                 <div className={`font-bold ${selectedDates.includes('today') ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Hôm nay</div>
-                                                <div className="text-[13px] text-[#637381]">{dayjs().locale('vi').format('DD/MM/YYYY (dddd)').replace(/t/g, 'T').replace('Thứ', 'Thứ').replace('chủ', 'Chủ')}</div>
+                                                <div className="text-[14px] text-[#637381]">{dayjs().locale('vi').format('DD/MM/YYYY (dddd)').replace(/t/g, 'T').replace('Thứ', 'Thứ').replace('chủ', 'Chủ')}</div>
                                             </div>
                                             <div className="mt-0.5">
                                                 {selectedDates.includes('today') ? (
                                                     <div className="w-4 h-4 rounded-[4px] bg-[#ee1314] text-white flex items-center justify-center">
-                                                        <i className="fa-solid fa-check text-[10px]"></i>
+                                                        <i className="fa-solid fa-check text-[12px]"></i>
                                                     </div>
                                                 ) : (
                                                     <div className="w-4 h-4 rounded-[4px] border border-[#C4CDD5] bg-white"></div>
@@ -310,12 +329,12 @@ export const BuyTicketPage = () => {
                                         >
                                             <div>
                                                 <div className={`font-bold ${selectedDates.includes('tomorrow') ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Ngày mai</div>
-                                                <div className="text-[13px] text-[#637381]">{dayjs().add(1, 'day').locale('vi').format('DD/MM/YYYY (dddd)').replace(/t/g, 'T').replace('Thứ', 'Thứ').replace('chủ', 'Chủ')}</div>
+                                                <div className="text-[14px] text-[#637381]">{dayjs().add(1, 'day').locale('vi').format('DD/MM/YYYY (dddd)').replace(/t/g, 'T').replace('Thứ', 'Thứ').replace('chủ', 'Chủ')}</div>
                                             </div>
                                             <div className="mt-0.5">
                                                 {selectedDates.includes('tomorrow') ? (
                                                     <div className="w-4 h-4 rounded-[4px] bg-[#ee1314] text-white flex items-center justify-center">
-                                                        <i className="fa-solid fa-check text-[10px]"></i>
+                                                        <i className="fa-solid fa-check text-[12px]"></i>
                                                     </div>
                                                 ) : (
                                                     <div className="w-4 h-4 rounded-[4px] border border-[#C4CDD5] bg-white"></div>
@@ -336,21 +355,21 @@ export const BuyTicketPage = () => {
                                             </div>
                                         ) : (
                                             <div className="w-[40px] h-[40px] rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-                                                <i className="fa-solid fa-building text-[16px]"></i>
+                                                <i className="fa-solid fa-building text-[14px]"></i>
                                             </div>
                                         )}
                                     </div>
                                     <div className="flex-1">
                                         <div className="text-[12px] text-[#637381] font-bold uppercase tracking-wider mb-1">Chọn đài</div>
                                         <div className="flex items-center justify-between">
-                                            <div className="font-bold text-[16px] text-[#212B36] truncate max-w-[150px] sm:max-w-[200px]">
+                                            <div className="font-bold text-[14px] text-[#212B36] truncate max-w-[150px] sm:max-w-[200px]">
                                                 {selectedProvinces.length > 1 ? `Đã chọn ${selectedProvinces.length} đài` : (selectedProvinces.length === 1 ? dynamicProvinces.find(p => p.id === selectedProvinces[0])?.name : 'Vui lòng chọn đài')}
                                             </div>
                                             <div className={`${isProvinceOpen ? 'border border-[#ee1314] rounded text-[#ee1314] w-6 h-6 flex items-center justify-center' : 'text-[#212B36]'}`}>
                                                 {isProvinceOpen ? <ChevronDown size={16} /> : <ChevronDown size={20} />}
                                             </div>
                                         </div>
-                                        <div className="text-[13px] text-[#212B36] font-medium mt-0.5">{selectedProvinces.length === 1 ? dynamicProvinces.find(p => p.id === selectedProvinces[0])?.time : (selectedProvinces.length > 1 ? 'Nhiều đài' : '---')}</div>
+                                        <div className="text-[13px] text-[#212B36] font-medium mt-0.5">{selectedProvinces.length === 1 ? dynamicProvinces.find(p => p.id === selectedProvinces[0])?.time : (selectedProvinces.length > 1 ? 'Các đài miền Nam' : '---')}</div>
                                     </div>
                                 </div>
 
@@ -380,13 +399,13 @@ export const BuyTicketPage = () => {
                                                             </div>
                                                             <div>
                                                                 <div className={`font-bold ${isProvSelected ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>{prov.name}</div>
-                                                                <div className={`text-[13px] ${isProvSelected ? 'text-[#ee1314]' : 'text-[#637381]'}`}>{prov.time}</div>
+                                                                <div className={`text-[14px] ${isProvSelected ? 'text-[#ee1314]' : 'text-[#637381]'}`}>{prov.time}</div>
                                                             </div>
                                                         </div>
                                                         <div>
                                                             {isProvSelected ? (
                                                                 <div className="w-4 h-4 rounded-[4px] bg-[#ee1314] text-white flex items-center justify-center">
-                                                                    <i className="fa-solid fa-check text-[10px]"></i>
+                                                                    <i className="fa-solid fa-check text-[12px]"></i>
                                                                 </div>
                                                             ) : (
                                                                 <div className="w-4 h-4 rounded-[4px] border border-[#C4CDD5] bg-white"></div>
@@ -418,7 +437,7 @@ export const BuyTicketPage = () => {
                                 <div className="relative" ref={filterRef}>
                                     <button 
                                         onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                        className={`flex items-center gap-2 border rounded-xl px-5 py-2.5 bg-white font-medium hover:bg-gray-50 transition-colors w-full md:w-auto justify-center ${isFilterOpen ? 'border-[#ee1314] text-[#ee1314]' : 'border-[#E5E8EB] text-[#212B36]'}`}
+                                        className={`flex items-center gap-2 border rounded-xl px-5 py-2.5 bg-white font-medium hover:bg-gray-50 transition-colors w-full md:w-auto justify-center text-[14px] ${isFilterOpen ? 'border-[#ee1314] text-[#ee1314]' : 'border-[#E5E8EB] text-[#212B36]'}`}
                                     >
                                         <Filter size={18} className={isFilterOpen ? 'text-[#ee1314]' : 'text-[#637381]'} /> 
                                         Lọc dãy số 
@@ -461,13 +480,13 @@ export const BuyTicketPage = () => {
                                                     {filterActiveTab === 'favorites' && (
                                                         <div className="animate-in fade-in slide-in-from-right-4 duration-200">
                                                             <div className="mb-4">
-                                                                <h4 className="font-bold text-[16px] text-[#212B36] uppercase mb-1">Dãy số yêu thích</h4>
-                                                                <p className="text-[13px] text-[#637381]">Chọn nhanh các dãy số bạn lưu để lọc vé.</p>
+                                                                <h4 className="font-bold text-[14px] text-[#212B36] uppercase mb-1">Dãy số yêu thích</h4>
+                                                                <p className="text-[14px] text-[#637381]">Chọn nhanh các dãy số bạn lưu để lọc vé.</p>
                                                             </div>
                                                             <div className="flex items-center gap-3 mb-6">
                                                                 <div className="flex-1 flex items-center bg-white rounded-lg border border-[#E5E8EB] px-3 py-2 h-10">
                                                                     <Search size={16} className="text-[#919EAB] mr-2" />
-                                                                    <input type="text" placeholder="Nhập dãy số yêu thích" className="flex-1 bg-transparent border-none outline-none text-[13px] text-[#212B36] placeholder:text-[#919EAB]" />
+                                                                    <input type="text" placeholder="Nhập dãy số yêu thích" className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#212B36] placeholder:text-[#919EAB]" />
                                                                 </div>
                                                                 <button className="h-10 px-4 rounded-lg border border-[#ee1314] text-[#ee1314] text-[14px] font-medium bg-white hover:bg-[#FFF4F4] flex items-center gap-1 transition-colors whitespace-nowrap">
                                                                     <span className="text-[18px] leading-none mb-[2px]">+</span> Thêm dãy số
@@ -477,7 +496,7 @@ export const BuyTicketPage = () => {
                                                                 {['12', '34', '56', '78', '99', '68', '86', '123', '456', '888', '999'].map((num, idx) => (
                                                                     <div key={idx} className="h-9 px-3 rounded-lg border border-[#E5E8EB] text-[#212B36] text-[14px] font-bold bg-white flex items-center justify-between min-w-[60px] gap-2">
                                                                         <span>{num}</span>
-                                                                        <i className="fa-solid fa-xmark text-[#919EAB] text-[12px] cursor-pointer hover:text-[#ee1314]"></i>
+                                                                        <i className="fa-solid fa-xmark text-[#919EAB] text-[14px] cursor-pointer hover:text-[#ee1314]"></i>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -486,7 +505,7 @@ export const BuyTicketPage = () => {
                                                                 <div className="text-[14px] font-bold text-[#212B36] mb-3">Gợi ý dãy số</div>
                                                                 <div className="flex flex-wrap gap-2">
                                                                     {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '111', '222', '333', '444', '555', '666', '777', '000'].map((num, idx) => (
-                                                                        <div key={`s-${idx}`} className="h-8 px-3 rounded-lg border border-[#E5E8EB] text-[#637381] text-[13px] bg-[#fafafa] flex items-center justify-center cursor-pointer hover:bg-[#E5E8EB]">
+                                                                        <div key={`s-${idx}`} className="h-8 px-3 rounded-lg border border-[#E5E8EB] text-[#637381] text-[14px] bg-[#fafafa] flex items-center justify-center cursor-pointer hover:bg-[#E5E8EB]">
                                                                             {num}
                                                                         </div>
                                                                     ))}
@@ -498,8 +517,8 @@ export const BuyTicketPage = () => {
                                                     {filterActiveTab === 'range' && (
                                                         <div className="animate-in fade-in slide-in-from-right-4 duration-200">
                                                             <div className="mb-5">
-                                                                <h4 className="font-bold text-[16px] text-[#212B36] uppercase mb-1">Lọc theo khoảng số</h4>
-                                                                <p className="text-[13px] text-[#637381]">Chọn khoảng số để lọc nhanh các vé phù hợp.</p>
+                                                                <h4 className="font-bold text-[14px] text-[#212B36] uppercase mb-1">Lọc theo khoảng số</h4>
+                                                                <p className="text-[14px] text-[#637381]">Chọn khoảng số để lọc nhanh các vé phù hợp.</p>
                                                             </div>
                                                             <div className="grid grid-cols-5 gap-3 mb-6">
                                                                 {['00 - 09', '10 - 19', '20 - 29', '30 - 39', '40 - 49', '50 - 59', '60 - 69', '70 - 79', '80 - 89', '90 - 99'].map((range, idx) => {
@@ -514,9 +533,9 @@ export const BuyTicketPage = () => {
                                                                             className={`h-9 rounded-lg border flex items-center px-2 cursor-pointer transition-colors ${isChecked ? 'border-[#ee1314] bg-[#FFF4F4]' : 'border-[#E5E8EB] bg-white hover:border-[#ee1314]'}`}
                                                                         >
                                                                             <div className={`w-4 h-4 rounded-[4px] border mr-2 flex items-center justify-center transition-colors ${isChecked ? 'bg-[#ee1314] border-[#ee1314] text-white' : 'border-[#C4CDD5] bg-white'}`}>
-                                                                                {isChecked && <i className="fa-solid fa-check text-[10px]"></i>}
+                                                                                {isChecked && <i className="fa-solid fa-check text-[12px]"></i>}
                                                                             </div>
-                                                                            <span className="text-[13px] text-[#212B36] font-medium">{range}</span>
+                                                                            <span className="text-[14px] text-[#212B36] font-medium">{range}</span>
                                                                         </div>
                                                                     );
                                                                 })}
@@ -530,7 +549,7 @@ export const BuyTicketPage = () => {
                                                                     {['Số kép', 'Số tiến', 'Số lặp', 'Đầu số', 'Đuôi số'].map((opt, idx) => (
                                                                         <label key={idx} className="flex items-center gap-2 cursor-pointer group">
                                                                             <div className="w-4 h-4 rounded-[4px] border border-[#C4CDD5] bg-white group-hover:border-[#ee1314] transition-colors flex items-center justify-center"></div>
-                                                                            <span className="text-[13px] text-[#212B36]">{opt}</span>
+                                                                            <span className="text-[14px] text-[#212B36]">{opt}</span>
                                                                         </label>
                                                                     ))}
                                                                 </div>
@@ -540,7 +559,7 @@ export const BuyTicketPage = () => {
                                                                 <div className="text-[14px] font-bold text-[#212B36] uppercase mb-3">Thêm khoảng số tùy chỉnh</div>
                                                                 <div className="flex items-center gap-3">
                                                                     <div className="flex items-center bg-white border border-[#E5E8EB] rounded-lg h-10 px-3 w-[120px]">
-                                                                        <span className="text-[#637381] text-[13px] mr-2">Từ số</span>
+                                                                        <span className="text-[#637381] text-[14px] mr-2">Từ số</span>
                                                                         <input type="text" defaultValue="00" className="flex-1 w-full bg-transparent border-none outline-none text-[14px] text-[#212B36] font-medium" />
                                                                         <div className="flex flex-col ml-1">
                                                                             <ChevronUp size={12} className="text-[#637381] cursor-pointer" />
@@ -549,7 +568,7 @@ export const BuyTicketPage = () => {
                                                                     </div>
                                                                     <span className="text-[#637381]">-</span>
                                                                     <div className="flex items-center bg-white border border-[#E5E8EB] rounded-lg h-10 px-3 w-[120px]">
-                                                                        <span className="text-[#637381] text-[13px] mr-2">Đến số</span>
+                                                                        <span className="text-[#637381] text-[14px] mr-2">Đến số</span>
                                                                         <input type="text" defaultValue="99" className="flex-1 w-full bg-transparent border-none outline-none text-[14px] text-[#212B36] font-medium" />
                                                                         <div className="flex flex-col ml-1">
                                                                             <ChevronUp size={12} className="text-[#637381] cursor-pointer" />
@@ -569,7 +588,7 @@ export const BuyTicketPage = () => {
                                                                         <div key={idx} className="h-9 px-3 rounded-lg border border-[#FFEBEE] bg-[#FFF4F4] text-[#ee1314] text-[14px] flex items-center gap-2">
                                                                             <span>{range}</span>
                                                                             <i 
-                                                                                className="fa-solid fa-xmark text-[#ee1314] opacity-50 text-[12px] cursor-pointer hover:opacity-100"
+                                                                                className="fa-solid fa-xmark text-[#ee1314] opacity-50 text-[14px] cursor-pointer hover:opacity-100"
                                                                                 onClick={() => setRangeCheckedBoxes(prev => prev.filter(r => r !== range))}
                                                                             ></i>
                                                                         </div>
@@ -582,8 +601,8 @@ export const BuyTicketPage = () => {
                                                     {filterActiveTab === 'all' && (
                                                         <div className="animate-in fade-in slide-in-from-right-4 duration-200">
                                                             <div className="mb-4">
-                                                                <h4 className="font-bold text-[16px] text-[#212B36] uppercase mb-1">Tất cả dãy số</h4>
-                                                                <p className="text-[13px] text-[#637381]">Hiển thị toàn bộ các dãy số có sẵn của đài.</p>
+                                                                <h4 className="font-bold text-[14px] text-[#212B36] uppercase mb-1">Tất cả dãy số</h4>
+                                                                <p className="text-[14px] text-[#637381]">Hiển thị toàn bộ các dãy số có sẵn của đài.</p>
                                                             </div>
                                                             <div className="text-center py-10 text-[#919EAB] border border-dashed border-[#E5E8EB] rounded-xl bg-[#fafafa]">
                                                                 Toàn bộ dãy số sẽ hiển thị ở đây
@@ -610,8 +629,8 @@ export const BuyTicketPage = () => {
                             {/* Ticket List Section */}
                             <div className="p-4 lg:p-5 flex-1 flex flex-col">
                                 {/* Title */}
-                                <h2 className="font-bold text-[15px] text-[#212B36] uppercase mb-5">
-                                    DANH SÁCH VÉ SỐ - {activeProvinces.length > 1 ? 'NHIỀU ĐÀI' : (activeProvinces.length === 1 ? activeProvinces[0].name : 'CHƯA CHỌN ĐÀI')} - {activeProvinces.length === 1 ? activeProvinces[0].time : '--:--'} - {selectedDates.length > 1 ? 'NHIỀU NGÀY' : (selectedDates[0] === 'today' ? 'HÔM NAY' : (selectedDates[0] === 'tomorrow' ? 'NGÀY MAI' : 'CHƯA CHỌN NGÀY'))}
+                                <h2 className="font-bold text-[14px] text-[#212B36] uppercase mb-5">
+                                    DANH SÁCH VÉ SỐ - {activeProvinces.length > 1 ? 'CÁC ĐÀI MIỀN NAM' : (activeProvinces.length === 1 ? activeProvinces[0].name?.toUpperCase() : 'CHƯA CHỌN ĐÀI')} - {activeProvinces.length > 0 ? (activeProvinces.length === 1 ? activeProvinces[0].time : '16:15') : '--:--'} - {selectedDates.length > 1 ? 'NHIỀU NGÀY' : (selectedDates[0] === 'today' ? 'HÔM NAY' : (selectedDates[0] === 'tomorrow' ? 'NGÀY MAI' : 'CHƯA CHỌN NGÀY'))}
                                 </h2>
 
                                 {/* Tickets Grid (4 columns) */}
@@ -646,10 +665,10 @@ export const BuyTicketPage = () => {
                                                     </div>
 
                                                     {/* Number */}
-                                                    <div className="font-black text-[22px] text-[#212B36] tracking-tight mb-1.5 leading-none">{num}</div>
+                                                    <div className="font-black text-[20px] text-[#212B36] tracking-tight mb-1.5 leading-none">{num}</div>
 
                                                     {/* Price */}
-                                                    <div className="font-bold text-[#ee1314] text-[15px]">{(ticket.price || 10000).toLocaleString('vi-VN')}đ</div>
+                                                    <div className="font-bold text-[#ee1314] text-[14px]">{(ticket.price || 10000).toLocaleString('vi-VN')}đ</div>
                                                 </div>
                                             );
                                         })
@@ -680,24 +699,24 @@ export const BuyTicketPage = () => {
                         <div className="bg-white rounded-[20px] shadow-sm border border-[#E5E8EB] flex flex-col overflow-hidden mx-1">
                             {/* Red Header */}
                             <div className="bg-[#cc0000] text-white px-5 py-4 flex items-center">
-                                <h3 className="font-bold text-[16px] uppercase">Chi tiết vé</h3>
+                                <h3 className="font-bold text-[14px] uppercase">Chi tiết vé</h3>
                             </div>
 
                             <div className="p-5">
                                 {/* Province Info */}
-                                {activeProvinces.length > 0 && (
+                                {selectedTicketProvinces.length > 0 && (
                                     <div className="flex items-center gap-4 mb-5">
                                         <div className="w-[50px] h-[50px] rounded-full bg-white flex items-center justify-center shadow-sm p-1.5 shrink-0 border border-[#E5E8EB]">
-                                            {activeProvinces.length === 1 ? (
-                                                <img src={activeProvinces[0].icon} alt={activeProvinces[0].name} className="w-full h-full object-contain" />
+                                            {selectedTicketProvinces.length === 1 ? (
+                                                <img src={selectedTicketProvinces[0].icon} alt={selectedTicketProvinces[0].name} className="w-full h-full object-contain" />
                                             ) : (
                                                 <i className="fa-solid fa-building text-[#637381] text-2xl"></i>
                                             )}
                                         </div>
                                         <div>
-                                            <div className="font-bold text-[14px] text-[#212B36] mb-1">Vé số {activeProvinces.length === 1 ? activeProvinces[0].name : 'Nhiều đài'}</div>
-                                            <div className="text-[12px] text-[#637381]">Mở thưởng: {activeProvinces.length === 1 ? activeProvinces[0].time : '--:--'} - {selectedDates.length > 1 ? 'Nhiều ngày' : (selectedDates[0] === 'today' ? 'Hôm nay' : (selectedDates[0] === 'tomorrow' ? 'Ngày mai' : ''))}</div>
-                                            <div className="text-[12px] text-[#637381] mt-0.5">Ngày: {selectedDates.length > 1 ? 'Nhiều ngày' : (selectedDates[0] === 'today' ? dayjs().format('DD/MM/YYYY') : (selectedDates[0] === 'tomorrow' ? dayjs().add(1, 'day').format('DD/MM/YYYY') : '--/--/----'))}</div>
+                                            <div className="font-bold text-[14px] text-[#212B36] mb-1">Vé số {selectedTicketProvinces.length === 1 ? selectedTicketProvinces[0].name : 'Các đài miền Nam'}</div>
+                                            <div className="text-[14px] text-[#637381]">Mở thưởng: {selectedTicketProvinces.length > 0 ? (selectedTicketProvinces.length === 1 ? selectedTicketProvinces[0].time : '16:15') : '--:--'} - {selectedDates.length > 1 ? 'Nhiều ngày' : (selectedDates[0] === 'today' ? 'Hôm nay' : (selectedDates[0] === 'tomorrow' ? 'Ngày mai' : ''))}</div>
+                                            <div className="text-[14px] text-[#637381] mt-0.5">Ngày: {selectedDates.length > 1 ? 'Nhiều ngày' : (selectedDates[0] === 'today' ? dayjs().format('DD/MM/YYYY') : (selectedDates[0] === 'tomorrow' ? dayjs().add(1, 'day').format('DD/MM/YYYY') : '--/--/----'))}</div>
                                         </div>
                                     </div>
                                 )}
@@ -716,7 +735,7 @@ export const BuyTicketPage = () => {
                                             ))}
                                         </div>
                                     ) : (
-                                        <span className="text-[13px] text-[#919EAB] italic mt-1.5">Trống</span>
+                                        <span className="text-[14px] text-[#919EAB] italic mt-1.5">Trống</span>
                                     )}
                                 </div>
 
@@ -729,7 +748,7 @@ export const BuyTicketPage = () => {
                                             disabled={ticketQuantity <= 1}
                                             className="flex-1 h-full flex items-center justify-center text-[#212B36] hover:bg-gray-50 disabled:opacity-50 transition-colors"
                                         >
-                                            <i className="fa-solid fa-minus text-[12px]"></i>
+                                            <i className="fa-solid fa-minus text-[14px]"></i>
                                         </button>
                                         <span className="w-8 text-center text-[14px] font-bold text-[#212B36] border-x border-[#E5E8EB] h-full flex items-center justify-center">{ticketQuantity}</span>
                                         <button
@@ -737,14 +756,14 @@ export const BuyTicketPage = () => {
                                             disabled={ticketQuantity >= maxAvailable}
                                             className="flex-1 h-full flex items-center justify-center text-[#212B36] hover:bg-gray-50 disabled:opacity-50 transition-colors"
                                         >
-                                            <i className="fa-solid fa-plus text-[12px]"></i>
+                                            <i className="fa-solid fa-plus text-[14px]"></i>
                                         </button>
                                     </div>
                                 </div>
 
                                 <div className="flex justify-between items-center mb-6">
                                     <span className="text-[14px] text-[#637381]">Thành tiền</span>
-                                    <span className="text-[#ee1314] font-bold text-[16px]">{(ticketQuantity * pricePerTicket).toLocaleString('vi-VN')}đ</span>
+                                    <span className="text-[#ee1314] font-bold text-[14px]">{(ticketQuantity * pricePerTicket).toLocaleString('vi-VN')}đ</span>
                                 </div>
 
                                 <div className="border-t border-dashed border-[#E5E8EB] -mx-5 mb-5"></div>
@@ -752,21 +771,21 @@ export const BuyTicketPage = () => {
                                 {/* Total & Action Bottom */}
                                 <div className="flex justify-between items-center mb-6 pt-2">
                                     <span className="text-[14px] font-bold text-[#212B36] uppercase">Tổng thanh toán</span>
-                                    <span className="text-[22px] font-black text-[#ee1314] leading-none">{totalAmount.toLocaleString('vi-VN')}đ</span>
+                                    <span className="text-[24px] font-black text-[#ee1314] leading-none">{totalAmount.toLocaleString('vi-VN')}đ</span>
                                 </div>
 
                                 <div className="flex flex-col gap-3">
                                     <button
                                         onClick={addToCart}
                                         disabled={totalQuantity === 0}
-                                        className="w-full py-3.5 bg-[#ee1314] text-white font-bold rounded-xl text-[15px] hover:bg-[#d00f10] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm shadow-[#ee1314]/20"
+                                        className="w-full py-3.5 bg-[#ee1314] text-white font-bold rounded-xl text-[14px] hover:bg-[#d00f10] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm shadow-[#ee1314]/20"
                                     >
                                         <i className="fa-solid fa-cart-shopping"></i> Thêm vào giỏ hàng
                                     </button>
                                     <button
                                         onClick={handleCheckout}
                                         disabled={totalQuantity === 0}
-                                        className="w-full py-3.5 bg-white text-[#ee1314] font-bold rounded-xl border border-[#ee1314] text-[15px] hover:bg-[#FFF4F4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        className="w-full py-3.5 bg-white text-[#ee1314] font-bold rounded-xl border border-[#ee1314] text-[14px] hover:bg-[#FFF4F4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                     >
                                         <i className="fa-solid fa-bolt"></i> Mua ngay
                                     </button>
@@ -778,35 +797,35 @@ export const BuyTicketPage = () => {
                         <div className="bg-[#fafafa] rounded-[20px] p-5 mt-2 mx-1">
                             <div className="flex justify-between items-center mb-5">
                                 <h4 className="font-bold text-[14px] uppercase text-[#212B36]">Hướng dẫn mua vé</h4>
-                                <a href="#" className="text-[#637381] text-[12px] flex items-center gap-1 hover:text-[#ee1314]">Xem chi tiết <ChevronRight size={14} /></a>
+                                <a href="#" className="text-[#637381] text-[14px] flex items-center gap-1 hover:text-[#ee1314]">Xem chi tiết <ChevronRight size={14} /></a>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center font-bold text-[13px] shrink-0">1</div>
+                                    <div className="w-6 h-6 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center font-bold text-[14px] shrink-0">1</div>
                                     <div>
-                                        <div className="font-bold text-[13px] text-[#212B36] mb-0.5">Chọn ngày quay</div>
-                                        <div className="text-[11px] text-[#637381] leading-snug">Chọn ngày mở thưởng</div>
+                                        <div className="font-bold text-[14px] text-[#212B36] mb-0.5">Chọn ngày quay</div>
+                                        <div className="text-[13px] text-[#637381] leading-snug">Chọn ngày mở thưởng</div>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center font-bold text-[13px] shrink-0">2</div>
+                                    <div className="w-6 h-6 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center font-bold text-[14px] shrink-0">2</div>
                                     <div>
-                                        <div className="font-bold text-[13px] text-[#212B36] mb-0.5">Chọn đài</div>
-                                        <div className="text-[11px] text-[#637381] leading-snug">Chọn tỉnh thành đài mở thưởng</div>
+                                        <div className="font-bold text-[14px] text-[#212B36] mb-0.5">Chọn đài</div>
+                                        <div className="text-[13px] text-[#637381] leading-snug">Chọn tỉnh thành đài mở thưởng</div>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center font-bold text-[13px] shrink-0">3</div>
+                                    <div className="w-6 h-6 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center font-bold text-[14px] shrink-0">3</div>
                                     <div>
-                                        <div className="font-bold text-[13px] text-[#212B36] mb-0.5">Chọn số</div>
-                                        <div className="text-[11px] text-[#637381] leading-snug">Chọn hoặc tạo dãy số bạn yêu thích</div>
+                                        <div className="font-bold text-[14px] text-[#212B36] mb-0.5">Chọn số</div>
+                                        <div className="text-[13px] text-[#637381] leading-snug">Chọn hoặc tạo dãy số bạn yêu thích</div>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3">
-                                    <div className="w-6 h-6 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center font-bold text-[13px] shrink-0">4</div>
+                                    <div className="w-6 h-6 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center font-bold text-[14px] shrink-0">4</div>
                                     <div>
-                                        <div className="font-bold text-[13px] text-[#212B36] mb-0.5">Thêm vào giỏ hàng</div>
-                                        <div className="text-[11px] text-[#637381] leading-snug">Kiểm tra lại và tiến hành thanh toán</div>
+                                        <div className="font-bold text-[14px] text-[#212B36] mb-0.5">Thêm vào giỏ hàng</div>
+                                        <div className="text-[13px] text-[#637381] leading-snug">Kiểm tra lại và tiến hành thanh toán</div>
                                     </div>
                                 </div>
                             </div>

@@ -158,32 +158,81 @@ export const OrderDetailPage = () => {
                                     backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0.48))',
                                 }}
                             />
-                            <Chip
-                                label="Tại quầy"
-                                size="small"
-                                sx={{
-                                    fontWeight: 700,
-                                    height: 22,
-                                    fontSize: '0.75rem',
-                                    borderRadius: 'var(--shape-borderRadius-sm)',
-                                    color: "var(--palette-info-dark)",
-                                    bgcolor: "var(--palette-info-lighter)",
-                                    backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0.48))',
-                                }}
-                            />
+                            {order.orderType === 'DIRECT' && (
+                                <Chip
+                                    label="Tại quầy"
+                                    size="small"
+                                    sx={{
+                                        fontWeight: 700,
+                                        height: 22,
+                                        fontSize: '0.75rem',
+                                        borderRadius: 'var(--shape-borderRadius-sm)',
+                                        color: "var(--palette-info-dark)",
+                                        bgcolor: "var(--palette-info-lighter)",
+                                        backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0.48))',
+                                    }}
+                                />
+                            )}
                         </Stack>
                     </Stack>
                 </Box>
 
                 <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Button 
-                        variant="contained" 
-                        color="success"
-                        startIcon={<Icon icon="solar:refresh-circle-linear" />}
-                        sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
-                    >
-                        Chuyển sang "Chờ nhận vé"
-                    </Button>
+                    {order.status === OrderStatus.PAID && (
+                        <Button 
+                            variant="contained" 
+                            color="primary"
+                            startIcon={<Icon icon="solar:box-minimalistic-bold-duotone" />}
+                            onClick={() => handleStatusChange(OrderStatus.PREPARING)}
+                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+                        >
+                            Bắt đầu chuẩn bị
+                        </Button>
+                    )}
+                    {order.status === OrderStatus.PREPARING && (
+                        <Button 
+                            variant="contained" 
+                            color="info"
+                            startIcon={<Icon icon="solar:refresh-circle-linear" />}
+                            onClick={() => handleStatusChange(OrderStatus.PENDING_PICKUP)}
+                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+                        >
+                            Chuyển sang "Chờ nhận vé"
+                        </Button>
+                    )}
+                    {order.status === OrderStatus.PENDING_PICKUP && (
+                        <Button 
+                            variant="contained" 
+                            color="success"
+                            startIcon={<Icon icon="solar:check-circle-bold-duotone" />}
+                            onClick={() => handleStatusChange(OrderStatus.COMPLETED)}
+                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+                        >
+                            Hoàn thành đơn hàng
+                        </Button>
+                    )}
+                    {order.status === OrderStatus.PENDING_PAYMENT && order.orderType === 'DIRECT' && (
+                        <Button 
+                            variant="contained" 
+                            color="success"
+                            startIcon={<Icon icon="solar:check-circle-bold-duotone" />}
+                            onClick={() => handleStatusChange(OrderStatus.COMPLETED)}
+                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+                        >
+                            Đã thanh toán & Hoàn thành
+                        </Button>
+                    )}
+                    {!['COMPLETED', 'CANCELLED'].includes(order.status) && (
+                        <Button 
+                            variant="outlined" 
+                            color="error"
+                            startIcon={<Icon icon="solar:close-circle-bold-duotone" />}
+                            onClick={() => handleStatusChange(OrderStatus.CANCELLED)}
+                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+                        >
+                            Hủy đơn
+                        </Button>
+                    )}
                     <Button
                         variant="outlined"
                         startIcon={<Icon icon="eva:printer-fill" />}
@@ -215,62 +264,64 @@ export const OrderDetailPage = () => {
             </Box>
 
             {/* Stepper Card (Full Width) */}
-            <Card sx={{ p: 4, mb: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
-                <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                    {/* Track Background */}
-                    <Box sx={{ 
-                        position: 'absolute', 
-                        top: 15, 
-                        left: '12%', 
-                        right: '12%', 
-                        height: 2, 
-                        bgcolor: '#E5E8EB',
-                        zIndex: 0
-                    }} />
-                    
-                    {/* Active Track */}
-                    <Box sx={{ 
-                        position: 'absolute', 
-                        top: 15, 
-                        left: '12%', 
-                        width: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? 
-                               (['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? 
-                               (['PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? '76%' : '50%') : '25%') : '0%', 
-                        height: 2, 
-                        bgcolor: 'var(--palette-success-main)',
-                        zIndex: 0,
-                        transition: 'width 0.3s ease'
-                    }} />
+            {order.orderType !== 'DIRECT' && (
+                <Card sx={{ p: 4, mb: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
+                    <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                        {/* Track Background */}
+                        <Box sx={{ 
+                            position: 'absolute', 
+                            top: 15, 
+                            left: '12%', 
+                            right: '12%', 
+                            height: 2, 
+                            bgcolor: '#E5E8EB',
+                            zIndex: 0
+                        }} />
+                        
+                        {/* Active Track */}
+                        <Box sx={{ 
+                            position: 'absolute', 
+                            top: 15, 
+                            left: '12%', 
+                            width: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? 
+                                   (['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? 
+                                   (['PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? '76%' : '50%') : '25%') : '0%', 
+                            height: 2, 
+                            bgcolor: 'var(--palette-success-main)',
+                            zIndex: 0,
+                            transition: 'width 0.3s ease'
+                        }} />
 
-                    {[
-                        { label: 'Đã đặt đơn', date: dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm'), completed: true },
-                        { label: 'Đã thanh toán', date: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm') : '', completed: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) },
-                        { label: 'Đang chuẩn bị', date: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm') : '', completed: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) },
-                        { label: 'Chờ nhận vé', date: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm') : '', completed: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status) },
-                    ].map((step, index) => (
-                        <Box key={index} sx={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '25%' }}>
-                            <Box sx={{ 
-                                width: 32, 
-                                height: 32, 
-                                borderRadius: '50%', 
-                                bgcolor: 'white',
-                                border: step.completed ? '2px solid var(--palette-success-main)' : '2px solid #DFE3E8',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                mb: 1.5
-                            }}>
-                                {step.completed ? 
-                                    <Icon icon="solar:check-read-linear" color="var(--palette-success-main)" width={20} /> :
-                                    <Icon icon="solar:lock-password-linear" color="#919EAB" width={16} />
-                                }
+                        {[
+                            { label: 'Đã đặt đơn', date: dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm'), completed: true },
+                            { label: 'Đã thanh toán', date: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm') : '', completed: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) },
+                            { label: 'Đang chuẩn bị', date: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm') : '', completed: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) },
+                            { label: 'Chờ nhận vé', date: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm') : '', completed: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status) },
+                        ].map((step, index) => (
+                            <Box key={index} sx={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '25%' }}>
+                                <Box sx={{ 
+                                    width: 32, 
+                                    height: 32, 
+                                    borderRadius: '50%', 
+                                    bgcolor: 'white',
+                                    border: step.completed ? '2px solid var(--palette-success-main)' : '2px solid #DFE3E8',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    mb: 1.5
+                                }}>
+                                    {step.completed ? 
+                                        <Icon icon="solar:check-read-linear" color="var(--palette-success-main)" width={20} /> :
+                                        <Icon icon="solar:lock-password-linear" color="#919EAB" width={16} />
+                                    }
+                                </Box>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)', mb: 0.5, fontSize: '0.8125rem' }}>{step.label}</Typography>
+                                {step.date && <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>{step.date}</Typography>}
                             </Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)', mb: 0.5, fontSize: '0.8125rem' }}>{step.label}</Typography>
-                            {step.date && <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>{step.date}</Typography>}
-                        </Box>
-                    ))}
-                </Box>
-            </Card>
+                        ))}
+                    </Box>
+                </Card>
+            )}
 
             <Grid container spacing={3}>
                 {/* Left Column */}
@@ -305,11 +356,15 @@ export const OrderDetailPage = () => {
                                 </Grid>
 
                                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Giờ lấy vé (dự kiến)</Typography>
+                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>
+                                        {order.actualPickedUpAt ? 'Giờ lấy vé (Thực tế)' : 'Giờ lấy vé (Dự kiến)'}
+                                    </Typography>
                                     <Stack direction="row" alignItems="center" spacing={1}>
                                         <Icon icon="solar:clock-circle-bold-duotone" width={18} style={{ color: 'var(--palette-text-secondary)' }} />
                                         <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                            {order.expectedPickupAt ? dayjs(order.expectedPickupAt).format("DD/MM/YYYY HH:mm") : "Chưa xác định"}
+                                            {order.actualPickedUpAt 
+                                                ? dayjs(order.actualPickedUpAt).format("DD/MM/YYYY HH:mm") 
+                                                : (order.expectedPickupAt ? dayjs(order.expectedPickupAt).format("DD/MM/YYYY HH:mm") : "Chưa xác định")}
                                         </Typography>
                                     </Stack>
                                 </Grid>
@@ -317,15 +372,15 @@ export const OrderDetailPage = () => {
                                 <Grid size={{ xs: 12, sm: 6, md: 1.5 }}>
                                     <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 1 }}>Loại đơn</Typography>
                                     <Chip
-                                        label="Tại quầy"
+                                        label={order.orderType === 'DIRECT' ? 'Tại quầy' : 'Trực tuyến'}
                                         size="small"
                                         sx={{
                                             fontWeight: 700,
                                             height: 24,
                                             fontSize: '0.75rem',
                                             borderRadius: '6px',
-                                            color: "var(--palette-info-dark)",
-                                            bgcolor: "var(--palette-info-lighter)",
+                                            color: order.orderType === 'DIRECT' ? "var(--palette-info-dark)" : "var(--palette-primary-dark)",
+                                            bgcolor: order.orderType === 'DIRECT' ? "var(--palette-info-lighter)" : "var(--palette-primary-lighter)",
                                         }}
                                     />
                                 </Grid>

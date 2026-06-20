@@ -13,6 +13,7 @@ import { PaymentGateway, TransactionType } from '../../../types/transaction.type
 import { useCreateOnlineOrder, useGetOrderReceiveTypes } from '../../hooks/useOrder';
 import { useProcessPayment, useGetTransactionTypes } from '../../hooks/useTransaction';
 import OrderSummary from './components/OrderSummary';
+import { apiApp } from '../../../api';
 
 export const CheckoutPage = () => {
     const navigate = useNavigate();
@@ -58,6 +59,7 @@ export const CheckoutPage = () => {
         if (user) {
             if (!name) setName(user.fullName || user.username || '');
             if (!phone) setPhone(user.phoneNumber || user.phone || '');
+            if (!email) setEmail(user.email || '');
         }
     }, [user]);
 
@@ -68,6 +70,43 @@ export const CheckoutPage = () => {
             navigate('/cart', { replace: true });
         }
     }, [token, navigate, openLoginModal]);
+
+    React.useEffect(() => {
+        const validateCartStock = async () => {
+            if (items.length === 0) return;
+            
+            try {
+                let hasError = false;
+                for (const item of items) {
+                    const response = await apiApp.get(`/lottery-tickets/${item.id}`);
+                    const ticketData = response.data?.data;
+                    
+                    if (ticketData) {
+                        const maxStock = ticketData.quantity || 0;
+                        if (item.quantity > maxStock) {
+                            if (maxStock === 0) {
+                                toast.error(`Vé số ${item.numbers} đã hết hàng. Vui lòng chọn vé khác.`);
+                                removeItem(item.id);
+                            } else {
+                                toast.error(`Vé số ${item.numbers} chỉ còn ${maxStock} vé. Hệ thống đã tự cập nhật lại giỏ hàng.`);
+                                updateQuantity(item.id, maxStock - item.quantity); // updateQuantity takes delta
+                            }
+                            hasError = true;
+                        }
+                    }
+                }
+                
+                if (hasError) {
+                    navigate('/cart', { replace: true });
+                }
+            } catch (error) {
+                console.error("Lỗi kiểm tra tồn kho:", error);
+            }
+        };
+
+        validateCartStock();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const totalTickets = items.reduce((sum, item) => sum + item.quantity, 0);
     const subTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -156,11 +195,8 @@ export const CheckoutPage = () => {
                             <span className="text-[#212B36] font-medium">Thanh toán</span>
                         </div>
                         <div className="flex items-center gap-3">
-                            <div className="text-[#ee1314] bg-[#FFF4F4] w-10 h-10 rounded-lg flex items-center justify-center border border-[#FFEBEE] shadow-sm">
-                                <i className="fa-solid fa-file-invoice-dollar text-[20px]"></i>
-                            </div>
                             <div>
-                                <h1 className="text-[20px] lg:text-[22px] font-bold text-[#212B36] leading-tight">Thanh toán đơn hàng</h1>
+                                <h1 className="text-[24px] md:text-[28px] font-bold text-[#212B36] mb-1 tracking-tight">Thanh toán đơn hàng</h1>
                                 <p className="text-[#637381] text-[13px]">Xác nhận thông tin và chốt đơn</p>
                             </div>
                         </div>
@@ -278,9 +314,9 @@ export const CheckoutPage = () => {
                                     <input 
                                         type="email" 
                                         value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        className="w-full h-11 px-3 py-2 border border-[#E5E8EB] rounded-lg text-[14px] focus:outline-none focus:border-[#ee1314] transition-colors"
-                                        placeholder="Nhập email (không bắt buộc)"
+                                        disabled
+                                        className="w-full h-11 px-3 py-2 border border-[#E5E8EB] bg-gray-50 rounded-lg text-[14px] text-[#637381] cursor-not-allowed focus:outline-none transition-colors"
+                                        placeholder="Email tài khoản"
                                     />
                                 </div>
                                 <div>
