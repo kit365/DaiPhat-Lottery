@@ -42,6 +42,7 @@ export interface CreateOnlineOrderRequest {
     items: OrderTicketItemRequest[];
     receiveType: OrderReceiveType;
     expectedPickupAt: string;
+    actualPickedUpAt?: string;
     note?: string;
 }
 
@@ -71,6 +72,7 @@ export interface OrderResponse {
     orderType: OrderType;
     receiveType: OrderReceiveType;
     expectedPickupAt?: string;
+    actualPickedUpAt?: string;
     createdAt: string;
     orderDetails?: any[];
     transactions: TransactionResponse[];
