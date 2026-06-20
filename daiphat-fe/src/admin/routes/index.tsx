@@ -10,6 +10,7 @@ const TicketEditPage = lazy(() => import("../pages/ticket/TicketEditPage").then(
 const TicketDetailPage = lazy(() => import("../pages/ticket/TicketDetailPage").then(m => ({ default: m.TicketDetailPage })));
 const ExpiredTicketListPage = lazy(() => import("../pages/ticket/ExpiredTicketListPage").then(m => ({ default: m.ExpiredTicketListPage })));
 const PrizeStructureListPage = lazy(() => import("../pages/prize-structure/PrizeStructureListPage").then(m => ({ default: m.PrizeStructureListPage })));
+const DrawResultPage = lazy(() => import("../pages/draw-result/DrawResultPage").then(m => ({ default: m.DrawResultPage })));
 
 const ProviderListPage = lazy(() => import("../pages/provider/ProviderListPage").then(m => ({ default: m.ProviderListPage })));
 const ProviderCreatePage = lazy(() => import("../pages/provider/ProviderCreatePage").then(m => ({ default: m.ProviderCreatePage })));
@@ -105,6 +106,7 @@ export const AdminRoutes = [
     { path: "ticket/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.EDIT}><TicketEditPage /></PermissionGuard> },
     { path: "ticket/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketDetailPage /></PermissionGuard> },
     { path: "ticket/expired", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><ExpiredTicketListPage /></PermissionGuard> },
+    { path: "draw-results", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><DrawResultPage /></PermissionGuard> },
     { path: "prize-structures/list", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><PrizeStructureListPage /></PermissionGuard> },
     { path: "provider/list", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><ProviderListPage /></PermissionGuard> },
     { path: "provider/create", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.CREATE}><ProviderCreatePage /></PermissionGuard> },

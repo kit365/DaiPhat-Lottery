@@ -1,5 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.station.source.strategy.minhngoc;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryRegionCode;
+import com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.station.source.strategy.LotteryStationScheduleSupport;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -8,14 +10,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 final class MinhNgocScheduleParser {
 
-    private static final String SOUTHERN_REGION = "MIEN_NAM";
+    private static final String SOUTHERN_REGION = LotteryRegionCode.MIEN_NAM.name();
     private static final Pattern SOUTHERN_DRAW_TIME_PATTERN =
             Pattern.compile("Giờ xổ số\\s+(\\d{2})h(\\d{2})'->\\s*\\d{2}h\\d{2}'.*?Miền Bắc", Pattern.DOTALL);
     private static final Pattern STATION_IN_DAY_PATTERN =
@@ -52,7 +53,7 @@ final class MinhNgocScheduleParser {
                 continue;
             }
 
-            String normalizedDay = toDayOfWeekName(dayLabel);
+            String normalizedDay = LotteryStationScheduleSupport.toDayOfWeekName(dayLabel);
             String southernCellText = cells.get(1).text().trim();
             if (southernCellText.isBlank()) {
                 continue;
@@ -68,10 +69,7 @@ final class MinhNgocScheduleParser {
             }
         }
 
-        Map<String, List<String>> result = new LinkedHashMap<>();
-        for (Map.Entry<String, LinkedHashSet<String>> entry : drawDaysByStation.entrySet()) {
-            result.put(entry.getKey(), new ArrayList<>(entry.getValue()));
-        }
+        Map<String, List<String>> result = LotteryStationScheduleSupport.toOrderedListMap(drawDaysByStation);
 
         mergeHoChiMinhFallback(scheduleDocument, result);
         return result;
@@ -101,7 +99,7 @@ final class MinhNgocScheduleParser {
 
         Matcher matcher = HCM_SCHEDULE_FALLBACK_PATTERN.matcher(scheduleDocument.text());
         while (matcher.find()) {
-            String day = toDayOfWeekName(matcher.group(1));
+            String day = LotteryStationScheduleSupport.toDayOfWeekName(matcher.group(1));
             if (!existing.contains(day)) {
                 existing.add(day);
             }
@@ -112,20 +110,7 @@ final class MinhNgocScheduleParser {
         }
     }
 
-    private String toDayOfWeekName(String dayLabel) {
-        return switch (dayLabel.toLowerCase(Locale.ROOT)) {
-            case "thứ 2" -> "MONDAY";
-            case "thứ 3" -> "TUESDAY";
-            case "thứ 4" -> "WEDNESDAY";
-            case "thứ 5" -> "THURSDAY";
-            case "thứ 6" -> "FRIDAY";
-            case "thứ 7" -> "SATURDAY";
-            case "chủ nhật" -> "SUNDAY";
-            default -> dayLabel.toUpperCase(Locale.ROOT);
-        };
-    }
-
     private String normalizeRegion(String region) {
-        return region == null ? SOUTHERN_REGION : region.trim().toUpperCase(Locale.ROOT);
+        return LotteryStationScheduleSupport.normalizeRegion(region);
     }
 }
