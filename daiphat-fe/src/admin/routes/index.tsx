@@ -9,6 +9,7 @@ const TicketCreatePage = lazy(() => import("../pages/ticket/TicketCreatePage").t
 const TicketEditPage = lazy(() => import("../pages/ticket/TicketEditPage").then(m => ({ default: m.TicketEditPage })));
 const TicketDetailPage = lazy(() => import("../pages/ticket/TicketDetailPage").then(m => ({ default: m.TicketDetailPage })));
 const ExpiredTicketListPage = lazy(() => import("../pages/ticket/ExpiredTicketListPage").then(m => ({ default: m.ExpiredTicketListPage })));
+const PrizeStructureListPage = lazy(() => import("../pages/prize-structure/PrizeStructureListPage").then(m => ({ default: m.PrizeStructureListPage })));
 
 const ProviderListPage = lazy(() => import("../pages/provider/ProviderListPage").then(m => ({ default: m.ProviderListPage })));
 const ProviderCreatePage = lazy(() => import("../pages/provider/ProviderCreatePage").then(m => ({ default: m.ProviderCreatePage })));
@@ -65,6 +66,8 @@ const AccountUserEditPage = lazy(() => import("../pages/account-user/AccountUser
 const AccountUserDetailPage = lazy(() => import("../pages/account-user/AccountUserDetailPage").then(m => ({ default: m.AccountUserDetailPage })));
 const ChangePasswordUserPage = lazy(() => import("../pages/account-user/ChangePasswordPage").then(m => ({ default: m.ChangePasswordPage })));
 const StreetAgentListPage = lazy(() => import("../pages/street-agent/StreetAgentListPage").then(m => ({ default: m.StreetAgentListPage })));
+const StreetAgentCreatePage = lazy(() => import("../pages/street-agent/StreetAgentCreatePage").then(m => ({ default: m.StreetAgentCreatePage })));
+const StreetAgentEditPage = lazy(() => import("../pages/street-agent/StreetAgentEditPage").then(m => ({ default: m.StreetAgentEditPage })));
 const TicketServiceOrderListPage = lazy(() => import("../pages/ticket-service-order/TicketServiceOrderListPage").then(m => ({ default: m.TicketServiceOrderListPage })));
 const TicketServiceOrderCreatePage = lazy(() => import("../pages/ticket-service-order/TicketServiceOrderCreatePage").then(m => ({ default: m.TicketServiceOrderCreatePage })));
 const TicketServiceOrderEditPage = lazy(() => import("../pages/ticket-service-order/TicketServiceOrderEditPage").then(m => ({ default: m.TicketServiceOrderEditPage })));
@@ -102,6 +105,7 @@ export const AdminRoutes = [
     { path: "ticket/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.EDIT}><TicketEditPage /></PermissionGuard> },
     { path: "ticket/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketDetailPage /></PermissionGuard> },
     { path: "ticket/expired", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><ExpiredTicketListPage /></PermissionGuard> },
+    { path: "prize-structures/list", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><PrizeStructureListPage /></PermissionGuard> },
     { path: "provider/list", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><ProviderListPage /></PermissionGuard> },
     { path: "provider/create", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.CREATE}><ProviderCreatePage /></PermissionGuard> },
     { path: "provider/edit/:id", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.EDIT}><ProviderEditPage /></PermissionGuard> },
@@ -147,7 +151,8 @@ export const AdminRoutes = [
     { path: "account-user/detail/:id", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><AccountUserDetailPage /></PermissionGuard> },
     { path: "account-user/change-password/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><ChangePasswordUserPage /></PermissionGuard> },
     { path: "street-agent/list", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><StreetAgentListPage /></PermissionGuard> },
-    { path: "street-agent/create", element: <PermissionGuard permission={PERMISSIONS.USER.CREATE}><AccountUserCreatePage /></PermissionGuard> },
+    { path: "street-agent/create", element: <PermissionGuard permission={PERMISSIONS.USER.CREATE}><StreetAgentCreatePage /></PermissionGuard> },
+    { path: "street-agent/edit/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><StreetAgentEditPage /></PermissionGuard> },
     { path: "ticketServiceOrder/list", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.VIEW}><TicketServiceOrderListPage /></PermissionGuard> },
     { path: "ticketServiceOrder/create", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.VIEW}><TicketServiceOrderCreatePage /></PermissionGuard> },
     { path: "ticketServiceOrder/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.EDIT}><TicketServiceOrderEditPage /></PermissionGuard> },
