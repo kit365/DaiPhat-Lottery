@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.station.source.strategy.minhngoc;
 
 import com.daiphat.coreapi.application.dto.lotteries.LotteryStationSourceItem;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryRegionCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
 import com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.station.source.strategy.LotteryStationSourceStrategy;
 import org.jsoup.nodes.Document;
@@ -18,9 +19,7 @@ public class MinhNgocLotteryStationSourceStrategy implements LotteryStationSourc
     private static final String NORTHERN_CATALOG_URL = "https://www.minhngoc.net.vn/xo-so-mien-bac.html";
     private static final String SCHEDULE_URL = "https://www.minhngoc.net.vn/thong-tin/lich-quay-so-mo-thuong.html";
     private static final String FALLBACK_SCHEDULE_URL = "https://xoso.com.vn/lich-quay-xo-so.html";
-    private static final String SOUTHERN_REGION = "MIEN_NAM";
-    private static final String CENTRAL_REGION = "MIEN_TRUNG";
-    private static final String NORTHERN_REGION = "MIEN_BAC";
+
 
     private final MinhNgocStationNameNormalizer stationNameNormalizer = new MinhNgocStationNameNormalizer();
     private final MinhNgocCatalogParser catalogParser = new MinhNgocCatalogParser(stationNameNormalizer);
@@ -87,30 +86,30 @@ public class MinhNgocLotteryStationSourceStrategy implements LotteryStationSourc
     }
 
     private String normalizeRegion(String region) {
-        return region == null ? SOUTHERN_REGION : region.trim().toUpperCase();
+        return LotteryRegionCode.normalize(region);
     }
 
     private String catalogUrlFor(String region) {
-        return switch (normalizeRegion(region)) {
-            case CENTRAL_REGION -> CENTRAL_CATALOG_URL;
-            case NORTHERN_REGION -> NORTHERN_CATALOG_URL;
-            default -> SOUTHERN_CATALOG_URL;
+        return switch (LotteryRegionCode.valueOf(normalizeRegion(region))) {
+            case MIEN_TRUNG -> CENTRAL_CATALOG_URL;
+            case MIEN_BAC -> NORTHERN_CATALOG_URL;
+            case MIEN_NAM -> SOUTHERN_CATALOG_URL;
         };
     }
 
     private String resultPathPrefix(String region) {
-        return switch (normalizeRegion(region)) {
-            case CENTRAL_REGION -> "/ket-qua-xo-so/mien-trung/";
-            case NORTHERN_REGION -> "/ket-qua-xo-so/mien-bac/";
-            default -> "/ket-qua-xo-so/mien-nam/";
+        return switch (LotteryRegionCode.valueOf(normalizeRegion(region))) {
+            case MIEN_TRUNG -> "/ket-qua-xo-so/mien-trung/";
+            case MIEN_BAC -> "/ket-qua-xo-so/mien-bac/";
+            case MIEN_NAM -> "/ket-qua-xo-so/mien-nam/";
         };
     }
 
     private String defaultDrawTime(String region) {
-        return switch (normalizeRegion(region)) {
-            case CENTRAL_REGION -> "17:15";
-            case NORTHERN_REGION -> "18:15";
-            default -> "16:15";
+        return switch (LotteryRegionCode.valueOf(normalizeRegion(region))) {
+            case MIEN_TRUNG -> "17:15";
+            case MIEN_BAC -> "18:15";
+            case MIEN_NAM -> "16:15";
         };
     }
 }
