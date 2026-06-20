@@ -3,6 +3,7 @@ package com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.prizest
 import com.daiphat.coreapi.application.dto.lotteries.PrizeStructureSourceItem;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryRegionCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.prizestructure.source.strategy.PrizeStructureSourceStrategy;
@@ -15,9 +16,7 @@ import java.util.Map;
 @Component
 public class MinhNgocPrizeStructureSourceStrategy implements PrizeStructureSourceStrategy {
 
-    private static final String SOUTHERN_REGION = "MIEN_NAM";
-    private static final String CENTRAL_REGION = "MIEN_TRUNG";
-    private static final String NORTHERN_REGION = "MIEN_BAC";
+    private static final String NORTHERN_REGION = LotteryRegionCode.MIEN_BAC.name();
     private static final String SOUTHERN_URL = "https://www.minhngoc.net.vn/thong-tin/co-cau-giai-thuong-mien-nam.html";
     private static final String CENTRAL_URL = "https://www.minhngoc.net.vn/thong-tin/co-cau-giai-thuong-mien-trung.html";
     private static final String NORTHERN_URL = "https://www.minhngoc.net.vn/thong-tin/co-cau-giai-thuong-mien-bac.html";
@@ -46,21 +45,21 @@ public class MinhNgocPrizeStructureSourceStrategy implements PrizeStructureSourc
     public List<PrizeStructureSourceItem> extractItems(Map<String, Document> documents, String region) {
         String normalizedRegion = normalizeRegion(region);
         Document document = documents.get(sourceUrlFor(normalizedRegion));
-        return switch (normalizedRegion) {
-            case CENTRAL_REGION, SOUTHERN_REGION -> southernPrizeStructureParser.parse(document, normalizedRegion);
-            default -> List.of();
+        return switch (LotteryRegionCode.valueOf(normalizedRegion)) {
+            case MIEN_TRUNG, MIEN_NAM -> southernPrizeStructureParser.parse(document, normalizedRegion);
+            case MIEN_BAC -> List.of();
         };
     }
 
     private String normalizeRegion(String region) {
-        return region == null ? SOUTHERN_REGION : LotteryRegionModel.normalizeCode(region);
+        return region == null ? LotteryRegionCode.DEFAULT_VALUE : LotteryRegionModel.normalizeCode(region);
     }
 
     private String sourceUrlFor(String region) {
-        return switch (normalizeRegion(region)) {
-            case CENTRAL_REGION -> CENTRAL_URL;
-            case NORTHERN_REGION -> NORTHERN_URL;
-            default -> SOUTHERN_URL;
+        return switch (LotteryRegionCode.valueOf(normalizeRegion(region))) {
+            case MIEN_TRUNG -> CENTRAL_URL;
+            case MIEN_BAC -> NORTHERN_URL;
+            case MIEN_NAM -> SOUTHERN_URL;
         };
     }
 }
