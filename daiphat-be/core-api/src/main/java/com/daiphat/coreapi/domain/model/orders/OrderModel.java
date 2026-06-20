@@ -25,6 +25,7 @@ public class OrderModel {
     private UUID userId;
     private String name;
     private String phone;
+    private String email;
     private String orderCode;
     private OrderType orderType;
     private OrderReceiveType receiveType;
@@ -95,12 +96,6 @@ public class OrderModel {
         this.status = OrderStatus.COMPLETED;
         this.pickedUpBy = pickedUpBy;
         this.actualPickedUpAt = LocalDateTime.now();
-    }
-
-    public void cancelBeforePayment(String cancelReason) {
-        ensureOrderType(OrderType.ONLINE);
-        ensureStatus(OrderStatus.PENDING_PAYMENT);
-        cancel(cancelReason);
     }
 
     public void cancelPendingPayment(String cancelReason) {

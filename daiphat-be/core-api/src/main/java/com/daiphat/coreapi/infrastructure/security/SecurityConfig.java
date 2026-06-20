@@ -72,6 +72,7 @@ public class SecurityConfig {
                                 ApiConstants.API_V1 + "/lottery-results/board",
                                 ApiConstants.API_V1 + "/lottery-results/details",
                                 ApiConstants.API_V1 + "/lottery-stations/schedule",
+                                ApiConstants.API_V1 + "/lottery-stations/schedule/all",
                                 ApiConstants.API_V1 + "/lottery-stations/schedule/today",
                                 ApiConstants.API_V1 + "/lottery-stations/schedule/tomorrow",
                                 ApiConstants.API_V1 + "/transactions/payment/webhook/*"
