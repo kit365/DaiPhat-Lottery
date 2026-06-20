@@ -17,9 +17,6 @@ public record LotteryStationResponse(
         String province,
         String region,
         String type,
-        Integer numberLength,
-        Integer minNumber,
-        Integer maxNumber,
         BigDecimal price,
         Integer inventoryCount,
         List<DayOfWeek> drawDays,
@@ -32,7 +29,6 @@ public record LotteryStationResponse(
         String image,
         String thumbnailUrl,
         String description,
-        Integer displayOrder,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

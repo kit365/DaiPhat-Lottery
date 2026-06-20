@@ -1,7 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
@@ -13,6 +12,7 @@ import org.hibernate.type.SqlTypes;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 @Entity
@@ -34,25 +34,12 @@ public class LotteryStationEntity extends BaseEntity {
     @Column(length = 100)
     private String province;
 
-    @Column(length = 20)
-    private String region;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private LotteryStationType type;
-
-    // Quy tắc số
-    @Column(name = "number_length")
-    private Integer numberLength;
-
-    @Column(name = "min_number")
-    private Integer minNumber;
-
-    @Column(name = "max_number")
-    private Integer maxNumber;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "region_id", nullable = false)
+    private LotteryRegionEntity region;
 
     // Giá & Tồn kho
-    @Column(nullable = false, precision = 15, scale = 0)
+    @Column(nullable = false, precision = 15)
     private BigDecimal price;
 
     @Column(name = "inventory_count")
@@ -80,7 +67,7 @@ public class LotteryStationEntity extends BaseEntity {
     private UserEntity approvedBy;
 
     @Column(name = "approved_at")
-    private java.time.LocalDateTime approvedAt;
+    private LocalDateTime approvedAt;
 
     // Hiển thị
     @Column(name = "image", length = 500)
@@ -89,13 +76,9 @@ public class LotteryStationEntity extends BaseEntity {
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 
-    @Column(name = "thumbnail_public_id", length = 255)
+    @Column(name = "thumbnail_public_id")
     private String thumbnailPublicId;
 
     @Column(columnDefinition = "TEXT")
     private String description;
-
-    @Column(name = "display_order")
-    @Builder.Default
-    private Integer displayOrder = 0;
 }

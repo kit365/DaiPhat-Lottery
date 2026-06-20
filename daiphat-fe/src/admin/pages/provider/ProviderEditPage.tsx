@@ -9,6 +9,7 @@ import { Tiptap } from "../../components/layouts/titap/Tiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction, useMemo } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
 import { useProviderDetail, useUpdateProvider, useUploadProviderImage } from "./hooks/useProvider";
+import { useRegions } from "../region/hooks/useRegion";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { CreateProviderFormValues, createProviderSchema } from "../../schemas/provider.schema";
@@ -95,6 +96,9 @@ export const ProviderEditPage = () => {
             displayOrder: 0,
         },
     });
+
+    const { data: regionsRes } = useRegions();
+    const regions = regionsRes?.data || [];
 
     const regionValue = watch("region");
     const provinceOptions = regionValue ? REGION_DATA[regionValue] || [] : [];
@@ -185,29 +189,13 @@ export const ProviderEditPage = () => {
                                                     label="Tên nhà đài"
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
+                                                    disabled
                                                     fullWidth
                                                 />
                                             )}
                                         />
                                     </Box>
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                        <Controller
-                                            name="type"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    select
-                                                    label="Loại vé"
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                    fullWidth
-                                                >
-                                                    <MenuItem value="TRADITIONAL">Truyền thống</MenuItem>
-                                                </TextField>
-                                            )}
-                                        />
-                                    </Box>
+
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
                                         <Controller
                                             name="price"
@@ -247,11 +235,12 @@ export const ProviderEditPage = () => {
                                                         field.onChange(e);
                                                         setValue("province", ""); // reset province when region changes
                                                     }}
+                                                    disabled
                                                     fullWidth
                                                 >
-                                                    {REGION_OPTIONS.map((option) => (
-                                                        <MenuItem key={option.value} value={option.value}>
-                                                            {option.label}
+                                                    {regions.map((option) => (
+                                                        <MenuItem key={option.code} value={option.code}>
+                                                            {option.name}
                                                         </MenuItem>
                                                     ))}
                                                 </TextField>
@@ -269,7 +258,7 @@ export const ProviderEditPage = () => {
                                                     label="Tỉnh/Thành phố"
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
-                                                    disabled={!regionValue}
+                                                    disabled
                                                     fullWidth
                                                 >
                                                     {provinceOptions.map((prov) => (
@@ -302,6 +291,7 @@ export const ProviderEditPage = () => {
                                                         label="Lịch quay"
                                                         error={!!fieldState.error}
                                                         helperText={fieldState.error?.message}
+                                                        disabled
                                                         InputLabelProps={{ shrink: true }}
                                                         InputProps={{
                                                             readOnly: true,
@@ -354,6 +344,7 @@ export const ProviderEditPage = () => {
                                             render={({ field, fieldState }) => (
                                                 <TimePicker
                                                     label="Giờ quay"
+                                                    disabled
                                                     value={field.value ? dayjs(`2000-01-01T${field.value}`) : null}
                                                     onChange={(newValue) => {
                                                         field.onChange(newValue ? newValue.format('HH:mm') : '');
@@ -399,58 +390,7 @@ export const ProviderEditPage = () => {
                                     </Box>
                                 </Box>
 
-                                <Box sx={{ mt: 1 }}>
-                                    <Typography variant="subtitle2" sx={{ mb: '12px', fontWeight: 600, color: 'text.primary' }}>
-                                        Cấu hình vé (dùng cho máy quét)
-                                    </Typography>
-                                    <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "calc(2 * var(--spacing))" }}>
-                                        <Controller
-                                            name="numberLength"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    type="number"
-                                                    label="Độ dài số"
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                    onChange={(e) => field.onChange(Number(e.target.value))}
-                                                    fullWidth
-                                                />
-                                            )}
-                                        />
-                                        <Controller
-                                            name="minNumber"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    type="number"
-                                                    label="Số nhỏ nhất"
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                    onChange={(e) => field.onChange(Number(e.target.value))}
-                                                    fullWidth
-                                                />
-                                            )}
-                                        />
-                                        <Controller
-                                            name="maxNumber"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    type="number"
-                                                    label="Số lớn nhất"
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                    onChange={(e) => field.onChange(Number(e.target.value))}
-                                                    fullWidth
-                                                />
-                                            )}
-                                        />
-                                    </Box>
-                                </Box>
+
 
                                 <Box sx={{ mt: 1 }}>
                                     <div className="mb-3 font-semibold">Ảnh nhà đài (Tùy chọn)</div>

@@ -1,15 +1,31 @@
+CREATE TABLE IF NOT EXISTS lottery_regions (
+    id                  BIGSERIAL PRIMARY KEY,
+    code                VARCHAR(20) NOT NULL UNIQUE,
+    name                VARCHAR(100) NOT NULL,
+    type                VARCHAR(20) NOT NULL,
+    min_number          INTEGER NOT NULL DEFAULT 0,
+    max_number          INTEGER NOT NULL,
+    station_count       INTEGER NOT NULL DEFAULT 0,
+
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by          VARCHAR(100) DEFAULT 'SYSTEM',
+    last_modified_by    VARCHAR(100) DEFAULT 'SYSTEM'
+);
+
+INSERT INTO lottery_regions (code, name, type, min_number, max_number, station_count)
+VALUES
+    ('MIEN_NAM', 'Miền Nam', 'TRADITIONAL', 0, 999999, 0),
+    ('MIEN_TRUNG', 'Miền Trung', 'TRADITIONAL', 0, 999999, 0),
+    ('MIEN_BAC', 'Miền Bắc', 'TRADITIONAL', 0, 99999, 0)
+ON CONFLICT (code) DO NOTHING;
+
 -- lottery_stations
 CREATE TABLE IF NOT EXISTS lottery_stations (
     id                  BIGSERIAL PRIMARY KEY,
     name                VARCHAR(100) NOT NULL,
     province            VARCHAR(100),
-    region              VARCHAR(20),
-    type                VARCHAR(20) NOT NULL,
-
-    -- Quy tắc số
-    number_length       INTEGER,
-    min_number          INTEGER,
-    max_number          INTEGER,
+    region_id           BIGINT NOT NULL,
 
     -- Giá & Tồn kho
     price               NUMERIC(15, 0) NOT NULL,
@@ -30,7 +46,6 @@ CREATE TABLE IF NOT EXISTS lottery_stations (
     thumbnail_url       VARCHAR(500),
     thumbnail_public_id VARCHAR(255),
     description         TEXT,
-    display_order       INTEGER NOT NULL DEFAULT 0,
 
     -- Audit
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -40,27 +55,29 @@ CREATE TABLE IF NOT EXISTS lottery_stations (
     deleted_at          TIMESTAMP,
 
     CONSTRAINT fk_lottery_stations_approved_by
-        FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
+        FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_lottery_stations_region_id
+        FOREIGN KEY (region_id) REFERENCES lottery_regions(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_lottery_stations_status ON lottery_stations(status);
-CREATE INDEX IF NOT EXISTS idx_lottery_stations_type   ON lottery_stations(type);
+CREATE INDEX IF NOT EXISTS idx_lottery_stations_region_id ON lottery_stations(region_id);
 
 -- prize_structures
 CREATE TABLE IF NOT EXISTS prize_structures (
     id                      BIGSERIAL PRIMARY KEY,
-    station_id              BIGINT NOT NULL,
-    region                  VARCHAR(20),
-    is_only                 BOOLEAN NOT NULL DEFAULT FALSE,
+    region_id               BIGINT NOT NULL,
     prize_level             VARCHAR(50) NOT NULL,
     prize_display_name      VARCHAR(100),
     prize_code              VARCHAR(20) NOT NULL,
+    description             TEXT,
     prize_value             NUMERIC(15, 0) NOT NULL,
     quantity                INTEGER NOT NULL,
     match_digits            INTEGER,
-    match_from              VARCHAR(20) NOT NULL,
+    match_from              VARCHAR(50) NOT NULL,
     match_from_display_name VARCHAR(100),
     display_order           INTEGER NOT NULL DEFAULT 0,
+    is_active               BOOLEAN NOT NULL DEFAULT TRUE,
 
     -- Audit
     created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -69,85 +86,12 @@ CREATE TABLE IF NOT EXISTS prize_structures (
     last_modified_by        VARCHAR(100) DEFAULT 'SYSTEM',
     deleted_at              TIMESTAMP,
 
-    CONSTRAINT fk_prize_structures_station_id
-        FOREIGN KEY (station_id) REFERENCES lottery_stations(id) ON DELETE CASCADE
+    CONSTRAINT fk_prize_structures_region_id
+        FOREIGN KEY (region_id) REFERENCES lottery_regions(id),
+    CONSTRAINT uk_prize_structures_region_code UNIQUE (region_id, prize_code)
 );
 
-CREATE INDEX IF NOT EXISTS idx_prize_structures_station_id ON prize_structures(station_id);
-CREATE INDEX IF NOT EXISTS idx_prize_structures_region      ON prize_structures(region);
-
--- prize_structure_templates: mẫu cấu trúc giải theo miền (seed source khi tạo đài)
-CREATE TABLE IF NOT EXISTS prize_structure_templates (
-    id                      BIGSERIAL PRIMARY KEY,
-    region                  VARCHAR(20) NOT NULL,
-    is_only                 BOOLEAN NOT NULL DEFAULT FALSE,
-    prize_level             VARCHAR(50) NOT NULL,
-    prize_display_name      VARCHAR(100),
-    prize_code              VARCHAR(20) NOT NULL,
-    prize_value             NUMERIC(15, 0) NOT NULL DEFAULT 0,
-    quantity                INTEGER NOT NULL,
-    match_digits            INTEGER,
-    match_from              VARCHAR(20) NOT NULL,
-    match_from_display_name VARCHAR(100),
-    display_order           INTEGER NOT NULL DEFAULT 0,
-
-    created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by              VARCHAR(100) DEFAULT 'SYSTEM',
-    last_modified_by        VARCHAR(100) DEFAULT 'SYSTEM',
-    deleted_at              TIMESTAMP,
-    is_active               BOOLEAN NOT NULL DEFAULT TRUE,
-
-    CONSTRAINT uk_prize_structure_templates_region_code UNIQUE (region, prize_code)
-);
-
-CREATE INDEX IF NOT EXISTS idx_prize_structure_templates_region
-    ON prize_structure_templates(region);
-
-INSERT INTO prize_structure_templates
-    (region, prize_level, prize_code, prize_value, quantity, match_digits, match_from, display_order)
-VALUES
-    ('MIEN_NAM', 'SPECIAL',     'DB',     0, 1, 6,    'LAST',  0),
-    ('MIEN_NAM', 'FIRST',       'G1',     0, 1, 5,    'LAST',  1),
-    ('MIEN_NAM', 'SECOND',      'G2',     0, 1, 5,    'LAST',  2),
-    ('MIEN_NAM', 'THIRD',       'G3',     0, 2, 5,    'LAST',  3),
-    ('MIEN_NAM', 'FOURTH',      'G4',     0, 7, 5,    'LAST',  4),
-    ('MIEN_NAM', 'FIFTH',       'G5',     0, 1, 4,    'LAST',  5),
-    ('MIEN_NAM', 'SIXTH',       'G6',     0, 3, 4,    'LAST',  6),
-    ('MIEN_NAM', 'SEVENTH',     'G7',     0, 1, 3,    'LAST',  7),
-    ('MIEN_NAM', 'EIGHTH',      'G8',     0, 1, 2,    'LAST',  8),
-    ('MIEN_NAM', 'SUB_SPECIAL', 'DB_PHU', 0, 1, NULL, 'EXACT', 9),
-    ('MIEN_NAM', 'CONSOLATION', 'KK',     0, 3, 5,    'LAST',  10)
-ON CONFLICT (region, prize_code) DO NOTHING;
-
-INSERT INTO prize_structure_templates
-    (region, prize_level, prize_code, prize_value, quantity, match_digits, match_from, display_order)
-VALUES
-    ('MIEN_BAC', 'SPECIAL',     'DB',     0, 1, 5,    'LAST',  0),
-    ('MIEN_BAC', 'FIRST',       'G1',     0, 1, 5,    'LAST',  1),
-    ('MIEN_BAC', 'SECOND',      'G2',     0, 2, 5,    'LAST',  2),
-    ('MIEN_BAC', 'THIRD',       'G3',     0, 6, 5,    'LAST',  3),
-    ('MIEN_BAC', 'FOURTH',      'G4',     0, 4, 4,    'LAST',  4),
-    ('MIEN_BAC', 'FIFTH',       'G5',     0, 6, 4,    'LAST',  5),
-    ('MIEN_BAC', 'SIXTH',       'G6',     0, 3, 3,    'LAST',  6),
-    ('MIEN_BAC', 'SEVENTH',     'G7',     0, 4, 2,    'LAST',  7)
-ON CONFLICT (region, prize_code) DO NOTHING;
-
-INSERT INTO prize_structure_templates
-    (region, prize_level, prize_code, prize_value, quantity, match_digits, match_from, display_order)
-VALUES
-    ('MIEN_TRUNG', 'SPECIAL',     'DB',     0, 1, 6,    'LAST',  0),
-    ('MIEN_TRUNG', 'FIRST',       'G1',     0, 1, 5,    'LAST',  1),
-    ('MIEN_TRUNG', 'SECOND',      'G2',     0, 1, 5,    'LAST',  2),
-    ('MIEN_TRUNG', 'THIRD',       'G3',     0, 2, 5,    'LAST',  3),
-    ('MIEN_TRUNG', 'FOURTH',      'G4',     0, 7, 5,    'LAST',  4),
-    ('MIEN_TRUNG', 'FIFTH',       'G5',     0, 1, 4,    'LAST',  5),
-    ('MIEN_TRUNG', 'SIXTH',       'G6',     0, 3, 4,    'LAST',  6),
-    ('MIEN_TRUNG', 'SEVENTH',     'G7',     0, 1, 3,    'LAST',  7),
-    ('MIEN_TRUNG', 'EIGHTH',      'G8',     0, 1, 2,    'LAST',  8),
-    ('MIEN_TRUNG', 'SUB_SPECIAL', 'DB_PHU', 0, 1, NULL, 'EXACT', 9),
-    ('MIEN_TRUNG', 'CONSOLATION', 'KK',     0, 3, 5,    'LAST',  10)
-ON CONFLICT (region, prize_code) DO NOTHING;
+CREATE INDEX IF NOT EXISTS idx_prize_structures_region_id ON prize_structures(region_id);
 
 -- lottery_tickets
 CREATE TABLE IF NOT EXISTS lottery_tickets (

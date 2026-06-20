@@ -25,6 +25,8 @@ public interface LotteryTicketRepositoryPort {
 
     java.util.List<LotteryTicketModel> findExpirableTickets(LocalDate beforeDate, Collection<LotteryTicketStatus> statuses);
 
+    java.util.List<LotteryTicketModel> findAllByStationIdAndDrawDateAndStatuses(Long stationId, LocalDate drawDate, Collection<LotteryTicketStatus> statuses);
+
     void deleteById(Long id);
 
     boolean existsByUniqueFields(Long stationId, String numbers, LocalDate drawDate);

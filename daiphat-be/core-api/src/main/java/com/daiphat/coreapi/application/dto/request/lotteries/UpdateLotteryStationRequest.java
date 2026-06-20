@@ -16,13 +16,6 @@ public record UpdateLotteryStationRequest(
         String province,
         String region,
 
-        String type,
-
-        // Quy tắc số
-        Integer numberLength,
-        Integer minNumber,
-        Integer maxNumber,
-
         @DecimalMin(value = "0", inclusive = false, message = "Giá phải lớn hơn 0")
         BigDecimal price,
 
@@ -35,6 +28,5 @@ public record UpdateLotteryStationRequest(
         // Hiển thị
         String image,
         String description,
-        Integer displayOrder,
         String status
 ) {}

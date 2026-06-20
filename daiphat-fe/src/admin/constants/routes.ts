@@ -33,7 +33,8 @@ export const ROUTES = {
         TICKETS: {
             LIST: `/${prefixAdmin}/ticket/list`,
             PROVIDER: `/${prefixAdmin}/provider/list`,
-            CATEGORY: `/${prefixAdmin}/ticket-category/list`,
+            PRIZE_STRUCTURE: `/${prefixAdmin}/prize-structures/list`,
+            REGION: `/${prefixAdmin}/region/list`,
             ATTRIBUTE: `/${prefixAdmin}/ticket/attribute/list`,
             EXPIRED: `/${prefixAdmin}/ticket/expired`,
         },
@@ -82,6 +83,7 @@ export const ROUTES = {
             STREET_AGENT: {
                 LIST: `/${prefixAdmin}/street-agent/list`,
                 CREATE: `/${prefixAdmin}/street-agent/create`,
+                EDIT: `/${prefixAdmin}/street-agent/edit`,
             }
         },
         CHAT: `/${prefixAdmin}/chat`,
