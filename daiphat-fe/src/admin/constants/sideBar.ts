@@ -14,7 +14,8 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import RateReviewIcon from "@mui/icons-material/RateReview";
 import ChatIcon from "@mui/icons-material/Chat";
-
+import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import FactCheckIcon from "@mui/icons-material/FactCheck";
 
 import { PERMISSIONS } from "./permission.constants";
 
@@ -82,7 +83,6 @@ export const menuManagementData = [
         children: [
             { id: "list", label: "Kho vé số", tKey: "admin.sidebar.list", path: ROUTES.ADMIN.TICKETS.LIST, permission: PERMISSIONS.TICKET.VIEW },
             { id: "provider", label: "Nhà đài", tKey: "admin.sidebar.provider", path: ROUTES.ADMIN.TICKETS.PROVIDER, permission: PERMISSIONS.PROVIDER.VIEW },
-            { id: "prize-structure", label: "Cơ cấu giải thưởng", path: ROUTES.ADMIN.TICKETS.PRIZE_STRUCTURE, permission: PERMISSIONS.PROVIDER.VIEW },
             { id: "region", label: "Vùng miền", path: ROUTES.ADMIN.TICKETS.REGION, permission: PERMISSIONS.PROVIDER.VIEW },
             { id: "attribute", label: "Thông số vé", tKey: "admin.sidebar.attribute", path: ROUTES.ADMIN.TICKETS.ATTRIBUTE, permission: PERMISSIONS.TICKET.VIEW },
             { id: "expired", label: "Vé hết hạn quay", path: ROUTES.ADMIN.TICKETS.EXPIRED, permission: PERMISSIONS.TICKET.VIEW },
@@ -97,6 +97,20 @@ export const menuManagementData = [
             { id: "list", label: "Danh sách đơn", path: ROUTES.ADMIN.ORDERS.LIST, permission: PERMISSIONS.TICKET.VIEW },
             { id: "create-counter", label: "Đơn tại quầy", path: ROUTES.ADMIN.ORDERS.CREATE_COUNTER, permission: PERMISSIONS.TICKET.VIEW },
         ]
+    },
+    {
+        id: "prize-structure",
+        label: "Cơ cấu giải",
+        Icon: EmojiEventsIcon,
+        path: ROUTES.ADMIN.TICKETS.PRIZE_STRUCTURE,
+        permission: PERMISSIONS.PROVIDER.VIEW,
+    },
+    {
+        id: "draw-results",
+        label: "Kết quả Xổ số",
+        Icon: FactCheckIcon,
+        path: ROUTES.ADMIN.TICKETS.DRAW_RESULT,
+        permission: PERMISSIONS.PROVIDER.VIEW, // Assuming it uses same permission for now
     },
 ];
 

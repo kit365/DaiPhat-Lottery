@@ -119,6 +119,18 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
+    public List<LotteryStationModel> getModelsByDrawDate(LocalDate drawDate) {
+        return findStationsMatchingDrawDate(drawDate).stream()
+                .peek(this::recalculateInventory)
+                .toList();
+    }
+
+    @Override
+    public List<LotteryStationModel> getScheduleModelsByDrawDate(LocalDate drawDate) {
+        return findStationsMatchingDrawDate(drawDate);
+    }
+
+    @Override
     public PageResponse<LotteryStationResponse> getAll(
             int page, int size, String search,
             String status, String type, String region, List<String> drawDay,
@@ -197,7 +209,7 @@ public class LotteryStationService implements LotteryStationServicePort {
 
     @Override
     public List<LotteryStationResponse> getByDrawDate(LocalDate drawDate) {
-        return lotteryStationRepositoryPort.findByNextDrawDate(drawDate).stream()
+        return findStationsMatchingDrawDate(drawDate).stream()
                 .peek(this::recalculateInventory)
                 .map(lotteryStationApplicationMapper::toResponse)
                 .toList();
@@ -424,6 +436,27 @@ public class LotteryStationService implements LotteryStationServicePort {
             }
             throw ex;
         }
+    }
+
+    private List<LotteryStationModel> findStationsMatchingDrawDate(LocalDate drawDate) {
+        DayOfWeek targetDay = drawDate.getDayOfWeek();
+        return lotteryStationRepositoryPort.findAll().stream()
+                .filter(this::isStationActive)
+                .filter(station -> hasDrawDay(station, targetDay))
+                .sorted(Comparator.comparing(LotteryStationModel::getName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
+
+    private boolean isStationActive(LotteryStationModel station) {
+        return station != null
+                && station.getStatus() == LotteryStationStatus.ACTIVE
+                && !station.isDeleted();
+    }
+
+    private boolean hasDrawDay(LotteryStationModel station, DayOfWeek targetDay) {
+        return station.getDrawDays() != null
+                && !station.getDrawDays().isEmpty()
+                && station.getDrawDays().contains(targetDay);
     }
 
     private LocalDate resolveNextDrawDate(LotteryStationModel station) {

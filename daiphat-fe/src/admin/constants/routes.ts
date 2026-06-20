@@ -34,6 +34,7 @@ export const ROUTES = {
             LIST: `/${prefixAdmin}/ticket/list`,
             PROVIDER: `/${prefixAdmin}/provider/list`,
             PRIZE_STRUCTURE: `/${prefixAdmin}/prize-structures/list`,
+            DRAW_RESULT: `/${prefixAdmin}/draw-results`,
             REGION: `/${prefixAdmin}/region/list`,
             ATTRIBUTE: `/${prefixAdmin}/ticket/attribute/list`,
             EXPIRED: `/${prefixAdmin}/ticket/expired`,

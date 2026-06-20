@@ -1,6 +1,5 @@
 package com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.prizestructure.source;
 
-import com.daiphat.coreapi.application.dto.lotteries.LotterySourceCrawlData;
 import com.daiphat.coreapi.application.dto.lotteries.PrizeStructureSourceItem;
 import com.daiphat.coreapi.application.dto.lotteries.PrizeStructureSourcePreviewResult;
 import com.daiphat.coreapi.application.port.out.lotteries.LotterySourceCrawlerPort;
@@ -8,14 +7,13 @@ import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureSourceSy
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
+import com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.source.LotterySourceDocumentBundle;
 import com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.source.LotterySourceDocumentSupport;
 import com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.prizestructure.source.strategy.PrizeStructureSourceStrategy;
 import lombok.extern.slf4j.Slf4j;
-import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Component;
 
 import java.util.EnumMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -48,33 +46,27 @@ public class PrizeStructureSourceSyncAdapter implements PrizeStructureSourceSync
         }
 
         List<String> sourceUrls = strategy.sourceUrls(region);
-        Map<String, LotterySourceCrawlData> crawlDataByUrl = new LinkedHashMap<>();
-        Map<String, Document> documentByUrl = new LinkedHashMap<>();
-        for (String sourceUrl : sourceUrls) {
-            LotterySourceCrawlData pageData = lotterySourceCrawlerPort.fetch(sourceUrl);
-            crawlDataByUrl.put(sourceUrl, pageData);
-            documentByUrl.put(sourceUrl, LotterySourceDocumentSupport.parse(pageData));
-        }
-
-        String primaryUrl = sourceUrls.isEmpty() ? null : sourceUrls.getFirst();
-        LotterySourceCrawlData primaryPageData = primaryUrl != null ? crawlDataByUrl.get(primaryUrl) : null;
-        Document primaryDocument = primaryUrl != null ? documentByUrl.get(primaryUrl) : null;
-        List<PrizeStructureSourceItem> items = strategy.extractItems(documentByUrl, region);
-        List<String> warnings = strategy.warnings(documentByUrl, region);
+        LotterySourceDocumentBundle documentBundle = LotterySourceDocumentSupport.fetchDocuments(
+                sourceUrls,
+                lotterySourceCrawlerPort::fetch
+        );
+        List<PrizeStructureSourceItem> items = strategy.extractItems(documentBundle.documentByUrl(), region);
+        List<String> warnings = strategy.warnings(documentBundle.documentByUrl(), region);
 
         log.info("[PrizeStructureSource] Preview {} region={} fetched {} items from {}",
-                sourceType, region, items.size(), primaryPageData != null ? primaryPageData.requestUrl() : "n/a");
+                sourceType, region, items.size(),
+                documentBundle.primaryPageData() != null ? documentBundle.primaryPageData().requestUrl() : "n/a");
 
         return PrizeStructureSourcePreviewResult.builder()
                 .source(sourceType.name())
                 .region(region)
-                .requestUrl(primaryPageData != null ? primaryPageData.requestUrl() : null)
-                .pageTitle(primaryDocument != null ? primaryDocument.title() : null)
-                .fetchedAt(primaryPageData != null ? primaryPageData.fetchedAt() : null)
+                .requestUrl(documentBundle.primaryPageData() != null ? documentBundle.primaryPageData().requestUrl() : null)
+                .pageTitle(documentBundle.primaryDocument() != null ? documentBundle.primaryDocument().title() : null)
+                .fetchedAt(documentBundle.primaryPageData() != null ? documentBundle.primaryPageData().fetchedAt() : null)
                 .totalItems(items.size())
                 .warnings(warnings)
                 .items(items)
-                .rawPreview(LotterySourceDocumentSupport.rawPreview(primaryDocument))
+                .rawPreview(LotterySourceDocumentSupport.rawPreview(documentBundle.primaryDocument()))
                 .build();
     }
 }

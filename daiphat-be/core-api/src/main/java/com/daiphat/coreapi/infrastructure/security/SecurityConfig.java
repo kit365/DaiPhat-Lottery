@@ -64,12 +64,18 @@ public class SecurityConfig {
                                 AUTH + "/verify-email",
                                 AUTH + "/password-policy",
                                 ApiConstants.API_V1 + "/blogs/public",
+                                ApiConstants.API_V1 + "/blogs/public/**",
                                 ApiConstants.API_V1 + "/blogs/categories/public",
                                 ApiConstants.API_V1 + "/lottery-tickets/public",
                                 ApiConstants.API_V1 + "/lottery-tickets/home",
-                                ApiConstants.API_V1 + "/lottery-stations/draws/today",
-                                ApiConstants.API_V1 + "/lottery-stations/draws/tomorrow",
-                                ApiConstants.API_V1 + "/transactions/payment/webhook/*"
+                                ApiConstants.API_V1 + "/lottery-results/board/full",
+                                ApiConstants.API_V1 + "/lottery-results/board",
+                                ApiConstants.API_V1 + "/lottery-results/details",
+                                ApiConstants.API_V1 + "/lottery-stations/schedule",
+                                ApiConstants.API_V1 + "/lottery-stations/schedule/today",
+                                ApiConstants.API_V1 + "/lottery-stations/schedule/tomorrow",
+                                ApiConstants.API_V1 + "/transactions/payment/webhook/*",
+                                ApiConstants.API_V1 + "/banks"
                         ).permitAll()
                         .requestMatchers(HttpMethod.PATCH,
                                 ApiConstants.API_V1 + "/blogs/*/view"
