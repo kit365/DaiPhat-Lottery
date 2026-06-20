@@ -17,7 +17,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
 import com.daiphat.coreapi.shared.util.StorageUtils;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -70,12 +72,19 @@ public class LotteryStationController {
                 lotteryStationServicePort.getAll(page, size, search, status, type, region, drawDay, sortBy, direction));
     }
 
-    @GetMapping("/draws/today")
+    @GetMapping("/schedule/today")
     public ApiResponse<List<LotteryStationResponse>> getDrawingToday() {
         return ApiResponse.success(null, lotteryStationServicePort.getDrawingToday());
     }
 
-    @GetMapping("/draws/tomorrow")
+    @GetMapping("/schedule")
+    public ApiResponse<List<LotteryStationResponse>> getByDrawDate(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate
+    ) {
+        return ApiResponse.success(null, lotteryStationServicePort.getByDrawDate(drawDate));
+    }
+
+    @GetMapping("/schedule/tomorrow")
     public ApiResponse<List<LotteryStationResponse>> getDrawingTomorrow() {
         return ApiResponse.success(null, lotteryStationServicePort.getDrawingTomorrow());
     }
