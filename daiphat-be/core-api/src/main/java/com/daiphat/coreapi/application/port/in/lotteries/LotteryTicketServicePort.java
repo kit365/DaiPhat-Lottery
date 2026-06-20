@@ -19,11 +19,11 @@ public interface LotteryTicketServicePort {
     LotteryTicketResponse getById(Long id);
 
     PageResponse<LotteryTicketResponse> getAll(
-            int page, int size, Long stationId, String status,
+            int page, int size, Long stationId, List<Long> stationIds, String status,
             String drawDate, String search, String sortBy, String direction);
 
     PageResponse<LotteryTicketResponse> getPublicTickets(
-            int page, int size, Long stationId, String drawDate, String search, String sortBy, String direction);
+            int page, int size, Long stationId, List<Long> stationIds, String drawDate, String search, String sortBy, String direction);
 
     LotteryTicketResponse update(Long id, UpdateLotteryTicketRequest request, UUID editorId);
 
@@ -39,11 +39,7 @@ public interface LotteryTicketServicePort {
 
     List<OrderTicketSnapshot> reserveForOrder(List<Long> ticketIds);
 
-    OrderTicketSnapshot reserveForOrder(Long ticketId);
-
     List<OrderTicketSnapshot> sellOfflineForOrder(List<Long> ticketIds);
-
-    OrderTicketSnapshot sellOfflineForOrder(Long ticketId);
 
     void markSoldForOrder(Long ticketSerialId);
 

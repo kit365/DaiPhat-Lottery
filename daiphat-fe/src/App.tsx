@@ -3,6 +3,7 @@ import './App.css';
 import { BrowserRouter, Navigate, Route, Routes, Outlet } from 'react-router-dom';
 import { LayoutAdmin } from './admin/layouts/LayoutAdmin';
 import { HomePage } from './client/pages/home';
+import { SchedulePage } from './client/pages/schedule';
 import { AdminRoutes, AdminAuthRoutes, CommonRoutes, ProfileSetupPage, OAuthCallbackPage, AcceptInvitePage } from './admin/routes/index';
 import { PrivateRoute } from './client/pages/private.route';
 import { ProfilePage as ClientProfilePage } from './client/pages/profile/ProfilePage';
@@ -66,6 +67,7 @@ function App() {
         {/* Client Side Theme Context */}
         <Route element={<ClientThemeLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/lich-mo-thuong" element={<SchedulePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ClientForgotPasswordPage />} />

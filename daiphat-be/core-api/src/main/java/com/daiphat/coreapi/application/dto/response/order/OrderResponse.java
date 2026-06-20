@@ -16,6 +16,7 @@ public record OrderResponse(
         UUID userId,
         String name,
         String phone,
+        String email,
         String orderCode,
         OrderType orderType,
         OrderReceiveType receiveType,

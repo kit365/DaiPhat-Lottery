@@ -25,9 +25,8 @@ import { AppToast as toast } from "../../utils/toast.util";
 const navItems = [
   { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },
   { label: "Mua vé số", to: "/buy-ticket", icon: Ticket },
-  { label: "Kết quả", to: "#", icon: Crosshair },
   { label: "Vé của tôi", to: "/profile/tickets", icon: Ticket },
-  { label: "Lịch mở thưởng", to: "#", icon: CalendarDays },
+  { label: "Lịch mở thưởng", to: "/lich-mo-thuong", icon: CalendarDays },
   { label: "Bài viết", to: "/blogs", icon: BookOpen },
 ];
 

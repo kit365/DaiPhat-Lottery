@@ -1,8 +1,6 @@
 import React from 'react';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { LotoTable } from "./LotoTable";
-import { RecentResults } from "./RecentResults";
-import { FeaturedNews } from "./FeaturedNews";
 import { LotteryResult } from '../../types/lottery';
 
 interface HomeSidebarProps {
@@ -70,12 +68,6 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto,
           />
         </div>
       )}
-
-      {/* Recent Results Widget */}
-      <RecentResults history={history} onDateChange={onDateChange} />
-
-      {/* Featured News Widget */}
-      <FeaturedNews />
     </aside>
   );
 };
