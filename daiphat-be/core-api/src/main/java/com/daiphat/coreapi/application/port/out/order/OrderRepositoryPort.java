@@ -66,6 +66,8 @@ public interface OrderRepositoryPort {
 
     List<UUID> findPendingPaymentOrderIdsCreatedBefore(LocalDateTime threshold);
 
+    void assignGuestOrdersToUserByEmail(UUID userId, String email);
+
     boolean existsByLotteryTicketId(Long lotteryTicketId);
 
     boolean existsByLotteryTicketSerialId(Long lotteryTicketSerialId);
