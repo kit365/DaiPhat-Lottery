@@ -3,14 +3,13 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Home, Ticket, Trophy, User } from "lucide-react";
 import { ROUTES } from "../../../admin/constants/routes";
-import { useAuth } from "../../hooks/useAuth";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { AppToast as toast } from "../../utils/toast.util";
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
   const { openLoginModal, openProfileSetupModal } = useAuthStore();
 
   const navItems = [

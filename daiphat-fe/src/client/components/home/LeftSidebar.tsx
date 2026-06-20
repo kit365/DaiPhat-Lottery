@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { DatePickerModal } from './DatePickerModal';
+import { DatePicker } from '../common/DatePicker';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 interface LeftSidebarProps {
@@ -7,38 +7,31 @@ interface LeftSidebarProps {
   setActiveProvinces: (provinces: string[]) => void;
   onDateChange: (date: string) => void;
   availableDates: string[];
+  availableProvinces: string[];
   selectedDate?: string;
 }
-
-const MIEN_NAM_PROVINCES = [
-  "TP. Hồ Chí Minh", "Đồng Tháp", "Cà Mau",
-  "Tây Ninh", "Vũng Tàu", "Bến Tre", "Bạc Liêu",
-  "Đồng Nai", "Cần Thơ", "Sóc Trăng",
-  "An Giang", "Bình Dương", "Hậu Giang",
-  "Kiên Giang", "Long An", "Tiền Giang", "Trà Vinh",
-  "Vĩnh Long", "Bình Phước", "Đà Lạt"
-];
 
 export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   activeProvinces,
   setActiveProvinces,
   onDateChange,
   availableDates,
+  availableProvinces,
   selectedDate
 }) => {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isMienNamOpen, setIsMienNamOpen] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery] = useState('');
 
   const filteredProvinces = useMemo(() => {
-    return MIEN_NAM_PROVINCES.filter(p => p.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [searchQuery]);
+    return availableProvinces.filter(p => p.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [availableProvinces, searchQuery]);
 
   const handleSelectAll = () => {
-    if (activeProvinces.length === filteredProvinces.slice(0, 3).length) {
+    if (activeProvinces.length === filteredProvinces.length) {
       setActiveProvinces([]);
     } else {
-      setActiveProvinces(filteredProvinces.slice(0, 3));
+      setActiveProvinces(filteredProvinces);
     }
   };
 
@@ -53,16 +46,33 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   return (
     <aside className="relative w-full lg:w-[280px] shrink-0 space-y-4 font-client-main">
       {/* Date Picker Button - Premium Integration */}
-      <button
-        onClick={() => setIsDatePickerOpen(true)}
-        className="w-full bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.04)] border border-gray-100 flex items-center justify-between px-5 py-4 transition-all active:scale-[0.98] group cursor-pointer hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)]"
-      >
-        <div className="flex items-center gap-2.5">
-          <span className="material-symbols-outlined text-[20px] text-[#ee1314]">calendar_month</span>
-          <span className="text-[16px] font-bold text-[#333333]">Chọn ngày khác</span>
+      <div className="bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
+        <button
+          onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+          className="w-full flex items-center justify-between px-5 py-4 transition-all active:scale-[0.98] group cursor-pointer hover:bg-slate-50 border-b border-gray-50"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="material-symbols-outlined text-[20px] text-[#ee1314]">calendar_month</span>
+            <span className="text-[16px] font-bold text-[#333333]">Chọn ngày khác</span>
+          </div>
+          <span className={`material-symbols-outlined text-[20px] text-slate-400 transition-transform duration-300 ${isDatePickerOpen ? 'rotate-180' : ''}`}>
+            expand_less
+          </span>
+        </button>
+
+        {/* Calendar Accordion Area */}
+        <div className={`transition-all duration-300 overflow-hidden ${isDatePickerOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="p-4 bg-white">
+            <DatePicker
+              selectedDate={selectedDate || ''}
+              onDateSelect={(date) => {
+                onDateChange(date);
+              }}
+              availableDates={availableDates}
+            />
+          </div>
         </div>
-        <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-[#ee1314] transition-colors">chevron_right</span>
-      </button>
+      </div>
 
       {/* Main Province Filter Card */}
       <div className="bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
@@ -95,12 +105,12 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                 <div className="relative flex items-center justify-center">
                   <input
                     type="checkbox"
-                    checked={activeProvinces.length === filteredProvinces.slice(0, 3).length && activeProvinces.length > 0}
+                    checked={activeProvinces.length === filteredProvinces.length && activeProvinces.length > 0}
                     onChange={handleSelectAll}
                     className="absolute opacity-0 w-0 h-0"
                   />
-                  <div className={`w-[16px] h-[16px] rounded flex items-center justify-center border transition-all ${activeProvinces.length === filteredProvinces.slice(0, 3).length && activeProvinces.length > 0 ? 'bg-[#ee1314] border-[#ee1314]' : 'bg-white border-gray-300'}`}>
-                    {activeProvinces.length === filteredProvinces.slice(0, 3).length && activeProvinces.length > 0 && (
+                  <div className={`w-[16px] h-[16px] rounded flex items-center justify-center border transition-all ${activeProvinces.length === filteredProvinces.length && activeProvinces.length > 0 ? 'bg-[#ee1314] border-[#ee1314]' : 'bg-white border-gray-300'}`}>
+                    {activeProvinces.length === filteredProvinces.length && activeProvinces.length > 0 && (
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-white -translate-y-[0.5px]">
                         <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
                       </svg>
@@ -110,7 +120,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                 <span className="text-[14px] leading-relaxed transition-all font-medium">Chọn tất cả</span>
               </label>
 
-              {filteredProvinces.slice(0, 3).map((province) => {
+              {filteredProvinces.map((province) => {
                 const isActive = activeProvinces.includes(province);
                 return (
                   <label
@@ -164,16 +174,6 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
         </div>
       </div>
 
-      <DatePickerModal
-        isOpen={isDatePickerOpen}
-        onClose={() => setIsDatePickerOpen(false)}
-        onDateSelect={(date) => {
-          onDateChange(date);
-          setIsDatePickerOpen(false);
-        }}
-        availableDates={availableDates}
-        selectedDate={selectedDate || ''}
-      />
     </aside>
   );
 };
