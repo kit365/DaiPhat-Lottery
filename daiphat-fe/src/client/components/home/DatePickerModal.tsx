@@ -27,8 +27,8 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
       />
 
       {/* Popup Content - Positioned absolutely relative to parent */}
-      <div className="absolute left-[calc(100%+20px)] top-0 z-[100] w-[600px] animate-in fade-in slide-in-from-left-4 duration-300">
-        <div className="bg-white rounded-[32px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-gray-100 overflow-hidden">
+      <div className="absolute left-0 top-[calc(100%+12px)] z-[100] w-[300px] max-w-[calc(100vw-2rem)] animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="bg-[#EAEAEA] rounded-lg shadow-xl border border-gray-300 overflow-hidden">
           <DatePicker
             selectedDate={selectedDate}
             onDateSelect={(date) => {

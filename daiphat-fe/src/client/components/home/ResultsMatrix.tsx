@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { DisplayType, getDisplayNumber, LotteryResult } from '../../types/lottery';
 
 interface ResultsMatrixProps {
@@ -13,6 +13,8 @@ interface ResultsMatrixProps {
   setSelectedDigit?: (val: string | null) => void;
   activeDigit?: string | null;
   setHoveredDigit?: (val: string | null) => void;
+  statusMessage?: string;
+  isRefreshing?: boolean;
 }
 
 // Helper to highlight specific digits
@@ -49,29 +51,23 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
   selectedDigit,
   setSelectedDigit,
   activeDigit,
-  setHoveredDigit
+  setHoveredDigit,
+  statusMessage,
+  isRefreshing = false,
 }) => {
-  const [timeLeft, setTimeLeft] = useState({ h: 15, m: 58, s: 37 });
-  
-  const mainDate = dataList.length > 0 ? dataList[0].date : '';
+  const mainDate = dataList[0]?.date || '';
   const isSingleMode = dataList.length === 1;
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev.s > 0) return { ...prev, s: prev.s - 1 };
-        if (prev.m > 0) return { ...prev, m: prev.m - 1, s: 59 };
-        if (prev.h > 0) return { h: prev.h - 1, m: 59, s: 59 };
-        return prev;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTime = (n: number) => n.toString().padStart(2, '0');
-
   return (
-    <section className="w-full">
+    <section className="w-full relative">
+      {isRefreshing && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-3xl min-h-[400px]">
+          <div className="flex flex-col items-center gap-4 bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+            <div className="w-12 h-12 border-4 border-slate-100 border-t-[#ee1314] rounded-full animate-spin"></div>
+            <span className="text-[#102937] font-bold text-sm uppercase tracking-wider">Đang cập nhật...</span>
+          </div>
+        </div>
+      )}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] overflow-hidden font-client-main">
         {/* Header Section */}
         <div className="p-3 lg:p-4 bg-white border-b border-gray-100 rounded-t-3xl">
@@ -88,10 +84,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                   <span className="flex gap-1 items-center">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#ee1314] animate-pulse"></span>
                   </span>
-                  <span>
-                    Đang chờ xổ số lúc <span className="font-semibold">16h15'</span>. 
-                    Còn <span className="bg-[#FCE5DF] text-[#ee1314] px-1.5 py-0.5 rounded font-semibold tabular-nums ml-1">{formatTime(timeLeft.h)}:{formatTime(timeLeft.m)}:{formatTime(timeLeft.s)}</span> nữa
-                  </span>
+                  <span>{statusMessage || 'Đang cập nhật kết quả mới nhất từ hệ thống.'}</span>
                 </p>
               </div>
             </div>
@@ -222,7 +215,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                   return (
                     <div key={i} className={`flex-1 flex items-center justify-center ${!isSingleMode ? 'py-1.5 px-2 border-r border-gray-100 last:border-0' : 'py-3 px-3 md:py-4 md:px-8'}`}>
                       {prize.isGrid ? (
-                        <div className={`${isSingleMode ? 'grid grid-cols-2 lg:grid-cols-4 gap-x-4 md:gap-x-6 lg:gap-x-10 gap-y-3 max-w-[400px] lg:max-w-[800px]' : 'flex flex-col gap-y-1'} w-full mx-auto text-center`}>
+                        <div className={`${isSingleMode ? `grid ${numbers.length === 2 ? 'grid-cols-2 max-w-[300px] md:max-w-[400px] lg:max-w-[500px]' : numbers.length === 3 ? 'grid-cols-3 max-w-[400px] md:max-w-[500px] lg:max-w-[600px]' : 'grid-cols-2 lg:grid-cols-4 max-w-[400px] lg:max-w-[800px]'} gap-x-4 md:gap-x-6 lg:gap-x-10 gap-y-3` : 'flex flex-col gap-y-1'} w-full mx-auto text-center`}>
                           {numbers.map((n, index) => (
                             <span key={index} className={`text-[#111111] font-bold tracking-tight font-client-main ${isSingleMode ? 'text-[16px] md:text-[18px] lg:text-[20px]' : 'text-[13px] md:text-[14px] lg:text-[15px]'}`}>
                               {renderHighlightedNumber(getDisplayNumber(n, displayType), activeDigit || null)}

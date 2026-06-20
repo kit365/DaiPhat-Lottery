@@ -9,7 +9,7 @@ import {
 } from "../services/notificationService";
 
 const DEFAULT_LIMIT = 4;
-const CLIENT_NOTIFICATION_REFETCH_INTERVAL_MS = 5_000;
+const CLIENT_NOTIFICATION_REFETCH_INTERVAL_MS = 30_000;
 
 export const useNotifications = (limit: number = DEFAULT_LIMIT) => {
     const token = useAuthStore((state) => state.token);
@@ -19,12 +19,12 @@ export const useNotifications = (limit: number = DEFAULT_LIMIT) => {
         queryFn: ({ pageParam = 1 }) => getMyNotifications({ page: pageParam, limit }),
         initialPageParam: 1,
         enabled: !!token,
-        staleTime: 0,
+        staleTime: 15_000,
         gcTime: 1000 * 60 * 5,
         retry: false,
         refetchInterval: CLIENT_NOTIFICATION_REFETCH_INTERVAL_MS,
         refetchIntervalInBackground: false,
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: false,
         getNextPageParam: (lastPage) => {
             if (lastPage.pagination.isLast) {
                 return undefined;

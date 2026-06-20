@@ -1,90 +1,56 @@
-import { LotteryResult, MOCK_DATABASE } from '../types/lottery';
 import { ApiResponse } from '../../admin/config/type';
+import { apiApp } from '../../api';
+import {
+  LotteryBoardData,
+  LotteryResultLiveDetailsApiResponse,
+  LotteryResultLiveSummaryApiResponse,
+  formatApiDateToDisplay,
+  formatDisplayDateToApi,
+  mapResultSummaryToLotteryResult,
+  mergeResultWithLiveDetails,
+} from '../types/lottery';
+
+const BASE_URL = '/lottery-results';
+const DEFAULT_REGION = 'MIEN_NAM';
 
 export const lotteryService = {
-  /**
-   * Fetches the latest lottery result for a specific province.
-   */
-  getResultsByProvince: async (province: string): Promise<ApiResponse<LotteryResult>> => {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 10));
+  async getBoard(date: string): Promise<ApiResponse<LotteryBoardData>> {
+    const response = await apiApp.get<ApiResponse<LotteryResultLiveSummaryApiResponse>>(`${BASE_URL}/board`, {
+      params: {
+        region: DEFAULT_REGION,
+        drawDate: formatDisplayDateToApi(date),
+      },
+    });
 
-    const provinceResults = MOCK_DATABASE[province];
-    const data = provinceResults ? provinceResults[0] : undefined;
-
-    if (!data) {
-      return {
-        success: false,
-        data: undefined,
-        message: `Chưa có kết quả cho tỉnh ${province}`,
-        timestamp: new Date().toISOString()
-      };
-    }
+    const liveBoard = response.data.data;
+    const results = (liveBoard?.results || []).map(mapResultSummaryToLotteryResult);
 
     return {
-      success: true,
-      data,
-      message: "Lấy dữ liệu thành công",
-      timestamp: new Date().toISOString()
+      ...response.data,
+      data: {
+        region: liveBoard?.region || DEFAULT_REGION,
+        drawDate: formatApiDateToDisplay(liveBoard?.drawDate || formatDisplayDateToApi(date)),
+        drawDateIso: liveBoard?.drawDate || formatDisplayDateToApi(date),
+        results,
+        availableProvinces: results.map((item) => item.province),
+      },
     };
   },
 
-  /**
-   * Fetches a specific result for a province on a specific date.
-   */
-  getResultByDate: async (province: string, date: string): Promise<ApiResponse<LotteryResult>> => {
-    await new Promise(resolve => setTimeout(resolve, 10));
+  async getDetails(resultIds: number[]) {
+    const response = await apiApp.get<ApiResponse<LotteryResultLiveDetailsApiResponse>>(`${BASE_URL}/details`, {
+      params: {
+        resultIds,
+      },
+      paramsSerializer: {
+        indexes: null,
+      },
+    });
 
-    const provinceResults = MOCK_DATABASE[province];
-    const data = provinceResults?.find(r => r.date === date);
-
-    if (!data) {
-      return {
-        success: false,
-        data: undefined,
-        message: `Chưa có kết quả cho tỉnh ${province} vào ngày ${date}`,
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    return {
-      success: true,
-      data,
-      message: "Lấy dữ liệu thành công",
-      timestamp: new Date().toISOString()
-    };
+    return response.data.data?.results || [];
   },
-
-  /**
-   * Fetches historical results for a specific province.
-   */
-  getHistoryByProvince: async (province: string): Promise<ApiResponse<LotteryResult[]>> => {
-    await new Promise(resolve => setTimeout(resolve, 10));
-
-    const history = MOCK_DATABASE[province] || [];
-
-    return {
-      success: true,
-      data: history,
-      message: "Lấy lịch sử thành công",
-      timestamp: new Date().toISOString()
-    };
-  },
-
-  /**
-   * Fetches the latest results for all supported provinces.
-   */
-  getAllResults: async (): Promise<ApiResponse<LotteryResult[]>> => {
-    await new Promise(resolve => setTimeout(resolve, 10));
-    
-    // Return the latest result for each province
-    const allLatest = Object.values(MOCK_DATABASE).map(list => list[0]);
-
-    return {
-      success: true,
-      data: allLatest,
-      message: "Lấy tất cả dữ liệu thành công",
-      timestamp: new Date().toISOString()
-    };
+  mergeBoardWithDetails(boardResults: LotteryBoardData['results'], resultItems: LotteryResultLiveDetailsApiResponse['results']) {
+    const liveItemByResultId = new Map(resultItems.map((item) => [item.result.id, item]));
+    return boardResults.map((result) => mergeResultWithLiveDetails(result, result.id ? liveItemByResultId.get(result.id) : undefined));
   }
 };
