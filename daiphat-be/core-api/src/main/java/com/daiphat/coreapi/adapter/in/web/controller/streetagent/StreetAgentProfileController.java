@@ -37,10 +37,11 @@ public class StreetAgentProfileController {
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int limit,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String contactProvince) {
         return ApiResponse.success(
                 null,
-                streetAgentProfileServicePort.getAll(page, limit, search, status));
+                streetAgentProfileServicePort.getAll(page, limit, search, status, contactProvince));
     }
 
     @GetMapping(ID_PATH)

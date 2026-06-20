@@ -51,6 +51,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -171,14 +172,14 @@ public class UserService implements UserServicePort {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<UserResponse> getAll(int page, int size, String search, String status, List<String> roleIds, String sortBy, String direction) {
-        UserStatus userStatus = UserStatus.fromFilter(status);
+        List<UserStatus> statusFilters = parseStatusList(status);
 
         Sort sort = SortUtils.createSort(sortBy, direction);
 
         Page<UserModel> userPage = userRepositoryPort.findAll(
                 PageableUtils.of(page, size, sort),
                 search,
-                userStatus,
+                statusFilters,
                 roleIds
         );
 
@@ -399,6 +400,30 @@ public class UserService implements UserServicePort {
         }
     }
 
+    private List<UserStatus> parseStatusList(String status) {
+        if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status)) {
+            return List.of();
+        }
 
+        List<UserStatus> parsed = Arrays.stream(status.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .map(value -> {
+                    try {
+                        return UserStatus.valueOf(value.toUpperCase());
+                    } catch (IllegalArgumentException ex) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        if (parsed.size() >= UserStatus.values().length) {
+            return List.of();
+        }
+
+        return parsed;
+    }
 
 }

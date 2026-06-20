@@ -22,10 +22,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -37,27 +38,29 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<StreetAgentProfileResponse> getAll(int page, int limit, String search, String status) {
+    public PageResponse<StreetAgentProfileResponse> getAll(
+            int page, int limit, String search, String status, String contactProvince) {
         Pageable pageable = PageableUtils.of(page, limit, SortUtils.byCreatedAtDesc());
-        StreetAgentProfileStatus statusFilter = parseStatusFilter(status);
+        List<StreetAgentProfileStatus> statusFilters = parseStatusList(status);
+        List<String> provinceFilters = parseContactProvinceList(contactProvince);
 
         Page<StreetAgentProfileModel> resultPage =
-                streetAgentProfileRepositoryPort.findAll(pageable, search, statusFilter);
+                streetAgentProfileRepositoryPort.findAll(pageable, search, statusFilters, provinceFilters);
 
         return PageResponse.from(
                 resultPage.map(streetAgentProfileApplicationMapper::toResponse),
                 page,
                 limit,
-                buildStatusCounts(search));
+                buildStatusCounts(search, provinceFilters));
     }
 
-    private Map<String, Long> buildStatusCounts(String search) {
+    private Map<String, Long> buildStatusCounts(String search, List<String> contactProvinces) {
         Map<String, Long> counts = new LinkedHashMap<>();
-        counts.put(StatusCountKeys.ALL, streetAgentProfileRepositoryPort.countAll(search));
+        counts.put(StatusCountKeys.ALL, streetAgentProfileRepositoryPort.countAll(search, contactProvinces));
         Arrays.stream(StreetAgentProfileStatus.values())
                 .forEach(status -> counts.put(
                         status.getCode(),
-                        streetAgentProfileRepositoryPort.countByStatus(status, search)
+                        streetAgentProfileRepositoryPort.countByStatus(status, search, contactProvinces)
                 ));
         return counts;
     }
@@ -145,14 +148,41 @@ public class StreetAgentProfileService implements StreetAgentProfileServicePort 
         }
     }
 
-    private StreetAgentProfileStatus parseStatusFilter(String status) {
+    private List<StreetAgentProfileStatus> parseStatusList(String status) {
         if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status)) {
-            return null;
+            return List.of();
         }
-        try {
-            return StreetAgentProfileStatus.valueOf(status.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return null;
+
+        List<StreetAgentProfileStatus> parsed = Arrays.stream(status.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .map(value -> {
+                    try {
+                        return StreetAgentProfileStatus.valueOf(value.toUpperCase());
+                    } catch (IllegalArgumentException ex) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        if (parsed.size() >= StreetAgentProfileStatus.values().length) {
+            return List.of();
         }
+
+        return parsed;
+    }
+
+    private List<String> parseContactProvinceList(String contactProvince) {
+        if (contactProvince == null || contactProvince.isBlank()) {
+            return List.of();
+        }
+
+        return Arrays.stream(contactProvince.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .toList();
     }
 }

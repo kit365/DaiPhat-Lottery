@@ -32,7 +32,7 @@ public interface UserRepositoryPort {
 
     boolean existsById(UUID id);
 
-    Page<UserModel> findAll(Pageable pageable, String search, UserStatus status, List<String> roleIds);
+    Page<UserModel> findAll(Pageable pageable, String search, List<UserStatus> statuses, List<String> roleIds);
 
     long countAll(String search, List<String> roleIds);
 

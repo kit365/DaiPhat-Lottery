@@ -65,10 +65,10 @@ class StreetAgentProfileControllerTest {
                     "INACTIVE", 0L
             ));
 
-            when(streetAgentProfileServicePort.getAll(1, 10, null, null)).thenReturn(serviceResponse);
+            when(streetAgentProfileServicePort.getAll(1, 10, null, null, null)).thenReturn(serviceResponse);
 
             ApiResponse<PageResponse<StreetAgentProfileResponse>> response =
-                    streetAgentProfileController.getAll(1, 10, null, null);
+                    streetAgentProfileController.getAll(1, 10, null, null, null);
 
             assertThat(response).isNotNull();
             assertThat(response.isSuccess()).isTrue();
@@ -79,21 +79,21 @@ class StreetAgentProfileControllerTest {
             assertThat(response.getData().getStatusCounts())
                     .containsEntry(StatusCountKeys.ALL, 1L)
                     .containsEntry("ACTIVE", 1L);
-            verify(streetAgentProfileServicePort).getAll(1, 10, null, null);
+            verify(streetAgentProfileServicePort).getAll(1, 10, null, null, null);
         }
 
         @Test
         @DisplayName("ủy quyền tìm kiếm và lọc trạng thái cho service")
         void getAll_withSearchAndStatus() {
             PageResponse<StreetAgentProfileResponse> emptyPage = PageResponse.from(List.of(), 0L, 1, 10);
-            when(streetAgentProfileServicePort.getAll(1, 10, "Van A", "ACTIVE")).thenReturn(emptyPage);
+            when(streetAgentProfileServicePort.getAll(1, 10, "Van A", "ACTIVE", null)).thenReturn(emptyPage);
 
             ApiResponse<PageResponse<StreetAgentProfileResponse>> response =
-                    streetAgentProfileController.getAll(1, 10, "Van A", "ACTIVE");
+                    streetAgentProfileController.getAll(1, 10, "Van A", "ACTIVE", null);
 
             assertThat(response.isSuccess()).isTrue();
             assertThat(response.getData().getRecordList()).isEmpty();
-            verify(streetAgentProfileServicePort).getAll(1, 10, "Van A", "ACTIVE");
+            verify(streetAgentProfileServicePort).getAll(1, 10, "Van A", "ACTIVE", null);
         }
     }
 
