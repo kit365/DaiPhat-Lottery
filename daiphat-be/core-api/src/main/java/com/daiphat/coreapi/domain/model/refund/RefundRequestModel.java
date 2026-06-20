@@ -78,6 +78,11 @@ public class RefundRequestModel {
         this.transferEvidenceUrl = evidenceUrl.trim();
     }
 
+    public void cancel() {
+        ensureStatus(RefundRequestStatus.PENDING);
+        this.status = RefundRequestStatus.CANCELLED;
+    }
+
     private void ensureStatus(RefundRequestStatus expectedStatus) {
         if (this.status != expectedStatus) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
