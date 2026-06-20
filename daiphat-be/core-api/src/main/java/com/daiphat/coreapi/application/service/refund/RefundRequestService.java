@@ -1,8 +1,6 @@
 package com.daiphat.coreapi.application.service.refund;
 
 import com.daiphat.coreapi.application.dto.request.refund.CreateRefundRequestRequest;
-import com.daiphat.coreapi.application.dto.request.refund.RejectRefundRequestRequest;
-import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
@@ -51,7 +49,7 @@ public class RefundRequestService implements RefundRequestServicePort {
     @Override
     @Transactional
     public RefundRequestResponse create(UUID userId, CreateRefundRequestRequest request) {
-        log.info("Creating refund request for user {} on order {}", userId, request.orderId());
+        log.info("Creating refund request for customer {} on order {}", userId, request.orderId());
 
         validateAmount(request.refundAmount());
         validateRefundType(request);
@@ -94,21 +92,8 @@ public class RefundRequestService implements RefundRequestServicePort {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<RefundRequestResponse> getAll(
-            int page, int limit, String status, UUID orderId, String search) {
-        return findRequests(page, limit, null, parseStatus(status), orderId, search);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public RefundRequestResponse getById(Long id, UUID userId, boolean staffAccess) {
-        RefundRequestModel request = refundRequestRepositoryPort.findById(id)
-                .orElseThrow(() -> new DomainException(ErrorCode.REFUND_REQUEST_NOT_FOUND));
-
-        if (!staffAccess && !userId.equals(request.getRequestedBy())) {
-            throw new DomainException(ErrorCode.REFUND_REQUEST_ACCESS_DENIED);
-        }
-
+    public RefundRequestResponse getById(Long id, UUID userId) {
+        RefundRequestModel request = getOwnedRequestOrThrow(id, userId);
         UserBankAccountModel bankAccount = userBankAccountRepositoryPort.findById(request.getBankAccountId())
                 .orElse(null);
         return toResponse(request, bankAccount);
@@ -116,28 +101,12 @@ public class RefundRequestService implements RefundRequestServicePort {
 
     @Override
     @Transactional
-    public RefundRequestResponse approve(Long id, UUID reviewerId) {
-        RefundRequestModel request = getRequestOrThrow(id);
-        request.approve(reviewerId);
-        RefundRequestModel saved = refundRequestRepositoryPort.save(request);
-        return toResponse(saved, loadBankAccount(saved.getBankAccountId()));
-    }
-
-    @Override
-    @Transactional
-    public RefundRequestResponse reject(Long id, UUID reviewerId, RejectRefundRequestRequest rejectRequest) {
-        RefundRequestModel request = getRequestOrThrow(id);
-        request.reject(reviewerId, rejectRequest.rejectReason());
-        RefundRequestModel saved = refundRequestRepositoryPort.save(request);
-        return toResponse(saved, loadBankAccount(saved.getBankAccountId()));
-    }
-
-    @Override
-    @Transactional
-    public RefundRequestResponse markTransferred(
-            Long id, UUID transferrerId, TransferRefundRequestRequest transferRequest) {
-        RefundRequestModel request = getRequestOrThrow(id);
-        request.markTransferred(transferrerId, transferRequest.transferEvidenceUrl());
+    public RefundRequestResponse cancel(Long id, UUID userId) {
+        RefundRequestModel request = getOwnedRequestOrThrow(id, userId);
+        if (request.getStatus() != RefundRequestStatus.PENDING) {
+            throw new DomainException(ErrorCode.REFUND_REQUEST_CANNOT_CANCEL);
+        }
+        request.cancel();
         RefundRequestModel saved = refundRequestRepositoryPort.save(request);
         return toResponse(saved, loadBankAccount(saved.getBankAccountId()));
     }
@@ -185,9 +154,14 @@ public class RefundRequestService implements RefundRequestServicePort {
         return counts;
     }
 
-    private RefundRequestModel getRequestOrThrow(Long id) {
-        return refundRequestRepositoryPort.findById(id)
+    private RefundRequestModel getOwnedRequestOrThrow(Long id, UUID userId) {
+        RefundRequestModel request = refundRequestRepositoryPort.findById(id)
                 .orElseThrow(() -> new DomainException(ErrorCode.REFUND_REQUEST_NOT_FOUND));
+
+        if (!userId.equals(request.getRequestedBy())) {
+            throw new DomainException(ErrorCode.REFUND_REQUEST_ACCESS_DENIED);
+        }
+        return request;
     }
 
     private UserBankAccountModel loadBankAccount(Long bankAccountId) {
@@ -221,7 +195,7 @@ public class RefundRequestService implements RefundRequestServicePort {
         boolean detailBelongsToOrder = order.getOrderDetails() != null
                 && order.getOrderDetails().stream()
                         .map(OrderDetailModel::getId)
-                        .anyMatch(id -> id.equals(request.orderDetailId()));
+                        .anyMatch(detailId -> detailId.equals(request.orderDetailId()));
 
         if (!detailBelongsToOrder) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_ORDER_MISMATCH);

@@ -119,6 +119,7 @@ public enum ErrorCode {
     REFUND_REQUEST_INVALID_AMOUNT("ORD_026", "Số tiền hoàn phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
     REFUND_REQUEST_ORDER_DETAIL_REQUIRED("ORD_027", "Cần chỉ định chi tiết đơn hàng cho loại hoàn từng vé.", HttpStatus.BAD_REQUEST),
     VIETQR_BANK_LIST_UNAVAILABLE("ORD_028", "Không thể lấy danh sách ngân hàng từ VietQR.", HttpStatus.BAD_GATEWAY),
+    REFUND_REQUEST_CANNOT_CANCEL("ORD_029", "Chỉ có thể hủy yêu cầu hoàn tiền đang chờ duyệt.", HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
     // Lottery Product Errors
