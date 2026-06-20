@@ -5,6 +5,7 @@ import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStat
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.streetagent.StreetAgentProfilePersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.streetagent.StreetAgentProfileRepository;
+import com.daiphat.coreapi.infrastructure.persistence.specification.StreetAgentProfileSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,28 +35,47 @@ public class StreetAgentProfileRepositoryAdapter implements StreetAgentProfileRe
 
     @Override
     public boolean existsByPhone(String phone) {
-        return streetAgentProfileRepository.existsByPhone(phone);
+        return streetAgentProfileRepository.existsByPhoneAndDeletedAtIsNull(phone);
     }
 
     @Override
     public boolean existsByCccd(String cccd) {
-        return streetAgentProfileRepository.existsByCccd(cccd);
+        return streetAgentProfileRepository.existsByCccdAndDeletedAtIsNull(cccd);
     }
 
     @Override
     public boolean existsByPhoneAndIdNot(String phone, Long id) {
-        return streetAgentProfileRepository.existsByPhoneAndIdNot(phone, id);
+        return streetAgentProfileRepository.existsByPhoneAndIdNotAndDeletedAtIsNull(phone, id);
     }
 
     @Override
     public boolean existsByCccdAndIdNot(String cccd, Long id) {
-        return streetAgentProfileRepository.existsByCccdAndIdNot(cccd, id);
+        return streetAgentProfileRepository.existsByCccdAndIdNotAndDeletedAtIsNull(cccd, id);
     }
 
     @Override
     public Page<StreetAgentProfileModel> findAll(
             Pageable pageable, String search, StreetAgentProfileStatus status) {
-        return streetAgentProfileRepository.search(search, status, pageable)
+        String normalizedSearch = normalizeSearch(search);
+        return streetAgentProfileRepository.findAll(
+                        StreetAgentProfileSpecification.filter(normalizedSearch, status),
+                        pageable)
                 .map(streetAgentProfilePersistenceMapper::toDomain);
+    }
+
+    @Override
+    public long countAll(String search) {
+        return streetAgentProfileRepository.count(
+                StreetAgentProfileSpecification.filter(normalizeSearch(search), null));
+    }
+
+    @Override
+    public long countByStatus(StreetAgentProfileStatus status, String search) {
+        return streetAgentProfileRepository.count(
+                StreetAgentProfileSpecification.filter(normalizeSearch(search), status));
+    }
+
+    private static String normalizeSearch(String search) {
+        return (search == null || search.isBlank()) ? null : search.trim();
     }
 }

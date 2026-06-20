@@ -12,40 +12,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { createTicketSchema, CreateTicketFormValues } from "../../schemas/ticket.schema";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { useProviders } from "../provider/hooks/useProvider";
-import dayjs from "dayjs";
-import "dayjs/locale/en-gb";
+import { StationSelector } from "./components/StationSelector";
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
-
-const SCHEDULE_TO_DAY_MAP: Record<string, number[]> = {
-    "Thứ Hai": [1], "T2": [1], "Thứ 2": [1],
-    "Thứ Ba": [2], "T3": [2], "Thứ 3": [2],
-    "Thứ Tư": [3], "T4": [3], "Thứ 4": [3],
-    "Thứ Năm": [4], "T5": [4], "Thứ 5": [4],
-    "Thứ Sáu": [5], "T6": [5], "Thứ 6": [5],
-    "Thứ Bảy": [6], "T7": [6], "Thứ 7": [6],
-    "Chủ Nhật": [0], "CN": [0]
-};
-
-const getValidDays = (schedule: string) => {
-    if (!schedule) return [];
-    const validDays: number[] = [];
-    Object.keys(SCHEDULE_TO_DAY_MAP).forEach(key => {
-        if (schedule.includes(key)) {
-            validDays.push(...SCHEDULE_TO_DAY_MAP[key]);
-        }
-    });
-    return validDays;
-};
 
 export const TicketCreatePage = () => {
     const {
         control,
         handleSubmit,
-        setValue,
-        setError,
         reset,
-        watch,
     } = useForm<CreateTicketFormValues>({
         resolver: zodResolver(createTicketSchema),
         defaultValues: {
@@ -103,29 +78,8 @@ export const TicketCreatePage = () => {
     }), [outerTheme]);
 
     const onSubmit = async (data: CreateTicketFormValues) => {
-        // Validation for drawDate
         const selectedProvider = providers.find((p: any) => String(p.id || p._id) === String(data.stationId));
-        let finalDrawDate = "";
-        
-        if (selectedProvider) {
-            const drawSchedule = selectedProvider.drawSchedule;
-            const validDays = getValidDays(drawSchedule);
-            const today = dayjs().startOf('day');
-            const tomorrow = dayjs().add(1, 'day').startOf('day');
-
-            if (validDays.length > 0) {
-                if (validDays.includes(today.day())) {
-                    finalDrawDate = today.format("YYYY-MM-DD");
-                } else if (validDays.includes(tomorrow.day())) {
-                    finalDrawDate = tomorrow.format("YYYY-MM-DD");
-                } else {
-                    toast.error(`Nhà đài này có lịch quay là ${drawSchedule}, không quay vào hôm nay hoặc ngày mai.`);
-                    return;
-                }
-            } else {
-                finalDrawDate = today.format("YYYY-MM-DD");
-            }
-        } else {
+        if (!selectedProvider) {
             toast.error("Vui lòng chọn nhà đài");
             return;
         }
@@ -137,7 +91,6 @@ export const TicketCreatePage = () => {
                 ticketImg: typeof s.ticketImg === "string" && s.ticketImg.trim() ? s.ticketImg.trim() : undefined,
             })),
             numbers: data.numbers,
-            drawDate: finalDrawDate,
             batchCode: data.batchCode
         };
 
@@ -171,19 +124,6 @@ export const TicketCreatePage = () => {
         if (!confirm) return;
 
         const stationId = benTre.id || benTre._id;
-        const drawSchedule = benTre.drawSchedule;
-        const validDays = getValidDays(drawSchedule);
-        const today = dayjs().startOf('day');
-        const tomorrow = dayjs().add(1, 'day').startOf('day');
-        let finalDrawDate = today.format("YYYY-MM-DD");
-        
-        if (validDays.length > 0) {
-            if (validDays.includes(today.day())) {
-                finalDrawDate = today.format("YYYY-MM-DD");
-            } else if (validDays.includes(tomorrow.day())) {
-                finalDrawDate = tomorrow.format("YYYY-MM-DD");
-            }
-        }
 
         const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
         const batches = [
@@ -203,7 +143,6 @@ export const TicketCreatePage = () => {
                     stationId,
                     serials,
                     numbers: batch.numbers,
-                    drawDate: finalDrawDate,
                     batchCode: `LOHANG_BT_${batch.prefix}`
                 });
             }
@@ -279,27 +218,13 @@ export const TicketCreatePage = () => {
                                             name="stationId"
                                             control={control}
                                             render={({ field, fieldState }) => (
-                                                <FormControl fullWidth error={!!fieldState.error}>
-                                                    <InputLabel shrink>{"Nhà đài"}</InputLabel>
-                                                    <Select
-                                                        {...field}
-                                                        displayEmpty
-                                                        input={<OutlinedInput label={"Nhà đài"} notched />}
-                                                    >
-                                                        <MenuItem value="">
-                                                            <Box sx={{ color: "#919EAB" }}>Chọn nhà đài</Box>
-                                                        </MenuItem>
-                                                        {Array.isArray(providers) && providers.map((provider: any) => {
-                                                            const providerId = provider.id || provider._id;
-                                                            return (
-                                                                <MenuItem key={providerId} value={providerId}>
-                                                                    {provider.name}
-                                                                </MenuItem>
-                                                            );
-                                                        })}
-                                                    </Select>
-                                                    {fieldState.error && <p className="text-red-500 text-xs mt-1 ml-3">{fieldState.error.message}</p>}
-                                                </FormControl>
+                                                <StationSelector
+                                                    value={field.value}
+                                                    onChange={field.onChange}
+                                                    providers={providers}
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                />
                                             )}
                                         />
                                     </Box>

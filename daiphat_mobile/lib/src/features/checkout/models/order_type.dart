@@ -15,15 +15,16 @@ enum OrderReceiveType {
 }
 
 enum OrderStatus {
-  pendingPayment('PENDING_PAYMENT'),
-  paid('PAID'),
-  preparing('PREPARING'),
-  pendingPickup('PENDING_PICKUP'),
-  completed('COMPLETED'),
-  cancelled('CANCELLED');
+  pendingPayment('PENDING_PAYMENT', 'Chờ thanh toán'),
+  paid('PAID', 'Đã thanh toán'),
+  preparing('PREPARING', 'Đang chuẩn bị'),
+  pendingPickup('PENDING_PICKUP', 'Chờ lấy hàng'),
+  completed('COMPLETED', 'Hoàn thành'),
+  cancelled('CANCELLED', 'Đã hủy');
 
   final String value;
-  const OrderStatus(this.value);
+  final String label;
+  const OrderStatus(this.value, this.label);
 
   static OrderStatus fromValue(String value) {
     return OrderStatus.values.firstWhere(
@@ -75,19 +76,92 @@ class OrderItemRequest {
   };
 }
 
+class LotteryTicketSnapshot {
+  final int id;
+  final String? province;
+  final String? drawDate;
+  final String? ticketType;
+  final String? symbol;
+
+  const LotteryTicketSnapshot({
+    required this.id,
+    this.province,
+    this.drawDate,
+    this.ticketType,
+    this.symbol,
+  });
+
+  factory LotteryTicketSnapshot.fromJson(Map<String, dynamic> json) {
+    return LotteryTicketSnapshot(
+      id: json['id'] as int? ?? 0,
+      province: json['province']?.toString(),
+      drawDate: json['drawDate']?.toString(),
+      ticketType: json['ticketType']?.toString(),
+      symbol: json['symbol']?.toString(),
+    );
+  }
+}
+
+class OrderDetailItem {
+  final int id;
+  final String status;
+  final int price;
+  final int quantity;
+  final int? lotteryTicketSerialId;
+  final LotteryTicketSnapshot? lotteryTicket;
+
+  const OrderDetailItem({
+    required this.id,
+    required this.status,
+    required this.price,
+    required this.quantity,
+    this.lotteryTicketSerialId,
+    this.lotteryTicket,
+  });
+
+  factory OrderDetailItem.fromJson(Map<String, dynamic> json) {
+    return OrderDetailItem(
+      id: json['id'] as int? ?? 0,
+      status: json['status']?.toString() ?? 'ACTIVE',
+      price: json['price'] as int? ?? 0,
+      quantity: json['quantity'] as int? ?? 1,
+      lotteryTicketSerialId: json['lotteryTicketSerialId'] as int?,
+      lotteryTicket: json['lotteryTicket'] != null
+          ? LotteryTicketSnapshot.fromJson(
+              json['lotteryTicket'] as Map<String, dynamic>,
+            )
+          : null,
+    );
+  }
+}
+
 class OrderResponse {
   final String id;
   final String orderCode;
   final int totalAmount;
   final String status;
+  final String? name;
+  final String? phone;
+  final String? orderType;
+  final String? receiveType;
+  final String? expectedPickupAt;
+  final String? createdAt;
   final List<TransactionResponse>? transactions;
+  final List<OrderDetailItem>? orderDetails;
 
   const OrderResponse({
     required this.id,
     required this.orderCode,
     required this.totalAmount,
     required this.status,
+    this.name,
+    this.phone,
+    this.orderType,
+    this.receiveType,
+    this.expectedPickupAt,
+    this.createdAt,
     this.transactions,
+    this.orderDetails,
   });
 
   factory OrderResponse.fromJson(Map<String, dynamic> json) {
@@ -96,9 +170,66 @@ class OrderResponse {
       orderCode: json['orderCode']?.toString() ?? '',
       totalAmount: json['totalAmount'] as int? ?? 0,
       status: json['status']?.toString() ?? '',
+      name: json['name']?.toString(),
+      phone: json['phone']?.toString(),
+      orderType: json['orderType']?.toString(),
+      receiveType: json['receiveType']?.toString(),
+      expectedPickupAt: json['expectedPickupAt']?.toString(),
+      createdAt: json['createdAt']?.toString(),
       transactions: (json['transactions'] as List<dynamic>?)
           ?.map((e) => TransactionResponse.fromJson(e as Map<String, dynamic>))
           .toList(),
+      orderDetails: (json['orderDetails'] as List<dynamic>?)
+          ?.map((e) => OrderDetailItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class PaginationMeta {
+  final int totalRecords;
+  final int totalPages;
+  final int currentPage;
+  final int limit;
+  final bool isLast;
+
+  const PaginationMeta({
+    required this.totalRecords,
+    required this.totalPages,
+    required this.currentPage,
+    required this.limit,
+    required this.isLast,
+  });
+
+  factory PaginationMeta.fromJson(Map<String, dynamic> json) {
+    return PaginationMeta(
+      totalRecords: json['totalRecords'] as int? ?? 0,
+      totalPages: json['totalPages'] as int? ?? 0,
+      currentPage: json['currentPage'] as int? ?? 1,
+      limit: json['limit'] as int? ?? 10,
+      isLast: json['isLast'] as bool? ?? true,
+    );
+  }
+}
+
+class OrdersPageResponse {
+  final List<OrderResponse> records;
+  final PaginationMeta pagination;
+
+  const OrdersPageResponse({
+    required this.records,
+    required this.pagination,
+  });
+
+  factory OrdersPageResponse.fromJson(Map<String, dynamic> json) {
+    final list = json['recordList'] as List<dynamic>? ?? [];
+    return OrdersPageResponse(
+      records: list
+          .map((e) => OrderResponse.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      pagination: PaginationMeta.fromJson(
+        json['pagination'] as Map<String, dynamic>? ?? {},
+      ),
     );
   }
 }

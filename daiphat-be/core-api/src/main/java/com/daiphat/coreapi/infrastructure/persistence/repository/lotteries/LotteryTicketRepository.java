@@ -35,6 +35,12 @@ public interface LotteryTicketRepository
 
     List<LotteryTicketEntity> findAllByDrawDateLessThanEqualAndStatusInAndDeletedAtIsNull(LocalDate drawDate, Collection<LotteryTicketStatus> statuses);
 
+    List<LotteryTicketEntity> findAllByStation_IdAndDrawDateAndStatusInAndDeletedAtIsNull(
+            Long stationId,
+            LocalDate drawDate,
+            Collection<LotteryTicketStatus> statuses
+    );
+
     @Query("""
             select coalesce(sum(t.quantity), 0)
             from LotteryTicketEntity t

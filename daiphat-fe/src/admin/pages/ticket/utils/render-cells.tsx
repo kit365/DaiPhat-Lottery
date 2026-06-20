@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { confirmDelete } from "../../../utils/swal";
 import { ReloadIcon } from "../../../assets/icons/index";
+import { useProviders } from "../../provider/hooks/useProvider";
 
 // Vé số
 export const RenderTicketCell = (params: GridRenderCellParams) => {
@@ -114,6 +115,52 @@ export const RenderCreatedAtCell = (params: GridRenderCellParams) => {
             </Box>
         </Box >
     );
+}
+
+const DrawDateCell = (params: GridRenderCellParams) => {
+    const date = params.value;
+    if (!date) return null;
+
+    const { data: providersData } = useProviders({ size: 1000 });
+    const providers = providersData?.data?.recordList || [];
+    const stationId = params.row.stationId || params.row.providerId;
+    const provider = providers.find((p: any) => (p.id || p._id)?.toString() === stationId?.toString());
+    const drawTime = provider?.drawTime || '--:--';
+
+    return (
+        <Box
+            sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: "4px"
+            }}>
+
+            <span
+                style={{
+                    fontSize: "0.875rem",
+                    color: COLORS.primary,
+                    transition: 'color 0.2s',
+                }}>
+                {dayjs(date).format('DD/MM/YYYY')}
+            </span>
+
+            <Box
+                className="date-text"
+                component='span'
+                sx={{
+                    fontSize: "0.75rem",
+                    color: COLORS.secondary
+                }}
+            >
+                {drawTime}
+            </Box>
+        </Box >
+    );
+};
+
+// Ngày quay
+export const RenderDrawDateCell = (params: GridRenderCellParams) => {
+    return <DrawDateCell {...params} />;
 }
 
 // Status

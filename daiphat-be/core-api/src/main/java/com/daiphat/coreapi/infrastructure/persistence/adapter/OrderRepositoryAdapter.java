@@ -35,6 +35,11 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
     }
 
     @Override
+    public void deleteById(UUID id) {
+        orderRepository.deleteById(id);
+    }
+
+    @Override
     public Optional<OrderModel> findById(UUID id) {
         return orderRepository.findById(id).map(orderPersistenceMapper::toDomain);
     }

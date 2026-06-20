@@ -19,9 +19,8 @@ public record CreateLotteryTicketRequest(
         @NotBlank(message = "Dãy số không được để trống")
         String numbers,
 
-        @NotNull(message = "Ngày quay không được để trống")
         LocalDate drawDate,
-
+        
         @NotBlank(message = "Mã lô nhập không được để trống")
         String batchCode
 ) {

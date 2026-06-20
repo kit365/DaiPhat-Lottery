@@ -180,11 +180,6 @@ public class LotteryTicketModel {
         if (drawDate == null) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_DRAW_DATE_REQUIRED);
         }
-
-        LocalDate today = LocalDate.now();
-        if (drawDate.isBefore(today)) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_DRAW_DATE_INVALID);
-        }
     }
 
 

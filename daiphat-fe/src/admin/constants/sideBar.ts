@@ -9,7 +9,6 @@ import PeopleIcon from "@mui/icons-material/People";
 import SecurityIcon from "@mui/icons-material/Security";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SettingsIcon from "@mui/icons-material/Settings";
-import AssessmentIcon from "@mui/icons-material/Assessment";
 
 
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
@@ -71,7 +70,7 @@ export const menuManagementData = [
         children: [
             { id: "staff-management", label: "Quản lý nhân viên", path: ROUTES.ADMIN.ACCOUNTS.ADMIN.LIST, permission: PERMISSIONS.ACCOUNT.VIEW },
             { id: "customer-management", label: "Quản lý khách hàng", path: ROUTES.ADMIN.ACCOUNTS.USER.LIST, permission: PERMISSIONS.USER.VIEW },
-            { id: "street-agent-management", label: "Quản lý Street Agent", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST, permission: PERMISSIONS.USER.VIEW },
+            { id: "street-agents", label: "Đại lý bán dạo", path: ROUTES.ADMIN.ACCOUNTS.STREET_AGENT.LIST, permission: PERMISSIONS.USER.VIEW },
         ]
     },
     {
@@ -83,7 +82,8 @@ export const menuManagementData = [
         children: [
             { id: "list", label: "Kho vé số", tKey: "admin.sidebar.list", path: ROUTES.ADMIN.TICKETS.LIST, permission: PERMISSIONS.TICKET.VIEW },
             { id: "provider", label: "Nhà đài", tKey: "admin.sidebar.provider", path: ROUTES.ADMIN.TICKETS.PROVIDER, permission: PERMISSIONS.PROVIDER.VIEW },
-            { id: "category", label: "Loại hình xổ số", tKey: "admin.sidebar.category", path: ROUTES.ADMIN.TICKETS.CATEGORY, permission: PERMISSIONS.TICKET.VIEW },
+            { id: "prize-structure", label: "Cơ cấu giải thưởng", path: ROUTES.ADMIN.TICKETS.PRIZE_STRUCTURE, permission: PERMISSIONS.PROVIDER.VIEW },
+            { id: "region", label: "Vùng miền", path: ROUTES.ADMIN.TICKETS.REGION, permission: PERMISSIONS.PROVIDER.VIEW },
             { id: "attribute", label: "Thông số vé", tKey: "admin.sidebar.attribute", path: ROUTES.ADMIN.TICKETS.ATTRIBUTE, permission: PERMISSIONS.TICKET.VIEW },
             { id: "expired", label: "Vé hết hạn quay", path: ROUTES.ADMIN.TICKETS.EXPIRED, permission: PERMISSIONS.TICKET.VIEW },
         ]

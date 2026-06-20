@@ -434,22 +434,12 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
                 pageable, search, tagId, categoryId, type, status, includeDeleted
         );
 
-        List<BlogPostSummaryResponse> records = postPage.getContent().stream()
-                .map(blogPostApplicationMapper::toSummaryResponse)
-                .toList();
-
-        return PageResponse.<BlogPostSummaryResponse>builder()
-                .recordList(records)
-                .pagination(PageResponse.PaginationMetadata.builder()
-                        .totalRecords(postPage.getTotalElements())
-                        .totalPages(postPage.getTotalPages())
-                        .currentPage(page)
-                        .limit(limit)
-                        .isFirst(postPage.isFirst())
-                        .isLast(postPage.isLast())
-                        .build())
-                .statusCounts(buildStatusCounts())
-                .build();
+        return PageResponse.from(
+                postPage.map(blogPostApplicationMapper::toSummaryResponse),
+                page,
+                limit,
+                buildStatusCounts()
+        );
     }
 
     private Map<String, Long> buildStatusCounts() {

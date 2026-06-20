@@ -1,7 +1,6 @@
 package com.daiphat.coreapi.domain.model.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -22,13 +21,7 @@ public class LotteryStationModel {
     private Long id;
     private String name;
     private String province;
-    private String region;
-    private LotteryStationType type;
-
-    // Quy tắc số
-    private Integer numberLength;
-    private Integer minNumber;
-    private Integer maxNumber;
+    private LotteryRegionModel region;
 
     // Giá & Tồn kho
     private BigDecimal price;
@@ -53,9 +46,6 @@ public class LotteryStationModel {
     private String thumbnailUrl;
     private String thumbnailPublicId;
     private String description;
-
-    @Builder.Default
-    private Integer displayOrder = 0;
 
     private LocalDateTime deletedAt;
 

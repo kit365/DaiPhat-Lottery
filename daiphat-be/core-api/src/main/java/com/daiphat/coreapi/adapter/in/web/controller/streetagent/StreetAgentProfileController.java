@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.port.in.streetagent.StreetAgentProfileSer
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,6 +43,12 @@ public class StreetAgentProfileController {
                 streetAgentProfileServicePort.getAll(page, limit, search, status));
     }
 
+    @GetMapping(ID_PATH)
+    @PreAuthorize("hasAuthority('member:view')")
+    public ApiResponse<StreetAgentProfileResponse> getById(@PathVariable Long id) {
+        return ApiResponse.success(null, streetAgentProfileServicePort.getById(id));
+    }
+
     @PostMapping
     @PreAuthorize("hasAuthority('member:create')")
     public ApiResponse<StreetAgentProfileResponse> create(
@@ -57,5 +64,12 @@ public class StreetAgentProfileController {
             @Valid @RequestBody UpdateStreetAgentProfileRequest request) {
         StreetAgentProfileResponse response = streetAgentProfileServicePort.update(id, request);
         return ApiResponse.success("Cập nhật hồ sơ đại lý bán dạo thành công.", response);
+    }
+
+    @DeleteMapping(ID_PATH)
+    @PreAuthorize("hasAuthority('member:delete')")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        streetAgentProfileServicePort.delete(id);
+        return ApiResponse.success("Xóa hồ sơ đại lý bán dạo thành công.", null);
     }
 }
