@@ -11,6 +11,7 @@ import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPo
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
@@ -59,6 +60,10 @@ public class RefundRequestService implements RefundRequestServicePort {
 
         if (!userId.equals(order.getUserId())) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_ACCESS_DENIED);
+        }
+
+        if (order.getStatus() != OrderStatus.PREPARING) {
+            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
         }
 
         validateOrderDetail(request, order);
