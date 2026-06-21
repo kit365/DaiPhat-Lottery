@@ -11,6 +11,7 @@ import com.daiphat.coreapi.application.mapper.AuthApplicationMapper;
 import com.daiphat.coreapi.application.port.in.auth.LoginServicePort;
 import com.daiphat.coreapi.application.port.in.auth.RoleServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
+import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.auth.PasswordHashPort;
 import com.daiphat.coreapi.application.port.out.file.RemoteFilePort;
 import com.daiphat.coreapi.application.port.out.auth.RefreshTokenStorePort;
@@ -43,6 +44,7 @@ public class LoginService implements LoginServicePort {
     private final RoleServicePort roleService;
     private final GoogleOAuthPort googleOAuthPort;
     private final PasswordHashPort passwordHashPort;
+    private final OrderRepositoryPort orderRepositoryPort;
     private final StoragePort storagePort;
     private final RemoteFilePort remoteFilePort;
     private final TokenProviderPort tokenProviderPort;
@@ -65,6 +67,7 @@ public class LoginService implements LoginServicePort {
         }
 
         user.validateLoginEligibility();
+        attachGuestOrdersByEmail(user);
 
         return issueTokensAndStoreRefreshToken(user);
     }
@@ -81,6 +84,7 @@ public class LoginService implements LoginServicePort {
         UserModel user = loginResult.user();
 
         user.validateLoginEligibility();
+        attachGuestOrdersByEmail(user);
         if (loginResult.shouldSendWelcome()) {
             publishWelcomeEvent(user);
         }
@@ -201,6 +205,13 @@ public class LoginService implements LoginServicePort {
         } catch (RuntimeException e) {
             log.warn("Failed to upload Google avatar to Cloudinary for user {}: {}", user.getEmail(), e.getMessage());
         }
+    }
+
+    private void attachGuestOrdersByEmail(UserModel user) {
+        if (user.getId() == null || isBlank(user.getEmail())) {
+            return;
+        }
+        orderRepositoryPort.assignGuestOrdersToUserByEmail(user.getId(), user.getEmail());
     }
 
     private String defaultIfBlank(String value, String fallback) {
