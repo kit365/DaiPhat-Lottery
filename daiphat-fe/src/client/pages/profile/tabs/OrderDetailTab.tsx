@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useGetMyOrderDetail } from '../../../hooks/useOrder';
 import { useProcessPayment } from '../../../hooks/useTransaction';
 import { useGetMyRefunds } from '../../../hooks/useRefund';
-import { OrderStatus, OrderType, OrderReceiveType, OrderDetailStatus } from '../../../../types/order.type';
+import { OrderStatus, OrderType, OrderReceiveType } from '../../../../types/order.type';
 import { RefundRequestStatus, RefundType } from '../../../../types/refund.type';
 import { PaymentGateway } from '../../../../types/transaction.type';
 import { AppToast } from '../../../utils/toast.util';
@@ -129,8 +129,6 @@ export const OrderDetailTab = () => {
     const processPaymentMutation = useProcessPayment();
 
     const [showRefundModal, setShowRefundModal] = useState(false);
-    const [refundModalType, setRefundModalType] = useState<RefundType>(RefundType.FULL_ORDER);
-    const [refundModalDetailId, setRefundModalDetailId] = useState<number | undefined>();
 
     const order = orderData?.data;
     const orderRefunds = refundsData?.data?.recordList || [];
@@ -158,9 +156,7 @@ export const OrderDetailTab = () => {
 
     const canRequestRefund = isOrderPreparing(order?.status);
 
-    const openRefundModal = (type: RefundType, detailId?: number) => {
-        setRefundModalType(type);
-        setRefundModalDetailId(detailId);
+    const openRefundModal = () => {
         setShowRefundModal(true);
     };
 
@@ -198,8 +194,6 @@ export const OrderDetailTab = () => {
             return;
         }
 
-        setRefundModalType(RefundType.FULL_ORDER);
-        setRefundModalDetailId(undefined);
         setShowRefundModal(true);
         navigate(location.pathname, { replace: true, state: null });
     }, [location.state, location.pathname, order, navigate]);
@@ -329,7 +323,7 @@ export const OrderDetailTab = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                         {canRequestRefund && !pendingFullOrderRefund && (
                             <button
-                                onClick={() => openRefundModal(RefundType.FULL_ORDER)}
+                                onClick={() => openRefundModal()}
                                 className="px-4 py-2 bg-[#ee1314] text-white rounded-xl text-[13px] font-bold hover:bg-[#c80f11] transition-colors shadow-sm cursor-pointer flex items-center gap-2"
                             >
                                 <i className="fa-solid fa-rotate-left"></i> Yêu cầu hoàn tiền
@@ -370,7 +364,7 @@ export const OrderDetailTab = () => {
                         </div>
                     </div>
                     <button
-                        onClick={() => openRefundModal(RefundType.FULL_ORDER)}
+                        onClick={() => openRefundModal()}
                         className="w-full sm:w-auto px-6 py-3 bg-[#ee1314] text-white rounded-xl font-bold text-[14px] hover:bg-[#c80f11] transition-colors shadow-md shadow-[#ee1314]/20 cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap"
                     >
                         <i className="fa-solid fa-rotate-left"></i>
@@ -552,7 +546,6 @@ export const OrderDetailTab = () => {
                     {order.orderDetails && order.orderDetails.length > 0 ? (
                         order.orderDetails.map((detail: any, index: number) => {
                             const serialId = detail.lotteryTicketSerialId || detail.id || index;
-                            const isActiveTicket = detail.status === OrderDetailStatus.ACTIVE || detail.status === 'ACTIVE';
                             const pendingDetailRefund = detail.id ? getPendingRefundForDetail(detail.id) : undefined;
                             const detailRefund = detail.id ? getRefundForDetail(detail.id) : undefined;
                             return (
@@ -590,14 +583,6 @@ export const OrderDetailTab = () => {
                                                 >
                                                     Xem kết quả <i className="fa-solid fa-arrow-up-right-from-square text-[11px]"></i>
                                                 </Link>
-                                            )}
-                                            {canRequestRefund && isActiveTicket && !pendingDetailRefund && !pendingFullOrderRefund && (
-                                                <button
-                                                    onClick={() => openRefundModal(RefundType.ORDER_DETAIL, detail.id)}
-                                                    className="mt-2 text-[#637381] hover:text-[#ee1314] text-[12px] font-bold flex items-center gap-1.5 w-max bg-white px-3 py-1.5 rounded-lg border border-[#E5E8EB] hover:border-[#ee1314] transition-colors cursor-pointer"
-                                                >
-                                                    <i className="fa-solid fa-rotate-left text-[11px]"></i> Yêu cầu hoàn tiền
-                                                </button>
                                             )}
                                             {(pendingDetailRefund || (detail.status === 'REFUND_PENDING' && detailRefund)) && (
                                                 <Link
@@ -765,8 +750,6 @@ export const OrderDetailTab = () => {
                     isOpen={showRefundModal}
                     onClose={() => setShowRefundModal(false)}
                     order={order}
-                    initialRefundType={refundModalType}
-                    initialOrderDetailId={refundModalDetailId}
                 />
             )}
         </div>
