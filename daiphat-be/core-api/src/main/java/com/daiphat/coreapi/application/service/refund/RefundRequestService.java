@@ -11,6 +11,7 @@ import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPo
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
@@ -61,7 +62,12 @@ public class RefundRequestService implements RefundRequestServicePort {
             throw new DomainException(ErrorCode.REFUND_REQUEST_ACCESS_DENIED);
         }
 
+        if (order.getStatus() != OrderStatus.PREPARING) {
+            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+        }
+
         validateOrderDetail(request, order);
+        validateCustomerFullOrderRefund(request, order);
 
         UserBankAccountModel bankAccount = userBankAccountRepositoryPort
                 .findByIdAndUserId(request.bankAccountId(), userId)
@@ -179,12 +185,33 @@ public class RefundRequestService implements RefundRequestServicePort {
     }
 
     private void validateRefundType(CreateRefundRequestRequest request) {
-        if (request.refundType() == RefundType.ORDER_DETAIL && request.orderDetailId() == null) {
-            throw new DomainException(ErrorCode.REFUND_REQUEST_ORDER_DETAIL_REQUIRED);
+        if (request.refundType() == RefundType.ORDER_DETAIL) {
+            throw new DomainException(ErrorCode.REFUND_REQUEST_PARTIAL_NOT_ALLOWED);
         }
         if (request.refundType() == RefundType.FULL_ORDER && request.orderDetailId() != null) {
             throw new DomainException(ErrorCode.INVALID_INPUT);
         }
+    }
+
+    private void validateCustomerFullOrderRefund(CreateRefundRequestRequest request, OrderModel order) {
+        if (request.refundType() != RefundType.FULL_ORDER) {
+            throw new DomainException(ErrorCode.REFUND_REQUEST_PARTIAL_NOT_ALLOWED);
+        }
+
+        BigDecimal expectedAmount = calculateOrderRefundAmount(order);
+        if (request.refundAmount().compareTo(expectedAmount) != 0) {
+            throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_AMOUNT);
+        }
+    }
+
+    private BigDecimal calculateOrderRefundAmount(OrderModel order) {
+        if (order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
+            return order.getOrderDetails().stream()
+                    .map(OrderDetailModel::getPrice)
+                    .filter(price -> price != null)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+        return order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO;
     }
 
     private void validateOrderDetail(CreateRefundRequestRequest request, OrderModel order) {
