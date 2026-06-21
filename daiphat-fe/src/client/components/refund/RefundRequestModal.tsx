@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OrderResponse } from '../../../types/order.type';
-import { OrderDetailStatus } from '../../../types/order.type';
 import { RefundType } from '../../../types/refund.type';
 import { useGetBankAccounts } from '../../hooks/useBankAccount';
-import { useCreateRefund, useGetRefundTypes } from '../../hooks/useRefund';
+import { useCreateRefund } from '../../hooks/useRefund';
 import { BankAccountFormModal } from './BankAccountFormModal';
 import { AppToast } from '../../utils/toast.util';
 
@@ -12,71 +11,45 @@ interface RefundRequestModalProps {
     isOpen: boolean;
     onClose: () => void;
     order: OrderResponse;
-    initialRefundType?: RefundType;
-    initialOrderDetailId?: number;
+}
+
+function calculateOrderRefundAmount(order: OrderResponse): number {
+    const details = order.orderDetails || [];
+    if (details.length > 0) {
+        return details.reduce((sum, detail: { price?: number }) => sum + (Number(detail.price) || 0), 0);
+    }
+    return Number(order.totalAmount) || 0;
 }
 
 export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
     isOpen,
     onClose,
-    order,
-    initialRefundType = RefundType.FULL_ORDER,
-    initialOrderDetailId
+    order
 }) => {
     const navigate = useNavigate();
     const { data: bankAccountsData } = useGetBankAccounts();
-    const { data: typesData } = useGetRefundTypes();
     const createMutation = useCreateRefund();
 
-    const [refundType, setRefundType] = useState<RefundType>(initialRefundType);
-    const [orderDetailId, setOrderDetailId] = useState<number | undefined>(initialOrderDetailId);
-    const [refundAmount, setRefundAmount] = useState<number>(0);
     const [refundReason, setRefundReason] = useState('');
     const [bankAccountId, setBankAccountId] = useState<number | ''>('');
     const [showBankForm, setShowBankForm] = useState(false);
 
     const bankAccounts = bankAccountsData?.data || [];
-    const refundTypes = typesData?.data || [];
-
-    const activeTickets = useMemo(
-        () =>
-            (order.orderDetails || []).filter(
-                (d: any) => d.status === OrderDetailStatus.ACTIVE || d.status === 'ACTIVE'
-            ),
-        [order.orderDetails]
-    );
+    const refundAmount = useMemo(() => calculateOrderRefundAmount(order), [order]);
 
     useEffect(() => {
         if (!isOpen) return;
 
-        setRefundType(initialRefundType);
-        setOrderDetailId(initialOrderDetailId);
         setRefundReason('');
-
         const defaultBank = bankAccounts.find((a) => a.isDefault) || bankAccounts[0];
         setBankAccountId(defaultBank?.id || '');
-    }, [isOpen, initialRefundType, initialOrderDetailId, bankAccounts]);
-
-    useEffect(() => {
-        if (refundType === RefundType.FULL_ORDER) {
-            setRefundAmount(order.totalAmount || 0);
-            setOrderDetailId(undefined);
-        } else if (orderDetailId) {
-            const detail = (order.orderDetails || []).find((d: any) => d.id === orderDetailId);
-            setRefundAmount(detail?.price || 0);
-        }
-    }, [refundType, orderDetailId, order]);
+    }, [isOpen, bankAccounts]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!refundReason.trim()) {
             AppToast.error('Vui lòng nhập lý do hoàn tiền');
-            return;
-        }
-
-        if (refundType === RefundType.ORDER_DETAIL && !orderDetailId) {
-            AppToast.error('Vui lòng chọn vé cần hoàn');
             return;
         }
 
@@ -92,9 +65,8 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
 
         createMutation.mutate(
             {
-                refundType,
+                refundType: RefundType.FULL_ORDER,
                 orderId: order.id,
-                orderDetailId: refundType === RefundType.ORDER_DETAIL ? orderDetailId : undefined,
                 refundAmount,
                 refundReason: refundReason.trim(),
                 bankAccountId: Number(bankAccountId)
@@ -129,66 +101,20 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
 
                     <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
                         <div className="flex flex-col gap-2">
-                            <label className="text-[13px] font-bold text-[#454F5B]">Loại hoàn tiền *</label>
-                            <div className="flex flex-col gap-2">
-                                {(refundTypes.length > 0
-                                    ? refundTypes
-                                    : [
-                                          { value: RefundType.FULL_ORDER, label: 'Hoàn cả đơn' },
-                                          { value: RefundType.ORDER_DETAIL, label: 'Hoàn từng vé' }
-                                      ]
-                                ).map((type) => (
-                                    <label
-                                        key={type.value}
-                                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                                            refundType === type.value
-                                                ? 'border-[#ee1314] bg-[#FFF4F4]'
-                                                : 'border-[#E5E8EB] hover:border-[#919EAB]'
-                                        }`}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="refundType"
-                                            value={type.value}
-                                            checked={refundType === type.value}
-                                            onChange={() => setRefundType(type.value as RefundType)}
-                                            className="accent-[#ee1314]"
-                                        />
-                                        <span className="text-[14px] font-medium text-[#212B36]">{type.label}</span>
-                                    </label>
-                                ))}
+                            <label className="text-[13px] font-bold text-[#454F5B]">Loại hoàn tiền</label>
+                            <div className="px-4 py-3 bg-[#FFF4F4] border border-[#ee1314]/20 rounded-xl text-[14px] font-medium text-[#212B36]">
+                                Hoàn cả đơn
                             </div>
+                            <p className="text-[12px] text-[#637381]">
+                                Số tiền hoàn được tính tự động theo tổng giá trị các vé trong đơn hàng.
+                            </p>
                         </div>
 
-                        {refundType === RefundType.ORDER_DETAIL && (
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[13px] font-bold text-[#454F5B]">Chọn vé *</label>
-                                <select
-                                    value={orderDetailId || ''}
-                                    onChange={(e) => setOrderDetailId(Number(e.target.value))}
-                                    className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314] cursor-pointer"
-                                    required
-                                >
-                                    <option value="">-- Chọn vé --</option>
-                                    {activeTickets.map((ticket: any) => (
-                                        <option key={ticket.id} value={ticket.id}>
-                                            Vé #{ticket.id} - {(ticket.price || 0).toLocaleString('vi-VN')}đ
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-
                         <div className="flex flex-col gap-2">
-                            <label className="text-[13px] font-bold text-[#454F5B]">Số tiền hoàn *</label>
-                            <input
-                                type="number"
-                                value={refundAmount}
-                                onChange={(e) => setRefundAmount(Number(e.target.value))}
-                                min={1}
-                                className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314]"
-                                required
-                            />
+                            <label className="text-[13px] font-bold text-[#454F5B]">Số tiền hoàn</label>
+                            <div className="w-full px-4 py-3 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-[16px] font-bold text-[#ee1314]">
+                                {refundAmount.toLocaleString('vi-VN')} đ
+                            </div>
                         </div>
 
                         <div className="flex flex-col gap-2">
