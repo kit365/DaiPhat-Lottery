@@ -124,11 +124,11 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         );
 
         LotteryTicketStatus statusEnum = parseStatus(status);
-        LocalDate parsedDrawDate = parseDrawDate(drawDate);
+        List<LocalDate> parsedDrawDates = parseDrawDates(drawDate);
         List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
 
         Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
-                .findAll(pageable, stationId, normalizedStationIds, statusEnum, parsedDrawDate, search);
+                .findAll(pageable, stationId, normalizedStationIds, statusEnum, parsedDrawDates, search);
 
         Map<Long, String> stationNameCache = new HashMap<>();
         Map<Long, LotteryTicketSerialModel> serialsByTicketId = lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(
@@ -153,11 +153,11 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 SortUtils.createSort(sortBy, direction)
         );
 
-        LocalDate parsedDrawDate = parseDrawDate(drawDate);
+        List<LocalDate> parsedDrawDates = parseDrawDates(drawDate);
         List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
 
         Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
-                .findAllPublic(pageable, stationId, normalizedStationIds, parsedDrawDate, search);
+                .findAllPublic(pageable, stationId, normalizedStationIds, parsedDrawDates, search);
 
         Map<Long, String> stationNameCache = new HashMap<>();
         Map<Long, LotteryTicketSerialModel> serialsByTicketId = lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(
@@ -421,15 +421,23 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
     }
 
-    private LocalDate parseDrawDate(String drawDate) {
+    private List<LocalDate> parseDrawDates(String drawDate) {
         if (drawDate == null || drawDate.isBlank()) {
-            return null;
+            return List.of();
         }
-        try {
-            return LocalDate.parse(drawDate);
-        } catch (DateTimeParseException ignored) {
-            return null;
+        LinkedHashSet<LocalDate> drawDates = new LinkedHashSet<>();
+        for (String rawValue : drawDate.split(",")) {
+            String value = rawValue.trim();
+            if (value.isBlank()) {
+                continue;
+            }
+            try {
+                drawDates.add(LocalDate.parse(value));
+            } catch (DateTimeParseException ignored) {
+                log.debug("Skipping invalid drawDate filter value: {}", value);
+            }
         }
+        return new ArrayList<>(drawDates);
     }
 
     private void ensureTicketAvailableForReserve(LotteryTicketModel ticket) {
