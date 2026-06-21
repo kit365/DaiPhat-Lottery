@@ -21,6 +21,7 @@ public interface UserServicePort {
     UserResponse getMyProfile(String username);
     List<UserStatusResponse> getStatuses();
     List<UserResponse> getAll();
+    List<UserResponse> searchCustomers(String query, int limit);
     PageResponse<UserResponse> getAll(int page, int size, String search, String status, List<String> roleIds, String sortBy, String direction);
     void delete(UUID id);
     void setupFirstTimeProfile(String username, ProfileSetupRequest request);

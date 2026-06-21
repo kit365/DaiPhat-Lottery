@@ -90,7 +90,7 @@ export const menuManagementData = [
     },
     {
         id: "orders",
-        label: "Đơn mua hộ",
+        label: "Đơn hàng",
         Icon: ArticleIcon,
         permission: PERMISSIONS.TICKET.VIEW,
         children: [

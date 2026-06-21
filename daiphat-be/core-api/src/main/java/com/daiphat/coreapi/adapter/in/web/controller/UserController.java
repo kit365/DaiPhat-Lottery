@@ -137,6 +137,16 @@ public class UserController {
         return ApiResponse.success(null, userServicePort.getAll(page, limit, q, status, roleIds, sortBy, direction));
     }
 
+    @GetMapping("/customers/search")
+    @PreAuthorize("hasAnyAuthority('member:view', 'admin:view', 'ticket:view')")
+    @JsonView(Views.Admin.class)
+    public ApiResponse<List<UserResponse>> searchCustomers(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return ApiResponse.success(null, userServicePort.searchCustomers(q, limit));
+    }
+
     @PostMapping("/setup-profile")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<Void> setupProfile(

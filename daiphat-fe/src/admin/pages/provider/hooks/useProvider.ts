@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProviders, createProvider, getProviderById, updateProvider, deleteProvider, getStationsToday, getStationsTomorrow, uploadProviderImage, syncProviders } from '../../../api/provider.api';
+import { getProviders, createProvider, getProviderById, updateProvider, deleteProvider, getStationsToday, getStationsTomorrow, getStationsByDrawDate, uploadProviderImage, syncProviders } from '../../../api/provider.api';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 
 
@@ -75,6 +75,16 @@ export const useStationsTomorrow = () => {
     return useQuery({
         queryKey: [QUERY_KEYS.STATIONS_TOMORROW],
         queryFn: () => getStationsTomorrow(),
+    });
+};
+
+export const useStationsByDrawDate = (drawDate?: string | string[]) => {
+    const drawDates = Array.isArray(drawDate) ? drawDate.filter(Boolean) : (drawDate ? [drawDate] : []);
+
+    return useQuery({
+        queryKey: [QUERY_KEYS.STATIONS_TODAY, 'by-draw-date', drawDates],
+        queryFn: () => getStationsByDrawDate(drawDates),
+        enabled: drawDates.length > 0,
     });
 };
 
