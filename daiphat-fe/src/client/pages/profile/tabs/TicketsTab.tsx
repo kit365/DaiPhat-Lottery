@@ -2,6 +2,126 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 export const TicketsTab = () => {
+    // Tạm fix cứng trạng thái để show UI Detail
+    const [viewDetail, setViewDetail] = useState(true);
+
+    if (viewDetail) {
+        return (
+            <div className="flex flex-col gap-6 w-full font-client-main">
+                {/* Back Link */}
+                <button 
+                    onClick={() => setViewDetail(false)}
+                    className="flex items-center gap-2 text-[#ee1314] font-bold text-[14px] hover:underline w-max bg-transparent border-none cursor-pointer outline-none"
+                >
+                    <i className="fa-solid fa-chevron-left text-[12px]"></i>
+                    Quay lại danh sách vé
+                </button>
+
+                {/* Main Ticket Info Card */}
+                <div className="bg-white border border-[#E5E8EB] rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                    <div className="flex items-center gap-5">
+                        <div className="w-16 h-16 rounded-[16px] bg-[#F4FBFA] text-[#1CD162] flex items-center justify-center shrink-0">
+                            <i className="fa-solid fa-ticket-simple text-[28px]"></i>
+                        </div>
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-3 mb-1.5">
+                                <h3 className="text-[18px] font-black text-[#212B36] m-0">Vé số Đồng Nai</h3>
+                                <div className="bg-[#E4F8ED] text-[#1CD162] px-2.5 py-1 rounded-md text-[11px] font-bold">
+                                    Trúng thưởng
+                                </div>
+                            </div>
+                            <p className="text-[13px] text-[#637381] mb-0.5">Ngày mở thưởng: Thứ Sáu, 20/06/2026</p>
+                            <p className="text-[13px] text-[#637381] m-0">Kỳ vé: 20/06/2026</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-10 md:gap-20 w-full md:w-auto">
+                        <div className="flex flex-col">
+                            <span className="text-[13px] text-[#637381] mb-1">Mã vé</span>
+                            <span className="text-[20px] font-black text-[#1CD162]">CZ438008</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[13px] text-[#637381] mb-1">Giá vé</span>
+                            <span className="text-[18px] font-bold text-[#212B36]">10.000đ</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Reward Info Card */}
+                <div className="bg-white border border-[#E5E8EB] rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                    <div className="flex items-center gap-5">
+                        <div className="w-[50px] h-[50px] rounded-full bg-[#1CD162] text-white flex items-center justify-center shrink-0 shadow-sm shadow-[#1CD162]/30">
+                            <i className="fa-solid fa-trophy text-[22px]"></i>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[13px] text-[#637381] mb-1">Kết quả đối chiếu</span>
+                            <span className="text-[18px] font-bold text-[#1CD162]">Trúng thưởng</span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-10 md:gap-20 w-full md:w-auto">
+                        <div className="flex flex-col">
+                            <span className="text-[13px] text-[#637381] mb-1">Giải trúng</span>
+                            <span className="text-[16px] font-bold text-[#212B36]">Giải tám</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[13px] text-[#637381] mb-1">Tiền thưởng</span>
+                            <span className="text-[18px] font-bold text-[#1CD162]">100.000đ</span>
+                        </div>
+                    </div>
+
+                    <button className="w-full md:w-auto px-5 py-2.5 bg-white border border-[#ee1314] text-[#ee1314] font-bold rounded-xl text-[14px] hover:bg-[#FFF4F4] transition-colors cursor-pointer mt-4 md:mt-0">
+                        Xem kết quả kỳ quay
+                    </button>
+                </div>
+
+                {/* Ticket Details List */}
+                <div className="bg-white border border-[#E5E8EB] rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
+                    <h4 className="text-[#ee1314] font-bold text-[14px] uppercase mb-6 tracking-wide">THÔNG TIN VÉ</h4>
+                    
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center justify-between py-3 border-b border-dashed border-[#E5E8EB] last:border-0">
+                            <span className="text-[#637381] text-[14px]">Ngày mua</span>
+                            <span className="text-[#212B36] font-medium text-[14px]">20/06/2026 - 15:42:18</span>
+                        </div>
+                        <div className="flex items-center justify-between py-3 border-b border-dashed border-[#E5E8EB] last:border-0">
+                            <span className="text-[#637381] text-[14px]">Kỳ vé</span>
+                            <span className="text-[#212B36] font-medium text-[14px]">20/06/2026</span>
+                        </div>
+                        <div className="flex items-center justify-between py-3 border-b border-dashed border-[#E5E8EB] last:border-0">
+                            <span className="text-[#637381] text-[14px]">Trạng thái</span>
+                            <div className="bg-[#E4F8ED] text-[#1CD162] px-3 py-1 rounded-md text-[13px] font-bold">
+                                Trúng thưởng
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between py-3 border-b border-dashed border-[#E5E8EB] last:border-0">
+                            <span className="text-[#637381] text-[14px]">Giá vé</span>
+                            <span className="text-[#212B36] font-medium text-[14px]">10.000đ</span>
+                        </div>
+                        <div className="flex items-center justify-between py-3 border-b border-dashed border-[#E5E8EB] last:border-0">
+                            <span className="text-[#637381] text-[14px]">Mã giao dịch (Order ID)</span>
+                            <div className="flex items-center gap-2 text-[#212B36] font-medium text-[14px]">
+                                DP25062015421888
+                                <i className="fa-regular fa-copy text-[#919EAB] cursor-pointer hover:text-[#212B36] transition-colors" title="Sao chép"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Bottom Notification */}
+                <div className="bg-[#FFF4F4] rounded-2xl p-4 flex items-center justify-between border border-[#ee1314]/10">
+                    <div className="flex items-center gap-3">
+                        <i className="fa-solid fa-circle-info text-[#ee1314] text-[20px]"></i>
+                        <span className="text-[#454F5B] text-[14px]">Tiền thưởng sẽ được cộng vào số dư tài khoản của bạn.</span>
+                    </div>
+                    <button className="text-[#ee1314] font-bold text-[14px] flex items-center gap-2 hover:underline bg-transparent border-none cursor-pointer outline-none">
+                        Xem lịch sử nhận thưởng <i className="fa-solid fa-chevron-right text-[12px]"></i>
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     const [activeTab, setActiveTab] = useState('Tất cả');
 
     const ticketTabs = ['Tất cả', 'Chờ quay số', 'Trúng thưởng', 'Chưa trúng'];
@@ -138,7 +258,11 @@ export const TicketsTab = () => {
                 {/* Ticket List */}
                 <div className="flex flex-col">
                     {tickets.map((ticket, index) => (
-                        <div key={ticket.id} className="flex flex-col md:flex-row items-start md:items-center p-5 border-b border-[#F4F6F8] gap-4 md:gap-6 hover:bg-[#FAFBFC] transition-colors cursor-pointer group">
+                        <div 
+                            key={ticket.id} 
+                            onClick={() => setViewDetail(true)}
+                            className="flex flex-col md:flex-row items-start md:items-center p-5 border-b border-[#F4F6F8] gap-4 md:gap-6 hover:bg-[#FAFBFC] transition-colors cursor-pointer group"
+                        >
                             
                             {/* Icon & Region Info */}
                             <div className="flex items-center gap-4 min-w-[240px]">
