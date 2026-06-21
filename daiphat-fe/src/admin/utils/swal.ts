@@ -19,12 +19,16 @@ export const confirmDelete = (text: string, onConfirm: () => void) => {
 };
 
 export const confirmAction = (title: string, text: string, onConfirm: () => void, icon: 'info' | 'warning' | 'success' = 'info') => {
+    let confirmButtonColor = '#10b981'; // default success (green)
+    if (icon === 'info') confirmButtonColor = '#2196f3'; // blue
+    if (icon === 'warning') confirmButtonColor = '#f59e0b'; // orange
+
     Swal.fire({
         title: title,
         text: text,
         icon: icon,
         showCancelButton: true,
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: confirmButtonColor,
         cancelButtonColor: '#6b7280',
         confirmButtonText: 'Xác nhận',
         cancelButtonText: 'Hủy'

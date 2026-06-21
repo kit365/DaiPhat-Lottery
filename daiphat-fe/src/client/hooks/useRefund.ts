@@ -1,0 +1,77 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { refundService } from '../services/refundService';
+import { CreateRefundRequestRequest, GetMyRefundsParams } from '../../types/refund.type';
+import { AppToast as toast } from '../utils/toast.util';
+import { QUERY_KEYS } from '../../constants/queryKeys';
+
+const getErrorMessage = (error: any, fallback: string) =>
+    error?.response?.data?.message || error.message || fallback;
+
+export const useGetMyRefunds = (params: GetMyRefundsParams, enabled = true) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.CLIENT_MY_REFUNDS, params],
+        queryFn: () => refundService.getMyRequests(params),
+        enabled
+    });
+};
+
+export const useGetRefundDetail = (id: number) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.CLIENT_REFUND_DETAIL, id],
+        queryFn: () => refundService.getById(id),
+        enabled: !!id
+    });
+};
+
+export const useGetRefundStatuses = () => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.CLIENT_REFUND_STATUSES],
+        queryFn: () => refundService.getStatuses()
+    });
+};
+
+export const useGetRefundTypes = () => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.CLIENT_REFUND_TYPES],
+        queryFn: () => refundService.getTypes()
+    });
+};
+
+export const useCreateRefund = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (data: CreateRefundRequestRequest) => refundService.create(data),
+        onSuccess: (response) => {
+            if (response.success) {
+                toast.success(response.message || 'Tạo yêu cầu hoàn tiền thành công');
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_REFUNDS] });
+            } else {
+                toast.error(response.message || 'Có lỗi xảy ra khi tạo yêu cầu hoàn tiền');
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        }
+    });
+};
+
+export const useCancelRefund = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (id: number) => refundService.cancel(id),
+        onSuccess: (response, id) => {
+            if (response.success) {
+                toast.success(response.message || 'Hủy yêu cầu hoàn tiền thành công');
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_REFUNDS] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_REFUND_DETAIL, id] });
+            } else {
+                toast.error(response.message || 'Có lỗi xảy ra khi hủy yêu cầu');
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        }
+    });
+};

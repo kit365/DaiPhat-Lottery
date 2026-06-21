@@ -58,6 +58,7 @@ public class PayOsPaymentStrategy implements PaymentGatewayStrategy {
         transaction.markPayOsSuccess(callbackResult.paymentRef());
         if (order.getOrderType() == OrderType.ONLINE) {
             order.markPaid();
+            order.markPreparing();
         }
     }
 
