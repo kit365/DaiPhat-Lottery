@@ -170,6 +170,87 @@ public class UserService implements UserServicePort {
 
     @Override
     @Transactional(readOnly = true)
+    public List<UserResponse> searchCustomers(String query, int limit) {
+        String normalizedQuery = query == null ? "" : query.trim();
+        if (normalizedQuery.isBlank()) {
+            return List.of();
+        }
+
+        int normalizedLimit = Math.max(1, Math.min(limit, 20));
+        String searchValue = normalizedQuery.toLowerCase();
+
+        return userRepositoryPort.findAllByRoleCodes(List.of(RoleConstants.ROLE_MEMBER)).stream()
+                .filter(user -> matchesCustomerSearch(user, searchValue))
+                .sorted((left, right) -> compareCustomerSearch(left, right, searchValue))
+                .limit(normalizedLimit)
+                .map(userApplicationMapper::mapToUserResponse)
+                .toList();
+    }
+
+    private boolean matchesCustomerSearch(UserModel user, String searchValue) {
+        if (user == null) {
+            return false;
+        }
+
+        String fullName = user.getFullName() == null ? "" : user.getFullName().toLowerCase();
+        String email = user.getEmail() == null ? "" : user.getEmail().toLowerCase();
+        String phone = user.getPhoneNumber() == null ? "" : user.getPhoneNumber().toLowerCase();
+        String username = user.getUsername() == null ? "" : user.getUsername().toLowerCase();
+
+        return fullName.contains(searchValue)
+                || email.contains(searchValue)
+                || phone.contains(searchValue)
+                || username.contains(searchValue);
+    }
+
+    private int compareCustomerSearch(UserModel left, UserModel right, String searchValue) {
+        int leftScore = customerSearchScore(left, searchValue);
+        int rightScore = customerSearchScore(right, searchValue);
+        if (leftScore != rightScore) {
+            return Integer.compare(leftScore, rightScore);
+        }
+
+        String leftName = left == null || left.getFullName() == null ? "" : left.getFullName();
+        String rightName = right == null || right.getFullName() == null ? "" : right.getFullName();
+        return leftName.compareToIgnoreCase(rightName);
+    }
+
+    private int customerSearchScore(UserModel user, String searchValue) {
+        if (user == null) {
+            return Integer.MAX_VALUE;
+        }
+
+        String fullName = user.getFullName() == null ? "" : user.getFullName().toLowerCase();
+        String email = user.getEmail() == null ? "" : user.getEmail().toLowerCase();
+        String phone = user.getPhoneNumber() == null ? "" : user.getPhoneNumber().toLowerCase();
+        String username = user.getUsername() == null ? "" : user.getUsername().toLowerCase();
+
+        if (email.equals(searchValue)) {
+            return 0;
+        }
+        if (phone.equals(searchValue)) {
+            return 1;
+        }
+        if (fullName.startsWith(searchValue)) {
+            return 2;
+        }
+        if (phone.startsWith(searchValue)) {
+            return 3;
+        }
+        if (email.startsWith(searchValue)) {
+            return 4;
+        }
+        if (username.startsWith(searchValue)) {
+            return 5;
+        }
+        if (email.contains(searchValue)) {
+            return 6;
+        }
+        return 7;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<UserResponse> getAll(int page, int size, String search, String status, List<String> roleIds, String sortBy, String direction) {
         UserStatus userStatus = UserStatus.fromFilter(status);
 

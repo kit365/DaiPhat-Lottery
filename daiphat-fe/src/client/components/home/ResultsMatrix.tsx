@@ -91,9 +91,9 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
           </div>
         </div>
 
-        {/* Integrated Quick Filter Bar */}
-        <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center overflow-x-auto lg:overflow-x-visible">
-          <div className="flex items-center gap-4 whitespace-nowrap w-full">
+        {/* Integrated Quick Filter Bar (Desktop) */}
+        <div className="hidden lg:flex px-4 py-2 bg-slate-50 border-b border-slate-100 items-center overflow-x-visible">
+          <div className="flex items-center justify-between whitespace-nowrap w-full">
             {/* Main Filters */}
             <div className="flex items-center gap-3 pr-4 border-r border-slate-200">
               <button
@@ -162,8 +162,10 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
               </div>
               <div className="flex-1 flex">
                 {dataList.map((d, i) => (
-                  <div key={i} className="flex-1 py-2 flex items-center justify-center border-r border-gray-100 last:border-0 bg-[#FCE5DF]/30">
-                    <span className="text-[13px] font-bold text-[#ee1314]">{d.province}</span>
+                  <div key={i} className="flex-1 py-2 px-1 flex items-center justify-center border-r border-gray-100 last:border-0 bg-[#FCE5DF]/30 text-center">
+                    <span className="text-[11px] md:text-[13px] font-bold text-[#ee1314] leading-tight break-words">
+                      {d.province === 'TP. Hồ Chí Minh' ? 'TP. HCM' : d.province}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -238,6 +240,61 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
             </div>
           ))}
         </div>
+
+        {/* Integrated Quick Filter Bar (Mobile) */}
+        <div className="flex lg:hidden px-4 py-3 bg-slate-50 border-t border-slate-100 items-center overflow-x-auto">
+          <div className="flex items-center gap-4 whitespace-nowrap w-full">
+            {/* Main Filters */}
+            <div className="flex items-center gap-3 pr-4 border-r border-slate-200">
+              <button
+                onClick={() => setDisplayType('full')}
+                className={`text-[14px] font-bold transition-all font-client-display uppercase tracking-tight cursor-pointer ${displayType === 'full' ? 'text-[#ee1314]' : 'text-slate-500 hover:text-[#102937]'}`}
+              >
+                Đầy đủ
+              </button>
+              <div className="w-[1px] h-3.5 bg-gray-300/50"></div>
+              <button
+                onClick={() => setDisplayType('2-digit')}
+                className={`text-[14px] font-bold transition-all font-client-display uppercase tracking-tight cursor-pointer ${displayType === '2-digit' ? 'text-[#ee1314]' : 'text-slate-500 hover:text-[#102937]'}`}
+              >
+                2 số
+              </button>
+              <div className="w-[1px] h-3.5 bg-gray-300/50"></div>
+              <button
+                onClick={() => setDisplayType('3-digit')}
+                className={`text-[14px] font-bold transition-all font-client-display uppercase tracking-tight cursor-pointer ${displayType === '3-digit' ? 'text-[#ee1314]' : 'text-slate-500 hover:text-[#102937]'}`}
+              >
+                3 số
+              </button>
+            </div>
+
+            {/* Number Selector */}
+            <div className="flex items-center gap-2">
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
+                const strNum = num.toString();
+                const isSelected = selectedDigit === strNum;
+                const isActive = activeDigit === strNum;
+                return (
+                  <button
+                    key={num}
+                    onClick={() => setSelectedDigit?.(isSelected ? null : strNum)}
+                    onMouseEnter={() => setHoveredDigit?.(strNum)}
+                    onMouseLeave={() => setHoveredDigit?.(null)}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-bold border transition-all cursor-pointer ${isSelected
+                      ? 'bg-[#FDE047] border-[#FDE047] text-[#111111]'
+                      : isActive
+                        ? 'bg-[#FEF9C3] border-[#FDE047] text-[#ee1314]'
+                        : 'border-gray-200 bg-white text-[#111111] hover:border-[#FDE047] hover:text-[#ee1314]'
+                      }`}
+                  >
+                    {num}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
   );
