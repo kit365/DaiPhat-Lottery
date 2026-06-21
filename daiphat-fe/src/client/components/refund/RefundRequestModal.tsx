@@ -49,7 +49,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
         e.preventDefault();
 
         if (!refundReason.trim()) {
-            AppToast.error('Vui lòng nhập lý do hoàn tiền');
+            AppToast.error('Vui lòng nhập lý do hủy đơn');
             return;
         }
 
@@ -90,7 +90,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
                 <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}></div>
                 <div className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
                     <div className="flex items-center justify-between p-6 border-b border-[#E5E8EB] sticky top-0 bg-white z-10">
-                        <h2 className="text-[18px] font-bold text-[#212B36]">Yêu cầu hoàn tiền</h2>
+                        <h2 className="text-[18px] font-bold text-[#212B36]">Yêu cầu hủy đơn</h2>
                         <button
                             onClick={onClose}
                             className="w-8 h-8 rounded-lg hover:bg-[#F4F6F8] flex items-center justify-center text-[#637381] cursor-pointer"
@@ -101,7 +101,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
 
                     <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
                         <div className="flex flex-col gap-2">
-                            <label className="text-[13px] font-bold text-[#454F5B]">Loại hoàn tiền</label>
+                            <label className="text-[13px] font-bold text-[#454F5B]">Tùy chọn hủy đơn</label>
                             <div className="px-4 py-3 bg-[#FFF4F4] border border-[#ee1314]/20 rounded-xl text-[14px] font-medium text-[#212B36]">
                                 Hoàn cả đơn
                             </div>
@@ -119,13 +119,13 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({
 
                         <div className="flex flex-col gap-2">
                             <label className="text-[13px] font-bold text-[#454F5B]">
-                                Lý do hoàn tiền * <span className="font-normal text-[#919EAB]">(tối đa 500 ký tự)</span>
+                                Lý do hủy đơn * <span className="font-normal text-[#919EAB]">(tối đa 500 ký tự)</span>
                             </label>
                             <textarea
                                 value={refundReason}
                                 onChange={(e) => setRefundReason(e.target.value.slice(0, 500))}
                                 rows={4}
-                                placeholder="Mô tả lý do bạn muốn hoàn tiền..."
+                                placeholder="Mô tả lý do bạn muốn hủy đơn..."
                                 className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314] resize-none"
                                 required
                             />

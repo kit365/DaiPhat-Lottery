@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OrderStatus, OrderType, GetMyOrdersParams, OrderResponse } from '../../../../types/order.type';
 import { useGetMyOrders, useGetMyOrderDetail } from '../../../hooks/useOrder';
@@ -7,6 +7,7 @@ import { PaymentGateway } from '../../../../types/transaction.type';
 import { AppToast } from '../../../utils/toast.util';
 import { isOrderPreparing } from '../../../utils/order.util';
 import { RefundRequestModal } from '../../../components/refund/RefundRequestModal';
+import { useGetMyRefunds } from '../../../hooks/useRefund';
 import { format } from 'date-fns';
 
 const ORDER_STATUS_MAP: Record<OrderStatus, { label: string, bg: string, text: string }> = {
@@ -69,6 +70,9 @@ export const OrdersTab = () => {
 
     const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
     const { data: refundOrderData, isLoading: isLoadingRefundOrder } = useGetMyOrderDetail(refundOrderId || '');
+
+    const { data: allRefundsData } = useGetMyRefunds({ limit: 100, page: 1 });
+    const pendingRefunds = useMemo(() => allRefundsData?.data?.recordList?.filter((r: any) => r.status === 'PENDING') || [], [allRefundsData]);
 
     const handleQuickPayment = (order: OrderResponse) => {
         if (!order?.id) {
@@ -306,6 +310,8 @@ export const OrdersTab = () => {
                                                 isUrgent = true;
                                             }
                                         }
+                                        
+                                        const hasPendingRefund = pendingRefunds.some((r: any) => r.orderId === order.id);
 
                                         return (
                                             <tr key={order.id} className="border-b border-[#F4F6F8] hover:bg-[#FAFBFC] transition-colors group">
@@ -358,14 +364,14 @@ export const OrdersTab = () => {
                                                                 )}
                                                             </button>
                                                         )}
-                                                        {isOrderPreparing(order.status) && (
+                                                        {isOrderPreparing(order.status) && !hasPendingRefund && (
                                                             <button
                                                                 onClick={() => setRefundOrderId(order.id)}
                                                                 className="px-3 py-2 rounded-lg bg-[#ee1314] text-white hover:bg-[#c80f11] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[12px] font-bold whitespace-nowrap shadow-sm"
-                                                                title="Yêu cầu hoàn tiền"
+                                                                title="Yêu cầu hủy đơn"
                                                             >
                                                                 <i className="fa-solid fa-rotate-left text-[11px]"></i>
-                                                                Yêu cầu hoàn tiền
+                                                                Yêu cầu hủy đơn
                                                             </button>
                                                         )}
                                                         <button 

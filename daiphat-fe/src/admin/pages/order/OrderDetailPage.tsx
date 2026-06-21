@@ -9,7 +9,6 @@ import {
     Button,
     Chip,
     IconButton,
-    MenuItem,
     Select,
     CircularProgress,
     alpha,
@@ -88,6 +87,13 @@ export const OrderDetailPage = () => {
                 update,
                 'info'
             );
+        } else if (newStatus === OrderStatus.PENDING_PICKUP) {
+            confirmAction(
+                "Chuyển sang Chờ nhận vé?",
+                "Bạn có chắc chắn muốn chuyển trạng thái thành chờ nhận vé?",
+                update,
+                'info'
+            );
         } else if (newStatus === OrderStatus.COMPLETED) {
             confirmAction(
                 "Hoàn thành đơn hàng?",
@@ -138,30 +144,15 @@ export const OrderDetailPage = () => {
                             ]}
                         />
                     </Box>
-                    <Stack direction="row" spacing={1} sx={{ mt: -2 }}>
-                        <Chip
-                            label={currentStatus.label}
-                            size="small"
-                            sx={{
-                                fontWeight: 700,
-                                height: 28,
-                                fontSize: '0.75rem',
-                                borderRadius: 'var(--shape-borderRadius-sm)',
-                                color: currentStatus.color,
-                                bgcolor: currentStatus.bg,
-                            }}
-                        />
-                    </Stack>
                 </Stack>
 
                 <Stack direction="row" spacing={1.5} alignItems="center">
                     {order.status === OrderStatus.PAID && (
                         <Button 
                             variant="contained" 
-                            color="primary"
                             startIcon={<Icon icon="solar:box-minimalistic-bold-duotone" />}
                             onClick={() => handleStatusChange(OrderStatus.PREPARING)}
-                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none', bgcolor: 'var(--palette-grey-800)', color: 'common.white', '&:hover': { bgcolor: 'var(--palette-grey-900)' } }}
                         >
                             Bắt đầu chuẩn bị
                         </Button>
@@ -169,10 +160,9 @@ export const OrderDetailPage = () => {
                     {order.status === OrderStatus.PREPARING && (
                         <Button 
                             variant="contained" 
-                            color="info"
                             startIcon={<Icon icon="solar:refresh-circle-linear" />}
                             onClick={() => handleStatusChange(OrderStatus.PENDING_PICKUP)}
-                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none', bgcolor: 'var(--palette-grey-800)', color: 'common.white', '&:hover': { bgcolor: 'var(--palette-grey-900)' } }}
                         >
                             Chuyển sang "Chờ nhận vé"
                         </Button>
@@ -180,10 +170,9 @@ export const OrderDetailPage = () => {
                     {order.status === OrderStatus.PENDING_PICKUP && (
                         <Button 
                             variant="contained" 
-                            color="success"
                             startIcon={<Icon icon="solar:check-circle-bold-duotone" />}
                             onClick={() => handleStatusChange(OrderStatus.COMPLETED)}
-                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none', bgcolor: 'var(--palette-grey-800)', color: 'common.white', '&:hover': { bgcolor: 'var(--palette-grey-900)' } }}
                         >
                             Hoàn thành đơn hàng
                         </Button>
@@ -191,10 +180,9 @@ export const OrderDetailPage = () => {
                     {order.status === OrderStatus.PENDING_PAYMENT && order.orderType === 'DIRECT' && (
                         <Button 
                             variant="contained" 
-                            color="success"
                             startIcon={<Icon icon="solar:check-circle-bold-duotone" />}
                             onClick={() => handleStatusChange(OrderStatus.COMPLETED)}
-                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none', bgcolor: 'var(--palette-grey-800)', color: 'common.white', '&:hover': { bgcolor: 'var(--palette-grey-900)' } }}
                         >
                             Đã thanh toán & Hoàn thành
                         </Button>
