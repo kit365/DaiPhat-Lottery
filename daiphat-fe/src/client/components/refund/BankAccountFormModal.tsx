@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { UserBankAccountResponse, VietQrBankResponse } from '../../../types/refund.type';
 import { useCreateBankAccount, useGetBanks, useUpdateBankAccount } from '../../hooks/useBankAccount';
+import { AppToast } from '../../utils/toast.util';
+
+const BANK_ACCOUNT_TERMS_TEXT =
+    'Tôi cam kết thông tin tài khoản ngân hàng đã nhập là chính xác. Tôi hiểu rằng đại lý được miễn trừ trách nhiệm đối với các trường hợp hoàn tiền chậm trễ hoặc thất bại do thông tin tài khoản tôi cung cấp không chính xác.';
 
 interface BankAccountFormModalProps {
     isOpen: boolean;
@@ -24,6 +28,7 @@ export const BankAccountFormModal: React.FC<BankAccountFormModalProps> = ({
     const [bankAccountNo, setBankAccountNo] = useState('');
     const [bankAccountName, setBankAccountName] = useState('');
     const [isDefault, setIsDefault] = useState(false);
+    const [agreedToRefundTerms, setAgreedToRefundTerms] = useState(false);
     const [showBankDropdown, setShowBankDropdown] = useState(false);
 
     const banks = banksData?.data || [];
@@ -37,6 +42,7 @@ export const BankAccountFormModal: React.FC<BankAccountFormModalProps> = ({
             setBankAccountNo(editingAccount.bankAccountNo);
             setBankAccountName(editingAccount.bankAccountName);
             setIsDefault(editingAccount.isDefault);
+            setAgreedToRefundTerms(false);
             const matchedBank = banks.find((b) => b.bin === editingAccount.bankBin);
             setSelectedBank(matchedBank || {
                 bin: editingAccount.bankBin,
@@ -50,6 +56,7 @@ export const BankAccountFormModal: React.FC<BankAccountFormModalProps> = ({
             setBankAccountNo('');
             setBankAccountName('');
             setIsDefault(false);
+            setAgreedToRefundTerms(false);
         }
         setBankSearch('');
         setShowBankDropdown(false);
@@ -72,11 +79,17 @@ export const BankAccountFormModal: React.FC<BankAccountFormModalProps> = ({
         if (!selectedBank) return;
         if (!bankAccountNo.trim() || !bankAccountName.trim()) return;
 
+        if (!agreedToRefundTerms) {
+            AppToast.error('Bạn cần xác nhận cam kết thông tin tài khoản ngân hàng');
+            return;
+        }
+
         const payload = {
             bankBin: selectedBank.bin,
             bankAccountNo: bankAccountNo.trim(),
             bankAccountName: bankAccountName.trim().toUpperCase(),
-            isDefault
+            isDefault,
+            agreedToRefundTerms: true
         };
 
         if (isEditing && editingAccount) {
@@ -219,9 +232,20 @@ export const BankAccountFormModal: React.FC<BankAccountFormModalProps> = ({
                             type="checkbox"
                             checked={isDefault}
                             onChange={(e) => setIsDefault(e.target.checked)}
-                            className="w-4 h-4 accent-[#ee1314] cursor-pointer"
+                            className="w-4 h-4 accent-[#ee1314] cursor-pointer shrink-0"
                         />
                         <span className="text-[14px] text-[#454F5B] font-medium">Đặt làm tài khoản mặc định</span>
+                    </label>
+
+                    <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={agreedToRefundTerms}
+                            onChange={(e) => setAgreedToRefundTerms(e.target.checked)}
+                            className="w-4 h-4 accent-[#ee1314] cursor-pointer shrink-0 mt-1"
+                            required
+                        />
+                        <span className="text-[13px] text-[#454F5B] leading-relaxed">{BANK_ACCOUNT_TERMS_TEXT}</span>
                     </label>
 
                     <div className="flex gap-3 pt-2">
@@ -234,7 +258,7 @@ export const BankAccountFormModal: React.FC<BankAccountFormModalProps> = ({
                         </button>
                         <button
                             type="submit"
-                            disabled={isPending || !selectedBank}
+                            disabled={isPending || !selectedBank || !agreedToRefundTerms}
                             className="flex-1 py-3 rounded-xl bg-[#ee1314] text-white font-bold text-[14px] hover:bg-[#c80f11] transition-colors disabled:opacity-50 cursor-pointer"
                         >
                             {isPending ? (

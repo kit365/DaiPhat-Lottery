@@ -33,6 +33,7 @@ export interface CreateUserBankAccountRequest {
     bankAccountNo: string;
     bankAccountName: string;
     isDefault?: boolean;
+    agreedToRefundTerms: boolean;
 }
 
 export type UpdateUserBankAccountRequest = CreateUserBankAccountRequest;
