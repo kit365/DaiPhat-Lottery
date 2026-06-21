@@ -49,6 +49,8 @@ public class UserBankAccountService implements UserBankAccountServicePort {
     public UserBankAccountResponse create(UUID userId, CreateUserBankAccountRequest request) {
         log.info("Creating bank account for user {}", userId);
 
+        validateRefundTermsAccepted(request.agreedToRefundTerms());
+
         VietQrBankModel bank = resolveBank(request.bankBin());
         validateDuplicate(userId, bank.getBin(), request.bankAccountNo(), null);
 
@@ -72,6 +74,7 @@ public class UserBankAccountService implements UserBankAccountServicePort {
     @Override
     @Transactional
     public UserBankAccountResponse update(UUID userId, Long id, UpdateUserBankAccountRequest request) {
+        validateRefundTermsAccepted(request.agreedToRefundTerms());
         UserBankAccountModel account = getOwnedAccount(userId, id);
 
         VietQrBankModel bank = resolveBank(request.bankBin());
@@ -154,5 +157,11 @@ public class UserBankAccountService implements UserBankAccountServicePort {
             return true;
         }
         return Boolean.TRUE.equals(requestedDefault);
+    }
+
+    private void validateRefundTermsAccepted(Boolean agreedToRefundTerms) {
+        if (!Boolean.TRUE.equals(agreedToRefundTerms)) {
+            throw new DomainException(ErrorCode.USER_BANK_ACCOUNT_TERMS_NOT_ACCEPTED);
+        }
     }
 }
