@@ -122,3 +122,22 @@ export const inviteStaff = async (id: string, data: { roleCode: string }): Promi
     const response = await apiApp.post(`${BASE_URL}/${id}/invite-staff`, data);
     return response.data;
 };
+
+export const searchCustomers = async (params: { q: string; limit?: number }): Promise<ApiResponse<User[]>> => {
+    const response = await apiApp.get(`${BASE_URL}/customers/search`, {
+        params: { q: params.q, limit: params.limit ?? 10 }
+    });
+    const result = response.data?.data || [];
+    return {
+        success: true,
+        message: response.data?.message || '',
+        timestamp: response.data?.timestamp || new Date().toISOString(),
+        data: result.map((user: any) => ({
+            ...user,
+            phone: user.phoneNumber || user.phone,
+            fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email,
+            avatar: user.avatarUrl || user.avatar,
+            status: user.status ? user.status.toUpperCase() : 'PENDING'
+        }))
+    };
+};

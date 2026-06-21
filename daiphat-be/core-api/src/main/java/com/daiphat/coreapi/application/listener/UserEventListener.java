@@ -13,14 +13,15 @@ import com.daiphat.coreapi.application.event.StaffInviteEvent;
 import com.daiphat.coreapi.application.dto.notification.FcmPushData;
 import com.daiphat.coreapi.application.event.UserCreatedEvent;
 import com.daiphat.coreapi.application.event.UserEmailVerifiedEvent;
+import com.daiphat.coreapi.application.event.UserGuestOrdersLinkRequestedEvent;
 import com.daiphat.coreapi.application.event.UserPasswordChangedEvent;
 import com.daiphat.coreapi.application.event.UserRegisteredEvent;
 import com.daiphat.coreapi.application.event.UserWelcomeEvent;
+import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
 import com.daiphat.coreapi.application.port.in.mail.EmailServicePort;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.application.port.out.notification.FcmPushPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
-import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
@@ -42,6 +43,7 @@ public class UserEventListener {
 
     private final EmailServicePort emailService;
     private final NotificationServicePort notificationService;
+    private final OrderServicePort orderServicePort;
     private final AuthProperties authProperties;
     private final FcmPushPort fcmPushPort;
     private final UserRepositoryPort userRepositoryPort;
@@ -94,6 +96,13 @@ public class UserEventListener {
     public void handleUserWelcome(UserWelcomeEvent event) {
         log.info("Handling UserWelcomeEvent for recipient: {}", event.email());
         createWelcomeInAppNotification(event.userId());
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleGuestOrderLinkRequested(UserGuestOrdersLinkRequestedEvent event) {
+        log.info("Handling UserGuestOrdersLinkRequestedEvent for recipient: {}", event.email());
+        orderServicePort.linkGuestOrdersToAccount(event.userId(), event.email());
     }
 
     @Async

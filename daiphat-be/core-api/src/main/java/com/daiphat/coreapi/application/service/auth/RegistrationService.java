@@ -1,11 +1,11 @@
 package com.daiphat.coreapi.application.service.auth;
 
 import com.daiphat.coreapi.application.dto.request.user.UserRegistrationRequest;
+import com.daiphat.coreapi.application.event.UserGuestOrdersLinkRequestedEvent;
 import com.daiphat.coreapi.application.event.UserEmailVerifiedEvent;
 import com.daiphat.coreapi.application.event.UserRegisteredEvent;
 import com.daiphat.coreapi.application.mapper.UserApplicationMapper;
 import com.daiphat.coreapi.application.port.in.auth.RegistrationServicePort;
-import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.auth.PasswordHashPort;
 import com.daiphat.coreapi.application.port.out.auth.RoleRepositoryPort;
 import com.daiphat.coreapi.application.port.out.auth.VerificationCachePort;
@@ -35,8 +35,6 @@ public class RegistrationService implements RegistrationServicePort {
     private final ApplicationEventPublisher eventPublisher;
     private final PasswordHashPort passwordHashPort;
     private final UserApplicationMapper userApplicationMapper;
-    private final OrderRepositoryPort orderRepositoryPort;
-
     @Value("${daiphat.auth.cache.verification-token-ttl-seconds}")
     private long verificationTokenTtlSeconds;
 
@@ -80,15 +78,16 @@ public class RegistrationService implements RegistrationServicePort {
         if (!user.isEmailVerified()) {
             user.activate();
             userRepositoryPort.save(user);
-            orderRepositoryPort.assignGuestOrdersToUserByEmail(user.getId(), user.getEmail());
+            eventPublisher.publishEvent(UserGuestOrdersLinkRequestedEvent.builder()
+                    .userId(user.getId())
+                    .email(user.getEmail())
+                    .build());
             eventPublisher.publishEvent(UserEmailVerifiedEvent.builder()
                     .userId(user.getId())
                     .email(user.getEmail())
                     .fullName(user.getFullName())
                     .token(token)
                     .build());
-        } else {
-            orderRepositoryPort.assignGuestOrdersToUserByEmail(user.getId(), user.getEmail());
         }
         verificationCachePort.deleteVerificationToken(token);
     }

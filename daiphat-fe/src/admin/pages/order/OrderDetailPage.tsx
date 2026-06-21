@@ -24,6 +24,8 @@ import {
 import { Icon } from "@iconify/react";
 import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
+import { Title } from "../../components/ui/Title";
+import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { useOrderDetail, useUpdateOrderStatus } from "./hooks/useOrderManagement";
 import { OrderStatus } from "../../../types/order.type";
 import { toast } from "react-toastify";
@@ -123,59 +125,34 @@ export const OrderDetailPage = () => {
 
     return (
         <Box sx={{ width: '100%', mx: 'auto' }}>
-            {/* Header section */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4, mt: 0.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <IconButton
-                        onClick={() => navigate(-1)}
-                        sx={{
-                            color: 'var(--palette-action-active)',
-                            p: 0.75,
-                            mr: 1,
-                            mt: 0.25
-                        }}
-                    >
-                        <Icon icon="eva:arrow-ios-back-fill" width={20} />
-                    </IconButton>
-
-                    <Stack spacing={0.5}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="h4" sx={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                Đơn mua hộ #{order.orderCode || order.id?.slice(-6).toUpperCase() || 'ERROR'}
-                            </Typography>
-                        </Box>
-                        <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-                            <Chip
-                                label={currentStatus.label}
-                                size="small"
-                                sx={{
-                                    fontWeight: 700,
-                                    height: 22,
-                                    fontSize: '0.75rem',
-                                    borderRadius: 'var(--shape-borderRadius-sm)',
-                                    color: currentStatus.color,
-                                    bgcolor: currentStatus.bg,
-                                    backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0.48))',
-                                }}
-                            />
-                            {order.orderType === 'DIRECT' && (
-                                <Chip
-                                    label="Tại quầy"
-                                    size="small"
-                                    sx={{
-                                        fontWeight: 700,
-                                        height: 22,
-                                        fontSize: '0.75rem',
-                                        borderRadius: 'var(--shape-borderRadius-sm)',
-                                        color: "var(--palette-info-dark)",
-                                        bgcolor: "var(--palette-info-lighter)",
-                                        backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0.48))',
-                                    }}
-                                />
-                            )}
-                        </Stack>
+            {/* Unified Header section */}
+            <Box sx={{ mb: 5, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                    <Box>
+                        <Title title={`Đơn hàng #${order.orderCode || order.id?.slice(-6).toUpperCase() || 'ERROR'}`} />
+                        <Breadcrumb
+                            items={[
+                                { label: 'Bảng điều khiển', to: `/${prefixAdmin}/dashboard` },
+                                { label: 'Đơn hàng', to: `/${prefixAdmin}/order/list` },
+                                { label: 'Chi tiết đơn hàng' }
+                            ]}
+                        />
+                    </Box>
+                    <Stack direction="row" spacing={1} sx={{ mt: -2 }}>
+                        <Chip
+                            label={currentStatus.label}
+                            size="small"
+                            sx={{
+                                fontWeight: 700,
+                                height: 28,
+                                fontSize: '0.75rem',
+                                borderRadius: 'var(--shape-borderRadius-sm)',
+                                color: currentStatus.color,
+                                bgcolor: currentStatus.bg,
+                            }}
+                        />
                     </Stack>
-                </Box>
+                </Stack>
 
                 <Stack direction="row" spacing={1.5} alignItems="center">
                     {order.status === OrderStatus.PAID && (
@@ -259,6 +236,25 @@ export const OrderDetailPage = () => {
                         }}
                     >
                         In đơn
+                    </Button>
+                    <Button 
+                        variant="outlined" 
+                        onClick={() => navigate(-1)} 
+                        startIcon={<Icon icon="eva:arrow-back-fill" />}
+                        sx={{
+                            fontWeight: 700,
+                            fontSize: '0.875rem',
+                            height: 36,
+                            borderRadius: '8px',
+                            color: 'var(--palette-text-primary)',
+                            borderColor: 'var(--palette-divider)',
+                            '&:hover': {
+                                bgcolor: 'var(--palette-action-hover)',
+                                borderColor: 'var(--palette-text-primary)'
+                            }
+                        }}
+                    >
+                        Quay lại
                     </Button>
                 </Stack>
             </Box>
@@ -444,21 +440,21 @@ export const OrderDetailPage = () => {
                                                                     <Icon icon="solar:ticket-bold-duotone" width={20} />
                                                                 </Avatar>
                                                                 <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                                                    {detail.lotteryTicket?.symbol || '283749'}
+                                                                    {detail.lotteryTicket?.symbol || detail.lotteryTicket?.ticketNumber || 'N/A'}
                                                                 </Typography>
                                                             </Stack>
                                                         </TableCell>
                                                         <TableCell>
                                                             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                                {detail.lotteryTicket?.province?.name || 'Đồng Nai'}
+                                                                {detail.lotteryTicket?.province?.name || detail.lotteryTicket?.station?.name || detail.lotteryTicket?.stationName || 'N/A'}
                                                             </Typography>
                                                         </TableCell>
                                                         <TableCell>
                                                             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                                                {detail.lotteryTicket?.drawDate ? dayjs(detail.lotteryTicket.drawDate).format("DD/MM/YYYY") : '16/06/2026'}
+                                                                {detail.lotteryTicket?.drawDate ? dayjs(detail.lotteryTicket.drawDate).format("DD/MM/YYYY") : 'N/A'}
                                                             </Typography>
                                                             <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)' }}>
-                                                                ({detail.lotteryTicket?.drawDate ? dayjs(detail.lotteryTicket.drawDate).locale('vi').format("dddd") : 'Thứ Hai'})
+                                                                ({detail.lotteryTicket?.drawDate ? dayjs(detail.lotteryTicket.drawDate).locale('vi').format("dddd") : 'N/A'})
                                                             </Typography>
                                                         </TableCell>
 
@@ -489,12 +485,12 @@ export const OrderDetailPage = () => {
                                     <Divider sx={{ borderStyle: 'dashed' }} />
                                     <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 3 }}>
                                         <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
-                                            Tổng số vé: {order.orderDetails?.length || 2}
+                                            Tổng số vé: {order.orderDetails?.length || 0}
                                         </Typography>
                                         <Stack direction="row" alignItems="center" spacing={1}>
                                             <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>Tổng tiền:</Typography>
                                             <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--palette-success-main)' }}>
-                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 20000)}
+                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}
                                             </Typography>
                                         </Stack>
                                     </Stack>
@@ -522,18 +518,24 @@ export const OrderDetailPage = () => {
                                 <Stack spacing={1}>
                                     <Stack direction="row" alignItems="center" spacing={1}>
                                         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                            {order.name || order.user?.fullName || "Admin Super"}
+                                            {order.name || order.user?.fullName || "Khách vãng lai"}
                                         </Typography>
                                     </Stack>
-                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-primary)', fontWeight: 500 }}>
-                                        {order.phone || order.user?.phone || "0764349959"}
-                                    </Typography>
-                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-primary)', fontWeight: 500 }}>
-                                        {order.user?.email || "admin@daiphat.com"}
-                                    </Typography>
-                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', mt: 0.5, lineHeight: 1.5 }}>
-                                        {order.address || "123 Đường ABC, P. Tân Bình, Q. Tân Bình, TP. HCM"}
-                                    </Typography>
+                                    {(order.phone || order.user?.phone || order.user?.phoneNumber) && (
+                                        <Typography variant="body2" sx={{ color: 'var(--palette-text-primary)', fontWeight: 500 }}>
+                                            {order.phone || order.user?.phone || order.user?.phoneNumber}
+                                        </Typography>
+                                    )}
+                                    {(order.email || order.user?.email) && (
+                                        <Typography variant="body2" sx={{ color: 'var(--palette-text-primary)', fontWeight: 500 }}>
+                                            {order.email || order.user?.email}
+                                        </Typography>
+                                    )}
+                                    {(order.address || order.user?.address) && (
+                                        <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', mt: 0.5, lineHeight: 1.5 }}>
+                                            {order.address || order.user?.address}
+                                        </Typography>
+                                    )}
                                 </Stack>
                             </Stack>
                             
@@ -541,7 +543,8 @@ export const OrderDetailPage = () => {
                                 fullWidth 
                                 variant="outlined" 
                                 startIcon={<Icon icon="solar:user-id-linear" />}
-                                onClick={() => navigate(`/${prefixAdmin}/account-admin/detail/${order.user?.id}`)}
+                                disabled={!(order.user?.id || order.userId)}
+                                onClick={() => navigate(`/${prefixAdmin}/account-user/detail/${order.user?.id || order.userId}`)}
                                 sx={{ 
                                     py: 1, 
                                     fontWeight: 700, 
@@ -572,7 +575,7 @@ export const OrderDetailPage = () => {
                                 <Box>
                                     <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', display: 'block', mb: 0.5 }}>Tổng tiền</Typography>
                                     <Typography variant="h5" sx={{ fontWeight: 700, color: 'var(--palette-success-main)' }}>
-                                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 20000)}
+                                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}
                                     </Typography>
                                 </Box>
                                 <Box>
