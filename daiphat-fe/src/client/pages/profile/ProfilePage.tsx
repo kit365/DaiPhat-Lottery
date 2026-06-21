@@ -6,7 +6,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useNotifications } from "../../hooks/useNotifications";
 
-type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'notifications' | 'settings' | 'favorites';
+type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'bankAccounts' | 'notifications' | 'settings' | 'favorites';
 
 interface TabConfig {
     id: TabId;
@@ -21,6 +21,8 @@ const TABS: TabConfig[] = [
     { id: 'info', path: '/profile/info', label: 'Tài khoản cá nhân', icon: 'fa-regular fa-user' },
     { id: 'tickets', path: '/profile/tickets', label: 'Vé của tôi', icon: 'fa-solid fa-ticket-simple' },
     { id: 'orders', path: '/profile/orders', label: 'Đơn hàng của tôi', icon: 'fa-solid fa-file-invoice-dollar' },
+    { id: 'refunds', path: '/profile/refunds', label: 'Yêu cầu hoàn tiền', icon: 'fa-solid fa-rotate-left' },
+    { id: 'bankAccounts', path: '/profile/bank-accounts', label: 'Tài khoản ngân hàng', icon: 'fa-solid fa-building-columns' },
     { id: 'favorites', path: '/profile/favorites', label: 'Số yêu thích', icon: 'fa-regular fa-star' },
     { id: 'notifications', path: '/profile/notifications', label: 'Thông báo', icon: 'fa-regular fa-bell' },
     { id: 'settings', path: '/profile/settings', label: 'Bảo mật', icon: 'fa-solid fa-shield-halved' },
