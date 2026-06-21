@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OrderStatus, OrderType, GetMyOrdersParams, OrderResponse } from '../../../../types/order.type';
-import { useGetMyOrders } from '../../../hooks/useOrder';
+import { useGetMyOrders, useGetMyOrderDetail } from '../../../hooks/useOrder';
 import { useProcessPayment } from '../../../hooks/useTransaction';
 import { PaymentGateway } from '../../../../types/transaction.type';
 import { AppToast } from '../../../utils/toast.util';
+import { isOrderPreparing } from '../../../utils/order.util';
+import { RefundRequestModal } from '../../../components/refund/RefundRequestModal';
 import { format } from 'date-fns';
 
 const ORDER_STATUS_MAP: Record<OrderStatus, { label: string, bg: string, text: string }> = {
     [OrderStatus.PENDING_PAYMENT]: { label: 'Chờ thanh toán', bg: 'bg-[#FFF9F3]', text: 'text-[#FFB020]' },
     [OrderStatus.PAID]: { label: 'Đã thanh toán', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
-    [OrderStatus.PREPARING]: { label: 'Đang xử lý', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
+    [OrderStatus.PREPARING]: { label: 'Đang chuẩn bị vé', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
     [OrderStatus.PENDING_PICKUP]: { label: 'Chờ nhận vé', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
     [OrderStatus.COMPLETED]: { label: 'Đã hoàn thành', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
     [OrderStatus.CANCELLED]: { label: 'Đã huỷ', bg: 'bg-[#FFF4F4]', text: 'text-[#ee1314]' }
@@ -65,6 +67,9 @@ export const OrdersTab = () => {
     const { data: orderData, isLoading } = useGetMyOrders(queryParams);
     const processPaymentMutation = useProcessPayment();
 
+    const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
+    const { data: refundOrderData, isLoading: isLoadingRefundOrder } = useGetMyOrderDetail(refundOrderId || '');
+
     const handleQuickPayment = (order: OrderResponse) => {
         if (!order?.id) {
             AppToast.error('Không tìm thấy thông tin đơn hàng');
@@ -106,7 +111,7 @@ export const OrdersTab = () => {
         { value: 'ALL', label: 'Tất cả' },
         { value: OrderStatus.PENDING_PAYMENT, label: 'Chờ thanh toán' },
         { value: OrderStatus.PAID, label: 'Đã thanh toán' },
-        { value: OrderStatus.PREPARING, label: 'Đang xử lý' },
+        { value: OrderStatus.PREPARING, label: 'Đang chuẩn bị vé' },
         { value: OrderStatus.PENDING_PICKUP, label: 'Chờ nhận vé' },
         { value: OrderStatus.COMPLETED, label: 'Đã hoàn thành' },
         { value: OrderStatus.CANCELLED, label: 'Đã huỷ' }
@@ -265,7 +270,7 @@ export const OrdersTab = () => {
                 {/* Orders List */}
                 <div className="flex flex-col">
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse min-w-[800px]">
+                        <table className="w-full text-left border-collapse min-w-[960px]">
                             <thead>
                                 <tr className="bg-[#F9FAFB] border-b border-[#E5E8EB]">
                                     <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] tracking-wide">Mã đơn hàng</th>
@@ -353,6 +358,16 @@ export const OrdersTab = () => {
                                                                 )}
                                                             </button>
                                                         )}
+                                                        {isOrderPreparing(order.status) && (
+                                                            <button
+                                                                onClick={() => setRefundOrderId(order.id)}
+                                                                className="px-3 py-2 rounded-lg bg-[#ee1314] text-white hover:bg-[#c80f11] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[12px] font-bold whitespace-nowrap shadow-sm"
+                                                                title="Yêu cầu hoàn tiền"
+                                                            >
+                                                                <i className="fa-solid fa-rotate-left text-[11px]"></i>
+                                                                Yêu cầu hoàn tiền
+                                                            </button>
+                                                        )}
                                                         <button 
                                                             onClick={() => navigate(`/profile/orders/${order.id}`)}
                                                             className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#919EAB] hover:text-[#2065D1] hover:border-[#2065D1] hover:bg-[#F0F5FF] transition-all cursor-pointer"
@@ -401,6 +416,23 @@ export const OrdersTab = () => {
                     </div>
                 )}
             </div>
+
+            {refundOrderId && isLoadingRefundOrder && !refundOrderData?.data && (
+                <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/30">
+                    <div className="bg-white rounded-xl px-6 py-4 text-[14px] text-[#637381] font-medium shadow-lg">
+                        <i className="fa-solid fa-spinner fa-spin mr-2 text-[#ee1314]"></i>
+                        Đang tải thông tin đơn hàng...
+                    </div>
+                </div>
+            )}
+
+            {refundOrderId && refundOrderData?.data && (
+                <RefundRequestModal
+                    isOpen={!!refundOrderId}
+                    onClose={() => setRefundOrderId(null)}
+                    order={refundOrderData.data}
+                />
+            )}
         </div>
     );
 };
