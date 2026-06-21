@@ -44,7 +44,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   };
 
   return (
-    <aside className="relative w-full lg:w-[280px] shrink-0 space-y-4 font-client-main">
+    <aside className="relative w-full lg:w-[220px] xl:w-[280px] shrink-0 space-y-4 font-client-main">
       {/* Date Picker Button - Premium Integration */}
       <div className="bg-white rounded-2xl shadow-[0_2px_15px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
         <button

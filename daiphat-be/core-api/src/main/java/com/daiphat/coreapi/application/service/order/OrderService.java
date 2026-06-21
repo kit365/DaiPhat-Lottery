@@ -84,7 +84,7 @@ public class OrderService implements OrderServicePort {
 
         List<Long> ticketIds = resolveTicketIds(request.items());
         validateTicketIds(ticketIds);
-        ensureUserExists(customerId);
+        var customer = userLookupServicePort.findByIdOrThrow(customerId);
         ensureValidPhone(request.phone());
         List<OrderDetailModel> orderDetails = new ArrayList<>();
         List<OrderTicketSnapshot> ticketSnapshots = lotteryTicketServicePort.reserveForOrder(ticketIds);
@@ -102,6 +102,7 @@ public class OrderService implements OrderServicePort {
 
         OrderModel order = orderApplicationMapper.toOnlineOrderModel(request);
         order.setUserId(customerId);
+        order.setEmail(customer.getEmail());
         order.setOrderCode(generateOrderCode());
         order.setReceiveType(resolveReceiveType(request.receiveType()));
         order.setTotalAmount(totalAmount);
@@ -124,7 +125,9 @@ public class OrderService implements OrderServicePort {
         validateTicketIds(ticketIds);
         ensureUserExistsIfPresent(request.customerId());
         ensureUserExists(operatorId);
-        ensureValidPhone(request.phone());
+        String normalizedPhone = normalizeOptional(request.phone());
+        String normalizedEmail = normalizeOptional(request.email());
+        ensureDirectOrderContact(normalizedPhone, normalizedEmail);
         boolean hasPendingOnlinePayment = hasPendingOnlinePayment(request);
 
         List<OrderDetailModel> orderDetails = new ArrayList<>();
@@ -142,6 +145,8 @@ public class OrderService implements OrderServicePort {
 
         OrderModel order = orderApplicationMapper.toDirectOrderModel(request);
         order.setUserId(request.customerId());
+        order.setPhone(normalizedPhone);
+        order.setEmail(normalizedEmail);
         order.setOrderCode(generateOrderCode());
         order.setReceiveType(resolveReceiveType(request.receiveType()));
         order.setTotalAmount(totalAmount);
@@ -157,6 +162,16 @@ public class OrderService implements OrderServicePort {
         registerPendingPaymentCountdown(saved);
         log.info("Created direct order with id: {}", saved.getId());
         return saved;
+    }
+
+    @Override
+    @Transactional
+    public void linkGuestOrdersToAccount(UUID userId, String email) {
+        if (userId == null || email == null || email.isBlank()) {
+            return;
+        }
+        ensureUserExists(userId);
+        orderRepositoryPort.assignGuestOrdersToUserByEmail(userId, email);
     }
 
     @Override
@@ -543,6 +558,23 @@ public class OrderService implements OrderServicePort {
 
     private void ensureValidPhone(String phone) {
         Phone.of(phone);
+    }
+
+    private void ensureDirectOrderContact(String phone, String email) {
+        if (phone == null && email == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Phải nhập ít nhất số điện thoại hoặc email.");
+        }
+        if (phone != null) {
+            ensureValidPhone(phone);
+        }
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private List<TransactionModel> buildDirectTransactions(CreateDirectOrderRequest request, BigDecimal totalAmount, UUID operatorId) {

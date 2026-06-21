@@ -29,7 +29,7 @@ public final class LotteryTicketSpecification {
             Long stationId,
             List<Long> stationIds,
             LotteryTicketStatus status,
-            LocalDate drawDate,
+            List<LocalDate> drawDates,
             String search
     ) {
         return (root, query, cb) -> {
@@ -45,8 +45,8 @@ public final class LotteryTicketSpecification {
             if (status != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.status), status));
             }
-            if (drawDate != null) {
-                predicates.add(cb.equal(root.get(LotteryTicketEntity_.drawDate), drawDate));
+            if (drawDates != null && !drawDates.isEmpty()) {
+                predicates.add(root.get(LotteryTicketEntity_.drawDate).in(drawDates));
             }
             if (search != null && !search.isBlank()) {
                 String searchPattern = "%" + search.toLowerCase() + "%";
@@ -63,7 +63,7 @@ public final class LotteryTicketSpecification {
     public static Specification<LotteryTicketEntity> filterPublic(
             Long stationId,
             List<Long> stationIds,
-            LocalDate drawDate,
+            List<LocalDate> drawDates,
             String search
     ) {
         return (root, query, cb) -> {
@@ -83,8 +83,8 @@ public final class LotteryTicketSpecification {
             if (stationIds != null && !stationIds.isEmpty()) {
                 predicates.add(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id).in(stationIds));
             }
-            if (drawDate != null) {
-                predicates.add(cb.equal(root.get(LotteryTicketEntity_.drawDate), drawDate));
+            if (drawDates != null && !drawDates.isEmpty()) {
+                predicates.add(root.get(LotteryTicketEntity_.drawDate).in(drawDates));
             }
             if (search != null && !search.isBlank()) {
                 String searchPattern = "%" + search.toLowerCase() + "%";
