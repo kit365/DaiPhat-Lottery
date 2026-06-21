@@ -16,6 +16,9 @@ import { OrderDetailTab } from './client/pages/profile/tabs/OrderDetailTab';
 import { FavoritesTab } from './client/pages/profile/tabs/FavoritesTab';
 import { NotificationsTab } from './client/pages/profile/tabs/NotificationsTab';
 import { SecurityTab } from './client/pages/profile/tabs/SecurityTab';
+import { RefundsTab } from './client/pages/profile/tabs/RefundsTab';
+import { RefundDetailTab } from './client/pages/profile/tabs/RefundDetailTab';
+import { BankAccountsTab } from './client/pages/profile/tabs/BankAccountsTab';
 
 import { BlogListPage } from './client/pages/BlogListPage';
 import { BlogDetailPage } from './client/pages/BlogDetailPage';
@@ -93,6 +96,9 @@ function App() {
               <Route path="info" element={<ProfileInfoTab />} />
               <Route path="orders" element={<OrdersTab />} />
               <Route path="orders/:id" element={<OrderDetailTab />} />
+              <Route path="refunds" element={<RefundsTab />} />
+              <Route path="refunds/:id" element={<RefundDetailTab />} />
+              <Route path="bank-accounts" element={<BankAccountsTab />} />
               <Route path="tickets" element={<TicketsTab />} />
               <Route path="favorites" element={<FavoritesTab />} />
               <Route path="notifications" element={<NotificationsTab />} />
