@@ -59,6 +59,11 @@ export const QUERY_KEYS = {
     CLIENT_BANK_ACCOUNTS: 'client-bank-accounts',
     CLIENT_BANK_CATALOG: 'client-bank-catalog',
 
+    // Support / Complaints (Client)
+    CLIENT_TICKET_CATEGORIES: 'client-ticket-categories',
+    CLIENT_MY_COMPLAINTS: 'client-my-complaints',
+    CLIENT_COMPLAINT_DETAIL: 'client-complaint-detail',
+
     // Lottery Results
     LOTTERY_RESULTS: 'lottery-results',
     LOTTERY_RESULTS_LIVE: 'lottery-results-live',
