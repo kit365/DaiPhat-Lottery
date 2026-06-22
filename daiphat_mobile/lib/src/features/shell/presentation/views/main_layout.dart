@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
-import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 class MainLayout extends StatefulWidget {
   final LoginViewModel loginViewModel;
@@ -22,7 +23,6 @@ class MainLayout extends StatefulWidget {
 }
 
 class _MainLayoutState extends State<MainLayout> {
-  // PageView: page 0 = Blog, page 1 = main shell
   late final PageController _pageController;
   bool _onBlogPage = false;
 
@@ -64,16 +64,25 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
-  // Returns nav index: 0 = Home, 1 = Buy, 2 = Results, 3 = Blog, 4 = Cart, 5 = History, 6 = Profile
   int _getNavIndex(BuildContext context) {
-    if (_onBlogPage) return 3;
-    final String location = GoRouterState.of(context).uri.path;
-    if (location.startsWith(AppRoute.buyTicket.path)) return 1;
-    if (location.startsWith('/results')) return 2;
-    if (location.startsWith(AppRoute.cart.path)) return 4;
-    if (location.startsWith('/history')) return 5;
-    if (location.startsWith(AppRoute.profile.path)) return 6;
-    return 0; // Home
+    if (_onBlogPage) {
+      return 3;
+    }
+
+    final location = GoRouterState.of(context).uri.path;
+    if (location.startsWith(AppRoute.buyTicket.path)) {
+      return 1;
+    }
+    if (location.startsWith('/results')) {
+      return 2;
+    }
+    if (location.startsWith(AppRoute.cart.path)) {
+      return 4;
+    }
+    if (location.startsWith(AppRoute.profile.path)) {
+      return 5;
+    }
+    return 0;
   }
 
   void _onNavTap(int index, BuildContext context) {
@@ -98,9 +107,6 @@ class _MainLayoutState extends State<MainLayout> {
         break;
       case 5:
         _goToMain();
-        break;
-      case 6:
-        _goToMain();
         if (widget.loginViewModel.isAuthenticated) {
           context.go(AppRoute.profile.path);
         } else {
@@ -119,14 +125,12 @@ class _MainLayoutState extends State<MainLayout> {
         controller: _pageController,
         physics: const BouncingScrollPhysics(),
         children: [
-          // Page 0: Blog
           BlogScreen(
             onBack: () {
               _goToMain();
               context.go(AppRoute.home.path);
             },
           ),
-          // Page 1: Main shell (home, buy ticket, profile, etc.)
           widget.child,
         ],
       ),
@@ -147,7 +151,7 @@ class _MainLayoutState extends State<MainLayout> {
           elevation: 0,
           height: 70,
           selectedIndex: navIndex,
-          onDestinationSelected: (i) => _onNavTap(i, context),
+          onDestinationSelected: (index) => _onNavTap(index, context),
           indicatorColor: const Color(0xFFFFF0F0),
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           destinations: [
@@ -174,7 +178,6 @@ class _MainLayoutState extends State<MainLayout> {
               selectedIcon: Icon(Icons.article, color: AppColors.primary),
               label: 'Tin tức',
             ),
-            // Cart badge wrapped in Consumer to watch cartTicketCountProvider
             NavigationDestination(
               icon: Consumer(
                 builder: (context, ref, child) {
@@ -200,11 +203,6 @@ class _MainLayoutState extends State<MainLayout> {
                 },
               ),
               label: 'Giỏ hàng',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.history_outlined),
-              selectedIcon: Icon(Icons.history, color: AppColors.primary),
-              label: 'Lịch sử',
             ),
             const NavigationDestination(
               icon: Icon(Icons.person_outline),

@@ -4,6 +4,7 @@ import Breadcrumbs from "@mui/material/Breadcrumbs";
 type BreadcrumbItem = {
     label: string;
     to?: string;
+    onClick?: () => void;
 };
 
 type BreadcrumbProps = {
@@ -35,6 +36,14 @@ export const Breadcrumb = ({ items }: BreadcrumbProps) => {
                     >
                         {item.label}
                     </Link>
+                ) : item.onClick ? (
+                    <span
+                        key={index}
+                        onClick={item.onClick}
+                        className="text-[0.875rem] text-[#1C252E] hover:underline cursor-pointer"
+                    >
+                        {item.label}
+                    </span>
                 ) : (
                     <span
                         key={index}

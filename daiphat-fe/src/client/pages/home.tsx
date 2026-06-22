@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Header } from "../components/layout/header";
 
 import { useAuthStore } from "../../stores/useAuthStore";
+import { DatePicker } from '../components/common/DatePicker';
 import { buildLotteryCountdownMessage, getCountdownState } from "../components/home/LotteryCountdown";
 import { LeftSidebar } from "../components/home/LeftSidebar";
 import { HomeSidebar } from "../components/home/HomeSidebar";
@@ -152,7 +153,7 @@ export const HomePage = () => {
       <Header />
 
       <main className="relative z-1">
-        <div className="max-w-[1440px] mx-auto px-4 lg:px-6 py-8 lg:pt-24 flex flex-col lg:flex-row gap-6 items-start">
+        <div className="max-w-[1440px] mx-auto px-4 lg:px-6 py-8 lg:pt-24 flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
           <div className="hidden lg:block shrink-0">
             <LeftSidebar
               activeProvinces={selectedProvinces}
@@ -185,15 +186,53 @@ export const HomePage = () => {
                         ))}
                     </select>
 
-                    <select 
-                        className="w-full p-3 rounded-xl border border-gray-200 text-[#637381] font-medium outline-none cursor-pointer"
-                        value={selectedDate || ''}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                    >
-                        {availableDates.map((date) => (
-                            <option key={date} value={date}>{date}</option>
-                        ))}
-                    </select>
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <button
+                        onClick={() => {
+                          const el = document.getElementById('mobile-date-picker');
+                          const arrow = document.getElementById('mobile-date-arrow');
+                          if (el && arrow) {
+                            if (el.style.maxHeight === '600px') {
+                              el.style.maxHeight = '0px';
+                              el.style.opacity = '0';
+                              arrow.style.transform = 'rotate(0deg)';
+                            } else {
+                              el.style.maxHeight = '600px';
+                              el.style.opacity = '1';
+                              arrow.style.transform = 'rotate(180deg)';
+                            }
+                          }
+                        }}
+                        className="w-full flex items-center justify-between p-3 text-[#637381] font-medium outline-none cursor-pointer bg-white border-none"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                          <span>{selectedDate || 'Chọn ngày'}</span>
+                        </div>
+                        <span id="mobile-date-arrow" className="material-symbols-outlined text-[18px] transition-transform duration-300">
+                          expand_more
+                        </span>
+                      </button>
+                      
+                      <div id="mobile-date-picker" className="transition-all duration-300 overflow-hidden" style={{ maxHeight: '0px', opacity: 0 }}>
+                        <div className="p-3 border-t border-gray-100">
+                          <DatePicker
+                            selectedDate={selectedDate || ''}
+                            onDateSelect={(date) => {
+                              setSelectedDate(date);
+                              const el = document.getElementById('mobile-date-picker');
+                              const arrow = document.getElementById('mobile-date-arrow');
+                              if (el && arrow) {
+                                el.style.maxHeight = '0px';
+                                el.style.opacity = '0';
+                                arrow.style.transform = 'rotate(0deg)';
+                              }
+                            }}
+                            availableDates={availableDates}
+                          />
+                        </div>
+                      </div>
+                    </div>
                 </div>
             </div>
             

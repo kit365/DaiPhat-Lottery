@@ -19,10 +19,10 @@ public interface LotteryTicketRepositoryPort {
     Optional<LotteryTicketModel> findByUniqueFields(Long stationId, String numbers, LocalDate drawDate);
 
     Page<LotteryTicketModel> findAll(Pageable pageable, Long stationId, Collection<Long> stationIds,
-                                     LotteryTicketStatus status, LocalDate drawDate, String search);
+                                     LotteryTicketStatus status, Collection<LocalDate> drawDates, String search);
 
     Page<LotteryTicketModel> findAllPublic(Pageable pageable, Long stationId, Collection<Long> stationIds,
-                                           LocalDate drawDate, String search);
+                                           Collection<LocalDate> drawDates, String search);
 
     java.util.List<LotteryTicketModel> findExpirableTickets(LocalDate beforeDate, Collection<LotteryTicketStatus> statuses);
 

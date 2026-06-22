@@ -4,11 +4,13 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStatio
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryStationApplicationMapper;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryRegionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationSourceSyncPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
@@ -64,7 +66,7 @@ class LotteryStationServiceTest {
     private LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
 
     @Mock
-    private StationPrizeStructureSeeder stationPrizeStructureSeeder;
+    private PrizeStructureRepositoryPort prizeStructureRepositoryPort;
 
     @Mock
     private LotteryStationApplicationMapper lotteryStationApplicationMapper;
@@ -75,7 +77,7 @@ class LotteryStationServiceTest {
     @Mock
     private org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
 
-    private LotteryStationService lotteryStationService;
+    private LotteryStationServicePort lotteryStationService;
 
     private LotteryRegionModel southRegion;
     private LotteryRegionModel northRegion;
@@ -92,7 +94,7 @@ class LotteryStationServiceTest {
                 lotteryRegionRepositoryPort,
                 lotteryStationSourceSyncPort,
                 lotteryTicketRepositoryPort,
-                stationPrizeStructureSeeder,
+                prizeStructureRepositoryPort,
                 lotteryStationApplicationMapper,
                 storagePort,
                 applicationEventPublisher
@@ -158,23 +160,16 @@ class LotteryStationServiceTest {
         when(lotteryRegionRepositoryPort.findByCode(REGION)).thenReturn(Optional.of(southRegion));
         when(lotteryRegionRepositoryPort.save(any(LotteryRegionModel.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        when(prizeStructureRepositoryPort.findByRegionCode(southRegion.region())).thenReturn(seededPrizeStructures);
         when(lotteryStationRepositoryPort.existsByName(STATION_NAME)).thenReturn(false);
         when(lotteryStationApplicationMapper.toModel(createRequest)).thenReturn(stationModel);
         when(lotteryStationRepositoryPort.save(any(LotteryStationModel.class))).thenReturn(savedStationModel);
-        when(stationPrizeStructureSeeder.seedFromRegion(savedStationModel)).thenReturn(seededPrizeStructures);
         when(lotteryStationApplicationMapper.toResponse(savedStationModel)).thenReturn(stationResponse);
 
         LotteryStationResponse result = lotteryStationService.create(createRequest);
 
         assertThat(result.id()).isEqualTo(STATION_ID);
-        verify(stationPrizeStructureSeeder).requireRegionHasPrizeStructures(southRegion);
-        verify(stationPrizeStructureSeeder).seedFromRegion(savedStationModel);
-
-        assertThat(seededPrizeStructures).hasSize(11);
-        Set<String> uniqueCodes = seededPrizeStructures.stream()
-                .map(PrizeStructureModel::getPrizeCode)
-                .collect(Collectors.toSet());
-        assertThat(uniqueCodes).hasSize(11);
+        verify(prizeStructureRepositoryPort).findByRegionCode(southRegion.region());
     }
 
     @Test
@@ -187,7 +182,6 @@ class LotteryStationServiceTest {
                 .isEqualTo(ErrorCode.LOTTERY_STATION_NAME_EXISTED);
 
         verify(lotteryStationRepositoryPort, never()).save(any());
-        verify(stationPrizeStructureSeeder, never()).seedFromRegion(any());
     }
 
     @Test
@@ -227,12 +221,12 @@ class LotteryStationServiceTest {
         when(lotteryStationRepositoryPort.save(station)).thenReturn(updatedStation);
         when(lotteryTicketRepositoryPort.sumQuantityByProductIdAndStatuses(eq(STATION_ID), any()))
                 .thenReturn(0L);
-        when(stationPrizeStructureSeeder.reseedFromRegion(updatedStation)).thenReturn(northPrizes);
+        when(prizeStructureRepositoryPort.findByRegionCode(northRegion.region())).thenReturn(northPrizes);
         when(lotteryStationApplicationMapper.toResponse(updatedStation)).thenReturn(stationResponse);
 
         lotteryStationService.update(STATION_ID, request);
 
-        verify(stationPrizeStructureSeeder).reseedFromRegion(updatedStation);
+        verify(prizeStructureRepositoryPort).findByRegionCode(northRegion.region());
     }
 
     private LotteryRegionModel buildRegion(String code) {
@@ -256,8 +250,8 @@ class LotteryStationServiceTest {
             int displayOrder
     ) {
         return PrizeStructureModel.builder()
-                .productId(STATION_ID)
-                .region(REGION)
+                .regionId(1L)
+                .regionCode(REGION)
                 .prizeLevel(prizeLevel)
                 .prizeCode(prizeCode)
                 .prizeValue(BigDecimal.ZERO)

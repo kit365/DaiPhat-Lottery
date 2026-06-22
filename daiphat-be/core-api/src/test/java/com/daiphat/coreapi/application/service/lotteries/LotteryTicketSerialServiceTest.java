@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.lotteries;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +31,7 @@ class LotteryTicketSerialServiceTest {
     @Mock
     private OrderRepositoryPort orderRepositoryPort;
 
-    private LotteryTicketSerialService lotteryTicketSerialService;
+    private LotteryTicketSerialServicePort lotteryTicketSerialService;
 
     @BeforeEach
     void setUp() {
