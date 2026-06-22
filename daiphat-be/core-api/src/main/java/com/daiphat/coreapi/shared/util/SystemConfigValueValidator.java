@@ -3,17 +3,19 @@ package com.daiphat.coreapi.shared.util;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.settings.DataType;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
-import java.util.Locale;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class SystemConfigValueValidator {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("H:mm")
+            .withResolverStyle(ResolverStyle.STRICT);
 
     public static void validate(String configValue, DataType dataType) {
         parse(configValue, dataType);
@@ -28,22 +30,12 @@ public final class SystemConfigValueValidator {
         }
 
         return switch (dataType) {
-            case STRING -> parseString(configValue);
-            case INTEGER -> parseInteger(configValue);
-            case BOOLEAN -> parseBoolean(configValue);
-            case JSON -> parseJson(configValue);
+            case INT -> parseInt(configValue);
+            case TIME -> parseTime(configValue);
         };
     }
 
-    private static String parseString(String configValue) {
-        String trimmed = configValue.trim();
-        if (trimmed.isEmpty()) {
-            throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
-        }
-        return trimmed;
-    }
-
-    private static Integer parseInteger(String configValue) {
+    private static Integer parseInt(String configValue) {
         try {
             return Integer.parseInt(configValue.trim());
         } catch (NumberFormatException ex) {
@@ -51,21 +43,11 @@ public final class SystemConfigValueValidator {
         }
     }
 
-    private static Boolean parseBoolean(String configValue) {
-        String normalized = configValue.trim().toLowerCase(Locale.ROOT);
-        if ("true".equals(normalized)) {
-            return Boolean.TRUE;
-        }
-        if ("false".equals(normalized)) {
-            return Boolean.FALSE;
-        }
-        throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
-    }
-
-    private static JsonNode parseJson(String configValue) {
+    private static String parseTime(String configValue) {
         try {
-            return OBJECT_MAPPER.readTree(configValue);
-        } catch (Exception ex) {
+            LocalTime parsed = LocalTime.parse(configValue.trim(), TIME_FORMATTER);
+            return parsed.format(DateTimeFormatter.ofPattern("HH:mm"));
+        } catch (DateTimeParseException ex) {
             throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
         }
     }
