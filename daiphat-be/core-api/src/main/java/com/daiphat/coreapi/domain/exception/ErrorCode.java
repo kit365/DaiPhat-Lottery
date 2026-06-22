@@ -194,7 +194,12 @@ public enum ErrorCode {
     STREET_AGENT_PROFILE_PHONE_EXISTED("SAG_002", "Số điện thoại đã được sử dụng cho hồ sơ khác.", HttpStatus.BAD_REQUEST),
     STREET_AGENT_PROFILE_CCCD_EXISTED("SAG_003", "Số CCCD đã được sử dụng cho hồ sơ khác.", HttpStatus.BAD_REQUEST),
     STREET_AGENT_PROFILE_INVALID_STATUS("SAG_004", "Trạng thái hồ sơ không hợp lệ.", HttpStatus.BAD_REQUEST),
-    STREET_AGENT_PROFILE_INVALID_CONTRACT_DATE("SAG_005", "Ngày kết thúc hợp đồng phải sau ngày bắt đầu.", HttpStatus.BAD_REQUEST);
+    STREET_AGENT_PROFILE_INVALID_CONTRACT_DATE("SAG_005", "Ngày kết thúc hợp đồng phải sau ngày bắt đầu.", HttpStatus.BAD_REQUEST),
+
+    // System Config Errors
+    SYSTEM_CONFIG_NOT_FOUND("CFG_001", "Cấu hình hệ thống không tồn tại.", HttpStatus.NOT_FOUND),
+    SYSTEM_CONFIG_VALUE_INVALID("CFG_002", "Giá trị cấu hình không hợp lệ với kiểu dữ liệu.", HttpStatus.BAD_REQUEST),
+    SYSTEM_CONFIG_TYPE_INVALID("CFG_003", "Loại cấu hình không hợp lệ.", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String message;
