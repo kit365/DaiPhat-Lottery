@@ -28,6 +28,7 @@ export const ROUTES = {
                 SOCIAL: `/${prefixAdmin}/dashboard/settings/social`,
                 APP_PASSWORD: `/${prefixAdmin}/dashboard/settings/app-password`,
                 TICKET_SUBTYPE: `/${prefixAdmin}/settings/ticketSubtype/list`,
+                SYSTEM_CONFIG: `/${prefixAdmin}/settings/system-config/list`,
             }
         },
         TICKETS: {
