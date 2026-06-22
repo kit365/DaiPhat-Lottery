@@ -4,6 +4,8 @@ import com.daiphat.coreapi.application.dto.request.blog.CreateBlogPostRequest;
 import com.daiphat.coreapi.application.dto.response.blog.BlogPostResponse;
 import com.daiphat.coreapi.application.mapper.blog.BlogPostApplicationMapper;
 import com.daiphat.coreapi.application.port.in.blog.BlogCategoryServicePort;
+import com.daiphat.coreapi.application.port.in.blog.BlogPostCoordinationPort;
+import com.daiphat.coreapi.application.port.in.blog.BlogPostServicePort;
 import com.daiphat.coreapi.application.port.in.blog.BlogTagServicePort;
 import com.daiphat.coreapi.application.port.out.blog.BlogPostRepositoryPort;
 import com.daiphat.coreapi.application.port.out.blog.BlogPostPublishQueuePort;
@@ -56,7 +58,8 @@ class BlogPostServiceTest {
     private static final String STATUS_PUBLISHED = "PUBLISHED";
     private static final String POST_TYPE_BLOG = "blog";
 
-    private BlogPostService blogPostService;
+    private BlogPostServicePort blogPostService;
+    private BlogPostCoordinationPort blogPostCoordinationPort;
 
     @Mock
     private BlogPostRepositoryPort blogPostRepositoryPort;
@@ -84,7 +87,7 @@ class BlogPostServiceTest {
 
     @BeforeEach
     void setUp() {
-        blogPostService = new BlogPostService(
+        BlogPostService impl = new BlogPostService(
                 blogPostRepositoryPort,
                 blogCategoryServicePort,
                 blogTagServicePort,
@@ -94,6 +97,8 @@ class BlogPostServiceTest {
                 blogPostPublishQueuePort,
                 eventPublisher
         );
+        blogPostService = impl;
+        blogPostCoordinationPort = impl;
     }
 
     @Test
@@ -911,7 +916,7 @@ class BlogPostServiceTest {
         List<Long> categoryIds = List.of(1L, 2L);
 
         // WHEN
-        blogPostService.clearCategoryForPosts(categoryIds);
+        blogPostCoordinationPort.clearCategoryForPosts(categoryIds);
 
         // THEN
         verify(blogPostRepositoryPort).clearCategoryForPosts(categoryIds);
@@ -921,8 +926,8 @@ class BlogPostServiceTest {
     @DisplayName("CLEAR CATEGORY: Danh sách rỗng hoặc null - no-op")
     void clearCategoryForPosts_emptyOrNull_noOp() {
         // WHEN
-        blogPostService.clearCategoryForPosts(List.of());
-        blogPostService.clearCategoryForPosts(null);
+        blogPostCoordinationPort.clearCategoryForPosts(List.of());
+        blogPostCoordinationPort.clearCategoryForPosts(null);
 
         // THEN
         verify(blogPostRepositoryPort, never()).clearCategoryForPosts(any());
@@ -935,7 +940,7 @@ class BlogPostServiceTest {
         List<Long> categoryIds = List.of(1L);
 
         // WHEN
-        blogPostService.clearCategoryForPosts(categoryIds);
+        blogPostCoordinationPort.clearCategoryForPosts(categoryIds);
 
         // THEN
         verify(blogPostRepositoryPort).clearCategoryForPosts(categoryIds);
@@ -949,7 +954,7 @@ class BlogPostServiceTest {
         when(blogPostRepositoryPort.countPublishedPostsByCategoryId(categoryId)).thenReturn(15L);
 
         // WHEN
-        long result = blogPostService.countPublishedPostsByCategoryId(categoryId);
+        long result = blogPostCoordinationPort.countPublishedPostsByCategoryId(categoryId);
 
         // THEN
         assertThat(result).isEqualTo(15L);
@@ -1004,7 +1009,7 @@ class BlogPostServiceTest {
 
     @Test
     void removeTagFromPosts_success() {
-        blogPostService.removeTagFromPosts(1L);
+        blogPostCoordinationPort.removeTagFromPosts(1L);
         verify(blogPostRepositoryPort).removeTagFromPosts(1L);
     }
 
