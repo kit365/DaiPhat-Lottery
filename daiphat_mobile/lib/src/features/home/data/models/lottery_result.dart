@@ -209,6 +209,18 @@ class HomeLotteryData {
   final bool isWaitingForResults;
 }
 
+class HomeLotteryFetchResult {
+  const HomeLotteryFetchResult({
+    required this.data,
+    this.nextPollAfterSeconds,
+    this.shouldPollSummary = false,
+  });
+
+  final HomeLotteryData data;
+  final int? nextPollAfterSeconds;
+  final bool shouldPollSummary;
+}
+
 LotteryResult mapSummaryToLotteryResult(LotteryResultSummaryApiResponse item) {
   final drawDate = _parseApiDate(item.drawDate);
   return LotteryResult(
