@@ -35,9 +35,9 @@ export const RegisterPage = () => {
     };
 
     return (
-        <div className="h-screen w-full relative flex flex-col font-client-main bg-[#FFFBF5] overflow-hidden">
+        <div className="min-h-[100dvh] w-full relative flex flex-col font-client-main bg-[#FFFBF5] overflow-x-hidden">
             {/* Background Image */}
-            <div className="absolute inset-0 z-0">
+            <div className="fixed inset-0 z-0">
                 <img 
                     src="https://i.imgur.com/ubrNhdc.png" 
                     alt="Background" 
@@ -46,10 +46,10 @@ export const RegisterPage = () => {
             </div>
 
             {/* Main Content Overlay */}
-            <div className="relative z-10 flex-1 flex flex-col lg:flex-row w-full max-w-[1440px] mx-auto h-full">
+            <div className="relative z-10 flex-1 flex flex-col lg:flex-row w-full max-w-[1440px] mx-auto min-h-[100dvh]">
                 
                 {/* Header Logo (Mobile & Desktop) */}
-                <div className="absolute top-6 left-6 lg:top-8 lg:left-12 flex items-center gap-3 cursor-pointer z-20" onClick={() => navigate("/")}>
+                <div className="lg:absolute lg:top-8 lg:left-12 flex items-center gap-3 cursor-pointer z-20 pt-6 pl-6 lg:p-0 shrink-0" onClick={() => navigate("/")}>
                     <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white rounded-full flex items-center justify-center shadow-md">
                         <img src="/assets/images/logo.png" alt="Logo" className="w-6 h-6 lg:w-8 lg:h-8 object-contain" onError={(e) => {
                             e.currentTarget.style.display = 'none';
@@ -66,7 +66,7 @@ export const RegisterPage = () => {
                 <div className="hidden lg:flex w-1/2"></div>
 
                 {/* Right Side: Form */}
-                <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-8 lg:px-12 h-full">
+                <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-8 lg:px-12 py-8 lg:py-0 flex-1">
                     <motion.div 
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}

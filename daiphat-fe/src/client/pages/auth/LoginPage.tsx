@@ -27,9 +27,9 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="h-screen w-full relative flex flex-col font-client-main bg-[#FFFBF5] overflow-hidden">
+        <div className="min-h-[100dvh] w-full relative flex flex-col font-client-main bg-[#FFFBF5] overflow-x-hidden">
             {/* Background Image */}
-            <div className="absolute inset-0 z-0">
+            <div className="fixed inset-0 z-0">
                 <img
                     src="https://i.imgur.com/ubrNhdc.png"
                     alt="Background"
@@ -38,10 +38,10 @@ export const LoginPage = () => {
             </div>
 
             {/* Main Content Overlay */}
-            <div className="relative z-10 flex-1 flex flex-col lg:flex-row w-full max-w-[1440px] mx-auto h-full">
+            <div className="relative z-10 flex-1 flex flex-col lg:flex-row w-full max-w-[1440px] mx-auto min-h-[100dvh]">
 
                 {/* Header Logo (Mobile & Desktop) */}
-                <div className="absolute top-6 left-6 lg:top-8 lg:left-12 flex items-center gap-2.5 cursor-pointer z-20 font-client-display transition-transform hover:scale-[1.02]" onClick={() => navigate("/")}>
+                <div className="lg:absolute lg:top-8 lg:left-12 flex items-center gap-2.5 cursor-pointer z-20 font-client-display transition-transform hover:scale-[1.02] pt-6 pl-6 lg:p-0 shrink-0" onClick={() => navigate("/")}>
                     <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Đại Phát Logo" className="w-[42px] h-[42px] lg:w-[48px] lg:h-[48px] object-contain" />
                     <div className="flex flex-col justify-center">
                         <span className="text-[20px] lg:text-[24px] tracking-tight font-client-display font-black text-[#ee1314] leading-none mb-1">ĐẠI PHÁT</span>
@@ -53,7 +53,7 @@ export const LoginPage = () => {
                 <div className="hidden lg:flex w-1/2"></div>
 
                 {/* Right Side: Form */}
-                <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-8 lg:px-12 h-full">
+                <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-8 lg:px-12 py-8 lg:py-0 flex-1">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
