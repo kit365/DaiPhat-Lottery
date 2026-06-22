@@ -25,6 +25,7 @@ public class OrderPersistenceMapper {
         entity.setUser(userRef(model.getUserId()));
         entity.setName(model.getName());
         entity.setPhone(model.getPhone());
+        entity.setEmail(model.getEmail());
         entity.setOrderCode(model.getOrderCode());
         entity.setOrderType(model.getOrderType());
         entity.setReceiveType(model.getReceiveType());
@@ -78,6 +79,7 @@ public class OrderPersistenceMapper {
                 .userId(userId(entity.getUser()))
                 .name(entity.getName())
                 .phone(entity.getPhone())
+                .email(entity.getEmail())
                 .orderCode(entity.getOrderCode())
                 .orderType(entity.getOrderType())
                 .receiveType(entity.getReceiveType())

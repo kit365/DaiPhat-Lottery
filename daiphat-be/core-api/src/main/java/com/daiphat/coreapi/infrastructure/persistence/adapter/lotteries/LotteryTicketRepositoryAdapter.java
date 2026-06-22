@@ -55,10 +55,16 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
 
     @Override
     public Page<LotteryTicketModel> findAll(
-            Pageable pageable, Long stationId, LotteryTicketStatus status,
-            LocalDate drawDate, String search) {
+            Pageable pageable, Long stationId, Collection<Long> stationIds, LotteryTicketStatus status,
+            Collection<LocalDate> drawDates, String search) {
         return lotteryTicketRepository.findAll(
-                        LotteryTicketSpecification.filter(stationId, status, drawDate, search),
+                        LotteryTicketSpecification.filter(
+                                stationId,
+                                stationIds != null ? List.copyOf(stationIds) : List.of(),
+                                status,
+                                drawDates != null ? List.copyOf(drawDates) : List.of(),
+                                search
+                        ),
                         pageable
                 )
                 .map(lotteryTicketPersistenceMapper::toDomain);
@@ -66,9 +72,14 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
 
     @Override
     public Page<LotteryTicketModel> findAllPublic(
-            Pageable pageable, Long stationId, LocalDate drawDate, String search) {
+            Pageable pageable, Long stationId, Collection<Long> stationIds, Collection<LocalDate> drawDates, String search) {
         return lotteryTicketRepository.findAll(
-                        LotteryTicketSpecification.filterPublic(stationId, drawDate, search),
+                        LotteryTicketSpecification.filterPublic(
+                                stationId,
+                                stationIds != null ? List.copyOf(stationIds) : List.of(),
+                                drawDates != null ? List.copyOf(drawDates) : List.of(),
+                                search
+                        ),
                         pageable
                 )
                 .map(lotteryTicketPersistenceMapper::toDomain);

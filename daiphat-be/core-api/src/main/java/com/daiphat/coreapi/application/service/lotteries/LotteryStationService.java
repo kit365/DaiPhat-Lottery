@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStatio
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncItemResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSchedulePublicResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncResponse;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryStationSourcePreviewItem;
@@ -119,13 +120,6 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
-    public List<LotteryStationModel> getModelsByDrawDate(LocalDate drawDate) {
-        return findStationsMatchingDrawDate(drawDate).stream()
-                .peek(this::recalculateInventory)
-                .toList();
-    }
-
-    @Override
     public List<LotteryStationModel> getScheduleModelsByDrawDate(LocalDate drawDate) {
         return findStationsMatchingDrawDate(drawDate);
     }
@@ -226,6 +220,17 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
+    public List<LotteryStationSchedulePublicResponse> getPublicSchedule(String region) {
+        return lotteryStationRepositoryPort.findAll().stream()
+                .filter(this::isActiveStation)
+                .filter(model -> matchesRegion(model, region))
+                .map(this::sortDrawDays)
+                .sorted(this::comparePublicSchedule)
+                .map(lotteryStationApplicationMapper::toSchedulePublicResponse)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public LotteryStationResponse update(Long id, UpdateLotteryStationRequest request) {
         log.info("Updating lottery product with id: {}", id);
@@ -275,6 +280,65 @@ public class LotteryStationService implements LotteryStationServicePort {
         log.info("Lottery product updated with id: {}", saved.getId());
 
         return lotteryStationApplicationMapper.toResponse(saved);
+    }
+
+    private boolean isActiveStation(LotteryStationModel model) {
+        return model.getStatus() == LotteryStationStatus.ACTIVE;
+    }
+
+    private boolean matchesRegion(LotteryStationModel model, String region) {
+        if (region == null || region.isBlank()) {
+            return true;
+        }
+        return model.getRegion() != null
+                && model.getRegion().region() != null
+                && model.getRegion().region().equalsIgnoreCase(region.trim());
+    }
+
+    private LotteryStationModel sortDrawDays(LotteryStationModel model) {
+        if (model.getDrawDays() == null || model.getDrawDays().isEmpty()) {
+            return model;
+        }
+        model.setDrawDays(model.getDrawDays().stream().sorted().toList());
+        return model;
+    }
+
+    private int comparePublicSchedule(LotteryStationModel left, LotteryStationModel right) {
+        int regionCompare = Integer.compare(regionSortValue(left), regionSortValue(right));
+        if (regionCompare != 0) {
+            return regionCompare;
+        }
+
+        LocalTime leftTime = left.getDrawTime();
+        LocalTime rightTime = right.getDrawTime();
+        if (leftTime != null && rightTime != null) {
+            int timeCompare = leftTime.compareTo(rightTime);
+            if (timeCompare != 0) {
+                return timeCompare;
+            }
+        } else if (leftTime != null) {
+            return -1;
+        } else if (rightTime != null) {
+            return 1;
+        }
+
+        if (left.getName() != null && right.getName() != null) {
+            return left.getName().compareToIgnoreCase(right.getName());
+        }
+        return 0;
+    }
+
+    private int regionSortValue(LotteryStationModel model) {
+        if (model.getRegion() == null || model.getRegion().region() == null) {
+            return 99;
+        }
+
+        return switch (model.getRegion().region().trim().toUpperCase(Locale.ROOT)) {
+            case "MIEN_NAM" -> 1;
+            case "MIEN_TRUNG" -> 2;
+            case "MIEN_BAC" -> 3;
+            default -> 99;
+        };
     }
 
     @Override

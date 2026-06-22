@@ -8,13 +8,16 @@ import com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.source.L
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Document;
 
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,6 +26,7 @@ final class MinhNgocResultParser {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final Pattern NUMBER_PATTERN = Pattern.compile("\\d{2,6}");
     private static final Pattern DATE_PATTERN = Pattern.compile("\\b(\\d{2}/\\d{2}/\\d{4})\\b");
+    private static final Map<PrizeLevel, Integer> LIVE_PRIZE_COUNTS = buildLivePrizeCounts();
 
     private static final List<PrizeDefinition> PRIZE_DEFINITIONS = List.of(
             new PrizeDefinition(PrizeLevel.SPECIAL, "DB", 0, List.of("Giải ĐB", "Giải đặc biệt", "Đặc biệt")),
@@ -36,7 +40,7 @@ final class MinhNgocResultParser {
             new PrizeDefinition(PrizeLevel.EIGHTH, "G8", 8, List.of("Giải tám", "Giải 8"))
     );
 
-    List<LotteryResultSourceItem> parse(Document document, String stationName, LocalDate drawDate) {
+    List<LotteryResultSourceItem> parseDatedPage(Document document, String stationName, LocalDate drawDate) {
         ensureMatchingDrawDate(document, stationName, drawDate);
 
         List<LotteryResultSourceItem> structuredItems = parseStructuredTable(document, stationName, drawDate);
@@ -74,6 +78,56 @@ final class MinhNgocResultParser {
         }
 
         return items;
+    }
+
+    List<LotteryResultSourceItem> parseLivePage(Document document, String stationName, LocalDate drawDate) {
+        if (document == null) {
+            return List.of();
+        }
+
+        List<String> lines = toMeaningfulLines(document);
+        int sectionStart = locateLiveSectionStart(lines, drawDate);
+        if (sectionStart < 0) {
+            return List.of();
+        }
+
+        int sectionEnd = locateLiveSectionEnd(lines, sectionStart);
+        int stationIndex = findLiveStationIndex(lines, sectionStart, sectionEnd, stationName);
+        if (stationIndex < 0) {
+            return List.of();
+        }
+
+        List<String> extractedNumbers = extractLiveStationNumbers(lines, stationIndex + 1, sectionEnd, stationName);
+        if (extractedNumbers.isEmpty()) {
+            return List.of();
+        }
+
+        List<LotteryResultSourceItem> items = new ArrayList<>();
+        int cursor = 0;
+        for (PrizeDefinition definition : PRIZE_DEFINITIONS.reversed()) {
+            Integer expectedCount = LIVE_PRIZE_COUNTS.get(definition.prizeLevel());
+            if (expectedCount == null || expectedCount <= 0 || cursor >= extractedNumbers.size()) {
+                continue;
+            }
+
+            int endExclusive = Math.min(cursor + expectedCount, extractedNumbers.size());
+            List<String> winningNumbers = new ArrayList<>(extractedNumbers.subList(cursor, endExclusive));
+            if (!winningNumbers.isEmpty()) {
+                items.add(LotteryResultSourceItem.builder()
+                        .prizeLevel(definition.prizeLevel().name())
+                        .prizeDisplayName(definition.prizeLevel().getDisplayName())
+                        .prizeCode(definition.prizeCode())
+                        .displayOrder(definition.displayOrder())
+                        .winningNumbers(winningNumbers)
+                        .note("Parsed from Minh Ngọc live result page for " + stationName + " on " + drawDate)
+                        .build());
+            }
+            cursor = endExclusive;
+        }
+
+        return items.stream()
+                .sorted(java.util.Comparator.comparing(LotteryResultSourceItem::displayOrder))
+                .toList();
     }
 
     List<String> warnings(Document document, LocalDate drawDate) {
@@ -303,6 +357,104 @@ final class MinhNgocResultParser {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT)
                 .replace('đ', 'd')
                 .replaceAll("\\s+", " ");
+    }
+
+    private int locateLiveSectionStart(List<String> lines, LocalDate drawDate) {
+        String formattedDate = drawDate.format(DATE_FORMATTER);
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            if (line.contains("TRỰC TIẾP XỔ SỐ") && line.contains(formattedDate)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int locateLiveSectionEnd(List<String> lines, int fromIndex) {
+        for (int i = Math.max(fromIndex + 1, 0); i < lines.size(); i++) {
+            String normalized = normalize(lines.get(i));
+            if (normalized.equals("normal")
+                    || normalized.contains("xem bang loto")
+                    || normalized.contains("xem bang tinh")
+                    || normalized.contains("thong ke")) {
+                return i;
+            }
+        }
+        return lines.size();
+    }
+
+    private int findLiveStationIndex(List<String> lines, int fromIndex, int toIndex, String stationName) {
+        for (int i = Math.max(fromIndex, 0); i < Math.min(toIndex, lines.size()); i++) {
+            if (matchesStationLine(lines.get(i), stationName)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private List<String> extractLiveStationNumbers(
+            List<String> lines,
+            int fromIndex,
+            int toIndex,
+            String stationName
+    ) {
+        List<String> numbers = new ArrayList<>();
+        for (int i = Math.max(fromIndex, 0); i < Math.min(toIndex, lines.size()); i++) {
+            String line = lines.get(i);
+            if (matchesStationLine(line, stationName)) {
+                break;
+            }
+            if (isResultFooter(line)) {
+                break;
+            }
+
+            Matcher matcher = NUMBER_PATTERN.matcher(line);
+            while (matcher.find()) {
+                numbers.add(matcher.group());
+            }
+        }
+        return numbers;
+    }
+
+    private boolean matchesStationLine(String line, String stationName) {
+        String lineKey = normalizeStationKey(line);
+        if (lineKey.isBlank()) {
+            return false;
+        }
+
+        String stationKey = normalizeStationKey(stationName);
+        if (stationKey.equals("ho chi minh")) {
+            return lineKey.equals("tp hcm") || lineKey.equals("tphcm") || lineKey.equals("ho chi minh");
+        }
+
+        return lineKey.equals(stationKey);
+    }
+
+    private String normalizeStationKey(String value) {
+        if (value == null) {
+            return "";
+        }
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replace("đ", "d")
+                .replace("Đ", "D")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", " ")
+                .trim();
+    }
+
+    private static Map<PrizeLevel, Integer> buildLivePrizeCounts() {
+        Map<PrizeLevel, Integer> counts = new LinkedHashMap<>();
+        counts.put(PrizeLevel.EIGHTH, 1);
+        counts.put(PrizeLevel.SEVENTH, 1);
+        counts.put(PrizeLevel.SIXTH, 3);
+        counts.put(PrizeLevel.FIFTH, 1);
+        counts.put(PrizeLevel.FOURTH, 7);
+        counts.put(PrizeLevel.THIRD, 2);
+        counts.put(PrizeLevel.SECOND, 1);
+        counts.put(PrizeLevel.FIRST, 1);
+        counts.put(PrizeLevel.SPECIAL, 1);
+        return counts;
     }
 
     private record PrizeDefinition(

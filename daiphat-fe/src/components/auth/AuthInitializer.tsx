@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { STORAGE_KEYS } from "../../constants/storage.constants";
 import { useAuthStore } from "../../stores/useAuthStore";
 
 /**
@@ -10,12 +11,16 @@ export const AuthInitializer = () => {
     const { isHydrated, user, isProfileSetupModalOpen, openProfileSetupModal } = useAuthStore();
 
     useEffect(() => {
-        // DP-32 Setup Enforcement: Check if user needs to complete profile on load
-        if (user && isHydrated && !isProfileSetupModalOpen) {
-            const isSetupComplete = user.hasPassword && user.agreedToTerms;
-            if (!isSetupComplete) {
-                openProfileSetupModal();
-            }
+        if (!user || !isHydrated || isProfileSetupModalOpen) {
+            return;
+        }
+
+        const shouldForceAfterOAuth = sessionStorage.getItem(STORAGE_KEYS.FORCE_PROFILE_SETUP) === "true";
+        const shouldRequireProfileSetup = shouldForceAfterOAuth || !user.agreedToTerms;
+
+        if (shouldRequireProfileSetup) {
+            sessionStorage.removeItem(STORAGE_KEYS.FORCE_PROFILE_SETUP);
+            openProfileSetupModal();
         }
     }, [user, isHydrated, isProfileSetupModalOpen, openProfileSetupModal]);
 
