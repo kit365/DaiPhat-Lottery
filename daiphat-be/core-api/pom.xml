@@ -214,6 +214,7 @@
                         <include>com/daiphat/coreapi/application/service/auth/**</include>
                         <include>com/daiphat/coreapi/application/service/notification/**</include>
                         <include>com/daiphat/coreapi/application/service/lotteries/**</include>
+                        <include>com/daiphat/coreapi/application/service/order/**</include>
                     </includes>
                 </configuration>
                 <executions>
