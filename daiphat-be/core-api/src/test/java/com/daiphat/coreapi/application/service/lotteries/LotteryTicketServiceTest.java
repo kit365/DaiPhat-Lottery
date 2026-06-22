@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
@@ -72,7 +73,7 @@ class LotteryTicketServiceTest {
     private static final String STATUS_DISPLAY_NAME = "Còn trong kho";
     private static final String STATUS_RESERVED_DISPLAY_NAME = "Đã giữ chỗ";
 
-    private LotteryTicketService lotteryTicketService;
+    private LotteryTicketServicePort lotteryTicketService;
 
     @Mock
     private LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
@@ -259,7 +260,7 @@ class LotteryTicketServiceTest {
                 2
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), eq(PRODUCT_ID), any(), any(), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), eq(PRODUCT_ID), any(), any(), any(), any()))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
@@ -267,7 +268,7 @@ class LotteryTicketServiceTest {
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(savedModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, PRODUCT_ID, null, null, null, "createdAt", "desc"
+                1, 10, PRODUCT_ID, null, null, null, null, "createdAt", "desc"
         );
 
         assertThat(response).isNotNull();
@@ -286,14 +287,14 @@ class LotteryTicketServiceTest {
                 1
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), eq(PRODUCT_ID), eq(LotteryTicketStatus.IN_STOCK), any(), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), eq(PRODUCT_ID), any(), eq(LotteryTicketStatus.IN_STOCK), any(), any()))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, PRODUCT_ID, "IN_STOCK", null, null, null, null
+                1, 10, PRODUCT_ID, null, "IN_STOCK", null, null, null, null
         );
 
         assertThat(response).isNotNull();
@@ -311,14 +312,14 @@ class LotteryTicketServiceTest {
                 1
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), eq(drawDate), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), eq(List.of(drawDate)), any()))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, null, null, drawDate.toString(), null, null, null
+                1, 10, null, null, null, drawDate.toString(), null, null, null
         );
 
         assertThat(response).isNotNull();
@@ -334,14 +335,14 @@ class LotteryTicketServiceTest {
                 1
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), eq("123")))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any(), eq("123")))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, null, null, null, "123", null, null
+                1, 10, null, null, null, null, "123", null, null
         );
 
         assertThat(response).isNotNull();
@@ -357,11 +358,11 @@ class LotteryTicketServiceTest {
                 0
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any(), any()))
                 .thenReturn(emptyPage);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, PRODUCT_ID, "RESERVED", null, null, null, null
+                1, 10, PRODUCT_ID, null, "RESERVED", null, null, null, null
         );
 
         assertThat(response).isNotNull();
@@ -379,14 +380,14 @@ class LotteryTicketServiceTest {
                 1
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any(), any()))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, null, null, null, null, "drawDate", "asc"
+                1, 10, null, null, null, null, null, "drawDate", "asc"
         );
 
         assertThat(response).isNotNull();
@@ -402,14 +403,14 @@ class LotteryTicketServiceTest {
                 1
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), eq(null), any(), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), eq(null), any(), any()))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, null, "INVALID_STATUS", null, null, null, null
+                1, 10, null, null, "INVALID_STATUS", null, null, null, null
         );
 
         assertThat(response).isNotNull();
@@ -425,14 +426,14 @@ class LotteryTicketServiceTest {
                 1
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), eq(null), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), anyList(), any()))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, null, null, "invalid-date-format", null, null, null
+                1, 10, null, null, null, "invalid-date-format", null, null, null
         );
 
         assertThat(response).isNotNull();
