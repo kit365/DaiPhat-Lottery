@@ -46,6 +46,23 @@ export interface CreateOnlineOrderRequest {
     note?: string;
 }
 
+export interface DirectOrderTransactionRequest {
+    type: 'OFFLINE' | 'ONLINE';
+    amount: number;
+    note?: string;
+}
+
+export interface CreateDirectOrderRequest {
+    customerId?: string;
+    name: string;
+    phone?: string;
+    email?: string;
+    items: OrderTicketItemRequest[];
+    receiveType: OrderReceiveType;
+    note?: string;
+    transactions: DirectOrderTransactionRequest[];
+}
+
 export interface OrderFilterParams {
     page?: number;
     size?: number;

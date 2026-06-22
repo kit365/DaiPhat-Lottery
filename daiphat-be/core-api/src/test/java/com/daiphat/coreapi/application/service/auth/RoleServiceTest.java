@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.response.auth.RoleResponse;
 import com.daiphat.coreapi.application.mapper.RoleApplicationMapper;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.auth.RoleRepositoryPort;
+import com.daiphat.coreapi.application.port.in.auth.RoleServicePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
@@ -49,11 +50,11 @@ class RoleServiceTest {
     @Mock
     private UserLookupServicePort userLookupServicePort;
 
-    @InjectMocks
-    private RoleService roleService;
+    private RoleServicePort roleService;
 
     @BeforeEach
     void setUp() {
+        roleService = new RoleService(roleRepositoryPort, roleApplicationMapper, authProperties, userLookupServicePort);
     }
 
     @Test

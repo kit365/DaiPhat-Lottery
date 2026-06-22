@@ -152,8 +152,8 @@ export const ForgotPasswordPage = () => {
     }
 
     return (
-        <div className="min-h-screen w-full relative flex items-center justify-center font-client-main bg-[#FFFBF5] px-4 py-8 overflow-hidden">
-            <div className="absolute inset-0 z-0">
+        <div className="min-h-[100dvh] w-full relative flex flex-col font-client-main bg-[#FFFBF5] overflow-x-hidden">
+            <div className="fixed inset-0 z-0">
                 <img
                     src="https://i.imgur.com/ubrNhdc.png"
                     alt="Background"
@@ -161,14 +161,20 @@ export const ForgotPasswordPage = () => {
                 />
             </div>
 
-            <button
-                type="button"
-                onClick={() => navigate("/login")}
-                className="absolute top-6 left-6 z-20 inline-flex items-center gap-2 text-[#D32F2F] font-bold text-[14px] hover:underline"
-            >
-                <ArrowLeft size={18} />
-                Đăng nhập
-            </button>
+            <div className="relative z-10 flex-1 flex flex-col w-full max-w-[1440px] mx-auto min-h-[100dvh]">
+                <div className="lg:absolute lg:top-8 lg:left-12 flex items-center pt-6 pl-6 lg:p-0 z-20 shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => navigate("/login")}
+                        className="inline-flex items-center gap-2 text-[#D32F2F] font-bold text-[14px] hover:underline bg-white/80 px-4 py-2 rounded-full backdrop-blur-sm shadow-sm"
+                    >
+                        <ArrowLeft size={18} />
+                        Đăng nhập
+                    </button>
+                </div>
+
+                <div className="w-full flex items-center justify-center px-4 sm:px-8 py-8 lg:py-12 flex-1">
+
 
             <motion.div
                 initial={{ opacity: 0, scale: 0.96 }}
@@ -280,6 +286,8 @@ export const ForgotPasswordPage = () => {
                     </div>
                 )}
             </motion.div>
+                </div>
+            </div>
         </div>
     );
 };

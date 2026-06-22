@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
 import { ChevronRight, Calendar as CalendarIcon, CheckCircle2, ShieldCheck, RefreshCw, ChevronDown, ChevronUp, Filter, LayoutGrid, Heart, SlidersHorizontal, Trash2, Search } from 'lucide-react';
@@ -6,7 +7,7 @@ import { useCartStore } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast as toast } from '../../utils/toast.util';
 import { useStationsToday, useStationsTomorrow } from '../../../admin/pages/provider/hooks/useProvider';
-import { useTicketList } from '../../../admin/pages/ticket/hooks/useTicket';
+import { apiApp } from '../../../api';
 import { LotteryTicketStatus } from '../../../constants/lottery.constants';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
@@ -134,17 +135,42 @@ export const BuyTicketPage = () => {
     
     // Fetch tickets
     const drawDateFilter = selectedDates.map(d => d === 'today' ? dayjs().format('YYYY-MM-DD') : dayjs().add(1, 'day').format('YYYY-MM-DD')).join(',');
-    const { data: ticketsRes, isLoading: isLoadingTickets } = useTicketList(
-        {
-            stationIds: selectedProvinces,
-            drawDate: drawDateFilter,
-            status: LotteryTicketStatus.IN_STOCK,
-            limit: 100
+    const { data: ticketsRes, isLoading: isLoadingTickets } = useQuery({
+        queryKey: ['public-buy-ticket-list', selectedProvinces, drawDateFilter],
+        enabled: selectedProvinces.length > 0,
+        queryFn: async () => {
+            const response = await apiApp.get('/lottery-tickets/public', {
+                params: {
+                    page: 1,
+                    size: 100,
+                    stationIds: selectedProvinces,
+                    drawDate: drawDateFilter,
+                    search: undefined,
+                    sortBy: undefined,
+                    direction: undefined,
+                },
+                paramsSerializer: {
+                    indexes: null,
+                },
+            });
+
+            const result = response.data?.data;
+            const recordList = (result?.recordList || []).map((item: any) => ({
+                ...item,
+                _id: item.id,
+                avatar: item.ticketImg,
+                status: item.status ? item.status.toLowerCase() : 'draft',
+            }));
+
+            return {
+                ...response.data,
+                data: {
+                    ...result,
+                    recordList,
+                },
+            };
         },
-        {
-            enabled: selectedProvinces.length > 0
-        }
-    );
+    });
     const availableTickets = ticketsRes?.data?.recordList || [];
 
     const toggleNumber = (num: string) => {

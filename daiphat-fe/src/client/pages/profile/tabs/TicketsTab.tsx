@@ -7,76 +7,90 @@ export const TicketsTab = () => {
 
     if (viewDetail) {
         return (
-            <div className="flex flex-col gap-6 w-full font-client-main">
-                {/* Back Link */}
+            <div className="flex flex-col gap-6 w-full font-client-main pb-24 md:pb-0">
+                {/* Back Link (Desktop only) */}
                 <button 
                     onClick={() => setViewDetail(false)}
-                    className="flex items-center gap-2 text-[#ee1314] font-bold text-[14px] hover:underline w-max bg-transparent border-none cursor-pointer outline-none"
+                    className="hidden md:flex items-center gap-2 text-[#ee1314] font-bold text-[14px] hover:underline w-max bg-transparent border-none cursor-pointer outline-none"
                 >
                     <i className="fa-solid fa-chevron-left text-[12px]"></i>
                     Quay lại danh sách vé
                 </button>
 
                 {/* Main Ticket Info Card */}
-                <div className="bg-white border border-[#E5E8EB] rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                    <div className="flex items-center gap-5">
-                        <div className="w-16 h-16 rounded-[16px] bg-[#F4FBFA] text-[#1CD162] flex items-center justify-center shrink-0">
-                            <i className="fa-solid fa-ticket-simple text-[28px]"></i>
-                        </div>
-                        <div className="flex flex-col">
-                            <div className="flex items-center gap-3 mb-1.5">
-                                <h3 className="text-[18px] font-black text-[#212B36] m-0">Vé số Đồng Nai</h3>
-                                <div className="bg-[#E4F8ED] text-[#1CD162] px-2.5 py-1 rounded-md text-[11px] font-bold">
-                                    Trúng thưởng
-                                </div>
+                <div className="bg-white border border-[#E5E8EB] rounded-2xl p-4 md:p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col gap-5 md:gap-6">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5 md:gap-6">
+                        <div className="flex items-center gap-4 md:gap-5">
+                            <div className="w-14 h-14 md:w-16 md:h-16 rounded-[14px] md:rounded-[16px] bg-[#F4FBFA] text-[#1CD162] flex items-center justify-center shrink-0">
+                                <i className="fa-solid fa-ticket-simple text-[24px] md:text-[28px]"></i>
                             </div>
-                            <p className="text-[13px] text-[#637381] mb-0.5">Ngày mở thưởng: Thứ Sáu, 20/06/2026</p>
-                            <p className="text-[13px] text-[#637381] m-0">Kỳ vé: 20/06/2026</p>
+                            <div className="flex flex-col">
+                                <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                    <h3 className="text-[16px] md:text-[18px] font-black text-[#212B36] m-0">Vé số Đồng Nai</h3>
+                                    <div className="bg-[#E4F8ED] text-[#1CD162] px-2 py-0.5 rounded text-[10px] md:text-[11px] font-bold">
+                                        Trúng thưởng
+                                    </div>
+                                </div>
+                                <p className="text-[12px] md:text-[13px] text-[#637381] mb-0.5">Ngày mở thưởng: Thứ Sáu, 20/06/2026</p>
+                                <p className="text-[12px] md:text-[13px] text-[#637381] m-0">Kỳ vé: 20/06/2026</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between w-full md:w-auto md:justify-end md:gap-16 bg-[#F8F9FA] md:bg-transparent p-3 md:p-0 rounded-xl">
+                            <div className="flex flex-col">
+                                <span className="text-[11px] md:text-[13px] text-[#637381] mb-1">Mã vé</span>
+                                <span className="text-[16px] md:text-[20px] font-black text-[#1CD162]">CZ438008</span>
+                            </div>
+                            <div className="flex flex-col items-end md:items-start">
+                                <span className="text-[11px] md:text-[13px] text-[#637381] mb-1">Giá vé</span>
+                                <span className="text-[16px] md:text-[18px] font-bold text-[#212B36]">10.000đ</span>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-10 md:gap-20 w-full md:w-auto">
-                        <div className="flex flex-col">
-                            <span className="text-[13px] text-[#637381] mb-1">Mã vé</span>
-                            <span className="text-[20px] font-black text-[#1CD162]">CZ438008</span>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[13px] text-[#637381] mb-1">Giá vé</span>
-                            <span className="text-[18px] font-bold text-[#212B36]">10.000đ</span>
+                    {/* Ticket Numbers */}
+                    <div className="border-t border-dashed border-[#E5E8EB] pt-5">
+                        <span className="text-[13px] text-[#637381] block mb-3 font-medium">Bộ số đã chọn</span>
+                        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+                            {['03', '17', '28', '39', '41', '66'].map((num, i) => (
+                                <div key={i} className="w-11 h-11 md:w-14 md:h-14 rounded-full bg-[#F4F6F8] border border-[#E5E8EB] shadow-[0_2px_4px_rgb(0,0,0,0.02)] flex items-center justify-center text-[16px] md:text-[20px] font-black text-[#212B36]">
+                                    {num}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
 
                 {/* Reward Info Card */}
-                <div className="bg-white border border-[#E5E8EB] rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                    <div className="flex items-center gap-5">
-                        <div className="w-[50px] h-[50px] rounded-full bg-[#1CD162] text-white flex items-center justify-center shrink-0 shadow-sm shadow-[#1CD162]/30">
-                            <i className="fa-solid fa-trophy text-[22px]"></i>
+                <div className="bg-white border border-[#E5E8EB] rounded-2xl p-4 md:p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col md:flex-row items-start md:items-center justify-between gap-5 md:gap-6">
+                    <div className="flex items-center gap-4 md:gap-5 w-full md:w-auto">
+                        <div className="w-[44px] h-[44px] md:w-[50px] md:h-[50px] rounded-full bg-[#1CD162] text-white flex items-center justify-center shrink-0 shadow-sm shadow-[#1CD162]/30">
+                            <i className="fa-solid fa-trophy text-[20px] md:text-[22px]"></i>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[13px] text-[#637381] mb-1">Kết quả đối chiếu</span>
-                            <span className="text-[18px] font-bold text-[#1CD162]">Trúng thưởng</span>
+                            <span className="text-[12px] md:text-[13px] text-[#637381] mb-0.5">Kết quả đối chiếu</span>
+                            <span className="text-[16px] md:text-[18px] font-bold text-[#1CD162]">Trúng thưởng</span>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-10 md:gap-20 w-full md:w-auto">
+                    <div className="flex items-center justify-between w-full md:w-auto md:justify-end md:gap-16 bg-[#F4FBFA] md:bg-transparent p-3 md:p-0 rounded-xl border border-[#E4F8ED] md:border-none">
                         <div className="flex flex-col">
-                            <span className="text-[13px] text-[#637381] mb-1">Giải trúng</span>
-                            <span className="text-[16px] font-bold text-[#212B36]">Giải tám</span>
+                            <span className="text-[11px] md:text-[13px] text-[#637381] mb-1">Giải trúng</span>
+                            <span className="text-[14px] md:text-[16px] font-bold text-[#212B36]">Giải tám</span>
                         </div>
-                        <div className="flex flex-col">
-                            <span className="text-[13px] text-[#637381] mb-1">Tiền thưởng</span>
-                            <span className="text-[18px] font-bold text-[#1CD162]">100.000đ</span>
+                        <div className="flex flex-col items-end md:items-start">
+                            <span className="text-[11px] md:text-[13px] text-[#637381] mb-1">Tiền thưởng</span>
+                            <span className="text-[16px] md:text-[18px] font-bold text-[#1CD162]">100.000đ</span>
                         </div>
                     </div>
 
-                    <button className="w-full md:w-auto px-5 py-2.5 bg-white border border-[#ee1314] text-[#ee1314] font-bold rounded-xl text-[14px] hover:bg-[#FFF4F4] transition-colors cursor-pointer mt-4 md:mt-0">
+                    <button className="w-full md:w-auto px-5 py-2.5 bg-white border border-[#ee1314] text-[#ee1314] font-bold rounded-xl text-[14px] hover:bg-[#FFF4F4] transition-colors cursor-pointer">
                         Xem kết quả kỳ quay
                     </button>
                 </div>
 
                 {/* Ticket Details List */}
-                <div className="bg-white border border-[#E5E8EB] rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
+                <div className="bg-white border border-[#E5E8EB] rounded-2xl p-4 md:p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)]">
                     <h4 className="text-[#ee1314] font-bold text-[14px] uppercase mb-6 tracking-wide">THÔNG TIN VÉ</h4>
                     
                     <div className="flex flex-col gap-4">
@@ -109,13 +123,32 @@ export const TicketsTab = () => {
                 </div>
 
                 {/* Bottom Notification */}
-                <div className="bg-[#FFF4F4] rounded-2xl p-4 flex items-center justify-between border border-[#ee1314]/10">
-                    <div className="flex items-center gap-3">
-                        <i className="fa-solid fa-circle-info text-[#ee1314] text-[20px]"></i>
-                        <span className="text-[#454F5B] text-[14px]">Tiền thưởng sẽ được cộng vào số dư tài khoản của bạn.</span>
+                <div className="bg-[#FFF4F4] rounded-2xl p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border border-[#ee1314]/10 mb-6 md:mb-0">
+                    <div className="flex items-start md:items-center gap-3">
+                        <i className="fa-solid fa-circle-info text-[#ee1314] text-[18px] md:text-[20px] mt-0.5 md:mt-0"></i>
+                        <span className="text-[#454F5B] text-[13px] md:text-[14px] leading-relaxed">Tiền thưởng sẽ được cộng vào số dư tài khoản của bạn.</span>
                     </div>
-                    <button className="text-[#ee1314] font-bold text-[14px] flex items-center gap-2 hover:underline bg-transparent border-none cursor-pointer outline-none">
-                        Xem lịch sử nhận thưởng <i className="fa-solid fa-chevron-right text-[12px]"></i>
+                    <button className="text-[#ee1314] font-bold text-[13px] md:text-[14px] flex items-center gap-2 hover:underline w-full md:w-auto justify-end bg-transparent border-none cursor-pointer outline-none">
+                        Xem lịch sử nhận thưởng <i className="fa-solid fa-chevron-right text-[11px] md:text-[12px]"></i>
+                    </button>
+                </div>
+
+                {/* Desktop: Actions */}
+                <div className="hidden md:flex justify-end gap-4 mt-2">
+                    <button className="px-6 py-2.5 bg-[#ee1314] text-white font-bold rounded-xl text-[14px] shadow-sm hover:bg-[#c80f11] transition-colors cursor-pointer flex items-center gap-2">
+                        <i className="fa-solid fa-cart-plus"></i>
+                        Mua lại bộ số này
+                    </button>
+                </div>
+
+                {/* Mobile: Fixed Bottom Actions */}
+                <div className="md:hidden fixed bottom-[70px] lg:bottom-0 left-0 right-0 p-4 bg-white border-t border-[#E5E8EB] flex gap-3 z-30 shadow-[0_-4px_20px_rgb(0,0,0,0.05)]">
+                    <button onClick={() => setViewDetail(false)} className="flex-1 py-3 bg-[#F4F6F8] text-[#212B36] font-bold rounded-xl text-[14px] transition-colors cursor-pointer text-center">
+                        Quay lại
+                    </button>
+                    <button className="flex-[2] py-3 bg-[#ee1314] text-white font-bold rounded-xl text-[14px] shadow-sm transition-colors cursor-pointer text-center flex items-center justify-center gap-2">
+                        <i className="fa-solid fa-cart-plus text-[16px]"></i>
+                        Mua nhanh
                     </button>
                 </div>
             </div>
@@ -260,12 +293,31 @@ export const TicketsTab = () => {
                     {tickets.map((ticket, index) => (
                         <div 
                             key={ticket.id} 
-                            onClick={() => setViewDetail(true)}
-                            className="flex flex-col md:flex-row items-start md:items-center p-5 border-b border-[#F4F6F8] gap-4 md:gap-6 hover:bg-[#FAFBFC] transition-colors cursor-pointer group"
+                            onClick={() => {
+                                if (window.innerWidth >= 768) {
+                                    setViewDetail(true);
+                                }
+                            }}
+                            className="flex flex-col md:flex-row items-stretch md:items-center p-4 md:p-5 border-b border-[#F4F6F8] gap-4 md:gap-6 hover:bg-[#FAFBFC] transition-colors cursor-pointer md:cursor-pointer group"
                         >
-                            
-                            {/* Icon & Region Info */}
-                            <div className="flex items-center gap-4 min-w-[240px]">
+                            {/* Mobile Layout: Header (Icon, Region, Status) */}
+                            <div className="flex md:hidden items-start justify-between w-full">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0" style={{ backgroundColor: ticket.bgColor, color: ticket.color }}>
+                                        <i className="fa-solid fa-ticket-simple text-[16px]"></i>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <h4 className="text-[14px] font-bold text-[#212B36] mb-0.5">{ticket.region}</h4>
+                                        <p className="text-[11px] text-[#637381]">Kỳ: {ticket.period}</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    {getStatusBadge(ticket.status, ticket.prize)}
+                                </div>
+                            </div>
+
+                            {/* Desktop Layout: Icon & Region Info */}
+                            <div className="hidden md:flex items-center gap-4 min-w-[240px]">
                                 <div className="w-12 h-12 rounded-[14px] flex items-center justify-center shrink-0" style={{ backgroundColor: ticket.bgColor, color: ticket.color }}>
                                     <i className="fa-solid fa-ticket-simple text-[20px]"></i>
                                 </div>
@@ -276,14 +328,14 @@ export const TicketsTab = () => {
                                 </div>
                             </div>
 
-                            {/* Ticket Code */}
-                            <div className="flex flex-col md:w-[120px]">
+                            {/* Desktop: Ticket Code */}
+                            <div className="hidden md:flex flex-col w-[120px]">
                                 <span className="text-[11px] text-[#637381] mb-1">Mã vé</span>
                                 <span className="text-[15px] font-black" style={{ color: ticket.color }}>{ticket.code}</span>
                             </div>
 
-                            {/* Numbers */}
-                            <div className="flex flex-col flex-1">
+                            {/* Desktop: Numbers */}
+                            <div className="hidden md:flex flex-col flex-1">
                                 <span className="text-[11px] text-[#637381] mb-1">Số vé</span>
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                     {ticket.numbers.map((num, i) => (
@@ -294,19 +346,61 @@ export const TicketsTab = () => {
                                 </div>
                             </div>
 
-                            {/* Price */}
-                            <div className="flex flex-col md:w-[100px] shrink-0">
+                            {/* Desktop: Price */}
+                            <div className="hidden md:flex flex-col w-[100px] shrink-0">
                                 <span className="text-[11px] text-[#637381] mb-1">Giá vé</span>
                                 <span className="text-[14px] font-bold text-[#212B36]">{ticket.price}</span>
                             </div>
 
-                            {/* Status */}
-                            <div className="flex flex-col items-start md:items-end md:w-[130px] shrink-0">
+                            {/* Desktop: Status */}
+                            <div className="hidden md:flex flex-col items-start md:items-end w-[130px] shrink-0">
                                 <span className="text-[11px] text-[#637381] mb-1">Trạng thái</span>
                                 {getStatusBadge(ticket.status, ticket.prize)}
                             </div>
 
-                            {/* Chevron */}
+                            {/* Mobile Layout: Body (Code, Price, Numbers) */}
+                            <div className="flex md:hidden flex-col gap-3 bg-[#F4F6F8] rounded-xl p-3 w-full">
+                                <div className="flex justify-between items-center border-b border-[#E5E8EB] pb-2">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] text-[#637381] uppercase tracking-wider">Mã vé</span>
+                                        <span className="text-[13px] font-black" style={{ color: ticket.color }}>{ticket.code}</span>
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[10px] text-[#637381] uppercase tracking-wider">Giá vé</span>
+                                        <span className="text-[13px] font-bold text-[#212B36]">{ticket.price}</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[10px] text-[#637381] uppercase tracking-wider">Bộ số</span>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        {ticket.numbers.map((num, i) => (
+                                            <div key={i} className="w-7 h-7 rounded-full bg-white shadow-[0_2px_4px_rgb(0,0,0,0.05)] border border-[#E5E8EB] flex items-center justify-center text-[12px] font-bold text-[#212B36]">
+                                                {num}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Mobile Layout: Action Buttons */}
+                            <div className="flex md:hidden items-center justify-between gap-3 w-full pt-1">
+                                <button 
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex-1 py-2.5 bg-white border border-[#E5E8EB] text-[#212B36] rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 shadow-[0_2px_4px_rgb(0,0,0,0.02)] active:bg-[#F4F6F8] transition-colors"
+                                >
+                                    <i className="fa-solid fa-cart-plus text-[#ee1314]"></i>
+                                    Thêm giỏ
+                                </button>
+                                <button 
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex-1 py-2.5 bg-[#ee1314] text-white font-bold rounded-xl text-[13px] shadow-[0_2px_4px_rgb(238,19,20,0.2)] flex items-center justify-center gap-2 active:bg-[#c80f11] transition-colors"
+                                >
+                                    <i className="fa-solid fa-bolt"></i>
+                                    Mua ngay
+                                </button>
+                            </div>
+
+                            {/* Desktop Chevron */}
                             <div className="hidden md:flex items-center justify-center text-[#919EAB] group-hover:text-[#ee1314] transition-colors shrink-0 pl-2">
                                 <i className="fa-solid fa-chevron-right text-[12px]"></i>
                             </div>

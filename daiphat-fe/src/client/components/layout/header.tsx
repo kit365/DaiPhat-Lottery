@@ -71,8 +71,8 @@ export const Header = () => {
   const handleProfileClick = (e: React.MouseEvent) => {
     if (!user) return;
 
-    const isSetupComplete = user.hasPassword && user.agreedToTerms;
-    if (!isSetupComplete) {
+    const shouldRequireProfileSetup = !user.agreedToTerms;
+    if (shouldRequireProfileSetup) {
       e.preventDefault();
       openProfileSetupModal();
       toast.info("Vui lòng hoàn tất thiết lập hồ sơ để tiếp tục");
