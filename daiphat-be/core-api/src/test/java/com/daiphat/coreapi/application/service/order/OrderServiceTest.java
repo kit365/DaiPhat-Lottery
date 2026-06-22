@@ -23,6 +23,13 @@ import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
+import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import static org.mockito.ArgumentMatchers.eq;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -615,5 +622,330 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> orderService.createOnlineOrder(request, creatorId))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_PICKUP_TIME);
+    }
+
+    @Test
+    @DisplayName("[DP-353] getOrders: Lấy danh sách đơn hàng thành công")
+    void getOrders_success() {
+        Page<OrderModel> mockPage = new PageImpl<>(List.of(new OrderModel()));
+        when(orderRepositoryPort.findOrders(
+                any(), any(), any(), any(), any(), any(), any()
+        )).thenReturn(mockPage);
+
+        PageResponse<OrderResponse> result = orderService.getOrders(
+                1, 10, List.of("PENDING_PAYMENT"), null, null, List.of("ONLINE"), List.of("COUNTER_PICKUP"), "search", "createdAt", "DESC"
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.getRecordList()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("[DP-353] getOrders: Ném exception khi khoảng thời gian không hợp lệ")
+    void getOrders_throwsWhenInvalidDateRange() {
+        assertThatThrownBy(() -> orderService.getOrders(
+                1, 10, null, LocalDate.now(), LocalDate.now().minusDays(1), null, null, null, null, null
+        )).isInstanceOf(DomainException.class)
+          .extracting("errorCode").isEqualTo(ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    @DisplayName("[DP-486] getMyOrders: Lấy danh sách đơn hàng của tôi thành công")
+    void getMyOrders_success() {
+        UUID customerId = UUID.randomUUID();
+        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(new UserModel());
+        
+        Page<OrderModel> mockPage = new PageImpl<>(List.of(new OrderModel()));
+        when(orderRepositoryPort.findMyOrders(
+                any(), eq(customerId), any(), any(), any(), any(), any()
+        )).thenReturn(mockPage);
+
+        PageResponse<OrderResponse> result = orderService.getMyOrders(
+                1, 10, List.of("PENDING_PAYMENT"), null, null, List.of("ONLINE"), "search", "createdAt", "DESC", customerId
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.getRecordList()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("[DP-486] getMyOrders: Ném exception khi user không tồn tại")
+    void getMyOrders_throwsWhenUserNotFound() {
+        UUID customerId = UUID.randomUUID();
+        when(userLookupServicePort.findByIdOrThrow(customerId)).thenThrow(new DomainException(ErrorCode.USER_NOT_FOUND));
+
+        assertThatThrownBy(() -> orderService.getMyOrders(
+                1, 10, null, null, null, null, null, null, null, customerId
+        )).isInstanceOf(DomainException.class)
+          .extracting("errorCode").isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("[DP-486] getMyOrders: Ném exception khi khoảng thời gian không hợp lệ")
+    void getMyOrders_throwsWhenInvalidDateRange() {
+        UUID customerId = UUID.randomUUID();
+        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(new UserModel());
+
+        assertThatThrownBy(() -> orderService.getMyOrders(
+                1, 10, null, LocalDate.now(), LocalDate.now().minusDays(1), null, null, null, null, customerId
+        )).isInstanceOf(DomainException.class)
+          .extracting("errorCode").isEqualTo(ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    @DisplayName("[DP-380] updateOrderStatus: Cập nhật trạng thái thành công")
+    void updateOrderStatus_success() {
+        UUID orderId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder()
+                .id(orderId)
+                .userId(UUID.randomUUID())
+                .orderType(OrderType.ONLINE)
+                .status(OrderStatus.PENDING_PICKUP)
+                .build();
+
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(new UserModel());
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.of(order));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenReturn(order);
+
+        OrderResponse result = orderService.updateOrderStatus(orderId, OrderStatus.COMPLETED, "Lý do", operatorId);
+
+        assertThat(result).isNotNull();
+        org.mockito.Mockito.verify(orderRepositoryPort).save(order);
+        org.mockito.Mockito.verify(eventPublisher).publishEvent(any(com.daiphat.coreapi.application.event.OrderStatusChangedEvent.class));
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("[DP-380] updateOrderStatus: Ném exception khi operator không tồn tại")
+    void updateOrderStatus_throwsWhenOperatorNotFound() {
+        UUID orderId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenThrow(new DomainException(ErrorCode.USER_NOT_FOUND));
+
+        assertThatThrownBy(() -> orderService.updateOrderStatus(orderId, OrderStatus.COMPLETED, "Lý do", operatorId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("[DP-380] updateOrderStatus: Ném exception khi status bị null")
+    void updateOrderStatus_throwsWhenStatusNull() {
+        UUID orderId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(new UserModel());
+
+        assertThatThrownBy(() -> orderService.updateOrderStatus(orderId, null, "Lý do", operatorId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_INPUT);
+    }
+
+    @Test
+    @DisplayName("[DP-380] updateOrderStatus: Trả về order cũ nếu status không đổi")
+    void updateOrderStatus_returnsEarlyWhenStatusSame() {
+        UUID orderId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder()
+                .id(orderId)
+                .status(OrderStatus.COMPLETED)
+                .build();
+
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(new UserModel());
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.of(order));
+
+        OrderResponse result = orderService.updateOrderStatus(orderId, OrderStatus.COMPLETED, "Lý do", operatorId);
+
+        assertThat(result).isNotNull();
+        org.mockito.Mockito.verify(orderRepositoryPort, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-359] getOrderDetail: Admin lấy chi tiết đơn hàng thành công")
+    void getOrderDetail_success() {
+        UUID orderId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder().id(orderId).build();
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.of(order));
+
+        OrderResponse result = orderService.getOrderDetail(orderId);
+
+        assertThat(result).isNotNull();
+        assertThat(result.id()).isEqualTo(orderId);
+    }
+
+    @Test
+    @DisplayName("[DP-359] getOrderDetail: Ném lỗi khi không tìm thấy đơn hàng")
+    void getOrderDetail_throwsWhenNotFound() {
+        UUID orderId = UUID.randomUUID();
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> orderService.getOrderDetail(orderId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.ORDER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("[DP-356] getMyOrderDetail: Customer lấy chi tiết đơn hàng của mình thành công")
+    void getMyOrderDetail_success() {
+        UUID orderId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder().id(orderId).userId(customerId).build();
+
+        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(new UserModel());
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.of(order));
+
+        OrderResponse result = orderService.getMyOrderDetail(orderId, customerId);
+
+        assertThat(result).isNotNull();
+        assertThat(result.id()).isEqualTo(orderId);
+        assertThat(result.userId()).isEqualTo(customerId);
+    }
+
+    @Test
+    @DisplayName("[DP-356] getMyOrderDetail: Ném lỗi khi Customer không tồn tại")
+    void getMyOrderDetail_throwsWhenCustomerNotFound() {
+        UUID orderId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+
+        when(userLookupServicePort.findByIdOrThrow(customerId)).thenThrow(new DomainException(ErrorCode.USER_NOT_FOUND));
+
+        assertThatThrownBy(() -> orderService.getMyOrderDetail(orderId, customerId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("[DP-356] getMyOrderDetail: Ném lỗi khi đơn hàng không tồn tại")
+    void getMyOrderDetail_throwsWhenOrderNotFound() {
+        UUID orderId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+
+        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(new UserModel());
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> orderService.getMyOrderDetail(orderId, customerId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.ORDER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("[DP-356] getMyOrderDetail: Ném lỗi khi truy cập đơn hàng của người khác")
+    void getMyOrderDetail_throwsWhenAccessDenied() {
+        UUID orderId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        UUID otherCustomerId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder().id(orderId).userId(otherCustomerId).build();
+
+        when(userLookupServicePort.findByIdOrThrow(customerId)).thenReturn(new UserModel());
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.of(order));
+
+        assertThatThrownBy(() -> orderService.getMyOrderDetail(orderId, customerId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.ACCESS_DENIED);
+    }
+
+    @Test
+    @DisplayName("updateOrderStatus: target PAID - Ném lỗi nếu chưa thanh toán đủ")
+    void updateOrderStatus_paid_throwsWhenNotFullyPaid() {
+        UUID orderId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder().id(orderId).userId(UUID.randomUUID()).orderType(OrderType.ONLINE).status(OrderStatus.PENDING_PAYMENT)
+                .totalAmount(java.math.BigDecimal.valueOf(100)).transactions(java.util.List.of()).build();
+
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(new UserModel());
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.of(order));
+
+        assertThatThrownBy(() -> orderService.updateOrderStatus(orderId, OrderStatus.PAID, null, operatorId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.ORDER_INVALID_STATUS);
+    }
+
+    @Test
+    @DisplayName("updateOrderStatus: target PAID - Thành công")
+    void updateOrderStatus_paid_success() {
+        UUID orderId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder().id(orderId).userId(UUID.randomUUID()).orderType(OrderType.ONLINE).status(OrderStatus.PENDING_PAYMENT)
+                .totalAmount(java.math.BigDecimal.valueOf(100))
+                .transactions(java.util.List.of(com.daiphat.coreapi.domain.model.orders.TransactionModel.builder()
+                        .status(com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus.COMPLETED)
+                        .amount(java.math.BigDecimal.valueOf(100)).build()))
+                .build();
+
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(new UserModel());
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.of(order));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenReturn(order);
+
+        OrderResponse result = orderService.updateOrderStatus(orderId, OrderStatus.PAID, null, operatorId);
+
+        assertThat(result).isNotNull();
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+    }
+
+    @Test
+    @DisplayName("updateOrderStatus: target PREPARING - Thành công")
+    void updateOrderStatus_preparing_success() {
+        UUID orderId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder().id(orderId).userId(UUID.randomUUID()).orderType(OrderType.ONLINE).status(OrderStatus.PAID).build();
+
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(new UserModel());
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.of(order));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenReturn(order);
+
+        OrderResponse result = orderService.updateOrderStatus(orderId, OrderStatus.PREPARING, null, operatorId);
+
+        assertThat(result).isNotNull();
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PREPARING);
+    }
+
+    @Test
+    @DisplayName("updateOrderStatus: target COMPLETED cho DIRECT order - Thành công")
+    void updateOrderStatus_completed_direct_success() {
+        UUID orderId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder().id(orderId).userId(UUID.randomUUID()).orderType(OrderType.DIRECT).status(OrderStatus.PAID).build();
+
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(new UserModel());
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.of(order));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenReturn(order);
+
+        OrderResponse result = orderService.updateOrderStatus(orderId, OrderStatus.COMPLETED, null, operatorId);
+
+        assertThat(result).isNotNull();
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("updateOrderStatus: target CANCELLED - Hủy khi đang Pending Payment")
+    void updateOrderStatus_cancelled_pendingPayment() {
+        UUID orderId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder().id(orderId).userId(UUID.randomUUID()).orderType(OrderType.ONLINE).status(OrderStatus.PENDING_PAYMENT).build();
+
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(new UserModel());
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.of(order));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenReturn(order);
+
+        OrderResponse result = orderService.updateOrderStatus(orderId, OrderStatus.CANCELLED, null, operatorId);
+
+        assertThat(result).isNotNull();
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+    }
+
+    @Test
+    @DisplayName("updateOrderStatus: target PENDING_PAYMENT - Ném lỗi invalid status")
+    void updateOrderStatus_targetPendingPayment_throws() {
+        UUID orderId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder().id(orderId).userId(UUID.randomUUID()).orderType(OrderType.ONLINE).status(OrderStatus.PAID).build();
+
+        when(userLookupServicePort.findByIdOrThrow(operatorId)).thenReturn(new UserModel());
+        when(orderRepositoryPort.findById(orderId)).thenReturn(java.util.Optional.of(order));
+
+        assertThatThrownBy(() -> orderService.updateOrderStatus(orderId, OrderStatus.PENDING_PAYMENT, null, operatorId))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.ORDER_INVALID_STATUS);
     }
 }
