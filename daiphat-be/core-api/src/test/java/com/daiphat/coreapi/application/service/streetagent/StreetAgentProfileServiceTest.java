@@ -9,6 +9,7 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStatus;
 import com.daiphat.coreapi.domain.model.streetagent.StreetAgentProfileModel;
+import com.daiphat.coreapi.application.port.in.streetagent.StreetAgentProfileServicePort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -58,7 +59,7 @@ class StreetAgentProfileServiceTest {
     @Mock
     private StreetAgentProfileApplicationMapper streetAgentProfileApplicationMapper;
 
-    private StreetAgentProfileService streetAgentProfileService;
+    private StreetAgentProfileServicePort streetAgentProfileService;
 
     @BeforeEach
     void setUp() {
