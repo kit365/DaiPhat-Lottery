@@ -77,6 +77,7 @@ const TicketServiceOrderConfigPage = lazy(() => import("../pages/ticket-service-
 const CalendarPage = lazy(() => import("../pages/calendar/CalendarPage").then(m => ({ default: m.CalendarPage })));
 const SettingsPage = lazy(() => import("../pages/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const TicketSubtypeListPage = lazy(() => import("../pages/settings/TicketSubtypeListPage").then(m => ({ default: m.TicketSubtypeListPage })));
+const SystemConfigListPage = lazy(() => import("../pages/settings/SystemConfigListPage").then(m => ({ default: m.SystemConfigListPage })));
 const GeneralStatisticsPage = lazy(() => import("../pages/dashboard/statistics/GeneralStatisticsPage").then(m => ({ default: m.GeneralStatisticsPage })));
 const OrderStatisticsPage = lazy(() => import("../pages/dashboard/statistics/OrderStatisticsPage").then(m => ({ default: m.OrderStatisticsPage })));
 const TicketServiceStatisticsPage = lazy(() => import("../pages/dashboard/statistics/TicketServiceStatisticsPage").then(m => ({ default: m.TicketServiceStatisticsPage })));
@@ -167,6 +168,7 @@ export const AdminRoutes = [
     { path: "calendar", element: <PermissionGuard permission={PERMISSIONS.CALENDAR.VIEW}><CalendarPage /></PermissionGuard> },
     { path: "dashboard/settings/*", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><SettingsPage /></PermissionGuard> },
     { path: "settings/ticket-subtype/list", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><TicketSubtypeListPage /></PermissionGuard> },
+    { path: "settings/system-config/list", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><SystemConfigListPage /></PermissionGuard> },
     { path: "chat", element: <ChatPage /> },
     { path: "review", element: <ReviewListPage /> },
 
