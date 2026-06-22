@@ -27,8 +27,9 @@ public final class LotteryTicketSpecification {
 
     public static Specification<LotteryTicketEntity> filter(
             Long stationId,
+            List<Long> stationIds,
             LotteryTicketStatus status,
-            LocalDate drawDate,
+            List<LocalDate> drawDates,
             String search
     ) {
         return (root, query, cb) -> {
@@ -38,11 +39,14 @@ public final class LotteryTicketSpecification {
             if (stationId != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id), stationId));
             }
+            if (stationIds != null && !stationIds.isEmpty()) {
+                predicates.add(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id).in(stationIds));
+            }
             if (status != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.status), status));
             }
-            if (drawDate != null) {
-                predicates.add(cb.equal(root.get(LotteryTicketEntity_.drawDate), drawDate));
+            if (drawDates != null && !drawDates.isEmpty()) {
+                predicates.add(root.get(LotteryTicketEntity_.drawDate).in(drawDates));
             }
             if (search != null && !search.isBlank()) {
                 String searchPattern = "%" + search.toLowerCase() + "%";
@@ -58,7 +62,8 @@ public final class LotteryTicketSpecification {
 
     public static Specification<LotteryTicketEntity> filterPublic(
             Long stationId,
-            LocalDate drawDate,
+            List<Long> stationIds,
+            List<LocalDate> drawDates,
             String search
     ) {
         return (root, query, cb) -> {
@@ -75,8 +80,11 @@ public final class LotteryTicketSpecification {
             if (stationId != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id), stationId));
             }
-            if (drawDate != null) {
-                predicates.add(cb.equal(root.get(LotteryTicketEntity_.drawDate), drawDate));
+            if (stationIds != null && !stationIds.isEmpty()) {
+                predicates.add(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id).in(stationIds));
+            }
+            if (drawDates != null && !drawDates.isEmpty()) {
+                predicates.add(root.get(LotteryTicketEntity_.drawDate).in(drawDates));
             }
             if (search != null && !search.isBlank()) {
                 String searchPattern = "%" + search.toLowerCase() + "%";

@@ -42,7 +42,25 @@ export interface CreateOnlineOrderRequest {
     items: OrderTicketItemRequest[];
     receiveType: OrderReceiveType;
     expectedPickupAt: string;
+    actualPickedUpAt?: string;
     note?: string;
+}
+
+export interface DirectOrderTransactionRequest {
+    type: 'OFFLINE' | 'ONLINE';
+    amount: number;
+    note?: string;
+}
+
+export interface CreateDirectOrderRequest {
+    customerId?: string;
+    name: string;
+    phone?: string;
+    email?: string;
+    items: OrderTicketItemRequest[];
+    receiveType: OrderReceiveType;
+    note?: string;
+    transactions: DirectOrderTransactionRequest[];
 }
 
 export interface OrderFilterParams {
@@ -71,6 +89,7 @@ export interface OrderResponse {
     orderType: OrderType;
     receiveType: OrderReceiveType;
     expectedPickupAt?: string;
+    actualPickedUpAt?: string;
     createdAt: string;
     orderDetails?: any[];
     transactions: TransactionResponse[];

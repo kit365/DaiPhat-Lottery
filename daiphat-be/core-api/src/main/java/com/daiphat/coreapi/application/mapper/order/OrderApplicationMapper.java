@@ -31,6 +31,7 @@ public interface OrderApplicationMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "userId", ignore = true)
+    @Mapping(target = "email", source = "email")
     @Mapping(target = "orderCode", ignore = true)
     @Mapping(target = "orderType", expression = "java(OrderType.ONLINE)")
     @Mapping(target = "receiveType", source = "receiveType")
@@ -51,6 +52,7 @@ public interface OrderApplicationMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "userId", source = "customerId")
+    @Mapping(target = "email", source = "email")
     @Mapping(target = "orderCode", ignore = true)
     @Mapping(target = "orderType", expression = "java(OrderType.DIRECT)")
     @Mapping(target = "receiveType", source = "receiveType")

@@ -3,6 +3,7 @@ import './App.css';
 import { BrowserRouter, Navigate, Route, Routes, Outlet } from 'react-router-dom';
 import { LayoutAdmin } from './admin/layouts/LayoutAdmin';
 import { HomePage } from './client/pages/home';
+import { SchedulePage } from './client/pages/schedule';
 import { AdminRoutes, AdminAuthRoutes, CommonRoutes, ProfileSetupPage, OAuthCallbackPage, AcceptInvitePage } from './admin/routes/index';
 import { PrivateRoute } from './client/pages/private.route';
 import { ProfilePage as ClientProfilePage } from './client/pages/profile/ProfilePage';
@@ -15,6 +16,9 @@ import { OrderDetailTab } from './client/pages/profile/tabs/OrderDetailTab';
 import { FavoritesTab } from './client/pages/profile/tabs/FavoritesTab';
 import { NotificationsTab } from './client/pages/profile/tabs/NotificationsTab';
 import { SecurityTab } from './client/pages/profile/tabs/SecurityTab';
+import { RefundsTab } from './client/pages/profile/tabs/RefundsTab';
+import { RefundDetailTab } from './client/pages/profile/tabs/RefundDetailTab';
+import { BankAccountsTab } from './client/pages/profile/tabs/BankAccountsTab';
 
 import { BlogListPage } from './client/pages/BlogListPage';
 import { BlogDetailPage } from './client/pages/BlogDetailPage';
@@ -66,6 +70,7 @@ function App() {
         {/* Client Side Theme Context */}
         <Route element={<ClientThemeLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/lich-mo-thuong" element={<SchedulePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ClientForgotPasswordPage />} />
@@ -91,6 +96,9 @@ function App() {
               <Route path="info" element={<ProfileInfoTab />} />
               <Route path="orders" element={<OrdersTab />} />
               <Route path="orders/:id" element={<OrderDetailTab />} />
+              <Route path="refunds" element={<RefundsTab />} />
+              <Route path="refunds/:id" element={<RefundDetailTab />} />
+              <Route path="bank-accounts" element={<BankAccountsTab />} />
               <Route path="tickets" element={<TicketsTab />} />
               <Route path="favorites" element={<FavoritesTab />} />
               <Route path="notifications" element={<NotificationsTab />} />

@@ -114,7 +114,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<LotteryTicketResponse> getAll(
-            int page, int size, Long stationId, String status, String drawDate,
+            int page, int size, Long stationId, List<Long> stationIds, String status, String drawDate,
             String search, String sortBy, String direction) {
 
         PageRequest pageable = PageRequest.of(
@@ -124,10 +124,11 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         );
 
         LotteryTicketStatus statusEnum = parseStatus(status);
-        LocalDate parsedDrawDate = parseDrawDate(drawDate);
+        List<LocalDate> parsedDrawDates = parseDrawDates(drawDate);
+        List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
 
         Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
-                .findAll(pageable, stationId, statusEnum, parsedDrawDate, search);
+                .findAll(pageable, stationId, normalizedStationIds, statusEnum, parsedDrawDates, search);
 
         Map<Long, String> stationNameCache = new HashMap<>();
         Map<Long, LotteryTicketSerialModel> serialsByTicketId = lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(
@@ -143,7 +144,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<LotteryTicketResponse> getPublicTickets(
-            int page, int size, Long stationId, String drawDate,
+            int page, int size, Long stationId, List<Long> stationIds, String drawDate,
             String search, String sortBy, String direction) {
 
         PageRequest pageable = PageRequest.of(
@@ -152,10 +153,11 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 SortUtils.createSort(sortBy, direction)
         );
 
-        LocalDate parsedDrawDate = parseDrawDate(drawDate);
+        List<LocalDate> parsedDrawDates = parseDrawDates(drawDate);
+        List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
 
         Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
-                .findAllPublic(pageable, stationId, parsedDrawDate, search);
+                .findAllPublic(pageable, stationId, normalizedStationIds, parsedDrawDates, search);
 
         Map<Long, String> stationNameCache = new HashMap<>();
         Map<Long, LotteryTicketSerialModel> serialsByTicketId = lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(
@@ -313,14 +315,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     @Override
     @Transactional
-    public OrderTicketSnapshot reserveForOrder(Long ticketId) {
-        LotteryTicketModel ticket = getTicketOrThrow(ticketId);
-        ensureTicketAvailableForReserve(ticket);
-        return reserveForValidatedTicket(ticket);
-    }
-
-    @Override
-    @Transactional
     public List<OrderTicketSnapshot> sellOfflineForOrder(List<Long> ticketIds) {
         List<LotteryTicketModel> tickets = getTicketsOrThrow(ticketIds);
         validateRequestedSerialAvailability(tickets, true);
@@ -328,14 +322,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         return tickets.stream()
                 .map(this::sellOfflineForValidatedTicket)
                 .toList();
-    }
-
-    @Override
-    @Transactional
-    public OrderTicketSnapshot sellOfflineForOrder(Long ticketId) {
-        LotteryTicketModel ticket = getTicketOrThrow(ticketId);
-        ensureTicketAvailableForDirectSale(ticket);
-        return sellOfflineForValidatedTicket(ticket);
     }
 
     @Override
@@ -398,13 +384,30 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             LotteryTicketSerialModel serial,
             Map<Long, String> stationNameCache
     ) {
-        String stationName = stationNameCache.computeIfAbsent(
-                model.getStationId(),
+        String stationName = resolveStationName(model.getStationId(), stationNameCache);
+        return lotteryTicketApplicationMapper.toResponse(model, serial, stationName);
+    }
+
+    private String resolveStationName(Long stationId, Map<Long, String> stationNameCache) {
+        return stationNameCache.computeIfAbsent(
+                stationId,
                 id -> lotteryStationServicePort.findModelById(id)
                         .map(LotteryStationModel::getName)
                         .orElse(null)
         );
-        return lotteryTicketApplicationMapper.toResponse(model, serial, stationName);
+    }
+
+    private List<Long> normalizeStationIds(Long stationId, List<Long> stationIds) {
+        LinkedHashSet<Long> mergedIds = new LinkedHashSet<>();
+        if (stationId != null) {
+            mergedIds.add(stationId);
+        }
+        if (stationIds != null) {
+            stationIds.stream()
+                    .filter(Objects::nonNull)
+                    .forEach(mergedIds::add);
+        }
+        return new ArrayList<>(mergedIds);
     }
 
     private LotteryTicketStatus parseStatus(String status) {
@@ -418,15 +421,23 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
     }
 
-    private LocalDate parseDrawDate(String drawDate) {
+    private List<LocalDate> parseDrawDates(String drawDate) {
         if (drawDate == null || drawDate.isBlank()) {
-            return null;
+            return List.of();
         }
-        try {
-            return LocalDate.parse(drawDate);
-        } catch (DateTimeParseException ignored) {
-            return null;
+        LinkedHashSet<LocalDate> drawDates = new LinkedHashSet<>();
+        for (String rawValue : drawDate.split(",")) {
+            String value = rawValue.trim();
+            if (value.isBlank()) {
+                continue;
+            }
+            try {
+                drawDates.add(LocalDate.parse(value));
+            } catch (DateTimeParseException ignored) {
+                log.debug("Skipping invalid drawDate filter value: {}", value);
+            }
         }
+        return new ArrayList<>(drawDates);
     }
 
     private void ensureTicketAvailableForReserve(LotteryTicketModel ticket) {

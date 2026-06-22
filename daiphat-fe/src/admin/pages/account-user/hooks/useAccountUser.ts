@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from "@tanstack/react-query";
-import { getUsers, getUserById, createUser, updateUser, deleteUser, changeUserPassword, getStatuses, initiateResetPassword, confirmResetPassword, inviteStaff } from "../../../api/account-user.api";
+import { getUsers, getUserById, createUser, updateUser, deleteUser, changeUserPassword, getStatuses, initiateResetPassword, confirmResetPassword, inviteStaff, searchCustomers } from "../../../api/account-user.api";
 import { QUERY_KEYS } from "../../../../constants/queryKeys";
 import { ApiResponse, PageResponse, BaseQueryParams } from "../../../config/type";
 import { User } from "../../../../types/user.type";
@@ -12,10 +12,12 @@ export const useUserStatuses = () => {
     });
 };
 
-export const useUsers = (params?: BaseQueryParams, options?: Partial<UseQueryOptions<ApiResponse<PageResponse<User>>>>) => {
+export const useUsers = (params?: (BaseQueryParams & { customerSearch?: boolean }), options?: Partial<UseQueryOptions<any>>) => {
     return useQuery({
-        queryKey: [QUERY_KEYS.ACCOUNTS_USER, params],
-        queryFn: () => getUsers(params),
+        queryKey: [QUERY_KEYS.ACCOUNTS_USER, params?.customerSearch ? 'customer-search' : 'list', params],
+        queryFn: () => params?.customerSearch
+            ? searchCustomers({ q: params.q || '', limit: params.limit || 10 })
+            : getUsers(params),
         ...options
     });
 };
@@ -87,3 +89,4 @@ export const useInviteStaff = () => {
         },
     });
 };
+
