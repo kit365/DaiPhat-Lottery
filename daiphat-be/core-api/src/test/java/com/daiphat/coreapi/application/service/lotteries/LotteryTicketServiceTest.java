@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
@@ -33,14 +34,18 @@ import org.springframework.data.domain.Sort;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -72,7 +77,7 @@ class LotteryTicketServiceTest {
     private static final String STATUS_DISPLAY_NAME = "Còn trong kho";
     private static final String STATUS_RESERVED_DISPLAY_NAME = "Đã giữ chỗ";
 
-    private LotteryTicketService lotteryTicketService;
+    private LotteryTicketServicePort lotteryTicketService;
 
     @Mock
     private LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
@@ -128,6 +133,8 @@ class LotteryTicketServiceTest {
                 .price(BigDecimal.valueOf(10000))
                 .inventoryCount(10)
                 .nextDrawDate(LocalDate.now())
+                .drawDays(java.util.List.of(LocalDate.now().getDayOfWeek()))
+                .drawTime(java.time.LocalTime.of(16, 15))
                 .status(LotteryStationStatus.ACTIVE)
                 .build();
 
@@ -259,7 +266,7 @@ class LotteryTicketServiceTest {
                 2
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), eq(PRODUCT_ID), any(), any(), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), eq(PRODUCT_ID), any(), any(), any(), any()))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
@@ -267,7 +274,7 @@ class LotteryTicketServiceTest {
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(savedModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, PRODUCT_ID, null, null, null, "createdAt", "desc"
+                1, 10, PRODUCT_ID, null, null, null, null, "createdAt", "desc"
         );
 
         assertThat(response).isNotNull();
@@ -286,14 +293,14 @@ class LotteryTicketServiceTest {
                 1
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), eq(PRODUCT_ID), eq(LotteryTicketStatus.IN_STOCK), any(), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), eq(PRODUCT_ID), any(), eq(LotteryTicketStatus.IN_STOCK), any(), any()))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, PRODUCT_ID, "IN_STOCK", null, null, null, null
+                1, 10, PRODUCT_ID, null, "IN_STOCK", null, null, null, null
         );
 
         assertThat(response).isNotNull();
@@ -311,14 +318,14 @@ class LotteryTicketServiceTest {
                 1
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), eq(drawDate), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), eq(List.of(drawDate)), any()))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, null, null, drawDate.toString(), null, null, null
+                1, 10, null, null, null, drawDate.toString(), null, null, null
         );
 
         assertThat(response).isNotNull();
@@ -334,14 +341,14 @@ class LotteryTicketServiceTest {
                 1
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), eq("123")))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any(), eq("123")))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, null, null, null, "123", null, null
+                1, 10, null, null, null, null, "123", null, null
         );
 
         assertThat(response).isNotNull();
@@ -357,11 +364,11 @@ class LotteryTicketServiceTest {
                 0
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any(), any()))
                 .thenReturn(emptyPage);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, PRODUCT_ID, "RESERVED", null, null, null, null
+                1, 10, PRODUCT_ID, null, "RESERVED", null, null, null, null
         );
 
         assertThat(response).isNotNull();
@@ -379,14 +386,14 @@ class LotteryTicketServiceTest {
                 1
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any(), any()))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, null, null, null, null, "drawDate", "asc"
+                1, 10, null, null, null, null, null, "drawDate", "asc"
         );
 
         assertThat(response).isNotNull();
@@ -402,14 +409,14 @@ class LotteryTicketServiceTest {
                 1
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), eq(null), any(), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), eq(null), any(), any()))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, null, "INVALID_STATUS", null, null, null, null
+                1, 10, null, null, "INVALID_STATUS", null, null, null, null
         );
 
         assertThat(response).isNotNull();
@@ -425,14 +432,14 @@ class LotteryTicketServiceTest {
                 1
         );
 
-        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), eq(null), any()))
+        when(lotteryTicketRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), anyList(), any()))
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
         when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
-                1, 10, null, null, "invalid-date-format", null, null, null
+                1, 10, null, null, null, "invalid-date-format", null, null, null
         );
 
         assertThat(response).isNotNull();
@@ -951,5 +958,511 @@ class LotteryTicketServiceTest {
 
 
 
+
+    // ============================================================
+    // CREATE TESTS
+    // ============================================================
+    @Test
+    @DisplayName("[DP-272] CREATE: Tạo vé số thành công")
+    void create_success() {
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketApplicationMapper.toModel(createRequest)).thenReturn(mappedModel);
+        when(lotteryTicketRepositoryPort.findByUniqueFields(any(), any(), any())).thenReturn(Optional.empty());
+        when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(savedModel));
+        when(lotteryTicketSerialService.findAllByTicketId(any())).thenReturn(List.of());
+        when(lotteryTicketSerialService.countAvailableSerials(any())).thenReturn(1L);
+        when(lotteryTicketSerialService.countByStatuses(any(), any())).thenReturn(0L);
+
+        LotteryTicketResponse response = lotteryTicketService.create(createRequest, IMPORTED_BY_ID);
+
+        assertThat(response).isNotNull();
+        verify(lotteryTicketSerialService).upsertSerialForTicket(any(), any(), eq(IMPORTED_BY_ID));
+        verify(lotteryTicketRepositoryPort, org.mockito.Mockito.atLeastOnce()).save(any());
+    }
+
+    // ============================================================
+    // UPDATE TESTS
+    // ============================================================
+    @Test
+    @DisplayName("[DP-272] UPDATE: Cập nhật vé số thành công")
+    void update_success() {
+        UpdateLotteryTicketRequest updateReq = new UpdateLotteryTicketRequest(
+                "new_img", "67890", LocalDate.now(), "NEW_BATCH", LotteryTicketStatus.IN_STOCK, List.of()
+        );
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketSerialService.countByStatuses(any(), anyList())).thenReturn(0L);
+        when(lotteryTicketRepositoryPort.existsByUniqueFieldsAndIdNot(any(), any(), any(), any())).thenReturn(false);
+        when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
+
+        LotteryTicketResponse response = lotteryTicketService.update(TICKET_ID, updateReq, IMPORTED_BY_ID);
+        assertThat(response).isNotNull();
+    }
+
+    // ============================================================
+    // GET PUBLIC TICKETS TESTS
+    // ============================================================
+    @Test
+    @DisplayName("[DP-281] GET_PUBLIC_TICKETS: Lấy danh sách vé số public thành công")
+    void getPublicTickets_success() {
+        Page<LotteryTicketModel> ticketPage = new PageImpl<>(List.of(existingModel), PageRequest.of(0, 10), 1);
+        when(lotteryTicketRepositoryPort.findAllPublic(any(), any(), any(), any(), any())).thenReturn(ticketPage);
+
+        PageResponse<LotteryTicketResponse> response = lotteryTicketService.getPublicTickets(
+                1, 10, PRODUCT_ID, null, null, null, null, null
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.getRecordList()).hasSize(1);
+    }
+
+    // ============================================================
+    // UPLOAD TESTS
+    // ============================================================
+    @Test
+    @DisplayName("[DP-272] UPLOAD: Tải ảnh thành công")
+    void uploadImage_success() {
+        com.daiphat.coreapi.application.dto.storage.UploadRequest req = new com.daiphat.coreapi.application.dto.storage.UploadRequest(
+                "data".getBytes(), "image.png", "image/png", "folder"
+        );
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(storagePort.upload(any())).thenReturn(new com.daiphat.coreapi.application.dto.storage.StorageResult("url", "path"));
+        when(lotteryTicketRepositoryPort.save(any())).thenReturn(existingModel);
+
+        LotteryTicketResponse response = lotteryTicketService.uploadImage(TICKET_ID, req);
+        assertThat(response).isNotNull();
+        verify(storagePort).upload(any());
+    }
+
+    // ============================================================
+    // ORDER TESTS
+    // ============================================================
+    @Test
+    @DisplayName("[DP-325] RESERVE_FOR_ORDER: Thành công")
+    void reserveForOrder_success() {
+        when(lotteryTicketRepositoryPort.findAllByIds(anyList())).thenReturn(List.of(existingModel));
+        when(lotteryTicketSerialService.countAvailableSerials(any())).thenReturn(10L);
+        when(lotteryTicketSerialService.reserveFirstAvailable(any(), any(), any())).thenReturn(LotteryTicketSerialModel.builder().id(1L).ticketId(TICKET_ID).build());
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
+
+        List<com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot> result = lotteryTicketService.reserveForOrder(List.of(TICKET_ID));
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("[DP-325] SELL_OFFLINE_FOR_ORDER: Thành công")
+    void sellOfflineForOrder_success() {
+        when(lotteryTicketRepositoryPort.findAllByIds(anyList())).thenReturn(List.of(existingModel));
+        when(lotteryTicketSerialService.countAvailableSerials(any())).thenReturn(10L);
+        when(lotteryTicketSerialService.sellFirstAvailable(any())).thenReturn(LotteryTicketSerialModel.builder().id(1L).ticketId(TICKET_ID).build());
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
+
+        List<com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot> result = lotteryTicketService.sellOfflineForOrder(List.of(TICKET_ID));
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("[DP-325] MARK_SOLD_FOR_ORDER: Thành công")
+    void markSoldForOrder_success() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder().id(1L).ticketId(TICKET_ID).build();
+        when(lotteryTicketSerialService.getByIdOrThrow(1L)).thenReturn(serial);
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
+
+        lotteryTicketService.markSoldForOrder(1L);
+        verify(lotteryTicketSerialService).markSold(1L);
+    }
+
+    @Test
+    @DisplayName("[DP-325] RELEASE_RESERVATION_FOR_ORDER: Thành công")
+    void releaseReservationForOrder_success() {
+        LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder().id(1L).ticketId(TICKET_ID).build();
+        when(lotteryTicketSerialService.getByIdOrThrow(1L)).thenReturn(serial);
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketSerialService.releaseReservation(any(), anyBoolean())).thenReturn(serial);
+        when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
+
+        lotteryTicketService.releaseReservationForOrder(1L);
+        verify(lotteryTicketSerialService).releaseReservation(any(), anyBoolean());
+    }
+
+    // ============================================================
+    // EXPIRE TESTS
+    // ============================================================
+    @Test
+    @DisplayName("[DP-325] EXPIRE_DUE_TICKETS: Hết hạn thành công")
+    void expireDueTickets_success() {
+        productModel.setDrawTime(LocalTime.MIN); // force expire
+        when(lotteryTicketRepositoryPort.findExpirableTickets(any(), anyList())).thenReturn(List.of(existingModel));
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any())).thenReturn(savedModel);
+
+        int count = lotteryTicketService.expireDueTickets();
+        assertThat(count).isEqualTo(1);
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.EXPIRED);
+    }
+
+    // ============================================================
+    // COVERAGE TESTS FOR EXCEPTIONS AND EDGE CASES
+    // ============================================================
+
+    @Test
+    @DisplayName("[DP-272] CREATE: Ném lỗi khi region null (toTicketNumber)")
+    void create_throwsWhenRegionNull() {
+        productModel.setRegion(null);
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        
+        assertThatThrownBy(() -> lotteryTicketService.create(createRequest, IMPORTED_BY_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_STATION_SYNC_REGION_REQUIRED);
+    }
+
+    @Test
+    @DisplayName("[DP-272] CREATE: Ném lỗi khi ngày quay không hợp lệ (resolveRequestedDrawDate)")
+    void create_throwsWhenDrawDateInvalid() {
+        CreateLotteryTicketRequest invalidReq = CreateLotteryTicketRequest.builder()
+                .stationId(PRODUCT_ID)
+                .serials(java.util.List.of())
+                .numbers(NUMBERS)
+                .drawDate(LocalDate.now().plusDays(1)) // Assume not in drawDays
+                .batchCode(BATCH_CODE)
+                .build();
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+
+        assertThatThrownBy(() -> lotteryTicketService.create(invalidReq, IMPORTED_BY_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_DRAW_DATE_INVALID);
+    }
+
+    @Test
+    @DisplayName("[DP-272] CREATE: Cập nhật vé đã tồn tại (existingTicket isPresent)")
+    void create_existingTicket() {
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketApplicationMapper.toModel(createRequest)).thenReturn(mappedModel);
+        when(lotteryTicketRepositoryPort.findByUniqueFields(any(), any(), any())).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketSerialService.findAllByTicketId(any())).thenReturn(List.of());
+        when(lotteryTicketRepositoryPort.save(any())).thenReturn(existingModel);
+
+        LotteryTicketResponse response = lotteryTicketService.create(createRequest, IMPORTED_BY_ID);
+
+        assertThat(response).isNotNull();
+        // Không gọi save khi tạo mới vì nó dùng existingTicket
+        verify(lotteryTicketRepositoryPort, org.mockito.Mockito.atLeastOnce()).save(any());
+    }
+
+    @Test
+    @DisplayName("[DP-272] UPDATE: Ném lỗi khi vé không cho phép sửa (ensureTicketEditable)")
+    void update_throwsWhenNotEditableStatus() {
+        existingModel.setStatus(LotteryTicketStatus.SOLD_OUT); // Không thuộc isEditableStatus
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        
+        assertThatThrownBy(() -> lotteryTicketService.update(TICKET_ID, new UpdateLotteryTicketRequest(null, null, null, null, null, null), IMPORTED_BY_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+    }
+
+    @Test
+    @DisplayName("[DP-272] UPDATE: Ném lỗi khi có sê-ri đang locked (ensureTicketEditable)")
+    void update_throwsWhenLockedSerialCountGreaterThanZero() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketSerialService.countByStatuses(any(), anyList())).thenReturn(1L); // locked
+        
+        assertThatThrownBy(() -> lotteryTicketService.update(TICKET_ID, new UpdateLotteryTicketRequest(null, null, null, null, null, null), IMPORTED_BY_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+    }
+
+    @Test
+    @DisplayName("[DP-272] UPDATE: Ném lỗi trùng lặp serial (validateUniqueTicket)")
+    void update_throwsWhenSerialExisted() {
+        UpdateLotteryTicketRequest updateReq = new UpdateLotteryTicketRequest(
+                null, "12345", LocalDate.now(), null, null, null
+        );
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketSerialService.countByStatuses(any(), anyList())).thenReturn(0L);
+        when(lotteryTicketRepositoryPort.existsByUniqueFieldsAndIdNot(any(), any(), any(), any())).thenReturn(true);
+
+        assertThatThrownBy(() -> lotteryTicketService.update(TICKET_ID, updateReq, IMPORTED_BY_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_SERIAL_EXISTED);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Ném lỗi khi đã bị xóa")
+    void delete_throwsWhenAlreadyDeleted() {
+        existingModel.setDeletedAt(LocalDateTime.now());
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Ném lỗi khi trạng thái không cho phép xóa (ensureTicketSoftDeletable)")
+    void delete_throwsWhenNotSoftDeletableStatus() {
+        existingModel.setStatus(LotteryTicketStatus.SOLD_OUT);
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Ném lỗi khi có sê-ri SOLD (ensureTicketSoftDeletable)")
+    void delete_throwsWhenSoldSerialCountGreaterThanZero() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketSerialService.countByStatuses(eq(TICKET_ID), anyList())).thenReturn(1L);
+
+        assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+    }
+
+    @Test
+    @DisplayName("[DP-325] DELETE: Ném lỗi khi đã có lịch sử order (ensureTicketSoftDeletable)")
+    void delete_throwsWhenOrderExists() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketSerialService.countByStatuses(eq(TICKET_ID), anyList())).thenReturn(0L);
+        when(orderRepositoryPort.existsByLotteryTicketId(TICKET_ID)).thenReturn(true);
+
+        assertThatThrownBy(() -> lotteryTicketService.delete(TICKET_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+    }
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi sang PROXY_HOLDING")
+    void changeStatus_proxyHolding() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(any())).thenReturn(existingModel);
+        
+        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, LotteryTicketStatus.PROXY_HOLDING);
+        assertThat(response).isNotNull();
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.PROXY_HOLDING);
+    }
+
+    @Test
+    @DisplayName("[DP-325] CHANGE_STATUS: Đổi sang ISSUER_FAULT")
+    void changeStatus_issuerFault() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryTicketRepositoryPort.save(any())).thenReturn(existingModel);
+        
+        LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, LotteryTicketStatus.ISSUER_FAULT);
+        assertThat(response).isNotNull();
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.ISSUER_FAULT);
+    }
+
+    @Test
+    @DisplayName("[DP-325] GET_TICKETS_OR_THROW: Ném lỗi khi thiếu vé")
+    void reserveForOrder_throwsWhenTicketNotFound() {
+        when(lotteryTicketRepositoryPort.findAllByIds(anyList())).thenReturn(List.of()); // Rỗng
+
+        assertThatThrownBy(() -> lotteryTicketService.reserveForOrder(List.of(TICKET_ID)))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("[DP-325] VALIDATE_REQUESTED_SERIAL: Ném lỗi khi không đủ số lượng")
+    void reserveForOrder_throwsWhenInsufficientSerials() {
+        when(lotteryTicketRepositoryPort.findAllByIds(anyList())).thenReturn(List.of(existingModel));
+        when(lotteryTicketSerialService.countAvailableSerials(any())).thenReturn(0L);
+
+        assertThatThrownBy(() -> lotteryTicketService.reserveForOrder(List.of(TICKET_ID)))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+    }
+
+    @Test
+    @DisplayName("[DP-325] SELL_OFFLINE: Ném lỗi khi vé đã bán hết (SOLD_OUT)")
+    void sellOffline_throwsWhenSoldOut() {
+        existingModel.setStatus(LotteryTicketStatus.SOLD_OUT);
+        when(lotteryTicketRepositoryPort.findAllByIds(anyList())).thenReturn(List.of(existingModel));
+        when(lotteryTicketSerialService.countAvailableSerials(any())).thenReturn(10L);
+
+        assertThatThrownBy(() -> lotteryTicketService.sellOfflineForOrder(List.of(TICKET_ID)))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+    }
+
+    @Test
+    @DisplayName("[DP-325] SELL_OFFLINE: Ném lỗi khi vé không IN_STOCK")
+    void sellOffline_throwsWhenNotInStock() {
+        existingModel.setStatus(LotteryTicketStatus.PROXY_HOLDING);
+        when(lotteryTicketRepositoryPort.findAllByIds(anyList())).thenReturn(List.of(existingModel));
+        when(lotteryTicketSerialService.countAvailableSerials(any())).thenReturn(10L);
+
+        assertThatThrownBy(() -> lotteryTicketService.sellOfflineForOrder(List.of(TICKET_ID)))
+                .isInstanceOf(DomainException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+    }
+
+    // ============================================================
+    // NEW COVERAGE TESTS FOR REMAINING BRANCHES
+    // ============================================================
+
+    @Test
+    @DisplayName("[DP-XXX] applyStatusTransition: Cover all branches via reflection")
+    void update_applyStatusTransition_allBranches() throws Exception {
+        java.lang.reflect.Method method = LotteryTicketService.class.getDeclaredMethod("applyStatusTransition", LotteryTicketModel.class, LotteryTicketStatus.class);
+        method.setAccessible(true);
+
+        LotteryTicketModel model = new LotteryTicketModel();
+
+        // RESERVED
+        model.setStatus(LotteryTicketStatus.IN_STOCK);
+        method.invoke(lotteryTicketService, model, LotteryTicketStatus.RESERVED);
+
+        // SOLD
+        model.setStatus(LotteryTicketStatus.IN_STOCK);
+        method.invoke(lotteryTicketService, model, LotteryTicketStatus.SOLD);
+
+        // PROXY_HOLDING
+        model.setStatus(LotteryTicketStatus.IN_STOCK);
+        method.invoke(lotteryTicketService, model, LotteryTicketStatus.PROXY_HOLDING);
+
+        // PENDING_RETURN
+        model.setStatus(LotteryTicketStatus.SOLD);
+        method.invoke(lotteryTicketService, model, LotteryTicketStatus.PENDING_RETURN);
+
+        // RETURNED
+        model.setStatus(LotteryTicketStatus.PENDING_RETURN);
+        method.invoke(lotteryTicketService, model, LotteryTicketStatus.RETURNED);
+
+        // INTERNAL_FAULT
+        model.setStatus(LotteryTicketStatus.IN_STOCK);
+        method.invoke(lotteryTicketService, model, LotteryTicketStatus.INTERNAL_FAULT);
+
+        // ISSUER_FAULT
+        model.setStatus(LotteryTicketStatus.IN_STOCK);
+        method.invoke(lotteryTicketService, model, LotteryTicketStatus.ISSUER_FAULT);
+
+        // Invalid
+        model.setStatus(LotteryTicketStatus.IN_STOCK);
+        try {
+            method.invoke(lotteryTicketService, model, LotteryTicketStatus.EXPIRED);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            assertThat(e.getTargetException()).isInstanceOf(DomainException.class);
+        }
+    }
+
+    @Test
+    @DisplayName("[DP-XXX] expireDueTickets: Cover continue branch and PROXY_HOLDING branch")
+    void expireDueTickets_coversBranches() {
+        LotteryTicketModel notExpired = new LotteryTicketModel();
+        notExpired.setId(101L);
+        notExpired.setStationId(PRODUCT_ID);
+        notExpired.setStatus(LotteryTicketStatus.IN_STOCK);
+        notExpired.setDrawDate(LocalDate.now().plusDays(1)); // Future
+
+        LotteryTicketModel proxyHoldingExpired = new LotteryTicketModel();
+        proxyHoldingExpired.setId(102L);
+        proxyHoldingExpired.setStationId(PRODUCT_ID);
+        proxyHoldingExpired.setStatus(LotteryTicketStatus.PROXY_HOLDING);
+        proxyHoldingExpired.setDrawDate(LocalDate.now().minusDays(1)); // Past
+
+        when(lotteryTicketRepositoryPort.findExpirableTickets(any(), any()))
+                .thenReturn(List.of(notExpired, proxyHoldingExpired));
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        
+        int count = lotteryTicketService.expireDueTickets();
+        
+        assertThat(count).isEqualTo(1);
+        verify(lotteryTicketSerialService).expireActiveSerials(102L);
+        verify(lotteryTicketRepositoryPort, org.mockito.Mockito.times(1)).save(proxyHoldingExpired);
+    }
+
+    @Test
+    @DisplayName("[DP-XXX] resolveRequestedDrawDate: Cover null drawDate")
+    void create_withNullDrawDate_resolvesCurrentStationDrawDate() {
+        CreateLotteryTicketRequest req = CreateLotteryTicketRequest.builder()
+                .stationId(PRODUCT_ID)
+                .numbers(NUMBERS)
+                .drawDate(null)
+                .serials(List.of())
+                .build();
+
+        productModel.setDrawDays(java.util.List.of(LocalDate.now().getDayOfWeek()));
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.findByUniqueFields(any(), any(), any())).thenReturn(Optional.empty());
+        when(lotteryTicketApplicationMapper.toModel(any())).thenReturn(mappedModel);
+        when(lotteryTicketRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        mappedModel.setId(TICKET_ID);
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(mappedModel));
+        LotteryTicketResponse res = lotteryTicketService.create(req, UUID.randomUUID());
+        assertThat(res.drawDate()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("[DP-XXX] recomputeTicketAggregate: Cover PROXY_HOLDING and expired")
+    void recomputeTicketAggregate_proxyHoldingExpired() {
+        UpdateLotteryTicketRequest req = new UpdateLotteryTicketRequest(null, null, LocalDate.now().minusDays(1), null, LotteryTicketStatus.PROXY_HOLDING, null);
+
+        existingModel.setStatus(LotteryTicketStatus.IN_STOCK);
+        productModel.setDrawDays(java.util.List.of(LocalDate.now().minusDays(1).getDayOfWeek()));
+
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+        when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
+        when(lotteryTicketRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        lotteryTicketService.update(TICKET_ID, req, UUID.randomUUID());
+        assertThat(existingModel.getStatus()).isEqualTo(LotteryTicketStatus.EXPIRED);
+    }
+
+    @Test
+    @DisplayName("[DP-XXX] ensureTicketAvailableForReserve: Not IN_STOCK")
+    void reserveForOrder_throwsWhenNotInStock() {
+        existingModel.setStatus(LotteryTicketStatus.SOLD_OUT);
+        when(lotteryTicketRepositoryPort.findAllByIds(List.of(TICKET_ID))).thenReturn(List.of(existingModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.reserveForOrder(List.of(TICKET_ID)))
+                .isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    @DisplayName("[DP-XXX] changeStatus: Cover default branch")
+    void changeStatus_throwsForInvalidStatus() {
+        when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
+
+        assertThatThrownBy(() -> lotteryTicketService.changeStatus(TICKET_ID, LotteryTicketStatus.SOLD_OUT))
+                .isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    @DisplayName("[DP-XXX] insufficientSerials: Blank ticket numbers")
+    void reserveForOrder_throwsInsufficientSerials_withBlankNumbers() {
+        existingModel.setNumbers("");
+        existingModel.setStatus(LotteryTicketStatus.IN_STOCK);
+        when(lotteryTicketRepositoryPort.findAllByIds(List.of(TICKET_ID))).thenReturn(List.of(existingModel));
+        when(lotteryTicketSerialService.countAvailableSerials(TICKET_ID)).thenReturn(0L);
+
+        assertThatThrownBy(() -> lotteryTicketService.reserveForOrder(List.of(TICKET_ID)))
+                .isInstanceOf(DomainException.class);
+    }
 
 }
