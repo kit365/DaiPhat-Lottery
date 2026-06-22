@@ -90,10 +90,13 @@ export const menuManagementData = [
     },
     {
         id: "orders",
-        label: "Đơn mua hộ",
+        label: "Đơn hàng",
         Icon: ArticleIcon,
-        path: ROUTES.ADMIN.ORDERS.LIST,
         permission: PERMISSIONS.TICKET.VIEW,
+        children: [
+            { id: "list", label: "Danh sách đơn", path: ROUTES.ADMIN.ORDERS.LIST, permission: PERMISSIONS.TICKET.VIEW },
+            { id: "create-counter", label: "Đơn tại quầy", path: ROUTES.ADMIN.ORDERS.CREATE_COUNTER, permission: PERMISSIONS.TICKET.VIEW },
+        ]
     },
     {
         id: "prize-structure",

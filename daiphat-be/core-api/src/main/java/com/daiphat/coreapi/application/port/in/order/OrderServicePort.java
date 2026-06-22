@@ -18,6 +18,8 @@ public interface OrderServicePort {
 
     OrderModel createDirectOrder(CreateDirectOrderRequest request, UUID operatorId);
 
+    void linkGuestOrdersToAccount(UUID userId, String email);
+
     OrderResponse getOrderDetail(UUID orderId);
 
     OrderResponse getMyOrderDetail(UUID orderId, UUID customerId);

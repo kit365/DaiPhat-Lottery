@@ -7,9 +7,12 @@ import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderReques
 import com.daiphat.coreapi.application.dto.request.order.DirectOrderTransactionRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
+import com.daiphat.coreapi.application.dto.response.order.OrderDetailResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
@@ -26,6 +29,7 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
@@ -66,6 +70,7 @@ public class OrderService implements OrderServicePort {
 
     private final OrderRepositoryPort orderRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
+    private final LotteryTicketSerialServicePort lotteryTicketSerialServicePort;
     private final UserLookupServicePort userLookupServicePort;
     private final OrderApplicationMapper orderApplicationMapper;
     private final PaymentCountdownCachePort paymentCountdownCachePort;
@@ -79,7 +84,7 @@ public class OrderService implements OrderServicePort {
 
         List<Long> ticketIds = resolveTicketIds(request.items());
         validateTicketIds(ticketIds);
-        ensureUserExists(customerId);
+        var customer = userLookupServicePort.findByIdOrThrow(customerId);
         ensureValidPhone(request.phone());
         List<OrderDetailModel> orderDetails = new ArrayList<>();
         List<OrderTicketSnapshot> ticketSnapshots = lotteryTicketServicePort.reserveForOrder(ticketIds);
@@ -97,6 +102,7 @@ public class OrderService implements OrderServicePort {
 
         OrderModel order = orderApplicationMapper.toOnlineOrderModel(request);
         order.setUserId(customerId);
+        order.setEmail(customer.getEmail());
         order.setOrderCode(generateOrderCode());
         order.setReceiveType(resolveReceiveType(request.receiveType()));
         order.setTotalAmount(totalAmount);
@@ -119,7 +125,9 @@ public class OrderService implements OrderServicePort {
         validateTicketIds(ticketIds);
         ensureUserExistsIfPresent(request.customerId());
         ensureUserExists(operatorId);
-        ensureValidPhone(request.phone());
+        String normalizedPhone = normalizeOptional(request.phone());
+        String normalizedEmail = normalizeOptional(request.email());
+        ensureDirectOrderContact(normalizedPhone, normalizedEmail);
         boolean hasPendingOnlinePayment = hasPendingOnlinePayment(request);
 
         List<OrderDetailModel> orderDetails = new ArrayList<>();
@@ -136,6 +144,9 @@ public class OrderService implements OrderServicePort {
         List<TransactionModel> transactions = buildDirectTransactions(request, totalAmount, operatorId);
 
         OrderModel order = orderApplicationMapper.toDirectOrderModel(request);
+        order.setUserId(request.customerId());
+        order.setPhone(normalizedPhone);
+        order.setEmail(normalizedEmail);
         order.setOrderCode(generateOrderCode());
         order.setReceiveType(resolveReceiveType(request.receiveType()));
         order.setTotalAmount(totalAmount);
@@ -154,9 +165,19 @@ public class OrderService implements OrderServicePort {
     }
 
     @Override
+    @Transactional
+    public void linkGuestOrdersToAccount(UUID userId, String email) {
+        if (userId == null || email == null || email.isBlank()) {
+            return;
+        }
+        ensureUserExists(userId);
+        orderRepositoryPort.assignGuestOrdersToUserByEmail(userId, email);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public OrderResponse getOrderDetail(UUID orderId) {
-        return orderApplicationMapper.toResponse(getOrderOrThrow(orderId));
+        return toEnrichedOrderResponse(getOrderOrThrow(orderId));
     }
 
     @Override
@@ -167,7 +188,7 @@ public class OrderService implements OrderServicePort {
         if (order.getUserId() == null || !order.getUserId().equals(customerId)) {
             throw new DomainException(ErrorCode.ACCESS_DENIED);
         }
-        return orderApplicationMapper.toResponse(order);
+        return toEnrichedOrderResponse(order);
     }
 
     @Override
@@ -303,6 +324,87 @@ public class OrderService implements OrderServicePort {
         OrderDetailModel detail = orderApplicationMapper.toOrderDetailModel(ticketSnapshot);
         detail.initializeForCreate();
         return detail;
+    }
+
+    private OrderResponse toEnrichedOrderResponse(OrderModel order) {
+        OrderResponse base = orderApplicationMapper.toResponse(order);
+        return OrderResponse.builder()
+                .id(base.id())
+                .userId(base.userId())
+                .name(base.name())
+                .phone(base.phone())
+                .email(base.email())
+                .orderCode(base.orderCode())
+                .orderType(base.orderType())
+                .receiveType(base.receiveType())
+                .totalAmount(base.totalAmount())
+                .status(base.status())
+                .expectedPickupAt(base.expectedPickupAt())
+                .cancelledAt(base.cancelledAt())
+                .cancelReason(base.cancelReason())
+                .actualPickedUpAt(base.actualPickedUpAt())
+                .pickedUpBy(base.pickedUpBy())
+                .orderDetails(enrichOrderDetails(order.getOrderDetails()))
+                .transactions(base.transactions())
+                .createdAt(base.createdAt())
+                .updatedAt(base.updatedAt())
+                .build();
+    }
+
+    private List<OrderDetailResponse> enrichOrderDetails(List<OrderDetailModel> details) {
+        if (details == null || details.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, LotteryTicketResponse> ticketsById = new LinkedHashMap<>();
+        Map<Long, LotteryTicketSerialModel> serialsById = new LinkedHashMap<>();
+
+        return details.stream()
+                .map(detail -> {
+                    LotteryTicketResponse ticket = resolveTicket(detail.getLotteryTicketId(), ticketsById);
+                    LotteryTicketSerialModel serial = resolveSerial(detail.getLotteryTicketSerialId(), serialsById);
+                    OrderDetailResponse base = orderApplicationMapper.toDetailResponse(detail);
+
+                    return OrderDetailResponse.builder()
+                            .id(base.id())
+                            .lotteryTicketId(base.lotteryTicketId())
+                            .lotteryTicketSerialId(base.lotteryTicketSerialId())
+                            .stationId(ticket != null ? ticket.stationId() : null)
+                            .stationName(ticket != null ? ticket.stationName() : null)
+                            .numbers(ticket != null ? ticket.numbers() : null)
+                            .drawDate(ticket != null ? ticket.drawDate() : null)
+                            .ticketImg(serial != null && serial.getTicketImg() != null
+                                    ? serial.getTicketImg()
+                                    : ticket != null ? ticket.ticketImg() : null)
+                            .serialNumber(serial != null ? serial.getSerialNumber() : null)
+                            .replacedByTicketId(base.replacedByTicketId())
+                            .replacedByTicketSerialId(base.replacedByTicketSerialId())
+                            .price(base.price())
+                            .status(base.status())
+                            .refunds(base.refunds())
+                            .build();
+                })
+                .toList();
+    }
+
+    private LotteryTicketResponse resolveTicket(
+            Long lotteryTicketId,
+            Map<Long, LotteryTicketResponse> ticketsById
+    ) {
+        if (lotteryTicketId == null) {
+            return null;
+        }
+        return ticketsById.computeIfAbsent(lotteryTicketId, lotteryTicketServicePort::getById);
+    }
+
+    private LotteryTicketSerialModel resolveSerial(
+            Long lotteryTicketSerialId,
+            Map<Long, LotteryTicketSerialModel> serialsById
+    ) {
+        if (lotteryTicketSerialId == null) {
+            return null;
+        }
+        return serialsById.computeIfAbsent(lotteryTicketSerialId, lotteryTicketSerialServicePort::getByIdOrThrow);
     }
 
     private void validateTicketIds(List<Long> ticketIds) {
@@ -456,6 +558,23 @@ public class OrderService implements OrderServicePort {
 
     private void ensureValidPhone(String phone) {
         Phone.of(phone);
+    }
+
+    private void ensureDirectOrderContact(String phone, String email) {
+        if (phone == null && email == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Phải nhập ít nhất số điện thoại hoặc email.");
+        }
+        if (phone != null) {
+            ensureValidPhone(phone);
+        }
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private List<TransactionModel> buildDirectTransactions(CreateDirectOrderRequest request, BigDecimal totalAmount, UUID operatorId) {

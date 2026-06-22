@@ -18,7 +18,7 @@ export const useAuth = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
-    const { token, user, set, login: loginStore, logout } = useAuthStore();
+    const { token, user, set, login: loginStore, logout, openProfileSetupModal } = useAuthStore();
 
     const getMeQuery = useQuery({
         queryKey: [QUERY_KEYS.AUTH_ME, token],
@@ -133,28 +133,83 @@ export const useAuth = () => {
     const oauthCallbackMutation = useMutation({
         mutationFn: (params: { code: string; redirectUri: string; codeVerifier?: string }) =>
             authService.exchangeGoogleToken(params.code, params.redirectUri, params.codeVerifier),
-        onSuccess: (response) => {
+        onSuccess: async (response) => {
             if (response?.access_token) {
-                const { access_token, expires_in } = response;
-                
-                // 1. Initial store setup with token - Trigger silent re-hydration
-                set({ 
-                    token: access_token, 
-                    expiresAt: expires_in ? Date.now() + expires_in * 1000 : null 
+                const { access_token, expires_in, refresh_token } = response;
+
+                const cookieOptions = {
+                    expires: expires_in ? expires_in / 86400 : 7,
+                    path: '/'
+                };
+
+                Cookies.set(STORAGE_KEYS.TOKEN, access_token, cookieOptions);
+                if (refresh_token) {
+                    Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, refresh_token, cookieOptions);
+                }
+
+                set({
+                    token: access_token,
+                    expiresAt: expires_in ? Date.now() + expires_in * 1000 : null
                 });
-                
-                // 2. Clear Google state from sessionStorage
+
                 sessionStorage.removeItem(STORAGE_KEYS.PKCE_VERIFIER);
                 sessionStorage.removeItem(STORAGE_KEYS.OAUTH_REDIRECT_URI);
-                
-                toast.success("Xác thực Google thành công!");
 
-                // 3. Dynamic navigation based on context
                 const isClientCallback = !location.pathname.startsWith(ROUTES.ADMIN.ROOT);
-                if (isClientCallback) {
-                    navigate(ROUTES.PUBLIC.HOME);
-                } else {
-                    navigate(ROUTES.ADMIN.DASHBOARD.ROOT);
+
+                try {
+                    const meResponse = await userService.getMe();
+                    const meSuccess = meResponse.isSuccess ?? meResponse.success;
+                    const userInfo = meResponse.data;
+
+                    if (!meSuccess || !userInfo) {
+                        toast.error("Xác thực Google thành công nhưng không lấy được thông tin người dùng.");
+                        return;
+                    }
+
+                    const roleCode = userInfo.role?.code || "";
+                    if (!isClientCallback && (roleCode === USER_ROLES.MEMBER || roleCode === USER_ROLES.STREET_AGENT)) {
+                        toast.error("Tài khoản này không có quyền truy cập vùng quản trị.");
+                        logout();
+                        Cookies.remove(STORAGE_KEYS.TOKEN, { path: '/' });
+                        Cookies.remove(STORAGE_KEYS.REFRESH_TOKEN, { path: '/' });
+                        return;
+                    }
+
+                    loginStore(userInfo, access_token, expires_in);
+                    queryClient.setQueryData([QUERY_KEYS.AUTH_ME, access_token], {
+                        isSuccess: true,
+                        success: true,
+                        message: 'Success',
+                        data: userInfo
+                    });
+                    queryClient.setQueryData([QUERY_KEYS.CLIENT_ME, access_token], {
+                        isSuccess: true,
+                        success: true,
+                        message: 'Success',
+                        data: userInfo
+                    });
+
+                    toast.success("Xác thực Google thành công!");
+
+                    if (isClientCallback) {
+                        if (!userInfo.agreedToTerms) {
+                            sessionStorage.setItem(STORAGE_KEYS.FORCE_PROFILE_SETUP, "true");
+                        }
+
+                        navigate(ROUTES.PUBLIC.HOME);
+                        return;
+                    }
+
+                    if (!userInfo.hasPassword || !userInfo.agreedToTerms) {
+                        navigate(ROUTES.ADMIN.AUTH.SETUP_PROFILE);
+                    } else if (roleCode === USER_ROLES.ADMIN) {
+                        navigate(ROUTES.ADMIN.DASHBOARD.SYSTEM);
+                    } else {
+                        navigate(ROUTES.ADMIN.MANAGEMENT.ROOT);
+                    }
+                } catch (error) {
+                    toast.error("Xác thực Google thành công nhưng không lấy được thông tin người dùng.");
                 }
             }
         },

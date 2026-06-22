@@ -1,8 +1,6 @@
 import React from 'react';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { LotoTable } from "./LotoTable";
-import { RecentResults } from "./RecentResults";
-import { FeaturedNews } from "./FeaturedNews";
 import { LotteryResult } from '../../types/lottery';
 
 interface HomeSidebarProps {
@@ -21,7 +19,7 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto,
   const { openLoginModal } = useAuthStore();
 
   return (
-    <aside className="w-full lg:w-[380px] space-y-4">
+    <aside className="w-full lg:w-[260px] xl:w-[340px] flex flex-col-reverse lg:flex-col gap-4">
       <div
         onClick={openLoginModal}
         className="relative overflow-hidden rounded-[16px] shadow-sm cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] w-full min-h-[150px] flex items-center p-5 group bg-[#e41212]"
@@ -31,7 +29,7 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto,
           <img
             src="https://i.ibb.co/FbsnQfjR/28d77182-45b0-40bf-9aaf-58136bc87741.png"
             alt="Săn Lộc Vàng Background"
-            className="w-full h-full object-cover object-center scale-[1.3] -translate-x-12"
+            className="w-full h-full object-cover object-right sm:object-center"
           />
         </div>
 
@@ -70,12 +68,6 @@ export const HomeSidebar: React.FC<HomeSidebarProps> = ({ showLoto, setShowLoto,
           />
         </div>
       )}
-
-      {/* Recent Results Widget */}
-      <RecentResults history={history} onDateChange={onDateChange} />
-
-      {/* Featured News Widget */}
-      <FeaturedNews />
     </aside>
   );
 };
