@@ -6,6 +6,8 @@ import {
   LotteryResult,
   DisplayType,
   LotteryStationDraw,
+  PrizeStructureResponse,
+  TicketCheckResult,
   buildRecentDateOptions,
   formatDisplayDateToApi,
   getDayOfWeekLabel,
@@ -295,5 +297,49 @@ export const useLottery = () => {
     isRefreshing,
     isWaitingForResults,
     error,
+  };
+};
+
+export const useCheckWinning = () => {
+  const [isChecking, setIsChecking] = useState(false);
+  const [hasChecked, setHasChecked] = useState(false);
+  const [checkResult, setCheckResult] = useState<TicketCheckResult | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const check = async (stationId: number, drawDate: string, ticketNumber: string) => {
+    setIsChecking(true);
+    setErrorMessage(null);
+    setHasChecked(false);
+    setCheckResult(null);
+
+    try {
+      const results = await lotteryService.checkWinning(stationId, drawDate, ticketNumber);
+      setCheckResult(results);
+      setHasChecked(true);
+      return results;
+    } catch (error: any) {
+      console.error('Check winning error', error);
+      const msg = error?.response?.data?.message || 'Không tìm thấy kết quả quay số của đài này vào ngày đã chọn.';
+      setErrorMessage(msg);
+      throw error;
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const reset = () => {
+    setHasChecked(false);
+    setCheckResult(null);
+    setErrorMessage(null);
+  };
+
+  return {
+    check,
+    reset,
+    isChecking,
+    hasChecked,
+    checkResult,
+    errorMessage,
+    setErrorMessage,
   };
 };
