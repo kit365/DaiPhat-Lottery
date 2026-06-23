@@ -43,11 +43,38 @@ export interface TicketCategoryResponse {
 
 export interface SupportTicketCommentResponse {
     id: number;
-    senderId: string;
+    senderId?: string | null;
     senderRole: TicketCommentSenderRole;
     content: string;
     attachmentUrl?: string;
     createdAt: string;
+}
+
+export interface CreateSupportTicketCommentRequest {
+    content: string;
+}
+
+export function findLastConversationalComment(
+    comments: SupportTicketCommentResponse[]
+): SupportTicketCommentResponse | undefined {
+    return [...comments]
+        .filter((c) => c.senderRole !== TicketCommentSenderRole.SYSTEM)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        .pop();
+}
+
+export function canCustomerSendComment(
+    status: TicketStatus,
+    comments: SupportTicketCommentResponse[]
+): boolean {
+    if (status === TicketStatus.RESOLVED || status === TicketStatus.CLOSED) {
+        return false;
+    }
+    const last = findLastConversationalComment(comments);
+    if (!last) {
+        return true;
+    }
+    return last.senderRole !== TicketCommentSenderRole.CUSTOMER;
 }
 
 export interface SupportTicketSummaryResponse {

@@ -1,8 +1,10 @@
 import { apiApp } from '../../api';
 import { ApiResponse, PageResponse } from '../../types/api.type';
 import {
+    CreateSupportTicketCommentRequest,
     CreateSupportTicketRequest,
     GetMyTicketsParams,
+    SupportTicketCommentResponse,
     SupportTicketResponse,
     SupportTicketSummaryResponse,
     TicketCategoryResponse,
@@ -70,6 +72,25 @@ export const supportTicketService = {
 
     close: async (id: number): Promise<ApiResponse<SupportTicketResponse>> => {
         const response = await apiApp.patch(`${BASE_URL}/${id}/close`);
+        return response.data;
+    },
+
+    getComments: async (id: number): Promise<ApiResponse<SupportTicketCommentResponse[]>> => {
+        const response = await apiApp.get(`${BASE_URL}/${id}/comments`);
+        return response.data;
+    },
+
+    addComment: async (
+        id: number,
+        data: CreateSupportTicketCommentRequest,
+        file?: File | null
+    ): Promise<ApiResponse<SupportTicketCommentResponse>> => {
+        const formData = new FormData();
+        formData.append('data', new Blob([JSON.stringify(data)], { type: 'application/json' }));
+        if (file) {
+            formData.append('file', file);
+        }
+        const response = await apiApp.post(`${BASE_URL}/${id}/comments`, formData, multipartHeaders);
         return response.data;
     },
 };

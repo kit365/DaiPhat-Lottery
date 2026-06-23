@@ -1,28 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { AttachmentUpdateSection } from '../../../components/support/AttachmentUpdateSection';
 import { ComplaintFormModal } from '../../../components/support/ComplaintFormModal';
 import { ComplaintStatusBadge } from '../../../components/support/ComplaintStatusBadge';
 import { ComplaintStatusStepper } from '../../../components/support/ComplaintStatusStepper';
+import { ComplaintTimelineChat } from '../../../components/support/ComplaintTimelineChat';
 import {
     useCloseComplaint,
     useGetComplaintDetail,
     useGetTicketCategories,
 } from '../../../hooks/useSupportTicket';
-import {
-    TicketCommentSenderRole,
-    TicketRefType,
-    TicketStatus,
-    TICKET_REF_TYPE_LABELS,
-} from '../../../../types/support.type';
+import { TicketRefType, TicketStatus, TICKET_REF_TYPE_LABELS } from '../../../../types/support.type';
 import { AppToast } from '../../../utils/toast.util';
-
-const SENDER_ROLE_LABELS: Record<TicketCommentSenderRole, string> = {
-    [TicketCommentSenderRole.CUSTOMER]: 'Bạn',
-    [TicketCommentSenderRole.OPERATOR]: 'Nhân viên hỗ trợ',
-    [TicketCommentSenderRole.SYSTEM]: 'Hệ thống',
-};
 
 export const ComplaintDetailTab = () => {
     const { id } = useParams<{ id: string }>();
@@ -75,12 +64,7 @@ export const ComplaintDetailTab = () => {
 
     const canEdit = ticket.status === TicketStatus.OPEN;
     const canClose = ticket.status === TicketStatus.OPEN;
-    const canUploadAttachment = ticket.status === TicketStatus.WAITING_FOR_CUSTOMER;
-    const isReadOnly = !canEdit && !canUploadAttachment;
-
-    const sortedComments = [...(ticket.comments || [])].sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
+    const isReadOnly = !canEdit;
 
     return (
         <div className="flex flex-col gap-6">
@@ -132,8 +116,6 @@ export const ComplaintDetailTab = () => {
             </div>
 
             <ComplaintStatusStepper status={ticket.status} />
-
-            {canUploadAttachment && <AttachmentUpdateSection ticket={ticket} />}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col gap-5">
@@ -225,18 +207,6 @@ export const ComplaintDetailTab = () => {
                 </div>
             </div>
 
-            {ticket.response && (
-                <div className="bg-[#F0F5FF] rounded-[20px] p-6 lg:p-8 border border-[#2065D1]/20 flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#2065D1] text-white flex items-center justify-center text-lg shrink-0">
-                            <i className="fa-solid fa-reply"></i>
-                        </div>
-                        <h3 className="text-[18px] font-bold text-[#212B36]">Phản hồi từ nhân viên</h3>
-                    </div>
-                    <p className="text-[15px] text-[#212B36] leading-relaxed whitespace-pre-wrap">{ticket.response}</p>
-                </div>
-            )}
-
             {ticket.status === TicketStatus.RESOLVED && ticket.resolvedAt && (
                 <div className="bg-[#E4F8ED] rounded-[20px] p-6 lg:p-8 border border-[#1CD162]/20 flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-[#1CD162] text-white flex items-center justify-center text-lg shrink-0">
@@ -251,51 +221,7 @@ export const ComplaintDetailTab = () => {
                 </div>
             )}
 
-            {sortedComments.length > 0 && (
-                <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col gap-5">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#F4F6F8] text-[#637381] flex items-center justify-center text-lg shrink-0">
-                            <i className="fa-solid fa-clock-rotate-left"></i>
-                        </div>
-                        <h3 className="text-[18px] font-bold text-[#212B36]">Lịch sử trao đổi</h3>
-                    </div>
-
-                    <div className="flex flex-col gap-4 border-t border-[#F4F6F8] pt-5">
-                        {sortedComments.map((comment) => (
-                            <div
-                                key={comment.id}
-                                className={`p-4 rounded-xl border ${
-                                    comment.senderRole === TicketCommentSenderRole.CUSTOMER
-                                        ? 'bg-[#FAFBFC] border-[#E5E8EB]'
-                                        : 'bg-[#F0F5FF] border-[#2065D1]/20'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between gap-2 mb-2">
-                                    <span className="text-[13px] font-bold text-[#454F5B]">
-                                        {SENDER_ROLE_LABELS[comment.senderRole] || comment.senderRole}
-                                    </span>
-                                    <span className="text-[12px] text-[#919EAB]">
-                                        {format(new Date(comment.createdAt), 'dd/MM/yyyy HH:mm')}
-                                    </span>
-                                </div>
-                                <p className="text-[14px] text-[#212B36] leading-relaxed whitespace-pre-wrap">
-                                    {comment.content}
-                                </p>
-                                {comment.attachmentUrl && (
-                                    <a
-                                        href={comment.attachmentUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 text-[#2065D1] text-[13px] font-bold mt-2 hover:underline"
-                                    >
-                                        <i className="fa-solid fa-image"></i> Xem hình đính kèm
-                                    </a>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            <ComplaintTimelineChat ticketId={ticket.id} status={ticket.status} />
 
             <div className="text-center text-[13px] text-[#919EAB]">
                 Cập nhật lần cuối: {format(new Date(ticket.updatedAt), 'dd/MM/yyyy HH:mm')}
