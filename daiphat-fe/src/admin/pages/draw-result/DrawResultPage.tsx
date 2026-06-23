@@ -10,6 +10,8 @@ import { DrawResultSyncModal } from './sections/DrawResultSyncModal';
 import { DrawResultDetailModal } from './sections/DrawResultDetailModal';
 import { useLotteryResultsManagementBoard } from './hooks/useDrawResult';
 import { DrawResultDateMode } from './types/draw-result';
+import { PermissionGuard } from '../../components/auth/PermissionGuard';
+import { PERMISSIONS } from '../../constants/permission.constants';
 
 export const DrawResultPage: React.FC = () => {
     const [search, setSearch] = useState('');
@@ -49,23 +51,25 @@ export const DrawResultPage: React.FC = () => {
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
-                    <Button
-                        onClick={() => setIsSyncModalOpen(true)}
-                        variant="contained"
-                        startIcon={<SyncIcon />}
-                        sx={{
-                            minHeight: "2.25rem",
-                            padding: "6px 16px",
-                            textTransform: "none",
-                            fontWeight: 600,
-                            background: "var(--palette-grey-800)",
-                            "&:hover": {
-                                background: "var(--palette-grey-700)"
-                            }
-                        }}
-                    >
-                        Đồng bộ dữ liệu
-                    </Button>
+                    <PermissionGuard permission={PERMISSIONS.LOTTERY_RESULT.SYNC}>
+                        <Button
+                            onClick={() => setIsSyncModalOpen(true)}
+                            variant="contained"
+                            startIcon={<SyncIcon />}
+                            sx={{
+                                minHeight: "2.25rem",
+                                padding: "6px 16px",
+                                textTransform: "none",
+                                fontWeight: 600,
+                                background: "var(--palette-grey-800)",
+                                "&:hover": {
+                                    background: "var(--palette-grey-700)"
+                                }
+                            }}
+                        >
+                            Đồng bộ dữ liệu
+                        </Button>
+                    </PermissionGuard>
                 </div>
             </div>
 

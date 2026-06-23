@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getRoles, getRoleById, createRole, updateRolePermissions, deleteRole, getPermissions, reorderPermissions } from "../../../api/role.api";
+import { QUERY_KEYS } from "../../../../constants/queryKeys";
 
 export const usePermissions = () => {
     return useQuery({
@@ -39,10 +40,11 @@ export const useCreateRole = () => {
 export const useUpdateRole = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, permissions }: { id: string; permissions: string[] }) => updateRolePermissions(id, permissions),
+        mutationFn: ({ id, permissions, data }: { id: string; permissions?: string[]; data?: any }) => updateRolePermissions(id, permissions ?? data?.permissions ?? []),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["roles"] });
             queryClient.invalidateQueries({ queryKey: ["role"] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.AUTH_ME] });
         },
     });
 };
