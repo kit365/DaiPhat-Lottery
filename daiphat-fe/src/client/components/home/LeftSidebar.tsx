@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { DatePicker } from '../common/DatePicker';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import { QuickCheckTicketBanner } from './QuickCheckTicketBanner';
 
 interface LeftSidebarProps {
   activeProvinces: string[];
@@ -173,6 +174,9 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Quick Check Ticket Banner */}
+      <QuickCheckTicketBanner availableDates={availableDates} />
 
     </aside>
   );
