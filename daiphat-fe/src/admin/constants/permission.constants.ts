@@ -66,6 +66,10 @@ export const PERMISSIONS = {
         VIEW: "chat:view",
         MANAGE: "chat:manage",
     },
+    SUPPORT_TICKET: {
+        VIEW: "chat:view",
+        MANAGE: "chat:manage",
+    },
     CALENDAR: {
         VIEW: "calendar:view",
     },

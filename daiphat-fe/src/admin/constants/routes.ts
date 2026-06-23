@@ -56,6 +56,10 @@ export const ROUTES = {
             DETAIL: `/${prefixAdmin}/order/detail/`,
             CREATE_COUNTER: `/${prefixAdmin}/order/create-counter`,
         },
+        SUPPORT_TICKETS: {
+            LIST: `/${prefixAdmin}/support-tickets/list`,
+            DETAIL: `/${prefixAdmin}/support-tickets/detail/`,
+        },
         TICKET_SERVICE_ORDERS: {
             LIST: `/${prefixAdmin}/ticketServiceOrder/list`,
             CREATE: `/${prefixAdmin}/ticketServiceOrder/create`,

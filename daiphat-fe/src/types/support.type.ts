@@ -77,6 +77,50 @@ export function canCustomerSendComment(
     return last.senderRole !== TicketCommentSenderRole.CUSTOMER;
 }
 
+export function canOperatorSendComment(
+    status: TicketStatus,
+    comments: SupportTicketCommentResponse[]
+): boolean {
+    if (status === TicketStatus.RESOLVED || status === TicketStatus.CLOSED) {
+        return false;
+    }
+    const last = findLastConversationalComment(comments);
+    if (!last) {
+        return true;
+    }
+    return last.senderRole !== TicketCommentSenderRole.OPERATOR;
+}
+
+export interface SupportTicketStaffSummaryResponse {
+    id: number;
+    ticketCategoryId: number;
+    title: string;
+    status: TicketStatus;
+    customerId: string;
+    customerName?: string;
+    assignedTo?: string;
+    assignedToName?: string;
+    refId?: string;
+    refType?: TicketRefType;
+    dueAt?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface ResolveSupportTicketRequest {
+    response: string;
+}
+
+export interface GetStaffTicketsParams {
+    page?: number;
+    limit?: number;
+    statuses?: string;
+    search?: string;
+    assignedTo?: string;
+    sortBy?: 'dueAt' | 'createdAt' | 'updatedAt';
+    direction?: 'asc' | 'desc';
+}
+
 export interface SupportTicketSummaryResponse {
     id: number;
     ticketCategoryId: number;

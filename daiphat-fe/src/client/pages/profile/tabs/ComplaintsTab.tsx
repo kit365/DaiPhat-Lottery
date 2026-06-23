@@ -89,6 +89,7 @@ export const ComplaintsTab = () => {
                                 <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] align-middle">Danh mục</th>
                                 <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] align-middle">Tiêu đề</th>
                                 <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] align-middle">Trạng thái</th>
+                                <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] align-middle whitespace-nowrap">Hạn xử lý</th>
                                 <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] align-middle whitespace-nowrap">Ngày tạo</th>
                                 <th className="py-4 px-5 text-[13px] font-semibold text-[#637381] align-middle w-[100px] min-w-[100px] text-center">
                                     Thao tác
@@ -98,13 +99,13 @@ export const ComplaintsTab = () => {
                         <tbody>
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={6} className="py-8 text-center text-[14px] text-[#637381]">
+                                    <td colSpan={7} className="py-8 text-center text-[14px] text-[#637381]">
                                         <i className="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải dữ liệu...
                                     </td>
                                 </tr>
                             ) : tickets.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="py-16 text-center">
+                                    <td colSpan={7} className="py-16 text-center">
                                         <div className="flex flex-col items-center gap-3">
                                             <div className="w-14 h-14 rounded-full bg-[#FFF4F4] text-[#ee1314] flex items-center justify-center text-xl">
                                                 <i className="fa-solid fa-headset"></i>
@@ -141,6 +142,13 @@ export const ComplaintsTab = () => {
                                         </td>
                                         <td className="py-4 px-5 align-middle">
                                             <ComplaintStatusBadge status={ticket.status} />
+                                        </td>
+                                        <td className="py-4 px-5 align-middle whitespace-nowrap">
+                                            <span className="text-[14px] text-[#454F5B]">
+                                                {ticket.dueAt
+                                                    ? format(new Date(ticket.dueAt), 'dd/MM/yyyy HH:mm')
+                                                    : '—'}
+                                            </span>
                                         </td>
                                         <td className="py-4 px-5 align-middle whitespace-nowrap">
                                             <span className="text-[14px] text-[#454F5B]">
