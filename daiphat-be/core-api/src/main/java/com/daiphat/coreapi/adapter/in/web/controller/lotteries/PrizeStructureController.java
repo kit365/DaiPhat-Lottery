@@ -31,20 +31,20 @@ public class PrizeStructureController {
     private final PrizeStructureServicePort prizeStructureServicePort;
 
     @GetMapping(REGION_PRIZE_STRUCTURES)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:view', 'ticket:view')")
     public ApiResponse<List<String>> getRegions() {
         return ApiResponse.success(null, prizeStructureServicePort.getRegions());
     }
 
     @GetMapping(REGION_PRIZE_STRUCTURES_BY_REGION)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:view', 'ticket:view')")
     public ApiResponse<List<PrizeStructureResponse>> getByRegion(@PathVariable String region) {
         log.info("REST request to get prize structures for region: {}", region);
         return ApiResponse.success(null, prizeStructureServicePort.getByRegion(region));
     }
 
     @PostMapping(REGION_PRIZE_STRUCTURES_SYNC)
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:sync', 'ticket:edit')")
     public ApiResponse<PrizeStructureSyncResponse> syncByRegion(
             @Valid @RequestBody SyncPrizeStructuresRequest request) {
         log.info("REST request to sync prize structures for region={} from source={}", request.region(), request.source());
@@ -55,7 +55,7 @@ public class PrizeStructureController {
     }
 
     @GetMapping(REGION_PRIZE_STRUCTURE_BY_ID)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:view', 'ticket:view')")
     public ApiResponse<PrizeStructureResponse> getRegionPrizeById(
             @PathVariable String region,
             @PathVariable Long id) {
@@ -63,7 +63,7 @@ public class PrizeStructureController {
     }
 
     @PostMapping(REGION_PRIZE_STRUCTURES_BY_REGION)
-    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:create', 'ticket:create')")
     public ApiResponse<PrizeStructureResponse> createForRegion(
             @PathVariable String region,
             @Valid @RequestBody RegionPrizeStructureRequest request) {
@@ -72,7 +72,7 @@ public class PrizeStructureController {
     }
 
     @PutMapping(REGION_PRIZE_STRUCTURES_BY_REGION)
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:edit', 'ticket:edit')")
     public ApiResponse<List<PrizeStructureResponse>> replaceByRegion(
             @PathVariable String region,
             @RequestBody List<@Valid RegionPrizeStructureRequest> requests) {
@@ -86,7 +86,7 @@ public class PrizeStructureController {
     }
 
     @PutMapping(REGION_PRIZE_STRUCTURE_BY_ID)
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:edit', 'ticket:edit')")
     public ApiResponse<PrizeStructureResponse> updateForRegion(
             @PathVariable String region,
             @PathVariable Long id,
@@ -96,7 +96,7 @@ public class PrizeStructureController {
     }
 
     @DeleteMapping(REGION_PRIZE_STRUCTURE_BY_ID)
-    @PreAuthorize("hasAnyAuthority('ticket:delete')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:delete', 'ticket:delete')")
     public ApiResponse<Void> deleteForRegion(
             @PathVariable String region,
             @PathVariable Long id) {

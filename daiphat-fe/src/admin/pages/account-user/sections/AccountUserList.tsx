@@ -37,6 +37,8 @@ import { getTabBadgeStyles } from "../../../utils/badge";
 import { AccountResetPasswordModal } from './AccountResetPasswordModal';
 import { StaffInviteModal } from './StaffInviteModal';
 import { AccountUserQuickUpdateModal } from './AccountUserQuickUpdateModal';
+import { useAuthStore } from '../../../../stores/useAuthStore';
+import { PERMISSIONS } from '../../../constants/permission.constants';
 
 // Styled component cho con số (Badge nhãn)
 const TabBadge = styled('span')(() => ({
@@ -76,6 +78,14 @@ export const AccountUserList = ({
 }: AccountUserListProps) => {
     void onInvite;
     const navigate = useNavigate();
+    const { user } = useAuthStore();
+    const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || '');
+    const isAdmin = roleCode === RoleEnum.ADMIN || roleCode === 'SUPER_ADMIN';
+    const canEdit = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.USER.EDIT));
+    const canDelete = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.USER.DELETE));
+    const canView = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.USER.VIEW));
+    const canChangePassword = canEdit;
+    const canInviteStaff = canEdit;
     const [status, setStatus] = useState('all');
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(0);
@@ -178,9 +188,10 @@ export const AccountUserList = ({
             handleDelete,
             handleChangePassword,
             handleViewDetail,
+            { canEdit, canDelete, canView, canChangePassword, canInviteStaff },
             showInviteStaffAction ? handleInviteStaff : undefined
         ),
-        [handleEdit, handleDelete, handleChangePassword, handleViewDetail, handleInviteStaff, showInviteStaffAction]
+        [handleEdit, handleDelete, handleChangePassword, handleViewDetail, handleInviteStaff, showInviteStaffAction, canEdit, canDelete, canView, canChangePassword, canInviteStaff]
     );
 
     const handleStatusChange = (_event: React.SyntheticEvent, newValue: string) => {
