@@ -16,6 +16,7 @@ export const getColumnsConfig = (
     onDelete: (id: string) => void,
     onChangePassword: (id: string) => void,
     onView: (id: string) => void,
+    permissions: { canEdit?: boolean; canDelete?: boolean; canView?: boolean; canChangePassword?: boolean; canInviteStaff?: boolean },
     onInviteStaff?: (id: string) => void
 ): GridColDef[] => [
         {
@@ -119,31 +120,45 @@ export const getColumnsConfig = (
             align: 'right',
             getActions: (params) => {
                 const status = params.row.status;
-                const items = [
-                    <GridActionsCellItem
-                        key="edit-inline"
-                        icon={<EditIcon sx={{ fontSize: '20px !important' }} />}
-                        label="Chỉnh sửa"
-                        onClick={() => onEdit(params.id as string)}
-                        sx={{ width: 36, height: 36, '& .MuiSvgIcon-root': { fontSize: '20px !important' } }}
-                    />,
-                    <GridActionsCellItem
-                        key="view"
-                        icon={<VisibilityIcon sx={{ fontSize: 20 }} />}
-                        label="Chi tiết"
-                        onClick={() => onView(params.id as string)}
-                        showInMenu
-                    />,
-                    <GridActionsCellItem
-                        key="password"
-                        icon={<KeyIcon sx={{ fontSize: 20 }} />}
-                        label="Đổi mật khẩu"
-                        onClick={() => onChangePassword(params.id as string)}
-                        showInMenu
-                    />,
-                ];
+                const items = [];
 
-                if (status === UserStatus.ACTIVE) {
+                if (permissions.canEdit) {
+                    items.push(
+                        <GridActionsCellItem
+                            key="edit-inline"
+                            icon={<EditIcon sx={{ fontSize: '20px !important' }} />}
+                            label="Chỉnh sửa"
+                            onClick={() => onEdit(params.id as string)}
+                            sx={{ width: 36, height: 36, '& .MuiSvgIcon-root': { fontSize: '20px !important' } }}
+                        />
+                    );
+                }
+
+                if (permissions.canView) {
+                    items.push(
+                        <GridActionsCellItem
+                            key="view"
+                            icon={<VisibilityIcon sx={{ fontSize: 20 }} />}
+                            label="Chi tiết"
+                            onClick={() => onView(params.id as string)}
+                            showInMenu
+                        />
+                    );
+                }
+
+                if (permissions.canChangePassword) {
+                    items.push(
+                        <GridActionsCellItem
+                            key="password"
+                            icon={<KeyIcon sx={{ fontSize: 20 }} />}
+                            label="Đổi mật khẩu"
+                            onClick={() => onChangePassword(params.id as string)}
+                            showInMenu
+                        />
+                    );
+                }
+
+                if (status === UserStatus.ACTIVE && permissions.canInviteStaff && onInviteStaff) {
                     items.push(
                         <GridActionsCellItem
                             key="invite-staff"
@@ -155,22 +170,29 @@ export const getColumnsConfig = (
                     );
                 }
 
-                items.push(
-                    <GridActionsCellItem
-                        key="edit"
-                        icon={<EditIcon sx={{ fontSize: 20 }} />}
-                        label="Chỉnh sửa"
-                        onClick={() => onEdit(params.id as string)}
-                        showInMenu
-                    />,
-                    <GridActionsCellItem
-                        key="delete"
-                        icon={<DeleteIcon sx={{ fontSize: 20, color: 'var(--palette-error-main)' }} />}
-                        label="Xóa"
-                        onClick={() => onDelete(params.id as string)}
-                        showInMenu
-                    />
-                );
+                if (permissions.canEdit) {
+                    items.push(
+                        <GridActionsCellItem
+                            key="edit"
+                            icon={<EditIcon sx={{ fontSize: 20 }} />}
+                            label="Chỉnh sửa"
+                            onClick={() => onEdit(params.id as string)}
+                            showInMenu
+                        />
+                    );
+                }
+
+                if (permissions.canDelete) {
+                    items.push(
+                        <GridActionsCellItem
+                            key="delete"
+                            icon={<DeleteIcon sx={{ fontSize: 20, color: 'var(--palette-error-main)' }} />}
+                            label="Xóa"
+                            onClick={() => onDelete(params.id as string)}
+                            showInMenu
+                        />
+                    );
+                }
 
                 return items;
             },

@@ -106,7 +106,7 @@ export const Header = () => {
 
           {/* Desktop Navigation (Hidden on Tablet/Mobile < 1024px) */}
           <div className="hidden lg:flex justify-center items-center gap-1 xl:gap-3 flex-1">
-            {navItems.map((item) => {
+            {navItems.filter(item => item.to !== "/profile/tickets" || token).map((item) => {
               const Icon = item.icon;
               const isActive = item.to === ROUTES.PUBLIC.HOME ? location.pathname === ROUTES.PUBLIC.HOME : location.pathname.startsWith(item.to) && item.to !== "#";
               

@@ -78,27 +78,26 @@ const StyledCheckbox = styled((props: CheckboxProps) => (
 // --- Constants & Parsers --- //
 const RESOURCE_LABELS: Record<string, string> = {
     dashboard: "Bảng điều khiển",
-    blog: "Bài viết",
-    blog_category: "Danh mục bài viết",
+    article: "Bài viết",
     ticket: "Vé số",
-    ticket_category: "Loại xổ số",
     provider: "Nhà đài",
-    ticket_attribute: "Thông số vé",
+    region: "Miền quay",
+    prizeStructure: "Cơ cấu giải",
+    lotteryResult: "Kết quả xổ số",
     ticketService: "Tiện ích / Tra vé",
-    ticketService_category: "Danh mục tiện ích",
-    ticketSubtype: "Tỉnh thành quay",
     ticketServiceOrder: "Đơn mua hộ",
+    order: "Đơn hàng",
     coupon: "Mã giảm giá",
-    account_user: "Khách hàng",
+    member: "Khách hàng",
+    admin: "Nhân viên",
+    streetAgent: "Người bán vé số dạo",
     role: "Nhóm quyền",
-    account_admin: "Quản trị viên",
-    hr: "Tổng quan Nhân sự",
-    department: "Phòng ban",
-    shift: "Ca làm việc",
-    schedule: "Lịch làm việc",
-    calendar: "Lịch biểu",
-    settings: "Cài đặt hệ thống",
-    file_manager: "Thư viện file",
+    chat: "Chat",
+    notification: "Thông báo",
+    review: "Đánh giá",
+    calendar: "Lịch",
+    settings: "Cài đặt",
+    stats: "Thống kê",
 };
 
 const ACTION_COLUMNS = ['view', 'create', 'edit', 'delete'];
@@ -129,18 +128,9 @@ export const PermissionMatrix = ({ control, name }: PermissionMatrixProps) => {
                 let resource = '';
                 let action = '';
                 
-                // Edge cases parser
-                if (perm.id === 'file_manager') {
-                    resource = 'file_manager';
-                    action = 'manage';
-                } else if (perm.id === 'role_permissions') {
-                    resource = 'role';
-                    action = 'permissions';
-                } else {
-                    const parts = perm.id.split('_');
-                    action = parts.pop()!;
-                    resource = parts.join('_');
-                }
+                const [resourcePart, actionPart] = perm.id.split(':');
+                resource = resourcePart || '';
+                action = actionPart || '';
 
                 if (!resources[resource]) {
                     resources[resource] = { view: null, create: null, edit: null, delete: null };
