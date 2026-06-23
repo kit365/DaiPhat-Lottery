@@ -7,10 +7,22 @@ import {
 
 interface ComplaintCommentBubbleProps {
     comment: SupportTicketCommentResponse;
+    viewerRole?: 'customer' | 'staff';
 }
 
-export const ComplaintCommentBubble: React.FC<ComplaintCommentBubbleProps> = ({ comment }) => {
+export const ComplaintCommentBubble: React.FC<ComplaintCommentBubbleProps> = ({
+    comment,
+    viewerRole = 'customer',
+}) => {
     const isCustomer = comment.senderRole === TicketCommentSenderRole.CUSTOMER;
+
+    const senderLabel = isCustomer
+        ? viewerRole === 'staff'
+            ? 'Khách hàng'
+            : 'Bạn'
+        : viewerRole === 'staff'
+          ? 'Bạn (nhân viên)'
+          : 'Nhân viên hỗ trợ';
 
     return (
         <div className={`flex ${isCustomer ? 'justify-end' : 'justify-start'}`}>
@@ -20,7 +32,7 @@ export const ComplaintCommentBubble: React.FC<ComplaintCommentBubbleProps> = ({ 
                 }`}
             >
                 <span className="text-[12px] font-bold text-[#637381] px-1">
-                    {isCustomer ? 'Bạn' : 'Nhân viên hỗ trợ'}
+                    {senderLabel}
                 </span>
                 <div
                     className={`rounded-2xl px-4 py-3 border ${
