@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.listener;
 
 import com.daiphat.coreapi.application.event.SupportTicketAssignedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketCommentAddedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketResolvedEvent;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.UserModel;
@@ -71,6 +72,22 @@ public class SupportTicketEventListener {
                 event.customerId(),
                 "Yêu cầu hỗ trợ đang được xử lý",
                 event.staffName() + " đã tiếp nhận ticket #" + event.ticketId() + ".",
+                event.ticketId());
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleSupportTicketResolved(SupportTicketResolvedEvent event) {
+        log.info("Handling SupportTicketResolvedEvent for ticketId: {}", event.ticketId());
+
+        if (event.customerId() == null) {
+            return;
+        }
+
+        notifyUser(
+                event.customerId(),
+                "Yêu cầu hỗ trợ đã được giải quyết",
+                "Ticket #" + event.ticketId() + " đã được nhân viên giải quyết.",
                 event.ticketId());
     }
 

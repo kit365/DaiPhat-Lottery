@@ -2,15 +2,18 @@ package com.daiphat.coreapi.application.service.support;
 
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketCommentRequest;
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketRequest;
+import com.daiphat.coreapi.application.dto.request.support.ResolveSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse;
+import com.daiphat.coreapi.application.dto.response.support.SupportTicketStaffSummaryResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketSummaryResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.event.SupportTicketAssignedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketCommentAddedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketResolvedEvent;
 import com.daiphat.coreapi.application.mapper.support.SupportApplicationMapper;
 import com.daiphat.coreapi.application.port.in.support.SupportTicketServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
@@ -42,6 +45,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -116,24 +121,65 @@ public class SupportTicketService implements SupportTicketServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public SupportTicketResponse getByIdForStaff(Long id, UUID staffId) {
         SupportTicketModel ticket = getTicketOrThrow(id);
-        boolean wasOpen = ticket.getStatus() == TicketStatus.OPEN;
-        ticket.markInProgressByStaff(staffId);
+        return toDetailResponse(ticket);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<SupportTicketStaffSummaryResponse> getTicketsForStaff(
+            int page,
+            int limit,
+            String statuses,
+            String search,
+            UUID assignedTo,
+            String sortBy,
+            String direction) {
+        Sort.Direction sortDirection = parseSortDirection(direction);
+        String resolvedSortBy = resolveStaffSortField(sortBy);
+        Pageable pageable = PageableUtils.of(page, limit, Sort.by(sortDirection, resolvedSortBy));
+        Page<SupportTicketModel> result = supportTicketRepositoryPort.findAllForStaff(
+                pageable, parseStatuses(statuses), assignedTo, normalizeSearch(search));
+        return PageResponse.from(
+                result.map(this::toStaffSummaryResponse),
+                page,
+                limit);
+    }
+
+    @Override
+    @Transactional
+    public SupportTicketResponse assignByStaff(Long id, UUID staffId) {
+        SupportTicketModel ticket = getTicketOrThrow(id);
+        ticket.assignByStaff(staffId);
         SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
+        saveSystemComment(saved.getId(), "Nhân viên đã tiếp nhận");
+        String staffName = resolveUserDisplayName(staffId);
+        eventPublisher.publishEvent(SupportTicketAssignedEvent.builder()
+                .ticketId(saved.getId())
+                .customerId(saved.getCustomerId())
+                .staffId(staffId)
+                .staffName(staffName)
+                .build());
+        return toDetailResponse(saved);
+    }
 
-        if (wasOpen) {
-            String staffName = resolveUserDisplayName(staffId);
-            saveSystemComment(saved.getId(), "Nhân viên " + staffName + " đã tiếp nhận ticket");
-            eventPublisher.publishEvent(SupportTicketAssignedEvent.builder()
-                    .ticketId(saved.getId())
-                    .customerId(saved.getCustomerId())
-                    .staffId(staffId)
-                    .staffName(staffName)
-                    .build());
+    @Override
+    @Transactional
+    public SupportTicketResponse resolveByStaff(Long id, UUID staffId, ResolveSupportTicketRequest request) {
+        SupportTicketModel ticket = getTicketOrThrow(id);
+        String resolution = request.response() != null ? request.response().trim() : "";
+        if (resolution.isBlank()) {
+            throw new DomainException(ErrorCode.TICKET_RESOLUTION_INVALID);
         }
-
+        ticket.resolveByStaff(resolution);
+        SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
+        saveSystemComment(saved.getId(), "Ticket đã được giải quyết");
+        eventPublisher.publishEvent(SupportTicketResolvedEvent.builder()
+                .ticketId(saved.getId())
+                .customerId(saved.getCustomerId())
+                .build());
         return toDetailResponse(saved);
     }
 
@@ -361,5 +407,63 @@ public class SupportTicketService implements SupportTicketServicePort {
 
     private static String normalizeSearch(String search) {
         return (search == null || search.isBlank()) ? null : search.trim();
+    }
+
+    private SupportTicketStaffSummaryResponse toStaffSummaryResponse(SupportTicketModel ticket) {
+        return new SupportTicketStaffSummaryResponse(
+                ticket.getId(),
+                ticket.getTicketCategoryId(),
+                ticket.getTitle(),
+                ticket.getStatus(),
+                ticket.getCustomerId(),
+                resolveUserDisplayName(ticket.getCustomerId()),
+                ticket.getAssignedTo(),
+                ticket.getAssignedTo() != null ? resolveUserDisplayName(ticket.getAssignedTo()) : null,
+                ticket.getRefId(),
+                ticket.getRefType(),
+                ticket.getDueAt(),
+                ticket.getCreatedAt(),
+                ticket.getUpdatedAt());
+    }
+
+    private static List<TicketStatus> parseStatuses(String statuses) {
+        if (statuses == null || statuses.isBlank()) {
+            return List.of(TicketStatus.OPEN, TicketStatus.IN_PROGRESS);
+        }
+        List<TicketStatus> parsed = new ArrayList<>();
+        Arrays.stream(statuses.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .forEach(value -> {
+                    try {
+                        parsed.add(TicketStatus.valueOf(value.toUpperCase()));
+                    } catch (IllegalArgumentException ex) {
+                        throw new DomainException(ErrorCode.TICKET_INVALID_STATUS);
+                    }
+                });
+        return parsed.isEmpty() ? List.of(TicketStatus.OPEN, TicketStatus.IN_PROGRESS) : parsed;
+    }
+
+    private static Sort.Direction parseSortDirection(String direction) {
+        if (direction == null || direction.isBlank()) {
+            return Sort.Direction.ASC;
+        }
+        try {
+            return Sort.Direction.fromString(direction.trim());
+        } catch (IllegalArgumentException ex) {
+            return Sort.Direction.ASC;
+        }
+    }
+
+    private static String resolveStaffSortField(String sortBy) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return "dueAt";
+        }
+        return switch (sortBy.trim()) {
+            case "createdAt" -> "createdAt";
+            case "dueAt" -> "dueAt";
+            case "updatedAt" -> "updatedAt";
+            default -> "dueAt";
+        };
     }
 }

@@ -2,10 +2,12 @@ package com.daiphat.coreapi.application.port.in.support;
 
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketCommentRequest;
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketRequest;
+import com.daiphat.coreapi.application.dto.request.support.ResolveSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse;
+import com.daiphat.coreapi.application.dto.response.support.SupportTicketStaffSummaryResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketSummaryResponse;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 
@@ -22,6 +24,19 @@ public interface SupportTicketServicePort {
     SupportTicketResponse getByIdForCustomer(Long id, UUID customerId);
 
     SupportTicketResponse getByIdForStaff(Long id, UUID staffId);
+
+    PageResponse<SupportTicketStaffSummaryResponse> getTicketsForStaff(
+            int page,
+            int limit,
+            String statuses,
+            String search,
+            UUID assignedTo,
+            String sortBy,
+            String direction);
+
+    SupportTicketResponse assignByStaff(Long id, UUID staffId);
+
+    SupportTicketResponse resolveByStaff(Long id, UUID staffId, ResolveSupportTicketRequest request);
 
     SupportTicketResponse updateByCustomer(
             Long id, UUID customerId, UpdateSupportTicketRequest request, UploadRequest file);

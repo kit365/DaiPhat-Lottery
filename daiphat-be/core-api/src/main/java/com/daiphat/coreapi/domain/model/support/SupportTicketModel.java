@@ -126,12 +126,28 @@ public class SupportTicketModel {
         this.resolvedAt = LocalDateTime.now();
     }
 
-    public void markInProgressByStaff(UUID staffId) {
+    public void assignByStaff(UUID staffId) {
         if (this.status != TicketStatus.OPEN) {
-            return;
+            throw new DomainException(ErrorCode.TICKET_CANNOT_ASSIGN);
         }
         this.status = TicketStatus.IN_PROGRESS;
         this.assignedTo = staffId;
+    }
+
+    public void resolveByStaff(String resolution) {
+        if (this.status != TicketStatus.IN_PROGRESS && this.status != TicketStatus.WAITING_FOR_CUSTOMER) {
+            throw new DomainException(ErrorCode.TICKET_CANNOT_RESOLVE);
+        }
+        if (resolution == null || resolution.isBlank()) {
+            throw new DomainException(ErrorCode.TICKET_RESOLUTION_INVALID);
+        }
+        this.response = resolution.trim();
+        this.resolvedAt = LocalDateTime.now();
+        this.status = TicketStatus.RESOLVED;
+    }
+
+    public void markInProgressByStaff(UUID staffId) {
+        assignByStaff(staffId);
     }
 
     private void ensureStatus(TicketStatus expectedStatus) {

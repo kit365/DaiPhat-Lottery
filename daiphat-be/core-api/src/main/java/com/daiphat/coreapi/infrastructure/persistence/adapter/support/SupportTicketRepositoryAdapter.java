@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -42,6 +43,19 @@ public class SupportTicketRepositoryAdapter implements SupportTicketRepositoryPo
         String normalizedSearch = (search == null || search.isBlank()) ? null : search.trim();
         return supportTicketRepository.findAll(
                         SupportTicketSpecification.filter(customerId, status, normalizedSearch),
+                        pageable)
+                .map(supportTicketPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Page<SupportTicketModel> findAllForStaff(
+            Pageable pageable,
+            List<TicketStatus> statuses,
+            UUID assignedTo,
+            String search) {
+        String normalizedSearch = (search == null || search.isBlank()) ? null : search.trim();
+        return supportTicketRepository.findAll(
+                        SupportTicketSpecification.filter(null, null, statuses, assignedTo, normalizedSearch),
                         pageable)
                 .map(supportTicketPersistenceMapper::toDomain);
     }
