@@ -19,6 +19,16 @@ public final class SupportTicketSpecification {
             TicketStatus status,
             String search
     ) {
+        return filter(customerId, status, null, null, search);
+    }
+
+    public static Specification<SupportTicketEntity> filter(
+            UUID customerId,
+            TicketStatus status,
+            List<TicketStatus> statuses,
+            UUID assignedTo,
+            String search
+    ) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -26,8 +36,14 @@ public final class SupportTicketSpecification {
                 predicates.add(cb.equal(root.get("customer").get("id"), customerId));
             }
 
-            if (status != null) {
+            if (statuses != null && !statuses.isEmpty()) {
+                predicates.add(root.get("status").in(statuses));
+            } else if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
+            }
+
+            if (assignedTo != null) {
+                predicates.add(cb.equal(root.get("assignedTo").get("id"), assignedTo));
             }
 
             if (search != null && !search.isBlank()) {

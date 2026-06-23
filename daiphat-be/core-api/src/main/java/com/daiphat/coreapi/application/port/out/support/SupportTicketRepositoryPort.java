@@ -5,6 +5,8 @@ import com.daiphat.coreapi.domain.model.support.SupportTicketModel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,6 +20,13 @@ public interface SupportTicketRepositoryPort {
             Pageable pageable,
             UUID customerId,
             TicketStatus status,
+            String search
+    );
+
+    Page<SupportTicketModel> findAllForStaff(
+            Pageable pageable,
+            List<TicketStatus> statuses,
+            UUID assignedTo,
             String search
     );
 }

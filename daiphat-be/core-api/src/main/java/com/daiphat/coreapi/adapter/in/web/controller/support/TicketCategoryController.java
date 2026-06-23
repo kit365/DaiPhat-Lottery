@@ -21,7 +21,10 @@ public class TicketCategoryController {
     private final TicketCategoryServicePort ticketCategoryServicePort;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("hasAnyAuthority('"
+            + RoleConstants.ROLE_MEMBER + "', '"
+            + RoleConstants.ROLE_STAFF_OPERATOR + "', '"
+            + RoleConstants.ADMIN + "')")
     public ApiResponse<List<TicketCategoryResponse>> getCategories() {
         return ApiResponse.success(
                 "Lấy danh sách danh mục yêu cầu hỗ trợ thành công.",
