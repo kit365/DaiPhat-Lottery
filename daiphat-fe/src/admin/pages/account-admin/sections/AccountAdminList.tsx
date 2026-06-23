@@ -40,6 +40,8 @@ import { ExportImport } from '../../../components/ui/ExportImport';
 import { confirmDelete } from "../../../utils/swal";
 import { getTabBadgeStyles } from "../../../utils/badge";
 import { AccountAdminQuickUpdateModal } from './AccountAdminQuickUpdateModal';
+import { useAuthStore } from '../../../../stores/useAuthStore';
+import { PERMISSIONS } from '../../../constants/permission.constants';
 
 // Styled component cho con số (Badge nhãn) - Tham khảo từ blog
 const TabBadge = styled('span')(() => ({
@@ -60,6 +62,13 @@ const STAFF_ACCOUNT_ROLE_CODES = [RoleEnum.ADMIN, RoleEnum.STAFF_OPERATOR];
 
 export const AccountAdminList = () => {
     const navigate = useNavigate();
+    const { user } = useAuthStore();
+    const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || "");
+    const isAdmin = roleCode === RoleEnum.ADMIN || roleCode === "SUPER_ADMIN";
+    
+    const canEdit = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.ACCOUNT.EDIT));
+    const canDelete = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.ACCOUNT.DELETE));
+    const canView = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.ACCOUNT.VIEW));
     const [status, setStatus] = useState('all');
     const [roleIds, setRoleIds] = useState<string[]>([]);
     const [search, setSearch] = useState('');
@@ -153,7 +162,7 @@ export const AccountAdminList = () => {
         setPage(0);
     };
 
-    const columns = useMemo(() => getColumnsConfig(handleEdit, handleDelete, handleViewDetail, page, pageSize), [page, pageSize]);
+    const columns = useMemo(() => getColumnsConfig(handleEdit, handleDelete, handleViewDetail, { canEdit, canDelete, canView }, page, pageSize), [page, pageSize, canEdit, canDelete, canView]);
 
     const counts = useMemo(() => res?.data?.statusCounts || {
         all: 0,

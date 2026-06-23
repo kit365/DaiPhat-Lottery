@@ -1,7 +1,6 @@
 package com.daiphat.coreapi.adapter.in.web.controller;
 
 import com.daiphat.coreapi.application.dto.request.permission.PermissionItem;
-import com.daiphat.coreapi.application.dto.request.permission.PermissionRegistrationRequest;
 import com.daiphat.coreapi.application.dto.response.auth.RoleResponse;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.application.port.in.auth.RoleServicePort;
@@ -35,7 +34,7 @@ public class PermissionController {
     }
 
     @GetMapping("/roles")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAuthority('role:view')")
     public ResponseEntity<ApiResponse<List<RoleResponse>>> getAllRoles() {
         String msg = "Lấy danh sách vai trò thành công";
         List<RoleResponse> roles = roleServicePort.getAllRoles();
@@ -61,16 +60,6 @@ public class PermissionController {
                 .build());
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<ApiResponse<Void>> registerPermissions(
-            @RequestBody PermissionRegistrationRequest request) {
-        String msg = "Tự động đăng ký quyền thành công";
-        roleServicePort.registerPermissions(request);
-        return ResponseEntity.ok(ApiResponse.<Void>builder()
-                .message(msg)
-                .build());
-    }
-
     @PatchMapping("/reorder")
     @PreAuthorize("hasAuthority('role:edit')")
     public ResponseEntity<ApiResponse<Void>> reorderPermissions(
@@ -83,6 +72,7 @@ public class PermissionController {
     }
 
     @GetMapping("/users/{userId}")
+    @PreAuthorize("hasAuthority('role:view')")
     public ResponseEntity<ApiResponse<Set<String>>> getUserPermissions(@PathVariable UUID userId) {
         String msg = "Lấy quyền hạn người dùng thành công";
         return ResponseEntity.ok(ApiResponse.<Set<String>>builder()

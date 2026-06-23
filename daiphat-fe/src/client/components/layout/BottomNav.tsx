@@ -21,12 +21,8 @@ export const BottomNav: React.FC = () => {
       label: "Vé của tôi",
       icon: "fa-receipt",
       to: "/profile/tickets",
-      action: (e: React.MouseEvent) => {
-        if (!token) {
-          e.preventDefault();
-          navigate('/login');
-        }
-      }
+      action: null,
+      hidden: !token
     },
     {
       label: "Trang chủ",
@@ -63,7 +59,7 @@ export const BottomNav: React.FC = () => {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-[1000] lg:hidden block">
       <div className="flex justify-around items-center h-[75px] bg-white/80 backdrop-blur-xl border-t border-black/5 px-4 pb-[env(safe-area-inset-bottom)]">
-        {navItems.map((item) => {
+        {navItems.filter(item => !item.hidden).map((item) => {
           const isActive = location.pathname === item.to && item.to !== "#";
           
           const Content = (
