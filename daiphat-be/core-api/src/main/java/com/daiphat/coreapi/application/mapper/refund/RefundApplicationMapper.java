@@ -45,12 +45,16 @@ public interface RefundApplicationMapper {
                 base.refundReason(),
                 base.bankAccountId(),
                 bankAccount != null ? toBankAccountResponse(bankAccount) : null,
+                base.fundSource(),
+                base.reimburseStatus(),
+                base.attemptNumber(),
                 base.rejectReason(),
                 base.reviewedBy(),
                 base.reviewedAt(),
                 base.transferEvidenceUrl(),
                 base.transferredAt(),
                 base.transferredBy(),
+                base.transferNote(),
                 base.createdAt(),
                 base.updatedAt()
         );

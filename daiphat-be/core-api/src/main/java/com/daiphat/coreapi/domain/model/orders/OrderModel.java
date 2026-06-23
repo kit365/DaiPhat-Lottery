@@ -109,6 +109,13 @@ public class OrderModel {
         cancel(cancelReason);
     }
 
+    public void cancelByCustomerRefund(String cancelReason) {
+        if (this.status != OrderStatus.PAID) {
+            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+        }
+        cancel(cancelReason);
+    }
+
     public void cancelDirectOrder(String cancelReason) {
         ensureOrderType(OrderType.DIRECT);
         ensurePaidFulfillmentStatus();

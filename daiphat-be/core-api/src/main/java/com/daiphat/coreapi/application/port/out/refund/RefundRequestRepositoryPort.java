@@ -32,4 +32,6 @@ public interface RefundRequestRepositoryPort {
     );
 
     boolean existsPendingByBankAccountId(Long bankAccountId);
+
+    boolean existsActiveByOrderId(UUID orderId);
 }
