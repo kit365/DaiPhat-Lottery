@@ -210,6 +210,9 @@ public enum ErrorCode {
     TICKET_COMMENT_NOT_ALLOWED("TKT_011", "Không thể gửi tin nhắn khi yêu cầu đã được giải quyết hoặc đã đóng.", HttpStatus.BAD_REQUEST),
     TICKET_COMMENT_TURN_VIOLATION("TKT_012", "Vui lòng chờ phản hồi từ bên còn lại trước khi gửi tin nhắn mới.", HttpStatus.BAD_REQUEST),
     TICKET_COMMENT_CONTENT_INVALID("TKT_013", "Nội dung tin nhắn không được để trống.", HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_ASSIGN("TKT_014", "Chỉ có thể tiếp nhận yêu cầu hỗ trợ đang ở trạng thái mới tạo.", HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_RESOLVE("TKT_015", "Không thể giải quyết yêu cầu hỗ trợ ở trạng thái hiện tại.", HttpStatus.BAD_REQUEST),
+    TICKET_RESOLUTION_INVALID("TKT_016", "Nội dung phương án giải quyết không được để trống.", HttpStatus.BAD_REQUEST),
 
     // System Config Errors
     SYSTEM_CONFIG_NOT_FOUND("CFG_001", "Cấu hình hệ thống không tồn tại.", HttpStatus.NOT_FOUND),
