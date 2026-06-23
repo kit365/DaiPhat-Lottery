@@ -2,11 +2,14 @@ package com.daiphat.coreapi.domain.model.support;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.support.TicketCommentSenderRole;
 import com.daiphat.coreapi.domain.model.enums.support.TicketRefType;
 import com.daiphat.coreapi.domain.model.enums.support.TicketStatus;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Getter
@@ -40,6 +43,45 @@ public class SupportTicketModel {
     public void initializeForCreate() {
         if (this.status == null) {
             this.status = TicketStatus.OPEN;
+        }
+    }
+
+    public void ensureCommentAllowed() {
+        if (this.status == TicketStatus.RESOLVED || this.status == TicketStatus.CLOSED) {
+            throw new DomainException(ErrorCode.TICKET_COMMENT_NOT_ALLOWED);
+        }
+    }
+
+    public static void ensureSenderTurn(
+            List<SupportTicketCommentModel> comments, TicketCommentSenderRole senderRole) {
+        findLastConversationalComment(comments).ifPresent(last -> {
+            if (last.getSenderRole() == senderRole) {
+                throw new DomainException(ErrorCode.TICKET_COMMENT_TURN_VIOLATION);
+            }
+        });
+    }
+
+    public static Optional<SupportTicketCommentModel> findLastConversationalComment(
+            List<SupportTicketCommentModel> comments) {
+        if (comments == null || comments.isEmpty()) {
+            return Optional.empty();
+        }
+        return comments.stream()
+                .filter(comment -> comment.getSenderRole() != TicketCommentSenderRole.SYSTEM)
+                .reduce((first, second) -> second);
+    }
+
+    public void recordOperatorComment() {
+        ensureCommentAllowed();
+        if (this.status != TicketStatus.RESOLVED && this.status != TicketStatus.CLOSED) {
+            this.status = TicketStatus.WAITING_FOR_CUSTOMER;
+        }
+    }
+
+    public void recordCustomerComment() {
+        ensureCommentAllowed();
+        if (this.status == TicketStatus.WAITING_FOR_CUSTOMER) {
+            this.status = TicketStatus.IN_PROGRESS;
         }
     }
 

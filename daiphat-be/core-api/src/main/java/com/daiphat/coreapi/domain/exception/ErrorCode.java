@@ -207,6 +207,9 @@ public enum ErrorCode {
     TICKET_REF_INVALID("TKT_008", "Đối tượng tham chiếu không hợp lệ.", HttpStatus.BAD_REQUEST),
     TICKET_REF_ORDER_MISMATCH("TKT_009", "Đơn hàng không thuộc tài khoản của bạn.", HttpStatus.BAD_REQUEST),
     TICKET_ATTACHMENT_ONLY_ALLOWED("TKT_010", "Ở trạng thái chờ phản hồi, chỉ được cập nhật tệp đính kèm.", HttpStatus.BAD_REQUEST),
+    TICKET_COMMENT_NOT_ALLOWED("TKT_011", "Không thể gửi tin nhắn khi yêu cầu đã được giải quyết hoặc đã đóng.", HttpStatus.BAD_REQUEST),
+    TICKET_COMMENT_TURN_VIOLATION("TKT_012", "Vui lòng chờ phản hồi từ bên còn lại trước khi gửi tin nhắn mới.", HttpStatus.BAD_REQUEST),
+    TICKET_COMMENT_CONTENT_INVALID("TKT_013", "Nội dung tin nhắn không được để trống.", HttpStatus.BAD_REQUEST),
 
     // System Config Errors
     SYSTEM_CONFIG_NOT_FOUND("CFG_001", "Cấu hình hệ thống không tồn tại.", HttpStatus.NOT_FOUND),
