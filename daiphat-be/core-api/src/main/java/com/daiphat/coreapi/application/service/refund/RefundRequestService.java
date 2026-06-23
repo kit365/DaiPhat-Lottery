@@ -63,7 +63,7 @@ public class RefundRequestService implements RefundRequestServicePort {
         }
 
         if (order.getStatus() != OrderStatus.PREPARING) {
-            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+            throw new DomainException(ErrorCode.REFUND_REQUEST_USE_ORDER_REFUND_API);
         }
 
         validateOrderDetail(request, order);

@@ -2,9 +2,11 @@ package com.daiphat.coreapi.domain.model.refund;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundFundSource;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
+import com.daiphat.coreapi.domain.model.enums.order.refund.ReimburseStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -31,12 +33,23 @@ public class RefundRequestModel {
     private BigDecimal refundAmount;
     private String refundReason;
     private Long bankAccountId;
+
+    @Builder.Default
+    private RefundFundSource fundSource = RefundFundSource.COMPANY_FUND;
+
+    @Builder.Default
+    private ReimburseStatus reimburseStatus = ReimburseStatus.NONE;
+
+    @Builder.Default
+    private int attemptNumber = 1;
+
     private String rejectReason;
     private UUID reviewedBy;
     private LocalDateTime reviewedAt;
     private String transferEvidenceUrl;
     private LocalDateTime transferredAt;
     private UUID transferredBy;
+    private String transferNote;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
@@ -46,6 +59,22 @@ public class RefundRequestModel {
         if (this.status == null) {
             this.status = RefundRequestStatus.PENDING;
         }
+        if (this.fundSource == null) {
+            this.fundSource = RefundFundSource.COMPANY_FUND;
+        }
+        if (this.reimburseStatus == null) {
+            this.reimburseStatus = ReimburseStatus.NONE;
+        }
+        if (this.attemptNumber <= 0) {
+            this.attemptNumber = 1;
+        }
+    }
+
+    public void initializeForAutoApprovedCancel() {
+        this.status = RefundRequestStatus.READY_TO_PAY;
+        this.fundSource = RefundFundSource.COMPANY_FUND;
+        this.reimburseStatus = ReimburseStatus.NONE;
+        this.attemptNumber = 1;
     }
 
     public void approve(UUID reviewerId) {
@@ -68,11 +97,17 @@ public class RefundRequestModel {
     }
 
     public void markTransferred(UUID transferrerId, String evidenceUrl) {
-        ensureStatus(RefundRequestStatus.APPROVED);
+        markPaid(transferrerId, evidenceUrl);
+    }
+
+    public void markPaid(UUID transferrerId, String evidenceUrl) {
+        if (this.status != RefundRequestStatus.APPROVED && this.status != RefundRequestStatus.READY_TO_PAY) {
+            throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
+        }
         if (evidenceUrl == null || evidenceUrl.isBlank()) {
             throw new DomainException(ErrorCode.INVALID_INPUT);
         }
-        this.status = RefundRequestStatus.TRANSFERRED;
+        this.status = RefundRequestStatus.PAID;
         this.transferredBy = transferrerId;
         this.transferredAt = LocalDateTime.now();
         this.transferEvidenceUrl = evidenceUrl.trim();

@@ -5,8 +5,13 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundReques
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.util.Collection;
+import java.util.UUID;
+
 public interface RefundRequestRepository extends JpaRepository<RefundRequestEntity, Long>,
         JpaSpecificationExecutor<RefundRequestEntity> {
 
     boolean existsByBankAccount_IdAndStatus(Long bankAccountId, RefundRequestStatus status);
+
+    boolean existsByOrder_IdAndStatusIn(UUID orderId, Collection<RefundRequestStatus> statuses);
 }

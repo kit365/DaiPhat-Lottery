@@ -89,6 +89,16 @@ public class LotteryTicketSerialModel {
         this.status = LotteryTicketSerialStatus.SOLD;
     }
 
+    public void returnSoldToStock() {
+        if (this.status != LotteryTicketSerialStatus.SOLD) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        }
+        this.status = LotteryTicketSerialStatus.IN_STOCK;
+        this.reservedAt = null;
+        this.reservationExpiresAt = null;
+        this.reservedByOrderId = null;
+    }
+
     public void expire() {
         if (this.status != LotteryTicketSerialStatus.IN_STOCK
                 && this.status != LotteryTicketSerialStatus.RESERVED

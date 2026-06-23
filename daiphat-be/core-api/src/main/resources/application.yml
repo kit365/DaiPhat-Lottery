@@ -50,6 +50,10 @@ daiphat:
     pending-payment-ttl-seconds: ${ORDER_PENDING_PAYMENT_TTL_SECONDS:600}
     pending-payment-expire-rate-ms: ${ORDER_PENDING_PAYMENT_EXPIRE_RATE_MS:60000}
     payment-failure-max-attempts: ${ORDER_PAYMENT_FAILURE_MAX_ATTEMPTS:3}
+    refund:
+      closing-time: ${ORDER_REFUND_CLOSING_TIME:14:00}
+      window-minutes: ${ORDER_REFUND_WINDOW_MINUTES:30}
+      timezone: ${ORDER_REFUND_TIMEZONE:Asia/Ho_Chi_Minh}
   lottery:
     crawler:
       user-agent: ${LOTTERY_CRAWLER_USER_AGENT:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36}

@@ -152,6 +152,13 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     }
 
     @Override
+    public LotteryTicketSerialModel returnSoldToStock(Long ticketSerialId) {
+        LotteryTicketSerialModel serial = getByIdOrThrow(ticketSerialId);
+        serial.returnSoldToStock();
+        return lotteryTicketSerialRepositoryPort.save(serial);
+    }
+
+    @Override
     public LotteryTicketSerialModel getByIdOrThrow(Long ticketSerialId) {
         return lotteryTicketSerialRepositoryPort.findById(ticketSerialId)
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
