@@ -8,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { AccountUserList } from "./sections/AccountUserList";
 import AccountInviteModal from "./sections/AccountInviteModal";
 import { toast } from "react-toastify";
+import { PermissionGuard } from "../../components/auth/PermissionGuard";
+import { PERMISSIONS } from "../../constants/permission.constants";
 
 export const AccountUserListPage = () => {
     const navigate = useNavigate();
@@ -33,27 +35,29 @@ export const AccountUserListPage = () => {
                         ]}
                     />
                 </div>
-                <Button
-                    onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.USER.CREATE)}
-                    sx={{
-                        background: 'var(--palette-text-primary)',
-                        minHeight: "2.5rem",
-                        px: 3,
-                        fontWeight: 700,
-                        fontSize: "0.875rem",
-                        borderRadius: "12px",
-                        textTransform: "none",
-                        boxShadow: "none",
-                        "&:hover": {
-                            background: "var(--palette-grey-700)",
-                            boxShadow: "var(--customShadows-z8)"
-                        }
-                    }}
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                >
-                    Tạo tài khoản
-                </Button>
+                <PermissionGuard permission={PERMISSIONS.USER.CREATE}>
+                    <Button
+                        onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.USER.CREATE)}
+                        sx={{
+                            background: 'var(--palette-text-primary)',
+                            minHeight: "2.5rem",
+                            px: 3,
+                            fontWeight: 700,
+                            fontSize: "0.875rem",
+                            borderRadius: "12px",
+                            textTransform: "none",
+                            boxShadow: "none",
+                            "&:hover": {
+                                background: "var(--palette-grey-700)",
+                                boxShadow: "var(--customShadows-z8)"
+                            }
+                        }}
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                    >
+                        Tạo tài khoản
+                    </Button>
+                </PermissionGuard>
             </div>
             
             <AccountUserList onInvite={() => setOpenInvite(true)} />

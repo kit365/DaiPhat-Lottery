@@ -4,6 +4,8 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryResult
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryResultRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryResultDetailRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryResultRequest;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryWinningCheckResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryWinningPrizeResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultDetailResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultResponse;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -51,6 +53,51 @@ public interface LotteryResultApplicationMapper {
     LotteryResultDetailResponse toDetailResponse(LotteryResultDetailModel model);
 
     List<LotteryResultDetailResponse> toDetailResponseList(List<LotteryResultDetailModel> models);
+
+    @Mapping(target = "prizeLevel", expression = "java(model.getPrizeLevel() != null ? model.getPrizeLevel().name() : null)")
+    @Mapping(target = "matchFrom", expression = "java(model.getMatchFrom() != null ? model.getMatchFrom().name() : null)")
+    @Mapping(target = "winningNumber", ignore = true)
+    LotteryWinningPrizeResponse toWinningPrizeResponse(PrizeStructureModel model);
+
+    default LotteryWinningPrizeResponse toWinningPrizeResponse(PrizeStructureModel model, String winningNumber) {
+        LotteryWinningPrizeResponse response = toWinningPrizeResponse(model);
+        return LotteryWinningPrizeResponse.builder()
+                .prizeLevel(response.prizeLevel())
+                .prizeDisplayName(response.prizeDisplayName())
+                .prizeCode(response.prizeCode())
+                .prizeValue(response.prizeValue())
+                .matchDigits(response.matchDigits())
+                .matchFrom(response.matchFrom())
+                .matchFromDisplayName(response.matchFromDisplayName())
+                .winningNumber(winningNumber)
+                .build();
+    }
+
+    default LotteryWinningCheckResponse toWinningCheckResponse(
+            LotteryResultModel result,
+            LotteryStationModel station,
+            java.time.LocalDate drawDate,
+            String ticketNumber,
+            boolean resultAvailable,
+            boolean canCheck,
+            boolean winning,
+            java.math.BigDecimal totalWinningAmount,
+            List<LotteryWinningPrizeResponse> matchedPrizes
+    ) {
+        return LotteryWinningCheckResponse.builder()
+                .resultId(result != null ? result.getId() : null)
+                .stationId(station != null ? station.getId() : null)
+                .stationName(station != null ? station.getName() : null)
+                .drawDate(drawDate)
+                .ticketNumber(ticketNumber)
+                .resultStatus(result != null && result.getStatus() != null ? result.getStatus().name() : null)
+                .resultAvailable(resultAvailable)
+                .canCheck(canCheck)
+                .winning(winning)
+                .totalWinningAmount(totalWinningAmount)
+                .matchedPrizes(matchedPrizes)
+                .build();
+    }
 
     default LotteryResultModel withStation(LotteryResultModel model, LotteryStationModel station) {
         if (model == null || station == null) {
