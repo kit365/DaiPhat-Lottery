@@ -38,6 +38,8 @@ public interface LotteryTicketSerialServicePort {
 
     LotteryTicketSerialModel releaseReservation(Long ticketSerialId, boolean expireAfterRelease);
 
+    LotteryTicketSerialModel returnSoldToStock(Long ticketSerialId);
+
     LotteryTicketSerialModel getByIdOrThrow(Long ticketSerialId);
 
     Optional<LotteryTicketSerialModel> findFirstByTicketId(Long ticketId);

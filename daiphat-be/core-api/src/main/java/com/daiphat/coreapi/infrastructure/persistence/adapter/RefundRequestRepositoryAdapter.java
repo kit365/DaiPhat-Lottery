@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -67,6 +68,16 @@ public class RefundRequestRepositoryAdapter implements RefundRequestRepositoryPo
     public boolean existsPendingByBankAccountId(Long bankAccountId) {
         return refundRequestRepository.existsByBankAccount_IdAndStatus(
                 bankAccountId, RefundRequestStatus.PENDING);
+    }
+
+    @Override
+    public boolean existsActiveByOrderId(UUID orderId) {
+        return refundRequestRepository.existsByOrder_IdAndStatusIn(
+                orderId,
+                List.of(
+                        RefundRequestStatus.PENDING,
+                        RefundRequestStatus.APPROVED,
+                        RefundRequestStatus.READY_TO_PAY));
     }
 
     private static String normalizeSearch(String search) {
