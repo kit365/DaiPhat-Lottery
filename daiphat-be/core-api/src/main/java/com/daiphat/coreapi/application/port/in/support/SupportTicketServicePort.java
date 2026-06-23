@@ -1,12 +1,15 @@
 package com.daiphat.coreapi.application.port.in.support;
 
+import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketCommentRequest;
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketSummaryResponse;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface SupportTicketServicePort {
@@ -24,4 +27,13 @@ public interface SupportTicketServicePort {
             Long id, UUID customerId, UpdateSupportTicketRequest request, UploadRequest file);
 
     SupportTicketResponse closeByCustomer(Long id, UUID customerId);
+
+    List<SupportTicketCommentResponse> getComments(Long id, UUID actorId, boolean isStaff);
+
+    SupportTicketCommentResponse addComment(
+            Long id,
+            UUID actorId,
+            boolean isStaff,
+            CreateSupportTicketCommentRequest request,
+            UploadRequest file);
 }

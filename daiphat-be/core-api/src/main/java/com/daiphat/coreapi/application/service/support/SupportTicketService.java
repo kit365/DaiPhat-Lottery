@@ -1,12 +1,16 @@
 package com.daiphat.coreapi.application.service.support;
 
+import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketCommentRequest;
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketSummaryResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
+import com.daiphat.coreapi.application.event.SupportTicketAssignedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketCommentAddedEvent;
 import com.daiphat.coreapi.application.mapper.support.SupportApplicationMapper;
 import com.daiphat.coreapi.application.port.in.support.SupportTicketServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
@@ -14,8 +18,10 @@ import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketCommentRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.TicketCategoryRepositoryPort;
+import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.support.TicketCommentSenderRole;
 import com.daiphat.coreapi.domain.model.enums.support.TicketRefType;
 import com.daiphat.coreapi.domain.model.enums.support.TicketStatus;
@@ -28,6 +34,7 @@ import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -47,8 +54,10 @@ public class SupportTicketService implements SupportTicketServicePort {
     private final SupportTicketCommentRepositoryPort supportTicketCommentRepositoryPort;
     private final TicketCategoryRepositoryPort ticketCategoryRepositoryPort;
     private final OrderRepositoryPort orderRepositoryPort;
+    private final UserRepositoryPort userRepositoryPort;
     private final StoragePort storagePort;
     private final SupportApplicationMapper supportApplicationMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -110,8 +119,21 @@ public class SupportTicketService implements SupportTicketServicePort {
     @Transactional
     public SupportTicketResponse getByIdForStaff(Long id, UUID staffId) {
         SupportTicketModel ticket = getTicketOrThrow(id);
+        boolean wasOpen = ticket.getStatus() == TicketStatus.OPEN;
         ticket.markInProgressByStaff(staffId);
         SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
+
+        if (wasOpen) {
+            String staffName = resolveUserDisplayName(staffId);
+            saveSystemComment(saved.getId(), "Nhân viên " + staffName + " đã tiếp nhận ticket");
+            eventPublisher.publishEvent(SupportTicketAssignedEvent.builder()
+                    .ticketId(saved.getId())
+                    .customerId(saved.getCustomerId())
+                    .staffId(staffId)
+                    .staffName(staffName)
+                    .build());
+        }
+
         return toDetailResponse(saved);
     }
 
@@ -159,7 +181,88 @@ public class SupportTicketService implements SupportTicketServicePort {
         SupportTicketModel ticket = getOwnedTicketOrThrow(id, customerId);
         ticket.closeByCustomer();
         SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
+        saveSystemComment(saved.getId(), "Khách hàng đã đóng ticket");
         return toDetailResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SupportTicketCommentResponse> getComments(Long id, UUID actorId, boolean isStaff) {
+        authorizeTicketAccess(id, actorId, isStaff);
+        List<SupportTicketCommentModel> comments =
+                supportTicketCommentRepositoryPort.findByTicketIdOrderByCreatedAtAsc(id);
+        return supportApplicationMapper.toCommentResponses(comments);
+    }
+
+    @Override
+    @Transactional
+    public SupportTicketCommentResponse addComment(
+            Long id,
+            UUID actorId,
+            boolean isStaff,
+            CreateSupportTicketCommentRequest request,
+            UploadRequest file) {
+        SupportTicketModel ticket = authorizeTicketAccess(id, actorId, isStaff);
+        ticket.ensureCommentAllowed();
+
+        List<SupportTicketCommentModel> existingComments =
+                supportTicketCommentRepositoryPort.findByTicketIdOrderByCreatedAtAsc(id);
+        TicketCommentSenderRole senderRole =
+                isStaff ? TicketCommentSenderRole.OPERATOR : TicketCommentSenderRole.CUSTOMER;
+        SupportTicketModel.ensureSenderTurn(existingComments, senderRole);
+
+        String content = request.content() != null ? request.content().trim() : "";
+        if (content.isBlank()) {
+            throw new DomainException(ErrorCode.TICKET_COMMENT_CONTENT_INVALID);
+        }
+
+        String attachmentUrl = uploadAttachmentIfPresent(file);
+
+        if (isStaff) {
+            ticket.recordOperatorComment();
+        } else {
+            ticket.recordCustomerComment();
+        }
+
+        SupportTicketCommentModel comment = SupportTicketCommentModel.builder()
+                .supportTicketId(id)
+                .senderId(actorId)
+                .senderRole(senderRole)
+                .content(content)
+                .attachmentUrl(attachmentUrl)
+                .build();
+        SupportTicketCommentModel savedComment = supportTicketCommentRepositoryPort.save(comment);
+        supportTicketRepositoryPort.save(ticket);
+
+        eventPublisher.publishEvent(SupportTicketCommentAddedEvent.builder()
+                .ticketId(id)
+                .customerId(ticket.getCustomerId())
+                .assignedTo(ticket.getAssignedTo())
+                .senderRole(senderRole)
+                .build());
+
+        return supportApplicationMapper.toCommentResponse(savedComment);
+    }
+
+    private SupportTicketModel authorizeTicketAccess(Long id, UUID actorId, boolean isStaff) {
+        if (isStaff) {
+            return getTicketOrThrow(id);
+        }
+        return getOwnedTicketOrThrow(id, actorId);
+    }
+
+    private void saveSystemComment(Long ticketId, String content) {
+        SupportTicketCommentModel systemComment = SupportTicketCommentModel.builder()
+                .supportTicketId(ticketId)
+                .senderId(null)
+                .senderRole(TicketCommentSenderRole.SYSTEM)
+                .content(content)
+                .build();
+        supportTicketCommentRepositoryPort.save(systemComment);
+    }
+
+    private String resolveUserDisplayName(UUID userId) {
+        return userRepositoryPort.findById(userId).map(UserModel::getFullName).orElse("Nhân viên");
     }
 
     private SupportTicketResponse toDetailResponse(SupportTicketModel ticket) {
