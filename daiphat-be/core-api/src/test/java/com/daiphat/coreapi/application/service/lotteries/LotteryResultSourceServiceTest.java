@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.lotteries.LotteryResultSourcePreviewR
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryResultSourceServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryResultSourceSyncPort;
+import com.daiphat.coreapi.application.service.lotteries.result.LotteryResultSourceService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
@@ -13,7 +14,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 

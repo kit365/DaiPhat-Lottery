@@ -41,7 +41,7 @@ public class OrderController {
     private final OrderApplicationMapper orderApplicationMapper;
 
     @PostMapping("/online")
-    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', '" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:create')")
     public ApiResponse<OrderResponse> createOnlineOrder(
             @Valid @RequestBody CreateOnlineOrderRequest request,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
@@ -51,7 +51,7 @@ public class OrderController {
     }
 
     @PostMapping("/direct")
-    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAuthority('order:create')")
     public ApiResponse<OrderResponse> createDirectOrder(
             @Valid @RequestBody CreateDirectOrderRequest request,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
@@ -61,7 +61,7 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAuthority('order:view')")
     public ApiResponse<OrderResponse> getOrderDetail(@PathVariable java.util.UUID id) {
         log.info("REST request to get order detail: {}", id);
         return ApiResponse.success(
@@ -71,7 +71,7 @@ public class OrderController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAuthority('order:edit')")
     public ApiResponse<OrderResponse> updateOrderStatus(
             @PathVariable java.util.UUID id,
             @Valid @RequestBody UpdateOrderStatusRequest request,
@@ -84,7 +84,7 @@ public class OrderController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAuthority('order:view')")
     public ApiResponse<PageResponse<OrderResponse>> getOrders(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_SIZE) int size,
@@ -158,31 +158,31 @@ public class OrderController {
     }
 
     @GetMapping("/types")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:view')")
     public ApiResponse<List<EnumOptionResponse>> getOrderTypes() {
         return ApiResponse.success("Lấy danh sách loại đơn hàng thành công.", orderServicePort.getOrderTypes());
     }
 
     @GetMapping("/statuses")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:view')")
     public ApiResponse<List<EnumOptionResponse>> getOrderStatuses() {
         return ApiResponse.success("Lấy danh sách trạng thái đơn hàng thành công.", orderServicePort.getOrderStatuses());
     }
 
     @GetMapping("/receive-types")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:view')")
     public ApiResponse<List<EnumOptionResponse>> getOrderReceiveTypes() {
         return ApiResponse.success("Lấy danh sách hình thức nhận vé thành công.", orderServicePort.getOrderReceiveTypes());
     }
 
     @GetMapping("/detail-statuses")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:view')")
     public ApiResponse<List<EnumOptionResponse>> getOrderDetailStatuses() {
         return ApiResponse.success("Lấy danh sách trạng thái chi tiết đơn hàng thành công.", orderServicePort.getOrderDetailStatuses());
     }
 
     @GetMapping("/refund-statuses")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:view')")
     public ApiResponse<List<EnumOptionResponse>> getOrderRefundStatuses() {
         return ApiResponse.success("Lấy danh sách trạng thái hoàn tiền thành công.", orderServicePort.getOrderRefundStatuses());
     }

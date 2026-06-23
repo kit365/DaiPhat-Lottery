@@ -11,6 +11,7 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryResultSourceServ
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.PrizeStructureServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryResultRepositoryPort;
+import com.daiphat.coreapi.application.service.lotteries.result.LotteryResultService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryResultStatus;
@@ -57,7 +58,6 @@ class LotteryResultServiceTest {
     private ApplicationEventPublisher eventPublisher;
     @Mock
     private LotteryResultApplicationMapper mapper;
-
     @InjectMocks
     private LotteryResultService service;
 
@@ -494,4 +494,5 @@ class LotteryResultServiceTest {
         Integer poll4 = ReflectionTestUtils.invokeMethod(service, "resolvePollAfterSeconds", null, List.of());
         assertThat(poll4).isNull();
     }
+
 }
