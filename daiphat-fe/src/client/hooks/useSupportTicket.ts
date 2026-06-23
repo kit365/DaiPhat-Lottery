@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supportTicketService } from '../services/supportTicketService';
 import {
+    CreateSupportTicketCommentRequest,
     CreateSupportTicketRequest,
     GetMyTicketsParams,
     UpdateSupportTicketRequest,
@@ -31,6 +32,46 @@ export const useGetComplaintDetail = (id: number) => {
         queryKey: [QUERY_KEYS.CLIENT_COMPLAINT_DETAIL, id],
         queryFn: () => supportTicketService.getById(id),
         enabled: !!id,
+    });
+};
+
+export const useGetTicketComments = (ticketId: number) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.CLIENT_TICKET_COMMENTS, ticketId],
+        queryFn: () => supportTicketService.getComments(ticketId),
+        enabled: !!ticketId,
+    });
+};
+
+export const useSendTicketComment = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({
+            ticketId,
+            data,
+            file,
+        }: {
+            ticketId: number;
+            data: CreateSupportTicketCommentRequest;
+            file?: File | null;
+        }) => supportTicketService.addComment(ticketId, data, file),
+        onSuccess: (response, variables) => {
+            if (response.success) {
+                toast.success(response.message || 'Gửi tin nhắn thành công');
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.CLIENT_TICKET_COMMENTS, variables.ticketId],
+                });
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.CLIENT_COMPLAINT_DETAIL, variables.ticketId],
+                });
+            } else {
+                toast.error(response.message || 'Có lỗi xảy ra khi gửi tin nhắn');
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        },
     });
 };
 
@@ -94,6 +135,7 @@ export const useCloseComplaint = () => {
                 toast.success(response.message || 'Đóng yêu cầu hỗ trợ thành công');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_COMPLAINT_DETAIL, id] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_TICKET_COMMENTS, id] });
             } else {
                 toast.error(response.message || 'Có lỗi xảy ra khi đóng yêu cầu');
             }

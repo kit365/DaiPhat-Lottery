@@ -63,6 +63,7 @@ export const QUERY_KEYS = {
     CLIENT_TICKET_CATEGORIES: 'client-ticket-categories',
     CLIENT_MY_COMPLAINTS: 'client-my-complaints',
     CLIENT_COMPLAINT_DETAIL: 'client-complaint-detail',
+    CLIENT_TICKET_COMMENTS: 'client-ticket-comments',
 
     // Lottery Results
     LOTTERY_RESULTS: 'lottery-results',
