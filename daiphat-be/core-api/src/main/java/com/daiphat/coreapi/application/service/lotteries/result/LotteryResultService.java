@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.application.service.lotteries;
+package com.daiphat.coreapi.application.service.lotteries.result;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryResultRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResyncLotteryResultRequest;

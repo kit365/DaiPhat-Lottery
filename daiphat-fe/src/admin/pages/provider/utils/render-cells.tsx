@@ -13,6 +13,8 @@ import { toast } from "react-toastify";
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import { confirmDelete } from "../../../utils/swal";
+import { useAuthStore } from '../../../../stores/useAuthStore';
+import { PERMISSIONS } from '../../../constants/permission.constants';
 
 dayjs.locale('vi');
 interface RenderCreatedAtCellProps {
@@ -210,6 +212,12 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 
 export const RenderActionsCell = (params: GridRenderCellParams) => {
     const navigate = useNavigate();
+    const { user } = useAuthStore();
+    const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || '');
+    const isAdmin = roleCode === 'ADMIN' || roleCode === 'SUPER_ADMIN';
+    const canView = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.PROVIDER.VIEW));
+    const canEdit = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.PROVIDER.EDIT));
+    const canDelete = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.PROVIDER.DELETE));
     const { mutate: deleteProvider } = useDeleteProvider();
     const id = params.row._id || params.row.id;
 
@@ -236,9 +244,12 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
 
 
 
-    return (
-        <GridActionsCell {...params}>
+    const items = [];
+
+    if (canView) {
+        items.push(
             <GridActionsCellItem
+                key="view"
                 icon={<EyeIcon />}
                 label="Chi tiết"
                 showInMenu
@@ -252,7 +263,13 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                 } as any)}
                 onClick={() => navigate(`/${prefixAdmin}/provider/detail/${id}`)}
             />
+        );
+    }
+
+    if (canEdit) {
+        items.push(
             <GridActionsCellItem
+                key="edit"
                 icon={<EditIcon />}
                 label="Chỉnh sửa"
                 showInMenu
@@ -266,7 +283,13 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                 } as any)}
                 onClick={handleEdit}
             />
+        );
+    }
+
+    if (canDelete) {
+        items.push(
             <GridActionsCellItem
+                key="delete"
                 icon={<DeleteIcon />}
                 label="Xóa"
                 showInMenu
@@ -281,6 +304,8 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                 } as any)}
                 onClick={handleDelete}
             />
-        </GridActionsCell>
-    );
+        );
+    }
+
+    return <GridActionsCell {...params}>{items}</GridActionsCell>;
 }

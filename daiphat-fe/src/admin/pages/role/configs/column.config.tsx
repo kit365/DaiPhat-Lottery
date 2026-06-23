@@ -9,7 +9,8 @@ import { COLORS } from './constants';
 
 export const getColumnsConfig = (
     onEdit: (id: string) => void,
-    onDelete: (id: string) => void
+    onDelete: (id: string) => void,
+    permissions: { canEdit?: boolean; canDelete?: boolean }
 ): GridColDef[] => [
         {
             field: 'stt',
@@ -96,39 +97,52 @@ export const getColumnsConfig = (
             disableColumnMenu: true,
             align: 'right',
             headerAlign: 'right',
-            renderCell: (params: GridRenderCellParams) => (
-                <GridActionsCell {...params}>
-                    <GridActionsCellItem
-                        icon={<EditIcon sx={{ fontSize: '1.25rem' }} />}
-                        label="Chỉnh sửa"
-                        onClick={() => onEdit(params.row._id)}
-                        showInMenu
-                        {...({
-                            sx: {
-                                '& .MuiTypography-root': {
-                                    fontSize: '0.8125rem',
-                                    fontWeight: "600"
+            renderCell: (params: GridRenderCellParams) => {
+                const items = [];
+
+                if (permissions.canEdit) {
+                    items.push(
+                        <GridActionsCellItem
+                            key="edit"
+                            icon={<EditIcon sx={{ fontSize: '1.25rem' }} />}
+                            label="Chỉnh sửa"
+                            onClick={() => onEdit(params.row._id)}
+                            showInMenu
+                            {...({
+                                sx: {
+                                    '& .MuiTypography-root': {
+                                        fontSize: '0.8125rem',
+                                        fontWeight: "600"
+                                    },
                                 },
-                            },
-                        } as any)}
-                    />
-                    <GridActionsCellItem
-                        icon={<DeleteIcon sx={{ fontSize: '1.25rem', color: 'var(--palette-error-main)' }} />}
-                        label="Xóa"
-                        onClick={() => onDelete(params.row._id)}
-                        showInMenu
-                        {...({
-                            sx: {
-                                '& .MuiTypography-root': {
-                                    fontSize: '0.8125rem',
-                                    fontWeight: "600",
-                                    color: "var(--palette-error-main)"
+                            } as any)}
+                        />
+                    );
+                }
+
+                if (permissions.canDelete) {
+                    items.push(
+                        <GridActionsCellItem
+                            key="delete"
+                            icon={<DeleteIcon sx={{ fontSize: '1.25rem', color: 'var(--palette-error-main)' }} />}
+                            label="Xóa"
+                            onClick={() => onDelete(params.row._id)}
+                            showInMenu
+                            {...({
+                                sx: {
+                                    '& .MuiTypography-root': {
+                                        fontSize: '0.8125rem',
+                                        fontWeight: "600",
+                                        color: "var(--palette-error-main)"
+                                    },
                                 },
-                            },
-                        } as any)}
-                    />
-                </GridActionsCell>
-            ),
+                            } as any)}
+                        />
+                    );
+                }
+
+                return <GridActionsCell {...params}>{items}</GridActionsCell>;
+            },
         },
     ];
 

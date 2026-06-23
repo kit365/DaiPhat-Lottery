@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.mapper.lotteries.LotteryResultApplication
 import com.daiphat.coreapi.application.port.in.lotteries.PrizeStructureServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryResultDetailRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryResultRepositoryPort;
+import com.daiphat.coreapi.application.service.lotteries.result.LotteryResultDetailService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryResultDetailModel;
