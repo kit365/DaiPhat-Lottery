@@ -3,9 +3,11 @@ package com.daiphat.coreapi.adapter.in.web.controller.support;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
+import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketCommentRequest;
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketSummaryResponse;
 import com.daiphat.coreapi.application.port.in.support.SupportTicketServicePort;
@@ -104,6 +106,41 @@ public class SupportTicketController {
         return ApiResponse.success(
                 "Đóng yêu cầu hỗ trợ thành công.",
                 supportTicketServicePort.closeByCustomer(id, principal.getId()));
+    }
+
+    @GetMapping(ID_PATH + "/comments")
+    @PreAuthorize("hasAnyAuthority('"
+            + RoleConstants.ROLE_MEMBER + "', '"
+            + RoleConstants.ROLE_STAFF_OPERATOR + "', '"
+            + RoleConstants.ADMIN + "')")
+    public ApiResponse<java.util.List<SupportTicketCommentResponse>> getComments(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            Authentication authentication) {
+        return ApiResponse.success(
+                "Lấy lịch sử trao đổi thành công.",
+                supportTicketServicePort.getComments(id, principal.getId(), isStaff(authentication)));
+    }
+
+    @PostMapping(value = ID_PATH + "/comments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyAuthority('"
+            + RoleConstants.ROLE_MEMBER + "', '"
+            + RoleConstants.ROLE_STAFF_OPERATOR + "', '"
+            + RoleConstants.ADMIN + "')")
+    public ApiResponse<SupportTicketCommentResponse> addComment(
+            @PathVariable Long id,
+            @Valid @RequestPart("data") CreateSupportTicketCommentRequest request,
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            Authentication authentication) {
+        return ApiResponse.success(
+                "Gửi tin nhắn thành công.",
+                supportTicketServicePort.addComment(
+                        id,
+                        principal.getId(),
+                        isStaff(authentication),
+                        request,
+                        file != null ? StorageUtils.toUploadRequest(file) : null));
     }
 
     private static boolean isStaff(Authentication authentication) {
