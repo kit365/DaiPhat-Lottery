@@ -29,6 +29,8 @@ import { useState } from "react";
 import { FacebookIcon, InstagramIcon, ShareIcon } from "../../assets/icons";
 import { confirmAction } from "../../utils/swal";
 import { RightSidebarBlog } from "../../../client/components/blog/BlogSidebar";
+import { usePermissions } from "../../hooks/usePermission";
+import { PERMISSIONS } from "../../constants/permission.constants";
 
 dayjs.locale("vi");
 
@@ -63,6 +65,9 @@ export const BlogDetailPage = () => {
     const { data: blogTypes = [] } = useBlogTypes();
     const { mutate: updateBlog, isPending: isUpdating } = useUpdateBlog();
     const { mutate: deleteBlog, isPending: isDeleting } = useDeleteBlog();
+    const { can } = usePermissions();
+    const canEdit = can(PERMISSIONS.ARTICLE.EDIT);
+    const canDeleteArticle = can(PERMISSIONS.ARTICLE.DELETE);
 
     const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -72,7 +77,7 @@ export const BlogDetailPage = () => {
     const isDraft = status === BLOG_STATUS.DRAFT;
     const isScheduled = status === BLOG_STATUS.SCHEDULED;
     const isUnpublished = status === BLOG_STATUS.UNPUBLISHED;
-    const canDelete = isDraft || isUnpublished;
+    const canDelete = canDeleteArticle && (isDraft || isUnpublished);
     const normalizedBlogType = typeof blog?.type === "string" ? blog.type.toLowerCase() : "";
     const blogTypeLabel = blogTypes.find((type) => {
         const value = typeof type.value === "string" ? type.value.toLowerCase() : "";
@@ -205,21 +210,23 @@ export const BlogDetailPage = () => {
                     Xem trước
                 </Button>
 
-                <Button
-                    variant="outlined"
-                    startIcon={<Icon icon="solar:pen-bold" width={16} />}
-                    onClick={() => navigate(`/${prefixAdmin}/blog/edit/${id}`)}
-                    sx={{
-                        height: 36, fontWeight: 600, fontSize: "0.875rem", textTransform: "none",
-                        borderRadius: "8px", borderColor: (t) => alpha(t.palette.grey[500], 0.4),
-                        color: "var(--palette-text-primary)",
-                        "&:hover": { borderColor: "var(--palette-text-primary)", bgcolor: (t) => alpha(t.palette.grey[500], 0.08) },
-                    }}
-                >
-                    Chỉnh sửa
-                </Button>
+                {canEdit && (
+                    <Button
+                        variant="outlined"
+                        startIcon={<Icon icon="solar:pen-bold" width={16} />}
+                        onClick={() => navigate(`/${prefixAdmin}/blog/edit/${id}`)}
+                        sx={{
+                            height: 36, fontWeight: 600, fontSize: "0.875rem", textTransform: "none",
+                            borderRadius: "8px", borderColor: (t) => alpha(t.palette.grey[500], 0.4),
+                            color: "var(--palette-text-primary)",
+                            "&:hover": { borderColor: "var(--palette-text-primary)", bgcolor: (t) => alpha(t.palette.grey[500], 0.08) },
+                        }}
+                    >
+                        Chỉnh sửa
+                    </Button>
+                )}
 
-                {(isDraft || isUnpublished) && (
+                {canEdit && (isDraft || isUnpublished) && (
                     <Button
                         variant="outlined"
                         startIcon={<Icon icon="solar:calendar-bold-duotone" width={16} />}
@@ -235,7 +242,7 @@ export const BlogDetailPage = () => {
                     </Button>
                 )}
 
-                {(isDraft || isUnpublished) && (
+                {canEdit && (isDraft || isUnpublished) && (
                     <Button
                         variant="contained"
                         startIcon={<Icon icon="solar:play-circle-bold" width={16} />}
@@ -253,7 +260,7 @@ export const BlogDetailPage = () => {
                     </Button>
                 )}
 
-                {isScheduled && (
+                {canEdit && isScheduled && (
                     <>
                         <Button
                             variant="contained"
@@ -287,7 +294,7 @@ export const BlogDetailPage = () => {
                     </>
                 )}
 
-                {isPublished && (
+                {canEdit && isPublished && (
                     <Button
                         variant="outlined"
                         startIcon={<Icon icon="solar:archive-down-minimlistic-bold-duotone" width={16} />}

@@ -6,7 +6,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useNotifications } from "../../hooks/useNotifications";
 
-type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'bankAccounts' | 'notifications' | 'settings' | 'favorites';
+type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'complaints' | 'bankAccounts' | 'notifications' | 'settings' | 'favorites';
 
 interface TabConfig {
     id: TabId;
@@ -22,6 +22,7 @@ const TABS: TabConfig[] = [
     { id: 'tickets', path: '/profile/tickets', label: 'Vé của tôi', icon: 'fa-solid fa-ticket-simple' },
     { id: 'orders', path: '/profile/orders', label: 'Đơn hàng của tôi', icon: 'fa-solid fa-file-invoice-dollar' },
     { id: 'refunds', path: '/profile/refunds', label: 'Yêu cầu hoàn tiền', icon: 'fa-solid fa-rotate-left' },
+    { id: 'complaints', path: '/profile/complaints', label: 'Khiếu nại / Hỗ trợ', icon: 'fa-solid fa-headset' },
     { id: 'bankAccounts', path: '/profile/bank-accounts', label: 'Tài khoản ngân hàng', icon: 'fa-solid fa-building-columns' },
     { id: 'favorites', path: '/profile/favorites', label: 'Số yêu thích', icon: 'fa-regular fa-star' },
     { id: 'notifications', path: '/profile/notifications', label: 'Thông báo', icon: 'fa-regular fa-bell' },
@@ -185,7 +186,10 @@ export const ProfilePage = () => {
                                     <div className="relative z-10 max-w-[65%]">
                                         <h3 className="text-[14px] font-bold text-[#212B36] mb-1">Bạn cần hỗ trợ?</h3>
                                         <p className="text-[11px] font-medium text-[#637381] mb-3 leading-tight">Đội ngũ của chúng tôi luôn sẵn sàng!</p>
-                                        <button className="bg-transparent border border-[#ee1314] text-[#ee1314] text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-[#ee1314] hover:text-white transition-colors flex items-center gap-1.5 w-max cursor-pointer">
+                                        <button
+                                            onClick={() => navigate('/profile/complaints')}
+                                            className="bg-transparent border border-[#ee1314] text-[#ee1314] text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-[#ee1314] hover:text-white transition-colors flex items-center gap-1.5 w-max cursor-pointer"
+                                        >
                                             <i className="fa-solid fa-headset"></i>
                                             Liên hệ ngay
                                         </button>
