@@ -5,7 +5,7 @@ import { ArrowIcon } from "../../../assets/icons";
 import { NavItem } from "./NavItem";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { useAuthStore } from "../../../../stores/useAuthStore";
-import { USER_ROLES } from "../../../../constants/role.constants";
+import { hasPermission, resolveRoleCode } from "../../../utils/permission.util";
 interface Props {
     title: string;
     data: any[];
@@ -16,23 +16,21 @@ export const NavGroup = memo(({ title, data }: Props) => {
     const { isOpen } = useSidebar();
     const { user } = useAuthStore();
 
-    const roleCode = user?.role?.code || "";
-    const isAdmin = roleCode === USER_ROLES.ADMIN;
-    const isStaff = roleCode.includes('STAFF');
+    const normalizedRole = resolveRoleCode(user);
+    const isStaff = normalizedRole.includes('STAFF');
 
     const filteredData = data.filter(item => {
-        // 1. Check Staff hide flag
         if (isStaff && item.hideIfStaff) return false;
 
-        // 2. Check Item Permission
-        const hasItemAccess = isAdmin || !item.permission || user?.permissions?.includes(item.permission);
+        const hasItemAccess = hasPermission(user, item.permission);
 
-        // 3. Check Children Permissions (if any)
-        const hasAccessibleChildren = item.children?.some((child: any) =>
-            isAdmin || !child.permission || user?.permissions?.includes(child.permission)
-        );
+        const visibleChildren = (item.children || []).filter((child: any) => {
+            if (child.hidden) return false;
+            if (isStaff && child.hideIfStaff) return false;
+            return hasPermission(user, child.permission);
+        });
 
-        return hasItemAccess || hasAccessibleChildren;
+        return hasItemAccess || visibleChildren.length > 0;
     });
 
     const [openGroup, setOpenGroup] = useState(true);
