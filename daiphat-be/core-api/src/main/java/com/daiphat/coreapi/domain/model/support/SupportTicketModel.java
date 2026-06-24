@@ -61,14 +61,33 @@ public class SupportTicketModel {
         });
     }
 
+    public void ensureOperatorCanComment() {
+        if (this.status == TicketStatus.OPEN) {
+            throw new DomainException(ErrorCode.TICKET_OPERATOR_MUST_ASSIGN_FIRST);
+        }
+    }
+
     public static Optional<SupportTicketCommentModel> findLastConversationalComment(
             List<SupportTicketCommentModel> comments) {
         if (comments == null || comments.isEmpty()) {
             return Optional.empty();
         }
-        return comments.stream()
+
+        List<SupportTicketCommentModel> conversational = comments.stream()
                 .filter(comment -> comment.getSenderRole() != TicketCommentSenderRole.SYSTEM)
-                .reduce((first, second) -> second);
+                .toList();
+
+        if (conversational.isEmpty()) {
+            return Optional.empty();
+        }
+
+        boolean allHaveCreatedAt = conversational.stream().allMatch(comment -> comment.getCreatedAt() != null);
+        if (allHaveCreatedAt) {
+            return conversational.stream()
+                    .max(java.util.Comparator.comparing(SupportTicketCommentModel::getCreatedAt));
+        }
+
+        return Optional.of(conversational.get(conversational.size() - 1));
     }
 
     public void recordOperatorComment() {
