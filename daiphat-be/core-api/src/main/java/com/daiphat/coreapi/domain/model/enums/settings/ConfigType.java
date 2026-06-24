@@ -7,9 +7,8 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum ConfigType implements LabeledEnum {
-    SYSTEM("Hệ thống"),
-    BOOKING("Đặt vé / Giao hàng"),
-    PAYMENT("Thanh toán");
+    ORDER_SETTING("Cấu hình đơn hàng"),
+    REFUND_SETTING("Cấu hình hoàn tiền");
 
     private final String label;
 }

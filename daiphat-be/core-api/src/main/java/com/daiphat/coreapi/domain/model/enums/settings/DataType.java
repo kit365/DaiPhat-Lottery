@@ -7,10 +7,8 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum DataType implements LabeledEnum {
-    STRING("Chuỗi"),
-    INTEGER("Số nguyên"),
-    BOOLEAN("Đúng/Sai"),
-    JSON("JSON");
+    INT("Số nguyên"),
+    TIME("Thời gian (HH:mm)");
 
     private final String label;
 }

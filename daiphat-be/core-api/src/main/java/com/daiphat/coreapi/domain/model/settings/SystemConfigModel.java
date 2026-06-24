@@ -23,6 +23,7 @@ public class SystemConfigModel {
     private ConfigType configType;
     private DataType dataType;
     private String description;
+    private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;

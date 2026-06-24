@@ -20,21 +20,21 @@ public class SystemConfigRepositoryAdapter implements SystemConfigRepositoryPort
 
     @Override
     public List<SystemConfigModel> findAll() {
-        return systemConfigRepository.findAllByOrderByConfigTypeAscConfigKeyAsc().stream()
+        return systemConfigRepository.findAllByIsActiveTrueOrderByConfigTypeAscConfigKeyAsc().stream()
                 .map(systemConfigPersistenceMapper::toDomain)
                 .toList();
     }
 
     @Override
     public List<SystemConfigModel> findByConfigType(ConfigType configType) {
-        return systemConfigRepository.findByConfigTypeOrderByConfigKeyAsc(configType).stream()
+        return systemConfigRepository.findByConfigTypeAndIsActiveTrueOrderByConfigKeyAsc(configType).stream()
                 .map(systemConfigPersistenceMapper::toDomain)
                 .toList();
     }
 
     @Override
     public Optional<SystemConfigModel> findById(Long id) {
-        return systemConfigRepository.findById(id)
+        return systemConfigRepository.findByIdAndIsActiveTrue(id)
                 .map(systemConfigPersistenceMapper::toDomain);
     }
 

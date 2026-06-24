@@ -55,6 +55,9 @@ public class SystemConfigEntity {
     @Column(nullable = false, length = 255)
     private String description;
 
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
