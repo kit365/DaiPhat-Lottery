@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
     canOperatorSendComment,
+    sortCommentsByCreatedAt,
     SupportTicketCommentResponse,
     TicketCommentSenderRole,
     TicketStatus,
@@ -28,7 +29,7 @@ export const StaffTimelineChat: React.FC<StaffTimelineChatProps> = ({ ticketId, 
     const { data, isLoading, isError } = useGetStaffTicketComments(ticketId);
     const sendMutation = useSendStaffTicketComment();
 
-    const comments: SupportTicketCommentResponse[] = data?.data ?? [];
+    const comments: SupportTicketCommentResponse[] = sortCommentsByCreatedAt(data?.data ?? []);
     const isTerminal = status === TicketStatus.RESOLVED || status === TicketStatus.CLOSED;
     const canSend = canOperatorSendComment(status, comments);
 
@@ -93,6 +94,10 @@ export const StaffTimelineChat: React.FC<StaffTimelineChatProps> = ({ ticketId, 
                 {isTerminal ? (
                     <p className="text-sm text-gray-500 text-center italic">
                         Yêu cầu đã kết thúc. Không thể gửi thêm tin nhắn.
+                    </p>
+                ) : status === TicketStatus.OPEN ? (
+                    <p className="text-sm text-gray-600 text-center">
+                        Vui lòng tiếp nhận ticket trước khi trả lời khách hàng
                     </p>
                 ) : !canSend ? (
                     <p className="text-sm text-gray-600 text-center">
