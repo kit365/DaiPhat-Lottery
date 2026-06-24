@@ -1,0 +1,35 @@
+export enum ConfigType {
+    ORDER_SETTING = 'ORDER_SETTING',
+    REFUND_SETTING = 'REFUND_SETTING',
+}
+
+export enum ConfigDataType {
+    INT = 'INT',
+    TIME = 'TIME',
+}
+
+export const CONFIG_TYPE_LABELS: Record<ConfigType, string> = {
+    [ConfigType.ORDER_SETTING]: 'Cấu hình đơn hàng',
+    [ConfigType.REFUND_SETTING]: 'Cấu hình hoàn tiền',
+};
+
+export const CONFIG_DATA_TYPE_LABELS: Record<ConfigDataType, string> = {
+    [ConfigDataType.INT]: 'Số nguyên',
+    [ConfigDataType.TIME]: 'Thời gian (HH:mm)',
+};
+
+export interface SystemConfigResponse {
+    id: number;
+    configKey: string;
+    configValue: string;
+    configType: ConfigType;
+    dataType: ConfigDataType;
+    description: string;
+    updatedAt: string;
+    updatedBy: string;
+}
+
+export interface UpdateSystemConfigRequest {
+    configValue: string;
+    description: string;
+}

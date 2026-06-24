@@ -3,7 +3,6 @@ package com.daiphat.coreapi.shared.util;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.settings.DataType;
-import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -16,66 +15,40 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SystemConfigValueValidatorTest {
 
     @Test
-    void parse_string_returnsTrimmedValue() {
-        Object result = SystemConfigValueValidator.parse("  hello  ", DataType.STRING);
-
-        assertThat(result).isEqualTo("hello");
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"", "   ", "\t"})
-    void parse_string_rejectsBlank(String value) {
-        assertThatThrownBy(() -> SystemConfigValueValidator.parse(value, DataType.STRING))
-                .isInstanceOf(DomainException.class)
-                .extracting(ex -> ((DomainException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
-    }
-
-    @Test
-    void parse_integer_returnsInteger() {
-        Object result = SystemConfigValueValidator.parse("42", DataType.INTEGER);
+    void parse_int_returnsInteger() {
+        Object result = SystemConfigValueValidator.parse("42", DataType.INT);
 
         assertThat(result).isEqualTo(42);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"abc", "12.5", ""})
-    void parse_integer_rejectsInvalidValues(String value) {
-        assertThatThrownBy(() -> SystemConfigValueValidator.parse(value, DataType.INTEGER))
+    void parse_int_rejectsInvalidValues(String value) {
+        assertThatThrownBy(() -> SystemConfigValueValidator.parse(value, DataType.INT))
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"true", "TRUE", " false ", "False"})
-    void parse_boolean_acceptsTrueFalse(String value) {
-        Object result = SystemConfigValueValidator.parse(value, DataType.BOOLEAN);
+    @ValueSource(strings = {"14:30", "9:05", "23:59"})
+    void parse_time_acceptsValidValues(String value) {
+        Object result = SystemConfigValueValidator.parse(value, DataType.TIME);
 
-        assertThat(result).isInstanceOf(Boolean.class);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"yes", "1", "on"})
-    void parse_boolean_rejectsInvalidValues(String value) {
-        assertThatThrownBy(() -> SystemConfigValueValidator.parse(value, DataType.BOOLEAN))
-                .isInstanceOf(DomainException.class)
-                .extracting(ex -> ((DomainException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+        assertThat(result).isInstanceOf(String.class);
     }
 
     @Test
-    void parse_json_returnsJsonNode() {
-        Object result = SystemConfigValueValidator.parse("{\"phone\":\"1900\"}", DataType.JSON);
+    void parse_time_normalizesToHourMinuteFormat() {
+        Object result = SystemConfigValueValidator.parse("9:05", DataType.TIME);
 
-        assertThat(result).isInstanceOf(JsonNode.class);
-        assertThat(((JsonNode) result).get("phone").asText()).isEqualTo("1900");
+        assertThat(result).isEqualTo("09:05");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"{invalid}", "not-json"})
-    void parse_json_rejectsInvalidValues(String value) {
-        assertThatThrownBy(() -> SystemConfigValueValidator.parse(value, DataType.JSON))
+    @ValueSource(strings = {"25:00", "14:60", "abc", "14-30"})
+    void parse_time_rejectsInvalidValues(String value) {
+        assertThatThrownBy(() -> SystemConfigValueValidator.parse(value, DataType.TIME))
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
@@ -83,6 +56,6 @@ class SystemConfigValueValidatorTest {
 
     @Test
     void validate_delegatesToParse() {
-        SystemConfigValueValidator.validate("15", DataType.INTEGER);
+        SystemConfigValueValidator.validate("30", DataType.INT);
     }
 }

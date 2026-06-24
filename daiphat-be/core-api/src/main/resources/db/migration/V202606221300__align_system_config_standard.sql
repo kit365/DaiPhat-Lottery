@@ -1,3 +1,11 @@
+DELETE FROM system_config
+WHERE config_key IN (
+    'ORDER_PAYMENT_TIMEOUT_MINUTES',
+    'DELIVERY_RADIUS_KM',
+    'MAINTENANCE_MODE',
+    'SUPPORT_CONTACT_JSON'
+);
+
 INSERT INTO system_config (config_key, config_value, config_type, data_type, description)
 VALUES
     ('ORDER_CANCEL_GRACE_MIN', '30', 'ORDER_SETTING', 'INT', 'Thời gian ân hạn hủy đơn (phút)'),
