@@ -171,6 +171,7 @@ export const AdminRoutes = [
     { path: "settings/system-config/list", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><SystemConfigListPage /></PermissionGuard> },
     { path: "chat", element: <ChatPage /> },
     { path: "review", element: <ReviewListPage /> },
+    { path: "*", element: <Navigate to="/admin/dashboard" replace /> },
 
 ];
 
