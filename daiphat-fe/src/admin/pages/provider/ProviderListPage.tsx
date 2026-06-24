@@ -11,6 +11,8 @@ import { useProviderList } from "./hooks/useProviderList";
 import { toast } from 'react-toastify';
 import { SyncProviderModal } from './sections/SyncProviderModal';
 import { useState } from 'react';
+import { PermissionGuard } from "../../components/auth/PermissionGuard";
+import { PERMISSIONS } from "../../constants/permission.constants";
 
 export const ProviderListPage = () => {
     const navigate = useNavigate();
@@ -31,32 +33,36 @@ export const ProviderListPage = () => {
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
-                    <Button
-                        onClick={() => setIsSyncModalOpen(true)}
-                        variant="contained"
-                        startIcon={<SyncIcon />}
-                        sx={{
-                            minHeight: "2.25rem",
-                            padding: "6px 16px",
-                            textTransform: "none",
-                            fontWeight: 600,
-                            background: "var(--palette-grey-800)",
-                            "&:hover": {
-                                background: "var(--palette-grey-700)"
-                            }
-                        }}
-                    >
-                        Đồng bộ đài
-                    </Button>
-                    <LoadingButton
-                        onClick={() => navigate(`/${prefixAdmin}/provider/create`)}
-                        label="Thêm nhà đài"
-                        startIcon={<AddIcon />}
-                        sx={{
-                            minHeight: "2.25rem",
-                            padding: "var(--shape-borderRadius-sm) calc(2 * var(--spacing))",
-                        }}
-                    />
+                    <PermissionGuard permission={PERMISSIONS.PROVIDER.SYNC}>
+                        <Button
+                            onClick={() => setIsSyncModalOpen(true)}
+                            variant="contained"
+                            startIcon={<SyncIcon />}
+                            sx={{
+                                minHeight: "2.25rem",
+                                padding: "6px 16px",
+                                textTransform: "none",
+                                fontWeight: 600,
+                                background: "var(--palette-grey-800)",
+                                "&:hover": {
+                                    background: "var(--palette-grey-700)"
+                                }
+                            }}
+                        >
+                            Đồng bộ đài
+                        </Button>
+                    </PermissionGuard>
+                    <PermissionGuard permission={PERMISSIONS.PROVIDER.CREATE}>
+                        <LoadingButton
+                            onClick={() => navigate(`/${prefixAdmin}/provider/create`)}
+                            label="Thêm nhà đài"
+                            startIcon={<AddIcon />}
+                            sx={{
+                                minHeight: "2.25rem",
+                                padding: "var(--shape-borderRadius-sm) calc(2 * var(--spacing))",
+                            }}
+                        />
+                    </PermissionGuard>
                 </div>
             </div>
             <ProviderList providerHook={providerHook} />

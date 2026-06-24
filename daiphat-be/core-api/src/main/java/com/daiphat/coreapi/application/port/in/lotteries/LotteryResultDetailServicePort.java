@@ -3,10 +3,12 @@ package com.daiphat.coreapi.application.port.in.lotteries;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryResultSourceItem;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryResultDetailRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryResultDetailRequest;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryWinningCheckResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultDetailResponse;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryResultDetailModel;
 import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,6 +36,7 @@ public interface LotteryResultDetailServicePort {
             List<PrizeStructureModel> prizeStructures
     );
 
+    LotteryWinningCheckResponse checkWinning(Long stationId, LocalDate drawDate, String ticketNumber);
 
     Optional<LotteryResultDetailModel> findModelById(Long id);
 }
