@@ -9,6 +9,8 @@ import { toast } from "react-toastify";
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import { confirmDelete } from "../../../utils/swal";
+import { usePermissions } from "../../../hooks/usePermission";
+import { PERMISSIONS } from "../../../constants/permission.constants";
 
 dayjs.locale('vi');
 interface RenderCreatedAtCellProps {
@@ -153,9 +155,13 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 }
 
 // Actions
-export const getRenderActionsCell = (_isTrash: boolean) => (params: GridRenderCellParams) => {
+export const BlogCategoryActionsCell = (_isTrash: boolean) => (params: GridRenderCellParams) => {
     const navigate = useNavigate();
     const { mutate: deleteCategory } = useDeleteBlogCategory();
+    const { can, canAny } = usePermissions();
+    const canEdit = can(PERMISSIONS.ARTICLE.EDIT);
+    const canDelete = can(PERMISSIONS.ARTICLE.DELETE);
+    const showActionsMenu = canAny([PERMISSIONS.ARTICLE.EDIT, PERMISSIONS.ARTICLE.DELETE]);
     const _id = params.row._id || params.row.id;
 
     const handleEdit = () => {
@@ -177,6 +183,27 @@ export const getRenderActionsCell = (_isTrash: boolean) => (params: GridRenderCe
         });
     };
 
+    if (!showActionsMenu) {
+        return (
+            <GridActionsCell {...params}>
+                <GridActionsCellItem
+                    icon={<EyeIcon />}
+                    label="Chi tiết"
+                    showInMenu
+                    {...({
+                        sx: {
+                            '& .MuiTypography-root': {
+                                fontSize: '0.8125rem',
+                                fontWeight: "600"
+                            },
+                        },
+                    } as any)}
+                    onClick={() => navigate(`/${prefixAdmin}/blog-category/detail/${_id}`)}
+                />
+            </GridActionsCell>
+        );
+    }
+
     return (
         <GridActionsCell {...params}>
             <GridActionsCellItem
@@ -193,6 +220,7 @@ export const getRenderActionsCell = (_isTrash: boolean) => (params: GridRenderCe
                 } as any)}
                 onClick={() => navigate(`/${prefixAdmin}/blog-category/detail/${_id}`)}
             />
+            {canEdit && (
             <GridActionsCellItem
                 icon={<EditIcon />}
                 label="Chỉnh sửa"
@@ -207,6 +235,8 @@ export const getRenderActionsCell = (_isTrash: boolean) => (params: GridRenderCe
                 } as any)}
                 onClick={handleEdit}
             />
+            )}
+            {canDelete && (
             <GridActionsCellItem
                 icon={<DeleteIcon />}
                 label="Xóa"
@@ -222,9 +252,12 @@ export const getRenderActionsCell = (_isTrash: boolean) => (params: GridRenderCe
                 } as any)}
                 onClick={handleDelete}
             />
+            )}
         </GridActionsCell>
     );
 }
+
+export const getRenderActionsCell = BlogCategoryActionsCell;
 
 
 
