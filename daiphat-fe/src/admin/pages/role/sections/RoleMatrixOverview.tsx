@@ -161,6 +161,20 @@ export const RoleMatrixOverview = () => {
         }
     }, [flatPermissions, isReorderMode]);
 
+    // Expand all modules by default on load
+    useEffect(() => {
+        if (flatPermissions.length > 0) {
+            setExpandedModules(prev => {
+                if (Object.keys(prev).length > 0) return prev;
+                const next: Record<string, boolean> = {};
+                flatPermissions.forEach(p => {
+                    next[p.moduleName] = true;
+                });
+                return next;
+            });
+        }
+    }, [flatPermissions]);
+
     useEffect(() => {
         if (roles.length > 0) {
             const initial: Record<string, string[]> = {};

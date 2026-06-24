@@ -43,7 +43,7 @@ public class TransactionController {
     private final OrderApplicationMapper orderApplicationMapper;
 
     @PostMapping(ORDER_ID_PATH + PAYMENT_PATH)
-    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', '" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:create', 'order:edit')")
     public ApiResponse<PaymentResult> processPayment(
             @PathVariable UUID orderId,
             @Valid @RequestBody ProcessPaymentRequest request) {
@@ -53,7 +53,7 @@ public class TransactionController {
     }
 
     @GetMapping(ORDER_ID_PATH + PAYMENT_PATH + "/countdown")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:view')")
     public ApiResponse<PendingPaymentCountdownResult> getPendingPaymentCountdown(@PathVariable UUID orderId) {
         return ApiResponse.success(
                 "Lấy thời gian thanh toán còn lại thành công.",
@@ -62,7 +62,7 @@ public class TransactionController {
     }
 
     @PostMapping(ORDER_ID_PATH + PAYMENT_PATH + "/cancel")
-    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', '" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:edit')")
     public ApiResponse<OrderResponse> cancelPayment(
             @PathVariable UUID orderId,
             @Valid @RequestBody CancelPaymentRequest request) {
@@ -72,7 +72,7 @@ public class TransactionController {
     }
 
     @PatchMapping(ORDER_ID_PATH + PAYMENT_PATH + "/success")
-    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', '" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:edit')")
     public ApiResponse<OrderResponse> handleOnlinePaymentSuccess(
             @PathVariable UUID orderId,
             @Valid @RequestBody HandleOnlinePaymentSuccessRequest request) {
@@ -82,7 +82,7 @@ public class TransactionController {
     }
 
     @PatchMapping(ORDER_ID_PATH + PAYMENT_PATH + "/failure")
-    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', '" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:edit')")
     public ApiResponse<OrderResponse> handleOnlinePaymentFailure(
             @PathVariable UUID orderId,
             @Valid @RequestBody HandleOnlinePaymentFailureRequest request) {
@@ -105,7 +105,7 @@ public class TransactionController {
     }
 
     @PatchMapping(ORDER_ID_PATH + "/collect-cash")
-    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_STAFF_OPERATOR + "', '" + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAuthority('order:edit')")
     public ApiResponse<OrderResponse> collectDirectOrderCash(
             @PathVariable UUID orderId,
             @Valid @RequestBody CollectDirectOrderCashRequest request,
@@ -116,13 +116,13 @@ public class TransactionController {
     }
 
     @GetMapping("/types")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:view')")
     public ApiResponse<List<EnumOptionResponse>> getTransactionTypes() {
         return ApiResponse.success("Lấy danh sách hình thức thanh toán thành công.", transactionServicePort.getTransactionTypes());
     }
 
     @GetMapping("/statuses")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:view')")
     public ApiResponse<List<EnumOptionResponse>> getTransactionStatuses() {
         return ApiResponse.success("Lấy danh sách trạng thái giao dịch thành công.", transactionServicePort.getTransactionStatuses());
     }

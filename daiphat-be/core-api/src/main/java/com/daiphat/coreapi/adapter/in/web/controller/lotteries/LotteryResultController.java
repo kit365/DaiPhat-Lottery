@@ -17,6 +17,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultBoard
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultBoardSummaryResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultFullBoardResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryWinningCheckResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryResultDetailServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryResultSourceServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryResultServicePort;
@@ -59,7 +60,7 @@ public class LotteryResultController {
     private final LotteryResultSourceServicePort lotteryResultSourceServicePort;
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:create', 'ticket:create')")
     @Operation(
             summary = "Tao ket qua xo so thu cong",
             description = "Dung cho back-office khi can tao row ket qua thu cong. Thuong phase hien tai uu tien dung API live/summary/sync hon."
@@ -69,7 +70,7 @@ public class LotteryResultController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:view', 'ticket:view')")
     @Operation(
             summary = "Lay danh sach ket qua xo so",
             description = "API phan trang de xem danh sach row ket qua da luu trong DB."
@@ -121,7 +122,7 @@ public class LotteryResultController {
     }
 
     @GetMapping("/management/board")
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:view', 'ticket:view')")
     @Operation(
             summary = "Lay full board ket qua cho man quan tri",
             description = """
@@ -134,7 +135,7 @@ public class LotteryResultController {
                     - region: MIEN_NAM
                     - source: MINH_NGOC
                     
-                    API nay can token co quyen ticket:view.
+                    API nay can token co quyen lotteryResult:view hoac ticket:view.
                     """
     )
     public ApiResponse<ManagementLotteryResultBoardResponse> getManagementBoard(
@@ -209,8 +210,32 @@ public class LotteryResultController {
         );
     }
 
+    @GetMapping("/check")
+    @JsonView(Views.Public.class)
+    @Operation(
+            summary = "Tra cứu kết quả trúng thưởng (public)",
+            description = """
+                    API public dò số nhanh để kiểm tra một vé có trúng hay không.
+                    Nhập stationId, drawDate và ticketNumber.
+                    API trả về trạng thái kết quả hiện tại của kỳ quay, tổng tiền trúng và danh sách giải trúng nếu có.
+                    """
+    )
+    public ApiResponse<LotteryWinningCheckResponse> checkWinning(
+            @Parameter(description = "ID nhà đài", example = "1")
+            @RequestParam Long stationId,
+            @Parameter(description = "Ngày quay số theo định dạng YYYY-MM-DD", example = "2026-06-20")
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate,
+            @Parameter(description = "Số vé cần dò (5 hoặc 6 chữ số)", example = "123456")
+            @RequestParam String ticketNumber
+    ) {
+        return ApiResponse.success(
+                null,
+                lotteryResultDetailServicePort.checkWinning(stationId, drawDate, ticketNumber)
+        );
+    }
+
     @GetMapping("/preview")
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:view', 'ticket:view')")
     @Operation(
             summary = "Preview nguon crawl ket qua",
             description = """
@@ -237,14 +262,14 @@ public class LotteryResultController {
     }
 
     @GetMapping(ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:view', 'ticket:view')")
     @Operation(summary = "Lay 1 ket qua xo so theo id")
     public ApiResponse<LotteryResultResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(null, lotteryResultServicePort.getById(id));
     }
 
     @PutMapping(ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:edit', 'ticket:edit')")
     @Operation(summary = "Cap nhat ket qua xo so thu cong")
     public ApiResponse<LotteryResultResponse> update(
             @PathVariable Long id,
@@ -253,7 +278,7 @@ public class LotteryResultController {
     }
 
     @PostMapping(ID_PATH + "/resync")
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:sync', 'ticket:edit')")
     @Operation(
             summary = "Dong bo lai 1 ket qua xo so",
             description = """
@@ -279,7 +304,7 @@ public class LotteryResultController {
     }
 
     @DeleteMapping(ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:delete')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:delete', 'ticket:delete')")
     @Operation(summary = "Xoa 1 ket qua xo so")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         lotteryResultServicePort.delete(id);
@@ -287,14 +312,14 @@ public class LotteryResultController {
     }
 
     @GetMapping(DETAIL_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:view', 'ticket:view')")
     @Operation(summary = "Lay danh sach detail cua 1 ket qua")
     public ApiResponse<List<LotteryResultDetailResponse>> getDetails(@PathVariable("id") Long lotteryResultId) {
         return ApiResponse.success(null, lotteryResultDetailServicePort.getByLotteryResultId(lotteryResultId));
     }
 
     @GetMapping(DETAIL_ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:view', 'ticket:view')")
     @Operation(summary = "Lay 1 detail cua ket qua")
     public ApiResponse<LotteryResultDetailResponse> getDetail(
             @PathVariable("id") Long lotteryResultId,
@@ -303,7 +328,7 @@ public class LotteryResultController {
     }
 
     @PostMapping(DETAIL_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:create', 'ticket:create')")
     @Operation(summary = "Tao 1 dong detail cho ket qua")
     public ApiResponse<LotteryResultDetailResponse> createDetail(
             @PathVariable("id") Long lotteryResultId,
@@ -315,7 +340,7 @@ public class LotteryResultController {
     }
 
     @PutMapping(DETAIL_ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:edit', 'ticket:edit')")
     @Operation(summary = "Cap nhat 1 dong detail cua ket qua")
     public ApiResponse<LotteryResultDetailResponse> updateDetail(
             @PathVariable("id") Long lotteryResultId,
@@ -328,7 +353,7 @@ public class LotteryResultController {
     }
 
     @DeleteMapping(DETAIL_ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:delete')")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:delete', 'ticket:delete')")
     @Operation(summary = "Xoa 1 dong detail cua ket qua")
     public ApiResponse<Void> deleteDetail(
             @PathVariable("id") Long lotteryResultId,

@@ -292,3 +292,45 @@ export const mergeResultWithLiveDetails = (
     stationId: result.stationId ?? detailed.stationId,
   };
 };
+
+export interface PrizeStructureResponse {
+  id: number;
+  regionId: number;
+  regionCode: string;
+  prizeLevel: string;
+  prizeDisplayName: string;
+  prizeCode: string;
+  description?: string | null;
+  prizeValue: number;
+  quantity: number;
+  matchDigits?: number | null;
+  matchFrom: string;
+  matchFromDisplayName: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface TicketMatchedPrize {
+  prizeLevel: string;
+  prizeDisplayName: string;
+  prizeCode: string;
+  prizeValue: number;
+  matchDigits: number;
+  matchFrom: string;
+  matchFromDisplayName: string;
+  winningNumber: string;
+}
+
+export interface TicketCheckResult {
+  resultId: number;
+  stationId: number;
+  stationName: string;
+  drawDate: string;
+  ticketNumber: string;
+  resultStatus: string;
+  resultAvailable: boolean;
+  canCheck: boolean;
+  winning: boolean;
+  totalWinningAmount: number;
+  matchedPrizes: TicketMatchedPrize[];
+}
