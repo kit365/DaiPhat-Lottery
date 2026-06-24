@@ -69,6 +69,42 @@ function App() {
     <BrowserRouter>
       <AuthInitializer />
       <Routes>
+        {/* Admin routes first so /admin/* is never captured by the client catch-all */}
+        <Route path={ROUTES.ADMIN.ROOT}>
+          <Route element={<AdminThemeLayout />}>
+            {/* Admin Auth (Login/Forgot password in Admin Context) */}
+            {AdminAuthRoutes.map(({ path, element }: any) => (
+              <Route
+                key={path}
+                path={path}
+                element={<GuestGuard>{element}</GuestGuard>}
+              />
+            ))}
+
+            {/* Admin Authenticated Areas */}
+            <Route element={<AuthGuard />}>
+              <Route element={<LayoutAdmin />}>
+                {AdminRoutes.map(({ path, element, index }: any) => (
+                  <Route
+                    key={path || (index ? "index" : "unknown")}
+                    path={path}
+                    index={index}
+                    element={element}
+                  />
+                ))}
+              </Route>
+            </Route>
+
+            {/* Common Routes inside Admin Context */}
+            <Route path="auth/callback" element={<OAuthCallbackPage />} />
+            <Route path="accept-invite" element={<AcceptInvitePage />} />
+
+            <Route element={<AuthGuard />}>
+              <Route path="setup-profile" element={<ProfileSetupPage />} />
+            </Route>
+          </Route>
+        </Route>
+
         {/* Client Side Theme Context */}
         <Route element={<ClientThemeLayout />}>
           <Route path="/" element={<HomePage />} />
@@ -114,45 +150,6 @@ function App() {
             <Route index element={<ProfileDashboardPage />} />
           </Route>
 
-          <Route path="*" element={<NotFoundPage />} />
-
-        </Route>
-
-        {/* Admin Side Theme Context */}
-        <Route path={ROUTES.ADMIN.ROOT}>
-          <Route element={<AdminThemeLayout />}>
-            {/* Admin Auth (Login/Forgot password in Admin Context) */}
-            {AdminAuthRoutes.map(({ path, element }: any) => (
-              <Route
-                key={path}
-                path={path}
-                element={<GuestGuard>{element}</GuestGuard>}
-              />
-            ))}
-
-            {/* Admin Authenticated Areas */}
-            <Route element={<AuthGuard><LayoutAdmin /></AuthGuard>}>
-              {AdminRoutes.map(({ path, element, index }: any) => (
-                <Route
-                  key={path || (index ? "index" : "unknown")}
-                  path={path}
-                  index={index}
-                  element={element}
-                />
-              ))}
-            </Route>
-
-            {/* Common Routes inside Admin Context */}
-            {/* 1. Unguarded Common Routes (Callback) */}
-            <Route path="auth/callback" element={<OAuthCallbackPage />} />
-            <Route path="accept-invite" element={<AcceptInvitePage />} />
-
-            {/* 2. Guarded Common Routes (Setup Profile) */}
-            <Route element={<AuthGuard><Outlet /></AuthGuard>}>
-              <Route path="setup-profile" element={<ProfileSetupPage />} />
-              {/* Add other guarded common routes here if needed */}
-            </Route>
-          </Route>
         </Route>
 
         {/* Global Fallback */}

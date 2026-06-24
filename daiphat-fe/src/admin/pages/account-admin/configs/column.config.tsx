@@ -13,6 +13,7 @@ export const getColumnsConfig = (
     onEdit: (id: string) => void,
     onDelete: (id: string) => void,
     onView: (id: string) => void,
+    permissions: { canEdit?: boolean; canDelete?: boolean; canView?: boolean },
     page: number,
     pageSize: number
 ): GridColDef[] => [
@@ -118,36 +119,59 @@ export const getColumnsConfig = (
             headerName: '',
             width: 80,
             align: 'right',
-            getActions: (params) => [
-                <GridActionsCellItem
-                    key="edit-inline"
-                    icon={<EditIcon sx={{ fontSize: '20px !important' }} />}
-                    label="Chỉnh sửa"
-                    onClick={() => onEdit(params.id as string)}
-                    sx={{ width: 36, height: 36, '& .MuiSvgIcon-root': { fontSize: '20px !important' } }}
-                />,
-                <GridActionsCellItem
-                    key="view"
-                    icon={<VisibilityIcon sx={{ fontSize: 20 }} />}
-                    label="Chi tiết"
-                    onClick={() => onView(params.id as string)}
-                    showInMenu
-                />,
-                <GridActionsCellItem
-                    key="edit"
-                    icon={<EditIcon sx={{ fontSize: 20 }} />}
-                    label="Chỉnh sửa"
-                    onClick={() => onEdit(params.id as string)}
-                    showInMenu
-                />,
-                <GridActionsCellItem
-                    key="delete"
-                    icon={<DeleteIcon sx={{ fontSize: 20, color: 'var(--palette-error-main)' }} />}
-                    label="Xóa"
-                    onClick={() => onDelete(params.id as string)}
-                    showInMenu
-                />,
-            ],
+            getActions: (params) => {
+                const actions: React.ReactElement[] = [];
+                
+                if (permissions.canEdit) {
+                    actions.push(
+                        <GridActionsCellItem
+                            key="edit-inline"
+                            icon={<EditIcon sx={{ fontSize: '20px !important' }} />}
+                            label="Chỉnh sửa"
+                            onClick={() => onEdit(params.id as string)}
+                            sx={{ width: 36, height: 36, '& .MuiSvgIcon-root': { fontSize: '20px !important' } }}
+                        />
+                    );
+                }
+                
+                if (permissions.canView) {
+                    actions.push(
+                        <GridActionsCellItem
+                            key="view"
+                            icon={<VisibilityIcon sx={{ fontSize: 20 }} />}
+                            label="Chi tiết"
+                            onClick={() => onView(params.id as string)}
+                            showInMenu
+                        />
+                    );
+                }
+                
+                if (permissions.canEdit) {
+                    actions.push(
+                        <GridActionsCellItem
+                            key="edit"
+                            icon={<EditIcon sx={{ fontSize: 20 }} />}
+                            label="Chỉnh sửa"
+                            onClick={() => onEdit(params.id as string)}
+                            showInMenu
+                        />
+                    );
+                }
+                
+                if (permissions.canDelete) {
+                    actions.push(
+                        <GridActionsCellItem
+                            key="delete"
+                            icon={<DeleteIcon sx={{ fontSize: 20, color: 'var(--palette-error-main)' }} />}
+                            label="Xóa"
+                            onClick={() => onDelete(params.id as string)}
+                            showInMenu
+                        />
+                    );
+                }
+
+                return actions;
+            },
         },
     ];
 

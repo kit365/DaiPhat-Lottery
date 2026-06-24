@@ -8,6 +8,8 @@ import { Title } from "../../components/ui/Title";
 import { prefixAdmin } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { TicketAttributeList } from "./sections/TicketAttributeList";
+import { CanAccess } from "../../components/auth/CanAccess";
+import { PERMISSIONS } from "../../constants/permission.constants";
 
 export const TicketAttributeListPage = () => {
     const navigate = useNavigate();
@@ -50,6 +52,7 @@ export const TicketAttributeListPage = () => {
                     {isTrash ? "Quay lại" : "Thùng rác"}
                 </Button>
                 {!isTrash && (
+                    <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
                     <Button
                         onClick={() => navigate(`/${prefixAdmin}/ticket/attribute/create`)}
                         sx={{
@@ -72,6 +75,7 @@ export const TicketAttributeListPage = () => {
                     >
                         Thêm thông số
                     </Button>
+                    </CanAccess>
                 )}
             </div>
 
