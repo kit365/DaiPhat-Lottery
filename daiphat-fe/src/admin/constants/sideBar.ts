@@ -94,6 +94,13 @@ export const menuManagementData = [
         ]
     },
     {
+        id: "support-tickets",
+        label: "Khiếu nại / Hỗ trợ",
+        Icon: ChatIcon,
+        path: ROUTES.ADMIN.SUPPORT_TICKETS.LIST,
+        permission: PERMISSIONS.SUPPORT_TICKET.VIEW,
+    },
+    {
         id: "prize-structure",
         label: "Cơ cấu giải",
         Icon: EmojiEventsIcon,
