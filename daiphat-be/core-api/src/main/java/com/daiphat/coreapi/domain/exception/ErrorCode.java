@@ -196,6 +196,24 @@ public enum ErrorCode {
     STREET_AGENT_PROFILE_INVALID_STATUS("SAG_004", "Trạng thái hồ sơ không hợp lệ.", HttpStatus.BAD_REQUEST),
     STREET_AGENT_PROFILE_INVALID_CONTRACT_DATE("SAG_005", "Ngày kết thúc hợp đồng phải sau ngày bắt đầu.", HttpStatus.BAD_REQUEST),
 
+    // Support Ticket Errors
+    TICKET_NOT_FOUND("TKT_001", "Yêu cầu hỗ trợ không tồn tại.", HttpStatus.NOT_FOUND),
+    TICKET_ACCESS_DENIED("TKT_002", "Bạn không có quyền truy cập yêu cầu hỗ trợ này.", HttpStatus.FORBIDDEN),
+    TICKET_CATEGORY_NOT_FOUND("TKT_003", "Danh mục yêu cầu hỗ trợ không tồn tại.", HttpStatus.NOT_FOUND),
+    TICKET_INVALID_STATUS("TKT_004", "Trạng thái yêu cầu hỗ trợ không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_UPDATE("TKT_005", "Không thể cập nhật yêu cầu hỗ trợ ở trạng thái hiện tại.", HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_CLOSE("TKT_006", "Chỉ có thể đóng yêu cầu hỗ trợ đang ở trạng thái mới tạo.", HttpStatus.BAD_REQUEST),
+    TICKET_REF_REQUIRED("TKT_007", "Danh mục này yêu cầu chọn đối tượng tham chiếu.", HttpStatus.BAD_REQUEST),
+    TICKET_REF_INVALID("TKT_008", "Đối tượng tham chiếu không hợp lệ.", HttpStatus.BAD_REQUEST),
+    TICKET_REF_ORDER_MISMATCH("TKT_009", "Đơn hàng không thuộc tài khoản của bạn.", HttpStatus.BAD_REQUEST),
+    TICKET_ATTACHMENT_ONLY_ALLOWED("TKT_010", "Ở trạng thái chờ phản hồi, chỉ được cập nhật tệp đính kèm.", HttpStatus.BAD_REQUEST),
+    TICKET_COMMENT_NOT_ALLOWED("TKT_011", "Không thể gửi tin nhắn khi yêu cầu đã được giải quyết hoặc đã đóng.", HttpStatus.BAD_REQUEST),
+    TICKET_COMMENT_TURN_VIOLATION("TKT_012", "Vui lòng chờ phản hồi từ bên còn lại trước khi gửi tin nhắn mới.", HttpStatus.BAD_REQUEST),
+    TICKET_COMMENT_CONTENT_INVALID("TKT_013", "Nội dung tin nhắn không được để trống.", HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_ASSIGN("TKT_014", "Chỉ có thể tiếp nhận yêu cầu hỗ trợ đang ở trạng thái mới tạo.", HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_RESOLVE("TKT_015", "Không thể giải quyết yêu cầu hỗ trợ ở trạng thái hiện tại.", HttpStatus.BAD_REQUEST),
+    TICKET_RESOLUTION_INVALID("TKT_016", "Nội dung phương án giải quyết không được để trống.", HttpStatus.BAD_REQUEST),
+
     // System Config Errors
     SYSTEM_CONFIG_NOT_FOUND("CFG_001", "Cấu hình hệ thống không tồn tại.", HttpStatus.NOT_FOUND),
     SYSTEM_CONFIG_VALUE_INVALID("CFG_002", "Giá trị cấu hình không hợp lệ với kiểu dữ liệu.", HttpStatus.BAD_REQUEST),
