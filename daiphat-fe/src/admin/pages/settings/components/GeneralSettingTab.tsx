@@ -7,6 +7,7 @@ import { settingGeneralSchema, SettingGeneralFormValues } from "../../../schemas
 import { useSettingGeneral, useUpdateSettingGeneral } from "../hooks/useSettings";
 import { useEffect } from "react";
 import { FormUploadSingleFile } from "../../../components/upload/FormUploadSingleFile";
+import { ROUTES } from "../../../constants/routes";
 
 export const GeneralSettingTab = () => {
     const { data: generalData, isLoading: isSettingsLoading } = useSettingGeneral();
@@ -183,7 +184,7 @@ export const GeneralSettingTab = () => {
                                 <Button
                                     variant="contained"
                                     component={Link}
-                                    to="/admin/settings/ticketSubtype/list"
+                                    to={ROUTES.ADMIN.DASHBOARD.SETTINGS.TICKET_SUBTYPE}
                                     startIcon={<Icon icon="eva:list-fill" />}
                                     sx={{ background: "#1C252E", "&:hover": { background: "#454F5B" } }}
                                 >
