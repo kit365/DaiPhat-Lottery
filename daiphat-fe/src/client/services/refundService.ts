@@ -1,16 +1,26 @@
 import { apiApp } from '../../api';
 import { ApiResponse, EnumOptionResponse, PageResponse } from '../../types/api.type';
 import {
+    CreateOrderRefundRequest,
     CreateRefundRequestRequest,
     GetMyRefundsParams,
     RefundRequestResponse
 } from '../../types/refund.type';
 
 const BASE_URL = '/refund-requests';
+const ORDERS_URL = '/orders';
 
 export const refundService = {
     create: async (data: CreateRefundRequestRequest): Promise<ApiResponse<RefundRequestResponse>> => {
         const response = await apiApp.post(BASE_URL, data);
+        return response.data;
+    },
+
+    createOrderRefund: async (
+        orderId: string,
+        data: CreateOrderRefundRequest
+    ): Promise<ApiResponse<RefundRequestResponse>> => {
+        const response = await apiApp.post(`${ORDERS_URL}/${orderId}/refund`, data);
         return response.data;
     },
 

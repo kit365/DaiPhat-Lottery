@@ -17,3 +17,7 @@ export function normalizeOrderStatus(status: unknown): OrderStatus | null {
 export function isOrderPreparing(status: unknown): boolean {
     return normalizeOrderStatus(status) === OrderStatus.PREPARING;
 }
+
+export function isOrderPaid(status: unknown): boolean {
+    return normalizeOrderStatus(status) === OrderStatus.PAID;
+}

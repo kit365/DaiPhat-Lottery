@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { refundService } from '../services/refundService';
-import { CreateRefundRequestRequest, GetMyRefundsParams } from '../../types/refund.type';
+import { orderService } from '../services/orderService';
+import { CreateOrderRefundRequest, CreateRefundRequestRequest, GetMyRefundsParams } from '../../types/refund.type';
 import { AppToast as toast } from '../utils/toast.util';
 import { QUERY_KEYS } from '../../constants/queryKeys';
 
@@ -53,6 +54,37 @@ export const useCreateRefund = () => {
         onError: (error: any) => {
             toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
         }
+    });
+};
+
+export const useCreateOrderRefund = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ orderId, data }: { orderId: string; data: CreateOrderRefundRequest }) =>
+            refundService.createOrderRefund(orderId, data),
+        onSuccess: (response) => {
+            if (response.success) {
+                toast.success(response.message || 'Hủy đơn & hoàn tiền thành công');
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_REFUNDS] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDERS] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDER_DETAIL] });
+            } else {
+                toast.error(response.message || 'Có lỗi xảy ra khi hủy đơn');
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        }
+    });
+};
+
+export const useGetOrderRefundEligibility = (orderId: string, enabled = true) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.CLIENT_ORDER_REFUND_ELIGIBILITY, orderId],
+        queryFn: () => orderService.getRefundEligibility(orderId),
+        enabled: !!orderId && enabled,
+        refetchInterval: 30_000
     });
 };
 
