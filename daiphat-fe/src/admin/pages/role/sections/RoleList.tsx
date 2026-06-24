@@ -16,9 +16,16 @@ import { useNavigate } from 'react-router-dom';
 import { prefixAdmin } from '../../../constants/routes';
 import { toast } from 'react-toastify';
 import { confirmDelete } from "../../../utils/swal";
+import { useAuthStore } from '../../../../stores/useAuthStore';
+import { PERMISSIONS } from '../../../constants/permission.constants';
 
 export const RoleList = () => {
     const navigate = useNavigate();
+    const { user } = useAuthStore();
+    const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || '');
+    const isAdmin = roleCode === 'ADMIN' || roleCode === 'SUPER_ADMIN';
+    const canEdit = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.ROLE.EDIT));
+    const canDelete = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.ROLE.DELETE));
     const { data: roles = [], isLoading } = useRoles();
     const { mutate: deleteRole } = useDeleteRole();
 
@@ -36,7 +43,7 @@ export const RoleList = () => {
         navigate(`/${prefixAdmin}/role/edit/${id}`);
     };
 
-    const columns = getColumnsConfig(handleEdit, handleDelete);
+    const columns = getColumnsConfig(handleEdit, handleDelete, { canEdit, canDelete });
 
     return (
         <Card elevation={0} sx={{

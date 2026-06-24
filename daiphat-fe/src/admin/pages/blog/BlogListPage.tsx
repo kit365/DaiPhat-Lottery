@@ -16,6 +16,8 @@ import { useBlogs, useBlogTypes } from "./hooks/useBlog";
 import { useNestedBlogCategories } from "../blog-category/hooks/useBlogCategory";
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { CanAccess } from "../../components/auth/CanAccess";
+import { PERMISSIONS } from "../../constants/permission.constants";
 
 import { getTabBadgeStyles } from "../../utils/badge";
 import { BLOG_STATUS } from "../../../types/blogs.type";
@@ -150,28 +152,30 @@ export const BlogListPage = () => {
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
-                    <Button
-                        onClick={() => navigate(`/${prefixAdmin}/blog/create`)}
-                        sx={{
-                            background: 'var(--palette-text-primary)',
-                            minHeight: "2.25rem",
-                            minWidth: "4rem",
-                            fontWeight: 700,
-                            fontSize: "0.875rem",
-                            padding: "6px 12px",
-                            borderRadius: "var(--shape-borderRadius)",
-                            textTransform: "none",
-                            boxShadow: "none",
-                            "&:hover": {
-                                background: "var(--palette-grey-700)",
-                                boxShadow: "var(--customShadows-z8)"
-                            }
-                        }}
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                    >
-                        {t("admin.blog.title.create")}
-                    </Button>
+                    <CanAccess permission={PERMISSIONS.ARTICLE.CREATE}>
+                        <Button
+                            onClick={() => navigate(`/${prefixAdmin}/blog/create`)}
+                            sx={{
+                                background: 'var(--palette-text-primary)',
+                                minHeight: "2.25rem",
+                                minWidth: "4rem",
+                                fontWeight: 700,
+                                fontSize: "0.875rem",
+                                padding: "6px 12px",
+                                borderRadius: "var(--shape-borderRadius)",
+                                textTransform: "none",
+                                boxShadow: "none",
+                                "&:hover": {
+                                    background: "var(--palette-grey-700)",
+                                    boxShadow: "var(--customShadows-z8)"
+                                }
+                            }}
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                        >
+                            {t("admin.blog.title.create")}
+                        </Button>
+                    </CanAccess>
                 </div>
             </div>
 

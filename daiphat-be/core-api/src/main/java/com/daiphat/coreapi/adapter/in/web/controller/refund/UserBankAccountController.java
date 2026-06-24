@@ -7,7 +7,6 @@ import com.daiphat.coreapi.application.dto.request.refund.CreateUserBankAccountR
 import com.daiphat.coreapi.application.dto.request.refund.UpdateUserBankAccountRequest;
 import com.daiphat.coreapi.application.dto.response.refund.UserBankAccountResponse;
 import com.daiphat.coreapi.application.port.in.refund.UserBankAccountServicePort;
-import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,7 +27,7 @@ public class UserBankAccountController {
     private final UserBankAccountServicePort userBankAccountServicePort;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<UserBankAccountResponse>> getMyAccounts(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return ApiResponse.success(
@@ -37,7 +36,7 @@ public class UserBankAccountController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<UserBankAccountResponse> create(
             @Valid @RequestBody CreateUserBankAccountRequest request,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
@@ -47,7 +46,7 @@ public class UserBankAccountController {
     }
 
     @PutMapping(ID_PATH)
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<UserBankAccountResponse> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserBankAccountRequest request,
@@ -58,7 +57,7 @@ public class UserBankAccountController {
     }
 
     @DeleteMapping(ID_PATH)
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<Void> delete(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
@@ -67,7 +66,7 @@ public class UserBankAccountController {
     }
 
     @PatchMapping(ID_PATH + "/default")
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<UserBankAccountResponse> setDefault(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {

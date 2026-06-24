@@ -25,19 +25,19 @@ public class LotteryRegionController {
     private final LotteryRegionServicePort lotteryRegionServicePort;
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('region:view', 'ticket:view')")
     public ApiResponse<List<LotteryRegionResponse>> getAll() {
         return ApiResponse.success(null, lotteryRegionServicePort.getAll());
     }
 
     @GetMapping("/{code}")
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('region:view', 'ticket:view')")
     public ApiResponse<LotteryRegionResponse> getByCode(@PathVariable String code) {
         return ApiResponse.success(null, lotteryRegionServicePort.getByCode(code));
     }
 
     @PutMapping("/{code}")
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('region:edit', 'ticket:edit')")
     public ApiResponse<LotteryRegionResponse> update(
             @PathVariable String code,
             @Valid @RequestBody UpdateLotteryRegionRequest request) {
