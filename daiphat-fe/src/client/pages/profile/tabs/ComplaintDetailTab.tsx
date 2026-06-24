@@ -5,6 +5,7 @@ import { ComplaintFormModal } from '../../../components/support/ComplaintFormMod
 import { ComplaintStatusBadge } from '../../../components/support/ComplaintStatusBadge';
 import { ComplaintStatusStepper } from '../../../components/support/ComplaintStatusStepper';
 import { ComplaintTimelineChat } from '../../../components/support/ComplaintTimelineChat';
+import { AttachmentUpdateSection } from '../../../components/support/AttachmentUpdateSection';
 import {
     useCloseComplaint,
     useGetComplaintDetail,
@@ -219,6 +220,10 @@ export const ComplaintDetailTab = () => {
                         </p>
                     </div>
                 </div>
+            )}
+
+            {ticket.status === TicketStatus.WAITING_FOR_CUSTOMER && (
+                <AttachmentUpdateSection ticket={ticket} />
             )}
 
             <ComplaintTimelineChat ticketId={ticket.id} status={ticket.status} />
