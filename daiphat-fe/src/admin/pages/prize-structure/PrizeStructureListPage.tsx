@@ -7,6 +7,8 @@ import { prefixAdmin } from "../../constants/routes";
 import { PrizeStructureList } from "./sections/PrizeStructureList";
 import { SyncPrizeStructureModal } from "./sections/SyncPrizeStructureModal";
 import { usePrizeStructuresByRegion } from "./hooks/usePrizeStructure";
+import { CanAccess } from "../../components/auth/CanAccess";
+import { PERMISSIONS } from "../../constants/permission.constants";
 
 export const PrizeStructureListPage = () => {
     const hook = usePrizeStructuresByRegion('MIEN_NAM');
@@ -27,23 +29,25 @@ export const PrizeStructureListPage = () => {
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
-                    <Button
-                        onClick={() => setIsSyncModalOpen(true)}
-                        variant="contained"
-                        startIcon={<SyncIcon />}
-                        sx={{
-                            minHeight: "2.25rem",
-                            padding: "6px 16px",
-                            textTransform: "none",
-                            fontWeight: 600,
-                            background: "var(--palette-grey-800)",
-                            "&:hover": {
-                                background: "var(--palette-grey-700)"
-                            }
-                        }}
-                    >
-                        Đồng bộ dữ liệu
-                    </Button>
+                    <CanAccess permission={PERMISSIONS.PRIZE_STRUCTURE.SYNC}>
+                        <Button
+                            onClick={() => setIsSyncModalOpen(true)}
+                            variant="contained"
+                            startIcon={<SyncIcon />}
+                            sx={{
+                                minHeight: "2.25rem",
+                                padding: "6px 16px",
+                                textTransform: "none",
+                                fontWeight: 600,
+                                background: "var(--palette-grey-800)",
+                                "&:hover": {
+                                    background: "var(--palette-grey-700)"
+                                }
+                            }}
+                        >
+                            Đồng bộ dữ liệu
+                        </Button>
+                    </CanAccess>
                 </div>
             </div>
 

@@ -32,7 +32,7 @@ public class RefundRequestController {
     private final RefundRequestServicePort refundRequestServicePort;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<RefundRequestResponse> create(
             @Valid @RequestBody CreateRefundRequestRequest request,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
@@ -42,7 +42,7 @@ public class RefundRequestController {
     }
 
     @GetMapping("/my")
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<PageResponse<RefundRequestResponse>> getMyRequests(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int limit,
@@ -57,7 +57,7 @@ public class RefundRequestController {
     }
 
     @GetMapping("/statuses")
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<EnumOptionResponse>> getStatuses() {
         return ApiResponse.success(
                 "Lấy danh sách trạng thái hoàn tiền thành công.",
@@ -65,7 +65,7 @@ public class RefundRequestController {
     }
 
     @GetMapping("/types")
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<EnumOptionResponse>> getTypes() {
         return ApiResponse.success(
                 "Lấy danh sách loại hoàn tiền thành công.",
@@ -73,7 +73,7 @@ public class RefundRequestController {
     }
 
     @GetMapping(ID_PATH)
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<RefundRequestResponse> getById(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
@@ -83,7 +83,7 @@ public class RefundRequestController {
     }
 
     @PatchMapping(ID_PATH + "/cancel")
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<RefundRequestResponse> cancel(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {

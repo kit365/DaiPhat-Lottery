@@ -26,8 +26,10 @@ export const deleteRole = async (id: string) => {
 
 // Placeholder exports to fix Frontend crash - To be implemented when needed
 export const getRoleById = async (id: string) => {
-    console.warn("getRoleById not implemented", id);
-    return { data: null };
+    const response = await apiApp.get(BASE_URL);
+    const roles = response.data?.data || [];
+    const role = Array.isArray(roles) ? roles.find((item: any) => (item.id || item._id) === id) : null;
+    return { ...response.data, data: role || null };
 };
 
 export const createRole = async (data: any) => {

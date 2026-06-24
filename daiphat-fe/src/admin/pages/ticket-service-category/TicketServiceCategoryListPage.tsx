@@ -5,6 +5,8 @@ import { Title } from "../../components/ui/Title";
 import { prefixAdmin } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { TicketServiceCategoryList } from "./sections/ServiceCategoryList";
+import { CanAccess } from "../../components/auth/CanAccess";
+import { PERMISSIONS } from "../../constants/permission.constants";
 
 export const TicketServiceCategoryListPage = () => {
     const navigate = useNavigate();
@@ -22,6 +24,7 @@ export const TicketServiceCategoryListPage = () => {
                         ]}
                     />
                 </div>
+                <CanAccess permission={PERMISSIONS.TICKET_SERVICE.CREATE}>
                 <Button
                     onClick={() => navigate(`/${prefixAdmin}/ticketService/categories/create`)}
                     sx={{
@@ -44,6 +47,7 @@ export const TicketServiceCategoryListPage = () => {
                 >
                     Thêm danh mục
                 </Button>
+                </CanAccess>
             </div>
             <TicketServiceCategoryList />
         </>

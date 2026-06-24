@@ -4,6 +4,8 @@ import {
   LotteryBoardData,
   LotteryResultLiveDetailsApiResponse,
   LotteryResultLiveSummaryApiResponse,
+  PrizeStructureResponse,
+  TicketCheckResult,
   formatApiDateToDisplay,
   formatDisplayDateToApi,
   mapResultSummaryToLotteryResult,
@@ -52,5 +54,15 @@ export const lotteryService = {
   mergeBoardWithDetails(boardResults: LotteryBoardData['results'], resultItems: LotteryResultLiveDetailsApiResponse['results']) {
     const liveItemByResultId = new Map(resultItems.map((item) => [item.result.id, item]));
     return boardResults.map((result) => mergeResultWithLiveDetails(result, result.id ? liveItemByResultId.get(result.id) : undefined));
+  },
+  async checkWinning(stationId: number, drawDate: string, ticketNumber: string): Promise<TicketCheckResult> {
+    const response = await apiApp.get<ApiResponse<TicketCheckResult>>(`${BASE_URL}/check`, {
+      params: {
+        stationId,
+        drawDate: formatDisplayDateToApi(drawDate),
+        ticketNumber,
+      },
+    });
+    return response.data.data as TicketCheckResult;
   }
 };
