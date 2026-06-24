@@ -8,10 +8,11 @@ import { QUERY_KEYS } from '../../constants/queryKeys';
 const getErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.message || error.message || fallback;
 
-export const useGetBankAccounts = () => {
+export const useGetBankAccounts = (enabled = true) => {
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_BANK_ACCOUNTS],
-        queryFn: () => bankAccountService.getMyAccounts()
+        queryFn: () => bankAccountService.getMyAccounts(),
+        enabled
     });
 };
 
