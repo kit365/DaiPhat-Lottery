@@ -4,7 +4,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ROUTES } from "../../constants/routes";
 import { useAuth } from "../../pages/authen/hooks/useAuth";
-import { USER_ROLES } from "../../../constants/role.constants";
+import { hasPermission, resolveIsAdmin } from "../../utils/permission.util";
 
 interface Props {
     permission?: string;
@@ -25,17 +25,17 @@ export const PermissionGuard = ({ children, permission, fallback }: Props) => {
 
     const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || "");
     const normalizedRole = roleCode.startsWith("ROLE_") ? roleCode : `ROLE_${roleCode}`;
-    const isAdmin = normalizedRole === USER_ROLES.ADMIN || normalizedRole === "ROLE_SUPER_ADMIN";
+    const isAdmin = resolveIsAdmin(user);
     const isStaff = normalizedRole.includes('STAFF');
     const isOnlyMember = !isAdmin && !isStaff;
 
-    const hasPermission = isAdmin || !permission || user?.permissions?.includes(permission);
+    const hasAccess = hasPermission(user, permission);
 
     useEffect(() => {
         // CHỈ xử lý khi hệ thống đã Hydrate xong, KHÔNG đang fetch dở, và QUAN TRỌNG: Đã có thông tin User
         if (isReady && !isFetchingUser && user) {
             
-            if (!hasPermission) {
+            if (!hasAccess) {
                 toast.warning("Bạn không có quyền thực hiện hành động này!", {
                     toastId: "permission-denied"
                 });
@@ -46,7 +46,7 @@ export const PermissionGuard = ({ children, permission, fallback }: Props) => {
                 }
             }
         }
-    }, [hasPermission, isFetchingUser, isReady, token, user, logout, isOnlyMember]);
+    }, [hasAccess, isFetchingUser, isReady, token, user, logout, isOnlyMember, permission]);
 
     // Trạng thái chờ: Đang hydrate hoặc đang fetch thông tin user
     if (!isReady || isFetchingUser) {
@@ -57,7 +57,7 @@ export const PermissionGuard = ({ children, permission, fallback }: Props) => {
         );
     }
 
-    if (!hasPermission) {
+    if (!hasAccess) {
         // Nếu là Staff/Admin mà chỉ thiếu quyền con -> Đẩy về Dashboard chứ ko sút Logout
         if (!isOnlyMember && user) {
             return <Navigate to={ROUTES.ADMIN.DASHBOARD.ROOT} replace />;

@@ -16,6 +16,8 @@ import { toast } from "react-toastify";
 import { confirmAction, confirmDelete } from "../../../utils/swal";
 import { useDeleteBlog, useUpdateBlog } from "../hooks/useBlog";
 import { BLOG_STATUS } from "../../../../types/blogs.type";
+import { usePermissions } from "../../../hooks/usePermission";
+import { PERMISSIONS } from "../../../constants/permission.constants";
 
 interface BlogListProps {
     blogs: any[];
@@ -28,6 +30,10 @@ interface BlogListProps {
 
 export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pagination, viewMode = 'grid' }: BlogListProps) => {
     const { t } = useTranslation();
+    const { can, canAny } = usePermissions();
+    const canEdit = can(PERMISSIONS.ARTICLE.EDIT);
+    const canDelete = can(PERMISSIONS.ARTICLE.DELETE);
+    const showRowActions = canAny([PERMISSIONS.ARTICLE.EDIT, PERMISSIONS.ARTICLE.DELETE]);
 
     const handleChangePage = (_event: React.ChangeEvent<unknown>, value: number) => {
         onPageChange(value);
@@ -260,14 +266,14 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
             width: 120,
             valueGetter: (value) => value || 0,
         },
-        {
+        ...(showRowActions ? [{
             field: 'actions',
             headerName: '',
             width: 80,
             sortable: false,
             filterable: false,
-            align: 'right',
-            renderCell: (params) => (
+            align: 'right' as const,
+            renderCell: (params: any) => (
                 <ButtonBase
                     onClick={(e) => handleOpenMenu(e, params.row._id || params.row.id, params.row.status)}
                     sx={{
@@ -284,7 +290,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                     <ThreeDotsIcon />
                 </ButtonBase>
             )
-        }
+        }] : []),
     ];
 
     if (isLoading) {
@@ -395,21 +401,23 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                                     </Stack>
 
                                     <Box sx={{ display: "flex", alignItems: "center" }}>
-                                        <ButtonBase
-                                            onClick={(e) => handleOpenMenu(e, blog.id || blog._id, blog.status)}
-                                            sx={{
-                                                color: "var(--palette-text-secondary)",
-                                                p: "8px",
-                                                borderRadius: "50%",
-                                                rotate: "90deg",
-                                                transition: "background-color 150ms",
-                                                "&:hover": {
-                                                    backgroundColor: "var(--palette-text-secondary)14",
-                                                },
-                                            }}
-                                        >
-                                            <ThreeDotsIcon />
-                                        </ButtonBase>
+                                        {showRowActions && (
+                                            <ButtonBase
+                                                onClick={(e) => handleOpenMenu(e, blog.id || blog._id, blog.status)}
+                                                sx={{
+                                                    color: "var(--palette-text-secondary)",
+                                                    p: "8px",
+                                                    borderRadius: "50%",
+                                                    rotate: "90deg",
+                                                    transition: "background-color 150ms",
+                                                    "&:hover": {
+                                                        backgroundColor: "var(--palette-text-secondary)14",
+                                                    },
+                                                }}
+                                            >
+                                                <ThreeDotsIcon />
+                                            </ButtonBase>
+                                        )}
 
                                         <Box
                                             sx={{
@@ -533,14 +541,16 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                         </ListItemIcon>
                         <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.details")}</ListItemText>
                     </MenuItem>
-                    <MenuItem onClick={handleEdit} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
-                        <ListItemIcon sx={{ minWidth: '24px !important', mr: 1.5 }}>
-                            <EditIcon sx={{ width: 20, height: 20, mr: 0 }} />
-                        </ListItemIcon>
-                        <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.edit")}</ListItemText>
-                    </MenuItem>
+                    {canEdit && (
+                        <MenuItem onClick={handleEdit} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
+                            <ListItemIcon sx={{ minWidth: '24px !important', mr: 1.5 }}>
+                                <EditIcon sx={{ width: 20, height: 20, mr: 0 }} />
+                            </ListItemIcon>
+                            <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>{t("admin.common.edit")}</ListItemText>
+                        </MenuItem>
+                    )}
 
-                    {(STATUS_ACTIONS[selectedBlogStatus] || []).length > 0 && (
+                    {canEdit && (STATUS_ACTIONS[selectedBlogStatus] || []).length > 0 && (
                         <>
                             {(STATUS_ACTIONS[selectedBlogStatus] || []).map((action) => (
                                 <MenuItem
@@ -566,7 +576,7 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
                         </>
                     )}
 
-                    {selectedBlogStatus !== BLOG_STATUS.PUBLISHED && (
+                    {canDelete && selectedBlogStatus !== BLOG_STATUS.PUBLISHED && (
                         <MenuItem onClick={handleDelete} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1, color: 'error.main' }}>
                             <ListItemIcon sx={{ minWidth: '24px !important', mr: 1.5, color: 'error.main' }}>
                                 <DeleteIcon sx={{ width: 20, height: 20, mr: 0 }} />

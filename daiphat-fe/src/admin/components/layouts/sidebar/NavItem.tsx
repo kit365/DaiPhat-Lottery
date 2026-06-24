@@ -5,7 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { useAuthStore } from "../../../../stores/useAuthStore";
-import { USER_ROLES } from "../../../../constants/role.constants";
+import { hasPermission, resolveRoleCode } from "../../../utils/permission.util";
 
 
 const SubNavItem = ({ child, isSubActive, t }: any) => {
@@ -30,15 +30,18 @@ export const NavItem = memo(({ item }: { item: any }) => {
     const { isOpen } = useSidebar();
     const { user } = useAuthStore();
 
-    const roleCode = user?.role?.code || "";
-    const isAdmin = roleCode === USER_ROLES.ADMIN;
-    const isStaff = roleCode.includes('STAFF');
+    const normalizedRole = resolveRoleCode(user);
+    const isStaff = normalizedRole.includes('STAFF');
 
     const filteredChildren = (item.children || []).filter((child: any) => {
         if (child.hidden) return false;
         if (isStaff && child.hideIfStaff) return false;
-        return isAdmin || !child.permission || user?.permissions?.includes(child.permission);
+        return hasPermission(user, child.permission);
     });
+
+    if (item.children?.length && filteredChildren.length === 0) {
+        return null;
+    }
 
 
 

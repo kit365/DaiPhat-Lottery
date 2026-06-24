@@ -8,6 +8,8 @@ import { Title } from "../../components/ui/Title";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { prefixAdmin } from "../../constants/routes";
 import { TicketServiceOrderList } from "./sections/TicketServiceOrderList";
+import { CanAccess } from "../../components/auth/CanAccess";
+import { PERMISSIONS } from "../../constants/permission.constants";
 import 'dayjs/locale/vi';
 
 export const TicketServiceOrderListPage = () => {
@@ -27,6 +29,7 @@ export const TicketServiceOrderListPage = () => {
                             ]}
                         />
                     </Box>
+                    <CanAccess permission={PERMISSIONS.TICKET_SERVICE_ORDER.VIEW}>
                     <Button
                         variant="contained"
                         startIcon={<Icon icon="eva:plus-fill" />}
@@ -49,6 +52,7 @@ export const TicketServiceOrderListPage = () => {
                     >
                         {t("admin.ticketServiceOrder.title.create")}
                     </Button>
+                    </CanAccess>
                 </Box>
 
                 <TicketServiceOrderList />

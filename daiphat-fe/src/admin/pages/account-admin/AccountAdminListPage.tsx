@@ -5,7 +5,7 @@ import { Title } from "../../components/ui/Title";
 import { prefixAdmin, ROUTES } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { AccountAdminList } from "./sections/AccountAdminList";
-import { PermissionGuard } from "../../components/auth/PermissionGuard";
+import { CanAccess } from "../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../constants/permission.constants";
 
 export const AccountAdminListPage = () => {
@@ -24,7 +24,7 @@ export const AccountAdminListPage = () => {
                         ]}
                     />
                 </div>
-                <PermissionGuard permission={PERMISSIONS.ACCOUNT.CREATE}>
+                <CanAccess permission={PERMISSIONS.ACCOUNT.CREATE}>
                     <Button
                         onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.ADMIN.CREATE)}
                         sx={{
@@ -46,7 +46,7 @@ export const AccountAdminListPage = () => {
                     >
                         Tạo tài khoản
                     </Button>
-                </PermissionGuard>
+                </CanAccess>
             </div>
             
             <AccountAdminList />
