@@ -5,5 +5,6 @@ public enum NotificationReferenceType {
     BLOG_POST,
     ORDER,
     LOTTERY_STATION,
-    SYSTEM
+    SYSTEM,
+    SUPPORT_TICKET
 }

@@ -107,6 +107,10 @@ export const PERMISSIONS = {
     REVIEW: {
         VIEW: "review:view",
     },
+    SUPPORT_TICKET: {
+        VIEW: "chat:view",
+        MANAGE: "chat:manage",
+    },
     CALENDAR: {
         VIEW: "calendar:view",
     },
