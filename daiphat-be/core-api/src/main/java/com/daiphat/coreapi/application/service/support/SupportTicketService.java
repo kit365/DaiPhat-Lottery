@@ -154,8 +154,8 @@ public class SupportTicketService implements SupportTicketServicePort {
         SupportTicketModel ticket = getTicketOrThrow(id);
         ticket.assignByStaff(staffId);
         SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
-        saveSystemComment(saved.getId(), "Nhân viên đã tiếp nhận");
         String staffName = resolveUserDisplayName(staffId);
+        saveSystemComment(saved.getId(), staffName + " đã tiếp nhận ticket");
         eventPublisher.publishEvent(SupportTicketAssignedEvent.builder()
                 .ticketId(saved.getId())
                 .customerId(saved.getCustomerId())
@@ -250,6 +250,10 @@ public class SupportTicketService implements SupportTicketServicePort {
             UploadRequest file) {
         SupportTicketModel ticket = authorizeTicketAccess(id, actorId, isStaff);
         ticket.ensureCommentAllowed();
+
+        if (isStaff) {
+            ticket.ensureOperatorCanComment();
+        }
 
         List<SupportTicketCommentModel> existingComments =
                 supportTicketCommentRepositoryPort.findByTicketIdOrderByCreatedAtAsc(id);
