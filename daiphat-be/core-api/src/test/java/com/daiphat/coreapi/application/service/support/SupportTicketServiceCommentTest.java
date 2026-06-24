@@ -156,6 +156,24 @@ class SupportTicketServiceCommentTest {
     }
 
     @Test
+    void addComment_operatorOnOpenTicket_throwsMustAssignFirst() {
+        SupportTicketModel ticket = ticket(TicketStatus.OPEN);
+        when(supportTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(ticket));
+
+        assertThatThrownBy(() -> supportTicketService.addComment(
+                        TICKET_ID,
+                        STAFF_ID,
+                        true,
+                        new CreateSupportTicketCommentRequest("Hello"),
+                        null))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.TICKET_OPERATOR_MUST_ASSIGN_FIRST);
+
+        verify(supportTicketCommentRepositoryPort, never()).save(any());
+    }
+
+    @Test
     void addComment_blankContent_throwsInvalidContent() {
         SupportTicketModel ticket = ticket(TicketStatus.IN_PROGRESS);
         when(supportTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(ticket));
