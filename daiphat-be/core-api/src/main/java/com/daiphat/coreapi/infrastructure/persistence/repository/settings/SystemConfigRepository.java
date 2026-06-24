@@ -5,10 +5,13 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.settings.SystemConf
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface SystemConfigRepository extends JpaRepository<SystemConfigEntity, Long> {
 
-    List<SystemConfigEntity> findAllByOrderByConfigTypeAscConfigKeyAsc();
+    List<SystemConfigEntity> findAllByIsActiveTrueOrderByConfigTypeAscConfigKeyAsc();
 
-    List<SystemConfigEntity> findByConfigTypeOrderByConfigKeyAsc(ConfigType configType);
+    List<SystemConfigEntity> findByConfigTypeAndIsActiveTrueOrderByConfigKeyAsc(ConfigType configType);
+
+    Optional<SystemConfigEntity> findByIdAndIsActiveTrue(Long id);
 }
