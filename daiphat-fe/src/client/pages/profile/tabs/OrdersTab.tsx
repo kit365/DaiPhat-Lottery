@@ -5,7 +5,8 @@ import { useGetMyOrders, useGetMyOrderDetail } from '../../../hooks/useOrder';
 import { useProcessPayment } from '../../../hooks/useTransaction';
 import { PaymentGateway } from '../../../../types/transaction.type';
 import { AppToast } from '../../../utils/toast.util';
-import { isOrderPreparing } from '../../../utils/order.util';
+import { isOrderPaid } from '../../../utils/order.util';
+import { orderService } from '../../../services/orderService';
 import { RefundRequestModal } from '../../../components/refund/RefundRequestModal';
 import { useGetMyRefunds } from '../../../hooks/useRefund';
 import { format } from 'date-fns';
@@ -69,10 +70,17 @@ export const OrdersTab = () => {
     const processPaymentMutation = useProcessPayment();
 
     const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
+    const [checkingRefundOrderId, setCheckingRefundOrderId] = useState<string | null>(null);
     const { data: refundOrderData, isLoading: isLoadingRefundOrder } = useGetMyOrderDetail(refundOrderId || '');
 
     const { data: allRefundsData } = useGetMyRefunds({ limit: 100, page: 1 });
-    const pendingRefunds = useMemo(() => allRefundsData?.data?.recordList?.filter((r: any) => r.status === 'PENDING') || [], [allRefundsData]);
+    const pendingRefunds = useMemo(
+        () =>
+            allRefundsData?.data?.recordList?.filter((r: any) =>
+                ['PENDING', 'READY_TO_PAY', 'APPROVED'].includes(r.status)
+            ) || [],
+        [allRefundsData]
+    );
 
     const handleQuickPayment = (order: OrderResponse) => {
         if (!order?.id) {
@@ -104,6 +112,24 @@ export const OrdersTab = () => {
                 }
             }
         });
+    };
+
+    const handleRefundClick = async (order: OrderResponse) => {
+        if (checkingRefundOrderId) return;
+
+        setCheckingRefundOrderId(order.id);
+        try {
+            const res = await orderService.getRefundEligibility(order.id);
+            if (res.data?.eligible) {
+                setRefundOrderId(order.id);
+            } else {
+                AppToast.error(res.data?.reason || 'Không thể hủy đơn hàng này');
+            }
+        } catch (error: any) {
+            AppToast.error(error?.response?.data?.message || 'Không thể kiểm tra điều kiện hủy đơn');
+        } finally {
+            setCheckingRefundOrderId(null);
+        }
     };
 
     // Reset page when filters change
@@ -364,14 +390,21 @@ export const OrdersTab = () => {
                                                                 )}
                                                             </button>
                                                         )}
-                                                        {isOrderPreparing(order.status) && !hasPendingRefund && (
+                                                        {isOrderPaid(order.status) && !hasPendingRefund && (
                                                             <button
-                                                                onClick={() => setRefundOrderId(order.id)}
-                                                                className="px-3 py-2 rounded-lg bg-[#ee1314] text-white hover:bg-[#c80f11] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[12px] font-bold whitespace-nowrap shadow-sm"
-                                                                title="Yêu cầu hủy đơn"
+                                                                onClick={() => handleRefundClick(order)}
+                                                                disabled={checkingRefundOrderId === order.id}
+                                                                className="px-3 py-2 rounded-lg bg-[#ee1314] text-white hover:bg-[#c80f11] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[12px] font-bold whitespace-nowrap shadow-sm disabled:opacity-50"
+                                                                title="Hủy đơn & Hoàn tiền"
                                                             >
-                                                                <i className="fa-solid fa-rotate-left text-[11px]"></i>
-                                                                Yêu cầu hủy đơn
+                                                                {checkingRefundOrderId === order.id ? (
+                                                                    <i className="fa-solid fa-spinner fa-spin text-[11px]"></i>
+                                                                ) : (
+                                                                    <>
+                                                                        <i className="fa-solid fa-rotate-left text-[11px]"></i>
+                                                                        Hủy & Hoàn tiền
+                                                                    </>
+                                                                )}
                                                             </button>
                                                         )}
                                                         <button 
