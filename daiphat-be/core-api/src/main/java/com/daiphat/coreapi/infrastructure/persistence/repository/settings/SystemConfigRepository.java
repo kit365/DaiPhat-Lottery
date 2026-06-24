@@ -1,0 +1,14 @@
+package com.daiphat.coreapi.infrastructure.persistence.repository.settings;
+
+import com.daiphat.coreapi.domain.model.enums.settings.ConfigType;
+import com.daiphat.coreapi.infrastructure.persistence.entity.settings.SystemConfigEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface SystemConfigRepository extends JpaRepository<SystemConfigEntity, Long> {
+
+    List<SystemConfigEntity> findAllByOrderByConfigTypeAscConfigKeyAsc();
+
+    List<SystemConfigEntity> findByConfigTypeOrderByConfigKeyAsc(ConfigType configType);
+}
