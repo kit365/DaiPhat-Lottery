@@ -33,9 +33,16 @@ import { DeleteIcon, EditIcon, ThreeDotsIcon, SortAscendingIcon, SortDescendingI
 import { confirmDelete } from "../../utils/swal";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
+import { usePermissions } from "../../hooks/usePermission";
+import { PERMISSIONS } from "../../constants/permission.constants";
+import { CanAccess } from "../../components/auth/CanAccess";
 
 export const BlogTagListPage = () => {
     const { t } = useTranslation();
+    const { can, canAny } = usePermissions();
+    const canEdit = can(PERMISSIONS.ARTICLE.EDIT);
+    const canDelete = can(PERMISSIONS.ARTICLE.DELETE);
+    const showRowActions = canAny([PERMISSIONS.ARTICLE.EDIT, PERMISSIONS.ARTICLE.DELETE]);
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(10);
     const [search, setSearch] = useState('');
@@ -173,14 +180,14 @@ export const BlogTagListPage = () => {
             flex: 1,
             minWidth: 200,
         },
-        {
+        ...(showRowActions ? [{
             field: 'actions',
             headerName: '',
             width: 80,
             sortable: false,
             filterable: false,
-            align: 'right',
-            renderCell: (params) => (
+            align: 'right' as const,
+            renderCell: (params: any) => (
                 <ButtonBase
                     onClick={(e) => handleOpenMenu(e, params.row)}
                     sx={{
@@ -197,7 +204,7 @@ export const BlogTagListPage = () => {
                     <ThreeDotsIcon />
                 </ButtonBase>
             )
-        }
+        }] : []),
     ];
 
     return (
@@ -214,6 +221,7 @@ export const BlogTagListPage = () => {
                     />
                 </div>
                 <div>
+                    <CanAccess permission={PERMISSIONS.ARTICLE.CREATE}>
                     <Button
                         onClick={handleOpenCreate}
                         sx={{
@@ -235,6 +243,7 @@ export const BlogTagListPage = () => {
                     >
                         Tạo thẻ mới
                     </Button>
+                    </CanAccess>
                 </div>
             </div>
 
@@ -490,18 +499,22 @@ export const BlogTagListPage = () => {
                     </ListItemIcon>
                     <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>Chi tiết</ListItemText>
                 </MenuItem>
+                {canEdit && (
                 <MenuItem onClick={handleOpenEdit} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1 }}>
                     <ListItemIcon sx={{ minWidth: '24px !important', mr: 1 }}>
                         <EditIcon sx={{ width: 20, height: 20 }} />
                     </ListItemIcon>
                     <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>Chỉnh sửa</ListItemText>
                 </MenuItem>
+                )}
+                {canDelete && (
                 <MenuItem onClick={handleDelete} sx={{ borderRadius: "var(--shape-borderRadius-sm)", py: 1, color: 'error.main' }}>
                     <ListItemIcon sx={{ minWidth: '24px !important', mr: 1, color: 'error.main' }}>
                         <DeleteIcon sx={{ width: 20, height: 20 }} />
                     </ListItemIcon>
                     <ListItemText primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}>Xóa</ListItemText>
                 </MenuItem>
+                )}
             </Popover>
         </>
     );
