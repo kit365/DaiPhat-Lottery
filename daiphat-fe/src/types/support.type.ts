@@ -54,12 +54,19 @@ export interface CreateSupportTicketCommentRequest {
     content: string;
 }
 
+export function sortCommentsByCreatedAt(
+    comments: SupportTicketCommentResponse[]
+): SupportTicketCommentResponse[] {
+    return [...comments].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+}
+
 export function findLastConversationalComment(
     comments: SupportTicketCommentResponse[]
 ): SupportTicketCommentResponse | undefined {
-    return [...comments]
+    return sortCommentsByCreatedAt(comments)
         .filter((c) => c.senderRole !== TicketCommentSenderRole.SYSTEM)
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
         .pop();
 }
 
@@ -82,6 +89,9 @@ export function canOperatorSendComment(
     comments: SupportTicketCommentResponse[]
 ): boolean {
     if (status === TicketStatus.RESOLVED || status === TicketStatus.CLOSED) {
+        return false;
+    }
+    if (status === TicketStatus.OPEN) {
         return false;
     }
     const last = findLastConversationalComment(comments);
