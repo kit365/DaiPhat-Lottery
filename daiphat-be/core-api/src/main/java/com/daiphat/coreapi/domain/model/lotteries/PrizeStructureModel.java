@@ -8,6 +8,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 @Getter
 @Setter
 @AllArgsConstructor
@@ -92,5 +94,82 @@ public class PrizeStructureModel {
 
     public boolean isDeleted() {
         return this.deletedAt != null;
+    }
+
+    public boolean matchesTicket(String ticketNumber, String winningNumber) {
+        if (ticketNumber == null || ticketNumber.isBlank()) {
+            return false;
+        }
+        if (winningNumber == null || winningNumber.isBlank() || matchFrom == null) {
+            return false;
+        }
+
+        return switch (matchFrom) {
+            case EXACT -> ticketNumber.equals(winningNumber);
+            case LAST -> matchLastDigits(ticketNumber, winningNumber);
+            case ANY -> matchAnyDigits(ticketNumber, winningNumber);
+            case SPECIAL_CONSOLATION_1 -> matchSubSpecial(ticketNumber, winningNumber);
+            case SPECIAL_CONSOLATION_2 -> matchConsolation(ticketNumber, winningNumber);
+        };
+    }
+
+    private boolean matchLastDigits(String ticketNumber, String winningNumber) {
+        int digitsToMatch = resolveDigitsToMatch(winningNumber);
+        if (digitsToMatch <= 0 || ticketNumber.length() < digitsToMatch || winningNumber.length() < digitsToMatch) {
+            return false;
+        }
+
+        return ticketNumber.substring(ticketNumber.length() - digitsToMatch)
+                .equals(winningNumber.substring(winningNumber.length() - digitsToMatch));
+    }
+
+    private boolean matchAnyDigits(String ticketNumber, String winningNumber) {
+        int digitsToMatch = resolveDigitsToMatch(winningNumber);
+        if (digitsToMatch <= 0 || ticketNumber.length() < digitsToMatch || winningNumber.length() < digitsToMatch) {
+            return false;
+        }
+
+        Set<String> ticketSegments = collectSegments(ticketNumber, digitsToMatch);
+        Set<String> winningSegments = collectSegments(winningNumber, digitsToMatch);
+        return ticketSegments.stream().anyMatch(winningSegments::contains);
+    }
+
+    private boolean matchSubSpecial(String ticketNumber, String winningNumber) {
+        return ticketNumber.length() == winningNumber.length()
+                && winningNumber.length() >= 2
+                && ticketNumber.charAt(0) != winningNumber.charAt(0)
+                && ticketNumber.substring(1).equals(winningNumber.substring(1));
+    }
+
+    private boolean matchConsolation(String ticketNumber, String winningNumber) {
+        if (ticketNumber.length() != winningNumber.length() || winningNumber.length() < 2) {
+            return false;
+        }
+        if (ticketNumber.charAt(0) != winningNumber.charAt(0)) {
+            return false;
+        }
+
+        int diffCount = 0;
+        for (int index = 1; index < winningNumber.length(); index++) {
+            if (ticketNumber.charAt(index) != winningNumber.charAt(index)) {
+                diffCount++;
+            }
+        }
+        return diffCount == 1;
+    }
+
+    private int resolveDigitsToMatch(String winningNumber) {
+        if (matchDigits != null && matchDigits > 0) {
+            return matchDigits;
+        }
+        return winningNumber.length();
+    }
+
+    private Set<String> collectSegments(String value, int segmentLength) {
+        Set<String> segments = new HashSet<>();
+        for (int index = 0; index <= value.length() - segmentLength; index++) {
+            segments.add(value.substring(index, index + segmentLength));
+        }
+        return segments;
     }
 }
