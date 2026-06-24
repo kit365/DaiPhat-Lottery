@@ -138,7 +138,7 @@ public class UserController {
     }
 
     @GetMapping("/customers/search")
-    @PreAuthorize("hasAnyAuthority('member:view', 'admin:view', 'ticket:view')")
+    @PreAuthorize("hasAnyAuthority('member:view', 'order:create', 'order:view')")
     @JsonView(Views.Admin.class)
     public ApiResponse<List<UserResponse>> searchCustomers(
             @RequestParam String q,

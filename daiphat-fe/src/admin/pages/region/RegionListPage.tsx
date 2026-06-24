@@ -10,7 +10,8 @@ import { updateRegionSchema, UpdateRegionFormValues } from "../../schemas/region
 import { toast } from "react-toastify";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { LotteryRegionResponse } from "./types/region";
-
+import { PermissionGuard } from "../../components/auth/PermissionGuard";
+import { PERMISSIONS } from "../../constants/permission.constants";
 export const RegionListPage = () => {
     const { data: regionsRes, isLoading } = useRegions();
     const regions = regionsRes?.data || [];
@@ -126,9 +127,11 @@ export const RegionListPage = () => {
                                         <TableCell>{region.minNumber} - {region.maxNumber}</TableCell>
                                         <TableCell align="center">{region.stationCount}</TableCell>
                                         <TableCell align="right">
-                                            <IconButton onClick={() => handleEditClick(region)} size="small" color="primary">
-                                                <Edit2 size={18} />
-                                            </IconButton>
+                                            <PermissionGuard permission={PERMISSIONS.REGION.EDIT}>
+                                                <IconButton onClick={() => handleEditClick(region)} size="small" color="primary">
+                                                    <Edit2 size={18} />
+                                                </IconButton>
+                                            </PermissionGuard>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -186,13 +189,15 @@ export const RegionListPage = () => {
                             <Button onClick={handleCloseModal} variant="outlined" color="inherit" disabled={isPending}>
                                 Hủy
                             </Button>
-                            <LoadingButton
-                                type="submit"
-                                loading={isPending}
-                                label="Lưu thay đổi"
-                                loadingLabel="Đang lưu..."
-                                variant="contained"
-                            />
+                            <PermissionGuard permission={PERMISSIONS.REGION.EDIT}>
+                                <LoadingButton
+                                    type="submit"
+                                    loading={isPending}
+                                    label="Lưu thay đổi"
+                                    loadingLabel="Đang lưu..."
+                                    variant="contained"
+                                />
+                            </PermissionGuard>
                         </DialogActions>
                     </form>
                 </Dialog>

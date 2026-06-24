@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.application.service.lotteries;
+package com.daiphat.coreapi.application.service.lotteries.result;
 
 import com.daiphat.coreapi.application.dto.lotteries.LotteryResultSourcePreviewResult;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryResultSourceServicePort;

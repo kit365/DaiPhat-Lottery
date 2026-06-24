@@ -25,6 +25,12 @@ export const PERMISSIONS = {
         EDIT: "admin:edit",
         DELETE: "admin:delete",
     },
+    STREET_AGENT: {
+        VIEW: "streetAgent:view",
+        CREATE: "streetAgent:create",
+        EDIT: "streetAgent:edit",
+        DELETE: "streetAgent:delete",
+    },
     ROLE: {
         VIEW: "role:view",
         CREATE: "role:create",
@@ -47,11 +53,40 @@ export const PERMISSIONS = {
         VIEW: "provider:view",
         CREATE: "provider:create",
         EDIT: "provider:edit",
+        DELETE: "provider:delete",
+        SYNC: "provider:sync",
     },
     TICKET_SERVICE: {
         VIEW: "ticketService:view",
         CREATE: "ticketService:create",
         EDIT: "ticketService:edit",
+    },
+    ORDER: {
+        VIEW: "order:view",
+        CREATE: "order:create",
+        EDIT: "order:edit",
+        DELETE: "order:delete",
+    },
+    REGION: {
+        VIEW: "region:view",
+        CREATE: "region:create",
+        EDIT: "region:edit",
+        DELETE: "region:delete",
+        SYNC: "region:sync",
+    },
+    PRIZE_STRUCTURE: {
+        VIEW: "prizeStructure:view",
+        CREATE: "prizeStructure:create",
+        EDIT: "prizeStructure:edit",
+        DELETE: "prizeStructure:delete",
+        SYNC: "prizeStructure:sync",
+    },
+    LOTTERY_RESULT: {
+        VIEW: "lotteryResult:view",
+        CREATE: "lotteryResult:create",
+        EDIT: "lotteryResult:edit",
+        DELETE: "lotteryResult:delete",
+        SYNC: "lotteryResult:sync",
     },
     TICKET_SERVICE_ORDER: {
         VIEW: "ticketServiceOrder:view",
@@ -65,6 +100,12 @@ export const PERMISSIONS = {
     CHAT: {
         VIEW: "chat:view",
         MANAGE: "chat:manage",
+    },
+    NOTIFICATION: {
+        VIEW: "notification:view",
+    },
+    REVIEW: {
+        VIEW: "review:view",
     },
     CALENDAR: {
         VIEW: "calendar:view",
