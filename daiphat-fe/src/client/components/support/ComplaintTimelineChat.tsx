@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
     canCustomerSendComment,
+    sortCommentsByCreatedAt,
     SupportTicketCommentResponse,
     TicketCommentSenderRole,
     TicketStatus,
@@ -26,7 +27,7 @@ export const ComplaintTimelineChat: React.FC<ComplaintTimelineChatProps> = ({ ti
     const { data, isLoading, isError } = useGetTicketComments(ticketId);
     const sendMutation = useSendTicketComment();
 
-    const comments: SupportTicketCommentResponse[] = data?.data ?? [];
+    const comments: SupportTicketCommentResponse[] = sortCommentsByCreatedAt(data?.data ?? []);
     const isTerminal = status === TicketStatus.RESOLVED || status === TicketStatus.CLOSED;
     const canSend = canCustomerSendComment(status, comments);
 

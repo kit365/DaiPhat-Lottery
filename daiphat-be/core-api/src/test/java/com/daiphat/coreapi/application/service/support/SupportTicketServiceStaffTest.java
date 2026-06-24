@@ -101,7 +101,7 @@ class SupportTicketServiceStaffTest {
         ArgumentCaptor<SupportTicketCommentModel> commentCaptor = ArgumentCaptor.forClass(SupportTicketCommentModel.class);
         verify(supportTicketCommentRepositoryPort).save(commentCaptor.capture());
         assertThat(commentCaptor.getValue().getSenderRole()).isEqualTo(TicketCommentSenderRole.SYSTEM);
-        assertThat(commentCaptor.getValue().getContent()).isEqualTo("Nhân viên đã tiếp nhận");
+        assertThat(commentCaptor.getValue().getContent()).isEqualTo("An đã tiếp nhận ticket");
 
         verify(eventPublisher).publishEvent(any(SupportTicketAssignedEvent.class));
     }

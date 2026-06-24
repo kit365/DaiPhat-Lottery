@@ -126,6 +126,16 @@ class SupportTicketModelTest {
                 .isEqualTo(ErrorCode.TICKET_CANNOT_RESOLVE);
     }
 
+    @Test
+    void ensureOperatorCanComment_rejectsOpenStatus() {
+        SupportTicketModel ticket = SupportTicketModel.builder().status(TicketStatus.OPEN).build();
+
+        assertThatThrownBy(ticket::ensureOperatorCanComment)
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.TICKET_OPERATOR_MUST_ASSIGN_FIRST);
+    }
+
     private static SupportTicketCommentModel comment(TicketCommentSenderRole role, String content) {
         return SupportTicketCommentModel.builder()
                 .senderRole(role)
