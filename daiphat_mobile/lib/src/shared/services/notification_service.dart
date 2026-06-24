@@ -50,9 +50,13 @@ class NotificationService {
     );
 
     // 3. Get FCM Token
-    final token = await _firebaseMessaging.getToken();
-    print('FCM Token: $token');
-    // TODO: Send this token to backend when user is logged in
+    try {
+      final token = await _firebaseMessaging.getToken();
+      print('FCM Token: $token');
+      // TODO: Send this token to backend when user is logged in
+    } catch (e) {
+      print('Failed to get FCM token (APNS not ready on iOS): $e');
+    }
 
     // 4. Handle Foreground Messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
