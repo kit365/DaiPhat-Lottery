@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { AccountUserList } from "./sections/AccountUserList";
 import AccountInviteModal from "./sections/AccountInviteModal";
 import { toast } from "react-toastify";
-import { PermissionGuard } from "../../components/auth/PermissionGuard";
+import { CanAccess } from "../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../constants/permission.constants";
 
 export const AccountUserListPage = () => {
@@ -35,7 +35,7 @@ export const AccountUserListPage = () => {
                         ]}
                     />
                 </div>
-                <PermissionGuard permission={PERMISSIONS.USER.CREATE}>
+                <CanAccess permission={PERMISSIONS.USER.CREATE}>
                     <Button
                         onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.USER.CREATE)}
                         sx={{
@@ -57,7 +57,7 @@ export const AccountUserListPage = () => {
                     >
                         Tạo tài khoản
                     </Button>
-                </PermissionGuard>
+                </CanAccess>
             </div>
             
             <AccountUserList onInvite={() => setOpenInvite(true)} />

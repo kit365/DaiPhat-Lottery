@@ -10,7 +10,7 @@ import { DrawResultSyncModal } from './sections/DrawResultSyncModal';
 import { DrawResultDetailModal } from './sections/DrawResultDetailModal';
 import { useLotteryResultsManagementBoard } from './hooks/useDrawResult';
 import { DrawResultDateMode } from './types/draw-result';
-import { PermissionGuard } from '../../components/auth/PermissionGuard';
+import { CanAccess } from '../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../constants/permission.constants';
 
 export const DrawResultPage: React.FC = () => {
@@ -51,7 +51,7 @@ export const DrawResultPage: React.FC = () => {
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
-                    <PermissionGuard permission={PERMISSIONS.LOTTERY_RESULT.SYNC}>
+                    <CanAccess permission={PERMISSIONS.LOTTERY_RESULT.SYNC}>
                         <Button
                             onClick={() => setIsSyncModalOpen(true)}
                             variant="contained"
@@ -69,7 +69,7 @@ export const DrawResultPage: React.FC = () => {
                         >
                             Đồng bộ dữ liệu
                         </Button>
-                    </PermissionGuard>
+                    </CanAccess>
                 </div>
             </div>
 

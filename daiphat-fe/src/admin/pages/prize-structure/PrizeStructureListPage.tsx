@@ -7,7 +7,7 @@ import { prefixAdmin } from "../../constants/routes";
 import { PrizeStructureList } from "./sections/PrizeStructureList";
 import { SyncPrizeStructureModal } from "./sections/SyncPrizeStructureModal";
 import { usePrizeStructuresByRegion } from "./hooks/usePrizeStructure";
-import { PermissionGuard } from "../../components/auth/PermissionGuard";
+import { CanAccess } from "../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../constants/permission.constants";
 
 export const PrizeStructureListPage = () => {
@@ -29,7 +29,7 @@ export const PrizeStructureListPage = () => {
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
-                    <PermissionGuard permission={PERMISSIONS.PRIZE_STRUCTURE.SYNC}>
+                    <CanAccess permission={PERMISSIONS.PRIZE_STRUCTURE.SYNC}>
                         <Button
                             onClick={() => setIsSyncModalOpen(true)}
                             variant="contained"
@@ -47,7 +47,7 @@ export const PrizeStructureListPage = () => {
                         >
                             Đồng bộ dữ liệu
                         </Button>
-                    </PermissionGuard>
+                    </CanAccess>
                 </div>
             </div>
 

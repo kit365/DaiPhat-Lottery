@@ -5,6 +5,8 @@ import { Title } from "../../components/ui/Title";
 import { prefixAdmin } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { CouponList } from "./sections/CouponList";
+import { CanAccess } from "../../components/auth/CanAccess";
+import { PERMISSIONS } from "../../constants/permission.constants";
 
 export const CouponListPage = () => {
     const navigate = useNavigate();
@@ -22,6 +24,7 @@ export const CouponListPage = () => {
                         ]}
                     />
                 </div>
+                <CanAccess permission={PERMISSIONS.COUPON.CREATE}>
                 <Button
                     onClick={() => navigate(`/${prefixAdmin}/coupon/create`)}
                     sx={{
@@ -44,6 +47,7 @@ export const CouponListPage = () => {
                 >
                     Thêm mã giảm giá
                 </Button>
+                </CanAccess>
             </div>
             <CouponList />
         </>

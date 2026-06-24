@@ -11,7 +11,7 @@ import { useProviderList } from "./hooks/useProviderList";
 import { toast } from 'react-toastify';
 import { SyncProviderModal } from './sections/SyncProviderModal';
 import { useState } from 'react';
-import { PermissionGuard } from "../../components/auth/PermissionGuard";
+import { CanAccess } from "../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../constants/permission.constants";
 
 export const ProviderListPage = () => {
@@ -33,7 +33,7 @@ export const ProviderListPage = () => {
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
-                    <PermissionGuard permission={PERMISSIONS.PROVIDER.SYNC}>
+                    <CanAccess permission={PERMISSIONS.PROVIDER.SYNC}>
                         <Button
                             onClick={() => setIsSyncModalOpen(true)}
                             variant="contained"
@@ -51,8 +51,8 @@ export const ProviderListPage = () => {
                         >
                             Đồng bộ đài
                         </Button>
-                    </PermissionGuard>
-                    <PermissionGuard permission={PERMISSIONS.PROVIDER.CREATE}>
+                    </CanAccess>
+                    <CanAccess permission={PERMISSIONS.PROVIDER.CREATE}>
                         <LoadingButton
                             onClick={() => navigate(`/${prefixAdmin}/provider/create`)}
                             label="Thêm nhà đài"
@@ -62,7 +62,7 @@ export const ProviderListPage = () => {
                                 padding: "var(--shape-borderRadius-sm) calc(2 * var(--spacing))",
                             }}
                         />
-                    </PermissionGuard>
+                    </CanAccess>
                 </div>
             </div>
             <ProviderList providerHook={providerHook} />

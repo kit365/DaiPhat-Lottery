@@ -7,6 +7,8 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { BlogCategoryList } from "./sections/BlogCategoryList";
 import { useTranslation } from "react-i18next";
+import { CanAccess } from "../../components/auth/CanAccess";
+import { PERMISSIONS } from "../../constants/permission.constants";
 
 export const BlogCategoryListPage = () => {
     const { t } = useTranslation();
@@ -27,7 +29,7 @@ export const BlogCategoryListPage = () => {
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
-
+                    <CanAccess permission={PERMISSIONS.ARTICLE.CREATE}>
                     <Button
                         onClick={() => navigate(`/${prefixAdmin}/blog-category/create`)}
                         sx={{
@@ -50,6 +52,7 @@ export const BlogCategoryListPage = () => {
                     >
                         {t("admin.blog.title.category_create")}
                     </Button>
+                    </CanAccess>
                 </div>
             </div>
             <BlogCategoryList isTrash={isTrash} />
