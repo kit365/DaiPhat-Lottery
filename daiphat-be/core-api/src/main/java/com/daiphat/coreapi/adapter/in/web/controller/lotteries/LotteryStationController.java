@@ -38,28 +38,28 @@ public class LotteryStationController {
     private final LotteryStationServicePort lotteryStationServicePort;
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    @PreAuthorize("hasAnyAuthority('station:create', 'provider:create')")
     public ApiResponse<LotteryStationResponse> create(
             @Valid @RequestBody CreateLotteryStationRequest request) {
         LotteryStationResponse response = lotteryStationServicePort.create(request);
-        return ApiResponse.success("Tạo sản phẩm vé số thành công.", response);
+        return ApiResponse.success("Tạo nhà đài thành công.", response);
     }
 
     @PostMapping("/sync")
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAuthority('station:sync')")
     public ApiResponse<LotteryStationSyncResponse> syncStations(
             @Valid @RequestBody SyncLotteryStationsRequest request) {
         return ApiResponse.success("Đồng bộ nhà đài thành công.", lotteryStationServicePort.syncStations(request));
     }
 
     @GetMapping(ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('station:view', 'provider:view')")
     public ApiResponse<LotteryStationResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(null, lotteryStationServicePort.getById(id));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('station:view', 'provider:view')")
     public ApiResponse<PageResponse<LotteryStationResponse>> getAll(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
@@ -108,23 +108,23 @@ public class LotteryStationController {
     }
 
     @PutMapping(ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('station:edit', 'provider:edit')")
     public ApiResponse<LotteryStationResponse> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateLotteryStationRequest request) {
         LotteryStationResponse response = lotteryStationServicePort.update(id, request);
-        return ApiResponse.success("Cập nhật sản phẩm vé số thành công.", response);
+        return ApiResponse.success("Cập nhật nhà đài thành công.", response);
     }
 
     @DeleteMapping(ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:delete')")
+    @PreAuthorize("hasAnyAuthority('station:delete')")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         lotteryStationServicePort.delete(id);
-        return ApiResponse.success("Xóa sản phẩm vé số thành công.");
+        return ApiResponse.success("Xóa nhà đài thành công.");
     }
 
     @PostMapping(value = ID_PATH + "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('station:edit', 'provider:edit')")
     public ApiResponse<LotteryStationResponse> uploadImage(
             @PathVariable Long id,
             @RequestPart("file") MultipartFile file) {

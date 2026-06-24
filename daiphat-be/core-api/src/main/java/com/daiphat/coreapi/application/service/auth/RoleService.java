@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -30,6 +31,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class RoleService implements RoleServicePort {
+
+    private static final Map<String, Integer> SYSTEM_ROLE_ORDER = buildSystemRoleOrder();
 
     private final RoleRepositoryPort roleRepositoryPort;
     private final RoleApplicationMapper roleApplicationMapper;
@@ -51,10 +54,8 @@ public class RoleService implements RoleServicePort {
     @Override
     public List<RoleResponse> getAllRoles() {
         return roleRepositoryPort.findAll().stream()
-                .filter(role -> !role.getCode().equals(RoleConstants.ADMIN)
-                        && !role.getCode().equals(RoleConstants.ROLE_MEMBER))
-                .sorted(Comparator.comparing(RoleModel::getName,
-                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .filter(this::isManageableRole)
+                .sorted(roleComparator())
                 .map(roleApplicationMapper::toResponse)
                 .toList();
     }
@@ -95,7 +96,7 @@ public class RoleService implements RoleServicePort {
     public void syncOperatorStaffPermissions() {
         RoleModel role = roleRepositoryPort.findByCode(RoleConstants.ROLE_STAFF_OPERATOR)
                 .orElse(null);
-        if (role != null && (role.getPermissions() == null || role.getPermissions().isEmpty())) {
+        if (role != null) {
             Set<String> permissionCodes = authProperties.getDefaultOperatorPermissions();
             if (permissionCodes != null && !permissionCodes.isEmpty()) {
                 roleRepositoryPort.assignPermissionsToRole(RoleConstants.ROLE_STAFF_OPERATOR, permissionCodes);
@@ -113,6 +114,7 @@ public class RoleService implements RoleServicePort {
     public List<PermissionItem> getAllPermissions() {
         return roleRepositoryPort.findAllPermissions().stream()
                 .filter(p -> !p.getCode().startsWith(PermissionConstants.ROLE))
+                .filter(p -> !isLegacyProviderPermission(p.getCode()))
                 .sorted(Comparator.comparing(
                         PermissionModel::getPosition,
                         Comparator.nullsLast(Comparator.reverseOrder())))
@@ -144,5 +146,42 @@ public class RoleService implements RoleServicePort {
                 .filter(Objects::nonNull)
                 .map(PermissionModel::getCode)
                 .collect(Collectors.toSet());
+    }
+
+    private boolean isLegacyProviderPermission(String code) {
+        return code != null && code.startsWith(PermissionConstants.PROVIDER + ":");
+    }
+
+    private Comparator<RoleModel> roleComparator() {
+        return Comparator
+                .comparingInt(this::resolveRoleOrder)
+                .thenComparing(RoleModel::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                .thenComparing(RoleModel::getCode, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+    }
+
+    private int resolveRoleOrder(RoleModel role) {
+        if (role == null || role.getCode() == null) {
+            return Integer.MAX_VALUE;
+        }
+        return SYSTEM_ROLE_ORDER.getOrDefault(role.getCode(), Integer.MAX_VALUE);
+    }
+
+    private boolean isManageableRole(RoleModel role) {
+        if (role == null || role.getCode() == null) {
+            return false;
+        }
+
+        return !RoleConstants.ADMIN.equals(role.getCode())
+                && !RoleConstants.ROLE_MEMBER.equals(role.getCode())
+                && !RoleConstants.ROLE_STREET_AGENT.equals(role.getCode());
+    }
+
+    private static Map<String, Integer> buildSystemRoleOrder() {
+        Map<String, Integer> roleOrder = new LinkedHashMap<>();
+        roleOrder.put(RoleConstants.ADMIN, 0);
+        roleOrder.put(RoleConstants.ROLE_STAFF_OPERATOR, 1);
+        roleOrder.put(RoleConstants.ROLE_STREET_AGENT, 2);
+        roleOrder.put(RoleConstants.ROLE_MEMBER, 3);
+        return roleOrder;
     }
 }

@@ -5,6 +5,8 @@ import { Title } from "../../components/ui/Title";
 import { prefixAdmin, ROUTES } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
 import { AccountAdminList } from "./sections/AccountAdminList";
+import { PermissionGuard } from "../../components/auth/PermissionGuard";
+import { PERMISSIONS } from "../../constants/permission.constants";
 
 export const AccountAdminListPage = () => {
     const navigate = useNavigate();
@@ -22,27 +24,29 @@ export const AccountAdminListPage = () => {
                         ]}
                     />
                 </div>
-                <Button
-                    onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.ADMIN.CREATE)}
-                    sx={{
-                        background: 'var(--palette-text-primary)',
-                        minHeight: "2.5rem",
-                        px: 3,
-                        fontWeight: 700,
-                        fontSize: "0.875rem",
-                        borderRadius: "12px",
-                        textTransform: "none",
-                        boxShadow: "none",
-                        "&:hover": {
-                            background: "var(--palette-grey-700)",
-                            boxShadow: "var(--customShadows-z8)"
-                        }
-                    }}
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                >
-                    Tạo tài khoản
-                </Button>
+                <PermissionGuard permission={PERMISSIONS.ACCOUNT.CREATE}>
+                    <Button
+                        onClick={() => navigate(ROUTES.ADMIN.ACCOUNTS.ADMIN.CREATE)}
+                        sx={{
+                            background: 'var(--palette-text-primary)',
+                            minHeight: "2.5rem",
+                            px: 3,
+                            fontWeight: 700,
+                            fontSize: "0.875rem",
+                            borderRadius: "12px",
+                            textTransform: "none",
+                            boxShadow: "none",
+                            "&:hover": {
+                                background: "var(--palette-grey-700)",
+                                boxShadow: "var(--customShadows-z8)"
+                            }
+                        }}
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                    >
+                        Tạo tài khoản
+                    </Button>
+                </PermissionGuard>
             </div>
             
             <AccountAdminList />

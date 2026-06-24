@@ -11,6 +11,8 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.EnumSet;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -18,6 +20,12 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder
 public class LotteryResultModel {
+
+    private static final Set<LotteryResultStatus> CHECKABLE_STATUSES = EnumSet.of(
+            LotteryResultStatus.COMPLETED,
+            LotteryResultStatus.PARTIAL,
+            LotteryResultStatus.WAITING_FOR_AUDIT
+    );
 
     private Long id;
     private Long stationId;
@@ -55,5 +63,9 @@ public class LotteryResultModel {
 
     public boolean isDeleted() {
         return deletedAt != null;
+    }
+
+    public boolean canCheckWinning() {
+        return status != null && CHECKABLE_STATUSES.contains(status);
     }
 }
