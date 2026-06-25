@@ -1,27 +1,46 @@
 import { useEffect, useState } from 'react';
+import { computeRefundSecondsLeft, RefundWindowInput } from '../../types/refund.type';
 
 const LOW_TIME_THRESHOLD_SECONDS = 5 * 60;
 
-export function useRefundCountdown(remainingSeconds: number | null | undefined, enabled: boolean) {
-    const [secondsLeft, setSecondsLeft] = useState(remainingSeconds ?? 0);
+export interface UseRefundCountdownInput extends RefundWindowInput {
+    enabled: boolean;
+}
+
+export function useRefundCountdown({
+    refundDeadlineAt,
+    paymentSuccessAt,
+    graceMinutes,
+    remainingSeconds,
+    enabled
+}: UseRefundCountdownInput) {
+    const compute = () =>
+        computeRefundSecondsLeft(
+            refundDeadlineAt,
+            paymentSuccessAt,
+            graceMinutes,
+            remainingSeconds
+        );
+
+    const [secondsLeft, setSecondsLeft] = useState(() => (enabled ? compute() : 0));
 
     useEffect(() => {
-        if (!enabled || remainingSeconds == null) return;
-        setSecondsLeft(remainingSeconds);
-    }, [remainingSeconds, enabled]);
+        if (!enabled) {
+            setSecondsLeft(0);
+            return;
+        }
 
-    useEffect(() => {
-        if (!enabled || remainingSeconds == null) return;
+        setSecondsLeft(compute());
 
         const interval = setInterval(() => {
-            setSecondsLeft((prev) => Math.max(0, prev - 1));
+            setSecondsLeft(compute());
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [enabled, remainingSeconds]);
+    }, [enabled, refundDeadlineAt, paymentSuccessAt, graceMinutes, remainingSeconds]);
 
-    const isExpired = secondsLeft <= 0;
-    const isLowTime = secondsLeft > 0 && secondsLeft < LOW_TIME_THRESHOLD_SECONDS;
+    const isExpired = !enabled || secondsLeft <= 0;
+    const isLowTime = enabled && secondsLeft > 0 && secondsLeft < LOW_TIME_THRESHOLD_SECONDS;
 
     return { secondsLeft, isExpired, isLowTime };
 }
