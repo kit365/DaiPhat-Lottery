@@ -6,12 +6,13 @@ import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderReques
 import com.daiphat.coreapi.application.dto.request.order.DirectOrderTransactionRequest;
 import com.daiphat.coreapi.application.dto.request.order.OrderTicketItemRequest;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
+import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
-import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
+import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategyFactory;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -79,6 +80,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     private final PaymentCountdownCachePort paymentCountdownCachePort = mock(PaymentCountdownCachePort.class);
     private final PaymentGatewayStrategyFactory paymentGatewayStrategyFactory = mock(PaymentGatewayStrategyFactory.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+    private final OrderRefundGraceService orderRefundGraceService = mock(OrderRefundGraceService.class);
 
     private OrderServicePort orderService;
 
@@ -100,7 +102,8 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
                 Mappers.getMapper(OrderApplicationMapper.class),
                 paymentCountdownCachePort,
                 paymentGatewayStrategyFactory,
-                eventPublisher
+                eventPublisher,
+                orderRefundGraceService
         );
     }
 

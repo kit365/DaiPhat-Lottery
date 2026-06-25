@@ -24,6 +24,13 @@ public class OrderDetailModel {
     private Long lotteryTicketSerialId;
     private Long replacedByTicketId;
     private Long replacedByTicketSerialId;
+
+    @Builder.Default
+    private Integer quantity = 1;
+
+    @Builder.Default
+    private List<Long> allocatedSerialIds = new ArrayList<>();
+
     private BigDecimal price;
 
     @Builder.Default
@@ -78,6 +85,15 @@ public class OrderDetailModel {
 
     public boolean isRefunded() {
         return this.status == OrderDetailStatus.REFUNDED;
+    }
+
+    public int getEffectiveQuantity() {
+        return quantity != null && quantity > 0 ? quantity : 1;
+    }
+
+    public BigDecimal getLineSubtotal() {
+        BigDecimal unitPrice = price != null ? price : BigDecimal.ZERO;
+        return unitPrice.multiply(BigDecimal.valueOf(getEffectiveQuantity()));
     }
 
     private void ensureStatus(OrderDetailStatus expectedStatus) {
