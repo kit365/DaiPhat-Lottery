@@ -104,6 +104,10 @@ daiphat:
       - "order:view"
       - "order:create"
       - "order:edit"
+      - "refund:view"
+      - "refund:approve"
+      - "refund:reject"
+      - "refund:process"
     seed:
       admin:
         username: ${AUTH_SEED_ADMIN_USERNAME:}
