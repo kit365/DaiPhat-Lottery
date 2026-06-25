@@ -14,4 +14,6 @@ public interface SystemConfigRepository extends JpaRepository<SystemConfigEntity
     List<SystemConfigEntity> findByConfigTypeAndIsActiveTrueOrderByConfigKeyAsc(ConfigType configType);
 
     Optional<SystemConfigEntity> findByIdAndIsActiveTrue(Long id);
+
+    Optional<SystemConfigEntity> findByConfigKeyAndIsActiveTrue(String configKey);
 }

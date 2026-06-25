@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,19 +40,27 @@ public class RefundRequestRepositoryAdapter implements RefundRequestRepositoryPo
             Pageable pageable,
             UUID requestedBy,
             RefundRequestStatus status,
+            Collection<RefundRequestStatus> statuses,
             UUID orderId,
             String search) {
         String normalizedSearch = normalizeSearch(search);
         return refundRequestRepository.findAll(
-                        RefundRequestSpecification.filter(requestedBy, status, orderId, normalizedSearch),
+                        RefundRequestSpecification.filter(
+                                requestedBy, status, statuses, orderId, normalizedSearch),
                         pageable)
                 .map(refundRequestPersistenceMapper::toDomain);
     }
 
     @Override
-    public long countAll(UUID requestedBy, RefundRequestStatus status, UUID orderId, String search) {
+    public long countAll(
+            UUID requestedBy,
+            RefundRequestStatus status,
+            Collection<RefundRequestStatus> statuses,
+            UUID orderId,
+            String search) {
         return refundRequestRepository.count(
-                RefundRequestSpecification.filter(requestedBy, status, orderId, normalizeSearch(search)));
+                RefundRequestSpecification.filter(
+                        requestedBy, status, statuses, orderId, normalizeSearch(search)));
     }
 
     @Override

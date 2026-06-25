@@ -1,6 +1,5 @@
 package com.daiphat.coreapi.application.service.refund;
 
-import com.daiphat.coreapi.application.config.OrderRefundProperties;
 import com.daiphat.coreapi.application.dto.request.refund.CreateOrderRefundRequest;
 import com.daiphat.coreapi.application.dto.response.refund.OrderRefundEligibilityResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
@@ -11,15 +10,16 @@ import com.daiphat.coreapi.application.port.in.refund.OrderRefundServicePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
+import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.RefundGraceEvaluation;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
+import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
-import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
-import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.model.refund.RefundRequestModel;
 import com.daiphat.coreapi.domain.model.refund.UserBankAccountModel;
 import lombok.RequiredArgsConstructor;
@@ -29,11 +29,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.util.Comparator;
 import java.util.UUID;
 
 @Service
@@ -46,13 +41,13 @@ public class OrderRefundService implements OrderRefundServicePort {
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final RefundApplicationMapper refundApplicationMapper;
-    private final OrderRefundProperties orderRefundProperties;
+    private final OrderRefundGraceService orderRefundGraceService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
     public RefundRequestResponse refundPaidOrder(UUID orderId, UUID customerId, CreateOrderRefundRequest request) {
-        log.info("Customer {} requesting refund for paid order {}", customerId, orderId);
+        log.info("Customer {} requesting refund for order {}", customerId, orderId);
 
         OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
@@ -61,7 +56,7 @@ public class OrderRefundService implements OrderRefundServicePort {
             throw new DomainException(ErrorCode.ACCESS_DENIED);
         }
 
-        validateRefundEligibility(order);
+        ensureRefundEligible(order);
 
         UserBankAccountModel bankAccount = userBankAccountRepositoryPort
                 .findByIdAndUserId(request.bankAccountId(), customerId)
@@ -69,6 +64,22 @@ public class OrderRefundService implements OrderRefundServicePort {
 
         String reason = request.refundReason().trim();
         BigDecimal refundAmount = calculateRefundAmount(order);
+
+        if (order.getStatus() == OrderStatus.PREPARING) {
+            RefundRequestModel refundRequest = RefundRequestModel.builder()
+                    .refundType(RefundType.FULL_ORDER)
+                    .orderId(orderId)
+                    .requestedBy(customerId)
+                    .requestRole(RefundRequestRole.CUSTOMER)
+                    .refundAmount(refundAmount)
+                    .refundReason(reason)
+                    .bankAccountId(bankAccount.getId())
+                    .build();
+            refundRequest.initializeForCreate();
+
+            RefundRequestModel savedRefund = refundRequestRepositoryPort.save(refundRequest);
+            return refundApplicationMapper.toRefundResponse(savedRefund, bankAccount);
+        }
 
         RefundRequestModel refundRequest = RefundRequestModel.builder()
                 .refundType(RefundType.FULL_ORDER)
@@ -83,10 +94,9 @@ public class OrderRefundService implements OrderRefundServicePort {
 
         RefundRequestModel savedRefund = refundRequestRepositoryPort.save(refundRequest);
 
-        order.cancelByCustomerRefund(reason);
+        cancelOrderForCustomerRefund(order, reason);
         releaseSoldTickets(order);
         orderRepositoryPort.save(order);
-
         publishOrderCancelled(order);
 
         return refundApplicationMapper.toRefundResponse(savedRefund, bankAccount);
@@ -102,70 +112,32 @@ public class OrderRefundService implements OrderRefundServicePort {
             throw new DomainException(ErrorCode.ACCESS_DENIED);
         }
 
-        try {
-            validateRefundEligibility(order);
-            LocalDateTime paidAt = resolvePaidAt(order);
-            long remainingSeconds = computeRemainingSeconds(paidAt);
-            return new OrderRefundEligibilityResponse(
-                    true,
-                    null,
-                    remainingSeconds,
-                    orderRefundProperties.getClosingTime().toString());
-        } catch (DomainException ex) {
-            return new OrderRefundEligibilityResponse(
-                    false,
-                    ex.getMessage(),
-                    null,
-                    orderRefundProperties.getClosingTime().toString());
+        RefundGraceEvaluation evaluation = orderRefundGraceService.evaluate(order);
+        return new OrderRefundEligibilityResponse(
+                evaluation.eligible(),
+                evaluation.reason(),
+                evaluation.remainingSeconds(),
+                evaluation.graceMinutes(),
+                evaluation.refundDeadlineAt());
+    }
+
+    private void ensureRefundEligible(OrderModel order) {
+        RefundGraceEvaluation evaluation = orderRefundGraceService.evaluate(order);
+        if (!evaluation.eligible()) {
+            throw new DomainException(ErrorCode.REFUND_WINDOW_EXPIRED, evaluation.reason());
         }
     }
 
-    private void validateRefundEligibility(OrderModel order) {
-        if (order.getStatus() != OrderStatus.PAID) {
-            throw new DomainException(ErrorCode.REFUND_ORDER_NOT_PAID);
+    private void cancelOrderForCustomerRefund(OrderModel order, String cancelReason) {
+        if (order.getOrderType() == OrderType.DIRECT) {
+            order.cancelDirectOrder(cancelReason);
+            return;
         }
-
-        if (refundRequestRepositoryPort.existsActiveByOrderId(order.getId())) {
-            throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
+        if (order.getStatus() == OrderStatus.PAID) {
+            order.cancelByCustomerRefund(cancelReason);
+            return;
         }
-
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of(orderRefundProperties.getTimezone()));
-        if (!now.toLocalTime().isBefore(orderRefundProperties.getClosingTime())) {
-            throw new DomainException(ErrorCode.REFUND_WINDOW_CLOSED);
-        }
-
-        LocalDateTime paidAt = resolvePaidAt(order);
-        Duration elapsed = Duration.between(paidAt, now.toLocalDateTime());
-        if (elapsed.toMinutes() >= orderRefundProperties.getWindowMinutes()) {
-            throw new DomainException(ErrorCode.REFUND_WINDOW_EXPIRED);
-        }
-    }
-
-    private LocalDateTime resolvePaidAt(OrderModel order) {
-        if (order.getTransactions() != null) {
-            LocalDateTime fromTx = order.getTransactions().stream()
-                    .filter(tx -> tx.getStatus() == TransactionStatus.COMPLETED)
-                    .map(TransactionModel::getPaidAt)
-                    .filter(paidAt -> paidAt != null)
-                    .max(Comparator.naturalOrder())
-                    .orElse(null);
-            if (fromTx != null) {
-                return fromTx;
-            }
-        }
-        if (order.getUpdatedAt() != null) {
-            return order.getUpdatedAt();
-        }
-        return order.getCreatedAt();
-    }
-
-    private long computeRemainingSeconds(LocalDateTime paidAt) {
-        if (paidAt == null) {
-            return 0L;
-        }
-        LocalDateTime deadline = paidAt.plusMinutes(orderRefundProperties.getWindowMinutes());
-        long seconds = Duration.between(LocalDateTime.now(), deadline).getSeconds();
-        return Math.max(seconds, 0L);
+        order.cancelAfterPayment(cancelReason);
     }
 
     private BigDecimal calculateRefundAmount(OrderModel order) {
