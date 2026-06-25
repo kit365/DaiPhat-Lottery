@@ -93,6 +93,8 @@ const ReviewListPage = lazy(() => import("../pages/review/ReviewListPage").then(
 const NotificationListPage = lazy(() => import("../pages/notification/NotificationListPage").then(m => ({ default: m.NotificationListPage })));
 const SupportTicketListPage = lazy(() => import("../pages/support-ticket/SupportTicketListPage").then(m => ({ default: m.SupportTicketListPage })));
 const SupportTicketDetailPage = lazy(() => import("../pages/support-ticket/SupportTicketDetailPage").then(m => ({ default: m.SupportTicketDetailPage })));
+const RefundListPage = lazy(() => import("../pages/refund/RefundListPage").then(m => ({ default: m.RefundListPage })));
+const RefundDetailPage = lazy(() => import("../pages/refund/RefundDetailPage").then(m => ({ default: m.RefundDetailPage })));
 
 export const AdminRoutes = [
     { index: true, element: <Navigate to="/admin/dashboard" replace /> },
@@ -169,6 +171,8 @@ export const AdminRoutes = [
     { path: "order/detail/:id", element: <PermissionGuard permission={PERMISSIONS.ORDER.VIEW}><OrderDetailPage /></PermissionGuard> },
     { path: "support-tickets/list", element: <PermissionGuard permission={PERMISSIONS.SUPPORT_TICKET.VIEW}><SupportTicketListPage /></PermissionGuard> },
     { path: "support-tickets/detail/:id", element: <PermissionGuard permission={PERMISSIONS.SUPPORT_TICKET.VIEW}><SupportTicketDetailPage /></PermissionGuard> },
+    { path: "refunds/list", element: <PermissionGuard permission={PERMISSIONS.REFUND.VIEW}><RefundListPage /></PermissionGuard> },
+    { path: "refunds/detail/:id", element: <PermissionGuard permission={PERMISSIONS.REFUND.VIEW}><RefundDetailPage /></PermissionGuard> },
     { path: "calendar", element: <PermissionGuard permission={PERMISSIONS.CALENDAR.VIEW}><CalendarPage /></PermissionGuard> },
     { path: "dashboard/settings/*", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><SettingsPage /></PermissionGuard> },
     { path: "settings/ticket-subtype/list", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><TicketSubtypeListPage /></PermissionGuard> },
