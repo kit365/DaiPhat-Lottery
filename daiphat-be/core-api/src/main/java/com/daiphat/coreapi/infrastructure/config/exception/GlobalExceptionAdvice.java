@@ -116,7 +116,8 @@ public class GlobalExceptionAdvice {
                 || errorCode == ErrorCode.LOTTERY_STATION_SYNC_SOURCE_INVALID
                 || errorCode == ErrorCode.LOTTERY_STATION_SYNC_SOURCE_DUPLICATE
                 || errorCode == ErrorCode.LOTTERY_STATION_SYNC_DEFAULT_PRICE_REQUIRED
-                || errorCode == ErrorCode.LOTTERY_STATION_SYNC_CANONICAL_NAME_REQUIRED) {
+                || errorCode == ErrorCode.LOTTERY_STATION_SYNC_CANONICAL_NAME_REQUIRED
+                || errorCode == ErrorCode.REFUND_WINDOW_EXPIRED) {
             return exception.getInternalMessage();
         }
 

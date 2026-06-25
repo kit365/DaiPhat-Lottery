@@ -6,6 +6,7 @@ import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,6 +21,16 @@ public final class RefundRequestSpecification {
             UUID orderId,
             String search
     ) {
+        return filter(requestedBy, status, null, orderId, search);
+    }
+
+    public static Specification<RefundRequestEntity> filter(
+            UUID requestedBy,
+            RefundRequestStatus status,
+            Collection<RefundRequestStatus> statuses,
+            UUID orderId,
+            String search
+    ) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -27,7 +38,9 @@ public final class RefundRequestSpecification {
                 predicates.add(cb.equal(root.get("requestedBy").get("id"), requestedBy));
             }
 
-            if (status != null) {
+            if (statuses != null && !statuses.isEmpty()) {
+                predicates.add(root.get("status").in(statuses));
+            } else if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
             }
 
