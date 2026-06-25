@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.order;
 
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -46,12 +47,20 @@ public class OrderDetailEntity {
     private OrderEntity order;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lottery_ticket_serial_id", nullable = false)
+    @JoinColumn(name = "lottery_ticket_id")
+    private LotteryTicketEntity lotteryTicket;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lottery_ticket_serial_id")
     private LotteryTicketSerialEntity lotteryTicketSerial;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "replaced_by_ticket_serial_id", unique = true)
     private LotteryTicketSerialEntity replacedByTicketSerial;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer quantity = 1;
 
     @Column(nullable = false, precision = 15)
     private BigDecimal price;
@@ -62,6 +71,9 @@ public class OrderDetailEntity {
 
     @OneToMany(mappedBy = "orderDetail", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderRefundEntity> refunds;
+
+    @OneToMany(mappedBy = "orderDetail", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderDetailSerialEntity> allocatedSerials;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)

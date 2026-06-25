@@ -355,6 +355,7 @@ public class OrderService implements OrderServicePort {
                 .refundEligible(refundEvaluation.eligible())
                 .refundRemainingSeconds(refundEvaluation.remainingSeconds())
                 .refundGraceMinutes(refundEvaluation.graceMinutes())
+                .refundPaymentSuccessAt(refundEvaluation.paymentSuccessAt())
                 .build();
     }
 
@@ -384,6 +385,7 @@ public class OrderService implements OrderServicePort {
                 .refundEligible(refundEvaluation.eligible())
                 .refundRemainingSeconds(refundEvaluation.remainingSeconds())
                 .refundGraceMinutes(refundEvaluation.graceMinutes())
+                .refundPaymentSuccessAt(refundEvaluation.paymentSuccessAt())
                 .build();
     }
 
@@ -416,6 +418,7 @@ public class OrderService implements OrderServicePort {
                             .replacedByTicketId(base.replacedByTicketId())
                             .replacedByTicketSerialId(base.replacedByTicketSerialId())
                             .price(base.price())
+                            .quantity(detail.getEffectiveQuantity())
                             .status(base.status())
                             .refunds(base.refunds())
                             .build();
