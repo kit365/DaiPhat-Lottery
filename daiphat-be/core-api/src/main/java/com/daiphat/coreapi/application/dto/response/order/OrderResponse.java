@@ -33,6 +33,7 @@ public record OrderResponse(
         LocalDateTime updatedAt,
         Boolean refundEligible,
         Long refundRemainingSeconds,
-        Integer refundGraceMinutes
+        Integer refundGraceMinutes,
+        LocalDateTime refundPaymentSuccessAt
 ) {
 }

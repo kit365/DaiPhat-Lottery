@@ -5,7 +5,10 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record CreateOrderRefundRequest(
-        @NotBlank @Size(max = 500) String refundReason,
-        @NotNull Long bankAccountId
+        @NotBlank(message = "Vui lòng nhập lý do hoàn tiền.")
+        @Size(max = 500, message = "Lý do hoàn tiền không được vượt quá 500 ký tự.")
+        String refundReason,
+        @NotNull(message = "Vui lòng chọn tài khoản nhận hoàn tiền.")
+        Long bankAccountId
 ) {
 }

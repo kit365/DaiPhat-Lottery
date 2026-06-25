@@ -5,9 +5,21 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<TransactionEntity, Long> {
+
+    @Query(value = """
+            SELECT COALESCE(paid_at, updated_at, created_at)
+            FROM transactions
+            WHERE order_id = :orderId
+              AND status = 'COMPLETED'
+            ORDER BY COALESCE(paid_at, updated_at, created_at) DESC
+            LIMIT 1
+            """, nativeQuery = true)
+    Optional<LocalDateTime> findLatestPaymentSuccessAt(@Param("orderId") UUID orderId);
 
     @Query(value = "SELECT nextval('payment_order_code_seq')", nativeQuery = true)
     Long getNextGatewayOrderCode();
