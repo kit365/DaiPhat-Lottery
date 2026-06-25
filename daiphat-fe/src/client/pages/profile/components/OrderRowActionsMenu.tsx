@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { OrderResponse, OrderStatus } from '../../../../types/order.type';
+import { canShowRefundRequest } from '../../../../types/refund.type';
 
 interface OrderRowActionsMenuProps {
     order: OrderResponse;
@@ -21,7 +22,7 @@ export const OrderRowActionsMenu = ({
     const [open, setOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const showRefund = order.refundEligible && !hasPendingRefund;
+    const showRefund = canShowRefundRequest(order, hasPendingRefund);
     const showPayment = order.status === OrderStatus.PENDING_PAYMENT && !!onQuickPayment;
 
     useEffect(() => {

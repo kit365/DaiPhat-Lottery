@@ -96,4 +96,6 @@ export interface OrderResponse {
     refundEligible?: boolean;
     refundRemainingSeconds?: number;
     refundGraceMinutes?: number;
+    refundPaymentSuccessAt?: string;
+    refundDeadlineAt?: string;
 }

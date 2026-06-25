@@ -5,6 +5,7 @@ import { useGetMyOrders, useGetMyOrderDetail } from '../../../hooks/useOrder';
 import { useProcessPayment } from '../../../hooks/useTransaction';
 import { PaymentGateway } from '../../../../types/transaction.type';
 import { AppToast } from '../../../utils/toast.util';
+import { isRefundWindowOpen } from '../../../../types/refund.type';
 import { RefundRequestModal } from '../../../components/refund/RefundRequestModal';
 import { useGetMyRefunds } from '../../../hooks/useRefund';
 import { OrderRowActionsMenu } from '../components/OrderRowActionsMenu';
@@ -79,6 +80,20 @@ export const OrdersTab = () => {
             ) || [],
         [allRefundsData]
     );
+
+    const handleRequestRefund = (order: OrderResponse) => {
+        if (
+            !isRefundWindowOpen({
+                paymentSuccessAt: order.refundPaymentSuccessAt,
+                graceMinutes: order.refundGraceMinutes,
+                remainingSeconds: order.refundRemainingSeconds
+            })
+        ) {
+            AppToast.error('Đã hết thời gian yêu cầu hoàn tiền');
+            return;
+        }
+        setRefundOrderId(order.id);
+    };
 
     const handleQuickPayment = (order: OrderResponse) => {
         if (!order?.id) {
@@ -361,7 +376,7 @@ export const OrdersTab = () => {
                                                             hasPendingRefund={hasPendingRefund}
                                                             isPaying={processPaymentMutation.isPending}
                                                             onViewDetail={() => navigate(`/profile/orders/${order.id}`)}
-                                                            onRequestRefund={() => setRefundOrderId(order.id)}
+                                                            onRequestRefund={() => handleRequestRefund(order)}
                                                             onQuickPayment={
                                                                 order.status === OrderStatus.PENDING_PAYMENT
                                                                     ? () => handleQuickPayment(order)
