@@ -96,11 +96,15 @@ public class RefundRequestModel {
         this.rejectReason = reason.trim();
     }
 
-    public void markTransferred(UUID transferrerId, String evidenceUrl) {
-        markPaid(transferrerId, evidenceUrl);
+    public void markTransferred(UUID transferrerId, String evidenceUrl, String transferNote) {
+        markPaid(transferrerId, evidenceUrl, transferNote);
     }
 
     public void markPaid(UUID transferrerId, String evidenceUrl) {
+        markPaid(transferrerId, evidenceUrl, null);
+    }
+
+    public void markPaid(UUID transferrerId, String evidenceUrl, String transferNote) {
         if (this.status != RefundRequestStatus.APPROVED && this.status != RefundRequestStatus.READY_TO_PAY) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
         }
@@ -111,6 +115,9 @@ public class RefundRequestModel {
         this.transferredBy = transferrerId;
         this.transferredAt = LocalDateTime.now();
         this.transferEvidenceUrl = evidenceUrl.trim();
+        if (transferNote != null && !transferNote.isBlank()) {
+            this.transferNote = transferNote.trim();
+        }
     }
 
     public void cancel() {
