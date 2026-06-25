@@ -6,7 +6,12 @@ import { AppToast as toast } from '../utils/toast.util';
 import { QUERY_KEYS } from '../../constants/queryKeys';
 
 const getErrorMessage = (error: any, fallback: string) =>
-    error?.response?.data?.message || error.message || fallback;
+    error?.response?.data?.message || error?.response?.data?.error || error.message || fallback;
+
+const isHandledClientError = (error: any) => {
+    const status = error?.response?.status;
+    return status === 400 || status === 403 || status === 422 || status === 429;
+};
 
 export const useGetMyRefunds = (params: GetMyRefundsParams, enabled = true) => {
     return useQuery({
@@ -52,6 +57,9 @@ export const useCreateRefund = () => {
             }
         },
         onError: (error: any) => {
+            if (isHandledClientError(error)) {
+                return;
+            }
             toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
         }
     });
@@ -74,6 +82,9 @@ export const useCreateOrderRefund = () => {
             }
         },
         onError: (error: any) => {
+            if (isHandledClientError(error)) {
+                return;
+            }
             toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
         }
     });
