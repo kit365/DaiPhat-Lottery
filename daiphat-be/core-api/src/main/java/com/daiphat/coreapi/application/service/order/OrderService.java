@@ -18,6 +18,8 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePor
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService;
+import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.RefundGraceEvaluation;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategy;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategyFactory;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -76,6 +78,7 @@ public class OrderService implements OrderServicePort {
     private final PaymentCountdownCachePort paymentCountdownCachePort;
     private final PaymentGatewayStrategyFactory paymentGatewayStrategyFactory;
     private final ApplicationEventPublisher eventPublisher;
+    private final OrderRefundGraceService orderRefundGraceService;
 
     @Override
     @Transactional
@@ -290,7 +293,7 @@ public class OrderService implements OrderServicePort {
                         toDate,
                         search
                 )
-                .map(orderApplicationMapper::toResponse);
+                .map(this::toCustomerOrderResponse);
 
         return PageResponse.from(resultPage, page, size, null);
     }
@@ -328,6 +331,7 @@ public class OrderService implements OrderServicePort {
 
     private OrderResponse toEnrichedOrderResponse(OrderModel order) {
         OrderResponse base = orderApplicationMapper.toResponse(order);
+        RefundGraceEvaluation refundEvaluation = orderRefundGraceService.evaluate(order);
         return OrderResponse.builder()
                 .id(base.id())
                 .userId(base.userId())
@@ -348,6 +352,38 @@ public class OrderService implements OrderServicePort {
                 .transactions(base.transactions())
                 .createdAt(base.createdAt())
                 .updatedAt(base.updatedAt())
+                .refundEligible(refundEvaluation.eligible())
+                .refundRemainingSeconds(refundEvaluation.remainingSeconds())
+                .refundGraceMinutes(refundEvaluation.graceMinutes())
+                .build();
+    }
+
+    private OrderResponse toCustomerOrderResponse(OrderModel order) {
+        OrderResponse base = orderApplicationMapper.toResponse(order);
+        RefundGraceEvaluation refundEvaluation = orderRefundGraceService.evaluate(order);
+        return OrderResponse.builder()
+                .id(base.id())
+                .userId(base.userId())
+                .name(base.name())
+                .phone(base.phone())
+                .email(base.email())
+                .orderCode(base.orderCode())
+                .orderType(base.orderType())
+                .receiveType(base.receiveType())
+                .totalAmount(base.totalAmount())
+                .status(base.status())
+                .expectedPickupAt(base.expectedPickupAt())
+                .cancelledAt(base.cancelledAt())
+                .cancelReason(base.cancelReason())
+                .actualPickedUpAt(base.actualPickedUpAt())
+                .pickedUpBy(base.pickedUpBy())
+                .orderDetails(base.orderDetails())
+                .transactions(base.transactions())
+                .createdAt(base.createdAt())
+                .updatedAt(base.updatedAt())
+                .refundEligible(refundEvaluation.eligible())
+                .refundRemainingSeconds(refundEvaluation.remainingSeconds())
+                .refundGraceMinutes(refundEvaluation.graceMinutes())
                 .build();
     }
 
