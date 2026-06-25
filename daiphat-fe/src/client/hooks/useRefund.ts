@@ -84,7 +84,8 @@ export const useGetOrderRefundEligibility = (orderId: string, enabled = true) =>
         queryKey: [QUERY_KEYS.CLIENT_ORDER_REFUND_ELIGIBILITY, orderId],
         queryFn: () => orderService.getRefundEligibility(orderId),
         enabled: !!orderId && enabled,
-        refetchInterval: 30_000
+        refetchInterval: enabled ? 30_000 : false,
+        refetchOnMount: 'always'
     });
 };
 

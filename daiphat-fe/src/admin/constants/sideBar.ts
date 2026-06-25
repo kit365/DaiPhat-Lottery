@@ -14,6 +14,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import RateReviewIcon from "@mui/icons-material/RateReview";
 import ChatIcon from "@mui/icons-material/Chat";
+import PaymentsIcon from "@mui/icons-material/Payments";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 
@@ -92,6 +93,13 @@ export const menuManagementData = [
             { id: "list", label: "Danh sách đơn", path: ROUTES.ADMIN.ORDERS.LIST, permission: PERMISSIONS.ORDER.VIEW },
             { id: "create-counter", label: "Đơn tại quầy", path: ROUTES.ADMIN.ORDERS.CREATE_COUNTER, permission: PERMISSIONS.ORDER.CREATE },
         ]
+    },
+    {
+        id: "refunds",
+        label: "Hoàn tiền",
+        Icon: PaymentsIcon,
+        path: ROUTES.ADMIN.REFUNDS.LIST,
+        permission: PERMISSIONS.REFUND.VIEW,
     },
     {
         id: "support-tickets",

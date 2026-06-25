@@ -71,6 +71,8 @@ export const QUERY_KEYS = {
     ADMIN_SUPPORT_TICKET_DETAIL: 'admin-support-ticket-detail',
     ADMIN_SUPPORT_TICKET_COMMENTS: 'admin-support-ticket-comments',
     ADMIN_TICKET_CATEGORIES: 'admin-ticket-categories',
+    ADMIN_REFUNDS: 'admin-refunds',
+    ADMIN_REFUND_DETAIL: 'admin-refund-detail',
 
     // Lottery Results
     LOTTERY_RESULTS: 'lottery-results',

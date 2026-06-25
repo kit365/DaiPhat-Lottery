@@ -67,6 +67,12 @@ export const PERMISSIONS = {
         EDIT: "order:edit",
         DELETE: "order:delete",
     },
+    REFUND: {
+        VIEW: "refund:view",
+        APPROVE: "refund:approve",
+        REJECT: "refund:reject",
+        PROCESS: "refund:process",
+    },
     REGION: {
         VIEW: "region:view",
         CREATE: "region:create",
