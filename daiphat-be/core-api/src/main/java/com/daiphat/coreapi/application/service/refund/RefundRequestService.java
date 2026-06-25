@@ -211,7 +211,7 @@ public class RefundRequestService implements RefundRequestServicePort {
     private BigDecimal calculateOrderRefundAmount(OrderModel order) {
         if (order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
             return order.getOrderDetails().stream()
-                    .map(OrderDetailModel::getPrice)
+                    .map(OrderDetailModel::getLineSubtotal)
                     .filter(price -> price != null)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
