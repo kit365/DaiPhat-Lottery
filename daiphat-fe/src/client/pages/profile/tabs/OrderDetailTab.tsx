@@ -9,7 +9,6 @@ import { RefundRequestStatus, RefundType } from '../../../../types/refund.type';
 import { PaymentGateway } from '../../../../types/transaction.type';
 import { AppToast } from '../../../utils/toast.util';
 import { RefundRequestModal } from '../../../components/refund/RefundRequestModal';
-import { isOrderPaid } from '../../../utils/order.util';
 import { useGetOrderRefundEligibility } from '../../../hooks/useRefund';
 import { format } from 'date-fns';
 
@@ -142,10 +141,10 @@ export const OrderDetailTab = () => {
             (r) => r.refundType === RefundType.ORDER_DETAIL && r.orderDetailId === detailId
         );
 
-    const canRequestRefund = isOrderPaid(order?.status);
+    const canRequestRefund = order?.refundEligible === true;
     const { data: eligibilityData, isLoading: isLoadingEligibility } = useGetOrderRefundEligibility(
         order?.id || '',
-        !!order?.id && canRequestRefund
+        !!order?.id && order.refundEligible !== false
     );
     const refundEligible = eligibilityData?.data?.eligible === true;
     const refundIneligibleReason = eligibilityData?.data?.reason;
@@ -185,7 +184,7 @@ export const OrderDetailTab = () => {
 
     useEffect(() => {
         const state = location.state as { openRefund?: boolean } | null;
-        if (!state?.openRefund || !order || !isOrderPaid(order.status) || isLoadingEligibility) {
+        if (!state?.openRefund || !order || !order.refundEligible || isLoadingEligibility) {
             return;
         }
 
@@ -394,7 +393,8 @@ export const OrderDetailTab = () => {
                         <div>
                             <h3 className="text-[18px] font-bold text-[#212B36]">Hủy đơn & Hoàn tiền</h3>
                             <p className="text-[14px] text-[#637381] mt-1">
-                                Bạn có thể hủy đơn trong vòng 30 phút sau thanh toán và trước {eligibilityData?.data?.closingTime || '14:00'}.
+                                Bạn có thể yêu cầu hoàn tiền trong vòng{' '}
+                                {eligibilityData?.data?.graceMinutes ?? order.refundGraceMinutes ?? 30} phút kể từ khi thanh toán.
                                 {refundRemainingSeconds != null && refundRemainingSeconds > 0 && (
                                     <> Còn lại khoảng {Math.ceil(refundRemainingSeconds / 60)} phút.</>
                                 )}

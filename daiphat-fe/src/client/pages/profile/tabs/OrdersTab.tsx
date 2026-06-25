@@ -5,10 +5,9 @@ import { useGetMyOrders, useGetMyOrderDetail } from '../../../hooks/useOrder';
 import { useProcessPayment } from '../../../hooks/useTransaction';
 import { PaymentGateway } from '../../../../types/transaction.type';
 import { AppToast } from '../../../utils/toast.util';
-import { isOrderPaid } from '../../../utils/order.util';
-import { orderService } from '../../../services/orderService';
 import { RefundRequestModal } from '../../../components/refund/RefundRequestModal';
 import { useGetMyRefunds } from '../../../hooks/useRefund';
+import { OrderRowActionsMenu } from '../components/OrderRowActionsMenu';
 import { format } from 'date-fns';
 
 const ORDER_STATUS_MAP: Record<OrderStatus, { label: string, bg: string, text: string }> = {
@@ -70,7 +69,6 @@ export const OrdersTab = () => {
     const processPaymentMutation = useProcessPayment();
 
     const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
-    const [checkingRefundOrderId, setCheckingRefundOrderId] = useState<string | null>(null);
     const { data: refundOrderData, isLoading: isLoadingRefundOrder } = useGetMyOrderDetail(refundOrderId || '');
 
     const { data: allRefundsData } = useGetMyRefunds({ limit: 100, page: 1 });
@@ -112,24 +110,6 @@ export const OrdersTab = () => {
                 }
             }
         });
-    };
-
-    const handleRefundClick = async (order: OrderResponse) => {
-        if (checkingRefundOrderId) return;
-
-        setCheckingRefundOrderId(order.id);
-        try {
-            const res = await orderService.getRefundEligibility(order.id);
-            if (res.data?.eligible) {
-                setRefundOrderId(order.id);
-            } else {
-                AppToast.error(res.data?.reason || 'Không thể hủy đơn hàng này');
-            }
-        } catch (error: any) {
-            AppToast.error(error?.response?.data?.message || 'Không thể kiểm tra điều kiện hủy đơn');
-        } finally {
-            setCheckingRefundOrderId(null);
-        }
     };
 
     // Reset page when filters change
@@ -375,45 +355,19 @@ export const OrdersTab = () => {
                                                     {getStatusBadge(order.status)}
                                                 </td>
                                                 <td className="py-4 px-5 text-right align-top">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        {order.status === OrderStatus.PENDING_PAYMENT && (
-                                                            <button 
-                                                                onClick={() => handleQuickPayment(order)}
-                                                                disabled={processPaymentMutation.isPending}
-                                                                className="w-8 h-8 rounded-lg border border-[#ee1314] text-[#ee1314] hover:bg-[#FFF4F4] transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
-                                                                title="Thanh toán ngay"
-                                                            >
-                                                                {processPaymentMutation.isPending ? (
-                                                                    <i className="fa-solid fa-spinner fa-spin text-[13px]"></i>
-                                                                ) : (
-                                                                    <i className="fa-solid fa-credit-card text-[13px]"></i>
-                                                                )}
-                                                            </button>
-                                                        )}
-                                                        {isOrderPaid(order.status) && !hasPendingRefund && (
-                                                            <button
-                                                                onClick={() => handleRefundClick(order)}
-                                                                disabled={checkingRefundOrderId === order.id}
-                                                                className="px-3 py-2 rounded-lg bg-[#ee1314] text-white hover:bg-[#c80f11] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[12px] font-bold whitespace-nowrap shadow-sm disabled:opacity-50"
-                                                                title="Hủy đơn & Hoàn tiền"
-                                                            >
-                                                                {checkingRefundOrderId === order.id ? (
-                                                                    <i className="fa-solid fa-spinner fa-spin text-[11px]"></i>
-                                                                ) : (
-                                                                    <>
-                                                                        <i className="fa-solid fa-rotate-left text-[11px]"></i>
-                                                                        Hủy & Hoàn tiền
-                                                                    </>
-                                                                )}
-                                                            </button>
-                                                        )}
-                                                        <button 
-                                                            onClick={() => navigate(`/profile/orders/${order.id}`)}
-                                                            className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#919EAB] hover:text-[#2065D1] hover:border-[#2065D1] hover:bg-[#F0F5FF] transition-all cursor-pointer"
-                                                            title="Xem chi tiết"
-                                                        >
-                                                            <i className="fa-regular fa-eye text-[13px]"></i>
-                                                        </button>
+                                                    <div className="flex items-center justify-end">
+                                                        <OrderRowActionsMenu
+                                                            order={order}
+                                                            hasPendingRefund={hasPendingRefund}
+                                                            isPaying={processPaymentMutation.isPending}
+                                                            onViewDetail={() => navigate(`/profile/orders/${order.id}`)}
+                                                            onRequestRefund={() => setRefundOrderId(order.id)}
+                                                            onQuickPayment={
+                                                                order.status === OrderStatus.PENDING_PAYMENT
+                                                                    ? () => handleQuickPayment(order)
+                                                                    : undefined
+                                                            }
+                                                        />
                                                     </div>
                                                 </td>
                                             </tr>

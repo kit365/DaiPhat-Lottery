@@ -80,7 +80,8 @@ export interface OrderRefundEligibilityResponse {
     eligible: boolean;
     reason?: string;
     remainingSeconds?: number;
-    closingTime: string;
+    graceMinutes: number;
+    refundDeadlineAt?: string;
 }
 
 export interface RefundRequestResponse {
@@ -117,6 +118,54 @@ export interface GetMyRefundsParams {
     search?: string;
 }
 
+export interface GetStaffRefundsParams {
+    page?: number;
+    limit?: number;
+    status?: string;
+    orderId?: string;
+    search?: string;
+}
+
+export interface RejectRefundRequestRequest {
+    rejectReason: string;
+}
+
+export interface TransferRefundRequestRequest {
+    transferEvidenceUrl: string;
+    transferNote?: string;
+}
+
+export interface RefundProcessingHistoryItem {
+    action: string;
+    detail?: string;
+    occurredAt: string;
+}
+
+export interface RefundOrderSummary {
+    id: string;
+    orderCode: string;
+    status: string;
+    totalAmount: number;
+    createdAt: string;
+    cancelReason?: string;
+}
+
+export interface RefundCustomerSummary {
+    id: string;
+    fullName?: string;
+    email?: string;
+    phone?: string;
+}
+
+export interface RefundRequestAdminDetailResponse {
+    refund: RefundRequestResponse;
+    orderSummary: RefundOrderSummary;
+    customerSummary: RefundCustomerSummary;
+    reviewerName?: string;
+    transferrerName?: string;
+    processingHistory: RefundProcessingHistoryItem[];
+}
+
 export const REFUND_STATUS_LABELS: Record<RefundRequestStatus, string> = {
     [RefundRequestStatus.PENDING]: 'Chờ duyệt',
     [RefundRequestStatus.APPROVED]: 'Đã duyệt',
@@ -149,4 +198,12 @@ export function calculateOrderRefundAmount(order: {
 
 export function isRefundTransferComplete(status: RefundRequestStatus): boolean {
     return status === RefundRequestStatus.PAID || status === RefundRequestStatus.TRANSFERRED;
+}
+
+/** Format remaining refund window as `MM phút SS giây` */
+export function formatRefundCountdown(totalSeconds: number): string {
+    const seconds = Math.max(0, Math.floor(totalSeconds));
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(minutes).padStart(2, '0')} phút ${String(secs).padStart(2, '0')} giây`;
 }
