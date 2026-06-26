@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.dto.response.refund;
 
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundFundSource;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
@@ -33,6 +34,10 @@ public record RefundRequestResponse(
         UUID transferredBy,
         String transferNote,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        String orderCode,
+        LocalDateTime processingDeadlineAt,
+        Long remainingProcessingSeconds,
+        RefundProcessingUrgency processingUrgency
 ) {
 }

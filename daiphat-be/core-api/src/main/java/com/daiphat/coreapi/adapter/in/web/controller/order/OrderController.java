@@ -179,7 +179,7 @@ public class OrderController {
             @Valid @RequestBody CreateOrderRefundRequest request,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return ApiResponse.success(
-                "Hủy đơn & tạo yêu cầu hoàn tiền thành công.",
+                "Yêu cầu hoàn tiền đã được gửi và đang chờ duyệt.",
                 orderRefundServicePort.refundPaidOrder(orderId, principal.getId(), request));
     }
 
