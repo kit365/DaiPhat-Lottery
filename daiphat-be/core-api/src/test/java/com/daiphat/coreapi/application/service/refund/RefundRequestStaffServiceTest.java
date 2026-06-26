@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
+import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
@@ -15,9 +16,11 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
+import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.model.refund.RefundRequestModel;
 import com.daiphat.coreapi.domain.model.refund.UserBankAccountModel;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,9 +52,14 @@ class RefundRequestStaffServiceTest {
     private final RefundRequestRepositoryPort refundRequestRepositoryPort = mock(RefundRequestRepositoryPort.class);
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort = mock(UserBankAccountRepositoryPort.class);
     private final OrderRepositoryPort orderRepositoryPort = mock(OrderRepositoryPort.class);
+    private final OrderDetailSerialRepositoryPort orderDetailSerialRepositoryPort = mock(OrderDetailSerialRepositoryPort.class);
     private final UserRepositoryPort userRepositoryPort = mock(UserRepositoryPort.class);
     private final LotteryTicketServicePort lotteryTicketServicePort = mock(LotteryTicketServicePort.class);
     private final RefundApplicationMapper refundApplicationMapper = mock(RefundApplicationMapper.class);
+    private final RefundProcessingDeadlineService refundProcessingDeadlineService = mock(RefundProcessingDeadlineService.class);
+    private final RefundTicketItemResolver refundTicketItemResolver = mock(RefundTicketItemResolver.class);
+    private final com.daiphat.coreapi.application.port.out.file.StoragePort storagePort =
+            mock(com.daiphat.coreapi.application.port.out.file.StoragePort.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
 
     private RefundRequestStaffService refundRequestStaffService;
@@ -66,10 +75,21 @@ class RefundRequestStaffServiceTest {
                 refundRequestRepositoryPort,
                 userBankAccountRepositoryPort,
                 orderRepositoryPort,
+                orderDetailSerialRepositoryPort,
                 userRepositoryPort,
                 lotteryTicketServicePort,
                 refundApplicationMapper,
+                refundProcessingDeadlineService,
+                refundTicketItemResolver,
+                storagePort,
                 eventPublisher);
+
+        when(refundProcessingDeadlineService.evaluate(any())).thenReturn(
+                new RefundProcessingDeadlineService.ProcessingEvaluation(
+                        LocalDateTime.now().plusDays(7),
+                        604800L,
+                        RefundProcessingUrgency.ON_TIME));
+        when(refundProcessingDeadlineService.isOverdue(any())).thenReturn(false);
     }
 
     @Test
@@ -83,13 +103,13 @@ class RefundRequestStaffServiceTest {
         when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
-        when(refundApplicationMapper.toRefundResponse(any(), any())).thenReturn(null);
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any())).thenReturn(null);
 
         refundRequestStaffService.approve(refundId, staffId);
 
         ArgumentCaptor<RefundRequestModel> refundCaptor = ArgumentCaptor.forClass(RefundRequestModel.class);
         verify(refundRequestRepositoryPort).save(refundCaptor.capture());
-        assertThat(refundCaptor.getValue().getStatus()).isEqualTo(RefundRequestStatus.APPROVED);
+        assertThat(refundCaptor.getValue().getStatus()).isEqualTo(RefundRequestStatus.READY_TO_PAY);
         assertThat(refundCaptor.getValue().getReviewedBy()).isEqualTo(staffId);
 
         ArgumentCaptor<OrderModel> orderCaptor = ArgumentCaptor.forClass(OrderModel.class);
@@ -102,7 +122,7 @@ class RefundRequestStaffServiceTest {
     }
 
     @Test
-    @DisplayName("approve: rejects when order is not PREPARING")
+    @DisplayName("approve: rejects when order is not refundable")
     void approve_rejectsInvalidOrderStatus() {
         RefundRequestModel refund = pendingRefund();
         OrderModel order = OrderModel.builder()
@@ -110,7 +130,7 @@ class RefundRequestStaffServiceTest {
                 .userId(customerId)
                 .orderCode("ORD-001")
                 .orderType(OrderType.ONLINE)
-                .status(OrderStatus.PAID)
+                .status(OrderStatus.CANCELLED)
                 .orderDetails(List.of(OrderDetailModel.builder()
                         .lotteryTicketSerialId(99L)
                         .price(BigDecimal.valueOf(20000))
@@ -137,7 +157,9 @@ class RefundRequestStaffServiceTest {
         when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
         when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
-        when(refundApplicationMapper.toRefundResponse(any(), any())).thenReturn(null);
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
+                OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any())).thenReturn(null);
 
         refundRequestStaffService.reject(refundId, staffId, new RejectRefundRequestRequest("Không đủ điều kiện"));
 
@@ -179,7 +201,9 @@ class RefundRequestStaffServiceTest {
         when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
         when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
-        when(refundApplicationMapper.toRefundResponse(any(), any())).thenReturn(null);
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
+                OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any())).thenReturn(null);
 
         refundRequestStaffService.markTransferred(
                 refundId,
@@ -209,7 +233,9 @@ class RefundRequestStaffServiceTest {
         when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
         when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
-        when(refundApplicationMapper.toRefundResponse(any(), any())).thenReturn(null);
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
+                OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any())).thenReturn(null);
 
         refundRequestStaffService.markTransferred(
                 refundId,
@@ -253,6 +279,12 @@ class RefundRequestStaffServiceTest {
                 .orderCode("ORD-001")
                 .orderType(OrderType.ONLINE)
                 .status(OrderStatus.PREPARING)
+                .totalAmount(BigDecimal.valueOf(20000))
+                .transactions(List.of(TransactionModel.builder()
+                        .status(com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus.COMPLETED)
+                        .amount(BigDecimal.valueOf(20000))
+                        .paidAt(LocalDateTime.now())
+                        .build()))
                 .orderDetails(List.of(OrderDetailModel.builder()
                         .lotteryTicketSerialId(99L)
                         .price(BigDecimal.valueOf(20000))

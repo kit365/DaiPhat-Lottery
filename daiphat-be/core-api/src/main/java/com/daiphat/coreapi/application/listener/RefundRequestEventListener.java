@@ -48,15 +48,20 @@ public class RefundRequestEventListener {
 
     private String resolveTitle(RefundRequestStatus status) {
         return switch (status) {
+            case PENDING -> "Yêu cầu hoàn tiền mới";
             case APPROVED -> "Yêu cầu hủy đơn đã được duyệt";
             case REJECTED -> "Yêu cầu hủy đơn bị từ chối";
+            case READY_TO_PAY -> "Yêu cầu hoàn tiền chờ chuyển khoản";
             case PAID -> "Hoàn tiền đã được chuyển";
+            case EXPIRED -> "Yêu cầu hoàn tiền đã hết hạn";
             default -> "Cập nhật yêu cầu hoàn tiền";
         };
     }
 
     private String resolveContent(RefundRequestStatusChangedEvent event) {
         return switch (event.status()) {
+            case PENDING -> "Yêu cầu hoàn tiền #" + event.refundRequestId()
+                    + " đã được gửi và đang chờ xử lý.";
             case APPROVED -> "Yêu cầu hủy đơn #" + event.refundRequestId() + " đã được duyệt. "
                     + "Đơn hàng sẽ được hủy và tiền sẽ được hoàn lại.";
             case REJECTED -> {
@@ -64,7 +69,11 @@ public class RefundRequestEventListener {
                 yield "Yêu cầu hủy đơn #" + event.refundRequestId() + " đã bị từ chối."
                         + (reason.isBlank() ? "" : " Lý do: " + reason);
             }
+            case READY_TO_PAY -> "Yêu cầu hoàn tiền #" + event.refundRequestId()
+                    + " đã được duyệt và đang chờ chuyển khoản.";
             case PAID -> "Yêu cầu hoàn tiền #" + event.refundRequestId() + " đã được chuyển khoản thành công.";
+            case EXPIRED -> "Yêu cầu hoàn tiền #" + event.refundRequestId()
+                    + " đã quá hạn xử lý. Vui lòng liên hệ bộ phận hỗ trợ nếu cần trợ giúp.";
             default -> "Yêu cầu hoàn tiền #" + event.refundRequestId() + " đã được cập nhật.";
         };
     }

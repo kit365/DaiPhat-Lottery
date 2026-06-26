@@ -89,6 +89,15 @@ public class RefundRequestRepositoryAdapter implements RefundRequestRepositoryPo
                         RefundRequestStatus.READY_TO_PAY));
     }
 
+    @Override
+    public List<RefundRequestModel> findExpirableByStatusesAndCreatedBefore(
+            Collection<RefundRequestStatus> statuses,
+            java.time.LocalDateTime createdBefore) {
+        return refundRequestRepository.findByStatusInAndCreatedAtBefore(statuses, createdBefore).stream()
+                .map(refundRequestPersistenceMapper::toDomain)
+                .toList();
+    }
+
     private static String normalizeSearch(String search) {
         return (search == null || search.isBlank()) ? null : search.trim();
     }
