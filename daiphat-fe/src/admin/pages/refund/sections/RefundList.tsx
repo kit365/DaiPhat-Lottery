@@ -15,6 +15,7 @@ import {
     Tabs,
     Tab,
     Tooltip,
+    Typography,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
@@ -24,19 +25,26 @@ import { CanAccess } from '../../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../../constants/permission.constants';
 import { prefixAdmin } from '../../../constants/routes';
 import { RefundStatusBadge } from '../../../../client/components/refund/RefundStatusBadge';
-import { RefundRequestStatus } from '../../../../types/refund.type';
+import {
+    computeProcessingSecondsLeft,
+    formatProcessingCountdown,
+    RefundRequestStatus,
+} from '../../../../types/refund.type';
 import {
     useApproveRefund,
     useGetStaffRefunds,
     useRejectRefund,
 } from '../hooks/useRefundManagement';
 import { RejectRefundDialog } from '../components/RejectRefundDialog';
+import { RefundProcessingStatusBadge } from '../components/RefundProcessingStatusBadge';
 
 const STATUS_TABS: { value: string; label: string }[] = [
+    { value: 'PENDING,APPROVED,READY_TO_PAY', label: 'Cần xử lý' },
     { value: 'PENDING', label: 'Chờ duyệt' },
     { value: 'APPROVED,READY_TO_PAY', label: 'Chờ chuyển khoản' },
     { value: 'REJECTED', label: 'Từ chối' },
     { value: 'PAID', label: 'Đã chuyển khoản' },
+    { value: 'EXPIRED', label: 'Hết hạn' },
     { value: 'PENDING,APPROVED,READY_TO_PAY,REJECTED,PAID,CANCELLED,EXPIRED', label: 'Tất cả' },
 ];
 
@@ -92,7 +100,7 @@ export const RefundList = () => {
         <Card>
             <Box sx={{ px: 2, pt: 2 }}>
                 <Search
-                    placeholder="Tìm theo lý do hoàn tiền..."
+                    placeholder="Tìm theo mã đơn, khách hàng, lý do hoàn tiền..."
                     value={search}
                     onChange={(value) => setSearch(value)}
                 />
@@ -134,6 +142,7 @@ export const RefundList = () => {
                                     <TableCell>Số tiền</TableCell>
                                     <TableCell>Lý do</TableCell>
                                     <TableCell>Trạng thái</TableCell>
+                                    <TableCell>Hạn xử lý</TableCell>
                                     <TableCell>Ngày tạo</TableCell>
                                     <TableCell align="right">Thao tác</TableCell>
                                 </TableRow>
@@ -141,8 +150,10 @@ export const RefundList = () => {
                             <TableBody>
                                 {refunds.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} align="center">
-                                            Không có yêu cầu hoàn tiền
+                                        <TableCell colSpan={8} align="center">
+                                            {statusTab === 'PENDING'
+                                                ? 'Không có yêu cầu chờ duyệt. Kiểm tra tab Cần xử lý hoặc Chờ chuyển khoản.'
+                                                : 'Không có yêu cầu hoàn tiền'}
                                         </TableCell>
                                     </TableRow>
                                 ) : (
@@ -156,7 +167,7 @@ export const RefundList = () => {
                                             }
                                         >
                                             <TableCell>#{refund.id}</TableCell>
-                                            <TableCell>{refund.orderId?.slice(0, 8)}...</TableCell>
+                                            <TableCell>{refund.orderCode || refund.orderId?.slice(0, 8)}</TableCell>
                                             <TableCell>
                                                 {refund.refundAmount?.toLocaleString('vi-VN')}đ
                                             </TableCell>
@@ -165,6 +176,26 @@ export const RefundList = () => {
                                             </TableCell>
                                             <TableCell>
                                                 <RefundStatusBadge status={refund.status} />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                                    {refund.processingDeadlineAt ? (
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            {dayjs(refund.processingDeadlineAt).format('DD/MM/YYYY HH:mm')}
+                                                        </Typography>
+                                                    ) : null}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                                        <Typography variant="body2">
+                                                            {formatProcessingCountdown(
+                                                                computeProcessingSecondsLeft(
+                                                                    refund.processingDeadlineAt,
+                                                                    refund.remainingProcessingSeconds
+                                                                )
+                                                            )}
+                                                        </Typography>
+                                                        <RefundProcessingStatusBadge urgency={refund.processingUrgency} />
+                                                    </Box>
+                                                </Box>
                                             </TableCell>
                                             <TableCell>
                                                 {refund.createdAt

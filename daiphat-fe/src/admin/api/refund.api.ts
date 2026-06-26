@@ -54,4 +54,23 @@ export const refundAdminApi = {
         const response = await apiApp.patch(`${STAFF_BASE}/${id}/transfer`, data, withAuth());
         return response.data;
     },
+
+    uploadTransferEvidence: async (file: File): Promise<string> => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await apiApp.post(`${STAFF_BASE}/transfer-evidence/upload`, formData, {
+            ...withAuth(),
+            headers: {
+                ...withAuth().headers,
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        const url = response.data?.data?.url;
+        if (!url) {
+            throw new Error(response.data?.message || 'Không nhận được URL ảnh từ server');
+        }
+        return url;
+    },
 };
