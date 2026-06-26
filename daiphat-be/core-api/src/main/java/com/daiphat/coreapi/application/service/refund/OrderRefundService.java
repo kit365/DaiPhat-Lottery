@@ -5,12 +5,11 @@ import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketRespo
 import com.daiphat.coreapi.application.dto.response.refund.OrderRefundEligibilityResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundEligibleTicketItemResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
-import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
+import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.refund.OrderRefundServicePort;
-import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
@@ -18,7 +17,6 @@ import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.Re
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
-import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
@@ -46,7 +44,6 @@ import java.util.UUID;
 public class OrderRefundService implements OrderRefundServicePort {
 
     private final OrderRepositoryPort orderRepositoryPort;
-    private final OrderDetailSerialRepositoryPort orderDetailSerialRepositoryPort;
     private final RefundRequestRepositoryPort refundRequestRepositoryPort;
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
@@ -76,22 +73,6 @@ public class OrderRefundService implements OrderRefundServicePort {
         String reason = request.refundReason().trim();
         BigDecimal refundAmount = calculateRefundAmount(order);
 
-        if (order.getStatus() == OrderStatus.PREPARING) {
-            RefundRequestModel refundRequest = RefundRequestModel.builder()
-                    .refundType(RefundType.FULL_ORDER)
-                    .orderId(orderId)
-                    .requestedBy(customerId)
-                    .requestRole(RefundRequestRole.CUSTOMER)
-                    .refundAmount(refundAmount)
-                    .refundReason(reason)
-                    .bankAccountId(bankAccount.getId())
-                    .build();
-            refundRequest.initializeForCreate();
-
-            RefundRequestModel savedRefund = refundRequestRepositoryPort.save(refundRequest);
-            return refundApplicationMapper.toRefundResponse(savedRefund, bankAccount);
-        }
-
         RefundRequestModel refundRequest = RefundRequestModel.builder()
                 .refundType(RefundType.FULL_ORDER)
                 .orderId(orderId)
@@ -101,15 +82,10 @@ public class OrderRefundService implements OrderRefundServicePort {
                 .refundReason(reason)
                 .bankAccountId(bankAccount.getId())
                 .build();
-        refundRequest.initializeForAutoApprovedCancel();
+        refundRequest.initializeForCreate();
 
         RefundRequestModel savedRefund = refundRequestRepositoryPort.save(refundRequest);
-
-        cancelOrderForCustomerRefund(order, reason);
-        releaseSoldTickets(order);
-        orderRepositoryPort.save(order);
-        publishOrderCancelled(order);
-
+        publishRefundStatusChanged(savedRefund);
         return refundApplicationMapper.toRefundResponse(savedRefund, bankAccount);
     }
 
@@ -209,18 +185,6 @@ public class OrderRefundService implements OrderRefundServicePort {
         }
     }
 
-    private void cancelOrderForCustomerRefund(OrderModel order, String cancelReason) {
-        if (order.getOrderType() == OrderType.DIRECT) {
-            order.cancelDirectOrder(cancelReason);
-            return;
-        }
-        if (order.getStatus() == OrderStatus.PAID) {
-            order.cancelByCustomerRefund(cancelReason);
-            return;
-        }
-        order.cancelAfterPayment(cancelReason);
-    }
-
     private BigDecimal calculateRefundAmount(OrderModel order) {
         if (order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
             return order.getOrderDetails().stream()
@@ -233,43 +197,14 @@ public class OrderRefundService implements OrderRefundServicePort {
         return order.getTotalAmount();
     }
 
-    private void releaseSoldTickets(OrderModel order) {
-        if (order.getOrderDetails() == null) {
-            return;
-        }
-        for (OrderDetailModel detail : order.getOrderDetails()) {
-            List<Long> serialIds = resolveAllocatedSerialIds(detail);
-            for (Long serialId : serialIds) {
-                lotteryTicketServicePort.returnSoldTicketForOrder(serialId);
-            }
-        }
-    }
-
-    private List<Long> resolveAllocatedSerialIds(OrderDetailModel detail) {
-        if (detail.getAllocatedSerialIds() != null && !detail.getAllocatedSerialIds().isEmpty()) {
-            return detail.getAllocatedSerialIds();
-        }
-        if (detail.getId() != null) {
-            List<Long> persistedSerialIds = orderDetailSerialRepositoryPort.findSerialIdsByOrderDetailId(detail.getId());
-            if (!persistedSerialIds.isEmpty()) {
-                return persistedSerialIds;
-            }
-        }
-        if (detail.getLotteryTicketSerialId() != null) {
-            return List.of(detail.getLotteryTicketSerialId());
-        }
-        return List.of();
-    }
-
-    private void publishOrderCancelled(OrderModel order) {
-        if (order.getId() == null || order.getUserId() == null || order.getStatus() == null) {
-            return;
-        }
-        eventPublisher.publishEvent(OrderStatusChangedEvent.builder()
-                .orderId(order.getId())
-                .customerId(order.getUserId())
-                .orderCode(order.getOrderCode())
-                .status(order.getStatus())
+    private void publishRefundStatusChanged(RefundRequestModel refund) {
+        eventPublisher.publishEvent(RefundRequestStatusChangedEvent.builder()
+                .refundRequestId(refund.getId())
+                .customerId(refund.getRequestedBy())
+                .orderId(refund.getOrderId())
+                .status(refund.getStatus())
+                .rejectReason(refund.getRejectReason())
+                .transferNote(refund.getTransferNote())
                 .build());
     }
 }

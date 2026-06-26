@@ -5,6 +5,8 @@ import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestR
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestAdminDetailResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
+import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 
 import java.util.UUID;
 
@@ -24,4 +26,8 @@ public interface RefundRequestStaffServicePort {
     RefundRequestResponse reject(Long id, UUID staffId, RejectRefundRequestRequest request);
 
     RefundRequestResponse markTransferred(Long id, UUID staffId, TransferRefundRequestRequest request);
+
+    StorageResult uploadTransferEvidence(UploadRequest request);
+
+    int expireOverdueRequests();
 }

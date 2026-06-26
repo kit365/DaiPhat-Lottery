@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -42,4 +43,9 @@ public interface RefundRequestRepositoryPort {
     boolean existsPendingByBankAccountId(Long bankAccountId);
 
     boolean existsActiveByOrderId(UUID orderId);
+
+    List<RefundRequestModel> findExpirableByStatusesAndCreatedBefore(
+            Collection<RefundRequestStatus> statuses,
+            java.time.LocalDateTime createdBefore
+    );
 }
