@@ -4,7 +4,6 @@ import com.daiphat.coreapi.application.dto.request.refund.CreateOrderRefundReque
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
-import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
@@ -29,7 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
-import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
+import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
@@ -51,8 +50,6 @@ import static org.mockito.Mockito.when;
 class OrderRefundServiceTest {
 
     private final OrderRepositoryPort orderRepositoryPort = mock(OrderRepositoryPort.class);
-    private final OrderDetailSerialRepositoryPort orderDetailSerialRepositoryPort =
-            mock(OrderDetailSerialRepositoryPort.class);
     private final RefundRequestRepositoryPort refundRequestRepositoryPort = mock(RefundRequestRepositoryPort.class);
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort = mock(UserBankAccountRepositoryPort.class);
     private final LotteryTicketServicePort lotteryTicketServicePort = mock(LotteryTicketServicePort.class);
@@ -77,7 +74,6 @@ class OrderRefundServiceTest {
 
         orderRefundService = new OrderRefundService(
                 orderRepositoryPort,
-                orderDetailSerialRepositoryPort,
                 refundRequestRepositoryPort,
                 userBankAccountRepositoryPort,
                 lotteryTicketServicePort,
@@ -131,8 +127,8 @@ class OrderRefundServiceTest {
     }
 
     @Test
-    @DisplayName("refundPaidOrder: PAID within grace cancels order and creates READY_TO_PAY refund")
-    void refundPaidOrder_paidSuccess() {
+    @DisplayName("refundPaidOrder: PAID within grace creates PENDING refund without cancelling order")
+    void refundPaidOrder_paidCreatesPendingRefund() {
         OrderModel order = orderBuilder(OrderStatus.PAID).build();
         UserBankAccountModel bankAccount = UserBankAccountModel.builder().id(5L).userId(customerId).build();
 
@@ -140,7 +136,6 @@ class OrderRefundServiceTest {
         when(refundRequestRepositoryPort.existsActiveByOrderId(orderId)).thenReturn(false);
         when(userBankAccountRepositoryPort.findByIdAndUserId(5L, customerId)).thenReturn(Optional.of(bankAccount));
         when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(refundApplicationMapper.toRefundResponse(any(), any())).thenReturn(null);
 
         orderRefundService.refundPaidOrder(
@@ -148,19 +143,16 @@ class OrderRefundServiceTest {
 
         ArgumentCaptor<RefundRequestModel> refundCaptor = ArgumentCaptor.forClass(RefundRequestModel.class);
         verify(refundRequestRepositoryPort).save(refundCaptor.capture());
-        assertThat(refundCaptor.getValue().getStatus()).isEqualTo(RefundRequestStatus.READY_TO_PAY);
+        assertThat(refundCaptor.getValue().getStatus()).isEqualTo(RefundRequestStatus.PENDING);
 
-        ArgumentCaptor<OrderModel> orderCaptor = ArgumentCaptor.forClass(OrderModel.class);
-        verify(orderRepositoryPort).save(orderCaptor.capture());
-        assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.CANCELLED);
-
-        verify(lotteryTicketServicePort).returnSoldTicketForOrder(11L);
-        verify(eventPublisher).publishEvent(any(OrderStatusChangedEvent.class));
+        verify(orderRepositoryPort, never()).save(any());
+        verify(lotteryTicketServicePort, never()).returnSoldTicketForOrder(any());
+        verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
     }
 
     @Test
-    @DisplayName("refundPaidOrder: PAID with grouped order detail releases all allocated serials")
-    void refundPaidOrder_paidWithGroupedOrderDetailReleasesAllocatedSerials() {
+    @DisplayName("refundPaidOrder: PAID with grouped order detail does not release stock until staff approval")
+    void refundPaidOrder_paidDoesNotReleaseStock() {
         OrderModel order = orderBuilder(OrderStatus.PAID)
                 .orderDetails(List.of(OrderDetailModel.builder()
                         .id(1L)
@@ -183,10 +175,8 @@ class OrderRefundServiceTest {
         orderRefundService.refundPaidOrder(
                 orderId, customerId, new CreateOrderRefundRequest("Đổi ý", 5L));
 
-        verify(lotteryTicketServicePort).returnSoldTicketForOrder(11L);
-        verify(lotteryTicketServicePort).returnSoldTicketForOrder(12L);
-        verify(lotteryTicketServicePort).returnSoldTicketForOrder(13L);
-        verify(orderRepositoryPort).save(any(OrderModel.class));
+        verify(lotteryTicketServicePort, never()).returnSoldTicketForOrder(any());
+        verify(orderRepositoryPort, never()).save(any());
     }
 
     @Test
