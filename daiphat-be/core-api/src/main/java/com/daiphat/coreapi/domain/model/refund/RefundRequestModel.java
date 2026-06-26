@@ -125,6 +125,15 @@ public class RefundRequestModel {
         this.status = RefundRequestStatus.CANCELLED;
     }
 
+    public void expire() {
+        if (this.status != RefundRequestStatus.PENDING
+                && this.status != RefundRequestStatus.APPROVED
+                && this.status != RefundRequestStatus.READY_TO_PAY) {
+            throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
+        }
+        this.status = RefundRequestStatus.EXPIRED;
+    }
+
     private void ensureStatus(RefundRequestStatus expectedStatus) {
         if (this.status != expectedStatus) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);

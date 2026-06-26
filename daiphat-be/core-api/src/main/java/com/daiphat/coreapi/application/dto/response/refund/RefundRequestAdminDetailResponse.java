@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.dto.response.refund;
 
+import com.daiphat.coreapi.application.dto.response.refund.RefundEligibleTicketItemResponse;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 
 import java.math.BigDecimal;
@@ -13,7 +14,8 @@ public record RefundRequestAdminDetailResponse(
         RefundCustomerSummary customerSummary,
         String reviewerName,
         String transferrerName,
-        List<RefundProcessingHistoryItem> processingHistory
+        List<RefundProcessingHistoryItem> processingHistory,
+        List<RefundEligibleTicketItemResponse> refundTickets
 ) {
 
     public record RefundOrderSummary(

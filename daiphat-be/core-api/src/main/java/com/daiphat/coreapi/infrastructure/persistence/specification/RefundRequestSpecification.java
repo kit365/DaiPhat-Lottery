@@ -50,9 +50,16 @@ public final class RefundRequestSpecification {
 
             if (search != null && !search.isBlank()) {
                 String likePattern = "%" + search.trim().toLowerCase() + "%";
+                var orderJoin = root.join("order");
+                var requestedByJoin = root.join("requestedBy");
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("refundReason")), likePattern),
-                        cb.like(cb.lower(root.get("rejectReason")), likePattern)
+                        cb.like(cb.lower(root.get("rejectReason")), likePattern),
+                        cb.like(cb.lower(orderJoin.get("orderCode")), likePattern),
+                        cb.like(cb.lower(requestedByJoin.get("fullName")), likePattern),
+                        cb.like(cb.lower(requestedByJoin.get("email")), likePattern),
+                        cb.like(cb.lower(requestedByJoin.get("phoneNumber")), likePattern),
+                        cb.like(cb.toString(root.get("id")), likePattern)
                 ));
             }
 
