@@ -34,6 +34,20 @@ export enum RefundRequestRole {
     STAFF = 'STAFF'
 }
 
+export enum RefundProcessingUrgency {
+    ON_TIME = 'ON_TIME',
+    NEAR_DEADLINE = 'NEAR_DEADLINE',
+    OVERDUE = 'OVERDUE',
+    NOT_APPLICABLE = 'NOT_APPLICABLE'
+}
+
+export const REFUND_PROCESSING_URGENCY_LABELS: Record<RefundProcessingUrgency, string> = {
+    [RefundProcessingUrgency.ON_TIME]: 'Đúng hạn',
+    [RefundProcessingUrgency.NEAR_DEADLINE]: 'Sắp hết hạn',
+    [RefundProcessingUrgency.OVERDUE]: 'Quá hạn',
+    [RefundProcessingUrgency.NOT_APPLICABLE]: '—'
+};
+
 export interface UserBankAccountResponse {
     id: number;
     bankName: string;
@@ -208,6 +222,10 @@ export interface RefundRequestResponse {
     transferNote?: string;
     createdAt: string;
     updatedAt: string;
+    orderCode?: string;
+    processingDeadlineAt?: string;
+    remainingProcessingSeconds?: number;
+    processingUrgency?: RefundProcessingUrgency;
 }
 
 export interface GetMyRefundsParams {
@@ -264,6 +282,7 @@ export interface RefundRequestAdminDetailResponse {
     reviewerName?: string;
     transferrerName?: string;
     processingHistory: RefundProcessingHistoryItem[];
+    refundTickets?: RefundEligibleTicketItem[];
 }
 
 export const REFUND_STATUS_LABELS: Record<RefundRequestStatus, string> = {
@@ -328,4 +347,39 @@ export function formatRefundCountdown(totalSeconds: number): string {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(minutes).padStart(2, '0')} phút ${String(secs).padStart(2, '0')} giây`;
+}
+
+/** Format processing deadline countdown for staff (days + time when > 1 day) */
+export function formatProcessingCountdown(totalSeconds: number): string {
+    const seconds = Math.max(0, Math.floor(totalSeconds));
+    if (seconds === 0) return 'Đã hết hạn';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (days > 0) {
+        return `Còn ${days} ngày ${hours} giờ`;
+    }
+    if (hours > 0) {
+        return `Còn ${hours} giờ ${minutes} phút`;
+    }
+    return formatRefundCountdown(seconds);
+}
+
+export function computeProcessingSecondsLeft(
+    processingDeadlineAt?: string | null,
+    fallbackRemainingSeconds?: number | null
+): number {
+    if (processingDeadlineAt) {
+        const deadlineMs = new Date(processingDeadlineAt).getTime();
+        if (!Number.isNaN(deadlineMs)) {
+            return Math.max(0, Math.floor((deadlineMs - Date.now()) / 1000));
+        }
+    }
+    return Math.max(0, Math.floor(fallbackRemainingSeconds ?? 0));
+}
+
+export function isRefundProcessingActionable(status: RefundRequestStatus): boolean {
+    return status === RefundRequestStatus.PENDING
+        || status === RefundRequestStatus.APPROVED
+        || status === RefundRequestStatus.READY_TO_PAY;
 }

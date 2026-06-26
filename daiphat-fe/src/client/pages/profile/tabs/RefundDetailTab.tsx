@@ -179,14 +179,23 @@ export const RefundDetailTab = () => {
                         </p>
                     )}
                     {refund.transferEvidenceUrl && (
-                        <a
-                            href={refund.transferEvidenceUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-[#2065D1] font-bold text-[14px] hover:underline w-max"
-                        >
-                            <i className="fa-solid fa-image"></i> Xem chứng từ chuyển khoản
-                        </a>
+                        <div className="mt-3">
+                            <p className="text-[14px] text-[#637381] mb-2">Minh chứng chuyển khoản</p>
+                            <img
+                                src={refund.transferEvidenceUrl}
+                                alt="Minh chứng chuyển khoản"
+                                className="max-w-full max-h-[360px] rounded-lg border border-[#919EAB3D] cursor-pointer object-contain"
+                                onClick={() => window.open(refund.transferEvidenceUrl, '_blank', 'noopener,noreferrer')}
+                            />
+                            <a
+                                href={refund.transferEvidenceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 text-[#2065D1] font-bold text-[14px] hover:underline w-max mt-2"
+                            >
+                                <i className="fa-solid fa-up-right-from-square"></i> Mở ảnh gốc
+                            </a>
+                        </div>
                     )}
                 </div>
             )}

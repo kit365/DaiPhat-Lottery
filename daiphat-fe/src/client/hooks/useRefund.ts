@@ -73,7 +73,7 @@ export const useCreateOrderRefund = () => {
             refundService.createOrderRefund(orderId, data),
         onSuccess: (response) => {
             if (response.success) {
-                toast.success(response.message || 'Hủy đơn & hoàn tiền thành công');
+                toast.success(response.message || 'Yêu cầu hoàn tiền đã được gửi và đang chờ duyệt');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_REFUNDS] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDERS] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDER_DETAIL] });
