@@ -8,19 +8,25 @@ import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestR
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestAdminDetailResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
+import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.port.in.refund.RefundRequestStaffServicePort;
+import com.daiphat.coreapi.shared.util.StorageUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
@@ -87,5 +93,13 @@ public class StaffRefundRequestController {
         return ApiResponse.success(
                 "Xác nhận chuyển khoản hoàn tiền thành công.",
                 refundRequestStaffServicePort.markTransferred(id, principal.getId(), request));
+    }
+
+    @PostMapping(value = "/transfer-evidence/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('refund:process')")
+    public ApiResponse<StorageResult> uploadTransferEvidence(@RequestPart("file") MultipartFile file) {
+        return ApiResponse.success(
+                "Tải ảnh minh chứng chuyển khoản thành công.",
+                refundRequestStaffServicePort.uploadTransferEvidence(StorageUtils.toUploadRequest(file)));
     }
 }
