@@ -6,7 +6,10 @@ import {
     DialogContent,
     DialogTitle,
     TextField,
+    Typography,
 } from '@mui/material';
+import { UploadSingleFile } from '../../../components/upload/UploadSingleFile';
+import { refundAdminApi } from '../../../api/refund.api';
 
 interface TransferRefundDialogProps {
     open: boolean;
@@ -44,16 +47,14 @@ export const TransferRefundDialog = ({ open, loading, onClose, onConfirm }: Tran
         <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
             <DialogTitle>Xác nhận chuyển khoản hoàn tiền</DialogTitle>
             <DialogContent>
-                <TextField
-                    autoFocus
-                    margin="dense"
-                    label="URL minh chứng chuyển khoản"
-                    fullWidth
-                    required
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Tải ảnh chụp màn hình hoặc biên lai chuyển khoản làm minh chứng.
+                </Typography>
+                <UploadSingleFile
                     value={evidenceUrl}
-                    onChange={(e) => setEvidenceUrl(e.target.value)}
-                    inputProps={{ maxLength: 500 }}
-                    sx={{ mb: 2 }}
+                    onChange={setEvidenceUrl}
+                    customUpload={refundAdminApi.uploadTransferEvidence}
+                    disabled={loading}
                 />
                 <TextField
                     margin="dense"
@@ -64,6 +65,7 @@ export const TransferRefundDialog = ({ open, loading, onClose, onConfirm }: Tran
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     inputProps={{ maxLength: 500 }}
+                    sx={{ mt: 2 }}
                 />
             </DialogContent>
             <DialogActions>

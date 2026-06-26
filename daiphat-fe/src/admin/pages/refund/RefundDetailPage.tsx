@@ -21,6 +21,7 @@ import { prefixAdmin } from '../../constants/routes';
 import { RefundStatusStepper } from '../../../client/components/refund/RefundStatusStepper';
 import { RefundStatusBadge } from '../../../client/components/refund/RefundStatusBadge';
 import {
+    isRefundProcessingActionable,
     isRefundTransferComplete,
     maskBankAccountNo,
     RefundRequestStatus,
@@ -33,6 +34,9 @@ import {
 } from './hooks/useRefundManagement';
 import { RejectRefundDialog } from './components/RejectRefundDialog';
 import { TransferRefundDialog } from './components/TransferRefundDialog';
+import { TransferEvidencePreview } from './components/TransferEvidencePreview';
+import { ProcessingDeadlineCard } from './components/ProcessingDeadlineCard';
+import { RefundTicketsTable } from './components/RefundTicketsTable';
 
 export const RefundDetailPage = () => {
     const { id } = useParams<{ id: string }>();
@@ -49,12 +53,6 @@ export const RefundDetailPage = () => {
 
     const detail = data?.data;
     const refund = detail?.refund;
-
-    const canApprove = refund?.status === RefundRequestStatus.PENDING;
-    const canReject = refund?.status === RefundRequestStatus.PENDING;
-    const canTransfer =
-        refund?.status === RefundRequestStatus.APPROVED ||
-        refund?.status === RefundRequestStatus.READY_TO_PAY;
 
     if (isLoading) {
         return (
@@ -75,6 +73,14 @@ export const RefundDetailPage = () => {
         );
     }
 
+    const canApprove = refund.status === RefundRequestStatus.PENDING;
+    const canReject = refund.status === RefundRequestStatus.PENDING;
+    const canTransfer =
+        refund.status === RefundRequestStatus.APPROVED ||
+        refund.status === RefundRequestStatus.READY_TO_PAY;
+    const isExpired = refund.status === RefundRequestStatus.EXPIRED;
+    const actionsDisabled = isExpired || !isRefundProcessingActionable(refund.status);
+
     return (
         <>
             <div className="mb-[calc(5*var(--spacing))] flex items-start justify-between gap-4 flex-wrap">
@@ -90,7 +96,7 @@ export const RefundDetailPage = () => {
                 </div>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                     <CanAccess permission={PERMISSIONS.REFUND.APPROVE}>
-                        {canApprove && (
+                        {canApprove && !actionsDisabled && (
                             <Button
                                 variant="contained"
                                 color="success"
@@ -102,7 +108,7 @@ export const RefundDetailPage = () => {
                         )}
                     </CanAccess>
                     <CanAccess permission={PERMISSIONS.REFUND.REJECT}>
-                        {canReject && (
+                        {canReject && !actionsDisabled && (
                             <Button
                                 variant="outlined"
                                 color="error"
@@ -113,7 +119,7 @@ export const RefundDetailPage = () => {
                         )}
                     </CanAccess>
                     <CanAccess permission={PERMISSIONS.REFUND.PROCESS}>
-                        {canTransfer && (
+                        {canTransfer && !actionsDisabled && (
                             <Button
                                 variant="contained"
                                 onClick={() => setTransferOpen(true)}
@@ -128,6 +134,13 @@ export const RefundDetailPage = () => {
             <Box sx={{ mb: 3 }}>
                 <RefundStatusStepper status={refund.status} rejectReason={refund.rejectReason} />
             </Box>
+
+            <ProcessingDeadlineCard
+                status={refund.status}
+                processingDeadlineAt={refund.processingDeadlineAt}
+                remainingProcessingSeconds={refund.remainingProcessingSeconds}
+                processingUrgency={refund.processingUrgency}
+            />
 
             <Grid container spacing={3}>
                 <Grid item xs={12} md={8}>
@@ -169,12 +182,7 @@ export const RefundDetailPage = () => {
                                 )}
                                 {refund.transferEvidenceUrl && (
                                     <Grid item xs={12}>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Minh chứng chuyển khoản
-                                        </Typography>
-                                        <Link href={refund.transferEvidenceUrl} target="_blank" rel="noopener">
-                                            {refund.transferEvidenceUrl}
-                                        </Link>
+                                        <TransferEvidencePreview imageUrl={refund.transferEvidenceUrl} />
                                     </Grid>
                                 )}
                                 {refund.transferNote && (
@@ -186,6 +194,15 @@ export const RefundDetailPage = () => {
                                     </Grid>
                                 )}
                             </Grid>
+                        </CardContent>
+                    </Card>
+
+                    <Card sx={{ mb: 3 }}>
+                        <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                                Vé hoàn tiền
+                            </Typography>
+                            <RefundTicketsTable tickets={detail.refundTickets} />
                         </CardContent>
                     </Card>
 

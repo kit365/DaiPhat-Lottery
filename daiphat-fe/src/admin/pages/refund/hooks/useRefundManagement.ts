@@ -15,6 +15,10 @@ export const useGetStaffRefunds = (params: GetStaffRefundsParams) => {
     return useQuery({
         queryKey: [QUERY_KEYS.ADMIN_REFUNDS, params],
         queryFn: () => refundAdminApi.getStaffRefunds(params),
+        refetchOnWindowFocus: true,
+        refetchOnMount: 'always',
+        refetchInterval: 15_000,
+        staleTime: 0,
     });
 };
 
