@@ -4,6 +4,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStatio
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncItemResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSchedulePublicResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncResponse;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryStationSourcePreviewItem;
@@ -119,6 +120,11 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
+    public List<LotteryStationModel> getScheduleModelsByDrawDate(LocalDate drawDate) {
+        return findStationsMatchingDrawDate(drawDate);
+    }
+
+    @Override
     public PageResponse<LotteryStationResponse> getAll(
             int page, int size, String search,
             String status, String type, String region, List<String> drawDay,
@@ -197,7 +203,7 @@ public class LotteryStationService implements LotteryStationServicePort {
 
     @Override
     public List<LotteryStationResponse> getByDrawDate(LocalDate drawDate) {
-        return lotteryStationRepositoryPort.findByNextDrawDate(drawDate).stream()
+        return findStationsMatchingDrawDate(drawDate).stream()
                 .peek(this::recalculateInventory)
                 .map(lotteryStationApplicationMapper::toResponse)
                 .toList();
@@ -211,6 +217,17 @@ public class LotteryStationService implements LotteryStationServicePort {
     @Override
     public List<LotteryStationResponse> getDrawingTomorrow() {
         return getByDrawDate(LocalDate.now().plusDays(1));
+    }
+
+    @Override
+    public List<LotteryStationSchedulePublicResponse> getPublicSchedule(String region) {
+        return lotteryStationRepositoryPort.findAll().stream()
+                .filter(this::isActiveStation)
+                .filter(model -> matchesRegion(model, region))
+                .map(this::sortDrawDays)
+                .sorted(this::comparePublicSchedule)
+                .map(lotteryStationApplicationMapper::toSchedulePublicResponse)
+                .toList();
     }
 
     @Override
@@ -263,6 +280,65 @@ public class LotteryStationService implements LotteryStationServicePort {
         log.info("Lottery product updated with id: {}", saved.getId());
 
         return lotteryStationApplicationMapper.toResponse(saved);
+    }
+
+    private boolean isActiveStation(LotteryStationModel model) {
+        return model.getStatus() == LotteryStationStatus.ACTIVE;
+    }
+
+    private boolean matchesRegion(LotteryStationModel model, String region) {
+        if (region == null || region.isBlank()) {
+            return true;
+        }
+        return model.getRegion() != null
+                && model.getRegion().region() != null
+                && model.getRegion().region().equalsIgnoreCase(region.trim());
+    }
+
+    private LotteryStationModel sortDrawDays(LotteryStationModel model) {
+        if (model.getDrawDays() == null || model.getDrawDays().isEmpty()) {
+            return model;
+        }
+        model.setDrawDays(model.getDrawDays().stream().sorted().toList());
+        return model;
+    }
+
+    private int comparePublicSchedule(LotteryStationModel left, LotteryStationModel right) {
+        int regionCompare = Integer.compare(regionSortValue(left), regionSortValue(right));
+        if (regionCompare != 0) {
+            return regionCompare;
+        }
+
+        LocalTime leftTime = left.getDrawTime();
+        LocalTime rightTime = right.getDrawTime();
+        if (leftTime != null && rightTime != null) {
+            int timeCompare = leftTime.compareTo(rightTime);
+            if (timeCompare != 0) {
+                return timeCompare;
+            }
+        } else if (leftTime != null) {
+            return -1;
+        } else if (rightTime != null) {
+            return 1;
+        }
+
+        if (left.getName() != null && right.getName() != null) {
+            return left.getName().compareToIgnoreCase(right.getName());
+        }
+        return 0;
+    }
+
+    private int regionSortValue(LotteryStationModel model) {
+        if (model.getRegion() == null || model.getRegion().region() == null) {
+            return 99;
+        }
+
+        return switch (model.getRegion().region().trim().toUpperCase(Locale.ROOT)) {
+            case "MIEN_NAM" -> 1;
+            case "MIEN_TRUNG" -> 2;
+            case "MIEN_BAC" -> 3;
+            default -> 99;
+        };
     }
 
     @Override
@@ -424,6 +500,27 @@ public class LotteryStationService implements LotteryStationServicePort {
             }
             throw ex;
         }
+    }
+
+    private List<LotteryStationModel> findStationsMatchingDrawDate(LocalDate drawDate) {
+        DayOfWeek targetDay = drawDate.getDayOfWeek();
+        return lotteryStationRepositoryPort.findAll().stream()
+                .filter(this::isStationActive)
+                .filter(station -> hasDrawDay(station, targetDay))
+                .sorted(Comparator.comparing(LotteryStationModel::getName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
+
+    private boolean isStationActive(LotteryStationModel station) {
+        return station != null
+                && station.getStatus() == LotteryStationStatus.ACTIVE
+                && !station.isDeleted();
+    }
+
+    private boolean hasDrawDay(LotteryStationModel station, DayOfWeek targetDay) {
+        return station.getDrawDays() != null
+                && !station.getDrawDays().isEmpty()
+                && station.getDrawDays().contains(targetDay);
     }
 
     private LocalDate resolveNextDrawDate(LotteryStationModel station) {

@@ -6,9 +6,12 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStatio
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSchedulePublicResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +20,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
 import com.daiphat.coreapi.shared.util.StorageUtils;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -33,28 +38,28 @@ public class LotteryStationController {
     private final LotteryStationServicePort lotteryStationServicePort;
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    @PreAuthorize("hasAnyAuthority('station:create', 'provider:create')")
     public ApiResponse<LotteryStationResponse> create(
             @Valid @RequestBody CreateLotteryStationRequest request) {
         LotteryStationResponse response = lotteryStationServicePort.create(request);
-        return ApiResponse.success("Tạo sản phẩm vé số thành công.", response);
+        return ApiResponse.success("Tạo nhà đài thành công.", response);
     }
 
     @PostMapping("/sync")
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAuthority('station:sync')")
     public ApiResponse<LotteryStationSyncResponse> syncStations(
             @Valid @RequestBody SyncLotteryStationsRequest request) {
         return ApiResponse.success("Đồng bộ nhà đài thành công.", lotteryStationServicePort.syncStations(request));
     }
 
     @GetMapping(ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('station:view', 'provider:view')")
     public ApiResponse<LotteryStationResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(null, lotteryStationServicePort.getById(id));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('station:view', 'provider:view')")
     public ApiResponse<PageResponse<LotteryStationResponse>> getAll(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
@@ -70,34 +75,56 @@ public class LotteryStationController {
                 lotteryStationServicePort.getAll(page, size, search, status, type, region, drawDay, sortBy, direction));
     }
 
-    @GetMapping("/draws/today")
+    @GetMapping("/schedule/today")
     public ApiResponse<List<LotteryStationResponse>> getDrawingToday() {
         return ApiResponse.success(null, lotteryStationServicePort.getDrawingToday());
     }
 
-    @GetMapping("/draws/tomorrow")
+    @GetMapping("/schedule")
+    public ApiResponse<List<LotteryStationResponse>> getByDrawDate(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate
+    ) {
+        return ApiResponse.success(null, lotteryStationServicePort.getByDrawDate(drawDate));
+    }
+
+    @GetMapping("/schedule/tomorrow")
     public ApiResponse<List<LotteryStationResponse>> getDrawingTomorrow() {
         return ApiResponse.success(null, lotteryStationServicePort.getDrawingTomorrow());
     }
 
+    @GetMapping("/schedule/all")
+    @Operation(
+            summary = "Lay lich quay mo thuong public",
+            description = "API public phuc vu trang lich mo thuong. Tra ve danh sach nha dai dang active, chi gom ten dai, ma mien, thu quay va gio quay."
+    )
+    public ApiResponse<List<LotteryStationSchedulePublicResponse>> getPublicSchedule(
+            @Parameter(
+                    description = "Loc theo ma mien neu can. Bo trong de lay toan quoc.",
+                    example = "MIEN_NAM"
+            )
+            @RequestParam(required = false) String region
+    ) {
+        return ApiResponse.success(null, lotteryStationServicePort.getPublicSchedule(region));
+    }
+
     @PutMapping(ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('station:edit', 'provider:edit')")
     public ApiResponse<LotteryStationResponse> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateLotteryStationRequest request) {
         LotteryStationResponse response = lotteryStationServicePort.update(id, request);
-        return ApiResponse.success("Cập nhật sản phẩm vé số thành công.", response);
+        return ApiResponse.success("Cập nhật nhà đài thành công.", response);
     }
 
     @DeleteMapping(ID_PATH)
-    @PreAuthorize("hasAnyAuthority('ticket:delete')")
+    @PreAuthorize("hasAnyAuthority('station:delete')")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         lotteryStationServicePort.delete(id);
-        return ApiResponse.success("Xóa sản phẩm vé số thành công.");
+        return ApiResponse.success("Xóa nhà đài thành công.");
     }
 
     @PostMapping(value = ID_PATH + "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('station:edit', 'provider:edit')")
     public ApiResponse<LotteryStationResponse> uploadImage(
             @PathVariable Long id,
             @RequestPart("file") MultipartFile file) {

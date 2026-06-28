@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { DisplayType, getDisplayNumber, LotteryResult } from '../../types/lottery';
 
 interface ResultsMatrixProps {
@@ -13,6 +13,8 @@ interface ResultsMatrixProps {
   setSelectedDigit?: (val: string | null) => void;
   activeDigit?: string | null;
   setHoveredDigit?: (val: string | null) => void;
+  statusMessage?: string;
+  isRefreshing?: boolean;
 }
 
 // Helper to highlight specific digits
@@ -49,29 +51,23 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
   selectedDigit,
   setSelectedDigit,
   activeDigit,
-  setHoveredDigit
+  setHoveredDigit,
+  statusMessage,
+  isRefreshing = false,
 }) => {
-  const [timeLeft, setTimeLeft] = useState({ h: 15, m: 58, s: 37 });
-  
-  const mainDate = dataList.length > 0 ? dataList[0].date : '';
+  const mainDate = dataList[0]?.date || '';
   const isSingleMode = dataList.length === 1;
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev.s > 0) return { ...prev, s: prev.s - 1 };
-        if (prev.m > 0) return { ...prev, m: prev.m - 1, s: 59 };
-        if (prev.h > 0) return { h: prev.h - 1, m: 59, s: 59 };
-        return prev;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTime = (n: number) => n.toString().padStart(2, '0');
-
   return (
-    <section className="w-full">
+    <section className="w-full relative">
+      {isRefreshing && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-3xl min-h-[400px]">
+          <div className="flex flex-col items-center gap-4 bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+            <div className="w-12 h-12 border-4 border-slate-100 border-t-[#ee1314] rounded-full animate-spin"></div>
+            <span className="text-[#102937] font-bold text-sm uppercase tracking-wider">Đang cập nhật...</span>
+          </div>
+        </div>
+      )}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_4px_25px_rgba(0,0,0,0.03)] overflow-hidden font-client-main">
         {/* Header Section */}
         <div className="p-3 lg:p-4 bg-white border-b border-gray-100 rounded-t-3xl">
@@ -88,19 +84,16 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                   <span className="flex gap-1 items-center">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#ee1314] animate-pulse"></span>
                   </span>
-                  <span>
-                    Đang chờ xổ số lúc <span className="font-semibold">16h15'</span>. 
-                    Còn <span className="bg-[#FCE5DF] text-[#ee1314] px-1.5 py-0.5 rounded font-semibold tabular-nums ml-1">{formatTime(timeLeft.h)}:{formatTime(timeLeft.m)}:{formatTime(timeLeft.s)}</span> nữa
-                  </span>
+                  <span>{statusMessage || 'Đang cập nhật kết quả mới nhất từ hệ thống.'}</span>
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Integrated Quick Filter Bar */}
-        <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center overflow-x-auto lg:overflow-x-visible">
-          <div className="flex items-center gap-4 whitespace-nowrap w-full">
+        {/* Integrated Quick Filter Bar (Desktop) */}
+        <div className="hidden lg:flex px-4 py-2 bg-slate-50 border-b border-slate-100 items-center overflow-x-visible">
+          <div className="flex items-center justify-between whitespace-nowrap w-full">
             {/* Main Filters */}
             <div className="flex items-center gap-3 pr-4 border-r border-slate-200">
               <button
@@ -169,8 +162,10 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
               </div>
               <div className="flex-1 flex">
                 {dataList.map((d, i) => (
-                  <div key={i} className="flex-1 py-2 flex items-center justify-center border-r border-gray-100 last:border-0 bg-[#FCE5DF]/30">
-                    <span className="text-[13px] font-bold text-[#ee1314]">{d.province}</span>
+                  <div key={i} className="flex-1 py-2 px-1 flex items-center justify-center border-r border-gray-100 last:border-0 bg-[#FCE5DF]/30 text-center">
+                    <span className="text-[11px] md:text-[13px] font-bold text-[#ee1314] leading-tight break-words">
+                      {d.province === 'TP. Hồ Chí Minh' ? 'TP. HCM' : d.province}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -222,7 +217,7 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
                   return (
                     <div key={i} className={`flex-1 flex items-center justify-center ${!isSingleMode ? 'py-1.5 px-2 border-r border-gray-100 last:border-0' : 'py-3 px-3 md:py-4 md:px-8'}`}>
                       {prize.isGrid ? (
-                        <div className={`${isSingleMode ? 'grid grid-cols-2 lg:grid-cols-4 gap-x-4 md:gap-x-6 lg:gap-x-10 gap-y-3 max-w-[400px] lg:max-w-[800px]' : 'flex flex-col gap-y-1'} w-full mx-auto text-center`}>
+                        <div className={`${isSingleMode ? `grid ${numbers.length === 2 ? 'grid-cols-2 max-w-[300px] md:max-w-[400px] lg:max-w-[500px]' : numbers.length === 3 ? 'grid-cols-3 max-w-[400px] md:max-w-[500px] lg:max-w-[600px]' : 'grid-cols-2 lg:grid-cols-4 max-w-[400px] lg:max-w-[800px]'} gap-x-4 md:gap-x-6 lg:gap-x-10 gap-y-3` : 'flex flex-col gap-y-1'} w-full mx-auto text-center`}>
                           {numbers.map((n, index) => (
                             <span key={index} className={`text-[#111111] font-bold tracking-tight font-client-main ${isSingleMode ? 'text-[16px] md:text-[18px] lg:text-[20px]' : 'text-[13px] md:text-[14px] lg:text-[15px]'}`}>
                               {renderHighlightedNumber(getDisplayNumber(n, displayType), activeDigit || null)}
@@ -245,6 +240,61 @@ export const ResultsMatrix: React.FC<ResultsMatrixProps> = ({
             </div>
           ))}
         </div>
+
+        {/* Integrated Quick Filter Bar (Mobile) */}
+        <div className="flex lg:hidden px-4 py-3 bg-slate-50 border-t border-slate-100 items-center overflow-x-auto">
+          <div className="flex items-center gap-4 whitespace-nowrap w-full">
+            {/* Main Filters */}
+            <div className="flex items-center gap-3 pr-4 border-r border-slate-200">
+              <button
+                onClick={() => setDisplayType('full')}
+                className={`text-[14px] font-bold transition-all font-client-display uppercase tracking-tight cursor-pointer ${displayType === 'full' ? 'text-[#ee1314]' : 'text-slate-500 hover:text-[#102937]'}`}
+              >
+                Đầy đủ
+              </button>
+              <div className="w-[1px] h-3.5 bg-gray-300/50"></div>
+              <button
+                onClick={() => setDisplayType('2-digit')}
+                className={`text-[14px] font-bold transition-all font-client-display uppercase tracking-tight cursor-pointer ${displayType === '2-digit' ? 'text-[#ee1314]' : 'text-slate-500 hover:text-[#102937]'}`}
+              >
+                2 số
+              </button>
+              <div className="w-[1px] h-3.5 bg-gray-300/50"></div>
+              <button
+                onClick={() => setDisplayType('3-digit')}
+                className={`text-[14px] font-bold transition-all font-client-display uppercase tracking-tight cursor-pointer ${displayType === '3-digit' ? 'text-[#ee1314]' : 'text-slate-500 hover:text-[#102937]'}`}
+              >
+                3 số
+              </button>
+            </div>
+
+            {/* Number Selector */}
+            <div className="flex items-center gap-2">
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
+                const strNum = num.toString();
+                const isSelected = selectedDigit === strNum;
+                const isActive = activeDigit === strNum;
+                return (
+                  <button
+                    key={num}
+                    onClick={() => setSelectedDigit?.(isSelected ? null : strNum)}
+                    onMouseEnter={() => setHoveredDigit?.(strNum)}
+                    onMouseLeave={() => setHoveredDigit?.(null)}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-bold border transition-all cursor-pointer ${isSelected
+                      ? 'bg-[#FDE047] border-[#FDE047] text-[#111111]'
+                      : isActive
+                        ? 'bg-[#FEF9C3] border-[#FDE047] text-[#ee1314]'
+                        : 'border-gray-200 bg-white text-[#111111] hover:border-[#FDE047] hover:text-[#ee1314]'
+                      }`}
+                  >
+                    {num}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
   );

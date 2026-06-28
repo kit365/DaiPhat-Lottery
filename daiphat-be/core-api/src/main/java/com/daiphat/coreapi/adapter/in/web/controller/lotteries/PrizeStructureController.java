@@ -6,7 +6,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.RegionPrizeStructur
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncPrizeStructuresRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.PrizeStructureResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.PrizeStructureSyncResponse;
-import com.daiphat.coreapi.application.port.in.lotteries.RegionPrizeStructureServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.PrizeStructureServicePort;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,79 +28,79 @@ public class PrizeStructureController {
     private static final String REGION_PRIZE_STRUCTURE_BY_ID = REGION_PRIZE_STRUCTURES_BY_REGION + "/{id}";
     private static final String REGION_PRIZE_STRUCTURES_SYNC = REGION_PRIZE_STRUCTURES + "/sync";
 
-    private final RegionPrizeStructureServicePort regionPrizeStructureServicePort;
+    private final PrizeStructureServicePort prizeStructureServicePort;
 
     @GetMapping(REGION_PRIZE_STRUCTURES)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:view', 'ticket:view')")
     public ApiResponse<List<String>> getRegions() {
-        return ApiResponse.success(null, regionPrizeStructureServicePort.getRegions());
+        return ApiResponse.success(null, prizeStructureServicePort.getRegions());
     }
 
     @GetMapping(REGION_PRIZE_STRUCTURES_BY_REGION)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:view', 'ticket:view')")
     public ApiResponse<List<PrizeStructureResponse>> getByRegion(@PathVariable String region) {
         log.info("REST request to get prize structures for region: {}", region);
-        return ApiResponse.success(null, regionPrizeStructureServicePort.getByRegion(region));
+        return ApiResponse.success(null, prizeStructureServicePort.getByRegion(region));
     }
 
     @PostMapping(REGION_PRIZE_STRUCTURES_SYNC)
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:sync', 'ticket:edit')")
     public ApiResponse<PrizeStructureSyncResponse> syncByRegion(
             @Valid @RequestBody SyncPrizeStructuresRequest request) {
         log.info("REST request to sync prize structures for region={} from source={}", request.region(), request.source());
         return ApiResponse.success(
                 "Đồng bộ cấu trúc giải theo miền thành công.",
-                regionPrizeStructureServicePort.syncByRegion(request)
+                prizeStructureServicePort.syncByRegion(request)
         );
     }
 
     @GetMapping(REGION_PRIZE_STRUCTURE_BY_ID)
-    @PreAuthorize("hasAnyAuthority('ticket:view')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:view', 'ticket:view')")
     public ApiResponse<PrizeStructureResponse> getRegionPrizeById(
             @PathVariable String region,
             @PathVariable Long id) {
-        return ApiResponse.success(null, regionPrizeStructureServicePort.getById(region, id));
+        return ApiResponse.success(null, prizeStructureServicePort.getById(region, id));
     }
 
     @PostMapping(REGION_PRIZE_STRUCTURES_BY_REGION)
-    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:create', 'ticket:create')")
     public ApiResponse<PrizeStructureResponse> createForRegion(
             @PathVariable String region,
             @Valid @RequestBody RegionPrizeStructureRequest request) {
-        PrizeStructureResponse response = regionPrizeStructureServicePort.create(region, request);
+        PrizeStructureResponse response = prizeStructureServicePort.create(region, request);
         return ApiResponse.success("Tạo cấu trúc giải theo miền thành công.", response);
     }
 
     @PutMapping(REGION_PRIZE_STRUCTURES_BY_REGION)
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:edit', 'ticket:edit')")
     public ApiResponse<List<PrizeStructureResponse>> replaceByRegion(
             @PathVariable String region,
             @RequestBody List<@Valid RegionPrizeStructureRequest> requests) {
         log.info("REST request to replace prize structures for region: {} with {} items",
                 region, requests.size());
         List<PrizeStructureResponse> response =
-                regionPrizeStructureServicePort.replaceByRegion(region, requests);
+                prizeStructureServicePort.replaceByRegion(region, requests);
         return ApiResponse.success(
                 "Cập nhật cấu trúc giải theo miền thành công.",
                 response);
     }
 
     @PutMapping(REGION_PRIZE_STRUCTURE_BY_ID)
-    @PreAuthorize("hasAnyAuthority('ticket:edit')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:edit', 'ticket:edit')")
     public ApiResponse<PrizeStructureResponse> updateForRegion(
             @PathVariable String region,
             @PathVariable Long id,
             @Valid @RequestBody RegionPrizeStructureRequest request) {
-        PrizeStructureResponse response = regionPrizeStructureServicePort.update(region, id, request);
+        PrizeStructureResponse response = prizeStructureServicePort.update(region, id, request);
         return ApiResponse.success("Cập nhật cấu trúc giải theo miền thành công.", response);
     }
 
     @DeleteMapping(REGION_PRIZE_STRUCTURE_BY_ID)
-    @PreAuthorize("hasAnyAuthority('ticket:delete')")
+    @PreAuthorize("hasAnyAuthority('prizeStructure:delete', 'ticket:delete')")
     public ApiResponse<Void> deleteForRegion(
             @PathVariable String region,
             @PathVariable Long id) {
-        regionPrizeStructureServicePort.delete(region, id);
+        prizeStructureServicePort.delete(region, id);
         return ApiResponse.success("Xóa cấu trúc giải theo miền thành công.");
     }
 }

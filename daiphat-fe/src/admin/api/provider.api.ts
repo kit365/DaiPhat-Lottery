@@ -127,7 +127,7 @@ export const forceDeleteProvider = async (id: string | number): Promise<any> => 
 };
 
 export const getStationsToday = async (): Promise<any> => {
-    const response = await apiApp.get(`${BASE_URL}/draws/today`);
+    const response = await apiApp.get(`${BASE_URL}/schedule/today`);
     const result = response.data?.data || [];
     // Map BE response to match FE expectations for dynamicProvinces
     return result.map((item: any) => ({
@@ -141,7 +141,7 @@ export const getStationsToday = async (): Promise<any> => {
 };
 
 export const getStationsTomorrow = async (): Promise<any> => {
-    const response = await apiApp.get(`${BASE_URL}/draws/tomorrow`);
+    const response = await apiApp.get(`${BASE_URL}/schedule/tomorrow`);
     const result = response.data?.data || [];
     // Map BE response to match FE expectations for dynamicProvinces
     return result.map((item: any) => ({
@@ -152,6 +152,38 @@ export const getStationsTomorrow = async (): Promise<any> => {
         drawSchedule: mapDrawSchedule(item.drawDays),
         status: item.status ? item.status.toLowerCase() : 'active'
     }));
+};
+
+export const getStationsByDrawDate = async (drawDate: string | string[]): Promise<any> => {
+    const drawDates = Array.isArray(drawDate) ? drawDate.filter(Boolean) : [drawDate].filter(Boolean);
+
+    const responses = await Promise.all(
+        drawDates.map((value) => apiApp.get(`${BASE_URL}/schedule`, {
+            params: { drawDate: value },
+        }))
+    );
+
+    const mapped = responses.flatMap((response) => {
+        const result = response.data?.data || [];
+        return result.map((item: any) => ({
+            ...item,
+            id: item.id || item._id,
+            avatar: item.thumbnailUrl || item.avatar,
+            drawDays: normalizeDrawDaysFromBackend(item.drawDays),
+            drawSchedule: mapDrawSchedule(item.drawDays),
+            status: item.status ? item.status.toLowerCase() : 'active'
+        }));
+    });
+
+    const seen = new Set<string>();
+    return mapped.filter((item: any) => {
+        const key = String(item.id || item._id);
+        if (seen.has(key)) {
+            return false;
+        }
+        seen.add(key);
+        return true;
+    });
 };
 
 export const uploadProviderImage = async (id: string | number, file: File): Promise<any> => {

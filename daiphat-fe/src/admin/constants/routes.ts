@@ -34,6 +34,7 @@ export const ROUTES = {
             LIST: `/${prefixAdmin}/ticket/list`,
             PROVIDER: `/${prefixAdmin}/provider/list`,
             PRIZE_STRUCTURE: `/${prefixAdmin}/prize-structures/list`,
+            DRAW_RESULT: `/${prefixAdmin}/draw-results`,
             REGION: `/${prefixAdmin}/region/list`,
             ATTRIBUTE: `/${prefixAdmin}/ticket/attribute/list`,
             EXPIRED: `/${prefixAdmin}/ticket/expired`,
@@ -52,6 +53,7 @@ export const ROUTES = {
         ORDERS: {
             LIST: `/${prefixAdmin}/order/list`,
             DETAIL: `/${prefixAdmin}/order/detail/`,
+            CREATE_COUNTER: `/${prefixAdmin}/order/create-counter`,
         },
         TICKET_SERVICE_ORDERS: {
             LIST: `/${prefixAdmin}/ticketServiceOrder/list`,
@@ -105,5 +107,6 @@ export const ROUTES = {
     PUBLIC: {
         HOME: "/",
         SETUP_PROFILE: "/setup-profile",
+        SCHEDULE: "/lich-mo-thuong",
     }
 } as const;

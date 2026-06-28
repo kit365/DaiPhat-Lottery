@@ -50,4 +50,17 @@ export const QUERY_KEYS = {
 
     // Transaction (Client)
     CLIENT_TRANSACTION_TYPES: 'client-transaction-types',
+
+    // Refund (Client)
+    CLIENT_MY_REFUNDS: 'client-my-refunds',
+    CLIENT_REFUND_DETAIL: 'client-refund-detail',
+    CLIENT_REFUND_STATUSES: 'client-refund-statuses',
+    CLIENT_REFUND_TYPES: 'client-refund-types',
+    CLIENT_BANK_ACCOUNTS: 'client-bank-accounts',
+    CLIENT_BANK_CATALOG: 'client-bank-catalog',
+
+    // Lottery Results
+    LOTTERY_RESULTS: 'lottery-results',
+    LOTTERY_RESULTS_LIVE: 'lottery-results-live',
+    LOTTERY_RESULT_DETAILS: 'lottery-result-details',
 } as const;

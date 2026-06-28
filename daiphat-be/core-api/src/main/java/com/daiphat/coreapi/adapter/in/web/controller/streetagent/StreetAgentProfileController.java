@@ -32,7 +32,7 @@ public class StreetAgentProfileController {
     private final StreetAgentProfileServicePort streetAgentProfileServicePort;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('member:view')")
+    @PreAuthorize("hasAnyAuthority('streetAgent:view', 'member:view')")
     public ApiResponse<PageResponse<StreetAgentProfileResponse>> getAll(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int limit,
@@ -44,13 +44,13 @@ public class StreetAgentProfileController {
     }
 
     @GetMapping(ID_PATH)
-    @PreAuthorize("hasAuthority('member:view')")
+    @PreAuthorize("hasAnyAuthority('streetAgent:view', 'member:view')")
     public ApiResponse<StreetAgentProfileResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(null, streetAgentProfileServicePort.getById(id));
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('member:create')")
+    @PreAuthorize("hasAnyAuthority('streetAgent:create', 'member:create')")
     public ApiResponse<StreetAgentProfileResponse> create(
             @Valid @RequestBody CreateStreetAgentProfileRequest request) {
         StreetAgentProfileResponse response = streetAgentProfileServicePort.create(request);
@@ -58,7 +58,7 @@ public class StreetAgentProfileController {
     }
 
     @PutMapping(ID_PATH)
-    @PreAuthorize("hasAuthority('member:edit')")
+    @PreAuthorize("hasAnyAuthority('streetAgent:edit', 'member:edit')")
     public ApiResponse<StreetAgentProfileResponse> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateStreetAgentProfileRequest request) {
@@ -67,7 +67,7 @@ public class StreetAgentProfileController {
     }
 
     @DeleteMapping(ID_PATH)
-    @PreAuthorize("hasAuthority('member:delete')")
+    @PreAuthorize("hasAnyAuthority('streetAgent:delete', 'member:delete')")
     public ApiResponse<Void> delete(@PathVariable Long id) {
         streetAgentProfileServicePort.delete(id);
         return ApiResponse.success("Xóa hồ sơ đại lý bán dạo thành công.", null);

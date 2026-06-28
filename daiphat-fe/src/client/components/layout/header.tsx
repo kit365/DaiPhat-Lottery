@@ -25,9 +25,8 @@ import { AppToast as toast } from "../../utils/toast.util";
 const navItems = [
   { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },
   { label: "Mua vé số", to: "/buy-ticket", icon: Ticket },
-  { label: "Kết quả", to: "#", icon: Crosshair },
   { label: "Vé của tôi", to: "/profile/tickets", icon: Ticket },
-  { label: "Lịch mở thưởng", to: "#", icon: CalendarDays },
+  { label: "Lịch mở thưởng", to: "/lich-mo-thuong", icon: CalendarDays },
   { label: "Bài viết", to: "/blogs", icon: BookOpen },
 ];
 
@@ -72,8 +71,8 @@ export const Header = () => {
   const handleProfileClick = (e: React.MouseEvent) => {
     if (!user) return;
 
-    const isSetupComplete = user.hasPassword && user.agreedToTerms;
-    if (!isSetupComplete) {
+    const shouldRequireProfileSetup = !user.agreedToTerms;
+    if (shouldRequireProfileSetup) {
       e.preventDefault();
       openProfileSetupModal();
       toast.info("Vui lòng hoàn tất thiết lập hồ sơ để tiếp tục");
@@ -107,7 +106,7 @@ export const Header = () => {
 
           {/* Desktop Navigation (Hidden on Tablet/Mobile < 1024px) */}
           <div className="hidden lg:flex justify-center items-center gap-1 xl:gap-3 flex-1">
-            {navItems.map((item) => {
+            {navItems.filter(item => item.to !== "/profile/tickets" || token).map((item) => {
               const Icon = item.icon;
               const isActive = item.to === ROUTES.PUBLIC.HOME ? location.pathname === ROUTES.PUBLIC.HOME : location.pathname.startsWith(item.to) && item.to !== "#";
               

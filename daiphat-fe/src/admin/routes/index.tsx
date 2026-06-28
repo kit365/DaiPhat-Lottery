@@ -10,6 +10,7 @@ const TicketEditPage = lazy(() => import("../pages/ticket/TicketEditPage").then(
 const TicketDetailPage = lazy(() => import("../pages/ticket/TicketDetailPage").then(m => ({ default: m.TicketDetailPage })));
 const ExpiredTicketListPage = lazy(() => import("../pages/ticket/ExpiredTicketListPage").then(m => ({ default: m.ExpiredTicketListPage })));
 const PrizeStructureListPage = lazy(() => import("../pages/prize-structure/PrizeStructureListPage").then(m => ({ default: m.PrizeStructureListPage })));
+const DrawResultPage = lazy(() => import("../pages/draw-result/DrawResultPage").then(m => ({ default: m.DrawResultPage })));
 
 const ProviderListPage = lazy(() => import("../pages/provider/ProviderListPage").then(m => ({ default: m.ProviderListPage })));
 const ProviderCreatePage = lazy(() => import("../pages/provider/ProviderCreatePage").then(m => ({ default: m.ProviderCreatePage })));
@@ -85,6 +86,7 @@ const ShiftListPage = lazy(() => import("../pages/hr/ShiftListPage").then(m => (
 const DepartmentListPage = lazy(() => import("../pages/hr/DepartmentListPage").then(m => ({ default: m.DepartmentListPage })));
 const OrderListPage = lazy(() => import("../pages/order/OrderListPage").then(m => ({ default: m.OrderListPage })));
 const OrderDetailPage = lazy(() => import("../pages/order/OrderDetailPage").then(m => ({ default: m.OrderDetailPage })));
+const CounterOrderCreatePage = lazy(() => import("../pages/order/CounterOrderCreatePage").then(m => ({ default: m.CounterOrderCreatePage })));
 const ChatPage = lazy(() => import("../pages/chat/ChatPage").then(m => ({ default: m.ChatPage })));
 const ReviewListPage = lazy(() => import("../pages/review/ReviewListPage").then(m => ({ default: m.ReviewListPage })));
 const NotificationListPage = lazy(() => import("../pages/notification/NotificationListPage").then(m => ({ default: m.NotificationListPage })));
@@ -92,7 +94,7 @@ const NotificationListPage = lazy(() => import("../pages/notification/Notificati
 export const AdminRoutes = [
     { index: true, element: <Navigate to="/admin/dashboard" replace /> },
     { path: "dashboard", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.ANALYTICS}><DashboardPage /></PermissionGuard> },
-    { path: "notifications", element: <NotificationListPage /> },
+    { path: "notifications", element: <PermissionGuard permission={PERMISSIONS.NOTIFICATION.VIEW}><NotificationListPage /></PermissionGuard> },
     { path: "dashboard/system", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.SYSTEM}><SystemPage /></PermissionGuard> },
     { path: "dashboard/ecommerce", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.ECOMMERCE}><EcommercePage /></PermissionGuard> },
     { path: "dashboard/analytics", element: <PermissionGuard permission={PERMISSIONS.DASHBOARD.ANALYTICS}><AnalyticsPage /></PermissionGuard> },
@@ -105,12 +107,13 @@ export const AdminRoutes = [
     { path: "ticket/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.EDIT}><TicketEditPage /></PermissionGuard> },
     { path: "ticket/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketDetailPage /></PermissionGuard> },
     { path: "ticket/expired", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><ExpiredTicketListPage /></PermissionGuard> },
-    { path: "prize-structures/list", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><PrizeStructureListPage /></PermissionGuard> },
+    { path: "draw-results", element: <PermissionGuard permission={PERMISSIONS.LOTTERY_RESULT.VIEW}><DrawResultPage /></PermissionGuard> },
+    { path: "prize-structures/list", element: <PermissionGuard permission={PERMISSIONS.PRIZE_STRUCTURE.VIEW}><PrizeStructureListPage /></PermissionGuard> },
     { path: "provider/list", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><ProviderListPage /></PermissionGuard> },
     { path: "provider/create", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.CREATE}><ProviderCreatePage /></PermissionGuard> },
     { path: "provider/edit/:id", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.EDIT}><ProviderEditPage /></PermissionGuard> },
     { path: "provider/detail/:id", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><ProviderDetailPage /></PermissionGuard> },
-    { path: "region/list", element: <RegionListPage /> },
+    { path: "region/list", element: <PermissionGuard permission={PERMISSIONS.REGION.VIEW}><RegionListPage /></PermissionGuard> },
     { path: "ticketService/list", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE.VIEW}><TicketServiceListPage /></PermissionGuard> },
     { path: "ticketService/create", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE.CREATE}><TicketServiceCreatePage /></PermissionGuard> },
     { path: "ticketService/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE.EDIT}><TicketServiceEditPage /></PermissionGuard> },
@@ -139,32 +142,33 @@ export const AdminRoutes = [
     { path: "role/list", element: <PermissionGuard permission={PERMISSIONS.ROLE.VIEW}><RoleListPage /></PermissionGuard> },
     { path: "role/create", element: <PermissionGuard permission={PERMISSIONS.ROLE.CREATE}><RoleCreatePage /></PermissionGuard> },
     { path: "role/edit/:id", element: <PermissionGuard permission={PERMISSIONS.ROLE.EDIT}><RoleEditPage /></PermissionGuard> },
-    { path: "account-admin/list", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><AccountAdminListPage /></PermissionGuard> },
-    { path: "account-admin/create", element: <PermissionGuard permission={PERMISSIONS.USER.CREATE}><AccountAdminCreatePage /></PermissionGuard> },
-    { path: "account-admin/edit/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><AccountAdminEditPage /></PermissionGuard> },
-    { path: "account-admin/detail/:id", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><AccountAdminDetailPage /></PermissionGuard> },
+    { path: "account-admin/list", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.VIEW}><AccountAdminListPage /></PermissionGuard> },
+    { path: "account-admin/create", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.CREATE}><AccountAdminCreatePage /></PermissionGuard> },
+    { path: "account-admin/edit/:id", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.EDIT}><AccountAdminEditPage /></PermissionGuard> },
+    { path: "account-admin/detail/:id", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.VIEW}><AccountAdminDetailPage /></PermissionGuard> },
     { path: "profile", element: <ProfilePage /> },
-    { path: "account-admin/change-password/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><ChangePasswordAdminPage /></PermissionGuard> },
+    { path: "account-admin/change-password/:id", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.EDIT}><ChangePasswordAdminPage /></PermissionGuard> },
     { path: "account-user/list", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><AccountUserListPage /></PermissionGuard> },
     { path: "account-user/create", element: <PermissionGuard permission={PERMISSIONS.USER.CREATE}><AccountUserCreatePage /></PermissionGuard> },
     { path: "account-user/edit/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><AccountUserEditPage /></PermissionGuard> },
     { path: "account-user/detail/:id", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><AccountUserDetailPage /></PermissionGuard> },
     { path: "account-user/change-password/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><ChangePasswordUserPage /></PermissionGuard> },
-    { path: "street-agent/list", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><StreetAgentListPage /></PermissionGuard> },
-    { path: "street-agent/create", element: <PermissionGuard permission={PERMISSIONS.USER.CREATE}><StreetAgentCreatePage /></PermissionGuard> },
-    { path: "street-agent/edit/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><StreetAgentEditPage /></PermissionGuard> },
+    { path: "street-agent/list", element: <PermissionGuard permission={PERMISSIONS.STREET_AGENT.VIEW}><StreetAgentListPage /></PermissionGuard> },
+    { path: "street-agent/create", element: <PermissionGuard permission={PERMISSIONS.STREET_AGENT.CREATE}><StreetAgentCreatePage /></PermissionGuard> },
+    { path: "street-agent/edit/:id", element: <PermissionGuard permission={PERMISSIONS.STREET_AGENT.EDIT}><StreetAgentEditPage /></PermissionGuard> },
     { path: "ticketServiceOrder/list", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.VIEW}><TicketServiceOrderListPage /></PermissionGuard> },
     { path: "ticketServiceOrder/create", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.VIEW}><TicketServiceOrderCreatePage /></PermissionGuard> },
     { path: "ticketServiceOrder/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.EDIT}><TicketServiceOrderEditPage /></PermissionGuard> },
     { path: "ticketServiceOrder/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.VIEW}><TicketServiceOrderDetailPage /></PermissionGuard> },
     { path: "ticketServiceOrder/config", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE_ORDER.VIEW}><TicketServiceOrderConfigPage /></PermissionGuard> },
-    { path: "order/list", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><OrderListPage /></PermissionGuard> },
-    { path: "order/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><OrderDetailPage /></PermissionGuard> },
+    { path: "order/list", element: <PermissionGuard permission={PERMISSIONS.ORDER.VIEW}><OrderListPage /></PermissionGuard> },
+    { path: "order/create-counter", element: <PermissionGuard permission={PERMISSIONS.ORDER.CREATE}><CounterOrderCreatePage /></PermissionGuard> },
+    { path: "order/detail/:id", element: <PermissionGuard permission={PERMISSIONS.ORDER.VIEW}><OrderDetailPage /></PermissionGuard> },
     { path: "calendar", element: <PermissionGuard permission={PERMISSIONS.CALENDAR.VIEW}><CalendarPage /></PermissionGuard> },
     { path: "dashboard/settings/*", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><SettingsPage /></PermissionGuard> },
     { path: "settings/ticket-subtype/list", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><TicketSubtypeListPage /></PermissionGuard> },
-    { path: "chat", element: <ChatPage /> },
-    { path: "review", element: <ReviewListPage /> },
+    { path: "chat", element: <PermissionGuard permission={PERMISSIONS.CHAT.VIEW}><ChatPage /></PermissionGuard> },
+    { path: "review", element: <PermissionGuard permission={PERMISSIONS.REVIEW.VIEW}><ReviewListPage /></PermissionGuard> },
 
 ];
 

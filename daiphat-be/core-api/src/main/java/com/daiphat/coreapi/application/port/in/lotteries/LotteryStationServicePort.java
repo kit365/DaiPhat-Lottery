@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStatio
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSchedulePublicResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncResponse;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 
@@ -23,6 +24,8 @@ public interface LotteryStationServicePort {
 
     Optional<LotteryStationModel> findModelById(Long id);
 
+    List<LotteryStationModel> getScheduleModelsByDrawDate(LocalDate drawDate);
+
     PageResponse<LotteryStationResponse> getAll(int page, int size, String search,
                                                 String status, String type, String region, List<String> drawDay,
                                                 String sortBy, String direction);
@@ -32,6 +35,8 @@ public interface LotteryStationServicePort {
     List<LotteryStationResponse> getDrawingToday();
 
     List<LotteryStationResponse> getDrawingTomorrow();
+
+    List<LotteryStationSchedulePublicResponse> getPublicSchedule(String region);
 
     LotteryStationResponse update(Long id, UpdateLotteryStationRequest request);
 

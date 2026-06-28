@@ -1,5 +1,7 @@
-import React from 'react';
-import { ApiResponse } from '../../admin/config/type';
+import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
+
+dayjs.locale('vi');
 
 // --- TYPES ---
 export interface LotteryPrizes {
@@ -15,10 +17,14 @@ export interface LotteryPrizes {
 }
 
 export interface LotteryResult {
+  id?: number;
+  stationId?: number;
   province: string;
   date: string;
   dayOfWeek: string;
   prizes: LotteryPrizes;
+  drawDateIso?: string;
+  status?: string;
 }
 
 export type DisplayType = 'full' | '2-digit' | '3-digit';
@@ -29,92 +35,88 @@ export interface LotoRow {
   tails: string;  // Tails digits when focus is head (Right column)
 }
 
-// --- MOCK DATA ---
-// Detailed database organized by Province
-export const MOCK_DATABASE: Record<string, LotteryResult[]> = {
-  "TP. Hồ Chí Minh": [
-    {
-      province: "TP. Hồ Chí Minh", date: "24/05/2024", dayOfWeek: "Thứ Sáu",
-      prizes: {
-        special: "458120", first: "99312", second: "45102",
-        third: ["45102", "99321"],
-        fourth: ["45821", "90123", "77124", "09541", "10092", "88345", "33414"],
-        fifth: "1204", sixth: ["4582", "9012", "3341"],
-        seventh: "468", eighth: "35"
-      }
-    },
-    {
-      province: "TP. Hồ Chí Minh", date: "20/05/2024", dayOfWeek: "Thứ Hai",
-      prizes: {
-        special: "112233", first: "88776", second: "55443",
-        third: ["12345", "67890"],
-        fourth: ["11111", "22222", "33333", "44444", "55555", "66666", "77777"],
-        fifth: "4455", sixth: ["1122", "3344", "5566"],
-        seventh: "778", eighth: "99"
-      }
-    },
-    {
-      province: "TP. Hồ Chí Minh", date: "17/05/2024", dayOfWeek: "Thứ Sáu",
-      prizes: {
-        special: "998877", first: "11223", second: "33445",
-        third: ["55667", "77889"],
-        fourth: ["12121", "34343", "56565", "78787", "90909", "12321", "45654"],
-        fifth: "8899", sixth: ["1212", "3434", "5656"],
-        seventh: "123", eighth: "45"
-      }
-    },
-    {
-      province: "TP. Hồ Chí Minh", date: "13/05/2024", dayOfWeek: "Thứ Hai",
-      prizes: {
-        special: "001122", first: "33445", second: "66778",
-        third: ["12321", "54345"],
-        fourth: ["00001", "00002", "00003", "00004", "00005", "00006", "00007"],
-        fifth: "9988", sixth: ["1010", "2020", "3030"],
-        seventh: "456", eighth: "78"
-      }
-    }
-  ],
-  "Đồng Tháp": [
-    {
-      province: "Đồng Tháp", date: "24/05/2024", dayOfWeek: "Thứ Sáu",
-      prizes: {
-        special: "654321", first: "12345", second: "67890",
-        third: ["54321", "09876"],
-        fourth: ["11122", "33344", "55566", "77788", "99900", "12121", "34343"],
-        fifth: "1234", sixth: ["5678", "9012", "3456"],
-        seventh: "789", eighth: "01"
-      }
-    },
-    {
-      province: "Đồng Tháp", date: "17/05/2024", dayOfWeek: "Thứ Sáu",
-      prizes: {
-        special: "778899", first: "11223", second: "44556",
-        third: ["77665", "44332"],
-        fourth: ["10101", "20202", "30303", "40404", "50505", "60606", "70707"],
-        fifth: "8080", sixth: ["9090", "1010", "1111"],
-        seventh: "222", eighth: "33"
-      }
-    }
-  ],
-  "Cà Mau": [
-    {
-      province: "Cà Mau", date: "24/05/2024", dayOfWeek: "Thứ Sáu",
-      prizes: {
-        special: "135790", first: "24680", second: "13579",
-        third: ["98765", "43210"],
-        fourth: ["12345", "67890", "54321", "09876", "11223", "44556", "77889"],
-        fifth: "9900", sixth: ["1122", "3344", "5566"],
-        seventh: "778", eighth: "99"
-      }
-    }
-  ]
+export interface LotteryResultApiResponse {
+  id: number;
+  stationId: number;
+  stationName: string;
+  drawDate: string;
+  status: string;
+}
+
+export interface LotteryResultDetailApiResponse {
+  prizeCode: string;
+  winningNumber: string;
+}
+
+export interface LotteryResultLiveItemApiResponse {
+  result: LotteryResultApiResponse;
+  details: LotteryResultDetailApiResponse[];
+  status: string | null;
+  pollAfterSeconds: number | null;
+}
+
+export interface LotteryResultLiveSummaryApiResponse {
+  region: string;
+  drawDate: string;
+  results: LotteryResultApiResponse[];
+}
+
+export interface LotteryResultLiveDetailsApiResponse {
+  results: LotteryResultLiveItemApiResponse[];
+}
+
+export interface LotteryBoardData {
+  region: string;
+  drawDate: string;
+  drawDateIso: string;
+  results: LotteryResult[];
+  availableProvinces: string[];
+}
+
+export interface LotteryStationDrawApiResponse {
+  id: number;
+  name: string;
+  province?: string | null;
+  region: string;
+  drawDays?: string[];
+  drawTime?: string | null;
+  nextDrawDate?: string | null;
+  thumbnailUrl?: string | null;
+  image?: string | null;
+}
+
+export interface LotteryStationSchedulePublicResponse {
+  stationId: number;
+  stationName: string;
+  region: string;
+  drawDays: string[];
+  drawDaysDisplay: string[];
+  drawTime: string;
+}
+
+export interface LotteryStationDraw {
+  id: number;
+  province: string;
+  drawTime: string | null;
+  nextDrawDate: string | null;
+  thumbnailUrl?: string | null;
+  image?: string | null;
+}
+
+const STATION_DISPLAY_NAME_MAP: Record<string, string> = {
+  'Hồ Chí Minh': 'TP. Hồ Chí Minh'
 };
 
-// Legacy support
-export const MOCK_RESULTS: Record<string, LotteryResult> = {
-  "TP. Hồ Chí Minh": MOCK_DATABASE["TP. Hồ Chí Minh"][0],
-  "Đồng Tháp": MOCK_DATABASE["Đồng Tháp"][0],
-  "Cà Mau": MOCK_DATABASE["Cà Mau"][0]
+export const EMPTY_PRIZES: LotteryPrizes = {
+  special: '',
+  first: '',
+  second: '',
+  third: [],
+  fourth: [],
+  fifth: '',
+  sixth: [],
+  seventh: '',
+  eighth: '',
 };
 
 // --- HELPERS ---
@@ -169,3 +171,166 @@ export const calculateLotoTable = (prizes: LotteryPrizes): LotoRow[] => {
     };
   });
 };
+
+export const toProvinceDisplayName = (stationName: string): string =>
+  STATION_DISPLAY_NAME_MAP[stationName] || stationName;
+
+export const formatApiDateToDisplay = (date: string): string =>
+  dayjs(date).isValid() ? dayjs(date).format('DD/MM/YYYY') : date;
+
+export const formatDisplayDateToApi = (date: string): string =>
+  /^\d{2}\/\d{2}\/\d{4}$/.test(date)
+    ? `${date.slice(6, 10)}-${date.slice(3, 5)}-${date.slice(0, 2)}`
+    : date;
+
+export const getDayOfWeekLabel = (date: string): string => {
+  const parsed = dayjs(date);
+  if (!parsed.isValid()) {
+    return '';
+  }
+
+  const label = parsed.format('dddd');
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+export const buildRecentDateOptions = (days: number = 14): string[] =>
+  Array.from({ length: days }, (_, index) =>
+    dayjs().subtract(index, 'day').format('DD/MM/YYYY')
+  );
+
+export const isTodayDisplayDate = (date: string): boolean =>
+  date === dayjs().format('DD/MM/YYYY');
+
+export const isTomorrowDisplayDate = (date: string): boolean =>
+  date === dayjs().add(1, 'day').format('DD/MM/YYYY');
+
+export const buildCountdownTarget = (date: string, drawTime?: string | null): Date | null => {
+  if (!drawTime) {
+    return null;
+  }
+
+  const apiDate = formatDisplayDateToApi(date);
+  const target = new Date(`${apiDate}T${drawTime}:00`);
+  return Number.isNaN(target.getTime()) ? null : target;
+};
+
+export const mapStationDrawToClient = (
+  item: LotteryStationDrawApiResponse
+): LotteryStationDraw => ({
+  id: item.id,
+  province: toProvinceDisplayName(item.name || item.province || ''),
+  drawTime: item.drawTime || null,
+  nextDrawDate: item.nextDrawDate || null,
+  thumbnailUrl: item.thumbnailUrl || null,
+  image: item.image || null,
+});
+
+export const mapResultSummaryToLotteryResult = (
+  item: LotteryResultApiResponse
+): LotteryResult => ({
+  id: item.id,
+  stationId: item.stationId,
+  province: toProvinceDisplayName(item.stationName),
+  date: formatApiDateToDisplay(item.drawDate),
+  dayOfWeek: getDayOfWeekLabel(item.drawDate),
+  drawDateIso: item.drawDate,
+  status: item.status,
+  prizes: {
+    ...EMPTY_PRIZES,
+  },
+});
+
+const getWinningNumbersByPrizeCode = (
+  details: LotteryResultDetailApiResponse[],
+  prizeCode: string
+): string[] =>
+  details
+    .filter((detail) => detail.prizeCode === prizeCode)
+    .sort((a, b) => a.id - b.id)
+    .map((detail) => detail.winningNumber);
+
+export const mapLiveItemToLotteryResult = (
+  item: LotteryResultLiveItemApiResponse
+): LotteryResult => {
+  const drawDateLabel = formatApiDateToDisplay(item.result.drawDate);
+
+  return {
+    id: item.result.id,
+    stationId: item.result.stationId,
+    province: toProvinceDisplayName(item.result.stationName),
+    date: drawDateLabel,
+    dayOfWeek: getDayOfWeekLabel(item.result.drawDate),
+    drawDateIso: item.result.drawDate,
+    status: item.result.status,
+    prizes: {
+      special: getWinningNumbersByPrizeCode(item.details, 'DB')[0] || '',
+      first: getWinningNumbersByPrizeCode(item.details, 'G1')[0] || '',
+      second: getWinningNumbersByPrizeCode(item.details, 'G2')[0] || '',
+      third: getWinningNumbersByPrizeCode(item.details, 'G3'),
+      fourth: getWinningNumbersByPrizeCode(item.details, 'G4'),
+      fifth: getWinningNumbersByPrizeCode(item.details, 'G5')[0] || '',
+      sixth: getWinningNumbersByPrizeCode(item.details, 'G6'),
+      seventh: getWinningNumbersByPrizeCode(item.details, 'G7')[0] || '',
+      eighth: getWinningNumbersByPrizeCode(item.details, 'G8')[0] || ''
+    }
+  };
+};
+
+export const mergeResultWithLiveDetails = (
+  result: LotteryResult,
+  liveItem?: LotteryResultLiveItemApiResponse
+): LotteryResult => {
+  if (!liveItem) {
+    return result;
+  }
+
+  const detailed = mapLiveItemToLotteryResult(liveItem);
+  return {
+    ...result,
+    ...detailed,
+    id: result.id ?? detailed.id,
+    stationId: result.stationId ?? detailed.stationId,
+  };
+};
+
+export interface PrizeStructureResponse {
+  id: number;
+  regionId: number;
+  regionCode: string;
+  prizeLevel: string;
+  prizeDisplayName: string;
+  prizeCode: string;
+  description?: string | null;
+  prizeValue: number;
+  quantity: number;
+  matchDigits?: number | null;
+  matchFrom: string;
+  matchFromDisplayName: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface TicketMatchedPrize {
+  prizeLevel: string;
+  prizeDisplayName: string;
+  prizeCode: string;
+  prizeValue: number;
+  matchDigits: number;
+  matchFrom: string;
+  matchFromDisplayName: string;
+  winningNumber: string;
+}
+
+export interface TicketCheckResult {
+  resultId: number;
+  stationId: number;
+  stationName: string;
+  drawDate: string;
+  ticketNumber: string;
+  resultStatus: string;
+  resultAvailable: boolean;
+  canCheck: boolean;
+  winning: boolean;
+  totalWinningAmount: number;
+  matchedPrizes: TicketMatchedPrize[];
+}

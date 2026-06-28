@@ -28,8 +28,6 @@ import java.util.List;
 public class SecurityConfig {
 
     private static final String AUTH = ApiConstants.API_V1 + "/auth";
-    private static final String PERMISSIONS = ApiConstants.API_V1 + "/permissions";
-
     private final AuthProperties authProperties;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -56,7 +54,6 @@ public class SecurityConfig {
                                 AUTH + "/register",
                                 AUTH + "/register/resend-verification",
                                 AUTH + "/forgot-password/**",
-                                PERMISSIONS + "/register",
                                 ApiConstants.API_V1 + "/users/accept-invite",
                                 ApiConstants.API_V1 + "/transactions/payment/webhook/*"
                         ).permitAll()
@@ -64,12 +61,20 @@ public class SecurityConfig {
                                 AUTH + "/verify-email",
                                 AUTH + "/password-policy",
                                 ApiConstants.API_V1 + "/blogs/public",
+                                ApiConstants.API_V1 + "/blogs/public/**",
                                 ApiConstants.API_V1 + "/blogs/categories/public",
                                 ApiConstants.API_V1 + "/lottery-tickets/public",
                                 ApiConstants.API_V1 + "/lottery-tickets/home",
-                                ApiConstants.API_V1 + "/lottery-stations/draws/today",
-                                ApiConstants.API_V1 + "/lottery-stations/draws/tomorrow",
-                                ApiConstants.API_V1 + "/transactions/payment/webhook/*"
+                                ApiConstants.API_V1 + "/lottery-results/board/full",
+                                ApiConstants.API_V1 + "/lottery-results/board",
+                                ApiConstants.API_V1 + "/lottery-results/details",
+                                ApiConstants.API_V1 + "/lottery-results/check",
+                                ApiConstants.API_V1 + "/lottery-stations/schedule",
+                                ApiConstants.API_V1 + "/lottery-stations/schedule/all",
+                                ApiConstants.API_V1 + "/lottery-stations/schedule/today",
+                                ApiConstants.API_V1 + "/lottery-stations/schedule/tomorrow",
+                                ApiConstants.API_V1 + "/transactions/payment/webhook/*",
+                                ApiConstants.API_V1 + "/banks"
                         ).permitAll()
                         .requestMatchers(HttpMethod.PATCH,
                                 ApiConstants.API_V1 + "/blogs/*/view"

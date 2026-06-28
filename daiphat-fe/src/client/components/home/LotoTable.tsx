@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { calculateLotoTable, LotteryResult, LotteryPrizes } from '../../types/lottery';
 
 interface LotoTableProps {
@@ -11,6 +11,21 @@ interface LotoTableProps {
 }
 
 export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, hoveredDigit, onDigitClick, onDigitHover, setShowLoto }) => {
+  const [selectedProvince, setSelectedProvince] = useState<string>('ALL');
+
+  const provinces = useMemo(() => Array.from(new Set(dataList.map(d => d.province))), [dataList]);
+
+  useEffect(() => {
+    if (selectedProvince !== 'ALL' && !provinces.includes(selectedProvince)) {
+      setSelectedProvince('ALL');
+    }
+  }, [provinces, selectedProvince]);
+
+  const filteredDataList = useMemo(() => {
+    if (selectedProvince === 'ALL') return dataList;
+    return dataList.filter(d => d.province === selectedProvince);
+  }, [dataList, selectedProvince]);
+
   // Merge all prizes from all selected provinces into one big prizes object
   const mergedPrizes: LotteryPrizes = {
     special: '',
@@ -24,7 +39,7 @@ export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, h
     eighth: ''
   };
 
-  dataList.forEach(d => {
+  filteredDataList.forEach(d => {
     mergedPrizes.third.push(d.prizes.special);
     mergedPrizes.third.push(d.prizes.first);
     mergedPrizes.third.push(d.prizes.second);
@@ -45,11 +60,11 @@ export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, h
     return text.split(', ').map((item, idx, array) => {
       const [digit, power] = item.split('^');
       return (
-        <React.Fragment key={idx}>
+        <div key={idx} className="flex items-baseline">
           <span className="font-bold font-client-main text-[#444444]">{digit}</span>
-          {power && <sup className="text-[10px] text-[#ee1314] font-bold ml-0.5 font-client-main">{power}</sup>}
-          {idx < array.length - 1 && <span className="text-slate-300 mx-1">,</span>}
-        </React.Fragment>
+          {power && <sup className="text-[10px] text-[#ee1314] font-bold ml-[1px] font-client-main">{power}</sup>}
+          {idx < array.length - 1 && <span className="text-slate-300 ml-[2px]">,</span>}
+        </div>
       );
     });
   };
@@ -58,6 +73,18 @@ export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, h
     <div className="bg-white rounded-[20px] p-3 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100 font-client-main">
       <div className="flex items-center justify-between mb-3 px-2">
         <h3 className="text-[13px] font-bold text-[#111111] uppercase">BẢNG LOTO</h3>
+        {provinces.length > 1 && (
+          <select 
+            className="text-[11px] font-medium border border-gray-200 rounded-md px-2 py-1 outline-none cursor-pointer bg-slate-50 text-slate-700 max-w-[120px]"
+            value={selectedProvince}
+            onChange={(e) => setSelectedProvince(e.target.value)}
+          >
+            <option value="ALL">Tất cả đài</option>
+            {provinces.map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        )}
       </div>
       <div className="border border-gray-100 rounded-lg overflow-hidden shadow-sm bg-white">
         <table className="w-full border-collapse table-fixed">
@@ -82,10 +109,10 @@ export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, h
                   onMouseLeave={() => onDigitHover?.(null)}
                 >
                   {/* LEFT COLUMN: Heads when focus is tail */}
-                  <td className={`py-1 px-3 text-center border-r ${isSelected ? 'border-[#FDE047]/50' : 'border-gray-100'}`}>
-                    <span className="text-slate-600 text-[12px]">
+                  <td className={`py-1 px-1 md:px-2 border-r ${isSelected ? 'border-[#FDE047]/50' : 'border-gray-100'}`}>
+                    <div className="flex flex-wrap justify-center items-center text-slate-600 text-[12px] gap-x-1 gap-y-[2px]">
                       {renderFormattedDigits(row.heads)}
-                    </span>
+                    </div>
                   </td>
                   
                   {/* CENTER COLUMN: Focus Number */}
@@ -99,10 +126,10 @@ export const LotoTable: React.FC<LotoTableProps> = ({ dataList, selectedDigit, h
                   </td>
                   
                   {/* RIGHT COLUMN: Tails when focus is head */}
-                  <td className="py-1 px-3 text-center">
-                    <span className="text-[#102937] text-[12px]">
+                  <td className="py-1 px-1 md:px-2">
+                    <div className="flex flex-wrap justify-center items-center text-[#102937] text-[12px] gap-x-1 gap-y-[2px]">
                       {renderFormattedDigits(row.tails)}
-                    </span>
+                    </div>
                   </td>
                 </tr>
               );

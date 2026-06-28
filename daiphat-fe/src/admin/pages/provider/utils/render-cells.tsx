@@ -1,8 +1,11 @@
-import { Avatar, Box, Link, ListItemText } from "@mui/material";
+import { Avatar, Box, Link, ListItemText, IconButton, CircularProgress } from "@mui/material";
 import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from "@mui/x-data-grid";
 import { DeleteIcon, EditIcon, EyeIcon } from "../../../assets/icons/index";
 import { COLORS } from "../configs/constants";
-import { useDeleteProvider } from "../hooks/useProvider";
+import { useDeleteProvider, useUploadProviderImage } from "../hooks/useProvider";
+import { Camera } from "lucide-react";
+import { useQueryClient } from '@tanstack/react-query';
+import { QUERY_KEYS } from '../../../../constants/queryKeys';
 import { ReloadIcon } from "../../../assets/icons/index";
 import { useNavigate } from "react-router-dom";
 import { prefixAdmin } from "../../../constants/routes";
@@ -10,6 +13,8 @@ import { toast } from "react-toastify";
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import { confirmDelete } from "../../../utils/swal";
+import { useAuthStore } from '../../../../stores/useAuthStore';
+import { PERMISSIONS } from '../../../constants/permission.constants';
 
 dayjs.locale('vi');
 interface RenderCreatedAtCellProps {
@@ -21,6 +26,26 @@ export const RenderTitleCell = (params: GridRenderCellParams) => {
     const finalAvatar = avatar || thumbnailUrl || image;
     const id = params.row._id || params.row.id;
     const navigate = useNavigate();
+    
+    const { mutateAsync: uploadImage, isPending } = useUploadProviderImage();
+    const queryClient = useQueryClient();
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const res: any = await uploadImage({ id, file });
+            if (res.success || res) {
+                toast.success("Cập nhật ảnh thành công");
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PROVIDERS] });
+            } else {
+                toast.error(res.message || "Cập nhật ảnh thất bại");
+            }
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || error.message || "Cập nhật ảnh thất bại");
+        }
+    };
 
     return (
         <Box
@@ -32,17 +57,41 @@ export const RenderTitleCell = (params: GridRenderCellParams) => {
                 width: "100%",
             }}>
 
-            <Avatar
-                alt={altImage || name}
-                src={finalAvatar}
-                variant="rounded"
-                sx={{
-                    width: "64px",
-                    height: "64px",
-                    borderRadius: "var(--shape-borderRadius-md)",
-                    backgroundColor: 'var(--palette-background-neutral)'
-                }}
-            />
+            <Box sx={{ position: 'relative' }}>
+                <Avatar
+                    alt={altImage || name}
+                    src={finalAvatar}
+                    variant="rounded"
+                    sx={{
+                        width: "64px",
+                        height: "64px",
+                        borderRadius: "var(--shape-borderRadius-md)",
+                        backgroundColor: 'var(--palette-background-neutral)'
+                    }}
+                />
+                <input
+                    type="file"
+                    id={`upload-avatar-${id}`}
+                    hidden
+                    accept="image/*"
+                    onChange={handleFileChange}
+                />
+                <label htmlFor={`upload-avatar-${id}`}>
+                    <IconButton
+                        component="span"
+                        disabled={isPending}
+                        sx={{
+                            position: 'absolute',
+                            bottom: -10,
+                            right: -10,
+                            color: '#637381',
+                            '&:hover': { color: 'var(--palette-primary-main)' }
+                        }}
+                    >
+                        {isPending ? <CircularProgress size={22} /> : <Camera size={22} />}
+                    </IconButton>
+                </label>
+            </Box>
 
             <ListItemText
                 primary={
@@ -163,6 +212,12 @@ export const RenderStatusCell = (params: GridRenderCellParams) => {
 
 export const RenderActionsCell = (params: GridRenderCellParams) => {
     const navigate = useNavigate();
+    const { user } = useAuthStore();
+    const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || '');
+    const isAdmin = roleCode === 'ADMIN' || roleCode === 'SUPER_ADMIN';
+    const canView = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.PROVIDER.VIEW));
+    const canEdit = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.PROVIDER.EDIT));
+    const canDelete = isAdmin || Boolean(user?.permissions?.includes(PERMISSIONS.PROVIDER.DELETE));
     const { mutate: deleteProvider } = useDeleteProvider();
     const id = params.row._id || params.row.id;
 
@@ -189,9 +244,12 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
 
 
 
-    return (
-        <GridActionsCell {...params}>
+    const items = [];
+
+    if (canView) {
+        items.push(
             <GridActionsCellItem
+                key="view"
                 icon={<EyeIcon />}
                 label="Chi tiết"
                 showInMenu
@@ -205,7 +263,13 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                 } as any)}
                 onClick={() => navigate(`/${prefixAdmin}/provider/detail/${id}`)}
             />
+        );
+    }
+
+    if (canEdit) {
+        items.push(
             <GridActionsCellItem
+                key="edit"
                 icon={<EditIcon />}
                 label="Chỉnh sửa"
                 showInMenu
@@ -219,7 +283,13 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                 } as any)}
                 onClick={handleEdit}
             />
+        );
+    }
+
+    if (canDelete) {
+        items.push(
             <GridActionsCellItem
+                key="delete"
                 icon={<DeleteIcon />}
                 label="Xóa"
                 showInMenu
@@ -234,6 +304,8 @@ export const RenderActionsCell = (params: GridRenderCellParams) => {
                 } as any)}
                 onClick={handleDelete}
             />
-        </GridActionsCell>
-    );
+        );
+    }
+
+    return <GridActionsCell {...params}>{items}</GridActionsCell>;
 }

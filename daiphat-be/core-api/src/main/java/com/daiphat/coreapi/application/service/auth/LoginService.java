@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.request.auth.RefreshTokenRequest;
 import com.daiphat.coreapi.application.dto.response.auth.AuthResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
+import com.daiphat.coreapi.application.event.UserGuestOrdersLinkRequestedEvent;
 import com.daiphat.coreapi.application.event.UserWelcomeEvent;
 import com.daiphat.coreapi.application.mapper.AuthApplicationMapper;
 import com.daiphat.coreapi.application.port.in.auth.LoginServicePort;
@@ -65,7 +66,6 @@ public class LoginService implements LoginServicePort {
         }
 
         user.validateLoginEligibility();
-
         return issueTokensAndStoreRefreshToken(user);
     }
 
@@ -81,6 +81,12 @@ public class LoginService implements LoginServicePort {
         UserModel user = loginResult.user();
 
         user.validateLoginEligibility();
+        if (loginResult.shouldLinkGuestOrders()) {
+            eventPublisher.publishEvent(UserGuestOrdersLinkRequestedEvent.builder()
+                    .userId(user.getId())
+                    .email(user.getEmail())
+                    .build());
+        }
         if (loginResult.shouldSendWelcome()) {
             publishWelcomeEvent(user);
         }
@@ -153,11 +159,12 @@ public class LoginService implements LoginServicePort {
                 .build();
         user.onboardOAuthUser(roleService.getDefaultRole());
         addAvatarIfPresent(user, googleUser.avatarUrl());
-        return new GoogleLoginResult(userRepositoryPort.save(user), true);
+        return new GoogleLoginResult(userRepositoryPort.save(user), true, true);
     }
 
     private GoogleLoginResult synchronizeGoogleUser(UserModel user, OAuthUserInfo googleUser) {
         boolean shouldSendWelcome = false;
+        boolean shouldLinkGuestOrders = false;
 
         if (isBlank(user.getFirstName()) && !isBlank(googleUser.firstName())) {
             user.setFirstName(googleUser.firstName());
@@ -168,13 +175,15 @@ public class LoginService implements LoginServicePort {
         if (!user.isEmailVerified()) {
             user.markEmailVerified();
             shouldSendWelcome = true;
+            shouldLinkGuestOrders = true;
         }
         if (user.getStatus() == UserStatus.PENDING) {
             user.activate();
             shouldSendWelcome = true;
+            shouldLinkGuestOrders = true;
         }
         addAvatarIfPresent(user, googleUser.avatarUrl());
-        return new GoogleLoginResult(userRepositoryPort.save(user), shouldSendWelcome);
+        return new GoogleLoginResult(userRepositoryPort.save(user), shouldSendWelcome, shouldLinkGuestOrders);
     }
 
     private void publishWelcomeEvent(UserModel user) {
@@ -211,6 +220,6 @@ public class LoginService implements LoginServicePort {
         return value == null || value.isBlank();
     }
 
-    private record GoogleLoginResult(UserModel user, boolean shouldSendWelcome) {
+    private record GoogleLoginResult(UserModel user, boolean shouldSendWelcome, boolean shouldLinkGuestOrders) {
     }
 }
