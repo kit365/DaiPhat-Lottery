@@ -11,6 +11,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRep
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
@@ -93,6 +94,7 @@ class LotteryTicketSerialServiceTest {
         assertThat(result.getSerialNumber()).isEqualTo("SN-123");
         assertThat(result.getTicketImg()).isEqualTo("img.png");
         assertThat(result.getImportedById()).isEqualTo(USER_ID);
+        assertThat(result.getInputSource()).isEqualTo(InputSource.MANUAL);
     }
 
     // === syncSerialsForTicket ===
