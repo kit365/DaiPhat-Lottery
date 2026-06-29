@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
@@ -151,6 +152,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                         .ticketImg(ticket.getTicketImg())
                         .serialNumber(serialNumber)
                         .status(LotteryTicketSerialStatus.IN_STOCK)
+                        .inputSource(InputSource.MANUAL)
                         .importedBy(operator)
                         .importedAt(importedAt)
                         .verified(true)
@@ -503,6 +505,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                                     .ticketImg(ticket.getTicketImg())
                                     .serialNumber(serialNumber)
                                     .status(mapSerialStatus(status))
+                                    .inputSource(InputSource.MANUAL)
                                     .importedBy(operator)
                                     .importedAt(importedAt)
                                     .verified(true)
