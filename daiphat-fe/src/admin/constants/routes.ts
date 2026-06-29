@@ -27,7 +27,8 @@ export const ROUTES = {
                 PAYMENT: `/${prefixAdmin}/dashboard/settings/payment`,
                 SOCIAL: `/${prefixAdmin}/dashboard/settings/social`,
                 APP_PASSWORD: `/${prefixAdmin}/dashboard/settings/app-password`,
-                TICKET_SUBTYPE: `/${prefixAdmin}/settings/ticketSubtype/list`,
+                TICKET_SUBTYPE: `/${prefixAdmin}/settings/ticket-subtype/list`,
+                SYSTEM_CONFIG: `/${prefixAdmin}/settings/system-config/list`,
             }
         },
         TICKETS: {
@@ -54,6 +55,10 @@ export const ROUTES = {
             LIST: `/${prefixAdmin}/order/list`,
             DETAIL: `/${prefixAdmin}/order/detail/`,
             CREATE_COUNTER: `/${prefixAdmin}/order/create-counter`,
+        },
+        SUPPORT_TICKETS: {
+            LIST: `/${prefixAdmin}/support-tickets/list`,
+            DETAIL: `/${prefixAdmin}/support-tickets/detail/`,
         },
         TICKET_SERVICE_ORDERS: {
             LIST: `/${prefixAdmin}/ticketServiceOrder/list`,

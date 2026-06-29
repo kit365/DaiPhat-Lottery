@@ -5,7 +5,7 @@ import { USER_ROLES } from "../../../constants/role.constants";
 import { toast } from "react-toastify";
 
 interface Props {
-    children: ReactNode;
+    children?: ReactNode;
 }
 
 import { ROUTES } from "../../constants/routes";

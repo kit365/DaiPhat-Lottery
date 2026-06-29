@@ -94,6 +94,13 @@ export const menuManagementData = [
         ]
     },
     {
+        id: "support-tickets",
+        label: "Khiếu nại / Hỗ trợ",
+        Icon: ChatIcon,
+        path: ROUTES.ADMIN.SUPPORT_TICKETS.LIST,
+        permission: PERMISSIONS.SUPPORT_TICKET.VIEW,
+    },
+    {
         id: "prize-structure",
         label: "Cơ cấu giải",
         Icon: EmojiEventsIcon,
@@ -160,6 +167,7 @@ export const menuDevelopmentData = [
             { id: "settings-social", label: "Mạng xã hội", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SOCIAL },
             { id: "settings-app-password", label: "Mật khẩu ứng dụng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.APP_PASSWORD },
             { id: "settings-ticketSubtype", label: "Tỉnh thành quay thưởng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.TICKET_SUBTYPE, permission: PERMISSIONS.SETTINGS.VIEW },
+            { id: "settings-system-config", label: "Cấu hình hệ thống", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG, permission: PERMISSIONS.SETTINGS.VIEW },
         ]
     }
 ];
