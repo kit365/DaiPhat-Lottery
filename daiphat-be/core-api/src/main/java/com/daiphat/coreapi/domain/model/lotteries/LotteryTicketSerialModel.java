@@ -2,6 +2,7 @@ package com.daiphat.coreapi.domain.model.lotteries;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import lombok.*;
 
@@ -22,6 +23,9 @@ public class LotteryTicketSerialModel {
 
     @Builder.Default
     private LotteryTicketSerialStatus status = LotteryTicketSerialStatus.IN_STOCK;
+
+    @Builder.Default
+    private InputSource inputSource = InputSource.MANUAL;
 
     private LocalDateTime reservedAt;
     private LocalDateTime reservationExpiresAt;

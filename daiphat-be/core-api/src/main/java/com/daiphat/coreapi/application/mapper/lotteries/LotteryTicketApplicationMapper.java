@@ -42,6 +42,7 @@ public interface LotteryTicketApplicationMapper {
 
     @Mapping(target = "status", expression = "java(model.getStatus() != null ? model.getStatus().name() : null)")
     @Mapping(target = "statusDisplayName", expression = "java(model.getStatus() != null ? model.getStatus().getDisplayName() : null)")
+    @Mapping(target = "inputSource", expression = "java(model.getInputSource() != null ? model.getInputSource().name() : null)")
     LotteryTicketSerialResponse toSerialResponse(LotteryTicketSerialModel model);
 
     default LotteryTicketResponse toResponse(
@@ -85,7 +86,7 @@ public interface LotteryTicketApplicationMapper {
         LotteryTicketResponse base = toResponse(model, serials != null && !serials.isEmpty() ? serials.get(0) : null, stationName);
         List<LotteryTicketSerialResponse> serialResponses = serials != null ?
                 serials.stream().map(this::toSerialResponse).toList() : List.of();
-        
+
         return new LotteryTicketResponse(
                 base.id(),
                 base.stationId(),
