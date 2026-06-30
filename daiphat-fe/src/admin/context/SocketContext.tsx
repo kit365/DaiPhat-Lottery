@@ -1,42 +1,31 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
-import { useQueryClient } from '@tanstack/react-query';
+import React, { createContext, useContext, useEffect } from 'react';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { websocketService } from '../../services/websocket/websocket.service';
 
-const SocketContext = createContext<Socket | null>(null);
+const SocketContext = createContext(websocketService);
 
 export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [socket, setSocket] = useState<Socket | null>(null);
-    const queryClient = useQueryClient();
+    const token = useAuthStore((state) => state.token);
 
     useEffect(() => {
-        // Disabled for Static Mockup
-        /*
-        const newSocket = io('http://localhost:8080', {
-            withCredentials: true
-        });
-        setSocket(newSocket);
+        if (!token) {
+            websocketService.disconnect();
+            return;
+        }
 
-        newSocket.on('connect', () => {
-            console.log('Connected to socket server (Admin)');
-        });
-
-        newSocket.on('overrun-alert', () => {
-            console.log('Overrun alert received, invalidating notifications...');
-            queryClient.invalidateQueries({ queryKey: ["notifications"] });
-        });
+        websocketService.connect().catch(() => undefined);
 
         return () => {
-            newSocket.disconnect();
+            if (!useAuthStore.getState().token) {
+                websocketService.disconnect();
+            }
         };
-        */
-       return () => {};
-    }, [queryClient]);
-
+    }, [token]);
 
     return (
-        <SocketContext.Provider value={socket}>
+        <SocketContext.Provider value={websocketService}>
             {children}
         </SocketContext.Provider>
     );

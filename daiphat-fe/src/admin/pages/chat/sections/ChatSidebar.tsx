@@ -52,27 +52,12 @@ export const ChatSidebar = ({ selectedId, onSelect }: ChatSidebarProps) => {
             }}
         >
             {/* Header */}
-            <Box sx={{ p: 2.5, pb: 1.5 }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-                    <Typography 
-                        variant="h6" 
-                        sx={{ 
-                            fontWeight: 700, 
-                            fontFamily: 'Barlow, sans-serif',
-                        }}
-                    >
-                        Messages
-                    </Typography>
-                    <IconButton size="small">
-                        <Icon icon="solar:pen-new-square-bold" width={20} />
-                    </IconButton>
-                </Stack>
-
+            <Box sx={{ p: 2, pb: 1 }}>
                 {/* Search */}
                 <TextField
                     fullWidth
                     size="small"
-                    placeholder="Search customers..."
+                    placeholder="Tìm kiếm hội thoại..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     InputProps={{
@@ -81,17 +66,28 @@ export const ChatSidebar = ({ selectedId, onSelect }: ChatSidebarProps) => {
                                 <Icon icon="solar:magnifer-linear" color="var(--palette-text-disabled)" width={18} />
                             </InputAdornment>
                         ),
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                <IconButton size="small"><Icon icon="solar:filter-linear" width={18} /></IconButton>
+                            </InputAdornment>
+                        ),
                         sx: {
                             borderRadius: 1.5,
-                            bgcolor: 'var(--palette-background-neutral)',
+                            bgcolor: 'white',
+                            border: '1px solid #eee',
                             '& fieldset': { border: 'none' },
                         },
                     }}
                 />
+                <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 0.5, px: 1 }}>
+                        Sắp xếp: <b>Mới nhất</b> <Icon icon="solar:alt-arrow-down-linear" width={14} />
+                    </Typography>
+                </Box>
             </Box>
 
             {/* Conversation List */}
-            <List sx={{ flexGrow: 1, overflowY: 'auto', px: 1, py: 1 }}>
+            <List sx={{ flexGrow: 1, overflowY: 'auto', px: 2, py: 1 }}>
                 {isLoading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
                         <CircularProgress size={28} />
@@ -103,10 +99,15 @@ export const ChatSidebar = ({ selectedId, onSelect }: ChatSidebarProps) => {
                         </Typography>
                     </Box>
                 ) : (
-                    filtered.map((conv: Conversation) => {
+                    filtered.map((conv: Conversation, idx: number) => {
                         const contact = conv.participants[0];
                         const isSelected = selectedId === conv._id;
                         const lastMsg = conv.lastMessage;
+                        
+                        // Fake statuses for mockup
+                        const mockStatus = idx % 3 === 0 ? 'AI đang xử lý' : 'Chờ nhân viên';
+                        const mockStatusColor = mockStatus === 'AI đang xử lý' ? '#22c55e' : '#f97316';
+                        const mockStatusBg = mockStatus === 'AI đang xử lý' ? '#dcfce7' : '#ffedd5';
                         
                         return (
                             <ListItemButton
@@ -115,74 +116,62 @@ export const ChatSidebar = ({ selectedId, onSelect }: ChatSidebarProps) => {
                                 onClick={() => onSelect(conv._id)}
                                 sx={{
                                     borderRadius: 1.5,
-                                    mb: 0.5,
+                                    mb: 1.5,
                                     p: 1.5,
+                                    bgcolor: 'white',
+                                    border: isSelected ? '1px solid #df1b1c' : '1px solid transparent',
+                                    boxShadow: isSelected ? '0 0 0 1px #df1b1c' : '0 2px 4px rgba(0,0,0,0.02)',
                                     '&.Mui-selected': {
-                                        bgcolor: 'var(--palette-background-neutral)',
-                                        '&:hover': { bgcolor: 'rgba(145,158,171,0.12)' },
+                                        bgcolor: '#fff5f5',
+                                        '&:hover': { bgcolor: '#fff5f5' },
                                     },
-                                    '&:hover': { bgcolor: 'rgba(145,158,171,0.08)' },
+                                    '&:hover': { bgcolor: '#f8f9fa' },
+                                    display: 'flex',
+                                    alignItems: 'flex-start'
                                 }}
                             >
-                                <Badge
-                                    overlap="circular"
-                                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                                    variant="dot"
-                                    sx={{
-                                        '& .MuiBadge-badge': {
-                                            width: 10,
-                                            height: 10,
-                                            borderRadius: '50%',
-                                            border: '2px solid white',
-                                            bgcolor: contact.status === 'active' ? '#44b700' : '#919EAB',
-                                        }
-                                    }}
+                                <Avatar
+                                    src={contact.avatar}
+                                    sx={{ width: 40, height: 40, mr: 1.5, border: '1px solid #eee' }}
                                 >
-                                    <Avatar
-                                        src={contact.avatar}
-                                        sx={{ width: 48, height: 48 }}
-                                    >
-                                        {contact.fullName?.[0]?.toUpperCase()}
-                                    </Avatar>
-                                </Badge>
+                                    {contact.fullName?.[0]?.toUpperCase()}
+                                </Avatar>
 
-                                <Box sx={{ ml: 2, flexGrow: 1, minWidth: 0 }}>
-                                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                        <Typography variant="subtitle2" noWrap sx={{ fontWeight: 700 }}>
+                                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                                        <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
                                             {contact.fullName}
                                         </Typography>
-                                        <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                                        <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 500 }}>
                                             {dayjs(conv.updatedAt).format('HH:mm')}
                                         </Typography>
                                     </Stack>
-                                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                                         <Typography 
-                                            variant="caption" 
+                                            variant="body2" 
                                             noWrap 
                                             sx={{ 
-                                                color: 'text.secondary',
-                                                fontWeight: conv.unreadCount > 0 ? 600 : 400
+                                                color: isSelected ? 'text.primary' : 'text.secondary', 
+                                                maxWidth: '120px',
+                                                fontSize: '0.8rem'
                                             }}
                                         >
-                                            {lastMsg?.senderId === 'admin' ? 'You: ' : ''}{lastMsg?.content}
+                                            {lastMsg?.senderId === contact.id ? '' : 'You: '}
+                                            {lastMsg?.text || 'Bắt đầu cuộc trò chuyện'}
                                         </Typography>
-                                        {conv.unreadCount > 0 && (
-                                            <Box 
-                                                sx={{ 
-                                                    minWidth: 16, 
-                                                    height: 16, 
-                                                    borderRadius: '50%', 
-                                                    bgcolor: 'var(--palette-primary-main)',
-                                                    color: 'white',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    fontSize: '0.65rem'
-                                                }}
-                                            >
-                                                {conv.unreadCount}
-                                            </Box>
-                                        )}
+                                        
+                                        <Box sx={{ 
+                                            bgcolor: mockStatusBg, 
+                                            color: mockStatusColor, 
+                                            px: 1, 
+                                            py: 0.25, 
+                                            borderRadius: 1, 
+                                            fontSize: '0.65rem',
+                                            fontWeight: 600,
+                                            whiteSpace: 'nowrap'
+                                        }}>
+                                            {mockStatus}
+                                        </Box>
                                     </Stack>
                                 </Box>
                             </ListItemButton>
