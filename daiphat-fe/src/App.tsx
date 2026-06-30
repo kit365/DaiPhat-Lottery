@@ -43,16 +43,17 @@ import './styles/client.css'; // New Client Theme
 
 import { Footer } from './client/components/layout/Footer';
 
-// --- Theme Layout Components ---
+import { ChatbotPopup } from './client/components/support/ChatbotPopup';
 
 const ClientThemeLayout = () => (
-  <div className="client-theme min-h-screen text-inherit font-inherit flex flex-col">
+  <div className="client-theme min-h-screen text-inherit font-inherit flex flex-col relative">
     <div className="flex-1 flex flex-col">
       <Suspense fallback={<LoadingSpinner />}>
         <Outlet />
       </Suspense>
     </div>
     <Footer />
+    <ChatbotPopup />
   </div>
 );
 
