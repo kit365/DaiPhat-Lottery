@@ -1,10 +1,10 @@
 package com.daiphat.coreapi.infrastructure.security.jwt;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
-import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.auth.TokenProviderPort;
 import com.daiphat.coreapi.domain.model.UserModel;
+import com.daiphat.coreapi.infrastructure.security.UserAuthenticationFactory;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -12,13 +12,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -32,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenProviderPort tokenProviderPort;
     private final UserLookupServicePort userLookupService;
+    private final UserAuthenticationFactory userAuthenticationFactory;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -71,35 +70,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String username = tokenProviderPort.extractUsernameFromAccessToken(token);
             UserModel user = userLookupService.findByUsername(username)
                     .orElseThrow(() -> new NoSuchElementException("Token user not found"));
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    new AuthenticatedUserPrincipal(user.getId(), user.getUsername()),
-                    null,
-                    authorities(user)
-            );
+            UsernamePasswordAuthenticationToken authentication = userAuthenticationFactory.create(user);
             SecurityContextHolder.getContext().setAuthentication(authentication);
             filterChain.doFilter(request, response);
         } catch (JwtException | IllegalArgumentException | NoSuchElementException ex) {
             SecurityContextHolder.clearContext();
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
         }
-    }
-
-    private List<SimpleGrantedAuthority> authorities(UserModel user) {
-        if (user.getRole() == null || user.getRole().getCode() == null || user.getRole().getCode().isBlank()) {
-            return List.of();
-        }
-        
-        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-        authorities.add(new SimpleGrantedAuthority(user.getRole().getCode()));
-        
-        if (user.getRole().getPermissions() != null) {
-            user.getRole().getPermissions().forEach(permission -> {
-                if (permission.getCode() != null && !permission.getCode().isBlank()) {
-                    authorities.add(new SimpleGrantedAuthority(permission.getCode()));
-                }
-            });
-        }
-        
-        return authorities;
     }
 }
