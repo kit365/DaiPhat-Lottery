@@ -1,11 +1,15 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
+import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationItem;
+import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSchedulePublicResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncPreviewResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncItemResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncResponse;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryStationSourcePreviewItem;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryStationSourcePreviewResult;
@@ -22,7 +26,11 @@ import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureReposito
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.MatchFrom;
+import com.daiphat.coreapi.domain.model.enums.lottery.PrizeLevel;
+import com.daiphat.coreapi.domain.model.enums.lottery.SyncAction;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
@@ -32,6 +40,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -43,10 +53,15 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -109,7 +124,9 @@ class LotteryStationServiceTest {
                 .name("Station A")
                 .province("Province A")
                 .region(regionModel)
-                .status(LotteryStationStatus.ACTIVE)
+                .price(BigDecimal.valueOf(10000))
+                .commissionRate(new BigDecimal("0.0500"))
+                .isActive(true)
                 .drawDays(new ArrayList<>(List.of(DayOfWeek.MONDAY)))
                 .drawTime(LocalTime.of(16, 15))
                 .nextDrawDate(LocalDate.now().plusDays(1))
@@ -122,6 +139,7 @@ class LotteryStationServiceTest {
         CreateLotteryStationRequest request = CreateLotteryStationRequest.builder()
                 .name("Station B")
                 .region("MIEN_NAM")
+                .price(BigDecimal.valueOf(10000))
                 .drawDays(List.of(DayOfWeek.TUESDAY))
                 .drawTime(LocalTime.of(16, 15))
                 .build();
@@ -130,12 +148,15 @@ class LotteryStationServiceTest {
         when(lotteryStationApplicationMapper.toModel(request)).thenReturn(stationModel);
         when(lotteryRegionRepositoryPort.findByCode("MIEN_NAM")).thenReturn(Optional.of(regionModel));
         when(prizeStructureRepositoryPort.findByRegionCode("MIEN_NAM")).thenReturn(List.of(PrizeStructureModel.builder().build()));
-        when(lotteryStationRepositoryPort.save(any())).thenReturn(stationModel);
-        when(lotteryStationApplicationMapper.toResponse(stationModel)).thenReturn(LotteryStationResponse.builder().id(1L).build());
+        when(lotteryStationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(lotteryStationApplicationMapper.toResponse(any())).thenReturn(LotteryStationResponse.builder().id(1L).build());
 
         LotteryStationResponse res = lotteryStationService.create(request);
 
         assertThat(res.id()).isEqualTo(1L);
+        ArgumentCaptor<LotteryStationModel> savedCaptor = ArgumentCaptor.forClass(LotteryStationModel.class);
+        verify(lotteryStationRepositoryPort).save(savedCaptor.capture());
+        assertThat(savedCaptor.getValue().isActive()).isFalse();
         verify(lotteryRegionRepositoryPort).save(regionModel);
     }
 
@@ -245,10 +266,10 @@ class LotteryStationServiceTest {
     @DisplayName("[DP-37] getAll_pagedSorting_success")
     void getAll_pagedSorting_success() {
         Page<LotteryStationModel> page = new PageImpl<>(List.of(stationModel));
-        when(lotteryStationRepositoryPort.findAll(any(PageRequest.class), eq("Search"), eq(LotteryStationStatus.ACTIVE), eq("TYPE"), eq("REG"), anyList())).thenReturn(page);
+        when(lotteryStationRepositoryPort.findAll(any(PageRequest.class), eq("Search"), eq("TYPE"), eq("REG"), eq("MON"), isNull())).thenReturn(page);
         when(lotteryStationApplicationMapper.toResponse(stationModel)).thenReturn(LotteryStationResponse.builder().id(1L).build());
 
-        PageResponse<LotteryStationResponse> res = lotteryStationService.getAll(1, 10, "Search", "ACTIVE", "TYPE", "REG", List.of("MON"), "id", "asc");
+        PageResponse<LotteryStationResponse> res = lotteryStationService.getAll(1, 10, "Search", "ACTIVE", "TYPE", "REG", "MON", null, "id", "asc");
         assertThat(res.getRecordList()).hasSize(1);
         assertThat(res.getPagination().getTotalRecords()).isEqualTo(1);
     }
@@ -258,46 +279,32 @@ class LotteryStationServiceTest {
     void getAll_defaultSorting_success() {
         LotteryStationModel model2 = LotteryStationModel.builder().drawDays(List.of(DayOfWeek.TUESDAY)).name("B").build();
         Page<LotteryStationModel> page = new PageImpl<>(List.of(model2, stationModel)); // TUESDAY, MONDAY
-        when(lotteryStationRepositoryPort.findAll(any(PageRequest.class), any(), any(), any(), any(), any())).thenReturn(page);
+        when(lotteryStationRepositoryPort.findAll(any(PageRequest.class), isNull(), isNull(), isNull(), isNull(), isNull())).thenReturn(page);
         when(lotteryStationApplicationMapper.toResponse(any())).thenReturn(LotteryStationResponse.builder().build());
 
-        PageResponse<LotteryStationResponse> res = lotteryStationService.getAll(1, 10, null, null, null, null, null, null, null);
+        PageResponse<LotteryStationResponse> res = lotteryStationService.getAll(1, 10, null, null, null, null, null, null, null, null);
         assertThat(res.getRecordList()).hasSize(2); // Sorted by MONDAY then TUESDAY
     }
 
     @Test
     @DisplayName("[DP-37] getPublicSchedule_success")
     void getPublicSchedule_success() {
-        LotteryStationModel modelA = LotteryStationModel.builder().name("A").region(regionModel).status(LotteryStationStatus.ACTIVE).drawTime(LocalTime.of(16,0)).build();
-        LotteryStationModel modelB = LotteryStationModel.builder().name("B").region(regionModel).status(LotteryStationStatus.ACTIVE).drawTime(LocalTime.of(17,0)).build();
-        LotteryStationModel modelC = LotteryStationModel.builder().name("C").region(regionModel).status(LotteryStationStatus.ACTIVE).drawTime(null).build();
-        LotteryStationModel modelD = LotteryStationModel.builder().name("D").region(LotteryRegionModel.builder().code("MIEN_BAC").build()).status(LotteryStationStatus.ACTIVE).drawTime(LocalTime.of(16,0)).build();
+        LotteryStationModel modelA = LotteryStationModel.builder().name("A").region(regionModel).isActive(true).drawTime(LocalTime.of(16,0)).build();
+        LotteryStationModel modelB = LotteryStationModel.builder().name("B").region(regionModel).isActive(true).drawTime(LocalTime.of(17,0)).build();
+        LotteryStationModel modelC = LotteryStationModel.builder().name("C").region(regionModel).isActive(true).drawTime(null).build();
+        LotteryStationModel modelD = LotteryStationModel.builder().name("D").region(LotteryRegionModel.builder().code("MIEN_BAC").build()).isActive(true).drawTime(LocalTime.of(16,0)).build();
 
         when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(modelD, modelC, modelB, modelA));
         when(lotteryStationApplicationMapper.toSchedulePublicResponse(any())).thenReturn(LotteryStationSchedulePublicResponse.builder().build());
 
-        List<LotteryStationSchedulePublicResponse> res = lotteryStationService.getPublicSchedule(null, null, null, null);
+        List<LotteryStationSchedulePublicResponse> res = lotteryStationService.getPublicSchedule(null);
         assertThat(res).hasSize(4); // A, B, C, D sorted by Region(Nam(1), Bac(3)), Time
-    }
-
-    @Test
-    @DisplayName("[DP-37] getPublicSchedule_filtersStationIds")
-    void getPublicSchedule_filtersStationIds() {
-        LotteryStationModel modelA = LotteryStationModel.builder().id(1L).name("A").region(regionModel).status(LotteryStationStatus.ACTIVE).drawTime(LocalTime.of(16, 0)).build();
-        LotteryStationModel modelB = LotteryStationModel.builder().id(2L).name("B").region(regionModel).status(LotteryStationStatus.ACTIVE).drawTime(LocalTime.of(17, 0)).build();
-        LotteryStationModel modelC = LotteryStationModel.builder().id(3L).name("C").region(regionModel).status(LotteryStationStatus.ACTIVE).drawTime(null).build();
-
-        when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(modelC, modelB, modelA));
-        when(lotteryStationApplicationMapper.toSchedulePublicResponse(any())).thenReturn(LotteryStationSchedulePublicResponse.builder().build());
-
-        List<LotteryStationSchedulePublicResponse> res = lotteryStationService.getPublicSchedule(null, null, List.of(1L, 3L), null);
-        assertThat(res).hasSize(2);
     }
 
     @Test
     @DisplayName("[DP-37] update_success")
     void update_success() {
-        UpdateLotteryStationRequest req = UpdateLotteryStationRequest.builder().name("New Name").region("MIEN_BAC").status("INACTIVE").build();
+        UpdateLotteryStationRequest req = UpdateLotteryStationRequest.builder().name("New Name").region("MIEN_BAC").isActive(false).build();
         LotteryRegionModel bacRegion = LotteryRegionModel.builder().code("MIEN_BAC").build();
 
         when(lotteryStationRepositoryPort.findById(1L)).thenReturn(Optional.of(stationModel));
@@ -310,6 +317,72 @@ class LotteryStationServiceTest {
         assertThat(res.id()).isEqualTo(1L);
         verify(lotteryStationRepositoryPort).save(stationModel);
         verify(lotteryRegionRepositoryPort, times(2)).save(any()); // decrease old, increase new
+    }
+
+    @Test
+    @DisplayName("[DP-37] update_activate_throwsWhenIncomplete")
+    void update_activate_throwsWhenIncomplete() {
+        LotteryStationModel incomplete = LotteryStationModel.builder()
+                .id(1L)
+                .name("Station A")
+                .region(regionModel)
+                .price(BigDecimal.valueOf(10000))
+                .drawDays(List.of(DayOfWeek.MONDAY))
+                .drawTime(LocalTime.of(16, 15))
+                .commissionRate(null)
+                .isActive(false)
+                .build();
+        UpdateLotteryStationRequest req = UpdateLotteryStationRequest.builder().isActive(true).build();
+
+        when(lotteryStationRepositoryPort.findById(1L)).thenReturn(Optional.of(incomplete));
+
+        assertThatThrownBy(() -> lotteryStationService.update(1L, req))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> {
+                    DomainException domainException = (DomainException) ex;
+                    assertThat(domainException.getErrorCode()).isEqualTo(ErrorCode.LOTTERY_STATION_ACTIVATION_INCOMPLETE);
+                    assertThat(domainException.getData()).isInstanceOf(Map.class);
+                });
+    }
+
+    @Test
+    @DisplayName("[DP-37] activate_requiresAllFields")
+    void activate_requiresAllFields() {
+        LotteryStationModel minimal = LotteryStationModel.builder()
+                .id(2L)
+                .name("Minimal")
+                .province("Province A")
+                .region(regionModel)
+                .price(BigDecimal.valueOf(10000))
+                .drawDays(List.of(DayOfWeek.MONDAY))
+                .drawTime(LocalTime.of(16, 15))
+                .commissionRate(new BigDecimal("0.0500"))
+                .isActive(false)
+                .build();
+        UpdateLotteryStationRequest req = UpdateLotteryStationRequest.builder().isActive(true).build();
+
+        when(lotteryStationRepositoryPort.findById(2L)).thenReturn(Optional.of(minimal));
+        when(lotteryStationRepositoryPort.save(any())).thenReturn(minimal);
+        when(lotteryStationApplicationMapper.toResponse(minimal)).thenReturn(LotteryStationResponse.builder().id(2L).build());
+
+        lotteryStationService.update(2L, req);
+
+        assertThat(minimal.isActive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("[DP-37] update_deactivate_withCommission")
+    void update_deactivate_withCommission() {
+        UpdateLotteryStationRequest req = UpdateLotteryStationRequest.builder().isActive(false).build();
+
+        when(lotteryStationRepositoryPort.findById(1L)).thenReturn(Optional.of(stationModel));
+        when(lotteryStationRepositoryPort.save(any())).thenReturn(stationModel);
+        when(lotteryStationApplicationMapper.toResponse(stationModel)).thenReturn(LotteryStationResponse.builder().id(1L).build());
+
+        lotteryStationService.update(1L, req);
+
+        assertThat(stationModel.isActive()).isFalse();
+        assertThat(stationModel.getCommissionRate()).isEqualByComparingTo("0.0500");
     }
 
     @Test
@@ -348,8 +421,8 @@ class LotteryStationServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-37] syncStations_success_createsAndUpdates")
-    void syncStations_success() {
+    @DisplayName("[DP-37] previewSyncStations_success")
+    void previewSyncStations_success() {
         SyncLotteryStationsRequest req = SyncLotteryStationsRequest.builder()
                 .source(LotteryStationSourceType.MINH_NGOC)
                 .region("MIEN_NAM")
@@ -379,58 +452,158 @@ class LotteryStationServiceTest {
 
         when(lotteryRegionRepositoryPort.findByCode("MIEN_NAM")).thenReturn(Optional.of(regionModel));
         when(lotteryStationSourceSyncPort.preview(any(), eq("MIEN_NAM"))).thenReturn(preview);
-        when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(stationModel)); // station A exists
-        when(prizeStructureRepositoryPort.findByRegionCode("MIEN_NAM")).thenReturn(List.of(PrizeStructureModel.builder().build()));
-        when(lotteryStationRepositoryPort.save(any())).thenReturn(stationModel); // save both new and updated
+        when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(stationModel));
 
-        LotteryStationSyncResponse res = lotteryStationService.syncStations(req);
+        LotteryStationSyncPreviewResponse res = lotteryStationService.previewSyncStations(req);
 
-        assertThat(res.createdCount()).isEqualTo(1);
-        assertThat(res.updatedCount()).isEqualTo(1);
         assertThat(res.items()).hasSize(2);
+        assertThat(res.items().stream().filter(i -> i.action() == SyncAction.CREATED).count()).isEqualTo(1);
+        assertThat(res.items().stream().filter(i -> i.action() == SyncAction.UPDATED).count()).isEqualTo(1);
+        verify(lotteryStationRepositoryPort, never()).save(any());
     }
 
     @Test
-    @DisplayName("[DP-37] syncStations_throwsEmpty")
-    void syncStations_throwsEmpty() {
+    @DisplayName("[DP-37] confirmSync_allWithCommission")
+    void confirmSync_allWithCommission() {
+        ConfirmSyncLotteryStationItem createItem = ConfirmSyncLotteryStationItem.builder()
+                .name("New Station")
+                .canonicalName("New Station")
+                .drawDays(List.of("MONDAY"))
+                .drawTime("16:15")
+                .commissionRate(new BigDecimal("0.0500"))
+                .action(SyncAction.CREATED)
+                .existingStationId(null)
+                .build();
+
+        ConfirmSyncLotteryStationItem updateItem = ConfirmSyncLotteryStationItem.builder()
+                .name("Station A")
+                .canonicalName("Station A")
+                .drawDays(List.of("MONDAY"))
+                .drawTime("16:15")
+                .commissionRate(new BigDecimal("0.0600"))
+                .action(SyncAction.UPDATED)
+                .existingStationId(1L)
+                .build();
+
+        ConfirmSyncLotteryStationsRequest req = ConfirmSyncLotteryStationsRequest.builder()
+                .source(LotteryStationSourceType.MINH_NGOC)
+                .region("MIEN_NAM")
+                .defaultPrice(BigDecimal.valueOf(10000))
+                .items(List.of(createItem, updateItem))
+                .build();
+
+        when(lotteryRegionRepositoryPort.findByCode("MIEN_NAM")).thenReturn(Optional.of(regionModel));
+        when(prizeStructureRepositoryPort.findByRegionCode("MIEN_NAM")).thenReturn(List.of(PrizeStructureModel.builder().build()));
+        when(lotteryStationRepositoryPort.findById(1L)).thenReturn(Optional.of(stationModel));
+        when(lotteryStationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        LotteryStationSyncResponse res = lotteryStationService.confirmSyncStations(req);
+
+        assertThat(res.createdCount()).isEqualTo(1);
+        assertThat(res.updatedCount()).isEqualTo(1);
+
+        ArgumentCaptor<LotteryStationModel> captor = ArgumentCaptor.forClass(LotteryStationModel.class);
+        verify(lotteryStationRepositoryPort, times(2)).save(captor.capture());
+        captor.getAllValues().forEach(saved ->
+                assertThat(saved.isActive()).isTrue()
+        );
+    }
+
+    @Test
+    @DisplayName("[DP-37] confirmSync_partialCommission")
+    void confirmSync_partialCommission() {
+        ConfirmSyncLotteryStationItem withRate = ConfirmSyncLotteryStationItem.builder()
+                .name("With Rate")
+                .canonicalName("With Rate")
+                .drawDays(List.of("MONDAY"))
+                .drawTime("16:15")
+                .commissionRate(new BigDecimal("0.0500"))
+                .action(SyncAction.CREATED)
+                .existingStationId(null)
+                .build();
+
+        ConfirmSyncLotteryStationItem withoutRate = ConfirmSyncLotteryStationItem.builder()
+                .name("Without Rate")
+                .canonicalName("Without Rate")
+                .drawDays(List.of("TUESDAY"))
+                .drawTime("16:15")
+                .commissionRate(null)
+                .action(SyncAction.CREATED)
+                .existingStationId(null)
+                .build();
+
+        ConfirmSyncLotteryStationsRequest req = ConfirmSyncLotteryStationsRequest.builder()
+                .source(LotteryStationSourceType.MINH_NGOC)
+                .region("MIEN_NAM")
+                .defaultPrice(BigDecimal.valueOf(10000))
+                .items(List.of(withRate, withoutRate))
+                .build();
+
+        when(lotteryRegionRepositoryPort.findByCode("MIEN_NAM")).thenReturn(Optional.of(regionModel));
+        when(prizeStructureRepositoryPort.findByRegionCode("MIEN_NAM")).thenReturn(List.of(PrizeStructureModel.builder().build()));
+        when(lotteryStationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        lotteryStationService.confirmSyncStations(req);
+
+        ArgumentCaptor<LotteryStationModel> captor = ArgumentCaptor.forClass(LotteryStationModel.class);
+        verify(lotteryStationRepositoryPort, times(2)).save(captor.capture());
+
+        LotteryStationModel activeStation = captor.getAllValues().stream()
+                .filter(s -> "With Rate".equals(s.getName()))
+                .findFirst()
+                .orElseThrow();
+        LotteryStationModel inactiveStation = captor.getAllValues().stream()
+                .filter(s -> "Without Rate".equals(s.getName()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(activeStation.isActive()).isTrue();
+        assertThat(activeStation.getCommissionRate()).isEqualByComparingTo("0.0500");
+        assertThat(inactiveStation.isActive()).isFalse();
+        assertThat(inactiveStation.getCommissionRate()).isNull();
+    }
+
+    @Test
+    @DisplayName("[DP-37] previewSyncStations_throwsEmpty")
+    void previewSyncStations_throwsEmpty() {
         SyncLotteryStationsRequest req = SyncLotteryStationsRequest.builder().region("MIEN_NAM").build();
         when(lotteryRegionRepositoryPort.findByCode("MIEN_NAM")).thenReturn(Optional.of(regionModel));
         when(lotteryStationSourceSyncPort.preview(any(), any())).thenReturn(LotteryStationSourcePreviewResult.builder().build());
 
-        assertThatThrownBy(() -> lotteryStationService.syncStations(req))
+        assertThatThrownBy(() -> lotteryStationService.previewSyncStations(req))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_STATION_SYNC_SOURCE_EMPTY);
     }
 
     @Test
-    @DisplayName("[DP-37] syncStations_throwsInvalid")
-    void syncStations_throwsInvalid() {
+    @DisplayName("[DP-37] previewSyncStations_throwsInvalid")
+    void previewSyncStations_throwsInvalid() {
         SyncLotteryStationsRequest req = SyncLotteryStationsRequest.builder().region("MIEN_NAM").build();
-        LotteryStationSourcePreviewItem item1 = LotteryStationSourcePreviewItem.builder().build(); // invalid
+        LotteryStationSourcePreviewItem item1 = LotteryStationSourcePreviewItem.builder().build();
         LotteryStationSourcePreviewResult preview = LotteryStationSourcePreviewResult.builder().items(List.of(item1)).build();
 
         when(lotteryRegionRepositoryPort.findByCode("MIEN_NAM")).thenReturn(Optional.of(regionModel));
         when(lotteryStationSourceSyncPort.preview(any(), any())).thenReturn(preview);
 
-        assertThatThrownBy(() -> lotteryStationService.syncStations(req))
+        assertThatThrownBy(() -> lotteryStationService.previewSyncStations(req))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_STATION_SYNC_SOURCE_INVALID);
     }
 
     @Test
-    @DisplayName("[DP-37] syncStations_throwsDuplicate")
-    void syncStations_throwsDuplicate() {
+    @DisplayName("[DP-37] previewSyncStations_throwsDuplicate")
+    void previewSyncStations_throwsDuplicate() {
         SyncLotteryStationsRequest req = SyncLotteryStationsRequest.builder().region("MIEN_NAM").build();
         LotteryStationSourcePreviewItem item1 = LotteryStationSourcePreviewItem.builder()
                 .canonicalName("A").region("MIEN_NAM").drawDays(List.of("MONDAY")).drawTime("16:15").build();
         LotteryStationSourcePreviewItem item2 = LotteryStationSourcePreviewItem.builder()
-                .canonicalName("a").region("MIEN_NAM").drawDays(List.of("MONDAY")).drawTime("16:15").build(); // duplicate normalized
+                .canonicalName("a").region("MIEN_NAM").drawDays(List.of("MONDAY")).drawTime("16:15").build();
         LotteryStationSourcePreviewResult preview = LotteryStationSourcePreviewResult.builder().items(List.of(item1, item2)).build();
 
         when(lotteryRegionRepositoryPort.findByCode("MIEN_NAM")).thenReturn(Optional.of(regionModel));
         when(lotteryStationSourceSyncPort.preview(any(), any())).thenReturn(preview);
 
-        assertThatThrownBy(() -> lotteryStationService.syncStations(req))
+        assertThatThrownBy(() -> lotteryStationService.previewSyncStations(req))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_STATION_SYNC_SOURCE_DUPLICATE);
     }
@@ -681,10 +854,29 @@ class LotteryStationServiceTest {
     }
 
     @Test
-    @DisplayName("[DP-37] createStationFromSource_nullDefaultPrice")
-    void createStationFromSource_nullDefaultPrice() {
-        LotteryStationSourcePreviewItem item = LotteryStationSourcePreviewItem.builder().canonicalName("Name").drawTime("16:15").drawDays(List.of("MONDAY")).build();
-        assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(lotteryStationService, "createStationFromSource", item, null, regionModel))
+    @DisplayName("[DP-37] confirmSync_nullDefaultPriceForCreate")
+    void confirmSync_nullDefaultPriceForCreate() {
+        ConfirmSyncLotteryStationItem createItem = ConfirmSyncLotteryStationItem.builder()
+                .name("New Station")
+                .canonicalName("New Station")
+                .drawDays(List.of("MONDAY"))
+                .drawTime("16:15")
+                .commissionRate(new BigDecimal("0.0500"))
+                .action(SyncAction.CREATED)
+                .existingStationId(null)
+                .build();
+
+        ConfirmSyncLotteryStationsRequest req = ConfirmSyncLotteryStationsRequest.builder()
+                .source(LotteryStationSourceType.MINH_NGOC)
+                .region("MIEN_NAM")
+                .defaultPrice(null)
+                .items(List.of(createItem))
+                .build();
+
+        when(lotteryRegionRepositoryPort.findByCode("MIEN_NAM")).thenReturn(Optional.of(regionModel));
+        when(prizeStructureRepositoryPort.findByRegionCode("MIEN_NAM")).thenReturn(List.of(PrizeStructureModel.builder().build()));
+
+        assertThatThrownBy(() -> lotteryStationService.confirmSyncStations(req))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_STATION_SYNC_DEFAULT_PRICE_REQUIRED);
     }
@@ -709,10 +901,10 @@ class LotteryStationServiceTest {
 
         UpdateLotteryStationRequest req = UpdateLotteryStationRequest.builder()
                 .name("New Name")
-                .status("INACTIVE")
+                .isActive(false)
                 .build();
         lotteryStationService.update(1L, req);
-        assertThat(stationModel.getStatus()).isEqualTo(LotteryStationStatus.INACTIVE);
+        assertThat(stationModel.isActive()).isFalse();
     }
 
     @Test
