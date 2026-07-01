@@ -3,6 +3,7 @@ package com.daiphat.coreapi.infrastructure.config.exception;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,9 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.List;
+import java.util.Map;
 
 @RestControllerAdvice
 @Slf4j
@@ -118,8 +122,19 @@ public class GlobalExceptionAdvice {
     }
 
     private String resolveDomainMessage(DomainException exception) {
+        ErrorCode errorCode = exception.getErrorCode();
+
+        if (errorCode == ErrorCode.LOTTERY_STATION_ACTIVATION_INCOMPLETE
+                && exception.getData() instanceof Map<?, ?> dataMap) {
+            Object missing = dataMap.get("missingFields");
+            if (missing instanceof List<?> missingList && !missingList.isEmpty()) {
+                @SuppressWarnings("unchecked")
+                List<String> fields = (List<String>) missingList;
+                return LotteryStationModel.buildActivationIncompleteMessage(fields);
+            }
+        }
+
         if (exception.getInternalMessage() != null && !exception.getInternalMessage().isBlank()) {
-            ErrorCode errorCode = exception.getErrorCode();
             if (errorCode == ErrorCode.LOTTERY_TICKET_INVALID_STATUS
                     || errorCode == ErrorCode.LOTTERY_TICKET_EXPIRED
                     || errorCode == ErrorCode.LOTTERY_TICKET_BOOKING_CLOSED
