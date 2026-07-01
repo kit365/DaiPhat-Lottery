@@ -42,6 +42,9 @@ public class LotteryStationEntity extends BaseEntity {
     @Column(nullable = false, precision = 15)
     private BigDecimal price;
 
+    @Column(name = "commission_rate", precision = 5, scale = 4)
+    private BigDecimal commissionRate;
+
     @Column(name = "inventory_count")
     @Builder.Default
     private Integer inventoryCount = 0;
@@ -60,7 +63,11 @@ public class LotteryStationEntity extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private LotteryStationStatus status = LotteryStationStatus.ACTIVE;
+    private LotteryStationStatus status = LotteryStationStatus.INACTIVE;
+
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private boolean isActive = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by")

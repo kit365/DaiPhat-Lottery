@@ -20,10 +20,12 @@ public interface LotteryStationPersistenceMapper {
 
     @Mapping(target = "approvedBy", source = "approvedById", qualifiedByName = "uuidToUserEntity")
     @Mapping(target = "region", source = "region", qualifiedByName = "regionModelToEntity")
+    @Mapping(target = "isActive", expression = "java(model.isActive())")
     LotteryStationEntity toEntity(LotteryStationModel model);
 
     @Mapping(target = "approvedById", source = "approvedBy", qualifiedByName = "userEntityToUuid")
     @Mapping(target = "region", source = "region", qualifiedByName = "regionEntityToModel")
+    @Mapping(target = "isActive", expression = "java(entity.isActive())")
     @Mapping(target = "createdAt", source = "createdAt")
     @Mapping(target = "updatedAt", source = "updatedAt")
     @Mapping(target = "createdBy", source = "createdBy")

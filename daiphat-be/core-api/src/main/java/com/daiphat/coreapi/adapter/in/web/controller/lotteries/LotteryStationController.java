@@ -2,12 +2,14 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
+import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSchedulePublicResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,6 +26,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/lottery-stations")
@@ -47,9 +50,16 @@ public class LotteryStationController {
 
     @PostMapping("/sync")
     @PreAuthorize("hasAuthority('station:sync')")
-    public ApiResponse<LotteryStationSyncResponse> syncStations(
+    public ApiResponse<LotteryStationSyncPreviewResponse> previewSyncStations(
             @Valid @RequestBody SyncLotteryStationsRequest request) {
-        return ApiResponse.success("Đồng bộ nhà đài thành công.", lotteryStationServicePort.syncStations(request));
+        return ApiResponse.success("Xem trước đồng bộ nhà đài thành công.", lotteryStationServicePort.previewSyncStations(request));
+    }
+
+    @PostMapping("/sync/confirm")
+    @PreAuthorize("hasAuthority('station:sync')")
+    public ApiResponse<LotteryStationSyncResponse> confirmSyncStations(
+            @Valid @RequestBody ConfirmSyncLotteryStationsRequest request) {
+        return ApiResponse.success("Lưu đồng bộ nhà đài thành công.", lotteryStationServicePort.confirmSyncStations(request));
     }
 
     @GetMapping(ID_PATH)
@@ -66,13 +76,35 @@ public class LotteryStationController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) String region,
+            @RequestParam(required = false) List<String> region,
             @RequestParam(required = false) List<String> drawDay,
+            @RequestParam(required = false) Boolean isActive,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction) {
 
         return ApiResponse.success(null,
-                lotteryStationServicePort.getAll(page, size, search, status, type, region, drawDay, sortBy, direction));
+                lotteryStationServicePort.getAll(
+                        page,
+                        size,
+                        search,
+                        status,
+                        type,
+                        joinFilterValues(region),
+                        joinFilterValues(drawDay),
+                        isActive,
+                        sortBy,
+                        direction));
+    }
+
+    private static String joinFilterValues(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        String joined = values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(String::trim)
+                .collect(Collectors.joining(","));
+        return joined.isBlank() ? null : joined;
     }
 
     @GetMapping("/schedule/today")

@@ -1,6 +1,5 @@
 package com.daiphat.coreapi.infrastructure.persistence.specification;
 
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity_;
@@ -71,10 +70,7 @@ public final class LotteryTicketSpecification {
             predicates.add(cb.isNull(root.get(BaseEntity_.deletedAt)));
             predicates.add(cb.equal(root.get(LotteryTicketEntity_.status), LotteryTicketStatus.IN_STOCK));
             predicates.add(cb.greaterThan(root.get(LotteryTicketEntity_.quantity), 0));
-            predicates.add(cb.equal(
-                    root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.status),
-                    LotteryStationStatus.ACTIVE
-            ));
+            predicates.add(cb.isTrue(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.isActive)));
             predicates.add(cb.isNull(root.get(LotteryTicketEntity_.station).get(BaseEntity_.deletedAt)));
 
             if (stationId != null) {
