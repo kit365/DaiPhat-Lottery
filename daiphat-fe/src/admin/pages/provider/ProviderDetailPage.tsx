@@ -7,6 +7,7 @@ import { prefixAdmin } from "../../constants/routes";
 import { useParams, useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import { useProviderDetail } from "./hooks/useProvider";
+import { getProviderActiveBadge } from "./utils/provider-activation";
 
 const REGION_OPTIONS = [
     { value: 'NORTH', label: 'Miền Bắc' },
@@ -70,6 +71,7 @@ export const ProviderDetailPage = () => {
     }
     
     const drawDaysLabels = drawDaysArray.map(day => WEEKDAY_OPTIONS.find(w => w.value === day.trim())?.label || day).join(', ');
+    const statusBadge = getProviderActiveBadge(providerDetail.isActive);
 
     return (
         <>
@@ -116,11 +118,15 @@ export const ProviderDetailPage = () => {
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Trạng thái</Typography>
                                     <Box mt={0.5}>
-                                        {providerDetail.status === 'ACTIVE' || providerDetail.status === 'active' ? (
-                                            <Chip label="Hoạt động" color="success" size="small" />
-                                        ) : (
-                                            <Chip label="Vô hiệu hóa" color="default" size="small" />
-                                        )}
+                                        <Chip
+                                            label={statusBadge.label}
+                                            size="small"
+                                            sx={{
+                                                backgroundColor: statusBadge.bg,
+                                                color: statusBadge.text,
+                                                fontWeight: 600,
+                                            }}
+                                        />
                                     </Box>
                                 </Box>
 
@@ -132,6 +138,15 @@ export const ProviderDetailPage = () => {
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Thứ quay thưởng</Typography>
                                     <Typography variant="body1" fontWeight={600}>{drawDaysLabels || 'N/A'}</Typography>
+                                </Box>
+
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Tỷ lệ hoa hồng</Typography>
+                                    <Typography variant="body1" fontWeight={600}>
+                                        {providerDetail.commissionRate != null
+                                            ? `${(Number(providerDetail.commissionRate) * 100).toFixed(2)}%`
+                                            : 'Chưa cấu hình'}
+                                    </Typography>
                                 </Box>
 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>

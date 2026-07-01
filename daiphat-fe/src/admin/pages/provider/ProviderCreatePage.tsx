@@ -13,7 +13,6 @@ import { useRegions } from "../region/hooks/useRegion";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { CreateProviderFormValues, createProviderSchema } from "../../schemas/provider.schema";
-
 import { prefixAdmin } from "../../constants/routes";
 import { toast } from "react-toastify";
 import { LoadingButton } from "../../components/ui/LoadingButton";
@@ -68,8 +67,9 @@ export const ProviderCreatePage = () => {
         defaultValues: {
             name: "",
             description: "",
-            status: "active",
+            isActive: false,
             price: 10000,
+            commissionRate: null,
             province: "",
             region: "",
             drawDays: [],
@@ -117,9 +117,10 @@ export const ProviderCreatePage = () => {
                         reset({
                             name: "",
                             description: "",
-                            status: "active",
+                            isActive: false,
                             type: "TRADITIONAL",
                             price: 10000,
+                            commissionRate: null,
                             province: "",
                             region: "",
                             numberLength: 6,
@@ -212,6 +213,24 @@ export const ProviderCreatePage = () => {
                                                         }
                                                     }}
                                                     fullWidth
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="commissionRate"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                    type="number"
+                                                    inputProps={{ min: 0, max: 1, step: 0.01 }}
+                                                    label="Tỷ lệ hoa hồng"
+                                                    helperText={fieldState.error?.message || "VD: 0.05 = 5%. Nhà đài mới sẽ ở trạng thái dừng hoạt động cho đến khi được kích hoạt."}
+                                                    fullWidth
+                                                    error={!!fieldState.error}
                                                 />
                                             )}
                                         />

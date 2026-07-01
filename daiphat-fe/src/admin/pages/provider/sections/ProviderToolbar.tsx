@@ -12,9 +12,9 @@ interface ToolbarProps {
     settings: IGridSettings;
     onSettingsChange: Dispatch<SetStateAction<IGridSettings>>;
     filters: {
-        status?: string[];
         region?: string[];
         drawDay?: string[];
+        activity?: string[];
         search?: string;
     };
     onFilterChange: (fieldId: string, values: string[]) => void;
@@ -33,14 +33,6 @@ export const ProviderToolbar = ({
     
     const filterFields = useMemo(() => {
         return [
-            {
-                id: 'status',
-                label: "Trạng thái",
-                options: [
-                    { value: 'active', label: "Đang hoạt động" },
-                    { value: 'inactive', label: "Ngừng hoạt động" }
-                ]
-            },
             {
                 id: 'region',
                 label: "Miền",
@@ -62,7 +54,18 @@ export const ProviderToolbar = ({
                     { value: 'SATURDAY', label: "Thứ 7" },
                     { value: 'SUNDAY', label: "Chủ nhật" }
                 ]
-            }
+            },
+            {
+                id: 'activity',
+                label: 'Trạng thái hoạt động',
+                selectionMode: 'single' as const,
+                excludeFromCount: ['all'],
+                options: [
+                    { value: 'all', label: 'Tất cả' },
+                    { value: 'active', label: 'Đang hoạt động' },
+                    { value: 'inactive', label: 'Ngừng hoạt động' },
+                ]
+            },
         ];
     }, []);
 
@@ -87,9 +90,9 @@ export const ProviderToolbar = ({
                 <JiraFilter
                     fields={filterFields}
                     selectedFilters={{
-                        status: filters.status || [],
                         region: filters.region || [],
-                        drawDay: filters.drawDay || []
+                        drawDay: filters.drawDay || [],
+                        activity: filters.activity || [],
                     }}
                     onFilterChange={onFilterChange}
                     onClearAll={onClearFilters}

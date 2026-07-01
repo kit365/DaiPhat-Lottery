@@ -13,6 +13,14 @@ import { useRegions } from "../region/hooks/useRegion";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { CreateProviderFormValues, createProviderSchema } from "../../schemas/provider.schema";
+import {
+    getMissingProviderFields,
+    isFieldMissing,
+    missingFieldInputSx,
+    getActivationFieldHelperText,
+    scrollToFirstMissingField,
+    type ProviderActivationField,
+} from "./utils/provider-activation";
 import { SwitchButton } from "../../components/ui/SwitchButton";
 import { prefixAdmin } from "../../constants/routes";
 import { toast } from "react-toastify";
@@ -23,6 +31,7 @@ import { useParams } from "react-router-dom";
 export const ProviderEditPage = () => {
     const { id } = useParams();
     const [expandedDetail, setExpandedDetail] = useState(true);
+    const [activationErrorsVisible, setActivationErrorsVisible] = useState(false);
 
     const toggle = (setter: Dispatch<SetStateAction<boolean>>) =>
         () => setter(prev => !prev);
@@ -83,9 +92,10 @@ export const ProviderEditPage = () => {
         defaultValues: {
             name: "",
             description: "",
-            status: "active",
+            isActive: false,
             type: "TRADITIONAL",
             price: 10000,
+            commissionRate: null,
             province: "",
             region: "",
             numberLength: 6,
@@ -102,15 +112,43 @@ export const ProviderEditPage = () => {
 
     const regionValue = watch("region");
     const provinceOptions = regionValue ? REGION_DATA[regionValue] || [] : [];
+    const watchedValues = watch();
+    const missingFields = useMemo(() => {
+        if (!activationErrorsVisible) {
+            return [];
+        }
+        return getMissingProviderFields(watchedValues);
+    }, [watchedValues, activationErrorsVisible]);
+
+    const handleActiveToggle = (nextActive: boolean) => {
+        if (!nextActive) {
+            return true;
+        }
+
+        const missing = getMissingProviderFields(watchedValues);
+        if (missing.length > 0) {
+            setActivationErrorsVisible(true);
+            setExpandedDetail(true);
+            requestAnimationFrame(() => scrollToFirstMissingField(missing));
+            return false;
+        }
+
+        setActivationErrorsVisible(false);
+        return true;
+    };
+
+    const fieldHelper = (field: ProviderActivationField, defaultText?: string) =>
+        isFieldMissing(missingFields, field) ? getActivationFieldHelperText(field) : defaultText;
 
     useEffect(() => {
         if (detailRes) {
             reset({
                 name: detailRes.name || "",
                 description: detailRes.description || "",
-                status: detailRes.status || "active",
+                isActive: Boolean(detailRes.isActive),
                 type: detailRes.type || "TRADITIONAL",
                 price: detailRes.price || 10000,
+                commissionRate: detailRes.commissionRate ?? null,
                 province: detailRes.province || "",
                 region: detailRes.region || "",
                 numberLength: detailRes.numberLength || 6,
@@ -121,6 +159,7 @@ export const ProviderEditPage = () => {
                 image: detailRes.image || "",
                 displayOrder: detailRes.displayOrder || 0,
             });
+            setActivationErrorsVisible((detailRes.missingActivationFields || []).length > 0);
         }
     }, [detailRes, reset]);
 
@@ -132,7 +171,12 @@ export const ProviderEditPage = () => {
 
         update({ id: id!, data: payload }, {
             onSuccess: (response) => {
+                setActivationErrorsVisible(false);
                 if (response.success) {
+                    const updated = response.data;
+                    if (updated && typeof updated.isActive === 'boolean') {
+                        setValue('isActive', updated.isActive, { shouldDirty: false });
+                    }
                     toast.success(response.message || "Cập nhật nhà đài thành công");
                 } else {
                     toast.error(response.message);
@@ -140,6 +184,13 @@ export const ProviderEditPage = () => {
             },
             onError: (err: any) => {
                 const message = err?.response?.data?.message || err?.message || "Cập nhật nhà đài thất bại";
+                const missing = err?.response?.data?.data?.missingFields;
+                if (Array.isArray(missing)) {
+                    const fields = missing as ProviderActivationField[];
+                    setActivationErrorsVisible(true);
+                    setExpandedDetail(true);
+                    requestAnimationFrame(() => scrollToFirstMissingField(fields));
+                }
                 toast.error(message);
             }
         });
@@ -179,7 +230,7 @@ export const ProviderEditPage = () => {
                         >
                             <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
                                 <Box sx={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))" }}>
-                                    <Box sx={{ gridColumn: "span 12" }}>
+                                    <Box sx={{ gridColumn: "span 12" }} data-activation-field="name">
                                         <Controller
                                             name="name"
                                             control={control}
@@ -188,7 +239,8 @@ export const ProviderEditPage = () => {
                                                     {...field}
                                                     label="Tên nhà đài"
                                                     error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
+                                                    helperText={fieldHelper('NAME', fieldState.error?.message)}
+                                                    sx={missingFieldInputSx(isFieldMissing(missingFields, 'NAME'))}
                                                     disabled
                                                     fullWidth
                                                 />
@@ -196,7 +248,7 @@ export const ProviderEditPage = () => {
                                         />
                                     </Box>
 
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }} data-activation-field="price">
                                         <Controller
                                             name="price"
                                             control={control}
@@ -206,7 +258,8 @@ export const ProviderEditPage = () => {
                                                     label="Giá vé"
                                                     value={field.value !== undefined ? new Intl.NumberFormat('vi-VN').format(Number(field.value)) : ''}
                                                     error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
+                                                    helperText={fieldHelper('PRICE', fieldState.error?.message)}
+                                                    sx={missingFieldInputSx(isFieldMissing(missingFields, 'PRICE'))}
                                                     onChange={(e) => {
                                                         const rawValue = e.target.value.replace(/\./g, '');
                                                         if (rawValue === '') {
@@ -220,7 +273,26 @@ export const ProviderEditPage = () => {
                                             )}
                                         />
                                     </Box>
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }} data-activation-field="commissionRate">
+                                        <Controller
+                                            name="commissionRate"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                    type="number"
+                                                    inputProps={{ min: 0, max: 1, step: 0.01 }}
+                                                    label="Tỷ lệ hoa hồng"
+                                                    helperText={fieldHelper('COMMISSION_RATE', fieldState.error?.message || "VD: 0.05 = 5%. Bắt buộc trước khi kích hoạt nhà đài.")}
+                                                    sx={missingFieldInputSx(isFieldMissing(missingFields, 'COMMISSION_RATE'))}
+                                                    fullWidth
+                                                    error={!!fieldState.error}
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }} data-activation-field="region">
                                         <Controller
                                             name="region"
                                             control={control}
@@ -230,7 +302,8 @@ export const ProviderEditPage = () => {
                                                     select
                                                     label="Vùng miền"
                                                     error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
+                                                    helperText={fieldHelper('REGION', fieldState.error?.message)}
+                                                    sx={missingFieldInputSx(isFieldMissing(missingFields, 'REGION'))}
                                                     onChange={(e) => {
                                                         field.onChange(e);
                                                         setValue("province", ""); // reset province when region changes
@@ -247,7 +320,7 @@ export const ProviderEditPage = () => {
                                             )}
                                         />
                                     </Box>
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }} data-activation-field="province">
                                         <Controller
                                             name="province"
                                             control={control}
@@ -257,7 +330,8 @@ export const ProviderEditPage = () => {
                                                     select
                                                     label="Tỉnh/Thành phố"
                                                     error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
+                                                    helperText={fieldHelper('PROVINCE', fieldState.error?.message)}
+                                                    sx={missingFieldInputSx(isFieldMissing(missingFields, 'PROVINCE'))}
                                                     disabled
                                                     fullWidth
                                                 >
@@ -270,7 +344,7 @@ export const ProviderEditPage = () => {
                                             )}
                                         />
                                     </Box>
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }} data-activation-field="drawDays">
                                         <Controller
                                             name="drawDays"
                                             control={control}
@@ -290,7 +364,8 @@ export const ProviderEditPage = () => {
                                                         fullWidth
                                                         label="Lịch quay"
                                                         error={!!fieldState.error}
-                                                        helperText={fieldState.error?.message}
+                                                        helperText={fieldHelper('DRAW_SCHEDULE', fieldState.error?.message)}
+                                                        sx={missingFieldInputSx(isFieldMissing(missingFields, 'DRAW_SCHEDULE'))}
                                                         disabled
                                                         InputLabelProps={{ shrink: true }}
                                                         InputProps={{
@@ -337,7 +412,7 @@ export const ProviderEditPage = () => {
                                             }}
                                         />
                                     </Box>
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }} data-activation-field="drawTime">
                                         <Controller
                                             name="drawTime"
                                             control={control}
@@ -354,9 +429,10 @@ export const ProviderEditPage = () => {
                                                         textField: {
                                                             fullWidth: true,
                                                             error: !!fieldState.error,
-                                                            helperText: fieldState.error?.message,
+                                                            helperText: fieldHelper('DRAW_TIME', fieldState.error?.message),
                                                             InputLabelProps: { shrink: true },
                                                             sx: {
+                                                                ...missingFieldInputSx(isFieldMissing(missingFields, 'DRAW_TIME')),
                                                                 '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
                                                                     borderColor: 'var(--palette-text-primary) !important',
                                                                 },
@@ -419,12 +495,13 @@ export const ProviderEditPage = () => {
                             </Stack>
                         </CollapsibleCard>
 
-                        <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center" }}>
+                        <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center", flexWrap: "wrap" }}>
                             <SwitchButton
                                 control={control}
-                                name="status"
-                                checkedValue="active"
-                                uncheckedValue="inactive"
+                                name="isActive"
+                                checkedValue={true}
+                                uncheckedValue={false}
+                                onBeforeChange={handleActiveToggle}
                             />
                             <LoadingButton
                                 type="submit"

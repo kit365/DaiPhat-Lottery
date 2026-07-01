@@ -41,6 +41,16 @@ export const columnsConfig: GridColDef<any>[] = [
         }
     },
     {
+        field: "commissionRate",
+        headerName: "Hoa hồng",
+        width: 110,
+        renderCell: (params) => (
+            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>
+                {params.value != null ? `${(Number(params.value) * 100).toFixed(1)}%` : "—"}
+            </span>
+        ),
+    },
+    {
         field: "createdAt",
         headerName: "Thời gian tạo",
         width: 160,
@@ -50,7 +60,7 @@ export const columnsConfig: GridColDef<any>[] = [
         renderCell: (params) => <RenderCreatedAtCell value={params.value} />,
     },
     {
-        field: "status",
+        field: "isActive",
         headerName: "Trạng thái",
         width: 140,
         renderCell: RenderStatusCell,

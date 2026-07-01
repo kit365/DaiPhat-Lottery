@@ -7,13 +7,20 @@ interface SwitchButtonProps<T extends FieldValues> {
     name: Path<T>;
     checkedValue?: any;
     uncheckedValue?: any;
+    disabled?: boolean;
+    helperText?: string;
+    /** Return false to cancel the toggle change. */
+    onBeforeChange?: (nextChecked: boolean) => boolean;
 }
 
 export const SwitchButton = <T extends FieldValues>({
     control,
     name,
     checkedValue = true,
-    uncheckedValue = false
+    uncheckedValue = false,
+    disabled = false,
+    helperText,
+    onBeforeChange,
 }: SwitchButtonProps<T>) => {
     return (
         <Controller
@@ -30,8 +37,15 @@ export const SwitchButton = <T extends FieldValues>({
                     control={
                         <Switch
                             {...field}
+                            disabled={disabled}
                             checked={field.value === checkedValue}
-                            onChange={(e) => field.onChange(e.target.checked ? checkedValue : uncheckedValue)}
+                            onChange={(e) => {
+                                const nextChecked = e.target.checked;
+                                if (onBeforeChange && onBeforeChange(nextChecked) === false) {
+                                    return;
+                                }
+                                field.onChange(nextChecked ? checkedValue : uncheckedValue);
+                            }}
                             sx={{
                                 '& .MuiSwitch-switchBase.Mui-checked': {
                                     color: '#00A76F',
@@ -63,6 +77,11 @@ export const SwitchButton = <T extends FieldValues>({
                     label={
                         <Typography variant="body1" sx={{ fontSize: "0.875rem", color: "#1C252E", mt: "5px" }}>
                             {field.value === checkedValue ? 'Hoạt động' : 'Dừng hoạt động'}
+                            {helperText ? (
+                                <Typography component="span" display="block" variant="caption" color="text.secondary">
+                                    {helperText}
+                                </Typography>
+                            ) : null}
                         </Typography>
                     }
                     labelPlacement="end"

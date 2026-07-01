@@ -15,6 +15,7 @@ import 'dayjs/locale/vi';
 import { confirmDelete } from "../../../utils/swal";
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { PERMISSIONS } from '../../../constants/permission.constants';
+import { getProviderActiveBadge } from './provider-activation';
 
 dayjs.locale('vi');
 interface RenderCreatedAtCellProps {
@@ -168,34 +169,7 @@ export const RenderCreatedAtCell = ({ value }: RenderCreatedAtCellProps) => {
 }
 
 export const RenderStatusCell = (params: GridRenderCellParams) => {
-    const status = params.row.status?.toLowerCase();
-
-    let label = "Không xác định";
-    let bg = "var(--palette-grey-200)";
-    let text = "var(--palette-grey-800)";
-
-    switch (status) {
-        case 'draft':
-            label = "Bản nháp";
-            bg = "#e5e7eb";
-            text = "#374151";
-            break;
-        case 'pending_approval':
-            label = "Chờ duyệt";
-            bg = "var(--palette-warning-lighter)";
-            text = "var(--palette-warning-dark)";
-            break;
-        case 'active':
-            label = "Đang hoạt động";
-            bg = "var(--palette-info-lighter)";
-            text = "var(--palette-info-dark)";
-            break;
-        case 'inactive':
-            label = "Ngừng hoạt động";
-            bg = "var(--palette-error-lighter)";
-            text = "var(--palette-error-dark)";
-            break;
-    }
+    const { label, bg, text } = getProviderActiveBadge(params.row.isActive);
 
     return (
         <span

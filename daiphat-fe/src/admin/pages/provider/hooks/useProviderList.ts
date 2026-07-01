@@ -4,9 +4,9 @@ import { getProviders, deleteProvider } from '../../../api/provider.api';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 
 interface IProviderFilters {
-    status?: string[];
     region?: string[];
     drawDay?: string[];
+    activity?: string[];
     search?: string;
     sortBy?: string;
     direction?: string;
@@ -14,12 +14,28 @@ interface IProviderFilters {
     limit: number;
 }
 
+const DEFAULT_ACTIVITY_FILTER = ['all'];
+
+const resolveIsActiveParam = (activity?: string[]): boolean | undefined => {
+    const value = activity?.[0];
+    if (!value || value === 'all') {
+        return undefined;
+    }
+    if (value === 'active') {
+        return true;
+    }
+    if (value === 'inactive') {
+        return false;
+    }
+    return undefined;
+};
+
 export const useProviderList = () => {
     const queryClient = useQueryClient();
     const [filters, setFilters] = useState<IProviderFilters>({
-        status: [],
         region: [],
         drawDay: [],
+        activity: DEFAULT_ACTIVITY_FILTER,
         search: '',
         page: 1,
         limit: 10,
@@ -29,9 +45,9 @@ export const useProviderList = () => {
         queryKey: [QUERY_KEYS.PROVIDERS, filters],
         queryFn: () => getProviders({
             search: filters.search,
-            status: filters.status && filters.status.length > 0 ? filters.status.join(',') : undefined,
-            region: filters.region && filters.region.length > 0 ? filters.region.join(',') : undefined,
-            drawDay: filters.drawDay && filters.drawDay.length > 0 ? filters.drawDay.join(',') : undefined,
+            region: filters.region && filters.region.length > 0 ? filters.region : undefined,
+            drawDay: filters.drawDay && filters.drawDay.length > 0 ? filters.drawDay : undefined,
+            isActive: resolveIsActiveParam(filters.activity),
             sortBy: filters.sortBy,
             direction: filters.direction,
             page: filters.page,
@@ -60,6 +76,13 @@ export const useProviderList = () => {
     });
 
     const setFilter = (fieldId: string, values: string[]) => {
+        if (fieldId === 'activity') {
+            const latest = values[values.length - 1];
+            const nextActivity = !latest || latest === 'all' ? DEFAULT_ACTIVITY_FILTER : [latest];
+            setFilters((prev) => ({ ...prev, activity: nextActivity, page: 1 }));
+            return;
+        }
+
         setFilters((prev) => ({ ...prev, [fieldId]: values, page: 1 }));
     };
 
@@ -81,9 +104,9 @@ export const useProviderList = () => {
 
     const clearFilters = () => {
         setFilters({
-            status: [],
             region: [],
             drawDay: [],
+            activity: DEFAULT_ACTIVITY_FILTER,
             search: '',
             page: 1,
             limit: 10,

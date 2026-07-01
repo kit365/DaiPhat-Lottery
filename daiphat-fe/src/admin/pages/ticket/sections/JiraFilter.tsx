@@ -21,6 +21,8 @@ export interface FilterField {
     label: string;
     options: Option[];
     type?: 'date';
+    selectionMode?: 'single' | 'multiple';
+    excludeFromCount?: string[];
 }
 
 interface JiraFilterProps {
@@ -72,7 +74,18 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
         return baseOptions;
     }, [searchQuery, activeField, activeSelected]);
 
+    const countFilterValues = (fieldId: string, values: string[]) => {
+        const field = fields.find((item) => item.id === fieldId);
+        const excluded = field?.excludeFromCount ?? [];
+        return values.filter((value) => !excluded.includes(value)).length;
+    };
+
     const handleToggle = (value: string) => {
+        if (activeField?.selectionMode === 'single') {
+            onFilterChange(activeTabId, [value]);
+            return;
+        }
+
         const currentIndex = activeSelected.indexOf(value);
         const newSelected = [...activeSelected];
 
@@ -85,7 +98,10 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
         onFilterChange(activeTabId, newSelected);
     };
 
-    const totalFilterCount = Object.values(selectedFilters).reduce((acc, curr) => acc + curr.length, 0);
+    const totalFilterCount = Object.entries(selectedFilters).reduce(
+        (acc, [fieldId, values]) => acc + countFilterValues(fieldId, values),
+        0
+    );
 
     return (
         <>
@@ -161,7 +177,7 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                     <Box sx={{ width: 160, borderRight: '1px solid #DFE1E6', bgcolor: '#FAFBFC', display: 'flex', flexDirection: 'column' }}>
                         <List disablePadding sx={{ pt: 1 }}>
                             {fields.map((field) => {
-                                const fieldCount = (selectedFilters[field.id] || []).length;
+                                const fieldCount = countFilterValues(field.id, selectedFilters[field.id] || []);
                                 return (
                                     <ListItem disablePadding key={field.id}>
                                         <ListItemButton 

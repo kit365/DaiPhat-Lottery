@@ -36,19 +36,39 @@ const normalizeDrawDaysForBackend = (drawDays?: string[]) =>
 const mapDrawSchedule = (drawDays?: string[]) =>
     normalizeDrawDaysFromBackend(drawDays).join(', ');
 
+const mapStationItem = (item: any) => ({
+    ...item,
+    _id: item.id,
+    avatar: item.thumbnailUrl,
+    drawDays: normalizeDrawDaysFromBackend(item.drawDays),
+    drawSchedule: mapDrawSchedule(item.drawDays),
+    isActive: Boolean(item.isActive),
+    missingActivationFields: item.missingActivationFields || [],
+    commissionRate: item.commissionRate ?? null,
+});
+
+const serializeListFilterParam = (value?: string | string[]) => {
+    if (!value) {
+        return undefined;
+    }
+    if (Array.isArray(value)) {
+        const normalized = value.filter(Boolean);
+        return normalized.length > 0 ? normalized.join(',') : undefined;
+    }
+    return value;
+};
+
 export const getProviders = async (params?: any): Promise<ApiResponse<PageResponse<any>>> => {
-    const response = await apiApp.get(BASE_URL, { params });
+    const response = await apiApp.get(BASE_URL, {
+        params: {
+            ...params,
+            region: serializeListFilterParam(params?.region),
+            drawDay: serializeListFilterParam(params?.drawDay),
+        },
+    });
     const result = response.data?.data;
-    
-    // Map BE response to match FE expectations
-    const recordList = (result?.recordList || []).map((item: any) => ({
-        ...item,
-        _id: item.id,
-        avatar: item.thumbnailUrl,
-        drawDays: normalizeDrawDaysFromBackend(item.drawDays),
-        drawSchedule: mapDrawSchedule(item.drawDays),
-        status: item.status ? item.status.toLowerCase() : 'active'
-    }));
+
+    const recordList = (result?.recordList || []).map(mapStationItem);
 
     return {
         success: true,
@@ -64,8 +84,8 @@ export const getProviders = async (params?: any): Promise<ApiResponse<PageRespon
             },
             statusCounts: {
                 all: result?.pagination?.totalRecords || recordList.length,
-                active: recordList.filter((b: any) => b.status === 'active').length,
-                inactive: recordList.filter((b: any) => b.status === 'inactive').length,
+                active: recordList.filter((b: any) => b.isActive).length,
+                inactive: recordList.filter((b: any) => !b.isActive).length,
             }
         }
     };
@@ -75,11 +95,7 @@ export const getProviderById = async (id: string | number): Promise<any> => {
     const response = await apiApp.get(`${BASE_URL}/${id}`);
     const item = response.data?.data;
     if (item) {
-        item._id = item.id;
-        item.avatar = item.thumbnailUrl;
-        item.drawDays = normalizeDrawDaysFromBackend(item.drawDays);
-        item.drawSchedule = mapDrawSchedule(item.drawDays);
-        item.status = item.status ? item.status.toLowerCase() : 'active';
+        Object.assign(item, mapStationItem(item));
     }
     return response.data;
 };
@@ -90,11 +106,11 @@ export const createProvider = async (data: any): Promise<any> => {
         province: data.province || '',
         region: data.region || '',
         price: data.price || 10000,
+        commissionRate: data.commissionRate ?? null,
         drawDays: normalizeDrawDaysForBackend(data.drawDays),
         drawTime: data.drawTime || '',
         image: data.image || '',
         description: data.description || '',
-        status: data.status ? data.status.toUpperCase() : 'ACTIVE',
     };
     const response = await apiApp.post(BASE_URL, payload);
     return response.data;
@@ -106,14 +122,19 @@ export const updateProvider = async (id: string | number, data: any): Promise<an
         province: data.province || '',
         region: data.region || '',
         price: data.price || 10000,
+        commissionRate: data.commissionRate ?? null,
         drawDays: normalizeDrawDaysForBackend(data.drawDays),
         drawTime: data.drawTime || '',
         image: data.image || '',
         description: data.description || '',
-        status: data.status ? data.status.toUpperCase() : 'ACTIVE',
+        isActive: Boolean(data.isActive),
     };
     const response = await apiApp.put(`${BASE_URL}/${id}`, payload);
-    return response.data;
+    const result = response.data;
+    if (result?.data) {
+        result.data = mapStationItem(result.data);
+    }
+    return result;
 };
 
 export const deleteProvider = async (id: string | number): Promise<any> => {
@@ -136,21 +157,20 @@ export const getStationsToday = async (): Promise<any> => {
         avatar: item.thumbnailUrl || item.avatar,
         drawDays: normalizeDrawDaysFromBackend(item.drawDays),
         drawSchedule: mapDrawSchedule(item.drawDays),
-        status: item.status ? item.status.toLowerCase() : 'active'
+        isActive: Boolean(item.isActive),
     }));
 };
 
 export const getStationsTomorrow = async (): Promise<any> => {
     const response = await apiApp.get(`${BASE_URL}/schedule/tomorrow`);
     const result = response.data?.data || [];
-    // Map BE response to match FE expectations for dynamicProvinces
     return result.map((item: any) => ({
         ...item,
         id: item.id || item._id,
         avatar: item.thumbnailUrl || item.avatar,
         drawDays: normalizeDrawDaysFromBackend(item.drawDays),
         drawSchedule: mapDrawSchedule(item.drawDays),
-        status: item.status ? item.status.toLowerCase() : 'active'
+        isActive: Boolean(item.isActive),
     }));
 };
 
@@ -171,7 +191,7 @@ export const getStationsByDrawDate = async (drawDate: string | string[]): Promis
             avatar: item.thumbnailUrl || item.avatar,
             drawDays: normalizeDrawDaysFromBackend(item.drawDays),
             drawSchedule: mapDrawSchedule(item.drawDays),
-            status: item.status ? item.status.toLowerCase() : 'active'
+            isActive: Boolean(item.isActive),
         }));
     });
 
@@ -197,7 +217,29 @@ export const uploadProviderImage = async (id: string | number, file: File): Prom
     return response.data;
 };
 
-export const syncProviders = async (data: any): Promise<any> => {
+export const previewSyncProviders = async (data: {
+    source: string;
+    region: string;
+    defaultPrice: number;
+}): Promise<any> => {
     const response = await apiApp.post(`${BASE_URL}/sync`, data);
+    return response.data;
+};
+
+export const confirmSyncProviders = async (data: {
+    source: string;
+    region: string;
+    defaultPrice: number;
+    items: Array<{
+        name: string;
+        canonicalName: string;
+        drawDays: string[];
+        drawTime: string;
+        commissionRate: number | null;
+        action: string;
+        existingStationId: number | null;
+    }>;
+}): Promise<any> => {
+    const response = await apiApp.post(`${BASE_URL}/sync/confirm`, data);
     return response.data;
 };
