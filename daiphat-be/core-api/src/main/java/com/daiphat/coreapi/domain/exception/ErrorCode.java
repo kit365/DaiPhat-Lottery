@@ -171,6 +171,7 @@ public enum ErrorCode {
     LOTTERY_STATION_SYNC_SOURCE_DUPLICATE("LT_041", "Nguồn dữ liệu chứa nhà đài bị trùng, chưa thể đồng bộ an toàn.", HttpStatus.BAD_REQUEST),
     LOTTERY_STATION_SYNC_DEFAULT_PRICE_REQUIRED("LT_042", "Cần truyền giá mặc định để tạo mới nhà đài.", HttpStatus.BAD_REQUEST),
     LOTTERY_STATION_SYNC_CANONICAL_NAME_REQUIRED("LT_043", "Nhà đài từ nguồn dữ liệu thiếu tên chuẩn.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_ACTIVATION_INCOMPLETE("LT_044", "Nhà đài chưa đủ thông tin bắt buộc để kích hoạt.", HttpStatus.BAD_REQUEST),
     LOTTERY_REGION_NOT_FOUND("LT_044", "Miền không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_REGION_NUMBER_RANGE_INVALID("LT_045", "Khoảng số của miền không hợp lệ.", HttpStatus.BAD_REQUEST),
     LOTTERY_RESULT_NOT_FOUND("LT_049", "Kết quả quay số không tồn tại.", HttpStatus.NOT_FOUND),

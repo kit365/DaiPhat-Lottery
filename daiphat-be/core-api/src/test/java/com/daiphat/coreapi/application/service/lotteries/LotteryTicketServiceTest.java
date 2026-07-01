@@ -12,7 +12,6 @@ import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
@@ -135,7 +134,7 @@ class LotteryTicketServiceTest {
                 .nextDrawDate(LocalDate.now())
                 .drawDays(java.util.List.of(LocalDate.now().getDayOfWeek()))
                 .drawTime(java.time.LocalTime.of(16, 15))
-                .status(LotteryStationStatus.ACTIVE)
+                .isActive(true)
                 .build();
 
         createRequest = CreateLotteryTicketRequest.builder()

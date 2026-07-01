@@ -23,6 +23,10 @@ public record CreateLotteryStationRequest(
         @DecimalMin(value = "0", inclusive = false, message = "Giá phải lớn hơn 0")
         BigDecimal price,
 
+        @DecimalMin(value = "0", message = "Tỷ lệ hoa hồng phải từ 0 trở lên")
+        @jakarta.validation.constraints.DecimalMax(value = "1", message = "Tỷ lệ hoa hồng không vượt quá 100%")
+        BigDecimal commissionRate,
+
         // Lịch quay
         @NotNull(message = "Danh sách ngày quay không được để trống")
         List<DayOfWeek> drawDays,
@@ -33,6 +37,5 @@ public record CreateLotteryStationRequest(
 
         // Hiển thị
         String image,
-        String description,
-        String status
+        String description
 ) {}
