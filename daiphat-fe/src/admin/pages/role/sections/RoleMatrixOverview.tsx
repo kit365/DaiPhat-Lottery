@@ -1,4 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import SearchIcon from '@mui/icons-material/Search';
+import InputAdornment from '@mui/material/InputAdornment';
+import TextField from '@mui/material/TextField';
+import { Search } from "../../../components/ui/Search";
+import { JiraFilter } from "../../ticket/sections/JiraFilter";
+import { Badge, SvgIcon } from "@mui/material";
 import {
     Box,
     Typography,
@@ -18,8 +24,8 @@ import {
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import SaveIcon from '@mui/icons-material/Save';
-import { useRoles, useUpdateRole, usePermissions, useReorderPermissions } from '../hooks/useRole';
-import { toast } from 'react-toastify';
+import { useRoles, useUpdateRole, usePermissions, useReorderPermissions } from '../../../hooks/useRole';
+import { AppToast as toast } from '../../../../utils/toast.util';
 import {
     DndContext,
     closestCenter,
@@ -116,16 +122,40 @@ export const RoleMatrixOverview = () => {
     const [localPerms, setLocalPerms] = useState<Record<string, string[]>>({});
     const [isSaving, setIsSaving] = useState(false);
 
+
     // Reorder State
     const [isReorderMode, setIsReorderMode] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedModules, setSelectedModules] = useState<string[]>([]);
     const [orderedModules, setOrderedModules] = useState<any[]>([]);
+
+    const moduleOptions = useMemo(() => {
+        const modules = new Set<string>();
+        allPermissions.forEach((p: any) => {
+            modules.add(p.module || 'Khác');
+        });
+        return Array.from(modules).map(m => ({ value: m, label: m }));
+    }, [allPermissions]);
+
 
     // Group permissions by module dynamically
     const flatPermissions = useMemo(() => {
         if (!allPermissions || allPermissions.length === 0) return [];
+        
+        let filteredPermissions = allPermissions;
+        if (searchQuery.trim() !== '') {
+            const query = searchQuery.toLowerCase();
+            filteredPermissions = filteredPermissions.filter((p: any) => 
+                (p.name && p.name.toLowerCase().includes(query)) || 
+                (p.module && p.module.toLowerCase().includes(query))
+            );
+        }
+        if (selectedModules.length > 0) {
+            filteredPermissions = filteredPermissions.filter((p: any) => selectedModules.includes(p.module || 'Khác'));
+        }
 
         const groups: Record<string, any[]> = {};
-        allPermissions.forEach((p: any) => {
+        filteredPermissions.forEach((p: any) => {
             const moduleName = p.module || 'Khác';
             if (!groups[moduleName]) groups[moduleName] = [];
             groups[moduleName].push({
@@ -148,7 +178,7 @@ export const RoleMatrixOverview = () => {
                 };
             })
             .sort((a, b) => b.position - a.position);
-    }, [allPermissions]);
+    }, [allPermissions, searchQuery, selectedModules]);
 
     // Sync state
     useEffect(() => {
@@ -313,30 +343,91 @@ export const RoleMatrixOverview = () => {
             </Box>
         );
     }
+
+    const isFiltering = searchQuery.trim() !== '' || selectedModules.length > 0;
+
     return (
         <>
-            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h4" sx={{ fontWeight: 800 }}>Ma Trận Phân Quyền</Typography>
-                <Box sx={{ display: 'flex', gap: 1.5 }}>
-                    {!isReorderMode ? (
-                        <Button
-                            variant="outlined"
-                            color="inherit"
-                            startIcon={<SortIcon />}
-                            onClick={() => setIsReorderMode(true)}
-                            sx={{
-                                borderRadius: '10px',
-                                fontWeight: 700,
-                                borderColor: 'var(--palette-primary-main)',
-                                color: 'var(--palette-primary-main)',
-                                '&:hover': {
-                                    borderColor: 'var(--palette-primary-dark)',
-                                    bgcolor: 'rgba(0, 167, 111, 0.04)'
+            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+                <Box sx={{ flex: 1, minWidth: 240 }}>
+                    <Search
+                        placeholder="Tìm kiếm quyền..."
+                        value={searchQuery}
+                        onChange={setSearchQuery}
+                        maxWidth="100%"
+                    />
+                </Box>
+                
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <JiraFilter
+                        fields={[{ id: 'module', label: 'Nhóm quyền', options: moduleOptions }]}
+                        selectedFilters={{ module: selectedModules }}
+                        onFilterChange={(id, vals) => setSelectedModules(vals)}
+                        onClearAll={() => setSelectedModules([])}
+                        trigger={({ onClick, totalFilterCount }) => (
+                            <Button
+                                variant="text"
+                                size="small"
+                                disableElevation
+                                onClick={onClick}
+                                startIcon={
+                                    <Badge
+                                        badgeContent={totalFilterCount}
+                                        color="primary"
+                                        variant="dot"
+                                        sx={{ '& .MuiBadge-badge': { backgroundColor: "#FF5630" } }}
+                                    >
+                                        <SvgIcon sx={{ fontSize: '1.125rem !important' }} viewBox="0 0 24 24">
+                                            <g fill="none" fillRule="evenodd">
+                                                <path d="m12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.018-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z" />
+                                                <path
+                                                    fill="#1C252E"
+                                                    d="M3 4.5A1.5 1.5 0 0 1 4.5 3h15A1.5 1.5 0 0 1 21 4.5v2.086A2 2 0 0 1 20.414 8L15 13.414v7.424a1.1 1.1 0 0 1-1.592.984l-3.717-1.858A1.25 1.25 0 0 1 9 18.846v-5.432L3.586 8A2 2 0 0 1 3 6.586z"
+                                                />
+                                            </g>
+                                        </SvgIcon>
+                                    </Badge>
                                 }
-                            }}
-                        >
-                            Sắp xếp nhóm
-                        </Button>
+                                sx={{
+                                    textTransform: 'none',
+                                    minWidth: '64px',
+                                    minHeight: "30px",
+                                    fontSize: "0.8125rem",
+                                    padding: '4px',
+                                    fontWeight: "700",
+                                    borderRadius: "8px",
+                                    gap: "6px",
+                                    color: '#1C252E',
+                                    '& .MuiButton-startIcon': { margin: 0 },
+                                    '&:hover': { backgroundColor: '#919eab14' },
+                                    '& .MuiButton-icon': { mt: "-2px !important" }
+                                }}
+                            >
+                                Bộ lọc
+                            </Button>
+                        )}
+                    />
+                
+                    {!isReorderMode ? (
+                        !isFiltering && (
+                            <Button
+                                variant="outlined"
+                                startIcon={<SortIcon />}
+                                onClick={() => setIsReorderMode(true)}
+                                sx={{
+                                    borderRadius: '10px',
+                                    fontWeight: 700,
+                                    color: 'var(--palette-text-primary)',
+                                    borderColor: 'var(--palette-text-primary)',
+                                    '&:hover': {
+                                        backgroundColor: 'var(--palette-action-hover)',
+                                        borderColor: 'var(--palette-text-primary)'
+                                    }
+                                }}
+                            >
+                                Sắp xếp nhóm
+                            </Button>
+                        )
                     ) : (
                         <>
                             <Button
@@ -350,14 +441,17 @@ export const RoleMatrixOverview = () => {
                             </Button>
                             <Button
                                 variant="contained"
-                                color="success"
                                 startIcon={<CheckIcon />}
                                 onClick={handleSaveOrder}
                                 disabled={isSaving}
                                 sx={{
                                     borderRadius: '10px',
                                     fontWeight: 700,
-                                    boxShadow: '0 4px 8px 0 rgba(0, 167, 111, 0.24)'
+                                    background: 'var(--palette-text-primary)',
+                                    color: 'var(--palette-background-paper)',
+                                    '&:hover': {
+                                        background: 'var(--palette-grey-800)',
+                                    }
                                 }}
                             >
                                 {isSaving ? 'Đang lưu...' : 'Lưu thứ tự'}
@@ -376,7 +470,21 @@ export const RoleMatrixOverview = () => {
                     <Typography sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>Bạn có thay đổi chưa lưu</Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button variant="outlined" color="inherit" onClick={handleCancel} disabled={isSaving}>Hủy bỏ</Button>
-                        <Button variant="contained" color="success" startIcon={<SaveIcon />} onClick={handleSave} disabled={isSaving}>Lưu quyền này</Button>
+                        <Button 
+                            variant="contained" 
+                            startIcon={<SaveIcon />} 
+                            onClick={handleSave} 
+                            disabled={isSaving}
+                            sx={{
+                                background: 'var(--palette-text-primary)',
+                                color: 'var(--palette-background-paper)',
+                                '&:hover': {
+                                    background: 'var(--palette-grey-800)',
+                                }
+                            }}
+                        >
+                            Lưu quyền này
+                        </Button>
                     </Box>
                 </Box>
             )}

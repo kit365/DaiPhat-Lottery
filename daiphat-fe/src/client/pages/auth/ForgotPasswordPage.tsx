@@ -6,7 +6,7 @@ import Cookies from "js-cookie";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
 import { PasswordStrengthMeter } from "../../components/auth/PasswordStrengthMeter";
-import { AppToast as toast } from "../../utils/toast.util";
+import { AppToast as toast } from "../../../utils/toast.util";
 import { STORAGE_KEYS } from "../../../constants/storage.constants";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { authService } from "../../../admin/pages/authen/services/auth.service";

@@ -4,16 +4,21 @@ import { toast } from 'react-toastify';
 import { Button, Typography, Stack } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { prefixAdmin } from '../constants/routes';
+import { OverrunAlertSocketEvent } from '../../types/websocket.type';
+import { QUERY_KEYS } from '../../constants/queryKeys';
+import { useQueryClient } from '@tanstack/react-query';
+import { WS_USER_OVERRUN_ALERTS_QUEUE } from '../../services/websocket/websocket.constants';
 
 export const OverrunAlerter = () => {
     const socket = useSocket();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
     useEffect(() => {
-        if (!socket) return;
+        let unsubscribe: (() => void) | undefined;
 
-        socket.on('overrun-alert', (data) => {
-            console.log('Received overrun alert:', data);
+        socket.subscribe<OverrunAlertSocketEvent>(WS_USER_OVERRUN_ALERTS_QUEUE, (data) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_NOTIFICATIONS] });
 
             toast.error(
                 ({ closeToast }) => (
@@ -40,18 +45,20 @@ export const OverrunAlerter = () => {
                     </Stack>
                 ),
                 {
-                    position: "top-right",
-                    autoClose: false, // Để admin phải chú ý
+                    position: 'top-right',
+                    autoClose: false,
                     closeOnClick: false,
                     draggable: false,
                 }
             );
-        });
+        }).then((subscription) => {
+            unsubscribe = () => subscription.unsubscribe();
+        }).catch(() => undefined);
 
         return () => {
-            socket.off('overrun-alert');
+            unsubscribe?.();
         };
-    }, [socket, navigate]);
+    }, [navigate, queryClient, socket]);
 
-    return null; // Component tàng hình
+    return null;
 };

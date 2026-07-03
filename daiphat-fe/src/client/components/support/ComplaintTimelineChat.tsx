@@ -10,7 +10,7 @@ import { useGetTicketComments, useSendTicketComment } from '../../hooks/useSuppo
 import { ImageUploadPreview } from './ImageUploadPreview';
 import { ComplaintCommentBubble } from './ComplaintCommentBubble';
 import { ComplaintSystemNotice } from './ComplaintSystemNotice';
-import { AppToast } from '../../utils/toast.util';
+import { AppToast } from '../../../utils/toast.util';
 
 interface ComplaintTimelineChatProps {
     ticketId: number;

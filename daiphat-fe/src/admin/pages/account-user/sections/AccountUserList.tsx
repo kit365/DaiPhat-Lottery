@@ -25,7 +25,7 @@ import {
 } from '../configs/styles.config';
 import { useUsers, useDeleteUser, useUserStatuses } from '../hooks/useAccountUser';
 import { ROUTES } from '../../../constants/routes';
-import { AppToast as toast } from '../../../../client/utils/toast.util';
+import { AppToast as toast } from '../../../../utils/toast.util';
 import { RoleEnum } from '../configs/constants';
 import { SelectSingle } from '../../../components/ui/SelectSingle';
 import { Search } from '../../../components/ui/Search';

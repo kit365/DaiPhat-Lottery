@@ -6,7 +6,7 @@ import {
     useSetDefaultBankAccount
 } from '../../../hooks/useBankAccount';
 import { BankAccountFormModal } from '../../../components/refund/BankAccountFormModal';
-import { AppToast } from '../../../utils/toast.util';
+import { AppToast } from '../../../../utils/toast.util';
 
 export const BankAccountsTab = () => {
     const { data, isLoading } = useGetBankAccounts();
