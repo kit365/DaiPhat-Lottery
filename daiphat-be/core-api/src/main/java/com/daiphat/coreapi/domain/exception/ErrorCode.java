@@ -215,6 +215,19 @@ public enum ErrorCode {
     TICKET_RESOLUTION_INVALID("TKT_016", "Nội dung phương án giải quyết không được để trống.", HttpStatus.BAD_REQUEST),
     TICKET_OPERATOR_MUST_ASSIGN_FIRST("TKT_017", "Vui lòng tiếp nhận ticket trước khi trả lời khách hàng.", HttpStatus.BAD_REQUEST),
 
+    // Chat Errors
+    CONVERSATION_NOT_FOUND("CHT_001", "Không tìm thấy cuộc trò chuyện.", HttpStatus.NOT_FOUND),
+    CONVERSATION_ACCESS_DENIED("CHT_002", "Bạn không thuộc cuộc trò chuyện này.", HttpStatus.FORBIDDEN),
+    CONVERSATION_ASSIGNED_TO_OTHER("CHT_003", "Hội thoại đã được phân công cho nhân viên khác.", HttpStatus.BAD_REQUEST),
+    CONVERSATION_CLOSE_DENIED("CHT_004", "Bạn không thể đóng hội thoại này.", HttpStatus.FORBIDDEN),
+    CONVERSATION_ALREADY_CLOSED("CHT_005", "Cuộc trò chuyện đã đóng.", HttpStatus.BAD_REQUEST),
+    CONVERSATION_CANNOT_ESCALATE("CHT_006", "Cuộc trò chuyện không thể chuyển cho nhân viên.", HttpStatus.BAD_REQUEST),
+    CONVERSATION_ALREADY_ASSIGNED("CHT_007", "Hội thoại đã được nhân viên khác nhận.", HttpStatus.BAD_REQUEST),
+    CONVERSATION_CANNOT_ASSIGN("CHT_008", "Hội thoại không thể nhận ở trạng thái hiện tại.", HttpStatus.BAD_REQUEST),
+    CONVERSATION_UNASSIGN_DENIED("CHT_009", "Bạn không thể trả hội thoại này.", HttpStatus.FORBIDDEN),
+    CONVERSATION_ESCALATE_DENIED("CHT_010", "Bạn không có quyền chuyển hội thoại này.", HttpStatus.FORBIDDEN),
+    CONVERSATION_VIEW_DENIED("CHT_011", "Bạn không có quyền xem lịch sử hội thoại này.", HttpStatus.FORBIDDEN),
+
     // System Config Errors
     SYSTEM_CONFIG_NOT_FOUND("CFG_001", "Cấu hình hệ thống không tồn tại.", HttpStatus.NOT_FOUND),
     SYSTEM_CONFIG_VALUE_INVALID("CFG_002", "Giá trị cấu hình không hợp lệ với kiểu dữ liệu.", HttpStatus.BAD_REQUEST),
