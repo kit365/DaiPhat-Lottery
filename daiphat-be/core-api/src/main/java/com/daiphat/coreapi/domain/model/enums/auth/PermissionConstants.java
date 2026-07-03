@@ -14,6 +14,7 @@ public final class PermissionConstants {
     public static final String ROLE = "role";
     public static final String ARTICLE = "article";
     public static final String TICKET = "ticket";
+    public static final String IMPORT_BATCH = "importBatch";
     public static final String STATION = "station";
     public static final String REGION = "region";
     public static final String PRIZE_STRUCTURE = "prizeStructure";

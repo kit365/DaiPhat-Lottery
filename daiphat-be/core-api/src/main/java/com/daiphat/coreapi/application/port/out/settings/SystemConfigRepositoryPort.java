@@ -14,5 +14,7 @@ public interface SystemConfigRepositoryPort {
 
     Optional<SystemConfigModel> findById(Long id);
 
+    Optional<SystemConfigModel> findByConfigKey(String configKey);
+
     SystemConfigModel save(SystemConfigModel model);
 }
