@@ -12,7 +12,7 @@ import {
     dataGridContainerStyles,
     dataGridStyles
 } from '../configs/styles.config';
-import { useBlogCategories } from '../hooks/useBlogCategory';
+import { useBlogCategories } from "../../../hooks/useBlogCategory";
 
 export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => {
     const [page, setPage] = useState(0);

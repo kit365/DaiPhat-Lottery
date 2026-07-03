@@ -1,11 +1,13 @@
+import { Typography } from "@mui/material";
+
 type TitleProps = {
     title: string;
 };
 
 export const Title = ({ title }: TitleProps) => {
     return (
-        <h6 className="text-[1.4375rem] font-[700] mb-[16px]">
+        <Typography variant="h6" sx={{ fontSize: '1.4375rem', fontWeight: 700, mb: '16px' }}>
             {title}
-        </h6>
+        </Typography>
     );
 };

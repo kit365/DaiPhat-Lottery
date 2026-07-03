@@ -2,7 +2,7 @@
 // Hook for notifications
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as api from "../api/notification.api";
-import { toast } from "react-toastify";
+import { AppToast as toast } from '../../utils/toast.util';
 import { QUERY_KEYS } from "../../constants/queryKeys";
 
 const DEFAULT_PAGE = 1;

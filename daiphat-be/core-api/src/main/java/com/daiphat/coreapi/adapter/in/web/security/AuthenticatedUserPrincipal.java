@@ -15,6 +15,6 @@ public class AuthenticatedUserPrincipal implements Principal {
 
     @Override
     public String getName() {
-        return username;
+        return id.toString();
     }
 }
