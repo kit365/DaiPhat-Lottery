@@ -4,7 +4,7 @@ import { Title } from "../../components/ui/Title"
 import { useState, useMemo } from "react"
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
 import { TicketSerialImageField } from "./components/TicketSerialImageField"
-import { prefixAdmin } from "../../constants/routes";
+import { prefixAdmin, ROUTES } from "../../constants/routes";
 import { useCreateTicket } from "./hooks/useTicket";
 import { toast } from "react-toastify";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
@@ -13,23 +13,76 @@ import { createTicketSchema, CreateTicketFormValues } from "../../schemas/ticket
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { useProviders } from "../provider/hooks/useProvider";
 import { StationSelector } from "./components/StationSelector";
+import { useImportBatchDetail, useActiveImportBatchDraft } from "../import-batch/hooks/useImportBatch";
+import { getBatchTypeLabel } from "../import-batch/utils/batchTypeLabels";
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
+import { useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import dayjs from "dayjs";
 
 export const TicketCreatePage = () => {
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const importBatchLineId = searchParams.get("importBatchLineId");
+    const importBatchIdParam = searchParams.get("importBatchId");
+
+    const { data: activeDraft, isLoading: isLoadingActiveDraft } = useActiveImportBatchDraft(
+        !importBatchIdParam && !!importBatchLineId
+    );
+    const resolvedBatchId = importBatchIdParam || (activeDraft?.id ? String(activeDraft.id) : undefined);
+    const { data: importBatch, isLoading: isLoadingBatch } = useImportBatchDetail(resolvedBatchId);
+
+    const batchLines = importBatch?.lines ?? [];
+    const hasMultipleLines = batchLines.length > 1;
+
+    useEffect(() => {
+        if (!importBatchLineId && !importBatchIdParam) {
+            toast.info("Vui lòng tạo phiếu nhập lô trước khi thêm vé số.");
+            navigate(`${ROUTES.ADMIN.IMPORT_BATCH.CREATE}?intent=add-ticket`, { replace: true });
+        }
+    }, [importBatchLineId, importBatchIdParam, navigate]);
+
     const {
         control,
         handleSubmit,
         reset,
+        watch,
+        setValue,
     } = useForm<CreateTicketFormValues>({
         resolver: zodResolver(createTicketSchema),
         defaultValues: {
+            importBatchLineId: importBatchLineId || "",
+            importBatchId: importBatchIdParam || "",
             stationId: "",
             serials: [{ serialNumber: "", ticketImg: undefined }],
             numbers: "",
             batchCode: "",
+            drawDate: "",
         },
     });
+
+    const watchedLineId = watch("importBatchLineId");
+
+    useEffect(() => {
+        if (!importBatch) return;
+
+        const lineId = importBatchLineId || watchedLineId;
+        const line = batchLines.find((l) => String(l.id) === String(lineId))
+            ?? (batchLines.length === 1 ? batchLines[0] : undefined);
+
+        if (!line) return;
+
+        reset({
+            importBatchLineId: String(line.id),
+            importBatchId: String(importBatch.id),
+            stationId: String(line.lotteryStationId),
+            serials: [{ serialNumber: "", ticketImg: undefined }],
+            numbers: "",
+            batchCode: `IMPORT-BATCH-${importBatch.id}-LINE-${line.id}`,
+            drawDate: importBatch.drawDate,
+        });
+    }, [importBatch, importBatchLineId, watchedLineId, batchLines, reset]);
 
     const { fields, append, remove } = useFieldArray({
         control,
@@ -85,7 +138,10 @@ export const TicketCreatePage = () => {
         }
 
         const payload = {
+            importBatchLineId: Number(data.importBatchLineId || importBatchLineId),
+            importBatchId: data.importBatchId ? Number(data.importBatchId) : undefined,
             stationId: data.stationId,
+            drawDate: data.drawDate || importBatch?.drawDate,
             serials: data.serials.map(s => ({
                 serialNumber: s.serialNumber,
                 ticketImg: typeof s.ticketImg === "string" && s.ticketImg.trim() ? s.ticketImg.trim() : undefined,
@@ -153,6 +209,11 @@ export const TicketCreatePage = () => {
         }
     };
 
+    const isLoading = isLoadingBatch || isLoadingActiveDraft;
+    if ((!importBatchLineId && !importBatchIdParam) || isLoading) {
+        return null;
+    }
+
     return (
         <>
             <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
@@ -214,19 +275,52 @@ export const TicketCreatePage = () => {
                                     }}
                                 >
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                        <Controller
-                                            name="stationId"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <StationSelector
-                                                    value={field.value}
-                                                    onChange={field.onChange}
-                                                    providers={providers}
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                />
-                                            )}
-                                        />
+                                        {hasMultipleLines ? (
+                                            <Controller
+                                                name="importBatchLineId"
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <FormControl fullWidth>
+                                                        <InputLabel>Dòng nhập lô (nhà đài)</InputLabel>
+                                                        <Select
+                                                            {...field}
+                                                            label="Dòng nhập lô (nhà đài)"
+                                                            value={field.value || ""}
+                                                            onChange={(e) => {
+                                                                const lineId = String(e.target.value);
+                                                                field.onChange(lineId);
+                                                                const line = batchLines.find((l) => String(l.id) === lineId);
+                                                                if (line) {
+                                                                    setValue("stationId", String(line.lotteryStationId));
+                                                                }
+                                                            }}
+                                                        >
+                                                            {batchLines.map((line) => (
+                                                                <MenuItem key={line.id} value={String(line.id)}>
+                                                                    {providers.find((p: any) => String(p.id || p._id) === String(line.lotteryStationId))?.name
+                                                                        ?? `Đài #${line.lotteryStationId}`}{" "}
+                                                                    ({getBatchTypeLabel(line.batchType)})
+                                                                </MenuItem>
+                                                            ))}
+                                                        </Select>
+                                                    </FormControl>
+                                                )}
+                                            />
+                                        ) : (
+                                            <Controller
+                                                name="stationId"
+                                                control={control}
+                                                render={({ field, fieldState }) => (
+                                                    <StationSelector
+                                                        value={field.value}
+                                                        onChange={field.onChange}
+                                                        providers={providers}
+                                                        error={!!fieldState.error}
+                                                        helperText={fieldState.error?.message}
+                                                    />
+                                                )}
+                                            />
+                                        )}
                                     </Box>
 
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
