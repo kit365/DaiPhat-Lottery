@@ -12,7 +12,7 @@ import {
     uploadAccountAvatar,
     deleteAccountAvatar
 } from "../../../api/account-admin.api";
-import { getRoles } from "../../../api/role.api";
+import { getRoles } from "../../../services/role.service";
 import { QUERY_KEYS } from "../../../../constants/queryKeys";
 import { ApiResponse, PageResponse, BaseQueryParams } from "../../../config/type";
 import { User } from "../../../../types/user.type";

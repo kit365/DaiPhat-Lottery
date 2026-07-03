@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
-import { AppToast as toast } from '../../../../client/utils/toast.util';
+import { AppToast as toast } from '../../../../utils/toast.util';
 
 interface StaffInviteModalProps {
     open: boolean;

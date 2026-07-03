@@ -27,11 +27,16 @@ export interface ChatSocketMessagePayload {
 }
 
 export interface ChatSocketMessageEvent {
+    id?: number | null;
     conversationId: number;
     parentId?: number | null;
     senderId: string;
     senderName: string;
+    senderType?: MessageSenderType;
     content: string;
     type: ChatSocketMessageType;
     createdAt: string;
 }
+
+import { MessageSenderRole } from './chat.type';
+export type MessageSenderType = MessageSenderRole;

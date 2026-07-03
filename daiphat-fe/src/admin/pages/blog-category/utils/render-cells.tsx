@@ -2,7 +2,7 @@ import { Avatar, Box, Link, ListItemText } from "@mui/material";
 import { GridActionsCell, GridActionsCellItem, GridRenderCellParams } from "@mui/x-data-grid";
 import { DeleteIcon, EditIcon, EyeIcon } from "../../../assets/icons/index";
 import { COLORS } from "../configs/constants";
-import { useDeleteBlogCategory } from "../hooks/useBlogCategory";
+import { useDeleteBlogCategory } from "../../../hooks/useBlogCategory";
 import { useNavigate } from "react-router-dom";
 import { prefixAdmin } from "../../../constants/routes";
 import { toast } from "react-toastify";

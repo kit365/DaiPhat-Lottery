@@ -6,16 +6,28 @@ import {
     ChatSocketMessagePayload,
     WebSocketSubscription,
 } from '../../types/websocket.type';
+import { ChatConversationSocketEvent } from '../../types/chat.type';
 import {
     DEFAULT_WS_SERVER_URL,
     HEARTBEAT_MS,
     RECONNECT_DELAY_MS,
+    WS_CHAT_OPERATORS_TOPIC,
     WS_CHAT_SEND_DESTINATION,
+    WS_USER_CHAT_INBOX_QUEUE,
     WS_ENDPOINT_PATH,
     getConversationTopic,
 } from './websocket.constants';
 
 type ConnectionListener = (connected: boolean) => void;
+
+export const isChatConversationSocketEvent = (
+    payload: unknown
+): payload is ChatConversationSocketEvent =>
+    typeof payload === 'object' &&
+    payload != null &&
+    'eventType' in payload &&
+    'conversationId' in payload &&
+    typeof (payload as ChatConversationSocketEvent).eventType === 'string';
 
 class WebSocketService {
     private client: Client | null = null;
@@ -126,9 +138,27 @@ class WebSocketService {
 
     async subscribeConversation(
         conversationId: number,
-        callback: (payload: ChatSocketMessageEvent) => void
+        callback: (payload: ChatSocketMessageEvent | ChatConversationSocketEvent) => void
     ): Promise<WebSocketSubscription> {
-        return this.subscribe<ChatSocketMessageEvent>(getConversationTopic(conversationId), callback);
+        return this.subscribe<ChatSocketMessageEvent | ChatConversationSocketEvent>(
+            getConversationTopic(conversationId),
+            callback
+        );
+    }
+
+    async subscribeCustomerInbox(
+        callback: (payload: ChatSocketMessageEvent | ChatConversationSocketEvent) => void
+    ): Promise<WebSocketSubscription> {
+        return this.subscribe<ChatSocketMessageEvent | ChatConversationSocketEvent>(
+            WS_USER_CHAT_INBOX_QUEUE,
+            callback
+        );
+    }
+
+    async subscribeOperators(
+        callback: (payload: ChatConversationSocketEvent) => void
+    ): Promise<WebSocketSubscription> {
+        return this.subscribe<ChatConversationSocketEvent>(WS_CHAT_OPERATORS_TOPIC, callback);
     }
 
     async sendChatMessage(payload: ChatSocketMessagePayload): Promise<void> {

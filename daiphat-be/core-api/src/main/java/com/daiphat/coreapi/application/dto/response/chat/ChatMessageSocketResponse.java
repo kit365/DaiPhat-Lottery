@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.dto.response.chat;
 
+import com.daiphat.coreapi.domain.model.enums.chat.MessageSenderType;
 import com.daiphat.coreapi.domain.model.enums.chat.MessageType;
 import lombok.Builder;
 
@@ -13,6 +14,7 @@ public record ChatMessageSocketResponse(
         Long parentId,
         UUID senderId,
         String senderName,
+        MessageSenderType senderType,
         String content,
         MessageType type,
         LocalDateTime createdAt

@@ -14,7 +14,7 @@ import {
     ArrowBack as ArrowBackIcon,
     CheckCircleOutline as CheckIcon
 } from "@mui/icons-material";
-import { AppToast as toast } from "../../../client/utils/toast.util";
+import { AppToast as toast } from "../../../utils/toast.util";
 import { useForgotPassword } from "./hooks/use-forgot-password";
 import { PasswordRequirementList } from "../../components/auth/PasswordRequirementList";
 import { useAuthStore } from "../../../stores/useAuthStore";

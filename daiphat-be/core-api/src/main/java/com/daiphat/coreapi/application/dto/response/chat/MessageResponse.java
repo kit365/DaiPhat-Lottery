@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.dto.response.chat;
 
 import com.daiphat.coreapi.domain.model.enums.chat.MessageSenderType;
 import com.daiphat.coreapi.domain.model.enums.chat.MessageType;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 import java.math.BigDecimal;
@@ -23,7 +24,7 @@ public record MessageResponse(
         String fileName,
         boolean isEdited,
         LocalDateTime editedAt,
-        boolean isRead,
+        @JsonProperty("isRead") boolean isRead,
         int readerCount,
         boolean isDeleted,
         LocalDateTime deletedAt,

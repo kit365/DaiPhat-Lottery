@@ -16,8 +16,15 @@ public final class WebSocketDestinationConstants {
     public static final String OVERRUN_ALERTS_SEGMENT = "/overrun-alerts";
 
     public static final String CHAT_SEND_MAPPING = CHAT_SEGMENT + SEND_SEGMENT;
+    public static final String CHAT_INBOX_SEGMENT = "/inbox";
     public static final String CHAT_CONVERSATION_TOPIC_PREFIX =
             TOPIC_PREFIX + CHAT_SEGMENT + CONVERSATIONS_SEGMENT + "/";
+    public static final String CHAT_OPERATORS_TOPIC =
+            TOPIC_PREFIX + CHAT_SEGMENT + "/operators";
+    public static final String USER_CHAT_INBOX_DESTINATION =
+            QUEUE_PREFIX + CHAT_SEGMENT + CHAT_INBOX_SEGMENT;
+    public static final String USER_CHAT_INBOX_QUEUE =
+            USER_PREFIX + USER_CHAT_INBOX_DESTINATION;
     public static final String USER_OVERRUN_ALERTS_QUEUE =
             USER_PREFIX + QUEUE_PREFIX + OVERRUN_ALERTS_SEGMENT;
 
