@@ -69,6 +69,7 @@ public final class LotteryTicketSpecification {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.isNull(root.get(BaseEntity_.deletedAt)));
             predicates.add(cb.equal(root.get(LotteryTicketEntity_.status), LotteryTicketStatus.IN_STOCK));
+            predicates.add(cb.isTrue(root.get(LotteryTicketEntity_.active)));
             predicates.add(cb.greaterThan(root.get(LotteryTicketEntity_.quantity), 0));
             predicates.add(cb.isTrue(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.isActive)));
             predicates.add(cb.isNull(root.get(LotteryTicketEntity_.station).get(BaseEntity_.deletedAt)));

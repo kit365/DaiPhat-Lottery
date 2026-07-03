@@ -28,6 +28,8 @@ public interface LotteryTicketRepositoryPort {
 
     java.util.List<LotteryTicketModel> findAllByStationIdAndDrawDateAndStatuses(Long stationId, LocalDate drawDate, Collection<LotteryTicketStatus> statuses);
 
+    java.util.List<LotteryTicketModel> findAllByImportBatchLineId(Long importBatchLineId);
+
     void deleteById(Long id);
 
     boolean existsByUniqueFields(Long stationId, String numbers, LocalDate drawDate);

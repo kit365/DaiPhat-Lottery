@@ -8,12 +8,17 @@ import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface ImportBatchRepositoryPort {
 
     ImportBatchModel save(ImportBatchModel model);
 
     Optional<ImportBatchModel> findById(Long id);
+
+    boolean existsByImportedByAndStatus(UUID importedBy, ImportBatchStatus status);
+
+    Optional<ImportBatchModel> findByImportedByAndStatus(UUID importedBy, ImportBatchStatus status);
 
     Page<ImportBatchModel> findAll(
             Pageable pageable,

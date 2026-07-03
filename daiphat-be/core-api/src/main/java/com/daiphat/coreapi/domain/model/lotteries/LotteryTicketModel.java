@@ -22,6 +22,8 @@ public class LotteryTicketModel {
 
     private Long id;
     private Long stationId;
+    private Long importBatchId;
+    private Long importBatchLineId;
     private String ticketImg;
     private BigDecimal priceSnapshot;
     private String numbers;
@@ -32,6 +34,9 @@ public class LotteryTicketModel {
 
     @Builder.Default
     private LotteryTicketStatus status = LotteryTicketStatus.IN_STOCK;
+
+    @Builder.Default
+    private Boolean active = true;
 
     @Builder.Default
     private List<LotteryTicketSerialModel> serials = new ArrayList<>();
@@ -185,7 +190,9 @@ public class LotteryTicketModel {
 
 
     public boolean isEditableStatus() {
-        return this.status == LotteryTicketStatus.IN_STOCK || this.status == LotteryTicketStatus.ISSUER_FAULT;
+        return this.status == LotteryTicketStatus.IN_STOCK
+                || this.status == LotteryTicketStatus.ISSUER_FAULT
+                || this.status == LotteryTicketStatus.IMPORTING;
     }
 
     public boolean isSoftDeletableStatus() {
