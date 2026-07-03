@@ -3,7 +3,6 @@ package com.daiphat.coreapi.domain.model.lotteries;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -13,6 +12,8 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -23,22 +24,13 @@ import java.util.UUID;
 public class ImportBatchModel {
 
     private Long id;
-    private Long lotteryStationId;
-    private Long supplierLedgerId;
-    private ImportBatchType requestedBatchType;
-    private ImportBatchType batchType;
-    private String invoiceEvidenceUrl;
     private LocalDate drawDate;
-    private Integer declareQuantity;
-    @Builder.Default
-    private Integer totalQuantity = 0;
-    private BigDecimal importCost;
-    @Builder.Default
-    private BigDecimal totalCostValue = BigDecimal.ZERO;
     private UUID importedBy;
     private LocalDateTime importedAt;
     @Builder.Default
     private ImportBatchStatus status = ImportBatchStatus.DRAFT;
+    @Builder.Default
+    private List<ImportBatchLineModel> lines = new ArrayList<>();
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -49,34 +41,29 @@ public class ImportBatchModel {
         this.importedBy = operatorId;
         this.importedAt = LocalDateTime.now();
         this.status = ImportBatchStatus.DRAFT;
-        this.totalQuantity = 0;
-        this.totalCostValue = BigDecimal.ZERO;
-    }
-
-    public void applyResolvedBatchType(ImportBatchType resolvedBatchType) {
-        if (resolvedBatchType == null) {
-            throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_BATCH_TYPE);
-        }
-        this.batchType = resolvedBatchType;
-    }
-
-    public void validateInvoiceEvidence() {
-        if (!requiresInvoiceEvidence()) {
-            return;
-        }
-        if (invoiceEvidenceUrl == null || invoiceEvidenceUrl.isBlank()) {
-            throw new DomainException(ErrorCode.IMPORT_BATCH_INVOICE_REQUIRED);
+        if (lines == null) {
+            lines = new ArrayList<>();
         }
     }
 
-    public boolean requiresInvoiceEvidence() {
-        return batchType == ImportBatchType.NEW || batchType == ImportBatchType.LATE_IMPORT;
+    public int getTotalDeclareQuantity() {
+        return lines.stream()
+                .mapToInt(line -> line.getDeclareQuantity() != null ? line.getDeclareQuantity() : 0)
+                .sum();
     }
 
-    public void recalculateTotalCostValue() {
-        int quantity = totalQuantity != null ? totalQuantity : 0;
-        BigDecimal cost = importCost != null ? importCost : BigDecimal.ZERO;
-        this.totalCostValue = cost.multiply(BigDecimal.valueOf(quantity));
+    public BigDecimal getTotalDeclaredCostValue() {
+        return lines.stream()
+                .map(line -> {
+                    int qty = line.getDeclareQuantity() != null ? line.getDeclareQuantity() : 0;
+                    BigDecimal cost = line.getImportCost() != null ? line.getImportCost() : BigDecimal.ZERO;
+                    return cost.multiply(BigDecimal.valueOf(qty));
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public boolean areAllLinesImportComplete() {
+        return !lines.isEmpty() && lines.stream().allMatch(ImportBatchLineModel::isImportComplete);
     }
 
     public void markImported() {
