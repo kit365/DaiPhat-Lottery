@@ -6,7 +6,7 @@ import {
     GetMyTicketsParams,
     UpdateSupportTicketRequest,
 } from '../../types/support.type';
-import { AppToast as toast } from '../utils/toast.util';
+import { AppToast as toast } from '../../utils/toast.util';
 import { QUERY_KEYS } from '../../constants/queryKeys';
 
 const getErrorMessage = (error: any, fallback: string) =>

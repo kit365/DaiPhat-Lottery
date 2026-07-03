@@ -26,7 +26,7 @@ import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { Search } from "../../components/ui/Search";
 import { prefixAdmin } from "../../constants/routes";
-import { useBlogTagsPaged, useCreateBlogTag, useUpdateBlogTag, useDeleteBlogTag } from "../blog/hooks/useBlog";
+import { useBlogTagsPaged, useCreateBlogTag, useUpdateBlogTag, useDeleteBlogTag } from "../../hooks/useBlogTag";
 import { DATA_GRID_LOCALE_VN } from '../blog-category/configs/localeText.config';
 import { dataGridCardStyles, dataGridContainerStyles, dataGridStyles } from '../blog-category/configs/styles.config';
 import { DeleteIcon, EditIcon, ThreeDotsIcon, SortAscendingIcon, SortDescendingIcon, UnsortedIcon, EyeIcon } from "../../assets/icons";

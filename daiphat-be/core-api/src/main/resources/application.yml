@@ -50,6 +50,31 @@ daiphat:
     pending-payment-ttl-seconds: ${ORDER_PENDING_PAYMENT_TTL_SECONDS:600}
     pending-payment-expire-rate-ms: ${ORDER_PENDING_PAYMENT_EXPIRE_RATE_MS:60000}
     payment-failure-max-attempts: ${ORDER_PAYMENT_FAILURE_MAX_ATTEMPTS:3}
+  chat:
+    ai:
+      enabled: ${CHAT_AI_ENABLED:false}
+      confidence-threshold: ${CHAT_AI_CONFIDENCE_THRESHOLD:0.7}
+      bot-display-name: ${CHAT_AI_BOT_DISPLAY_NAME:Đại Phát AI Bot}
+      handoff-message: ${CHAT_AI_HANDOFF_MESSAGE:Đang kết nối bạn với nhân viên hỗ trợ. Vui lòng đợi trong giây lát.}
+      unavailable-message: ${CHAT_AI_UNAVAILABLE_MESSAGE:Hệ thống AI tạm thời không khả dụng. Đang chuyển cho nhân viên hỗ trợ.}
+      disabled-message: ${CHAT_AI_DISABLED_MESSAGE:Trợ lý AI hiện chưa được kích hoạt. Tin nhắn của bạn đã được ghi nhận.}
+      no-operator-online-message: ${CHAT_AI_NO_OPERATOR_MESSAGE:Hiện chưa có nhân viên trực tuyến. Chúng tôi sẽ phản hồi sớm nhất có thể.}
+      unhandled-intent-message: ${CHAT_AI_UNHANDLED_INTENT_MESSAGE:Dạ hệ thống đã ghi nhận yêu cầu của bạn, nhưng AI hiện tại chưa thể xử lý logic chi tiết này. Đang chuyển tiếp cho nhân viên...}
+      service:
+        classify-url: ${DAIPHAT_AI_CLASSIFY_URL:http://localhost:8000/v1/chat/classify}
+        connect-timeout-ms: ${DAIPHAT_AI_CONNECT_TIMEOUT_MS:3000}
+        read-timeout-ms: ${DAIPHAT_AI_READ_TIMEOUT_MS:5000}
+    conversation:
+      timeout:
+        # Chờ NV nhận (không ai claim) — chỉ gửi thông báo, không auto-close
+        waiting-operator-seconds: ${CHAT_WAITING_OPERATOR_TIMEOUT_SECONDS:86400}
+        # Khách im sau staff/bot trả lời
+        customer-silence-minutes: ${CHAT_CUSTOMER_SILENCE_TIMEOUT_MINUTES:30}
+        # Nhắc trước auto-close (vd. phút 25 nếu silence = 30)
+        auto-close-warning-lead-minutes: ${CHAT_AUTO_CLOSE_WARNING_LEAD_MINUTES:5}
+        # Khách chờ staff — chỉ SLA alert, không auto-close
+        staff-response-sla-minutes: ${CHAT_STAFF_RESPONSE_SLA_MINUTES:15}
+        scheduler-rate-ms: ${CHAT_TIMEOUT_SCHEDULER_RATE_MS:10000}
   lottery:
     crawler:
       user-agent: ${LOTTERY_CRAWLER_USER_AGENT:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36}
@@ -100,6 +125,10 @@ daiphat:
       - "order:view"
       - "order:create"
       - "order:edit"
+      - "chat:view"
+      - "chat:create"
+      - "chat:edit"
+      - "chat:manage"
     seed:
       admin:
         username: ${AUTH_SEED_ADMIN_USERNAME:}

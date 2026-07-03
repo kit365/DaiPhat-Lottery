@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from "../../../hooks/useAuth";
-import { AppToast as toast } from "../../../utils/toast.util";
+import { AppToast as toast } from "../../../../utils/toast.util";
 
 const DEFAULT_DOB = '';
 const DEFAULT_GENDER = '';

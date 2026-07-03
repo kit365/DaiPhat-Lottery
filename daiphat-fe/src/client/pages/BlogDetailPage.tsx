@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Header } from '../components/layout/header';
 import { RightSidebarBlog } from '../components/blog/BlogSidebar';
 import { usePublicPostBySlug, useRelatedPublicPosts, useIncrementPostView } from '../hooks/useClientBlog';
-import { useBlogDetail } from '../../admin/pages/blog/hooks/useBlog';
+import { useBlogDetail } from '../../admin/hooks/useBlog';
 
 export const BlogDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();

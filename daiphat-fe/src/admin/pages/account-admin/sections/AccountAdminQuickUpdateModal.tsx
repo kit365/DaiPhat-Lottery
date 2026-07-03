@@ -17,7 +17,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useAccountDetail, useUpdateAccount } from '../hooks/useAccountAdmin';
-import { useRoles } from '../../role/hooks/useRole';
+import { useRoles } from '../../../hooks/useRole';
 import { toast } from 'react-toastify';
 import { useUserStatuses } from '../../account-user/hooks/useAccountUser';
 

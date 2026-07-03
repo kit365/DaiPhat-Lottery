@@ -5,7 +5,7 @@ import { userService } from "../../admin/pages/authen/services/user.service";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { User } from "../../types/user.type";
 import { useNavigate } from "react-router-dom";
-import { AppToast } from "../utils/toast.util";
+import { AppToast } from "../../utils/toast.util";
 import { STORAGE_KEYS } from "../../constants/storage.constants";
 import Cookies from "js-cookie";
 import { RegisterRequest } from "../../admin/pages/authen/types/auth.type";
