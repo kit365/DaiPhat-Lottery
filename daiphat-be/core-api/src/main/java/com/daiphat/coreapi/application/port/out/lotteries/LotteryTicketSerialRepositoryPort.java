@@ -27,4 +27,6 @@ public interface LotteryTicketSerialRepositoryPort {
     List<LotteryTicketSerialModel> findByTicketIdAndStatuses(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
     List<LotteryTicketSerialModel> findAllByTicketId(Long ticketId);
+
+    long countByImportBatchLineId(Long importBatchLineId);
 }

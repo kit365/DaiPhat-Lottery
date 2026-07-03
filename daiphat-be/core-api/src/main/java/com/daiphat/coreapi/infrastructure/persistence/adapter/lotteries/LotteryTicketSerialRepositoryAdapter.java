@@ -88,4 +88,9 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
                 .map(lotteryTicketSerialPersistenceMapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public long countByImportBatchLineId(Long importBatchLineId) {
+        return lotteryTicketSerialRepository.countByImportBatchLineId(importBatchLineId);
+    }
 }
