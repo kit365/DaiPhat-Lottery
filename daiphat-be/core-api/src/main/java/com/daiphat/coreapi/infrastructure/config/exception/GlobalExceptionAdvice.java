@@ -13,6 +13,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 import java.util.Map;
@@ -70,6 +71,12 @@ public class GlobalExceptionAdvice {
         String message = resolveDataIntegrityMessage(exception);
 
         return ResponseEntity.status(errorCode.getStatus()).body(ApiResponse.error(message));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<?>> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        log.warn("Invalid request parameter: {}", exception.getMessage());
+        return ResponseEntity.badRequest().body(ApiResponse.error("Tham số yêu cầu không hợp lệ."));
     }
 
     @ExceptionHandler(Exception.class)
