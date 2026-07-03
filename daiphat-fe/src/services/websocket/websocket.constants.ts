@@ -16,6 +16,8 @@ export const WS_SEND_SEGMENT = '/send';
 export const WS_OVERRUN_ALERTS_SEGMENT = '/overrun-alerts';
 
 export const WS_CHAT_SEND_DESTINATION = `${WS_APP_PREFIX}${WS_CHAT_SEGMENT}${WS_SEND_SEGMENT}`;
+export const WS_CHAT_OPERATORS_TOPIC = `${WS_TOPIC_PREFIX}${WS_CHAT_SEGMENT}/operators`;
+export const WS_USER_CHAT_INBOX_QUEUE = `${WS_USER_PREFIX}${WS_QUEUE_PREFIX}${WS_CHAT_SEGMENT}/inbox`;
 export const WS_USER_OVERRUN_ALERTS_QUEUE = `${WS_USER_PREFIX}${WS_QUEUE_PREFIX}${WS_OVERRUN_ALERTS_SEGMENT}`;
 
 export const getConversationTopic = (conversationId: number): string =>

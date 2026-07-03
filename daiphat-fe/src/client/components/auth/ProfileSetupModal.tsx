@@ -7,7 +7,7 @@ import { X, Phone, Lock, CheckCircle2, Eye, EyeOff, ShieldCheck, User } from "lu
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { userService } from "../../../admin/pages/authen/services/user.service";
 import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
-import { AppToast as toast } from "../../utils/toast.util";
+import { AppToast as toast } from "../../../utils/toast.util";
 import { useQueryClient } from "@tanstack/react-query";
 import { Checkbox } from "../ui/Checkbox";
 

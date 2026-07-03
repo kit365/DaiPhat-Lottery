@@ -5,6 +5,7 @@ import lombok.Builder;
 @Builder
 public record InitConversationRequest(
         String title,
-        String content
+        String content,
+        Boolean requestStaff
 ) {
 }

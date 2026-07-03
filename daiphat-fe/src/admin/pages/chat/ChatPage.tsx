@@ -1,43 +1,45 @@
 import { useState } from 'react';
 import {
     Box,
-    Drawer,
-    IconButton,
-    Typography,
     Divider
 } from '@mui/material';
-import { Icon } from '@iconify/react';
 import { Title } from '../../components/ui/Title';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 
-import { ChatList, ChatWindow, ChatDetails } from './sections';
-import { useConversations } from './hooks/useChat';
-import { Conversation } from './types/chat';
+import { ChatList, ChatWindow, ChatDetails, ChatSidebar } from './sections';
+import { useConversations } from '../../hooks/useChat';
+import { useChatOperatorSocket } from '../../hooks/useChatSocket';
+import { Conversation } from '../../../types/chat.type';
+import { useAuthStore } from '../../../stores/useAuthStore';
+import { groupConversationsByCustomer } from './utils';
 
 export const ChatPage = () => {
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<'TABLE' | 'MESSENGER'>('TABLE');
+    const [selectedId, setSelectedId] = useState<number | null>(null);
     const [showDetails, setShowDetails] = useState(false);
+    const userId = useAuthStore((state) => state.user?.id);
     
     const { data: conversations = [] } = useConversations();
-    const activeConversation = conversations.find((c: Conversation) => c._id === selectedId);
-    const participant = activeConversation?.participants[0];
+    const groupedConversations = groupConversationsByCustomer(conversations);
+    useChatOperatorSocket({
+        currentUserId: userId,
+        onConversationRemoved: (conversationId) => {
+            setSelectedId((prev) => (prev === conversationId ? null : prev));
+        },
+    });
+    const activeConversation = groupedConversations.find((c: Conversation) => c.id === selectedId)
+        ?? conversations.find((c: Conversation) => c.id === selectedId);
 
-    const handleSelectConversation = (id: string) => {
+    const handleSelectConversation = (id: number) => {
         setSelectedId(id);
-        setDrawerOpen(true);
-        setShowDetails(false); // Hide details by default when opening a new chat
-    };
-
-    const handleCloseDrawer = () => {
-        setDrawerOpen(false);
-        // Do not unset selectedId so the exit animation works smoothly
+        setViewMode('MESSENGER');
+        setShowDetails(false);
     };
 
     return (
         <Box sx={{ pb: 5 }}>
-            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
-                <div className="mr-auto">
+            <Box sx={{ mb: 5, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', gap: 2 }}>
+                <Box sx={{ mr: 'auto' }}>
                     <Title title={"Hỗ trợ trực tuyến"} />
                     <Breadcrumb
                         items={[
@@ -45,51 +47,28 @@ export const ChatPage = () => {
                             { label: "Hỗ trợ trực tuyến" }
                         ]}
                     />
-                </div>
-            </div>
-
-            {/* Conversation List Table */}
-            <ChatList 
-                conversations={conversations} 
-                onSelectConversation={handleSelectConversation} 
-            />
-
-            {/* Chat Drawer */}
-            <Drawer
-                anchor="right"
-                open={drawerOpen}
-                onClose={handleCloseDrawer}
-                PaperProps={{
-                    sx: { 
-                        width: '100vw',
-                        maxWidth: 1200, // Very wide, almost full screen on most laptops
-                        overflow: 'hidden',
-                        display: 'flex',
-                        flexDirection: 'column'
-                    }
-                }}
-            >
-                {/* Drawer Header */}
-                <Box sx={{ 
-                    p: 2, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    borderBottom: '1px solid var(--palette-divider)',
-                    bgcolor: 'var(--palette-background-neutral)'
-                }}>
-                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                        Chi tiết hội thoại
-                    </Typography>
-                    <IconButton onClick={handleCloseDrawer} size="small">
-                        <Icon icon="eva:close-fill" width={24} />
-                    </IconButton>
                 </Box>
+            </Box>
 
-                {/* Drawer Content */}
-                {selectedId && (
-                    <Box sx={{ flexGrow: 1, display: 'flex', overflow: 'hidden' }}>
-                        {/* Chat Window */}
+            <ChatList 
+                conversations={groupedConversations} 
+                onSelectConversation={handleSelectConversation}
+                onToggleMode={() => setViewMode(viewMode === 'TABLE' ? 'MESSENGER' : 'TABLE')}
+                viewMode={viewMode}
+                messengerContent={(filteredConversations) => (
+                    <Box sx={{ 
+                        height: 'calc(100vh - 220px)',
+                        minHeight: 600,
+                        display: 'flex', 
+                        overflow: 'hidden',
+                        bgcolor: 'var(--palette-background-paper)'
+                    }}>
+                        <ChatSidebar 
+                            conversations={filteredConversations}
+                            selectedId={selectedId} 
+                            onSelect={setSelectedId} 
+                        />
+
                         <Box sx={{ 
                             flexGrow: 1, 
                             display: 'flex', 
@@ -106,16 +85,14 @@ export const ChatPage = () => {
                         {showDetails && (
                             <>
                                 <Divider orientation="vertical" flexItem />
-
-                                {/* Chat Details (Customer Info) */}
                                 <Box sx={{ width: 340, flexShrink: 0, bgcolor: 'white', overflowY: 'auto' }}>
-                                    <ChatDetails participant={participant} />
+                                    <ChatDetails conversation={activeConversation} />
                                 </Box>
                             </>
                         )}
                     </Box>
                 )}
-            </Drawer>
+            />
         </Box>
     );
 };

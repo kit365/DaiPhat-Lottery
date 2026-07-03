@@ -20,7 +20,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { Skeleton } from "../../../components/ui/Skeleton";
-import { AppToast as toast } from "../../utils/toast.util";
+import { AppToast as toast } from "../../../utils/toast.util";
 
 const navItems = [
   { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },

@@ -2,10 +2,8 @@ package com.daiphat.coreapi.infrastructure.persistence.mapper.chat;
 
 import com.daiphat.coreapi.domain.model.chat.ConversationModel;
 import com.daiphat.coreapi.domain.model.chat.MessageModel;
-import com.daiphat.coreapi.domain.model.chat.ParticipationModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.chat.ConversationEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.chat.MessageEntity;
-import com.daiphat.coreapi.infrastructure.persistence.entity.chat.ParticipationEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -17,10 +15,14 @@ import java.util.UUID;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface ChatPersistenceMapper {
 
+    @Mapping(target = "customerId", source = "customer.id")
+    @Mapping(target = "assignedOperatorId", source = "assignedOperator.id")
     ConversationModel toConversationDomain(ConversationEntity entity);
 
     List<ConversationModel> toConversationDomains(List<ConversationEntity> entities);
 
+    @Mapping(target = "customer", source = "customerId")
+    @Mapping(target = "assignedOperator", source = "assignedOperatorId")
     ConversationEntity toConversationEntity(ConversationModel model);
 
     @Mapping(target = "conversationId", source = "conversation.id")
@@ -34,16 +36,6 @@ public interface ChatPersistenceMapper {
     @Mapping(target = "parent", source = "parentId")
     @Mapping(target = "sender", source = "senderId")
     MessageEntity toMessageEntity(MessageModel model);
-
-    @Mapping(target = "conversationId", source = "conversation.id")
-    @Mapping(target = "userId", source = "user.id")
-    ParticipationModel toParticipationDomain(ParticipationEntity entity);
-
-    List<ParticipationModel> toParticipationDomains(List<ParticipationEntity> entities);
-
-    @Mapping(target = "conversation", source = "conversationId")
-    @Mapping(target = "user", source = "userId")
-    ParticipationEntity toParticipationEntity(ParticipationModel model);
 
     default ConversationEntity mapConversationId(Long id) {
         if (id == null) {

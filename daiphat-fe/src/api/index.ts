@@ -1,7 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
 import { useAuthStore } from "../stores/useAuthStore"
 import { API_PREFIX, API_VERSION } from "./api.constants"
-import { AppToast } from "../client/utils/toast.util"
+import { AppToast } from "../utils/toast.util"
 import Cookies from "js-cookie"
 import { STORAGE_KEYS } from "../constants/storage.constants"
 

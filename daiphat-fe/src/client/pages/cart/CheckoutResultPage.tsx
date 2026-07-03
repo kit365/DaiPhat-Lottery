@@ -6,7 +6,7 @@ import { Header } from '../../components/layout/header';
 import { useGetMyOrderDetail } from '../../hooks/useOrder';
 import { useCancelPayment, useProcessPayment } from '../../hooks/useTransaction';
 import { PaymentGateway } from '../../../types/transaction.type';
-import { AppToast } from '../../utils/toast.util';
+import { AppToast } from '../../../utils/toast.util';
 
 type CheckoutFlow = 'return' | 'cancel';
 

@@ -2,15 +2,41 @@ CREATE TABLE IF NOT EXISTS conversations (
     id BIGSERIAL PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
     status VARCHAR(30) NOT NULL DEFAULT 'OPEN',
+    customer_id UUID NOT NULL,
+    assigned_operator_id UUID,
+    last_assigned_operator_id UUID,
+    customer_last_read_at TIMESTAMP,
+    operator_last_read_at TIMESTAMP,
+    last_message_from VARCHAR(20),
+    last_message_at TIMESTAMP,
+    closed_by UUID,
+    close_reason VARCHAR(30),
+    auto_close_warning_sent_at TIMESTAMP,
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
     created_by VARCHAR(255),
     last_modified_by VARCHAR(255),
-    deleted_at TIMESTAMP
+    deleted_at TIMESTAMP,
+    CONSTRAINT fk_conversations_customer
+        FOREIGN KEY (customer_id) REFERENCES users (id),
+    CONSTRAINT fk_conversations_assigned_operator
+        FOREIGN KEY (assigned_operator_id) REFERENCES users (id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_conversations_status
     ON conversations (status);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_customer_id
+    ON conversations (customer_id);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_assigned_operator_id
+    ON conversations (assigned_operator_id);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at
+    ON conversations (last_message_at);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_customer_created
+    ON conversations (customer_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS messages (
     id BIGSERIAL PRIMARY KEY,
@@ -53,31 +79,5 @@ CREATE INDEX IF NOT EXISTS idx_messages_sender_id
 CREATE INDEX IF NOT EXISTS idx_messages_parent_id
     ON messages (parent_id);
 
-CREATE TABLE IF NOT EXISTS participations (
-    id BIGSERIAL PRIMARY KEY,
-    conversation_id BIGINT NOT NULL,
-    user_id UUID NOT NULL,
-    role VARCHAR(20) NOT NULL,
-    last_read_at TIMESTAMP,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    assignee_type VARCHAR(30),
-    joined_at TIMESTAMP,
-    left_at TIMESTAMP,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP,
-    created_by VARCHAR(255),
-    last_modified_by VARCHAR(255),
-    deleted_at TIMESTAMP,
-    CONSTRAINT fk_participations_conversation
-        FOREIGN KEY (conversation_id) REFERENCES conversations (id),
-    CONSTRAINT fk_participations_user
-        FOREIGN KEY (user_id) REFERENCES users (id),
-    CONSTRAINT uk_participations_conversation_user_role
-        UNIQUE (conversation_id, user_id, role)
-);
-
-CREATE INDEX IF NOT EXISTS idx_participations_conversation_id
-    ON participations (conversation_id);
-
-CREATE INDEX IF NOT EXISTS idx_participations_user_id
-    ON participations (user_id);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_created
+    ON messages (conversation_id, created_at ASC, id ASC);

@@ -4,20 +4,31 @@ import {
     Avatar,
     Stack,
     Divider,
-    IconButton,
-    Chip,
     Button,
     Grid,
+    Chip,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
-import { Participant } from '../types/chat';
+import { Conversation } from '../../../../types/chat.type';
+import { getConversationDisplayTitle, getAssigneeDisplayLabel, getConversationAvatarLetter } from '../utils';
+import { useAuthStore } from '../../../../stores/useAuthStore';
 
 interface ChatDetailsProps {
-    participant?: Participant;
+    conversation?: Conversation;
 }
 
-export const ChatDetails = ({ participant }: ChatDetailsProps) => {
-    if (!participant) return null;
+const STATUS_LABELS: Record<string, string> = {
+    OPEN: 'Mở',
+    ACTIVE: 'Đang xử lý',
+    WAITING_FOR_OPERATOR: 'Chờ nhân viên',
+    WAITING_FOR_CUSTOMER: 'Chờ khách hàng',
+    CLOSED: 'Đã đóng',
+};
+
+export const ChatDetails = ({ conversation }: ChatDetailsProps) => {
+    const currentUserId = useAuthStore((state) => state.user?.id);
+
+    if (!conversation) return null;
 
     return (
         <Box
@@ -28,117 +39,96 @@ export const ChatDetails = ({ participant }: ChatDetailsProps) => {
                 height: '100%'
             }}
         >
-            {/* Thông tin khách hàng */}
             <Box sx={{ p: 3, textAlign: 'center' }}>
                 <Avatar
-                    src={participant.avatar}
                     sx={{ width: 80, height: 80, mx: 'auto', mb: 1.5, fontSize: '1.5rem', fontWeight: 800, border: '2px solid #eee' }}
                 >
-                    {participant.fullName?.[0]}
+                    {getConversationAvatarLetter(conversation)}
                 </Avatar>
                 
                 <Stack direction="row" alignItems="center" justifyContent="center" spacing={1} sx={{ mb: 0.5 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        {participant.fullName}
+                        {getConversationDisplayTitle(conversation)}
                     </Typography>
-                    <Box sx={{ bgcolor: '#fff0f0', color: '#df1b1c', px: 0.75, py: 0.25, borderRadius: 1, fontSize: '0.65rem', fontWeight: 700 }}>
-                        VIP
-                    </Box>
                 </Stack>
 
-                <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mb: 2 }}>
-                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#22c55e' }} />
-                    Đang online
-                </Typography>
+                <Chip
+                    label={STATUS_LABELS[conversation.status] || conversation.status}
+                    size="small"
+                    sx={{ mb: 2 }}
+                />
 
-                <Box sx={{ textAlign: 'left', bgcolor: '#f8f9fa', p: 1.5, borderRadius: 2, mb: 2 }}>
+                <Box sx={{ textAlign: 'left', bgcolor: 'var(--palette-background-neutral)', p: 1.5, borderRadius: 2, mb: 2 }}>
                     <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
-                        <Typography variant="body2" color="text.secondary">SĐT:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{participant.phone || '0987654321'}</Typography>
+                        <Typography variant="body2" color="text.secondary">Mã KH:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{conversation.customerId}</Typography>
                     </Stack>
                     <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
-                        <Typography variant="body2" color="text.secondary">Tổng đơn:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>15 đơn</Typography>
+                        <Typography variant="body2" color="text.secondary">Nhân viên:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {getAssigneeDisplayLabel(conversation, currentUserId)}
+                        </Typography>
                     </Stack>
                     <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2" color="text.secondary">Tổng chi:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#df1b1c' }}>1,500,000đ</Typography>
+                        <Typography variant="body2" color="text.secondary">Tin chưa đọc:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'var(--palette-primary-main)' }}>
+                            {conversation.unreadCount ?? 0}
+                        </Typography>
                     </Stack>
                 </Box>
                 
-                <Button fullWidth variant="outlined" sx={{ color: '#df1b1c', borderColor: '#df1b1c', '&:hover': { borderColor: '#c11718', bgcolor: '#fff0f0' } }}>
+                <Button fullWidth variant="outlined" sx={{ color: 'var(--palette-primary-main)', borderColor: 'var(--palette-primary-main)', '&:hover': { borderColor: 'var(--palette-primary-dark)', bgcolor: '#fff0f0' } }}>
                     Xem chi tiết khách hàng
                 </Button>
             </Box>
 
             <Divider />
 
-            {/* Timeline hội thoại */}
             <Box sx={{ p: 3 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2 }}>
                     Timeline hội thoại
                 </Typography>
-                <Stack spacing={2} sx={{ position: 'relative', '&::before': { content: '""', position: 'absolute', left: 15, top: 10, bottom: 10, width: 2, bgcolor: '#eee' } }}>
+                <Stack spacing={2} sx={{ position: 'relative', '&::before': { content: '""', position: 'absolute', left: 15, top: 10, bottom: 10, width: 2, bgcolor: 'var(--palette-divider)' } }}>
                     <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ position: 'relative', zIndex: 1 }}>
                         <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: '#e0f2fe', color: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Icon icon="solar:user-speak-bold" />
                         </Box>
                         <Box>
                             <Typography variant="body2" sx={{ fontWeight: 600 }}>Khách bắt đầu chat</Typography>
-                            <Typography variant="caption" color="text.secondary">09:00 AM</Typography>
+                            <Typography variant="caption" color="text.secondary">—</Typography>
                         </Box>
                     </Stack>
-                    <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ position: 'relative', zIndex: 1 }}>
-                        <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: '#dcfce7', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Icon icon="solar:smart-home-bold" />
-                        </Box>
-                        <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>AI Bot tiếp nhận</Typography>
-                            <Typography variant="caption" color="text.secondary">09:00 AM</Typography>
-                        </Box>
-                    </Stack>
-                    <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ position: 'relative', zIndex: 1 }}>
-                        <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: '#ffedd5', color: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Icon icon="solar:user-circle-bold" />
-                        </Box>
-                        <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Chờ nhân viên</Typography>
-                            <Typography variant="caption" color="text.secondary">09:05 AM</Typography>
-                        </Box>
-                    </Stack>
+                    {conversation.assignedOperatorId && (
+                        <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ position: 'relative', zIndex: 1 }}>
+                            <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: '#dcfce7', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Icon icon="solar:user-circle-bold" />
+                            </Box>
+                            <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>Nhân viên đã nhận</Typography>
+                                <Typography variant="caption" color="text.secondary">—</Typography>
+                            </Box>
+                        </Stack>
+                    )}
                 </Stack>
             </Box>
 
             <Divider />
 
-            {/* Thao tác nhanh */}
             <Box sx={{ p: 3, flexGrow: 1 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2 }}>
                     Thao tác nhanh
                 </Typography>
                 <Grid container spacing={1.5}>
                     <Grid item xs={6}>
-                        <Button fullWidth variant="outlined" sx={{ color: 'text.primary', borderColor: '#eee', justifyContent: 'flex-start', px: 1.5 }}>
+                        <Button fullWidth variant="outlined" sx={{ color: 'text.primary', borderColor: 'var(--palette-divider)', justifyContent: 'flex-start', px: 1.5 }}>
                             <Icon icon="solar:chat-line-bold" width={18} style={{ marginRight: 8, color: '#6366f1' }} />
                             <Typography variant="caption" sx={{ fontWeight: 600 }}>Trả lời mẫu</Typography>
                         </Button>
                     </Grid>
                     <Grid item xs={6}>
-                        <Button fullWidth variant="outlined" sx={{ color: 'text.primary', borderColor: '#eee', justifyContent: 'flex-start', px: 1.5 }}>
+                        <Button fullWidth variant="outlined" sx={{ color: 'text.primary', borderColor: 'var(--palette-divider)', justifyContent: 'flex-start', px: 1.5 }}>
                             <Icon icon="solar:magnifer-bold" width={18} style={{ marginRight: 8, color: '#f59e0b' }} />
                             <Typography variant="caption" sx={{ fontWeight: 600 }}>Tra cứu vé</Typography>
-                        </Button>
-                    </Grid>
-                    <Grid item xs={6}>
-                        <Button fullWidth variant="outlined" sx={{ color: 'text.primary', borderColor: '#eee', justifyContent: 'flex-start', px: 1.5 }}>
-                            <Icon icon="solar:box-bold" width={18} style={{ marginRight: 8, color: '#10b981' }} />
-                            <Typography variant="caption" sx={{ fontWeight: 600 }}>Tra đơn hàng</Typography>
-                        </Button>
-                    </Grid>
-                    <Grid item xs={6}>
-                        <Button fullWidth variant="outlined" sx={{ color: 'text.primary', borderColor: '#eee', justifyContent: 'flex-start', px: 1.5 }}>
-                            <Icon icon="solar:ticket-sale-bold" width={18} style={{ marginRight: 8, color: '#ec4899' }} />
-                            <Typography variant="caption" sx={{ fontWeight: 600 }}>Mã giảm giá</Typography>
                         </Button>
                     </Grid>
                 </Grid>

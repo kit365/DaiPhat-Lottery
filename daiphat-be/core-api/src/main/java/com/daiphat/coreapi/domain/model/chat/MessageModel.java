@@ -59,6 +59,18 @@ public class MessageModel {
         normalizeFields();
     }
 
+    public static MessageModel systemDivider(Long conversationId, String content) {
+        MessageModel message = MessageModel.builder()
+                .conversationId(conversationId)
+                .senderType(MessageSenderType.AI_SYSTEM)
+                .content(content)
+                .type(MessageType.SYSTEM)
+                .build();
+        message.initializeForCreate();
+        message.validate();
+        return message;
+    }
+
     public void markEdited(String nextContent, String nextFileUrl, String nextFileName) {
         content = normalize(nextContent);
         fileUrl = normalize(nextFileUrl);

@@ -27,8 +27,7 @@ public class ChatOperatorPresenceAdapter implements ChatOperatorPresencePort {
                 .map(userLookupServicePort::findByUsername)
                 .flatMap(Optional::stream)
                 .filter(this::isEligibleOperator)
-                .sorted(Comparator.comparing(UserModel::getUsername, String.CASE_INSENSITIVE_ORDER))
-                .findFirst();
+                .min(Comparator.comparing(UserModel::getUsername, String.CASE_INSENSITIVE_ORDER));
     }
 
     private boolean isEligibleOperator(UserModel user) {

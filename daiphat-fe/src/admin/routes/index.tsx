@@ -53,8 +53,6 @@ const TicketServiceCategoryCreatePage = lazy(() => import("../pages/ticket-servi
 const TicketServiceCategoryEditPage = lazy(() => import("../pages/ticket-service-category/TicketServiceCategoryEditPage").then(m => ({ default: m.TicketServiceCategoryEditPage })));
 const TicketServiceCategoryDetailPage = lazy(() => import("../pages/ticket-service-category/TicketServiceCategoryDetailPage").then(m => ({ default: m.TicketServiceCategoryDetailPage })));
 const RoleListPage = lazy(() => import("../pages/role/RoleListPage").then(m => ({ default: m.RoleListPage })));
-const RoleCreatePage = lazy(() => import("../pages/role/RoleCreatePage").then(m => ({ default: m.RoleCreatePage })));
-const RoleEditPage = lazy(() => import("../pages/role/RoleEditPage").then(m => ({ default: m.RoleEditPage })));
 const AccountAdminListPage = lazy(() => import("../pages/account-admin/AccountAdminListPage").then(m => ({ default: m.AccountAdminListPage })));
 const AccountAdminCreatePage = lazy(() => import("../pages/account-admin/AccountAdminCreatePage").then(m => ({ default: m.AccountAdminCreatePage })));
 const AccountAdminEditPage = lazy(() => import("../pages/account-admin/AccountAdminEditPage").then(m => ({ default: m.AccountAdminEditPage })));
@@ -143,8 +141,6 @@ export const AdminRoutes = [
     { path: "ticket/attribute/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.EDIT}><TicketAttributeEditPage /></PermissionGuard> },
     { path: "ticket/attribute/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketAttributeDetailPage /></PermissionGuard> },
     { path: "role/list", element: <PermissionGuard permission={PERMISSIONS.ROLE.VIEW}><RoleListPage /></PermissionGuard> },
-    { path: "role/create", element: <PermissionGuard permission={PERMISSIONS.ROLE.CREATE}><RoleCreatePage /></PermissionGuard> },
-    { path: "role/edit/:id", element: <PermissionGuard permission={PERMISSIONS.ROLE.EDIT}><RoleEditPage /></PermissionGuard> },
     { path: "account-admin/list", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.VIEW}><AccountAdminListPage /></PermissionGuard> },
     { path: "account-admin/create", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.CREATE}><AccountAdminCreatePage /></PermissionGuard> },
     { path: "account-admin/edit/:id", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.EDIT}><AccountAdminEditPage /></PermissionGuard> },

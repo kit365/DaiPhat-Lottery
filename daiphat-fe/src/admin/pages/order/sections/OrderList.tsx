@@ -433,7 +433,7 @@ export const OrderList = () => {
                                                         onClick={(e) => handleOpenMenu(e, row.id)}
                                                         sx={{
                                                             color: 'var(--palette-text-primary)',
-                                                            bgcolor: Boolean(anchorEl[row.id]) ? 'var(--palette-action-hover)' : 'transparent',
+                                                            bgcolor: anchorEl[row.id] ? 'var(--palette-action-hover)' : 'transparent',
                                                             '&:hover': {
                                                                 bgcolor: 'rgba(var(--palette-action-activeChannel) / var(--palette-action-hoverOpacity))',
                                                             }
