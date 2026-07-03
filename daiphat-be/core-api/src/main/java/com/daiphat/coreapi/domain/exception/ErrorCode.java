@@ -195,6 +195,16 @@ public enum ErrorCode {
     LOTTERY_RESULT_SOURCE_INVALID("LT_062", "Nguồn dữ liệu kết quả chưa đủ sạch để đồng bộ.", HttpStatus.BAD_REQUEST),
     LOTTERY_RESULT_RESYNC_NOT_ALLOWED("LT_063", "Chỉ có thể đồng bộ lại kết quả đang thiếu hoặc lỗi.", HttpStatus.CONFLICT),
 
+    IMPORT_BATCH_NOT_FOUND("LT_064", "Phiếu nhập lô vé không tồn tại.", HttpStatus.NOT_FOUND),
+    IMPORT_BATCH_CUTOFF_PASSED("LT_065", "Đã quá giờ chốt nhập lô vé cho kỳ quay hôm nay.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_INVOICE_REQUIRED("LT_066", "Biên lai nhập lô là bắt buộc cho loại lô này.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_INVALID_BATCH_TYPE("LT_067", "Loại lô nhập không hợp lệ.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_DECLARE_QUANTITY_INVALID("LT_068", "Số lượng khai báo phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_DRAW_DATE_INVALID("LT_069", "Ngày quay không khớp lịch quay của nhà đài.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_STATION_INACTIVE("LT_070", "Nhà đài chưa được kích hoạt.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_INVALID_STATUS("LT_071", "Trạng thái phiếu nhập lô không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_IMPORT_COST_INVALID("LT_072", "Giá vốn nhập lô phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
+
     // Street Agent Profile Errors
     STREET_AGENT_PROFILE_NOT_FOUND("SAG_001", "Hồ sơ đại lý bán dạo không tồn tại.", HttpStatus.NOT_FOUND),
     STREET_AGENT_PROFILE_PHONE_EXISTED("SAG_002", "Số điện thoại đã được sử dụng cho hồ sơ khác.", HttpStatus.BAD_REQUEST),

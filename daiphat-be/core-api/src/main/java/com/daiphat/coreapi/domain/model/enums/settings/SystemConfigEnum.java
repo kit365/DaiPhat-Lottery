@@ -30,6 +30,12 @@ public enum SystemConfigEnum {
             "15:00",
             "Giờ chốt trả vé cho đại lý"
     ),
+    IMPORT_LATE_WINDOW_START(
+            ConfigType.ORDER_SETTING,
+            DataType.TIME,
+            "14:30",
+            "Giờ bắt đầu khung nhập muộn lô vé"
+    ),
     STAFF_INCIDENT_CUTOFF(
             ConfigType.REFUND_SETTING,
             DataType.TIME,
