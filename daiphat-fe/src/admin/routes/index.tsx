@@ -93,6 +93,8 @@ const SupportTicketListPage = lazy(() => import("../pages/support-ticket/Support
 const SupportTicketDetailPage = lazy(() => import("../pages/support-ticket/SupportTicketDetailPage").then(m => ({ default: m.SupportTicketDetailPage })));
 const RefundListPage = lazy(() => import("../pages/refund/RefundListPage").then(m => ({ default: m.RefundListPage })));
 const RefundDetailPage = lazy(() => import("../pages/refund/RefundDetailPage").then(m => ({ default: m.RefundDetailPage })));
+const ImportBatchCreatePage = lazy(() => import("../pages/import-batch/ImportBatchCreatePage").then(m => ({ default: m.ImportBatchCreatePage })));
+const ImportBatchDetailPage = lazy(() => import("../pages/import-batch/ImportBatchDetailPage").then(m => ({ default: m.ImportBatchDetailPage })));
 
 export const AdminRoutes = [
     { index: true, element: <Navigate to="/admin/dashboard" replace /> },
@@ -107,6 +109,8 @@ export const AdminRoutes = [
     { path: "dashboard/statistics/staff", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.VIEW}><StaffStatisticsPage /></PermissionGuard> },
     { path: "ticket/list", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketListPage /></PermissionGuard> },
     { path: "ticket/create", element: <PermissionGuard permission={PERMISSIONS.TICKET.CREATE}><TicketCreatePage /></PermissionGuard> },
+    { path: "import-batch/create", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.CREATE}><ImportBatchCreatePage /></PermissionGuard> },
+    { path: "import-batch/detail/:id", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.VIEW}><ImportBatchDetailPage /></PermissionGuard> },
     { path: "ticket/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.EDIT}><TicketEditPage /></PermissionGuard> },
     { path: "ticket/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketDetailPage /></PermissionGuard> },
     { path: "ticket/expired", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><ExpiredTicketListPage /></PermissionGuard> },

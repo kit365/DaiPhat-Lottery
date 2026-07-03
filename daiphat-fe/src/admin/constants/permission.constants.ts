@@ -49,6 +49,10 @@ export const PERMISSIONS = {
         EDIT: "ticket:edit",
         DELETE: "ticket:delete",
     },
+    IMPORT_BATCH: {
+        VIEW: "importBatch:view",
+        CREATE: "importBatch:create",
+    },
     PROVIDER: {
         VIEW: "provider:view",
         CREATE: "provider:create",

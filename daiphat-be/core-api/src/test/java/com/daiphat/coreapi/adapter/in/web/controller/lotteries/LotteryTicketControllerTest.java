@@ -1092,6 +1092,7 @@ class LotteryTicketControllerTest {
                 .numbers("999999")
                 .drawDate(LocalDate.of(2026, 6, 20))
                 .batchCode("BATCH-NEW")
+                .importBatchLineId(1L)
                 .build();
 
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1136,6 +1137,7 @@ class LotteryTicketControllerTest {
                 .numbers("111222")
                 .drawDate(LocalDate.of(2026, 6, 25))
                 .batchCode("BATCH-OP")
+                .importBatchLineId(1L)
                 .build();
 
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1173,6 +1175,7 @@ class LotteryTicketControllerTest {
                 .numbers("333777")
                 .drawDate(LocalDate.of(2026, 7, 1))
                 .batchCode("BATCH-NO-IMG")
+                .importBatchLineId(1L)
                 .build();
 
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1596,6 +1599,7 @@ class LotteryTicketControllerTest {
                 .numbers("111222")
                 .drawDate(LocalDate.of(2026, 7, 1))
                 .batchCode("BATCH-MEMBER")
+                .importBatchLineId(1L)
                 .build();
 
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
