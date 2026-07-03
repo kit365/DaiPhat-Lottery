@@ -7,14 +7,19 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchRe
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchClassificationPreviewRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchServicePort;
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -22,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/import-batches")
@@ -31,7 +37,6 @@ public class ImportBatchController {
 
     private static final String DEFAULT_PAGE = "1";
     private static final String DEFAULT_LIMIT = "10";
-    private static final String ID_PATH = "/{id}";
 
     private final ImportBatchServicePort importBatchServicePort;
 
@@ -46,7 +51,23 @@ public class ImportBatchController {
         );
     }
 
-    @GetMapping(ID_PATH)
+    @GetMapping("/active-draft")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<ImportBatchResponse>> getActiveDraft(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        if (principal == null || principal.getId() == null) {
+            throw new DomainException(ErrorCode.UNAUTHORIZED);
+        }
+
+        Optional<ImportBatchResponse> draft = importBatchServicePort.getActiveDraft(principal.getId());
+        if (draft.isPresent()) {
+            return ResponseEntity.ok(ApiResponse.success(null, draft.get()));
+        }
+
+        return ResponseEntity.ok(ApiResponse.success("No active draft import batch found.", null));
+    }
+
+    @GetMapping("/{id:\\d+}")
     @PreAuthorize("hasAnyAuthority('importBatch:view')")
     public ApiResponse<ImportBatchResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(null, importBatchServicePort.getById(id));
@@ -75,14 +96,24 @@ public class ImportBatchController {
         return ApiResponse.success(null, importBatchServicePort.getBatchTypeOptions());
     }
 
+    @GetMapping("/eligible-stations")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<List<ImportBatchEligibleStationResponse>> getEligibleStations(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate,
+            @RequestParam ImportBatchImportMode importMode) {
+        return ApiResponse.success(null, importBatchServicePort.getEligibleStations(drawDate, importMode));
+    }
+
     @GetMapping("/classify-preview")
     @PreAuthorize("hasAnyAuthority('importBatch:create')")
     public ApiResponse<ImportBatchClassificationPreviewResponse> previewClassification(
+            @RequestParam Long lotteryStationId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate,
-            @RequestParam ImportBatchType requestedBatchType) {
+            @RequestParam ImportBatchImportMode importMode) {
         ImportBatchClassificationPreviewRequest request = ImportBatchClassificationPreviewRequest.builder()
+                .lotteryStationId(lotteryStationId)
                 .drawDate(drawDate)
-                .requestedBatchType(requestedBatchType)
+                .importMode(importMode)
                 .build();
         return ApiResponse.success(null, importBatchServicePort.previewClassification(request));
     }
