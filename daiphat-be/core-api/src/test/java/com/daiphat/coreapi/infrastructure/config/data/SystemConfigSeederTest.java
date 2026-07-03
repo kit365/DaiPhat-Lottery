@@ -49,6 +49,7 @@ class SystemConfigSeederTest {
                         "CUSTOMER_CANCEL_CUTOFF",
                         "ORDER_PREPARE_SLA_MIN",
                         "VENDOR_RETURN_CUTOFF",
+                        "IMPORT_LATE_WINDOW_START",
                         "STAFF_INCIDENT_CUTOFF",
                         "INVALID_INFO_EXPIRED_DAYS"
                 );
