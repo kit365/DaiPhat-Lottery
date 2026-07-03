@@ -5,11 +5,9 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum ImportBatchType {
-    NEW("Nhập mới"),
-    SUPPLEMENTARY("Nhập bổ sung"),
-    ADJUSTMENT("Bổ sung sau quay"),
-    LATE_IMPORT("Nhập trễ");
+public enum ImportBatchImportMode {
+    IN_DAY("Nhập vé trong ngày"),
+    POST_DRAW_SUPPLEMENT("Nhập vé bổ sung");
 
     private final String label;
 }

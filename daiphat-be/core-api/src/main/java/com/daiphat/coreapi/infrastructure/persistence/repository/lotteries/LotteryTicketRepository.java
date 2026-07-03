@@ -41,6 +41,8 @@ public interface LotteryTicketRepository
             Collection<LotteryTicketStatus> statuses
     );
 
+    List<LotteryTicketEntity> findAllByImportBatchLine_IdAndDeletedAtIsNull(Long importBatchLineId);
+
     @Query("""
             select coalesce(sum(t.quantity), 0)
             from LotteryTicketEntity t

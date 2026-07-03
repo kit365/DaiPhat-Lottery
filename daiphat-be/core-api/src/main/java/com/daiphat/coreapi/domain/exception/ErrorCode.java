@@ -204,6 +204,10 @@ public enum ErrorCode {
     IMPORT_BATCH_STATION_INACTIVE("LT_070", "Nhà đài chưa được kích hoạt.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_INVALID_STATUS("LT_071", "Trạng thái phiếu nhập lô không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_IMPORT_COST_INVALID("LT_072", "Giá vốn nhập lô phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_DRAFT_ALREADY_EXISTS("LT_073", "Bạn đang có phiếu nhập lô chưa hoàn thành. Vui lòng tiếp tục phiếu hiện tại.", HttpStatus.CONFLICT),
+    IMPORT_BATCH_DUPLICATE_STATION("LT_076", "Mỗi nhà đài chỉ được khai báo một lần trong cùng phiếu nhập lô.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_IMPORT_BATCH_REQUIRED("LT_074", "Vé số phải được tạo thông qua phiếu nhập lô.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_IMPORT_BATCH_MISMATCH("LT_075", "Thông tin vé số không khớp với phiếu nhập lô.", HttpStatus.BAD_REQUEST),
 
     // Street Agent Profile Errors
     STREET_AGENT_PROFILE_NOT_FOUND("SAG_001", "Hồ sơ đại lý bán dạo không tồn tại.", HttpStatus.NOT_FOUND),

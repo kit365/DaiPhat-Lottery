@@ -1,6 +1,8 @@
 package com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries;
 
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ImportBatchEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ImportBatchLineEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
@@ -15,6 +17,8 @@ import java.util.UUID;
 public interface LotteryTicketPersistenceMapper {
 
     @Mapping(target = "station", source = "stationId", qualifiedByName = "stationIdToStationEntity")
+    @Mapping(target = "importBatch", source = "importBatchId", qualifiedByName = "importBatchIdToEntity")
+    @Mapping(target = "importBatchLine", source = "importBatchLineId", qualifiedByName = "importBatchLineIdToEntity")
     @Mapping(target = "serials", ignore = true)
     @Mapping(target = "importedBy", ignore = true)
     @Mapping(target = "verifiedBy", ignore = true)
@@ -27,6 +31,8 @@ public interface LotteryTicketPersistenceMapper {
     List<LotteryTicketEntity> toEntityList(List<LotteryTicketModel> models);
 
     @Mapping(target = "stationId", source = "station.id")
+    @Mapping(target = "importBatchId", source = "importBatch.id")
+    @Mapping(target = "importBatchLineId", source = "importBatchLine.id")
     @Mapping(target = "serials", ignore = true)
     @Mapping(target = "importedById", ignore = true)
     @Mapping(target = "verifiedById", ignore = true)
@@ -46,6 +52,26 @@ public interface LotteryTicketPersistenceMapper {
         LotteryStationEntity station = new LotteryStationEntity();
         station.setId(stationId);
         return station;
+    }
+
+    @Named("importBatchLineIdToEntity")
+    default ImportBatchLineEntity importBatchLineIdToEntity(Long importBatchLineId) {
+        if (importBatchLineId == null) {
+            return null;
+        }
+        ImportBatchLineEntity line = new ImportBatchLineEntity();
+        line.setId(importBatchLineId);
+        return line;
+    }
+
+    @Named("importBatchIdToEntity")
+    default ImportBatchEntity importBatchIdToEntity(Long importBatchId) {
+        if (importBatchId == null) {
+            return null;
+        }
+        ImportBatchEntity importBatch = new ImportBatchEntity();
+        importBatch.setId(importBatchId);
+        return importBatch;
     }
 
     @Named("userIdToUserEntity")

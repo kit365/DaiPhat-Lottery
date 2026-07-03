@@ -4,18 +4,23 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchRe
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchClassificationPreviewRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface ImportBatchServicePort {
 
     ImportBatchResponse create(CreateImportBatchRequest request, UUID operatorId);
+
+    Optional<ImportBatchResponse> getActiveDraft(UUID operatorId);
 
     ImportBatchResponse getById(Long id);
 
@@ -33,4 +38,6 @@ public interface ImportBatchServicePort {
     List<EnumOptionResponse> getBatchTypeOptions();
 
     ImportBatchClassificationPreviewResponse previewClassification(ImportBatchClassificationPreviewRequest request);
+
+    List<ImportBatchEligibleStationResponse> getEligibleStations(LocalDate drawDate, ImportBatchImportMode importMode);
 }

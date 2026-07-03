@@ -37,6 +37,14 @@ public class LotteryTicketEntity extends BaseEntity {
     @JoinColumn(name = "station_id", nullable = false)
     private LotteryStationEntity station;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "import_batch_id")
+    private ImportBatchEntity importBatch;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "import_batch_line_id")
+    private ImportBatchLineEntity importBatchLine;
+
     @Column(name = "ticket_img", length = 500)
     private String ticketImg;
 
@@ -60,6 +68,10 @@ public class LotteryTicketEntity extends BaseEntity {
     @Column(nullable = false, length = 50)
     @Builder.Default
     private LotteryTicketStatus status = LotteryTicketStatus.IN_STOCK;
+
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private Boolean active = true;
 
     @OneToMany(mappedBy = "ticket", fetch = FetchType.LAZY)
     @Builder.Default
