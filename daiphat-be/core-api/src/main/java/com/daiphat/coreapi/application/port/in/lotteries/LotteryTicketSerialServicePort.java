@@ -54,5 +54,7 @@ public interface LotteryTicketSerialServicePort {
 
     List<LotteryTicketSerialModel> findAllByTicketId(Long ticketId);
 
+    long countByImportBatchLineId(Long importBatchLineId);
+
     List<EnumOptionResponse> getStatuses();
 }

@@ -217,6 +217,11 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     }
 
     @Override
+    public long countByImportBatchLineId(Long importBatchLineId) {
+        return lotteryTicketSerialRepositoryPort.countByImportBatchLineId(importBatchLineId);
+    }
+
+    @Override
     public List<EnumOptionResponse> getStatuses() {
         return EnumOptionUtils.toEnumOptions(LotteryTicketSerialStatus.values());
     }

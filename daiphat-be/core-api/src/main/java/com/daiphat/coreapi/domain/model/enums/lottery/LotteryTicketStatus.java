@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum LotteryTicketStatus {
     IN_STOCK("Trong kho"),
+    IMPORTING("Đang nhập lô"),
     SOLD_OUT("Hết hàng"),
     EXPIRED("Hết hạn"),
 
