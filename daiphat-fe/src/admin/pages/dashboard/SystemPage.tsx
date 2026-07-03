@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import DashboardCard from "../../components/dashboard/DashboardCard";
 import WelcomeWidget from "../../components/dashboard/WelcomeWidget";
 import { getSystemStats } from "../../api/dashboard.api";
+import { ImportBatchDraftBanner } from "../import-batch/components/ImportBatchDraftBanner";
 
 
 
@@ -461,7 +462,11 @@ export const SystemPage = () => {
     }
 
     return (
-        <Grid
+        <>
+            <Box sx={{ width: '100%', mb: 0, px: 0 }}>
+                <ImportBatchDraftBanner />
+            </Box>
+            <Grid
             container
             sx={{
                 '--Grid-columns': 12,
@@ -747,5 +752,6 @@ export const SystemPage = () => {
                 </Stack>
             </Grid>
         </Grid >
+        </>
     );
 };
