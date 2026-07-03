@@ -33,12 +33,21 @@ export const ROUTES = {
         },
         TICKETS: {
             LIST: `/${prefixAdmin}/ticket/list`,
+            CREATE: `/${prefixAdmin}/ticket/create`,
+            CREATE_FOR_BATCH: (importBatchId: number | string) =>
+                `/${prefixAdmin}/ticket/create?importBatchId=${importBatchId}`,
+            CREATE_FOR_BATCH_LINE: (importBatchLineId: number | string) =>
+                `/${prefixAdmin}/ticket/create?importBatchLineId=${importBatchLineId}`,
             PROVIDER: `/${prefixAdmin}/provider/list`,
             PRIZE_STRUCTURE: `/${prefixAdmin}/prize-structures/list`,
             DRAW_RESULT: `/${prefixAdmin}/draw-results`,
             REGION: `/${prefixAdmin}/region/list`,
             ATTRIBUTE: `/${prefixAdmin}/ticket/attribute/list`,
             EXPIRED: `/${prefixAdmin}/ticket/expired`,
+        },
+        IMPORT_BATCH: {
+            CREATE: `/${prefixAdmin}/import-batch/create`,
+            DETAIL: (id: number | string) => `/${prefixAdmin}/import-batch/detail/${id}`,
         },
         TICKET_SERVICES: {
             LIST: `/${prefixAdmin}/ticketService/list`,

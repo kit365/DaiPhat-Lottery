@@ -41,6 +41,12 @@ export const QUERY_KEYS = {
     STATIONS_TODAY: 'stations-today',
     STATIONS_TOMORROW: 'stations-tomorrow',
 
+    // Import batch
+    IMPORT_BATCH_ACTIVE_DRAFT: 'import-batch-active-draft',
+    IMPORT_BATCH_DETAIL: 'import-batch-detail',
+    IMPORT_BATCH_CLASSIFY_PREVIEW: 'import-batch-classify-preview',
+    IMPORT_BATCH_ELIGIBLE_STATIONS: 'import-batch-eligible-stations',
+
     // Order (Client)
     CLIENT_ORDER_RECEIVE_TYPES: 'client-order-receive-types',
     CLIENT_ORDER_STATUSES: 'client-order-statuses',
