@@ -47,6 +47,11 @@ export const QUERY_KEYS = {
     IMPORT_BATCH_CLASSIFY_PREVIEW: 'import-batch-classify-preview',
     IMPORT_BATCH_ELIGIBLE_STATIONS: 'import-batch-eligible-stations',
 
+    // Supplier
+    SUPPLIERS: 'suppliers',
+    SUPPLIER_DETAIL: 'supplier-detail',
+    SUPPLIERS_ACTIVE: 'suppliers-active',
+
     // Order (Client)
     CLIENT_ORDER_RECEIVE_TYPES: 'client-order-receive-types',
     CLIENT_ORDER_STATUSES: 'client-order-statuses',
