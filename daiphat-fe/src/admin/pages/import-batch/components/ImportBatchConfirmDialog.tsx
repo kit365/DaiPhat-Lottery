@@ -27,6 +27,7 @@ export interface ConfirmLineSummary {
 interface ImportBatchConfirmDialogProps {
     open: boolean;
     drawDate: string;
+    supplierName?: string;
     importMode?: ImportBatchImportMode;
     sharedInvoiceEvidenceUrl?: string;
     lines: ConfirmLineSummary[];
@@ -60,6 +61,7 @@ const SummaryRow = ({ label, value }: { label: string; value: string }) => (
 export const ImportBatchConfirmDialog = ({
     open,
     drawDate,
+    supplierName,
     importMode,
     sharedInvoiceEvidenceUrl,
     lines,
@@ -112,6 +114,7 @@ export const ImportBatchConfirmDialog = ({
                             </Typography>
                             <Divider sx={{ mb: 1 }} />
                             <SummaryRow label="Ngày quay" value={formattedDrawDate} />
+                            <SummaryRow label="Nhà cung cấp" value={supplierName || '—'} />
                             <SummaryRow
                                 label="Loại lô vé cần nhập"
                                 value={getImportModeLabel(importMode)}
