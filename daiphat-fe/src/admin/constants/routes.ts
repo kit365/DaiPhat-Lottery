@@ -49,6 +49,11 @@ export const ROUTES = {
             CREATE: `/${prefixAdmin}/import-batch/create`,
             DETAIL: (id: number | string) => `/${prefixAdmin}/import-batch/detail/${id}`,
         },
+        SUPPLIER: {
+            LIST: `/${prefixAdmin}/supplier/list`,
+            CREATE: `/${prefixAdmin}/supplier/create`,
+            EDIT: (id: number | string) => `/${prefixAdmin}/supplier/edit/${id}`,
+        },
         TICKET_SERVICES: {
             LIST: `/${prefixAdmin}/ticketService/list`,
             CREATE: `/${prefixAdmin}/ticketService/create`,

@@ -95,6 +95,9 @@ const SupportTicketListPage = lazy(() => import("../pages/support-ticket/Support
 const SupportTicketDetailPage = lazy(() => import("../pages/support-ticket/SupportTicketDetailPage").then(m => ({ default: m.SupportTicketDetailPage })));
 const ImportBatchCreatePage = lazy(() => import("../pages/import-batch/ImportBatchCreatePage").then(m => ({ default: m.ImportBatchCreatePage })));
 const ImportBatchDetailPage = lazy(() => import("../pages/import-batch/ImportBatchDetailPage").then(m => ({ default: m.ImportBatchDetailPage })));
+const SupplierListPage = lazy(() => import("../pages/supplier/SupplierListPage").then(m => ({ default: m.SupplierListPage })));
+const SupplierCreatePage = lazy(() => import("../pages/supplier/SupplierCreatePage").then(m => ({ default: m.SupplierCreatePage })));
+const SupplierEditPage = lazy(() => import("../pages/supplier/SupplierEditPage").then(m => ({ default: m.SupplierEditPage })));
 
 export const AdminRoutes = [
     { index: true, element: <Navigate to="/admin/dashboard" replace /> },
@@ -111,6 +114,9 @@ export const AdminRoutes = [
     { path: "ticket/create", element: <PermissionGuard permission={PERMISSIONS.TICKET.CREATE}><TicketCreatePage /></PermissionGuard> },
     { path: "import-batch/create", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.CREATE}><ImportBatchCreatePage /></PermissionGuard> },
     { path: "import-batch/detail/:id", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.VIEW}><ImportBatchDetailPage /></PermissionGuard> },
+    { path: "supplier/list", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.VIEW}><SupplierListPage /></PermissionGuard> },
+    { path: "supplier/create", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.CREATE}><SupplierCreatePage /></PermissionGuard> },
+    { path: "supplier/edit/:id", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.EDIT}><SupplierEditPage /></PermissionGuard> },
     { path: "ticket/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.EDIT}><TicketEditPage /></PermissionGuard> },
     { path: "ticket/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketDetailPage /></PermissionGuard> },
     { path: "ticket/expired", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><ExpiredTicketListPage /></PermissionGuard> },
