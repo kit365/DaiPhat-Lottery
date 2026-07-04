@@ -53,6 +53,11 @@ export const PERMISSIONS = {
         VIEW: "importBatch:view",
         CREATE: "importBatch:create",
     },
+    SUPPLIER: {
+        VIEW: "supplier:view",
+        CREATE: "supplier:create",
+        EDIT: "supplier:edit",
+    },
     PROVIDER: {
         VIEW: "provider:view",
         CREATE: "provider:create",
