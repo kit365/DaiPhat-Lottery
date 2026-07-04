@@ -9,6 +9,7 @@ import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
@@ -22,6 +23,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +48,7 @@ public class LocalLotterySeedInitializer implements ApplicationRunner {
 
     private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final LotteryStationServicePort lotteryStationServicePort;
+    private final LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
     private final ImportBatchServicePort importBatchServicePort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final LotteryTicketSerialRepository lotteryTicketSerialRepository;
@@ -97,6 +100,13 @@ public class LocalLotterySeedInitializer implements ApplicationRunner {
 
     private void seedTicketsForStation(LotteryStationModel station, UUID operatorId, LocalDate drawDate) {
         Long importBatchLineId = resolveImportBatchLineId(station, operatorId, drawDate);
+        if (importBatchLineId == null) {
+            log.warn(
+                    "Skip ticket seed for station [{}]: no active supplier configured. Create a supplier first.",
+                    station.getName()
+            );
+            return;
+        }
         String dailyPrefix = SERIAL_PREFIX + station.getId() + "-" + drawDate.format(DATE_SUFFIX) + "-";
         long existingCount = lotteryTicketSerialRepository
                 .findBySerialNumberStartingWithAndDeletedAtIsNull(dailyPrefix)
@@ -147,9 +157,19 @@ public class LocalLotterySeedInitializer implements ApplicationRunner {
                         .findFirst()
                         .map(line -> line.id()))
                 .orElseGet(() -> {
+                    Long supplierId = lotterySupplierRepositoryPort
+                            .findAll(PageRequest.of(0, 1), null, true)
+                            .stream()
+                            .findFirst()
+                            .map(supplier -> supplier.getId())
+                            .orElse(null);
+                    if (supplierId == null) {
+                        return null;
+                    }
                     var created = importBatchServicePort.create(
                             CreateImportBatchRequest.builder()
                                     .drawDate(drawDate)
+                                    .supplierId(supplierId)
                                     .importMode(ImportBatchImportMode.IN_DAY)
                                     .lines(List.of(
                                             CreateImportBatchLineRequest.builder()

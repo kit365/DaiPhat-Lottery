@@ -14,6 +14,9 @@ public record CreateImportBatchRequest(
         @NotNull(message = "Ngày quay không được để trống")
         LocalDate drawDate,
 
+        @NotNull(message = "Nhà cung cấp không được để trống")
+        Long supplierId,
+
         @NotNull(message = "Loại nhập lô không được để trống")
         ImportBatchImportMode importMode,
 

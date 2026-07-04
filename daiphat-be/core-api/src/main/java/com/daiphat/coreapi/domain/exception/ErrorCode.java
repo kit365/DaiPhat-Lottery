@@ -206,6 +206,30 @@ public enum ErrorCode {
     IMPORT_BATCH_IMPORT_COST_INVALID("LT_072", "Giá vốn nhập lô phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_DRAFT_ALREADY_EXISTS("LT_073", "Bạn đang có phiếu nhập lô chưa hoàn thành. Vui lòng tiếp tục phiếu hiện tại.", HttpStatus.CONFLICT),
     IMPORT_BATCH_DUPLICATE_STATION("LT_076", "Mỗi nhà đài chỉ được khai báo một lần trong cùng phiếu nhập lô.", HttpStatus.BAD_REQUEST),
+    LOTTERY_SUPPLIER_NOT_FOUND("LT_077", "Nhà cung cấp không tồn tại.", HttpStatus.NOT_FOUND),
+    LOTTERY_SUPPLIER_CODE_DUPLICATE("LT_078", "Mã nhà cung cấp đã tồn tại.", HttpStatus.BAD_REQUEST),
+    LOTTERY_SUPPLIER_INACTIVE("LT_079", "Nhà cung cấp đang ngừng hoạt động.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_SUPPLIER_REQUIRED("LT_080", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_NO_SUPPLIER_CONFIGURED(
+            "LT_084",
+            "Chưa có nhà cung cấp. Vui lòng tạo nhà cung cấp trước khi nhập vé.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_SUPPLIER_ACTIVATION_INCOMPLETE(
+            "LT_081",
+            "Nhà cung cấp chưa đủ thông tin bắt buộc để kích hoạt.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_SUPPLIER_PAYMENT_TERM_INVALID(
+            "LT_082",
+            "Số ngày thanh toán không được âm.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_SUPPLIER_IMPORT_COST_INVALID(
+            "LT_083",
+            "Giá vốn mặc định không được âm.",
+            HttpStatus.BAD_REQUEST
+    ),
     LOTTERY_TICKET_IMPORT_BATCH_REQUIRED("LT_074", "Vé số phải được tạo thông qua phiếu nhập lô.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_IMPORT_BATCH_MISMATCH("LT_075", "Thông tin vé số không khớp với phiếu nhập lô.", HttpStatus.BAD_REQUEST),
 
