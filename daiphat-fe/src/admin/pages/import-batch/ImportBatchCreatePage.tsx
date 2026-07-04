@@ -30,6 +30,7 @@ import { uploadAdminImage } from '../../api/upload.api';
 import type { ImportBatch } from '../../api/importBatch.api';
 import { prefixAdmin, ROUTES } from '../../constants/routes';
 import { useCreateImportBatch, useActiveImportBatchDraft, useEligibleImportBatchStations } from './hooks/useImportBatch';
+import { useActiveSuppliers } from '../supplier/hooks/useSupplier';
 import { createImportBatchSchema, CreateImportBatchFormValues } from './schemas/importBatch.schema';
 import { ImportBatchDrawDateInfo } from './components/LateImportWarning';
 import { ImportBatchConfirmDialog } from './components/ImportBatchConfirmDialog';
@@ -78,6 +79,7 @@ export const ImportBatchCreatePage = () => {
         resolver: zodResolver(createImportBatchSchema),
         defaultValues: {
             drawDate: dayjs().format('YYYY-MM-DD'),
+            supplierId: 0,
             importMode: 'IN_DAY',
             sharedInvoiceEvidenceUrl: '',
             lines: [emptyLine()],
@@ -87,11 +89,13 @@ export const ImportBatchCreatePage = () => {
     const { fields, append, remove } = useFieldArray({ control, name: 'lines' });
     const drawDate = watch('drawDate');
     const importMode = watch('importMode');
+    const supplierId = watch('supplierId');
     const lines = watch('lines');
     const { data: eligibleStations = [], isLoading: isLoadingStations } = useEligibleImportBatchStations(
         drawDate,
         importMode
     );
+    const { data: activeSuppliers = [], isLoading: isLoadingSuppliers } = useActiveSuppliers();
     const { mutateAsync: createAsync, isPending } = useCreateImportBatch();
 
     const uploadReceipt = useCallback(async (file: File) => uploadAdminImage(file), []);
@@ -104,6 +108,11 @@ export const ImportBatchCreatePage = () => {
     const resolveStationName = (stationId: number) => {
         const station = eligibleStations.find((s) => s.lotteryStationId === stationId);
         return station?.name ?? '';
+    };
+
+    const resolveSupplierName = (id: number) => {
+        const supplier = activeSuppliers.find((s) => s.id === id);
+        return supplier ? `${supplier.name} (${supplier.code})` : '';
     };
 
     // Shared receipt is always shown for in-day imports (required for NEW / LATE_IMPORT).
@@ -192,6 +201,7 @@ export const ImportBatchCreatePage = () => {
         try {
             const res = await createAsync({
                 drawDate: pendingFormData.drawDate,
+                supplierId: pendingFormData.supplierId,
                 importMode: pendingFormData.importMode,
                 sharedInvoiceEvidenceUrl:
                     pendingFormData.importMode === 'IN_DAY'
@@ -237,7 +247,7 @@ export const ImportBatchCreatePage = () => {
         }
     };
 
-    if (isCheckingDraft || (addTicketIntent && activeDraft?.id)) {
+    if (isCheckingDraft || isLoadingSuppliers || (addTicketIntent && activeDraft?.id)) {
         return null;
     }
 
@@ -272,6 +282,42 @@ export const ImportBatchCreatePage = () => {
                             onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(activeDraft.id))}
                         >
                             Xem phiếu hiện tại
+                        </Button>
+                    </Stack>
+                </Box>
+            </ThemeProvider>
+        );
+    }
+
+    if (activeSuppliers.length === 0) {
+        return (
+            <ThemeProvider theme={localTheme}>
+                <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+                    <Breadcrumb
+                        items={[
+                            { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                            { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.CREATE },
+                            { label: 'Khai báo phiếu nhập' },
+                        ]}
+                    />
+                    <Title title={addTicketIntent ? 'Tạo phiếu nhập lô vé' : 'Khai báo phiếu nhập lô vé'} />
+
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        Chưa có nhà cung cấp. Vui lòng tạo nhà cung cấp trước khi nhập vé.
+                    </Alert>
+
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                        <Button
+                            variant="contained"
+                            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.CREATE)}
+                        >
+                            Tạo nhà cung cấp
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            onClick={() => navigate(ROUTES.ADMIN.SUPPLIER.LIST)}
+                        >
+                            Quản lý nhà cung cấp
                         </Button>
                     </Stack>
                 </Box>
@@ -318,6 +364,36 @@ export const ImportBatchCreatePage = () => {
                                                 error={!!errors.drawDate}
                                                 helperText={errors.drawDate?.message}
                                             />
+                                        )}
+                                    />
+                                    <Controller
+                                        name="supplierId"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <FormControl
+                                                fullWidth
+                                                sx={{ maxWidth: { sm: 360 } }}
+                                                error={!!errors.supplierId}
+                                            >
+                                                <InputLabel>Nhà cung cấp</InputLabel>
+                                                <Select
+                                                    {...field}
+                                                    label="Nhà cung cấp"
+                                                    value={field.value || ''}
+                                                    disabled={isLoadingSuppliers || activeSuppliers.length === 0}
+                                                >
+                                                    {activeSuppliers.map((supplier) => (
+                                                        <MenuItem key={supplier.id} value={supplier.id}>
+                                                            {supplier.name} ({supplier.code})
+                                                        </MenuItem>
+                                                    ))}
+                                                </Select>
+                                                {errors.supplierId && (
+                                                    <Typography variant="caption" color="error">
+                                                        {errors.supplierId.message}
+                                                    </Typography>
+                                                )}
+                                            </FormControl>
                                         )}
                                     />
                                     <Controller
@@ -444,7 +520,7 @@ export const ImportBatchCreatePage = () => {
                                     type="submit"
                                     variant="contained"
                                     loading={isPending}
-                                    disabled={!canSubmit || isLoadingStations}
+                                    disabled={!canSubmit || isLoadingStations || isLoadingSuppliers || !supplierId}
                                     label="Xác nhận & Lưu"
                                     loadingLabel="Đang xử lý..."
                                 />
@@ -456,6 +532,11 @@ export const ImportBatchCreatePage = () => {
                 <ImportBatchConfirmDialog
                     open={confirmOpen}
                     drawDate={pendingFormData?.drawDate ?? ''}
+                    supplierName={
+                        pendingFormData?.supplierId
+                            ? resolveSupplierName(pendingFormData.supplierId)
+                            : ''
+                    }
                     importMode={pendingFormData?.importMode}
                     sharedInvoiceEvidenceUrl={pendingFormData?.sharedInvoiceEvidenceUrl}
                     lines={(pendingFormData?.lines ?? []).map((line) => ({
