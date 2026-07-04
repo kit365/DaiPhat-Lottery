@@ -30,6 +30,10 @@ public class ImportBatchEntity extends BaseEntity {
     private LocalDate drawDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id")
+    private LotterySupplierEntity supplier;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "imported_by", nullable = false)
     private UserEntity importedBy;
 
