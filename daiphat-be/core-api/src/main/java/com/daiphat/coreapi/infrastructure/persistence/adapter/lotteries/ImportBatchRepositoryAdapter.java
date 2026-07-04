@@ -11,6 +11,7 @@ import com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries.ImportBat
 import com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries.ImportBatchPersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.ImportBatchRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryStationRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotterySupplierRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
 import com.daiphat.coreapi.infrastructure.persistence.specification.lotteries.ImportBatchSpecification;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
 
     private final ImportBatchRepository importBatchRepository;
     private final LotteryStationRepository lotteryStationRepository;
+    private final LotterySupplierRepository lotterySupplierRepository;
     private final UserRepository userRepository;
     private final ImportBatchPersistenceMapper importBatchPersistenceMapper;
     private final ImportBatchLinePersistenceMapper importBatchLinePersistenceMapper;
@@ -37,6 +39,9 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
         ImportBatchEntity entity = importBatchPersistenceMapper.toEntity(model);
         if (model.getImportedBy() != null) {
             entity.setImportedBy(userRepository.getReferenceById(model.getImportedBy()));
+        }
+        if (model.getSupplierId() != null) {
+            entity.setSupplier(lotterySupplierRepository.getReferenceById(model.getSupplierId()));
         }
 
         entity.getLines().clear();

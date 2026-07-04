@@ -13,6 +13,8 @@ import java.util.UUID;
 public record ImportBatchResponse(
         Long id,
         LocalDate drawDate,
+        Long supplierId,
+        String supplierName,
         UUID importedBy,
         LocalDateTime importedAt,
         ImportBatchStatus status,

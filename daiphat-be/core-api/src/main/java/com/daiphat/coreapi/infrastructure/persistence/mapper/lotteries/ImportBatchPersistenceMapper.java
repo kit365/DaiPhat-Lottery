@@ -17,9 +17,12 @@ import java.util.UUID;
 public interface ImportBatchPersistenceMapper {
 
     @Mapping(target = "importedBy", source = "importedBy.id")
+    @Mapping(target = "supplierId", source = "supplier.id")
+    @Mapping(target = "supplierName", source = "supplier.name")
     ImportBatchModel toDomain(ImportBatchEntity entity);
 
     @Mapping(target = "importedBy", source = "importedBy")
+    @Mapping(target = "supplier", ignore = true)
     @Mapping(target = "lines", source = "lines")
     ImportBatchEntity toEntity(ImportBatchModel model);
 

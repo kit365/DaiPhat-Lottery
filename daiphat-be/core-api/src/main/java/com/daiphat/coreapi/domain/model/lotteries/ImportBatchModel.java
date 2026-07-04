@@ -25,6 +25,8 @@ public class ImportBatchModel {
 
     private Long id;
     private LocalDate drawDate;
+    private Long supplierId;
+    private String supplierName;
     private UUID importedBy;
     private LocalDateTime importedAt;
     @Builder.Default
