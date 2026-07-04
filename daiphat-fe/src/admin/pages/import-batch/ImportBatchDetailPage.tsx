@@ -78,6 +78,12 @@ export const ImportBatchDetailPage = () => {
                             InputProps={{ readOnly: true }}
                         />
                         <TextField
+                            label="Nhà cung cấp"
+                            value={batch.supplierName || '—'}
+                            fullWidth
+                            InputProps={{ readOnly: true }}
+                        />
+                        <TextField
                             label="Tổng số lượng khai báo"
                             value={batch.totalDeclareQuantity ?? 0}
                             fullWidth
