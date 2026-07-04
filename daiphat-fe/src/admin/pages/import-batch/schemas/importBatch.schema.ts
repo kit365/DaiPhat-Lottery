@@ -13,6 +13,7 @@ const importBatchLineSchema = z.object({
 export const createImportBatchSchema = z
     .object({
         drawDate: z.string().min(1, 'Vui lòng chọn ngày quay'),
+        supplierId: z.coerce.number().min(1, 'Vui lòng chọn nhà cung cấp'),
         importMode: z.enum(['IN_DAY', 'POST_DRAW_SUPPLEMENT']),
         sharedInvoiceEvidenceUrl: z.string().optional(),
         lines: z.array(importBatchLineSchema).min(1, 'Phải có ít nhất một dòng nhập lô'),

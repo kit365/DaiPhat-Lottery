@@ -32,6 +32,8 @@ export interface ImportBatchLine {
 export interface ImportBatch {
     id: number;
     drawDate: string;
+    supplierId?: number;
+    supplierName?: string;
     status: ImportBatchStatus;
     totalDeclareQuantity?: number;
     totalDeclaredCostValue?: number;
@@ -50,6 +52,7 @@ export interface CreateImportBatchLinePayload {
 
 export interface CreateImportBatchPayload {
     drawDate: string;
+    supplierId: number;
     importMode: ImportBatchImportMode;
     sharedInvoiceEvidenceUrl?: string;
     lines: CreateImportBatchLinePayload[];
