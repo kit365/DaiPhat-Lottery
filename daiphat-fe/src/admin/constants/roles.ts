@@ -41,6 +41,21 @@ export const PERMISSIONS_GROUPED = [
         ]
     },
     {
+        module: "Quản lý nhà cung cấp",
+        permissions: [
+            { id: PERMISSIONS.SUPPLIER.VIEW, name: "Xem nhà cung cấp" },
+            { id: PERMISSIONS.SUPPLIER.CREATE, name: "Tạo nhà cung cấp" },
+            { id: PERMISSIONS.SUPPLIER.EDIT, name: "Sửa nhà cung cấp" },
+        ]
+    },
+    {
+        module: "Quản lý nhập lô vé",
+        permissions: [
+            { id: PERMISSIONS.IMPORT_BATCH.VIEW, name: "Xem phiếu nhập lô" },
+            { id: PERMISSIONS.IMPORT_BATCH.CREATE, name: "Tạo phiếu nhập lô" },
+        ]
+    },
+    {
         module: "Quản lý miền quay",
         permissions: [
             { id: PERMISSIONS.REGION.VIEW, name: "Xem miền quay" },
