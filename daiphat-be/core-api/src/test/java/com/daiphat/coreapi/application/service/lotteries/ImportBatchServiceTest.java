@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineRes
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.ImportBatchApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.LotterySupplierServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -17,6 +18,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.shared.util.ImportBatchStationEligibilityResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchTypeResolver;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,10 +59,14 @@ class ImportBatchServiceTest {
     private static final LocalDate DRAW_DATE = LocalDate.of(2026, 7, 6);
     private static final UUID OPERATOR_ID = UUID.randomUUID();
 
+    private static final Long SUPPLIER_ID = 5L;
+
     @Mock
     private ImportBatchRepositoryPort importBatchRepositoryPort;
     @Mock
     private LotteryStationServicePort lotteryStationServicePort;
+    @Mock
+    private LotterySupplierServicePort lotterySupplierServicePort;
     @Mock
     private ImportBatchApplicationMapper importBatchApplicationMapper;
     @Mock
@@ -74,6 +80,7 @@ class ImportBatchServiceTest {
     private ImportBatchService importBatchService;
 
     private LotteryStationModel activeStation;
+    private LotterySupplierModel activeSupplier;
 
     @BeforeEach
     void setUp() {
@@ -84,6 +91,28 @@ class ImportBatchServiceTest {
                 .drawDays(List.of(DayOfWeek.MONDAY))
                 .drawTime(LocalTime.of(16, 15))
                 .build();
+        activeSupplier = LotterySupplierModel.builder()
+                .id(SUPPLIER_ID)
+                .name("Tổng đại lý Minh Chính")
+                .code("MINH_CHINH")
+                .isActive(true)
+                .build();
+        when(lotterySupplierServicePort.getActiveModelById(SUPPLIER_ID)).thenReturn(activeSupplier);
+        // ensureActiveSupplierConfigured is void; default mock does nothing
+    }
+
+    @Test
+    @DisplayName("create is rejected when no active supplier is configured")
+    void create_noActiveSupplierConfigured_throws() {
+        when(importBatchRepositoryPort.existsByImportedByAndStatus(OPERATOR_ID, ImportBatchStatus.DRAFT))
+                .thenReturn(false);
+        org.mockito.Mockito.doThrow(new DomainException(ErrorCode.IMPORT_BATCH_NO_SUPPLIER_CONFIGURED))
+                .when(lotterySupplierServicePort).ensureActiveSupplierConfigured();
+
+        assertThatThrownBy(() -> importBatchService.create(buildRequest("https://cdn.example/invoice.jpg"), OPERATOR_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_NO_SUPPLIER_CONFIGURED);
     }
 
     @Test
@@ -107,6 +136,7 @@ class ImportBatchServiceTest {
 
         CreateImportBatchRequest request = CreateImportBatchRequest.builder()
                 .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
                 .importMode(ImportBatchImportMode.IN_DAY)
                 .lines(List.of(
                         buildLine(1L, 10, null),
@@ -231,6 +261,7 @@ class ImportBatchServiceTest {
 
         CreateImportBatchRequest request = CreateImportBatchRequest.builder()
                 .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
                 .importMode(ImportBatchImportMode.POST_DRAW_SUPPLEMENT)
                 .lines(List.of(buildLine(1L, 10, null)))
                 .build();
@@ -293,6 +324,7 @@ class ImportBatchServiceTest {
     private CreateImportBatchRequest buildRequest(String sharedInvoiceUrl) {
         return CreateImportBatchRequest.builder()
                 .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
                 .importMode(ImportBatchImportMode.IN_DAY)
                 .sharedInvoiceEvidenceUrl(sharedInvoiceUrl)
                 .lines(List.of(buildLine(1L, 10, null)))

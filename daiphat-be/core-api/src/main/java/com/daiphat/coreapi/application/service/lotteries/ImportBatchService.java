@@ -11,6 +11,7 @@ import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.ImportBatchApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
+import com.daiphat.coreapi.application.port.in.lotteries.LotterySupplierServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -20,6 +21,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
+import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.shared.util.ImportBatchStationEligibilityResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchTypeResolver;
 import com.daiphat.coreapi.shared.util.SortUtils;
@@ -48,6 +50,7 @@ public class ImportBatchService implements ImportBatchServicePort {
 
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final LotteryStationServicePort lotteryStationServicePort;
+    private final LotterySupplierServicePort lotterySupplierServicePort;
     private final ImportBatchApplicationMapper importBatchApplicationMapper;
     private final ImportBatchTypeResolver importBatchTypeResolver;
     private final ImportBatchStationEligibilityResolver stationEligibilityResolver;
@@ -60,9 +63,17 @@ public class ImportBatchService implements ImportBatchServicePort {
 
         ensureNoActiveDraft(operatorId);
         ensureUniqueStations(request.lines());
+        lotterySupplierServicePort.ensureActiveSupplierConfigured();
+
+        if (request.supplierId() == null) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_SUPPLIER_REQUIRED);
+        }
+        LotterySupplierModel supplier = lotterySupplierServicePort.getActiveModelById(request.supplierId());
 
         ImportBatchModel header = ImportBatchModel.builder()
                 .drawDate(request.drawDate())
+                .supplierId(supplier.getId())
+                .supplierName(supplier.getName())
                 .lines(new ArrayList<>())
                 .build();
         header.initializeForCreate(operatorId);

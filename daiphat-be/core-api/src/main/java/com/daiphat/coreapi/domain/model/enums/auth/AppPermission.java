@@ -81,6 +81,13 @@ public enum AppPermission {
     IMPORT_BATCH_CREATE(PermissionConstants.IMPORT_BATCH + PermissionConstants.CREATE,
             "Quản lý Nhập lô vé", "Tạo phiếu nhập lô", "Quyền khai báo phiếu nhập lô vé mới", 692),
 
+    SUPPLIER_VIEW(PermissionConstants.SUPPLIER + PermissionConstants.VIEW,
+            "Quản lý Nhà cung cấp", "Xem nhà cung cấp", "Quyền xem danh sách nhà cung cấp", 698),
+    SUPPLIER_CREATE(PermissionConstants.SUPPLIER + PermissionConstants.CREATE,
+            "Quản lý Nhà cung cấp", "Tạo nhà cung cấp", "Quyền thêm nhà cung cấp mới", 697),
+    SUPPLIER_EDIT(PermissionConstants.SUPPLIER + PermissionConstants.EDIT,
+            "Quản lý Nhà cung cấp", "Sửa nhà cung cấp", "Quyền cập nhật thông tin nhà cung cấp", 696),
+
     STATION_VIEW(PermissionConstants.STATION + PermissionConstants.VIEW,
             "Quản lý Nhà đài", "Xem nhà đài", "Quyền xem danh sách nhà đài", 665),
     STATION_CREATE(PermissionConstants.STATION + PermissionConstants.CREATE,
