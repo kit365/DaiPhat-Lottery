@@ -37,14 +37,6 @@ public class LotteryTicketEntity extends BaseEntity {
     @JoinColumn(name = "station_id", nullable = false)
     private LotteryStationEntity station;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "import_batch_id")
-    private ImportBatchEntity importBatch;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "import_batch_line_id")
-    private ImportBatchLineEntity importBatchLine;
-
     @Column(name = "ticket_img", length = 500)
     private String ticketImg;
 
@@ -53,9 +45,6 @@ public class LotteryTicketEntity extends BaseEntity {
 
     @Column(name = "draw_date", nullable = false)
     private LocalDate drawDate;
-
-    @Column(name = "batch_code", nullable = false, length = 100)
-    private String batchCode;
 
     @Column(nullable = false)
     @Builder.Default
