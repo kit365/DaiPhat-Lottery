@@ -15,12 +15,13 @@ export const createImportBatchSchema = z
         drawDate: z.string().min(1, 'Vui lòng chọn ngày quay'),
         supplierId: z.coerce.number().min(1, 'Vui lòng chọn nhà cung cấp'),
         importMode: z.enum(['IN_DAY', 'POST_DRAW_SUPPLEMENT']),
-        sharedInvoiceEvidenceUrl: z.string().optional(),
+        invoiceEvidenceUrl: z.string().optional(),
+        note: z.string().optional(),
         lines: z.array(importBatchLineSchema).min(1, 'Phải có ít nhất một dòng nhập lô'),
     })
     .superRefine((data, ctx) => {
         const stationIds = new Set<number>();
-        let requiresSharedReceipt = false;
+        let requiresInvoice = false;
 
         data.lines.forEach((line, index) => {
             if (stationIds.has(line.lotteryStationId)) {
@@ -34,19 +35,19 @@ export const createImportBatchSchema = z
 
             const type = line.resolvedBatchType as ImportBatchType | undefined;
             if (data.importMode === 'IN_DAY' && (type === 'NEW' || type === 'LATE_IMPORT')) {
-                requiresSharedReceipt = true;
+                requiresInvoice = true;
             }
         });
 
         if (
             data.importMode === 'IN_DAY' &&
-            requiresSharedReceipt &&
-            !data.sharedInvoiceEvidenceUrl?.trim()
+            requiresInvoice &&
+            !data.invoiceEvidenceUrl?.trim()
         ) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 message: 'Vui lòng tải lên ảnh biên lai.',
-                path: ['sharedInvoiceEvidenceUrl'],
+                path: ['invoiceEvidenceUrl'],
             });
         }
     });

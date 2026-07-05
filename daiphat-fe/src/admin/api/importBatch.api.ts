@@ -17,6 +17,7 @@ const withAuth = () => {
 
 export type ImportBatchType = 'NEW' | 'SUPPLEMENTARY' | 'LATE_IMPORT' | 'ADJUSTMENT';
 export type ImportBatchStatus = 'DRAFT' | 'IMPORTED' | 'IN_LEDGER';
+export type ImportBatchLineStatus = 'OPEN' | 'IMPORTING' | 'IMPORTED';
 
 export interface ImportBatchLine {
     id: number;
@@ -24,10 +25,12 @@ export interface ImportBatchLine {
     batchType: ImportBatchType;
     batchCode?: string;
     declareQuantity: number;
+    declaredCostValue?: number;
     totalQuantity: number;
     importCost: number;
     totalCostValue: number;
-    invoiceEvidenceUrl?: string;
+    status?: ImportBatchLineStatus;
+    importedAt?: string;
 }
 
 export interface ImportBatch {
@@ -35,14 +38,25 @@ export interface ImportBatch {
     drawDate: string;
     supplierId?: number;
     supplierName?: string;
+    supplierSettlementId?: number;
+    importMode?: ImportBatchImportMode;
+    invoiceEvidenceUrl?: string;
     status: ImportBatchStatus;
+    lineCount?: number;
     totalDeclareQuantity?: number;
     totalDeclaredCostValue?: number;
+    totalImportedQuantity?: number;
+    totalImportedCostValue?: number;
+    submittedAt?: string;
+    completedAt?: string;
+    ledgerAt?: string;
+    note?: string;
     lateImportWarning?: boolean;
     warnings?: string[];
     lines: ImportBatchLine[];
     importedAt?: string;
     createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface CreateImportBatchLinePayload {
@@ -55,7 +69,8 @@ export interface CreateImportBatchPayload {
     drawDate: string;
     supplierId: number;
     importMode: ImportBatchImportMode;
-    sharedInvoiceEvidenceUrl?: string;
+    invoiceEvidenceUrl?: string;
+    note?: string;
     lines: CreateImportBatchLinePayload[];
 }
 

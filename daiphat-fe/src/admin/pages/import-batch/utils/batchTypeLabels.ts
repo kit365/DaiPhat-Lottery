@@ -1,3 +1,14 @@
+export const IMPORT_BATCH_LINE_STATUS_LABELS: Record<string, string> = {
+    OPEN: 'Chưa nhập',
+    IMPORTING: 'Đang nhập',
+    IMPORTED: 'Đã nhập đủ',
+};
+
+export const getImportBatchLineStatusLabel = (status?: string) => {
+    if (!status) return '—';
+    return IMPORT_BATCH_LINE_STATUS_LABELS[status] ?? status;
+};
+
 export const IMPORT_BATCH_TYPE_LABELS: Record<string, string> = {
     NEW: 'Nhập mới',
     SUPPLEMENTARY: 'Nhập bổ sung',
