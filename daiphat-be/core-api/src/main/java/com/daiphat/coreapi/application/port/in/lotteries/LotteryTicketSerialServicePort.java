@@ -21,7 +21,9 @@ public interface LotteryTicketSerialServicePort {
     LotteryTicketSerialModel upsertSerialForTicket(
             LotteryTicketModel ticket,
             CreateLotteryTicketSerialRequest request,
-            UUID importedById
+            UUID importedById,
+            Long importBatchId,
+            Long importBatchLineId
     );
 
     void syncSerialsForTicket(
@@ -55,6 +57,8 @@ public interface LotteryTicketSerialServicePort {
     List<LotteryTicketSerialModel> findAllByTicketId(Long ticketId);
 
     long countByImportBatchLineId(Long importBatchLineId);
+
+    List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId);
 
     List<EnumOptionResponse> getStatuses();
 }
