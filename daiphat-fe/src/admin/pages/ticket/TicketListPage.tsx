@@ -30,7 +30,7 @@ export const TicketListPage = () => {
                 </div>
                 <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
                     <LoadingButton
-                        onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST)}
+                        onClick={() => navigate(ROUTES.ADMIN.TICKETS.CREATE)}
                         label="Thêm vé số"
                         startIcon={<AddIcon />}
                         sx={{

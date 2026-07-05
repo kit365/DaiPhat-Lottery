@@ -77,6 +77,16 @@ export const useImportBatchList = () => {
     };
 };
 
+export const useDraftImportBatches = (enabled = true) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST, 'DRAFT-select'],
+        queryFn: () => getImportBatches({ status: 'DRAFT', size: 100, page: 1 }),
+        enabled,
+        select: (res) => res.data?.recordList ?? [],
+        staleTime: 30_000,
+    });
+};
+
 export const useImportBatchTimePolicy = () => {
     return useQuery({
         queryKey: [QUERY_KEYS.IMPORT_BATCH_TIME_POLICY],

@@ -34,10 +34,19 @@ export const ROUTES = {
         TICKETS: {
             LIST: `/${prefixAdmin}/ticket/list`,
             CREATE: `/${prefixAdmin}/ticket/create`,
-            CREATE_FOR_BATCH: (importBatchId: number | string) =>
-                `/${prefixAdmin}/ticket/create?importBatchId=${importBatchId}`,
-            CREATE_FOR_BATCH_LINE: (importBatchLineId: number | string) =>
-                `/${prefixAdmin}/ticket/create?importBatchLineId=${importBatchLineId}`,
+            CREATE_FOR_BATCH: (importBatchId: number | string, importBatchLineId?: number | string) => {
+                const params = new URLSearchParams({ importBatchId: String(importBatchId) });
+                if (importBatchLineId != null) {
+                    params.set('importBatchLineId', String(importBatchLineId));
+                }
+                return `/${prefixAdmin}/ticket/create?${params.toString()}`;
+            },
+            CREATE_FOR_BATCH_LINE: (importBatchLineId: number | string, importBatchId?: number | string) => {
+                if (importBatchId != null) {
+                    return ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(importBatchId, importBatchLineId);
+                }
+                return `/${prefixAdmin}/ticket/create?importBatchLineId=${importBatchLineId}`;
+            },
             PROVIDER: `/${prefixAdmin}/provider/list`,
             PRIZE_STRUCTURE: `/${prefixAdmin}/prize-structures/list`,
             DRAW_RESULT: `/${prefixAdmin}/draw-results`,
