@@ -133,8 +133,8 @@ class ImportBatchServiceTest {
                 .supplierId(SUPPLIER_ID)
                 .importMode(ImportBatchImportMode.IN_DAY)
                 .lines(List.of(
-                        buildLine(1L, 10, null),
-                        buildLine(1L, 5, null)
+                        buildLine(1L, 10),
+                        buildLine(1L, 5)
                 ))
                 .build();
 
@@ -159,7 +159,6 @@ class ImportBatchServiceTest {
                 .lotteryStationId(1L)
                 .declareQuantity(10)
                 .importCost(BigDecimal.valueOf(10000))
-                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
                 .build();
 
         when(importBatchApplicationMapper.toLineModel(any())).thenReturn(lineModel);
@@ -168,6 +167,7 @@ class ImportBatchServiceTest {
                 .id(10L)
                 .drawDate(DRAW_DATE)
                 .status(ImportBatchStatus.DRAFT)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
                 .lines(new ArrayList<>(List.of(lineModel)))
                 .build();
         lineModel.setBatchType(ImportBatchType.NEW);
@@ -189,6 +189,9 @@ class ImportBatchServiceTest {
         verify(importBatchRepositoryPort).save(captor.capture());
         assertThat(captor.getValue().getLines()).hasSize(1);
         assertThat(captor.getValue().getLines().getFirst().getBatchType()).isEqualTo(ImportBatchType.NEW);
+        assertThat(captor.getValue().getInvoiceEvidenceUrl()).isEqualTo("https://cdn.example/invoice.jpg");
+        assertThat(captor.getValue().getLineCount()).isEqualTo(1);
+        assertThat(captor.getValue().getSubmittedAt()).isNotNull();
     }
 
     @Test
@@ -257,7 +260,7 @@ class ImportBatchServiceTest {
                 .drawDate(DRAW_DATE)
                 .supplierId(SUPPLIER_ID)
                 .importMode(ImportBatchImportMode.POST_DRAW_SUPPLEMENT)
-                .lines(List.of(buildLine(1L, 10, null)))
+                .lines(List.of(buildLine(1L, 10)))
                 .build();
 
         ImportBatchResponse response = importBatchService.create(request, OPERATOR_ID);
@@ -315,22 +318,21 @@ class ImportBatchServiceTest {
         when(clock.getZone()).thenReturn(ZONE);
     }
 
-    private CreateImportBatchRequest buildRequest(String sharedInvoiceUrl) {
+    private CreateImportBatchRequest buildRequest(String invoiceUrl) {
         return CreateImportBatchRequest.builder()
                 .drawDate(DRAW_DATE)
                 .supplierId(SUPPLIER_ID)
                 .importMode(ImportBatchImportMode.IN_DAY)
-                .sharedInvoiceEvidenceUrl(sharedInvoiceUrl)
-                .lines(List.of(buildLine(1L, 10, null)))
+                .invoiceEvidenceUrl(invoiceUrl)
+                .lines(List.of(buildLine(1L, 10)))
                 .build();
     }
 
-    private CreateImportBatchLineRequest buildLine(Long stationId, int qty, String invoiceUrl) {
+    private CreateImportBatchLineRequest buildLine(Long stationId, int qty) {
         return CreateImportBatchLineRequest.builder()
                 .lotteryStationId(stationId)
                 .declareQuantity(qty)
                 .importCost(BigDecimal.valueOf(10000))
-                .invoiceEvidenceUrl(invoiceUrl)
                 .build();
     }
 }
