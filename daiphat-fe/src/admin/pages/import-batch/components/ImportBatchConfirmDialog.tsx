@@ -29,7 +29,7 @@ interface ImportBatchConfirmDialogProps {
     drawDate: string;
     supplierName?: string;
     importMode?: ImportBatchImportMode;
-    sharedInvoiceEvidenceUrl?: string;
+    invoiceEvidenceUrl?: string;
     lines: ConfirmLineSummary[];
     totalDeclareQuantity: number;
     totalCostValue: number;
@@ -63,7 +63,7 @@ export const ImportBatchConfirmDialog = ({
     drawDate,
     supplierName,
     importMode,
-    sharedInvoiceEvidenceUrl,
+    invoiceEvidenceUrl,
     lines,
     totalDeclareQuantity,
     totalCostValue,
@@ -73,7 +73,7 @@ export const ImportBatchConfirmDialog = ({
 }: ImportBatchConfirmDialogProps) => {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const formattedDrawDate = drawDate ? dayjs(drawDate).format('DD/MM/YYYY') : '—';
-    const receiptUrl = sharedInvoiceEvidenceUrl?.trim() || '';
+    const receiptUrl = invoiceEvidenceUrl?.trim() || '';
     const showSharedReceipt = importMode === 'IN_DAY';
 
     const handleClose = () => {
