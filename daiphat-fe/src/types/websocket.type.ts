@@ -35,6 +35,7 @@ export interface ChatSocketMessageEvent {
     senderType?: MessageSenderType;
     content: string;
     type: ChatSocketMessageType;
+    intent?: string | null;
     createdAt: string;
 }
 

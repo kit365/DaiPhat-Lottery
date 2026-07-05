@@ -17,6 +17,7 @@ public interface ChatPersistenceMapper {
 
     @Mapping(target = "customerId", source = "customer.id")
     @Mapping(target = "assignedOperatorId", source = "assignedOperator.id")
+    @Mapping(target = "activeFlows", expression = "java(new java.util.ArrayList<>())")
     ConversationModel toConversationDomain(ConversationEntity entity);
 
     List<ConversationModel> toConversationDomains(List<ConversationEntity> entities);
