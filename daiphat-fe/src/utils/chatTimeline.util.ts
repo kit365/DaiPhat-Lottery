@@ -28,7 +28,6 @@ const createTimelineChatMessage = (
         fileName: null,
         isEdited: false,
         editedAt: null,
-        isRead: resolvedIsRead,
         readerCount: 0,
         isDeleted: false,
         deletedAt: null,
@@ -155,7 +154,7 @@ export const buildTimelineInfiniteDataFromMessages = (
     };
 };
 
-/** Append a message to the newest timeline page — no dedup, server is source of truth. */
+/** Append a message to the newest timeline page; skip when message id already exists. */
 export const mergeCustomerTimelineMessage = (
     data: InfiniteData<CustomerChatTimelineResponse> | undefined,
     message: ChatMessageResponse
@@ -167,6 +166,13 @@ export const mergeCustomerTimelineMessage = (
             pages: [createTimelinePage(normalizedMessage)],
             pageParams: [undefined],
         };
+    }
+
+    const alreadyExists = data.pages.some((page) =>
+        page.items.some((item) => item.message.id === normalizedMessage.id)
+    );
+    if (alreadyExists) {
+        return data;
     }
 
     const pages = data.pages.map((page, index) => {
