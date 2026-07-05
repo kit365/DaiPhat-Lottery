@@ -77,7 +77,7 @@ class LotteryTicketSerialServiceTest {
         CreateLotteryTicketSerialRequest req = new CreateLotteryTicketSerialRequest("img.png", " SN-123 ");
         when(lotteryTicketSerialRepositoryPort.existsByTicketIdAndSerialNumber(TICKET_ID, "SN-123")).thenReturn(true);
 
-        assertThatThrownBy(() -> lotteryTicketSerialService.upsertSerialForTicket(ticketModel, req, USER_ID))
+        assertThatThrownBy(() -> lotteryTicketSerialService.upsertSerialForTicket(ticketModel, req, USER_ID, 1L, 2L))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.LOTTERY_TICKET_SERIAL_EXISTED);
     }
@@ -89,11 +89,13 @@ class LotteryTicketSerialServiceTest {
         when(lotteryTicketSerialRepositoryPort.existsByTicketIdAndSerialNumber(TICKET_ID, "SN-123")).thenReturn(false);
         when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        LotteryTicketSerialModel result = lotteryTicketSerialService.upsertSerialForTicket(ticketModel, req, USER_ID);
+        LotteryTicketSerialModel result = lotteryTicketSerialService.upsertSerialForTicket(ticketModel, req, USER_ID, 1L, 2L);
         
         assertThat(result.getSerialNumber()).isEqualTo("SN-123");
         assertThat(result.getTicketImg()).isEqualTo("img.png");
         assertThat(result.getImportedById()).isEqualTo(USER_ID);
+        assertThat(result.getImportBatchId()).isEqualTo(1L);
+        assertThat(result.getImportBatchLineId()).isEqualTo(2L);
         assertThat(result.getInputSource()).isEqualTo(InputSource.MANUAL);
     }
 
