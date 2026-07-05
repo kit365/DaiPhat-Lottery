@@ -80,6 +80,18 @@ export interface ImportBatchEligibleStation {
     resolvedBatchType: ImportBatchType;
 }
 
+export interface ImportBatchBlockedStation {
+    lotteryStationId: number;
+    name: string;
+    existingDraftBatchId?: number;
+    blockedReason?: string;
+}
+
+export interface ImportBatchEligibleStationsResult {
+    eligible: ImportBatchEligibleStation[];
+    blocked: ImportBatchBlockedStation[];
+}
+
 export interface ImportBatchClassificationPreview {
     resolvedBatchType: ImportBatchType;
     lateImportWarning: boolean;
@@ -150,7 +162,7 @@ export const getImportBatchTimePolicy = async (): Promise<ApiResponse<ImportBatc
 export const getEligibleImportBatchStations = async (
     drawDate: string,
     importMode: ImportBatchImportMode
-): Promise<ApiResponse<ImportBatchEligibleStation[]>> => {
+): Promise<ApiResponse<ImportBatchEligibleStationsResult>> => {
     const response = await apiApp.get(`${BASE_URL}/eligible-stations`, {
         ...withAuth(),
         params: { drawDate, importMode },

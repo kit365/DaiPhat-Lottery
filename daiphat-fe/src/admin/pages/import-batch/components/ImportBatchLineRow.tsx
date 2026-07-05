@@ -40,11 +40,6 @@ interface ImportBatchLineRowProps {
     selectedStationIdsInOtherRows: number[];
     canRemove: boolean;
     onRemove: () => void;
-    errors?: {
-        lotteryStationId?: { message?: string };
-        declareQuantity?: { message?: string };
-        importCost?: { message?: string };
-    };
 }
 
 export const ImportBatchLineRow = memo(function ImportBatchLineRow({
@@ -60,14 +55,9 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
     selectedStationIdsInOtherRows,
     canRemove,
     onRemove,
-    errors,
 }: ImportBatchLineRowProps) {
     const selectedStation = eligibleStations.find((s) => s.lotteryStationId === lotteryStationId);
-    const batchType = resolveDisplayBatchType(
-        drawDate,
-        resolvedBatchType,
-        selectedStation?.resolvedBatchType
-    );
+    const batchType = resolveDisplayBatchType(resolvedBatchType, selectedStation?.resolvedBatchType);
 
     const lineTotal = computeImportBatchLineTotal({
         lotteryStationId,
@@ -91,30 +81,26 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 <Controller
                     name={`lines.${index}.lotteryStationId`}
                     control={control}
-                    render={({ field }) => (
-                        <FormControl fullWidth size="small" error={!!errors?.lotteryStationId}>
+                    render={({ field, fieldState }) => (
+                        <FormControl fullWidth size="small" error={!!fieldState.error}>
                             <InputLabel>Nhà đài</InputLabel>
                             <Select
-                                {...field}
+                                name={field.name}
+                                onBlur={field.onBlur}
+                                inputRef={field.ref}
                                 label="Nhà đài"
-                                value={field.value || ''}
+                                value={field.value && field.value > 0 ? field.value : ''}
                                 onChange={(e) => {
                                     const stationId = Number(e.target.value);
                                     field.onChange(stationId);
                                     const station = eligibleStations.find(
                                         (s) => s.lotteryStationId === stationId
                                     );
-                                    if (station) {
-                                        setValue(`lines.${index}.resolvedBatchType`, station.resolvedBatchType, {
-                                            shouldValidate: true,
-                                            shouldDirty: true,
-                                        });
-                                    } else {
-                                        setValue(`lines.${index}.resolvedBatchType`, undefined, {
-                                            shouldValidate: true,
-                                            shouldDirty: true,
-                                        });
-                                    }
+                                    setValue(
+                                        `lines.${index}.resolvedBatchType`,
+                                        station?.resolvedBatchType,
+                                        { shouldValidate: true, shouldDirty: true }
+                                    );
                                 }}
                                 disabled={eligibleStations.length === 0}
                             >
@@ -124,9 +110,9 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                                     </MenuItem>
                                 ))}
                             </Select>
-                            {errors?.lotteryStationId && (
+                            {fieldState.error && (
                                 <Typography variant="caption" color="error">
-                                    {errors.lotteryStationId.message}
+                                    {fieldState.error.message}
                                 </Typography>
                             )}
                         </FormControl>
@@ -163,13 +149,13 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 <Controller
                     name={`lines.${index}.declareQuantity`}
                     control={control}
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                         <TextField
                             {...field}
                             type="number"
                             size="small"
-                            error={!!errors?.declareQuantity}
-                            helperText={errors?.declareQuantity?.message}
+                            error={!!fieldState.error}
+                            helperText={fieldState.error?.message}
                             sx={{ width: 72 }}
                             inputProps={{ min: 1 }}
                         />
@@ -180,15 +166,15 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                 <Controller
                     name={`lines.${index}.importCost`}
                     control={control}
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                         <TextField
                             name={field.name}
                             onBlur={field.onBlur}
                             inputRef={field.ref}
                             value={formatViInteger(field.value)}
                             size="small"
-                            error={!!errors?.importCost}
-                            helperText={errors?.importCost?.message}
+                            error={!!fieldState.error}
+                            helperText={fieldState.error?.message}
                             sx={{ width: 132 }}
                             onChange={(e) => {
                                 const parsed = parseNonNegativeIntegerInput(e.target.value);
