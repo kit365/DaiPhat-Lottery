@@ -2,6 +2,8 @@ package com.daiphat.coreapi.domain.model.chat;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.chat.ChatIntent;
+import com.daiphat.coreapi.domain.model.enums.chat.ChatSchedulePendingSlot;
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationCloseReason;
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
 import com.daiphat.coreapi.domain.model.enums.chat.LastMessageFrom;
@@ -9,8 +11,11 @@ import com.daiphat.coreapi.domain.model.enums.chat.MessageSenderType;
 import lombok.*;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +62,9 @@ public class ConversationModel {
     private LocalDateTime autoCloseWarningSentAt;
     private UUID lastAssignedOperatorId;
 
+    @Builder.Default
+    private List<PendingFlowState> activeFlows = new ArrayList<>();
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
@@ -75,6 +83,7 @@ public class ConversationModel {
     }
 
     public void waitForOperator() {
+        clearPendingFlow();
         status = ConversationStatus.WAITING_FOR_OPERATOR;
     }
 
@@ -88,6 +97,7 @@ public class ConversationModel {
 
     public Optional<UUID> closeSession() {
         ensureNotClosed();
+        clearPendingFlow();
         UUID formerAssignee = assignedOperatorId;
         lastAssignedOperatorId = formerAssignee;
         assignedOperatorId = null;
@@ -441,6 +451,157 @@ public class ConversationModel {
 
     public void softDelete() {
         deletedAt = LocalDateTime.now();
+    }
+
+    public boolean hasPendingScheduleFlow() {
+        return findActiveFlow(ChatIntent.WEB_SCHEDULE.name())
+                .map(flow -> flow.pendingSlot() != null && !flow.pendingSlot().isBlank())
+                .orElse(false);
+    }
+
+    public boolean hasPendingFlow(String intent) {
+        return findActiveFlow(intent)
+                .map(flow -> flow.pendingSlot() != null && !flow.pendingSlot().isBlank())
+                .orElse(false);
+    }
+
+    public Optional<PendingFlowState> findActiveFlow(String intent) {
+        if (intent == null || activeFlows == null || activeFlows.isEmpty()) {
+            return Optional.empty();
+        }
+        return activeFlows.stream()
+                .filter(flow -> intent.equals(flow.intent()))
+                .reduce((first, second) -> second);
+    }
+
+    public Optional<PendingFlowState> latestFlow() {
+        if (activeFlows == null || activeFlows.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(activeFlows.getLast());
+    }
+
+    public void upsertFlow(PendingFlowState flow) {
+        if (flow == null) {
+            return;
+        }
+        if (activeFlows == null) {
+            activeFlows = new ArrayList<>();
+        }
+        for (int index = 0; index < activeFlows.size(); index++) {
+            if (activeFlows.get(index).flowId().equals(flow.flowId())) {
+                activeFlows.set(index, flow);
+                return;
+            }
+        }
+        activeFlows.add(flow);
+    }
+
+    public void removeFlow(String flowId) {
+        if (flowId == null || activeFlows == null) {
+            return;
+        }
+        activeFlows.removeIf(flow -> flowId.equals(flow.flowId()));
+    }
+
+    public void expireFlows(Duration ttl) {
+        if (activeFlows == null || activeFlows.isEmpty() || ttl == null) {
+            return;
+        }
+        Instant cutoff = Instant.now().minus(ttl);
+        activeFlows.removeIf(flow -> flow.lastTouchedAt() != null && flow.lastTouchedAt().isBefore(cutoff));
+    }
+
+    public String getPendingIntent() {
+        return latestFlow().map(PendingFlowState::intent).orElse(null);
+    }
+
+    public void setPendingIntent(String pendingIntent) {
+        if (pendingIntent == null || pendingIntent.isBlank()) {
+            clearPendingFlow();
+            return;
+        }
+        PendingFlowState flow = findActiveFlow(pendingIntent)
+                .orElseGet(() -> PendingFlowState.create(pendingIntent));
+        upsertFlow(flow);
+    }
+
+    public ChatSchedulePendingSlot getPendingSlot() {
+        return scheduleFlow()
+                .map(PendingFlowState::pendingSlot)
+                .filter(slot -> slot != null && !slot.isBlank())
+                .map(ChatSchedulePendingSlot::valueOf)
+                .orElse(null);
+    }
+
+    public void setPendingSlot(ChatSchedulePendingSlot pendingSlot) {
+        PendingFlowState current = ensureLatestFlow(ChatIntent.WEB_SCHEDULE.name());
+        upsertFlow(current.withPendingSlot(pendingSlot != null ? pendingSlot.name() : null));
+    }
+
+    public void clearPendingFlow() {
+        if (activeFlows != null) {
+            activeFlows.clear();
+        }
+    }
+
+    public void clearPendingFlow(String intent) {
+        if (intent == null || activeFlows == null) {
+            return;
+        }
+        activeFlows.removeIf(flow -> intent.equals(flow.intent()));
+    }
+
+    public Map<String, String> mutableCollectedSlots() {
+        PendingFlowState current = ensureLatestFlow(ChatIntent.WEB_SCHEDULE.name());
+        Map<String, String> slots = current.mutableCollectedSlots();
+        upsertFlow(current.withCollectedSlots(slots));
+        return slots;
+    }
+
+    public String collectedSlot(String key) {
+        return scheduleFlow()
+                .map(PendingFlowState::collectedSlots)
+                .map(slots -> slots.get(key))
+                .orElse(null);
+    }
+
+    public void putCollectedSlot(String key, String value) {
+        if (key == null || value == null || value.isBlank()) {
+            return;
+        }
+        PendingFlowState current = ensureLatestFlow(ChatIntent.WEB_SCHEDULE.name());
+        Map<String, String> slots = new HashMap<>(current.mutableCollectedSlots());
+        slots.put(key, value.trim());
+        upsertFlow(current.withCollectedSlots(slots));
+    }
+
+    public void removeCollectedSlot(String key) {
+        PendingFlowState current = scheduleFlow().orElse(null);
+        if (current == null || key == null) {
+            return;
+        }
+        Map<String, String> slots = new HashMap<>(current.mutableCollectedSlots());
+        slots.remove(key);
+        upsertFlow(current.withCollectedSlots(slots));
+    }
+
+    private PendingFlowState ensureLatestFlow(String intent) {
+        return findActiveFlow(intent).orElseGet(() -> {
+            PendingFlowState created = PendingFlowState.create(intent);
+            upsertFlow(created);
+            return created;
+        });
+    }
+
+    private Optional<PendingFlowState> scheduleFlow() {
+        return findActiveFlow(ChatIntent.WEB_SCHEDULE.name());
+    }
+
+    public boolean isBotOwned() {
+        return assignedOperatorId == null
+                && status != ConversationStatus.CLOSED
+                && status != ConversationStatus.WAITING_FOR_OPERATOR;
     }
 
     public boolean isParticipant(UUID userId) {

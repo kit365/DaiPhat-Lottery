@@ -16,6 +16,7 @@ public record ChatMessageSocketResponse(
         String senderName,
         MessageSenderType senderType,
         String content,
+        String intent,
         MessageType type,
         LocalDateTime createdAt
 ) {

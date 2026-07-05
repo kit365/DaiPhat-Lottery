@@ -1,6 +1,8 @@
 package com.daiphat.coreapi.domain.model.chat;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.model.enums.chat.ChatIntent;
+import com.daiphat.coreapi.domain.model.enums.chat.ChatSchedulePendingSlot;
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
 import com.daiphat.coreapi.domain.model.enums.chat.LastMessageFrom;
 import org.junit.jupiter.api.DisplayName;
@@ -14,11 +16,42 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import static com.daiphat.coreapi.application.constant.chat.schedule.ChatScheduleConstants.SLOT_DRAW_DATE;
+
 @DisplayName("ConversationModel assignment rules")
 class ConversationModelTest {
 
     private static final UUID OPERATOR_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID OTHER_OPERATOR_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+
+    @Test
+    void closeSession_clearsPendingScheduleFlow() {
+        ConversationModel conversation = ConversationModel.builder()
+                .status(ConversationStatus.OPEN)
+                .build();
+        conversation.setPendingIntent(ChatIntent.WEB_SCHEDULE.name());
+        conversation.setPendingSlot(ChatSchedulePendingSlot.LOCATION);
+        conversation.putCollectedSlot(SLOT_DRAW_DATE, "2026-07-04");
+
+        conversation.closeSession();
+
+        assertThat(conversation.hasPendingScheduleFlow()).isFalse();
+        assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.CLOSED);
+    }
+
+    @Test
+    void waitForOperator_clearsPendingScheduleFlow() {
+        ConversationModel conversation = ConversationModel.builder()
+                .status(ConversationStatus.OPEN)
+                .build();
+        conversation.setPendingIntent(ChatIntent.WEB_SCHEDULE.name());
+        conversation.setPendingSlot(ChatSchedulePendingSlot.DATE);
+
+        conversation.waitForOperator();
+
+        assertThat(conversation.hasPendingScheduleFlow()).isFalse();
+        assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.WAITING_FOR_OPERATOR);
+    }
 
     @Test
     void operatorAcceptanceCopy_usesOperatorNameWhenPresent() {

@@ -1,0 +1,49 @@
+daiphat:
+  chat:
+    intent:
+      escalate-keywords:
+        - nhân viên
+        - người thật
+        - tư vấn viên
+        - hỗ trợ trực tiếp
+        - người hỗ trợ
+      account-keywords:
+        - đơn hàng
+        - mua vé
+        - thanh toán
+        - chưa nhận được
+        - lỗi nạp tiền
+        - nạp tiền
+      result-keywords:
+        - kết quả
+        - xổ số
+        - trúng không
+        - dò vé
+        - vé số
+        - kqxs
+      fortune-keywords:
+        - giấc mơ
+        - phong thủy
+        - con số may mắn
+        - giải mã giấc mơ
+        - tử vi
+      trash-talk-exact:
+        - hi
+        - hello
+        - chào
+        - xin chào
+        - chào bạn
+        - chào shop
+      station-schedule-lookup:
+        cue-word: dai
+        lookup-verbs:
+          - tra cuu
+          - lich
+          - quay
+          - mo thuong
+          - "tim "
+          - " xem"
+      schedule-date-context-verbs:
+        - lich
+        - quay
+        - mo thuong

@@ -11,13 +11,16 @@ const DEFAULT_TIMELINE_LIMIT = 30;
 export const getCustomerChatTimelineKey = (scope: ChatTimelineScope, customerId: string) =>
     ['chat', 'customer-timeline', scope, customerId] as const;
 
+/** Stable React Query key for authenticated client timeline (API uses JWT, not customerId). */
+export const CLIENT_TIMELINE_USER_KEY = 'me';
+
 /** @deprecated Use getCustomerChatTimelineKey('admin', customerId) */
 export const adminChatCustomerTimelineKey = (customerId: string) =>
     getCustomerChatTimelineKey('admin', customerId);
 
-/** @deprecated Use getCustomerChatTimelineKey('client', userId) */
-export const getClientChatTimelineKey = (userId?: string | null) =>
-    getCustomerChatTimelineKey('client', userId ?? '');
+/** @deprecated Use getCustomerChatTimelineKey('client', CLIENT_TIMELINE_USER_KEY) */
+export const getClientChatTimelineKey = () =>
+    getCustomerChatTimelineKey('client', CLIENT_TIMELINE_USER_KEY);
 
 export const parseTimelineCursor = (cursor: string): { beforeCreatedAt: string; beforeId: number } => {
     const separatorIndex = cursor.lastIndexOf('|');
@@ -70,5 +73,5 @@ export const useCustomerChatTimeline = (
     });
 };
 
-export const useMyChatTimeline = (userId?: string | null, token?: string | null) =>
-    useCustomerChatTimeline('client', userId ?? '', { enabled: Boolean(token) });
+export const useMyChatTimeline = (token?: string | null) =>
+    useCustomerChatTimeline('client', CLIENT_TIMELINE_USER_KEY, { enabled: Boolean(token) });
