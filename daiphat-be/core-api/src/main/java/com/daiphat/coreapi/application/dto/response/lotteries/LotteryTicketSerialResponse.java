@@ -11,6 +11,9 @@ import java.util.UUID;
 public record LotteryTicketSerialResponse(
         @JsonView(Views.Public.class) Long id,
         @JsonView(Views.Public.class) Long ticketId,
+        @JsonView(Views.Admin.class) Long importBatchId,
+        @JsonView(Views.Admin.class) Long importBatchLineId,
+        @JsonView(Views.Admin.class) String batchCode,
         @JsonView(Views.Public.class) String ticketImg,
         @JsonView(Views.Public.class) String serialNumber,
         @JsonView(Views.Public.class) String status,
