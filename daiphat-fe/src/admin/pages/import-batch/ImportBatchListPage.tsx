@@ -137,10 +137,18 @@ export const ImportBatchListPage = () => {
                             </TableRow>
                         ) : (
                             batches.map((batch) => {
-                                const importedQty = (batch.lines ?? []).reduce(
-                                    (sum, line) => sum + (line.totalQuantity || 0),
-                                    0
-                                );
+                                const importedQty =
+                                    batch.totalImportedQuantity ??
+                                    (batch.lines ?? []).reduce(
+                                        (sum, line) => sum + (line.totalQuantity || 0),
+                                        0
+                                    );
+                                const declaredQty =
+                                    batch.totalDeclareQuantity ??
+                                    (batch.lines ?? []).reduce(
+                                        (sum, line) => sum + (line.declareQuantity || 0),
+                                        0
+                                    );
                                 const lineSummary = (batch.lines ?? [])
                                     .map(
                                         (line) =>
@@ -170,7 +178,7 @@ export const ImportBatchListPage = () => {
                                             </Typography>
                                         </TableCell>
                                         <TableCell align="right">
-                                            {batch.totalDeclareQuantity ?? 0}
+                                            {declaredQty}
                                         </TableCell>
                                         <TableCell align="right">{importedQty}</TableCell>
                                         <TableCell align="center">

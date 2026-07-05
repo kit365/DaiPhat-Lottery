@@ -70,7 +70,7 @@ export const ImportBatchCreatePage = () => {
             drawDate: dayjs().format('YYYY-MM-DD'),
             supplierId: 0,
             importMode: 'IN_DAY',
-            sharedInvoiceEvidenceUrl: '',
+            invoiceEvidenceUrl: '',
             lines: [emptyLine()],
         },
     });
@@ -225,9 +225,9 @@ export const ImportBatchCreatePage = () => {
                 drawDate: pendingFormData.drawDate,
                 supplierId: pendingFormData.supplierId,
                 importMode: pendingFormData.importMode,
-                sharedInvoiceEvidenceUrl:
+                invoiceEvidenceUrl:
                     pendingFormData.importMode === 'IN_DAY'
-                        ? pendingFormData.sharedInvoiceEvidenceUrl?.trim() || undefined
+                        ? pendingFormData.invoiceEvidenceUrl?.trim() || undefined
                         : undefined,
                 lines: pendingFormData.lines.map((line) => ({
                     lotteryStationId: line.lotteryStationId,
@@ -480,14 +480,14 @@ export const ImportBatchCreatePage = () => {
                                             Ảnh biên lai (dùng chung cho tất cả nhà đài)
                                         </Typography>
                                         <Controller
-                                            name="sharedInvoiceEvidenceUrl"
+                                            name="invoiceEvidenceUrl"
                                             control={control}
                                             render={({ field }) => (
                                                 <UploadSingleFile
                                                     value={field.value}
                                                     onChange={field.onChange}
                                                     customUpload={uploadReceipt}
-                                                    error={errors.sharedInvoiceEvidenceUrl?.message}
+                                                    error={errors.invoiceEvidenceUrl?.message}
                                                 />
                                             )}
                                         />
@@ -515,7 +515,7 @@ export const ImportBatchCreatePage = () => {
                             : ''
                     }
                     importMode={pendingFormData?.importMode}
-                    sharedInvoiceEvidenceUrl={pendingFormData?.sharedInvoiceEvidenceUrl}
+                    invoiceEvidenceUrl={pendingFormData?.invoiceEvidenceUrl}
                     lines={(pendingFormData?.lines ?? []).map((line) => ({
                         stationName: resolveStationName(line.lotteryStationId),
                         batchType: line.resolvedBatchType ?? 'NEW',
