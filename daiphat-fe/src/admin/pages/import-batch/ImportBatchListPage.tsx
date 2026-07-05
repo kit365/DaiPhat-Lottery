@@ -69,11 +69,8 @@ export const ImportBatchListPage = () => {
     const handleAddTicket = useCallback(
         (batch: ImportBatch) => {
             const lines = batch.lines ?? [];
-            if (lines.length === 1 && lines[0].id) {
-                navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH_LINE(lines[0].id));
-            } else {
-                navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(batch.id));
-            }
+            const lineId = lines.length === 1 ? lines[0]?.id : undefined;
+            navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(batch.id, lineId));
         },
         [navigate]
     );
