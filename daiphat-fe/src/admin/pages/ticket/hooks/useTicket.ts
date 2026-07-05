@@ -13,6 +13,7 @@ import {
     uploadTicketSerialImage
 } from '../../../api/ticket.api';
 import { ApiResponse } from '../../../config/type';
+import { QUERY_KEYS } from '../../../../constants/queryKeys';
 
 // --- TICKETS ---
 export const useTicketList = (params?: any, options?: any) => {
@@ -47,6 +48,8 @@ export const useCreateTicket = () => {
         mutationFn: createTicket,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tickets'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL] });
         },
     });
 };
