@@ -21,11 +21,6 @@ public record CreateLotteryTicketRequest(
 
         LocalDate drawDate,
 
-        /**
-         * Ignored. Batch code is taken from the import batch line.
-         */
-        String batchCode,
-
         @NotNull(message = "Phiếu nhập lô không được để trống")
         Long importBatchLineId
 ) {
