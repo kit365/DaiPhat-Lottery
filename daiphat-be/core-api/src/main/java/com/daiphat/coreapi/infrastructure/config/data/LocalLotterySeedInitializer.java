@@ -117,14 +117,12 @@ public class LocalLotterySeedInitializer implements ApplicationRunner {
             String serialNumber = dailyPrefix + String.format("%03d", nextIndex);
             if (lotteryTicketSerialRepository.findFirstBySerialNumberAndDeletedAtIsNull(serialNumber).isEmpty()) {
                 String numbers = String.format("%06d", (station.getId() * 10_000 + nextIndex * 1_357L) % 1_000_000);
-                String batchCode = "LOCAL-BATCH-" + station.getId() + "-" + drawDate.format(DATE_SUFFIX);
 
                 var created = lotteryTicketServicePort.create(
                         CreateLotteryTicketRequest.builder()
                                 .stationId(station.getId())
                                 .numbers(numbers)
                                 .drawDate(drawDate)
-                                .batchCode(batchCode)
                                 .importBatchLineId(importBatchLineId)
                                 .serials(List.of(
                                         new CreateLotteryTicketSerialRequest(

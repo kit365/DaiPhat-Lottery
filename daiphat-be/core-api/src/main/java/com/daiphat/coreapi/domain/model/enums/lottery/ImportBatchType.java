@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 public enum ImportBatchType {
     NEW("Nhập mới"),
     SUPPLEMENTARY("Nhập bổ sung"),
-    ADJUSTMENT("Bổ sung sau quay"),
+    ADJUSTMENT("Nhập vé bổ sung"),
     LATE_IMPORT("Nhập trễ");
 
     private final String label;

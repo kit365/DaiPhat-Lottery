@@ -58,4 +58,9 @@ public class ImportBatchLineRepositoryAdapter implements ImportBatchLineReposito
     ) {
         return importBatchLineRepository.existsByStationAndDrawDateAndBatchType(stationId, drawDate, batchType);
     }
+
+    @Override
+    public long nextBatchCodeSequence() {
+        return importBatchLineRepository.nextBatchCodeSequence();
+    }
 }

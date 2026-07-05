@@ -210,6 +210,12 @@ public enum ErrorCode {
             "Chưa có nhà cung cấp. Vui lòng tạo nhà cung cấp trước khi nhập vé.",
             HttpStatus.BAD_REQUEST
     ),
+    IMPORT_BATCH_LINE_BATCH_CODE_MISSING(
+            "LT_085",
+            "Dòng phiếu nhập lô chưa có mã lô hệ thống.",
+            HttpStatus.BAD_REQUEST
+    ),
+
     LOTTERY_SUPPLIER_ACTIVATION_INCOMPLETE(
             "LT_081",
             "Nhà cung cấp chưa đủ thông tin bắt buộc để kích hoạt.",

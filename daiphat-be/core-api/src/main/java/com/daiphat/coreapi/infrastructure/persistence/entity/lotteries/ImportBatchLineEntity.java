@@ -33,6 +33,9 @@ public class ImportBatchLineEntity extends BaseEntity {
     @Column(name = "batch_type", nullable = false, length = 30)
     private ImportBatchType batchType;
 
+    @Column(name = "batch_code", nullable = false, length = 100, unique = true)
+    private String batchCode;
+
     @Column(name = "declare_quantity", nullable = false)
     private Integer declareQuantity;
 

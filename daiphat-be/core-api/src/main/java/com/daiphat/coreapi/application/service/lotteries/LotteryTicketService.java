@@ -92,6 +92,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         validateTicketAgainstImportBatchLine(importBatchLine, importBatch, station.getId(), resolvedDrawDate);
         requestedTicket.setImportBatchId(importBatch.getId());
         requestedTicket.setImportBatchLineId(importBatchLine.getId());
+        requestedTicket.setBatchCode(requireLineBatchCode(importBatchLine));
 
         var existingTicket = lotteryTicketRepositoryPort.findByUniqueFields(
                 request.stationId(),
@@ -111,9 +112,13 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         if (ticket.getImportBatchLineId() == null) {
             ticket.setImportBatchId(importBatch.getId());
             ticket.setImportBatchLineId(importBatchLine.getId());
+            ticket.setBatchCode(requireLineBatchCode(importBatchLine));
             ticket = lotteryTicketRepositoryPort.save(ticket);
         } else if (!ticket.getImportBatchLineId().equals(importBatchLine.getId())) {
             throw new DomainException(ErrorCode.LOTTERY_TICKET_IMPORT_BATCH_MISMATCH);
+        } else if (!requireLineBatchCode(importBatchLine).equals(ticket.getBatchCode())) {
+            ticket.setBatchCode(requireLineBatchCode(importBatchLine));
+            ticket = lotteryTicketRepositoryPort.save(ticket);
         }
 
         final LotteryTicketModel resolvedTicket = ticket;
@@ -230,9 +235,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             model.validateDrawDate(nextDrawDate);
             model.setDrawDate(nextDrawDate);
         }
-        if (hasText(request.batchCode())) {
-            model.setBatchCode(request.batchCode().trim());
-        }
+        // batchCode is system-generated from the import batch line and cannot be changed.
 
         if (request.status() != null && request.status() != model.getStatus()) {
             applyStatusTransition(model, request.status());
@@ -534,6 +537,15 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
 
         return line;
+    }
+
+    private String requireLineBatchCode(ImportBatchLineModel importBatchLine) {
+        if (importBatchLine == null
+                || importBatchLine.getBatchCode() == null
+                || importBatchLine.getBatchCode().isBlank()) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_BATCH_CODE_MISSING);
+        }
+        return importBatchLine.getBatchCode().trim();
     }
 
     private ImportBatchModel getImportBatchOrThrow(Long importBatchId) {

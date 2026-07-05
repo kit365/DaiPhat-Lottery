@@ -20,8 +20,10 @@ public record CreateLotteryTicketRequest(
         String numbers,
 
         LocalDate drawDate,
-        
-        @NotBlank(message = "Mã lô nhập không được để trống")
+
+        /**
+         * Ignored. Batch code is taken from the import batch line.
+         */
         String batchCode,
 
         @NotNull(message = "Phiếu nhập lô không được để trống")

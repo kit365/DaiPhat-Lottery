@@ -2,22 +2,27 @@ package com.daiphat.coreapi.shared.util;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Component
+@RequiredArgsConstructor
 public class ImportBatchStationEligibilityResolver {
+
+    private final ImportBatchConfigResolver importBatchConfigResolver;
 
     public boolean isScheduledOnDrawDate(LotteryStationModel station, LocalDate drawDate) {
         if (station == null || drawDate == null) {
             return false;
         }
-        DrawScheduleUtils.validate(station.getDrawDays(), station.getDrawTime());
-        DayOfWeek drawDay = drawDate.getDayOfWeek();
-        return station.getDrawDays().contains(drawDay);
+        if (station.getDrawDays() == null || station.getDrawDays().isEmpty()) {
+            return false;
+        }
+        return station.getDrawDays().contains(drawDate.getDayOfWeek());
     }
 
     public boolean isEligibleForSelection(
@@ -32,6 +37,8 @@ public class ImportBatchStationEligibilityResolver {
 
         LocalDate today = now.toLocalDate();
         if (!drawDate.equals(today)) {
+            // Past/future draw dates: all scheduled stations are selectable.
+            // Type resolver assigns ADDITIONAL when the draw has already completed.
             return true;
         }
 
@@ -40,19 +47,32 @@ public class ImportBatchStationEligibilityResolver {
         }
 
         boolean pastDraw = hasCompletedDrawToday(station, drawDate, now);
+
+        if (isAfterSameDayCutoff(now.toLocalTime())) {
+            return importMode == ImportBatchImportMode.POST_DRAW_SUPPLEMENT && pastDraw;
+        }
+
+        // POST_DRAW_SUPPLEMENT: only stations that already drew.
+        // IN_DAY: all stations scheduled today (before draw → NEW/SUPPLEMENT; after → ADDITIONAL).
         if (importMode == ImportBatchImportMode.POST_DRAW_SUPPLEMENT) {
             return pastDraw;
         }
-        return !pastDraw;
+        return true;
     }
 
     public boolean hasCompletedDrawToday(LotteryStationModel station, LocalDate drawDate, LocalDateTime now) {
-        if (station == null || drawDate == null || station.getDrawTime() == null) {
+        if (station == null || drawDate == null) {
             return false;
         }
         LocalDate today = now.toLocalDate();
-        if (!drawDate.equals(today)) {
-            return drawDate.isBefore(today);
+        if (drawDate.isBefore(today)) {
+            return true;
+        }
+        if (drawDate.isAfter(today)) {
+            return false;
+        }
+        if (station.getDrawTime() == null) {
+            return false;
         }
         return now.toLocalTime().isAfter(station.getDrawTime());
     }
@@ -75,5 +95,10 @@ public class ImportBatchStationEligibilityResolver {
                     "Đài " + station.getName() + " không khả dụng cho ngày quay và loại nhập đã chọn."
             );
         }
+    }
+
+    private boolean isAfterSameDayCutoff(LocalTime currentTime) {
+        LocalTime cutoff = importBatchConfigResolver.resolveImportBatchCutoff();
+        return currentTime.isAfter(cutoff);
     }
 }
