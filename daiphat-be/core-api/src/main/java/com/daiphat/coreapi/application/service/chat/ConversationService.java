@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.application.service.chat;
 
-import com.daiphat.coreapi.application.config.ChatAiProperties;
 import com.daiphat.coreapi.application.config.ChatConversationProperties;
+import com.daiphat.coreapi.application.strategy.chat.ChatAiMessages;
 import com.daiphat.coreapi.application.dto.request.chat.CloseConversationRequest;
 import com.daiphat.coreapi.application.dto.request.chat.InitConversationRequest;
 import com.daiphat.coreapi.application.dto.request.chat.SendChatMessageSocketRequest;
@@ -21,7 +21,7 @@ import com.daiphat.coreapi.application.port.out.chat.ChatConversationEventPublis
 import com.daiphat.coreapi.application.port.out.chat.ChatMessagePublisherPort;
 import com.daiphat.coreapi.application.port.out.chat.ConversationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.chat.MessageRepositoryPort;
-import com.daiphat.coreapi.application.strategy.chat.ChatResponseStrategy;
+import com.daiphat.coreapi.application.port.in.chat.ChatBotPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
@@ -48,7 +48,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -70,8 +69,7 @@ public class ConversationService implements ConversationServicePort {
     private final ChatConversationEventPublisherPort chatConversationEventPublisherPort;
     private final ChatMessagePublisherPort chatMessagePublisherPort;
     private final ChatConversationProperties chatConversationProperties;
-    private final ChatAiProperties chatAiProperties;
-    private final ChatResponseStrategy chatResponseStrategy;
+    private final ChatBotPort chatBotPort;
     private final ChatEscalationPort chatEscalationPort;
 
     @Override
@@ -99,9 +97,16 @@ public class ConversationService implements ConversationServicePort {
         userLookupServicePort.findActiveByIdOrThrow(userId);
         ConversationModel conversation = getConversationOrThrow(conversationId);
         assertCustomerAccess(conversation, userId);
-        acknowledgeCustomerReadAll(conversation, LocalDateTime.now());
+        LocalDateTime readAt = LocalDateTime.now();
+        LocalDateTime previousReadAt = conversation.getCustomerLastReadAt();
+        markConversationRead(conversation, userId, readAt);
+        ConversationDetailResponse response = toConversationDetailResponse(conversation);
+        messageRepositoryPort.markAllInboundUnreadMessagesAsReadByCustomer(conversation.getId());
         conversationRepositoryPort.save(conversation);
-        return toConversationDetailResponse(conversation);
+        if (previousReadAt == null || readAt.isAfter(previousReadAt)) {
+            publishMessageReadEvent(conversation, readAt);
+        }
+        return response;
     }
 
     @Override
@@ -110,9 +115,16 @@ public class ConversationService implements ConversationServicePort {
         userLookupServicePort.findActiveByIdOrThrow(userId);
         ConversationModel conversation = getConversationOrThrow(conversationId);
         assertCustomerAccess(conversation, userId);
-        acknowledgeCustomerReadAll(conversation, LocalDateTime.now());
+        LocalDateTime readAt = LocalDateTime.now();
+        LocalDateTime previousReadAt = conversation.getCustomerLastReadAt();
+        markConversationRead(conversation, userId, readAt);
+        ConversationDetailResponse response = toConversationDetailResponse(conversation);
+        messageRepositoryPort.markAllInboundUnreadMessagesAsReadByCustomer(conversation.getId());
         conversationRepositoryPort.save(conversation);
-        return toConversationDetailResponse(conversation);
+        if (previousReadAt == null || readAt.isAfter(previousReadAt)) {
+            publishMessageReadEvent(conversation, readAt);
+        }
+        return response;
     }
 
     @Override
@@ -243,7 +255,7 @@ public class ConversationService implements ConversationServicePort {
 
         Long previousConversationId = null;
         if (!ascMessages.isEmpty()) {
-            MessageModel firstMessage = ascMessages.get(0);
+            MessageModel firstMessage = ascMessages.getFirst();
             previousConversationId = messageRepositoryPort
                     .findCustomerTimelineMessageBefore(
                             customerId,
@@ -287,7 +299,7 @@ public class ConversationService implements ConversationServicePort {
 
         String nextCursor = null;
         if (hasMore && !fetched.isEmpty()) {
-            MessageModel oldestInBatch = fetched.get(fetched.size() - 1);
+            MessageModel oldestInBatch = fetched.getLast();
             nextCursor = encodeTimelineCursor(oldestInBatch.getCreatedAt(), oldestInBatch.getId());
         }
 
@@ -328,8 +340,8 @@ public class ConversationService implements ConversationServicePort {
         MessageModel savedMessage = messageRepositoryPort.save(message);
         conversation.recordLastMessage(senderType, savedMessage.getCreatedAt());
         if (senderType == MessageSenderType.CUSTOMER) {
-            acknowledgeCustomerRead(conversation, savedMessage.getCreatedAt());
             handleCustomerMessageBotResponse(conversation, savedMessage);
+            acknowledgeCustomerRead(conversation, savedMessage.getCreatedAt());
         } else {
             markConversationRead(conversation, userId, savedMessage.getCreatedAt());
         }
@@ -344,6 +356,7 @@ public class ConversationService implements ConversationServicePort {
                 .senderName(sender.getFullName())
                 .senderType(savedMessage.getSenderType())
                 .content(savedMessage.getContent())
+                .intent(savedMessage.getIntent())
                 .type(savedMessage.getType())
                 .createdAt(savedMessage.getCreatedAt())
                 .build();
@@ -661,7 +674,7 @@ public class ConversationService implements ConversationServicePort {
         chatEscalationPort.escalateFromBot(
                 conversation,
                 reason != null ? reason : EscalationReason.CUSTOMER_REQUEST,
-                chatAiProperties.getHandoffMessage()
+                ChatAiMessages.HANDOFF
         );
     }
 
@@ -674,28 +687,7 @@ public class ConversationService implements ConversationServicePort {
             return;
         }
 
-        if (chatAiProperties.isEnabled()) {
-            chatResponseStrategy.handle(conversation, customerMessage);
-            return;
-        }
-
-        String disabledMessage = chatAiProperties.getDisabledMessage();
-        if (disabledMessage == null || disabledMessage.isBlank()) {
-            return;
-        }
-
-        // Only skip when this exact notice already exists — session dividers are also AI_SYSTEM.
-        boolean alreadyNotified = messageRepositoryPort.findByConversationId(conversation.getId()).stream()
-                .anyMatch(existing -> disabledMessage.equals(existing.getContent()));
-        if (alreadyNotified) {
-            return;
-        }
-
-        chatEscalationPort.escalateFromBot(
-                conversation,
-                EscalationReason.AI_DISABLED,
-                disabledMessage
-        );
+        chatBotPort.processCustomerMessage(conversation, customerMessage);
     }
 
     private void assertCanEscalate(ConversationModel conversation, UUID actorId) {
@@ -866,11 +858,14 @@ public class ConversationService implements ConversationServicePort {
     }
 
     private ConversationDetailResponse toConversationDetailResponse(ConversationModel conversation) {
+        List<MessageResponse> messages = chatApplicationMapper.toMessageResponses(
+                        messageRepositoryPort.findByConversationId(conversation.getId())
+                ).stream()
+                .map(message -> resolveCustomerMessageReadState(message, conversation))
+                .toList();
         return ConversationDetailResponse.builder()
                 .conversation(enrichSingleConversationResponse(conversation))
-                .messages(chatApplicationMapper.toMessageResponses(
-                        messageRepositoryPort.findByConversationId(conversation.getId())
-                ))
+                .messages(messages)
                 .build();
     }
 
@@ -896,7 +891,7 @@ public class ConversationService implements ConversationServicePort {
     }
 
     private void notifyNoOperatorAvailableIfNeeded(ConversationModel conversation) {
-        String message = chatAiProperties.getNoOperatorOnlineMessage();
+        String message = ChatAiMessages.NO_OPERATOR_ONLINE;
         if (message == null || message.isBlank()) {
             return;
         }
@@ -917,6 +912,7 @@ public class ConversationService implements ConversationServicePort {
                 .senderId(savedMessage.getSenderId())
                 .senderType(savedMessage.getSenderType())
                 .content(savedMessage.getContent())
+                .intent(savedMessage.getIntent())
                 .type(savedMessage.getType())
                 .createdAt(savedMessage.getCreatedAt())
                 .build();
