@@ -66,7 +66,6 @@ export const TicketEditPage = () => {
             stationId: "",
             serials: [{ serialNumber: "", ticketImg: undefined }],
             numbers: "",
-            batchCode: "",
             status: "",
         },
     });
@@ -149,7 +148,6 @@ export const TicketEditPage = () => {
                 stationId: (ticketDetail.stationId || ticketDetail.productId || ticketDetail.providerId || "").toString(),
                 serials,
                 numbers: ticketDetail.numbers || "",
-                batchCode: ticketDetail.batchCode || "",
                 status: normalizeTicketStatus(ticketDetail.status),
             });
             setResetKey((prev) => prev + 1);
@@ -283,16 +281,6 @@ export const TicketEditPage = () => {
                                                     {fieldState.error && <p className="text-red-500 text-xs mt-1 ml-3">{fieldState.error.message}</p>}
                                                 </FormControl>
                                             )}
-                                        />
-                                    </Box>
-
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                        <TextField
-                                            label="Mã lô nhập"
-                                            fullWidth
-                                            value={ticketDetail?.batchCode || "—"}
-                                            InputProps={{ readOnly: true }}
-                                            helperText="Mã lô được hệ thống tạo tự động và không thể chỉnh sửa."
                                         />
                                     </Box>
 
@@ -454,6 +442,9 @@ export const TicketEditPage = () => {
                                             />
                                             <Box sx={{ gridColumn: { xs: "span 12", md: "span 12" } }}>
                                                 <Stack direction={{ xs: "column", md: "row" }} gap={2}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Mã lô nhập: <strong>{ticketDetail?.serials?.[index]?.batchCode || "N/A"}</strong>
+                                                    </Typography>
                                                     <Typography variant="caption" color="text.secondary">
                                                         Trạng thái: <strong>{ticketDetail?.serials?.[index]?.statusDisplayName || "N/A"}</strong>
                                                     </Typography>
