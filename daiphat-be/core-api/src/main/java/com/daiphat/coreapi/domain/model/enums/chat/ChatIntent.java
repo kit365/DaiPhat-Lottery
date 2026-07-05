@@ -26,6 +26,6 @@ public enum ChatIntent {
     }
 
     public boolean shouldEscalate() {
-        return this == ESCALATE_REQUEST || this == UNKNOWN;
+        return this == ESCALATE_REQUEST;
     }
 }

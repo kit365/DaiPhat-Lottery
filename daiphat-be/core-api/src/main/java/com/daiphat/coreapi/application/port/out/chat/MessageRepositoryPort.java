@@ -15,6 +15,12 @@ public interface MessageRepositoryPort {
 
     List<MessageModel> findByConversationId(Long conversationId);
 
+    List<MessageModel> findRecentBotMessagesByConversationId(
+            Long conversationId,
+            MessageSenderType senderType,
+            int limit
+    );
+
     boolean existsByConversationIdAndSenderType(Long conversationId, MessageSenderType senderType);
 
     int countUnreadByConversationId(Long conversationId, UUID readerUserId, LocalDateTime lastReadAt);

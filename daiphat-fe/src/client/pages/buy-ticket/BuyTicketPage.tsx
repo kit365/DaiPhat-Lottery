@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
 import { ChevronRight, Calendar as CalendarIcon, CheckCircle2, ShieldCheck, RefreshCw, ChevronDown, ChevronUp, Filter, LayoutGrid, Heart, SlidersHorizontal, Trash2, Search } from 'lucide-react';
 import { useCartStore } from '../../../stores/useCartStore';
@@ -72,6 +72,11 @@ const BannerSection = React.memo(() => (
 
 export const BuyTicketPage = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const urlStationId = searchParams.get('stationId');
+    const urlStationIds = searchParams.get('stationIds');
+    const urlRegion = searchParams.get('region');
+    const urlDrawDate = searchParams.get('drawDate');
     const { token, openLoginModal } = useAuthStore();
 
     // State
@@ -87,6 +92,7 @@ export const BuyTicketPage = () => {
     const [rangeCheckedBoxes, setRangeCheckedBoxes] = useState<string[]>(['00 - 09', '20 - 29', '80 - 89']);
     const selectorsRef = useRef<HTMLDivElement>(null);
     const filterRef = useRef<HTMLDivElement>(null);
+    const appliedDeepLinkRef = useRef(false);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -122,16 +128,60 @@ export const BuyTicketPage = () => {
             time: p.drawTime,
             day: p.drawSchedule,
             icon: p.image || p.thumbnailUrl,
-            schedule: p.drawSchedule
+            schedule: p.drawSchedule,
+            region: p.region,
         }));
     }, [selectedDates, stationsTodayData, stationsTomorrowData]);
 
-    // Tự động chọn đài đầu tiên nếu chưa chọn
     useEffect(() => {
-        if (dynamicProvinces.length > 0 && selectedProvinces.length === 0) {
-            setSelectedProvinces([dynamicProvinces[0].id]);
+        if (!urlDrawDate) {
+            return;
         }
-    }, [dynamicProvinces, selectedProvinces]);
+        const today = dayjs().format('YYYY-MM-DD');
+        const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
+        if (urlDrawDate === today) {
+            setSelectedDates(['today']);
+        } else if (urlDrawDate === tomorrow) {
+            setSelectedDates(['tomorrow']);
+        }
+    }, [urlDrawDate]);
+
+    // Pre-select đài từ deep link (chatbot CTA)
+    useEffect(() => {
+        if (dynamicProvinces.length === 0 || appliedDeepLinkRef.current) {
+            return;
+        }
+
+        let targetIds: Array<string | number> = [];
+        if (urlStationId) {
+            targetIds = [urlStationId];
+        } else if (urlStationIds) {
+            targetIds = urlStationIds
+                .split(',')
+                .map((value) => value.trim())
+                .filter(Boolean);
+        } else if (urlRegion) {
+            targetIds = dynamicProvinces
+                .filter((province: { region?: string }) =>
+                    province.region?.toUpperCase() === urlRegion.toUpperCase()
+                )
+                .map((province: { id: string | number }) => province.id);
+        }
+
+        const validIds = targetIds.filter((id) =>
+            dynamicProvinces.some((province: { id: string | number }) => String(province.id) === String(id))
+        );
+
+        if (validIds.length > 0) {
+            setSelectedProvinces(validIds.map(String));
+            appliedDeepLinkRef.current = true;
+            return;
+        }
+
+        if (!urlStationId && !urlStationIds && !urlRegion && selectedProvinces.length === 0) {
+            setSelectedProvinces([String(dynamicProvinces[0].id)]);
+        }
+    }, [dynamicProvinces, selectedProvinces.length, urlRegion, urlStationId, urlStationIds]);
     
     // Fetch tickets
     const drawDateFilter = selectedDates.map(d => d === 'today' ? dayjs().format('YYYY-MM-DD') : dayjs().add(1, 'day').format('YYYY-MM-DD')).join(',');
