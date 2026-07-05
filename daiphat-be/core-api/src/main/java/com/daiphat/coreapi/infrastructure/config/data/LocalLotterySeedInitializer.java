@@ -169,6 +169,7 @@ public class LocalLotterySeedInitializer implements ApplicationRunner {
                                     .drawDate(drawDate)
                                     .supplierId(supplierId)
                                     .importMode(ImportBatchImportMode.IN_DAY)
+                                    .invoiceEvidenceUrl("https://seed.local/import-batch-invoice.png")
                                     .lines(List.of(
                                             CreateImportBatchLineRequest.builder()
                                                     .lotteryStationId(station.getId())
