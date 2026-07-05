@@ -19,6 +19,8 @@ import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
+import com.daiphat.coreapi.shared.util.ImportBatchConfigResolver;
+import com.daiphat.coreapi.shared.util.ImportBatchCodeGenerator;
 import com.daiphat.coreapi.shared.util.ImportBatchStationEligibilityResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchTypeResolver;
 import org.junit.jupiter.api.BeforeEach;
@@ -74,6 +76,10 @@ class ImportBatchServiceTest {
     @Mock
     private ImportBatchStationEligibilityResolver stationEligibilityResolver;
     @Mock
+    private ImportBatchCodeGenerator importBatchCodeGenerator;
+    @Mock
+    private ImportBatchConfigResolver importBatchConfigResolver;
+    @Mock
     private Clock clock;
 
     @InjectMocks
@@ -98,7 +104,7 @@ class ImportBatchServiceTest {
                 .isActive(true)
                 .build();
         when(lotterySupplierServicePort.getActiveModelById(SUPPLIER_ID)).thenReturn(activeSupplier);
-        // ensureActiveSupplierConfigured is void; default mock does nothing
+        when(importBatchCodeGenerator.generate(any(), any(), any())).thenReturn("0001_CAMAU_NEW_20260706");
     }
 
     @Test
@@ -113,18 +119,6 @@ class ImportBatchServiceTest {
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.IMPORT_BATCH_NO_SUPPLIER_CONFIGURED);
-    }
-
-    @Test
-    @DisplayName("create when operator already has DRAFT is rejected")
-    void create_existingDraft_throws() {
-        when(importBatchRepositoryPort.existsByImportedByAndStatus(OPERATOR_ID, ImportBatchStatus.DRAFT))
-                .thenReturn(true);
-
-        assertThatThrownBy(() -> importBatchService.create(buildRequest("https://cdn.example/invoice.jpg"), OPERATOR_ID))
-                .isInstanceOf(DomainException.class)
-                .extracting(ex -> ((DomainException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.IMPORT_BATCH_DRAFT_ALREADY_EXISTS);
     }
 
     @Test

@@ -31,4 +31,7 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
             @Param("drawDate") LocalDate drawDate,
             @Param("batchType") ImportBatchType batchType
     );
+
+    @Query(value = "SELECT nextval('import_batch_code_seq')", nativeQuery = true)
+    long nextBatchCodeSequence();
 }

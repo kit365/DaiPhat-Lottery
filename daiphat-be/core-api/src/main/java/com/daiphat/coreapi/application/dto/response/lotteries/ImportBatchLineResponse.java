@@ -10,6 +10,7 @@ public record ImportBatchLineResponse(
         Long id,
         Long lotteryStationId,
         ImportBatchType batchType,
+        String batchCode,
         Integer declareQuantity,
         Integer totalQuantity,
         BigDecimal importCost,

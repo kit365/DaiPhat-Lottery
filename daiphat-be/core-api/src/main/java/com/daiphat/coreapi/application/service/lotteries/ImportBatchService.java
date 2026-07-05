@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchTimePolicyResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.mapper.lotteries.ImportBatchApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchServicePort;
@@ -22,6 +23,8 @@ import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
+import com.daiphat.coreapi.shared.util.ImportBatchConfigResolver;
+import com.daiphat.coreapi.shared.util.ImportBatchCodeGenerator;
 import com.daiphat.coreapi.shared.util.ImportBatchStationEligibilityResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchTypeResolver;
 import com.daiphat.coreapi.shared.util.SortUtils;
@@ -29,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +40,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -48,12 +53,16 @@ import java.util.UUID;
 @Slf4j
 public class ImportBatchService implements ImportBatchServicePort {
 
+    private static final DateTimeFormatter TIME_DISPLAY = DateTimeFormatter.ofPattern("H:mm");
+
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final LotteryStationServicePort lotteryStationServicePort;
     private final LotterySupplierServicePort lotterySupplierServicePort;
     private final ImportBatchApplicationMapper importBatchApplicationMapper;
     private final ImportBatchTypeResolver importBatchTypeResolver;
     private final ImportBatchStationEligibilityResolver stationEligibilityResolver;
+    private final ImportBatchCodeGenerator importBatchCodeGenerator;
+    private final ImportBatchConfigResolver importBatchConfigResolver;
     private final Clock clock;
 
     @Override
@@ -61,7 +70,6 @@ public class ImportBatchService implements ImportBatchServicePort {
     public ImportBatchResponse create(CreateImportBatchRequest request, UUID operatorId) {
         log.info("Creating import batch with {} line(s) on draw date {}", request.lines().size(), request.drawDate());
 
-        ensureNoActiveDraft(operatorId);
         ensureUniqueStations(request.lines());
         lotterySupplierServicePort.ensureActiveSupplierConfigured();
 
@@ -100,6 +108,11 @@ public class ImportBatchService implements ImportBatchServicePort {
 
             ImportBatchLineModel line = importBatchApplicationMapper.toLineModel(lineRequest);
             line.applyResolvedBatchType(classification.resolvedBatchType());
+            line.setBatchCode(importBatchCodeGenerator.generate(
+                    station,
+                    classification.resolvedBatchType(),
+                    LocalDate.now(clock)
+            ));
             applyInvoiceEvidence(line, lineRequest, request);
             line.validateInvoiceEvidence();
             line.recalculateTotalCostValue();
@@ -143,7 +156,7 @@ public class ImportBatchService implements ImportBatchServicePort {
         PageRequest pageable = PageRequest.of(
                 Math.max(0, page - 1),
                 size,
-                SortUtils.createSort(sortBy, direction)
+                resolveListSort(sortBy, direction)
         );
 
         Page<ImportBatchModel> resultPage = importBatchRepositoryPort.findAll(
@@ -215,6 +228,15 @@ public class ImportBatchService implements ImportBatchServicePort {
                 .build();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public ImportBatchTimePolicyResponse getTimePolicy() {
+        return ImportBatchTimePolicyResponse.builder()
+                .lateImportTime(importBatchConfigResolver.resolveLateImportTime().format(TIME_DISPLAY))
+                .importBatchCutoffTime(importBatchConfigResolver.resolveImportBatchCutoff().format(TIME_DISPLAY))
+                .build();
+    }
+
     private void ensureUniqueStations(List<CreateImportBatchLineRequest> lines) {
         Set<Long> stationIds = new HashSet<>();
         for (CreateImportBatchLineRequest line : lines) {
@@ -273,10 +295,11 @@ public class ImportBatchService implements ImportBatchServicePort {
         }
     }
 
-    private void ensureNoActiveDraft(UUID operatorId) {
-        if (importBatchRepositoryPort.existsByImportedByAndStatus(operatorId, ImportBatchStatus.DRAFT)) {
-            throw new DomainException(ErrorCode.IMPORT_BATCH_DRAFT_ALREADY_EXISTS);
+    private Sort resolveListSort(String sortBy, String direction) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return Sort.by(Sort.Order.desc("drawDate")).and(Sort.by(Sort.Order.desc("createdAt")));
         }
+        return SortUtils.createSort(sortBy, direction);
     }
 
     private ImportBatchModel getImportBatchOrThrow(Long id) {

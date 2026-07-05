@@ -9,6 +9,7 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchTimePolicyResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchServicePort;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -94,6 +95,12 @@ public class ImportBatchController {
     @PreAuthorize("hasAnyAuthority('importBatch:view')")
     public ApiResponse<List<EnumOptionResponse>> getBatchTypes() {
         return ApiResponse.success(null, importBatchServicePort.getBatchTypeOptions());
+    }
+
+    @GetMapping("/time-policy")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ImportBatchTimePolicyResponse> getTimePolicy() {
+        return ApiResponse.success(null, importBatchServicePort.getTimePolicy());
     }
 
     @GetMapping("/eligible-stations")
