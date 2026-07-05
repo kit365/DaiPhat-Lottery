@@ -106,11 +106,6 @@ export const TicketDetailPage = () => {
                                 </Box>
 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
-                                    <Typography variant="caption" color="text.secondary">Mã lô nhập</Typography>
-                                    <Typography variant="body1" fontWeight={600}>{ticketDetail.batchCode || 'N/A'}</Typography>
-                                </Box>
-
-                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Trạng thái</Typography>
                                     <Box mt={0.5}>
                                         <Chip
@@ -259,6 +254,10 @@ export const TicketDetailPage = () => {
                                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
                                                     <Typography variant="caption" color="text.secondary">Số sê-ri</Typography>
                                                     <Typography variant="body2" fontWeight={600}>{serial.serialNumber || "N/A"}</Typography>
+                                                </Box>
+                                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
+                                                    <Typography variant="caption" color="text.secondary">Mã lô nhập</Typography>
+                                                    <Typography variant="body2" fontWeight={600}>{serial.batchCode || "N/A"}</Typography>
                                                 </Box>
                                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
                                                     <Typography variant="caption" color="text.secondary">Trạng thái</Typography>
