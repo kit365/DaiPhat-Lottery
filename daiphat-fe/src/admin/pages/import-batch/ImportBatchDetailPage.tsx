@@ -23,6 +23,7 @@ import { prefixAdmin, ROUTES } from '../../constants/routes';
 import { useImportBatchDetail } from './hooks/useImportBatch';
 import { useProviders } from '../provider/hooks/useProvider';
 import { getBatchTypeLabel } from './utils/batchTypeLabels';
+import { computeImportBatchTotals } from './utils/importBatchTotals';
 import dayjs from 'dayjs';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -41,6 +42,17 @@ export const ImportBatchDetailPage = () => {
     const resolveStationName = (stationId: number) =>
         providers.find((p: any) => String(p.id || p._id) === String(stationId))?.name ||
         `Đài #${stationId}`;
+
+    const batchLines = batch?.lines ?? [];
+    const detailTotals = computeImportBatchTotals(
+        batchLines.map((line) => ({
+            lotteryStationId: line.lotteryStationId,
+            declareQuantity: line.declareQuantity,
+            importCost: line.importCost,
+        }))
+    );
+    const totalDeclareQuantity = batch?.totalDeclareQuantity ?? detailTotals.totalQty;
+    const totalCostValue = batch?.totalDeclaredCostValue ?? detailTotals.totalCost;
 
     if (isLoading) {
         return null;
@@ -111,13 +123,13 @@ export const ImportBatchDetailPage = () => {
                         />
                         <TextField
                             label="Tổng số lượng khai báo"
-                            value={batch.totalDeclareQuantity ?? 0}
+                            value={totalDeclareQuantity}
                             fullWidth
                             InputProps={{ readOnly: true }}
                         />
                         <TextField
-                            label="Tổng giá vốn (VNĐ)"
-                            value={Number(batch.totalDeclaredCostValue ?? 0).toLocaleString('vi-VN')}
+                            label="Tổng giá trị lô vé nhập (VNĐ)"
+                            value={Number(totalCostValue).toLocaleString('vi-VN')}
                             fullWidth
                             InputProps={{ readOnly: true }}
                         />

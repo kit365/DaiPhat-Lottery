@@ -13,16 +13,17 @@ import {
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { Controller, Control, UseFormSetValue } from 'react-hook-form';
-import { useEffect } from 'react';
+import { memo, useMemo } from 'react';
 import dayjs from 'dayjs';
 import { CreateImportBatchFormValues } from '../schemas/importBatch.schema';
 import { getBatchTypeLabel } from '../utils/batchTypeLabels';
-import { isPastDrawDate, resolveDisplayBatchType } from '../utils/importBatchDrawDate';
+import { resolveDisplayBatchType } from '../utils/importBatchDrawDate';
 import {
     formatViInteger,
     parseNonNegativeIntegerInput,
     preventNumberInputWheel,
 } from '../../supplier/utils/supplierNumberFields';
+import { computeImportBatchLineTotal } from '../utils/importBatchTotals';
 import type { ImportBatchEligibleStation, ImportBatchType } from '../../../api/importBatch.api';
 
 interface ImportBatchLineRowProps {
@@ -35,6 +36,8 @@ interface ImportBatchLineRowProps {
     importCost: number;
     lotteryStationId: number;
     resolvedBatchType?: ImportBatchType;
+    /** Station IDs already chosen in other rows — excluded from this row's dropdown. */
+    selectedStationIdsInOtherRows: number[];
     canRemove: boolean;
     onRemove: () => void;
     errors?: {
@@ -44,7 +47,7 @@ interface ImportBatchLineRowProps {
     };
 }
 
-export const ImportBatchLineRow = ({
+export const ImportBatchLineRow = memo(function ImportBatchLineRow({
     index,
     control,
     setValue,
@@ -54,10 +57,11 @@ export const ImportBatchLineRow = ({
     importCost,
     lotteryStationId,
     resolvedBatchType,
+    selectedStationIdsInOtherRows,
     canRemove,
     onRemove,
     errors,
-}: ImportBatchLineRowProps) => {
+}: ImportBatchLineRowProps) {
     const selectedStation = eligibleStations.find((s) => s.lotteryStationId === lotteryStationId);
     const batchType = resolveDisplayBatchType(
         drawDate,
@@ -65,19 +69,21 @@ export const ImportBatchLineRow = ({
         selectedStation?.resolvedBatchType
     );
 
-    useEffect(() => {
-        if (selectedStation?.resolvedBatchType) {
-            setValue(`lines.${index}.resolvedBatchType`, selectedStation.resolvedBatchType, {
-                shouldValidate: true,
-            });
-        } else if (isPastDrawDate(drawDate)) {
-            setValue(`lines.${index}.resolvedBatchType`, 'ADJUSTMENT', {
-                shouldValidate: true,
-            });
-        }
-    }, [selectedStation?.resolvedBatchType, drawDate, index, setValue]);
+    const lineTotal = computeImportBatchLineTotal({
+        lotteryStationId,
+        declareQuantity,
+        importCost,
+    });
 
-    const lineTotal = (declareQuantity || 0) * (importCost || 0);
+    const availableStations = useMemo(
+        () =>
+            eligibleStations.filter(
+                (station) =>
+                    station.lotteryStationId === lotteryStationId
+                    || !selectedStationIdsInOtherRows.includes(station.lotteryStationId)
+            ),
+        [eligibleStations, lotteryStationId, selectedStationIdsInOtherRows]
+    );
 
     return (
         <TableRow>
@@ -101,12 +107,18 @@ export const ImportBatchLineRow = ({
                                     if (station) {
                                         setValue(`lines.${index}.resolvedBatchType`, station.resolvedBatchType, {
                                             shouldValidate: true,
+                                            shouldDirty: true,
+                                        });
+                                    } else {
+                                        setValue(`lines.${index}.resolvedBatchType`, undefined, {
+                                            shouldValidate: true,
+                                            shouldDirty: true,
                                         });
                                     }
                                 }}
                                 disabled={eligibleStations.length === 0}
                             >
-                                {eligibleStations.map((station) => (
+                                {availableStations.map((station) => (
                                     <MenuItem key={station.lotteryStationId} value={station.lotteryStationId}>
                                         {station.name}
                                     </MenuItem>
@@ -216,4 +228,4 @@ export const ImportBatchLineRow = ({
             </TableCell>
         </TableRow>
     );
-};
+});

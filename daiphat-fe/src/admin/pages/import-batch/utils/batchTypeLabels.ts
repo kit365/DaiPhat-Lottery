@@ -2,8 +2,8 @@ export const IMPORT_BATCH_TYPE_LABELS: Record<string, string> = {
     NEW: 'Nhập mới',
     SUPPLEMENTARY: 'Nhập bổ sung',
     LATE_IMPORT: 'Nhập trễ',
-    ADJUSTMENT: 'Nhập vé bổ sung',
-    ADDITIONAL: 'Nhập vé bổ sung',
+    ADJUSTMENT: 'Nhập vé điều chỉnh',
+    ADDITIONAL: 'Nhập vé điều chỉnh',
 };
 
 export const getBatchTypeLabel = (type?: string) => {
