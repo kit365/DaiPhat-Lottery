@@ -16,4 +16,6 @@ public interface ImportBatchLineRepositoryPort {
     List<ImportBatchLineModel> findByImportBatchId(Long importBatchId);
 
     boolean existsByStationAndDrawDateAndBatchType(Long stationId, LocalDate drawDate, ImportBatchType batchType);
+
+    long nextBatchCodeSequence();
 }

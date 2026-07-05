@@ -162,6 +162,7 @@ class LotteryTicketServiceTest {
                 .id(IMPORT_BATCH_LINE_ID)
                 .importBatchId(IMPORT_BATCH_ID)
                 .lotteryStationId(PRODUCT_ID)
+                .batchCode(BATCH_CODE)
                 .declareQuantity(1000)
                 .build();
 
@@ -1441,6 +1442,7 @@ class LotteryTicketServiceTest {
                 .id(IMPORT_BATCH_LINE_ID)
                 .importBatchId(IMPORT_BATCH_ID)
                 .lotteryStationId(PRODUCT_ID)
+                .batchCode(BATCH_CODE)
                 .declareQuantity(1000)
                 .build();
         ImportBatchModel importBatch = ImportBatchModel.builder()
@@ -1457,7 +1459,6 @@ class LotteryTicketServiceTest {
                 .stationId(PRODUCT_ID)
                 .numbers(NUMBERS)
                 .drawDate(null)
-                .batchCode(BATCH_CODE)
                 .importBatchLineId(IMPORT_BATCH_LINE_ID)
                 .serials(List.of())
                 .build();
