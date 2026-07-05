@@ -22,8 +22,7 @@ import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../constants/routes';
 import { useImportBatchDetail } from './hooks/useImportBatch';
 import { useProviders } from '../provider/hooks/useProvider';
-import { getBatchTypeLabel } from './utils/batchTypeLabels';
-import { computeImportBatchTotals } from './utils/importBatchTotals';
+import { getBatchTypeLabel, getImportBatchLineStatusLabel, getImportModeLabel } from './utils/batchTypeLabels';
 import dayjs from 'dayjs';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -44,15 +43,10 @@ export const ImportBatchDetailPage = () => {
         `Đài #${stationId}`;
 
     const batchLines = batch?.lines ?? [];
-    const detailTotals = computeImportBatchTotals(
-        batchLines.map((line) => ({
-            lotteryStationId: line.lotteryStationId,
-            declareQuantity: line.declareQuantity,
-            importCost: line.importCost,
-        }))
-    );
-    const totalDeclareQuantity = batch?.totalDeclareQuantity ?? detailTotals.totalQty;
-    const totalCostValue = batch?.totalDeclaredCostValue ?? detailTotals.totalCost;
+    const totalDeclareQuantity = batch?.totalDeclareQuantity ?? 0;
+    const totalDeclaredCostValue = batch?.totalDeclaredCostValue ?? 0;
+    const totalImportedQuantity = batch?.totalImportedQuantity ?? 0;
+    const totalImportedCostValue = batch?.totalImportedCostValue ?? 0;
 
     if (isLoading) {
         return null;
@@ -122,18 +116,77 @@ export const ImportBatchDetailPage = () => {
                             InputProps={{ readOnly: true }}
                         />
                         <TextField
-                            label="Tổng số lượng khai báo"
+                            label="Loại nhập"
+                            value={getImportModeLabel(batch.importMode)}
+                            fullWidth
+                            InputProps={{ readOnly: true }}
+                        />
+                        <TextField
+                            label="Số dòng"
+                            value={batch.lineCount ?? batchLines.length}
+                            fullWidth
+                            InputProps={{ readOnly: true }}
+                        />
+                    </Stack>
+
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                        <TextField
+                            label="Tổng SL khai báo"
                             value={totalDeclareQuantity}
                             fullWidth
                             InputProps={{ readOnly: true }}
                         />
                         <TextField
-                            label="Tổng giá trị lô vé nhập (VNĐ)"
-                            value={Number(totalCostValue).toLocaleString('vi-VN')}
+                            label="Tổng giá trị khai báo (VNĐ)"
+                            value={Number(totalDeclaredCostValue).toLocaleString('vi-VN')}
+                            fullWidth
+                            InputProps={{ readOnly: true }}
+                        />
+                        <TextField
+                            label="Tổng SL đã nhập"
+                            value={totalImportedQuantity}
+                            fullWidth
+                            InputProps={{ readOnly: true }}
+                        />
+                        <TextField
+                            label="Tổng giá trị đã nhập (VNĐ)"
+                            value={Number(totalImportedCostValue).toLocaleString('vi-VN')}
                             fullWidth
                             InputProps={{ readOnly: true }}
                         />
                     </Stack>
+
+                    {batch.note && (
+                        <TextField
+                            label="Ghi chú"
+                            value={batch.note}
+                            fullWidth
+                            multiline
+                            minRows={2}
+                            InputProps={{ readOnly: true }}
+                        />
+                    )}
+
+                    {batch.invoiceEvidenceUrl && (
+                        <Box>
+                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                Ảnh biên lai
+                            </Typography>
+                            <Box
+                                component="img"
+                                src={batch.invoiceEvidenceUrl}
+                                alt="Biên lai"
+                                sx={{
+                                    maxWidth: 240,
+                                    maxHeight: 180,
+                                    borderRadius: 1,
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    objectFit: 'contain',
+                                }}
+                            />
+                        </Box>
+                    )}
 
                     <TableContainer component={Paper} variant="outlined">
                         <Table size="small">
@@ -142,15 +195,16 @@ export const ImportBatchDetailPage = () => {
                                     <TableCell>Nhà đài</TableCell>
                                     <TableCell>Loại lô</TableCell>
                                     <TableCell>Mã lô nhập</TableCell>
+                                    <TableCell>Trạng thái dòng</TableCell>
                                     <TableCell align="right">Khai báo</TableCell>
                                     <TableCell align="right">Đã nhập</TableCell>
                                     <TableCell align="right">Giá vốn</TableCell>
-                                    <TableCell align="right">Tổng giá vốn</TableCell>
-                                    <TableCell>Biên lai</TableCell>
+                                    <TableCell align="right">GT khai báo</TableCell>
+                                    <TableCell align="right">GT đã nhập</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {(batch.lines ?? []).map((line) => (
+                                {batchLines.map((line) => (
                                     <TableRow key={line.id}>
                                         <TableCell>{resolveStationName(line.lotteryStationId)}</TableCell>
                                         <TableCell>
@@ -159,32 +213,30 @@ export const ImportBatchDetailPage = () => {
                                                 size="small"
                                             />
                                         </TableCell>
-                                        <TableCell>{line.batchCode || "—"}</TableCell>
+                                        <TableCell>{line.batchCode || '—'}</TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                label={getImportBatchLineStatusLabel(line.status)}
+                                                size="small"
+                                                color={
+                                                    line.status === 'IMPORTED'
+                                                        ? 'success'
+                                                        : line.status === 'IMPORTING'
+                                                          ? 'info'
+                                                          : 'default'
+                                                }
+                                            />
+                                        </TableCell>
                                         <TableCell align="right">{line.declareQuantity}</TableCell>
                                         <TableCell align="right">{line.totalQuantity}</TableCell>
                                         <TableCell align="right">
                                             {Number(line.importCost).toLocaleString('vi-VN')}
                                         </TableCell>
                                         <TableCell align="right">
-                                            {Number(line.totalCostValue).toLocaleString('vi-VN')}
+                                            {Number(line.declaredCostValue ?? line.declareQuantity * line.importCost).toLocaleString('vi-VN')}
                                         </TableCell>
-                                        <TableCell>
-                                            {line.invoiceEvidenceUrl ? (
-                                                <Box
-                                                    component="img"
-                                                    src={line.invoiceEvidenceUrl}
-                                                    alt="Biên lai"
-                                                    sx={{
-                                                        maxWidth: 80,
-                                                        maxHeight: 60,
-                                                        borderRadius: 1,
-                                                        border: '1px solid',
-                                                        borderColor: 'divider',
-                                                    }}
-                                                />
-                                            ) : (
-                                                '—'
-                                            )}
+                                        <TableCell align="right">
+                                            {Number(line.totalCostValue).toLocaleString('vi-VN')}
                                         </TableCell>
                                     </TableRow>
                                 ))}
