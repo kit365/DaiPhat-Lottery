@@ -93,6 +93,7 @@ const ReviewListPage = lazy(() => import("../pages/review/ReviewListPage").then(
 const NotificationListPage = lazy(() => import("../pages/notification/NotificationListPage").then(m => ({ default: m.NotificationListPage })));
 const SupportTicketListPage = lazy(() => import("../pages/support-ticket/SupportTicketListPage").then(m => ({ default: m.SupportTicketListPage })));
 const SupportTicketDetailPage = lazy(() => import("../pages/support-ticket/SupportTicketDetailPage").then(m => ({ default: m.SupportTicketDetailPage })));
+const ImportBatchListPage = lazy(() => import("../pages/import-batch/ImportBatchListPage").then(m => ({ default: m.ImportBatchListPage })));
 const ImportBatchCreatePage = lazy(() => import("../pages/import-batch/ImportBatchCreatePage").then(m => ({ default: m.ImportBatchCreatePage })));
 const ImportBatchDetailPage = lazy(() => import("../pages/import-batch/ImportBatchDetailPage").then(m => ({ default: m.ImportBatchDetailPage })));
 const SupplierListPage = lazy(() => import("../pages/supplier/SupplierListPage").then(m => ({ default: m.SupplierListPage })));
@@ -112,6 +113,7 @@ export const AdminRoutes = [
     { path: "dashboard/statistics/staff", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.VIEW}><StaffStatisticsPage /></PermissionGuard> },
     { path: "ticket/list", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketListPage /></PermissionGuard> },
     { path: "ticket/create", element: <PermissionGuard permission={PERMISSIONS.TICKET.CREATE}><TicketCreatePage /></PermissionGuard> },
+    { path: "import-batch/list", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.VIEW}><ImportBatchListPage /></PermissionGuard> },
     { path: "import-batch/create", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.CREATE}><ImportBatchCreatePage /></PermissionGuard> },
     { path: "import-batch/detail/:id", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.VIEW}><ImportBatchDetailPage /></PermissionGuard> },
     { path: "supplier/list", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.VIEW}><SupplierListPage /></PermissionGuard> },

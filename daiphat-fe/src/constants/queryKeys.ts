@@ -43,9 +43,11 @@ export const QUERY_KEYS = {
 
     // Import batch
     IMPORT_BATCH_ACTIVE_DRAFT: 'import-batch-active-draft',
+    IMPORT_BATCH_LIST: 'import-batch-list',
     IMPORT_BATCH_DETAIL: 'import-batch-detail',
     IMPORT_BATCH_CLASSIFY_PREVIEW: 'import-batch-classify-preview',
     IMPORT_BATCH_ELIGIBLE_STATIONS: 'import-batch-eligible-stations',
+    IMPORT_BATCH_TIME_POLICY: 'import-batch-time-policy',
 
     // Supplier
     SUPPLIERS: 'suppliers',

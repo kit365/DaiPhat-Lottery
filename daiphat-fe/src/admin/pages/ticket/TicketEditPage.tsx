@@ -188,7 +188,6 @@ export const TicketEditPage = () => {
         const payload: Record<string, unknown> = {
             numbers: data.numbers,
             drawDate: ticketDetail?.drawDate || finalDrawDate,
-            batchCode: data.batchCode,
             serials: data.serials.map((s) => ({
                 ...(s.id != null && s.id !== "" ? { id: Number(s.id) } : {}),
                 serialNumber: s.serialNumber,
@@ -288,19 +287,12 @@ export const TicketEditPage = () => {
                                     </Box>
 
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                        <Controller
-                                            name="batchCode"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    label="Mã lô nhập"
-                                                    fullWidth
-                                                    disabled={!isTicketEditable}
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                />
-                                            )}
+                                        <TextField
+                                            label="Mã lô nhập"
+                                            fullWidth
+                                            value={ticketDetail?.batchCode || "—"}
+                                            InputProps={{ readOnly: true }}
+                                            helperText="Mã lô được hệ thống tạo tự động và không thể chỉnh sửa."
                                         />
                                     </Box>
 

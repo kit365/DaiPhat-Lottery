@@ -22,6 +22,7 @@ export interface ImportBatchLine {
     id: number;
     lotteryStationId: number;
     batchType: ImportBatchType;
+    batchCode?: string;
     declareQuantity: number;
     totalQuantity: number;
     importCost: number;
@@ -93,10 +94,41 @@ export const getImportBatchById = async (id: number | string): Promise<ApiRespon
     return response.data;
 };
 
+export interface ImportBatchListParams {
+    page?: number;
+    size?: number;
+    lotteryStationId?: number;
+    drawDate?: string;
+    status?: ImportBatchStatus;
+    batchType?: ImportBatchType;
+    sortBy?: string;
+    direction?: string;
+}
+
+export const getImportBatches = async (
+    params?: ImportBatchListParams
+): Promise<ApiResponse<{ recordList: ImportBatch[]; pagination: { totalRecords: number; currentPage: number; limit: number; totalPages: number } }>> => {
+    const response = await apiApp.get(BASE_URL, {
+        ...withAuth(),
+        params,
+    });
+    return response.data;
+};
+
 export const createImportBatch = async (
     payload: CreateImportBatchPayload
 ): Promise<ApiResponse<ImportBatch>> => {
     const response = await apiApp.post(BASE_URL, payload, withAuth());
+    return response.data;
+};
+
+export interface ImportBatchTimePolicy {
+    lateImportTime: string;
+    importBatchCutoffTime: string;
+}
+
+export const getImportBatchTimePolicy = async (): Promise<ApiResponse<ImportBatchTimePolicy>> => {
+    const response = await apiApp.get(`${BASE_URL}/time-policy`, withAuth());
     return response.data;
 };
 

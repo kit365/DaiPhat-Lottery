@@ -45,7 +45,7 @@ export const SyncProviderModal: React.FC<SyncProviderModalProps> = ({
     const handleSubmit = () => {
         const defaultPrice = Number(priceInput.replace(/,/g, ''));
         if (!defaultPrice || defaultPrice <= 0) {
-            toast.error('Vui lòng nhập giá vé mặc định hợp lệ.');
+            toast.error('Vui lòng nhập giá vé bán mặc định hợp lệ.');
             return;
         }
 
@@ -93,7 +93,7 @@ export const SyncProviderModal: React.FC<SyncProviderModalProps> = ({
 
                     <TextField
                         fullWidth
-                        label="Giá vé mặc định"
+                        label="Giá vé bán mặc định"
                         type="text"
                         value={priceInput}
                         onChange={handlePriceChange}

@@ -46,6 +46,7 @@ export const ROUTES = {
             EXPIRED: `/${prefixAdmin}/ticket/expired`,
         },
         IMPORT_BATCH: {
+            LIST: `/${prefixAdmin}/import-batch/list`,
             CREATE: `/${prefixAdmin}/import-batch/create`,
             DETAIL: (id: number | string) => `/${prefixAdmin}/import-batch/detail/${id}`,
         },

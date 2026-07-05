@@ -39,7 +39,7 @@ export const TicketCreatePage = () => {
     useEffect(() => {
         if (!importBatchLineId && !importBatchIdParam) {
             toast.info("Vui lòng tạo phiếu nhập lô trước khi thêm vé số.");
-            navigate(`${ROUTES.ADMIN.IMPORT_BATCH.CREATE}?intent=add-ticket`, { replace: true });
+            navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST, { replace: true });
         }
     }, [importBatchLineId, importBatchIdParam, navigate]);
 
@@ -63,26 +63,27 @@ export const TicketCreatePage = () => {
     });
 
     const watchedLineId = watch("importBatchLineId");
+    const selectedLine = useMemo(() => {
+        const lineId = importBatchLineId || watchedLineId;
+        return (
+            batchLines.find((l) => String(l.id) === String(lineId))
+            ?? (batchLines.length === 1 ? batchLines[0] : undefined)
+        );
+    }, [batchLines, importBatchLineId, watchedLineId]);
 
     useEffect(() => {
-        if (!importBatch) return;
-
-        const lineId = importBatchLineId || watchedLineId;
-        const line = batchLines.find((l) => String(l.id) === String(lineId))
-            ?? (batchLines.length === 1 ? batchLines[0] : undefined);
-
-        if (!line) return;
+        if (!importBatch || !selectedLine) return;
 
         reset({
-            importBatchLineId: String(line.id),
+            importBatchLineId: String(selectedLine.id),
             importBatchId: String(importBatch.id),
-            stationId: String(line.lotteryStationId),
+            stationId: String(selectedLine.lotteryStationId),
             serials: [{ serialNumber: "", ticketImg: undefined }],
             numbers: "",
-            batchCode: `IMPORT-BATCH-${importBatch.id}-LINE-${line.id}`,
+            batchCode: selectedLine.batchCode || "",
             drawDate: importBatch.drawDate,
         });
-    }, [importBatch, importBatchLineId, watchedLineId, batchLines, reset]);
+    }, [importBatch, selectedLine, reset]);
 
     const { fields, append, remove } = useFieldArray({
         control,
@@ -147,7 +148,6 @@ export const TicketCreatePage = () => {
                 ticketImg: typeof s.ticketImg === "string" && s.ticketImg.trim() ? s.ticketImg.trim() : undefined,
             })),
             numbers: data.numbers,
-            batchCode: data.batchCode
         };
 
         try {
@@ -155,10 +155,13 @@ export const TicketCreatePage = () => {
             if (res.success) {
                 toast.success("Nhập các vé số vào kho thành công!");
                 reset({
-                    stationId: "",
+                    importBatchLineId: String(selectedLine?.id || data.importBatchLineId || ""),
+                    importBatchId: String(importBatch?.id || data.importBatchId || ""),
+                    stationId: String(selectedLine?.lotteryStationId || data.stationId || ""),
                     serials: [{ serialNumber: "", ticketImg: undefined }],
                     numbers: "",
-                    batchCode: "",
+                    batchCode: selectedLine?.batchCode || "",
+                    drawDate: importBatch?.drawDate || data.drawDate || "",
                 });
                 setResetKey(prev => prev + 1);
             } else {
@@ -324,18 +327,12 @@ export const TicketCreatePage = () => {
                                     </Box>
 
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                        <Controller
-                                            name="batchCode"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    label="Mã lô nhập"
-                                                    fullWidth
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                />
-                                            )}
+                                        <TextField
+                                            label="Mã lô nhập"
+                                            fullWidth
+                                            value={selectedLine?.batchCode || "—"}
+                                            InputProps={{ readOnly: true }}
+                                            helperText="Mã lô được hệ thống tạo tự động khi khai báo phiếu nhập."
                                         />
                                     </Box>
 
