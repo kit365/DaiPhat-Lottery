@@ -2,6 +2,7 @@ import {
     Chip,
     FormControl,
     IconButton,
+    InputAdornment,
     InputLabel,
     MenuItem,
     Select,
@@ -16,6 +17,12 @@ import { useEffect } from 'react';
 import dayjs from 'dayjs';
 import { CreateImportBatchFormValues } from '../schemas/importBatch.schema';
 import { getBatchTypeLabel } from '../utils/batchTypeLabels';
+import { isPastDrawDate, resolveDisplayBatchType } from '../utils/importBatchDrawDate';
+import {
+    formatViInteger,
+    parseNonNegativeIntegerInput,
+    preventNumberInputWheel,
+} from '../../supplier/utils/supplierNumberFields';
 import type { ImportBatchEligibleStation, ImportBatchType } from '../../../api/importBatch.api';
 
 interface ImportBatchLineRowProps {
@@ -52,21 +59,29 @@ export const ImportBatchLineRow = ({
     errors,
 }: ImportBatchLineRowProps) => {
     const selectedStation = eligibleStations.find((s) => s.lotteryStationId === lotteryStationId);
-    const batchType = resolvedBatchType ?? selectedStation?.resolvedBatchType;
+    const batchType = resolveDisplayBatchType(
+        drawDate,
+        resolvedBatchType,
+        selectedStation?.resolvedBatchType
+    );
 
     useEffect(() => {
         if (selectedStation?.resolvedBatchType) {
             setValue(`lines.${index}.resolvedBatchType`, selectedStation.resolvedBatchType, {
                 shouldValidate: true,
             });
+        } else if (isPastDrawDate(drawDate)) {
+            setValue(`lines.${index}.resolvedBatchType`, 'ADJUSTMENT', {
+                shouldValidate: true,
+            });
         }
-    }, [selectedStation?.resolvedBatchType, index, setValue]);
+    }, [selectedStation?.resolvedBatchType, drawDate, index, setValue]);
 
     const lineTotal = (declareQuantity || 0) * (importCost || 0);
 
     return (
         <TableRow>
-            <TableCell>
+            <TableCell sx={{ width: '26%', minWidth: 140, maxWidth: 220 }}>
                 <Controller
                     name={`lines.${index}.lotteryStationId`}
                     control={control}
@@ -106,17 +121,25 @@ export const ImportBatchLineRow = ({
                     )}
                 />
             </TableCell>
-            <TableCell>
+            <TableCell sx={{ width: 100, whiteSpace: 'nowrap' }}>
                 <Typography variant="body2">
                     {drawDate ? dayjs(drawDate).format('DD/MM/YYYY') : '—'}
                 </Typography>
             </TableCell>
-            <TableCell>
+            <TableCell sx={{ width: 168, whiteSpace: 'nowrap' }}>
                 {batchType ? (
                     <Chip
                         label={getBatchTypeLabel(batchType)}
                         size="small"
                         color={batchType === 'ADJUSTMENT' || batchType === 'LATE_IMPORT' ? 'warning' : 'default'}
+                        sx={{
+                            maxWidth: '100%',
+                            '& .MuiChip-label': {
+                                overflow: 'visible',
+                                whiteSpace: 'nowrap',
+                                textOverflow: 'clip',
+                            },
+                        }}
                     />
                 ) : (
                     <Typography variant="caption" color="text.secondary">
@@ -124,7 +147,7 @@ export const ImportBatchLineRow = ({
                     </Typography>
                 )}
             </TableCell>
-            <TableCell>
+            <TableCell sx={{ width: 88 }}>
                 <Controller
                     name={`lines.${index}.declareQuantity`}
                     control={control}
@@ -133,35 +156,58 @@ export const ImportBatchLineRow = ({
                             {...field}
                             type="number"
                             size="small"
-                            fullWidth
                             error={!!errors?.declareQuantity}
                             helperText={errors?.declareQuantity?.message}
+                            sx={{ width: 72 }}
+                            inputProps={{ min: 1 }}
                         />
                     )}
                 />
             </TableCell>
-            <TableCell>
+            <TableCell sx={{ width: 148 }}>
                 <Controller
                     name={`lines.${index}.importCost`}
                     control={control}
                     render={({ field }) => (
                         <TextField
-                            {...field}
-                            type="number"
+                            name={field.name}
+                            onBlur={field.onBlur}
+                            inputRef={field.ref}
+                            value={formatViInteger(field.value)}
                             size="small"
-                            fullWidth
                             error={!!errors?.importCost}
                             helperText={errors?.importCost?.message}
+                            sx={{ width: 132 }}
+                            onChange={(e) => {
+                                const parsed = parseNonNegativeIntegerInput(e.target.value);
+                                field.onChange(parsed ?? undefined);
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                    e.preventDefault();
+                                }
+                            }}
+                            onWheel={preventNumberInputWheel}
+                            inputProps={{ inputMode: 'numeric' }}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <Typography variant="body2" color="text.secondary">
+                                            VNĐ
+                                        </Typography>
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                     )}
                 />
             </TableCell>
-            <TableCell align="right">
+            <TableCell align="right" sx={{ width: 108, whiteSpace: 'nowrap' }}>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {lineTotal.toLocaleString('vi-VN')}
+                    {lineTotal.toLocaleString('vi-VN')} VNĐ
                 </Typography>
             </TableCell>
-            <TableCell align="center">
+            <TableCell align="center" sx={{ width: 48, px: 0.5 }}>
                 {canRemove && (
                     <IconButton size="small" color="error" onClick={onRemove} aria-label="Xóa dòng">
                         <DeleteOutlineIcon fontSize="small" />
