@@ -17,6 +17,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryP
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
@@ -78,13 +79,19 @@ public class ImportBatchService implements ImportBatchServicePort {
         }
         LotterySupplierModel supplier = lotterySupplierServicePort.getActiveModelById(request.supplierId());
 
+        LocalDateTime now = LocalDateTime.now(clock);
+
         ImportBatchModel header = ImportBatchModel.builder()
                 .drawDate(request.drawDate())
                 .supplierId(supplier.getId())
                 .supplierName(supplier.getName())
+                .importMode(request.importMode())
+                .invoiceEvidenceUrl(resolveInvoiceEvidenceUrl(request))
+                .note(trimToNull(request.note()))
                 .lines(new ArrayList<>())
                 .build();
-        header.initializeForCreate(operatorId);
+        header.initializeForCreate(operatorId, now);
+        header.markSubmitted(now);
 
         boolean lateImportWarning = false;
         List<String> warnings = new ArrayList<>();
@@ -113,11 +120,14 @@ public class ImportBatchService implements ImportBatchServicePort {
                     classification.resolvedBatchType(),
                     LocalDate.now(clock)
             ));
-            applyInvoiceEvidence(line, lineRequest, request);
-            line.validateInvoiceEvidence();
+            line.recalculateDeclaredCostValue();
+            line.setStatus(ImportBatchLineStatus.OPEN);
             line.recalculateTotalCostValue();
             header.getLines().add(line);
         }
+
+        header.validateInvoiceEvidence();
+        header.recalculateAggregates();
 
         ImportBatchModel saved = importBatchRepositoryPort.save(header);
         return importBatchApplicationMapper.toResponse(saved, lateImportWarning, warnings);
@@ -267,20 +277,21 @@ public class ImportBatchService implements ImportBatchServicePort {
         );
     }
 
-    private void applyInvoiceEvidence(
-            ImportBatchLineModel line,
-            CreateImportBatchLineRequest lineRequest,
-            CreateImportBatchRequest request
-    ) {
-        if (request.importMode() == ImportBatchImportMode.IN_DAY
-                && request.sharedInvoiceEvidenceUrl() != null
-                && !request.sharedInvoiceEvidenceUrl().isBlank()) {
-            line.setInvoiceEvidenceUrl(request.sharedInvoiceEvidenceUrl().trim());
-            return;
+    private String resolveInvoiceEvidenceUrl(CreateImportBatchRequest request) {
+        if (request.importMode() != ImportBatchImportMode.IN_DAY) {
+            return null;
         }
-        if (lineRequest.invoiceEvidenceUrl() != null && !lineRequest.invoiceEvidenceUrl().isBlank()) {
-            line.setInvoiceEvidenceUrl(lineRequest.invoiceEvidenceUrl().trim());
+        if (request.invoiceEvidenceUrl() == null || request.invoiceEvidenceUrl().isBlank()) {
+            return null;
         }
+        return request.invoiceEvidenceUrl().trim();
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private void validateDeclareQuantity(Integer declareQuantity) {

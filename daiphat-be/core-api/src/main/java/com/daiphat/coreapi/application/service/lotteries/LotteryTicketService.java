@@ -42,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.*;
@@ -570,20 +571,25 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             ImportBatchLineModel importBatchLine,
             ImportBatchModel importBatch
     ) {
+        LocalDateTime now = LocalDateTime.now();
         int importedCount = (int) lotteryTicketSerialService.countByImportBatchLineId(importBatchLine.getId());
-        importBatchLine.setTotalQuantity(importedCount);
-        importBatchLine.recalculateTotalCostValue();
+        importBatchLine.updateImportProgress(importedCount, now);
 
         int declareQuantity = importBatchLine.getDeclareQuantity() != null ? importBatchLine.getDeclareQuantity() : 0;
         boolean lineComplete = declareQuantity > 0 && importedCount >= declareQuantity;
 
         importBatchLineRepositoryPort.save(importBatchLine);
 
+        ImportBatchModel refreshedBatch = importBatchRepositoryPort.findById(importBatch.getId())
+                .orElse(importBatch);
+        refreshedBatch.recalculateAggregates();
+        importBatchRepositoryPort.save(refreshedBatch);
+
         if (lineComplete && importBatch.getStatus() == ImportBatchStatus.DRAFT) {
-            ImportBatchModel refreshedBatch = importBatchRepositoryPort.findById(importBatch.getId())
+            refreshedBatch = importBatchRepositoryPort.findById(importBatch.getId())
                     .orElse(importBatch);
             if (refreshedBatch.areAllLinesImportComplete()) {
-                refreshedBatch.markImported();
+                refreshedBatch.markImported(now);
                 importBatchRepositoryPort.save(refreshedBatch);
                 refreshedBatch.getLines().forEach(line ->
                         activateImportBatchLineTickets(line.getId())

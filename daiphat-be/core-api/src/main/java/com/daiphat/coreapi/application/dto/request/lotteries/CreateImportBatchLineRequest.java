@@ -18,8 +18,6 @@ public record CreateImportBatchLineRequest(
 
         @NotNull(message = "Giá vốn không được để trống")
         @DecimalMin(value = "0.01", message = "Giá vốn phải lớn hơn 0")
-        BigDecimal importCost,
-
-        String invoiceEvidenceUrl
+        BigDecimal importCost
 ) {
 }
