@@ -22,13 +22,10 @@ public class LotteryTicketModel {
 
     private Long id;
     private Long stationId;
-    private Long importBatchId;
-    private Long importBatchLineId;
     private String ticketImg;
     private BigDecimal priceSnapshot;
     private String numbers;
     private LocalDate drawDate;
-    private String batchCode;
     @Builder.Default
     private Integer quantity = 1;
 

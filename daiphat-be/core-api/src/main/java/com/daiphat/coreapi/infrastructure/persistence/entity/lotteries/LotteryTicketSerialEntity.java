@@ -36,6 +36,14 @@ public class LotteryTicketSerialEntity extends BaseEntity {
     @JoinColumn(name = "ticket_id", nullable = false)
     private LotteryTicketEntity ticket;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "import_batch_id")
+    private ImportBatchEntity importBatch;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "import_batch_line_id")
+    private ImportBatchLineEntity importBatchLine;
+
     @Column(name = "ticket_img", length = 500)
     private String ticketImg;
 

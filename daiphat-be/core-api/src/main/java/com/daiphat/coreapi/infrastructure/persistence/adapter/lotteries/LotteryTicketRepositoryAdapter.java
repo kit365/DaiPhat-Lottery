@@ -100,13 +100,6 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
     }
 
     @Override
-    public List<LotteryTicketModel> findAllByImportBatchLineId(Long importBatchLineId) {
-        return lotteryTicketRepository.findAllByImportBatchLine_IdAndDeletedAtIsNull(importBatchLineId).stream()
-                .map(lotteryTicketPersistenceMapper::toDomain)
-                .toList();
-    }
-
-    @Override
     public void deleteById(Long id) {
         lotteryTicketRepository.findById(id).ifPresent(entity -> {
             entity.setDeletedAt(LocalDateTime.now());
