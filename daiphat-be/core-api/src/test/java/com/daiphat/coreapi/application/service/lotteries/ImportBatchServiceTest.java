@@ -105,6 +105,10 @@ class ImportBatchServiceTest {
                 .build();
         when(lotterySupplierServicePort.getActiveModelById(SUPPLIER_ID)).thenReturn(activeSupplier);
         when(importBatchCodeGenerator.generate(any(), any(), any())).thenReturn("0001_CAMAU_NEW_20260706");
+        when(lotteryStationServicePort.getScheduleModelsByDrawDate(DRAW_DATE)).thenReturn(List.of(activeStation));
+        when(stationEligibilityResolver.isEligibleForSelection(
+                any(), eq(DRAW_DATE), any(), eq(ImportBatchImportMode.IN_DAY)
+        )).thenReturn(true);
     }
 
     @Test
@@ -311,6 +315,21 @@ class ImportBatchServiceTest {
 
         assertThat(response.resolvedBatchType()).isEqualTo(ImportBatchType.SUPPLEMENTARY);
         assertThat(response.lateImportWarning()).isFalse();
+    }
+
+    @Test
+    @DisplayName("create is rejected when all today's stations already have draft batches")
+    void create_allStationsDraft_throws() {
+        fixedClock(LocalDateTime.of(2026, 7, 6, 10, 0));
+        when(lotteryStationServicePort.getScheduleModelsByDrawDate(DRAW_DATE)).thenReturn(List.of(activeStation));
+        when(stationEligibilityResolver.isEligibleForSelection(
+                any(), eq(DRAW_DATE), any(), eq(ImportBatchImportMode.IN_DAY)
+        )).thenReturn(false);
+
+        assertThatThrownBy(() -> importBatchService.create(buildRequest("https://cdn.example/invoice.jpg"), OPERATOR_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_ALL_STATIONS_DRAFT);
     }
 
     private void fixedClock(LocalDateTime dateTime) {

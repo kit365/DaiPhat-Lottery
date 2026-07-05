@@ -7,7 +7,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchRe
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchClassificationPreviewRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
-import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchTimePolicyResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
@@ -105,7 +105,7 @@ public class ImportBatchController {
 
     @GetMapping("/eligible-stations")
     @PreAuthorize("hasAnyAuthority('importBatch:create')")
-    public ApiResponse<List<ImportBatchEligibleStationResponse>> getEligibleStations(
+    public ApiResponse<ImportBatchEligibleStationsResponse> getEligibleStations(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate,
             @RequestParam ImportBatchImportMode importMode) {
         return ApiResponse.success(null, importBatchServicePort.getEligibleStations(drawDate, importMode));

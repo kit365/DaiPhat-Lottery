@@ -104,7 +104,7 @@ export const useEligibleImportBatchStations = (
         queryKey: [QUERY_KEYS.IMPORT_BATCH_ELIGIBLE_STATIONS, drawDate, importMode],
         queryFn: () => getEligibleImportBatchStations(drawDate!, importMode!),
         enabled: !!drawDate && !!importMode,
-        select: (res) => res.data ?? [],
+        select: (res) => res.data ?? { eligible: [], blocked: [] },
         staleTime: 10_000,
     });
 };

@@ -60,6 +60,22 @@ public class ImportBatchLineRepositoryAdapter implements ImportBatchLineReposito
     }
 
     @Override
+    public boolean existsDraftLineForStationAndDrawDate(Long stationId, LocalDate drawDate) {
+        return importBatchLineRepository.existsDraftLineForStationAndDrawDate(stationId, drawDate);
+    }
+
+    @Override
+    public boolean existsNonDraftLineForStationAndDrawDate(Long stationId, LocalDate drawDate) {
+        return importBatchLineRepository.existsNonDraftLineForStationAndDrawDate(stationId, drawDate);
+    }
+
+    @Override
+    public Optional<Long> findDraftBatchIdForStationAndDrawDate(Long stationId, LocalDate drawDate) {
+        return importBatchLineRepository.findDraftBatchIdsForStationAndDrawDate(stationId, drawDate).stream()
+                .findFirst();
+    }
+
+    @Override
     public long nextBatchCodeSequence() {
         return importBatchLineRepository.nextBatchCodeSequence();
     }
