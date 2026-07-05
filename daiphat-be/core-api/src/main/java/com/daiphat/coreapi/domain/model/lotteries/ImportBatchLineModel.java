@@ -23,6 +23,7 @@ public class ImportBatchLineModel {
     private Long importBatchId;
     private Long lotteryStationId;
     private ImportBatchType batchType;
+    private String batchCode;
     private Integer declareQuantity;
     @Builder.Default
     private Integer totalQuantity = 0;

@@ -30,11 +30,17 @@ public enum SystemConfigEnum {
             "15:00",
             "Giờ chốt trả vé cho đại lý"
     ),
-    IMPORT_LATE_WINDOW_START(
-            ConfigType.ORDER_SETTING,
+    LATE_IMPORT_TIME(
+            ConfigType.TICKET_IMPORT,
             DataType.TIME,
             "14:30",
-            "Giờ bắt đầu khung nhập muộn lô vé"
+            "Giờ chốt sau đó lô nhập trong ngày được phân loại LATE_IMPORT"
+    ),
+    IMPORT_BATCH_CUTOFF_TIME(
+            ConfigType.TICKET_IMPORT,
+            DataType.TIME,
+            "15:00",
+            "Giờ chốt sau đó không cho phép tạo lô nhập trong ngày (trừ lô nhập bổ sung)"
     ),
     STAFF_INCIDENT_CUTOFF(
             ConfigType.REFUND_SETTING,

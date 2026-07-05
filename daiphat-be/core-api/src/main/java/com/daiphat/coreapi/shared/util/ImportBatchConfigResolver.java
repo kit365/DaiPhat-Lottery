@@ -17,17 +17,17 @@ public class ImportBatchConfigResolver {
 
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
 
-    public LocalTime resolveLateWindowStart() {
+    public LocalTime resolveLateImportTime() {
         return resolveTime(
-                SystemConfigEnum.IMPORT_LATE_WINDOW_START.name(),
-                SystemConfigEnum.IMPORT_LATE_WINDOW_START.getDefaultValue()
+                SystemConfigEnum.LATE_IMPORT_TIME.name(),
+                SystemConfigEnum.LATE_IMPORT_TIME.getDefaultValue()
         );
     }
 
-    public LocalTime resolveImportCutoff() {
+    public LocalTime resolveImportBatchCutoff() {
         return resolveTime(
-                SystemConfigEnum.VENDOR_RETURN_CUTOFF.name(),
-                SystemConfigEnum.VENDOR_RETURN_CUTOFF.getDefaultValue()
+                SystemConfigEnum.IMPORT_BATCH_CUTOFF_TIME.name(),
+                SystemConfigEnum.IMPORT_BATCH_CUTOFF_TIME.getDefaultValue()
         );
     }
 

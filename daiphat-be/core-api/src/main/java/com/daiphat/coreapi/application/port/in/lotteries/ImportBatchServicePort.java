@@ -6,6 +6,7 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchTimePolicyResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
@@ -40,4 +41,6 @@ public interface ImportBatchServicePort {
     ImportBatchClassificationPreviewResponse previewClassification(ImportBatchClassificationPreviewRequest request);
 
     List<ImportBatchEligibleStationResponse> getEligibleStations(LocalDate drawDate, ImportBatchImportMode importMode);
+
+    ImportBatchTimePolicyResponse getTimePolicy();
 }
