@@ -34,12 +34,10 @@ import { createImportBatchSchema, CreateImportBatchFormValues } from './schemas/
 import { ImportBatchConfirmDialog } from './components/ImportBatchConfirmDialog';
 import { ImportBatchLineRow } from './components/ImportBatchLineRow';
 import { IMPORT_MODE_OPTIONS } from './utils/batchTypeLabels';
-import {
-    isPastDrawDate,
-    resolveImportModeLock,
-} from './utils/importBatchDrawDate';
+import { isPastDrawDate, resolveImportModeLock } from './utils/importBatchDrawDate';
+import { computeImportBatchTotals } from './utils/importBatchTotals';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -63,8 +61,8 @@ export const ImportBatchCreatePage = () => {
     const {
         control,
         handleSubmit,
-        watch,
         setValue,
+        getValues,
         formState: { errors },
     } = useForm<CreateImportBatchFormValues>({
         resolver: zodResolver(createImportBatchSchema),
@@ -78,10 +76,10 @@ export const ImportBatchCreatePage = () => {
     });
 
     const { fields, append, remove } = useFieldArray({ control, name: 'lines' });
-    const drawDate = watch('drawDate');
-    const importMode = watch('importMode');
-    const supplierId = watch('supplierId');
-    const lines = watch('lines');
+    const drawDate = useWatch({ control, name: 'drawDate' });
+    const importMode = useWatch({ control, name: 'importMode' });
+    const supplierId = useWatch({ control, name: 'supplierId' });
+    const lines = useWatch({ control, name: 'lines' }) ?? [];
     const { data: timePolicy } = useImportBatchTimePolicy();
     const cutoffTime = timePolicy?.importBatchCutoffTime ?? '15:00';
 
@@ -130,30 +128,24 @@ export const ImportBatchCreatePage = () => {
     const showSharedReceipt = importMode === 'IN_DAY';
 
     useEffect(() => {
-        if (importModeLock.locked && importMode !== importModeLock.mode) {
-            setValue('importMode', importModeLock.mode, { shouldValidate: true });
+        if (!importModeLock.locked || importMode === importModeLock.mode) {
+            return;
         }
+        setValue('importMode', importModeLock.mode, { shouldValidate: true });
     }, [importModeLock, importMode, setValue]);
 
+    // Clear stations that became ineligible when draw date / import mode changes.
+    // Must not depend on `lines` — that caused setValue loops on every quantity/cost edit.
     useEffect(() => {
-        lines.forEach((line, index) => {
-            if (line.lotteryStationId && !eligibleStationIds.has(line.lotteryStationId)) {
-                setValue(`lines.${index}.lotteryStationId`, 0);
-                setValue(`lines.${index}.resolvedBatchType`, undefined);
-            } else if (line.lotteryStationId) {
-                const station = eligibleStations.find((s) => s.lotteryStationId === line.lotteryStationId);
-                if (station) {
-                    setValue(`lines.${index}.resolvedBatchType`, station.resolvedBatchType, {
-                        shouldValidate: true,
-                    });
-                }
-            } else if (isPastDrawDate(drawDate)) {
-                setValue(`lines.${index}.resolvedBatchType`, 'ADJUSTMENT', {
-                    shouldValidate: true,
-                });
+        const currentLines = getValues('lines');
+        currentLines.forEach((line, index) => {
+            if (!line.lotteryStationId || eligibleStationIds.has(line.lotteryStationId)) {
+                return;
             }
+            setValue(`lines.${index}.lotteryStationId`, 0, { shouldValidate: true });
+            setValue(`lines.${index}.resolvedBatchType`, undefined, { shouldValidate: true });
         });
-    }, [eligibleStationIds, eligibleStations, lines, drawDate, setValue]);
+    }, [eligibleStationIds, getValues, setValue]);
 
     const maxRows = eligibleStations.length;
     const isAtRowLimit = maxRows > 0 && fields.length >= maxRows;
@@ -162,14 +154,21 @@ export const ImportBatchCreatePage = () => {
         eligibleStations.length > 0 &&
         lines.some((line) => line.lotteryStationId && eligibleStationIds.has(line.lotteryStationId));
 
-    const totals = useMemo(() => {
-        const totalQty = lines.reduce((sum, l) => sum + (Number(l.declareQuantity) || 0), 0);
-        const totalCost = lines.reduce(
-            (sum, l) => sum + (Number(l.declareQuantity) || 0) * (Number(l.importCost) || 0),
-            0
-        );
-        return { totalQty, totalCost };
-    }, [lines]);
+    const totals = computeImportBatchTotals(lines);
+
+    const confirmTotals = pendingFormData
+        ? computeImportBatchTotals(pendingFormData.lines)
+        : totals;
+
+    const selectedStationIdsByRow = useMemo(
+        () =>
+            lines.map((_, rowIndex) =>
+                lines
+                    .map((line, index) => (index !== rowIndex ? line.lotteryStationId : 0))
+                    .filter((stationId) => Number(stationId) > 0)
+            ),
+        [lines]
+    );
 
     const localTheme = useMemo(
         () =>
@@ -196,7 +195,20 @@ export const ImportBatchCreatePage = () => {
             toast.error('Vui lòng chọn nhà đài hợp lệ cho ngày quay đã chọn.');
             return;
         }
-        setPendingFormData(data);
+        const enriched: CreateImportBatchFormValues = {
+            ...data,
+            lines: data.lines.map((line) => {
+                const station = eligibleStations.find(
+                    (s) => s.lotteryStationId === line.lotteryStationId
+                );
+                const resolvedBatchType =
+                    line.resolvedBatchType
+                    ?? station?.resolvedBatchType
+                    ?? (isPastDrawDate(data.drawDate) ? 'ADJUSTMENT' : undefined);
+                return { ...line, resolvedBatchType };
+            }),
+        };
+        setPendingFormData(enriched);
         setConfirmOpen(true);
     };
 
@@ -405,6 +417,7 @@ export const ImportBatchCreatePage = () => {
                                                     importCost={lines[index]?.importCost ?? 10000}
                                                     lotteryStationId={lines[index]?.lotteryStationId ?? 0}
                                                     resolvedBatchType={lines[index]?.resolvedBatchType}
+                                                    selectedStationIdsInOtherRows={selectedStationIdsByRow[index] ?? []}
                                                     canRemove={fields.length > 1}
                                                     onRemove={() => remove(index)}
                                                     errors={errors.lines?.[index]}
@@ -419,6 +432,26 @@ export const ImportBatchCreatePage = () => {
                                         {errors.lines.message}
                                     </Typography>
                                 )}
+
+                                <Box
+                                    sx={{
+                                        p: 2,
+                                        borderRadius: 2,
+                                        bgcolor: 'var(--palette-background-neutral)',
+                                        display: 'flex',
+                                        gap: 4,
+                                        flexWrap: 'wrap',
+                                    }}
+                                >
+                                    <Typography variant="body2">
+                                        <strong>Tổng số lượng khai báo:</strong>{' '}
+                                        {totals.totalQty.toLocaleString('vi-VN')} vé
+                                    </Typography>
+                                    <Typography variant="body2">
+                                        <strong>Tổng giá trị lô vé nhập:</strong>{' '}
+                                        {totals.totalCost.toLocaleString('vi-VN')} VNĐ
+                                    </Typography>
+                                </Box>
 
                                 <Button
                                     variant="outlined"
@@ -461,26 +494,6 @@ export const ImportBatchCreatePage = () => {
                                     </Box>
                                 )}
 
-                                <Box
-                                    sx={{
-                                        p: 2,
-                                        borderRadius: 2,
-                                        bgcolor: 'var(--palette-background-neutral)',
-                                        display: 'flex',
-                                        gap: 4,
-                                        flexWrap: 'wrap',
-                                    }}
-                                >
-                                    <Typography variant="body2">
-                                        <strong>Tổng số lượng khai báo:</strong>{' '}
-                                        {totals.totalQty.toLocaleString('vi-VN')} vé
-                                    </Typography>
-                                    <Typography variant="body2">
-                                        <strong>Tổng giá vốn:</strong>{' '}
-                                        {totals.totalCost.toLocaleString('vi-VN')} VNĐ
-                                    </Typography>
-                                </Box>
-
                                 <LoadingButton
                                     type="submit"
                                     variant="contained"
@@ -509,8 +522,8 @@ export const ImportBatchCreatePage = () => {
                         declareQuantity: line.declareQuantity,
                         importCost: line.importCost,
                     }))}
-                    totalDeclareQuantity={totals.totalQty}
-                    totalCostValue={totals.totalCost}
+                    totalDeclareQuantity={confirmTotals.totalQty}
+                    totalCostValue={confirmTotals.totalCost}
                     isPending={isPending}
                     onClose={handleCloseConfirm}
                     onConfirm={handleConfirmCreate}
