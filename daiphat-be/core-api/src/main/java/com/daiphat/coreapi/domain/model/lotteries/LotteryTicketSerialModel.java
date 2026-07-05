@@ -18,6 +18,8 @@ public class LotteryTicketSerialModel {
 
     private Long id;
     private Long ticketId;
+    private Long importBatchId;
+    private Long importBatchLineId;
     private String ticketImg;
     private String serialNumber;
 
