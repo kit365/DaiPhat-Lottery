@@ -123,7 +123,7 @@ export const ImportBatchConfirmDialog = ({
                                 label="Tổng số lượng"
                                 value={`${totalDeclareQuantity.toLocaleString('vi-VN')} vé`}
                             />
-                            <SummaryRow label="Tổng giá vốn" value={formatVnd(totalCostValue)} />
+                            <SummaryRow label="Tổng giá trị lô vé nhập" value={formatVnd(totalCostValue)} />
 
                             {showSharedReceipt && (
                                 <Box sx={{ mt: 1.5 }}>
