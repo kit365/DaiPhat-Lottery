@@ -27,29 +27,23 @@ import { CollapsibleCard } from '../../components/ui/CollapsibleCard';
 import { LoadingButton } from '../../components/ui/LoadingButton';
 import { UploadSingleFile } from '../../components/upload/UploadSingleFile';
 import { uploadAdminImage } from '../../api/upload.api';
-import type { ImportBatch } from '../../api/importBatch.api';
 import { prefixAdmin, ROUTES } from '../../constants/routes';
-import { useCreateImportBatch, useActiveImportBatchDraft, useEligibleImportBatchStations } from './hooks/useImportBatch';
+import { useCreateImportBatch, useEligibleImportBatchStations, useImportBatchTimePolicy } from './hooks/useImportBatch';
 import { useActiveSuppliers } from '../supplier/hooks/useSupplier';
 import { createImportBatchSchema, CreateImportBatchFormValues } from './schemas/importBatch.schema';
-import { ImportBatchDrawDateInfo } from './components/LateImportWarning';
 import { ImportBatchConfirmDialog } from './components/ImportBatchConfirmDialog';
 import { ImportBatchLineRow } from './components/ImportBatchLineRow';
 import { IMPORT_MODE_OPTIONS } from './utils/batchTypeLabels';
+import {
+    isPastDrawDate,
+    resolveImportModeLock,
+} from './utils/importBatchDrawDate';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
-
-const resolveContinueDraftPath = (draft: ImportBatch) => {
-    const firstLine = draft.lines?.[0];
-    if (firstLine?.id && (draft.lines?.length ?? 0) === 1) {
-        return ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH_LINE(firstLine.id);
-    }
-    return ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(draft.id);
-};
 
 const emptyLine = () => ({
     lotteryStationId: 0,
@@ -60,14 +54,11 @@ const emptyLine = () => ({
 
 export const ImportBatchCreatePage = () => {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const addTicketIntent = searchParams.get('intent') === 'add-ticket';
     const [expandedDetail, setExpandedDetail] = useState(true);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [pendingFormData, setPendingFormData] = useState<CreateImportBatchFormValues | null>(null);
     const outerTheme = useTheme();
 
-    const { data: activeDraft, isLoading: isCheckingDraft } = useActiveImportBatchDraft();
 
     const {
         control,
@@ -91,6 +82,9 @@ export const ImportBatchCreatePage = () => {
     const importMode = watch('importMode');
     const supplierId = watch('supplierId');
     const lines = watch('lines');
+    const { data: timePolicy } = useImportBatchTimePolicy();
+    const cutoffTime = timePolicy?.importBatchCutoffTime ?? '15:00';
+
     const { data: eligibleStations = [], isLoading: isLoadingStations } = useEligibleImportBatchStations(
         drawDate,
         importMode
@@ -115,8 +109,31 @@ export const ImportBatchCreatePage = () => {
         return supplier ? `${supplier.name} (${supplier.code})` : '';
     };
 
-    // Shared receipt is always shown for in-day imports (required for NEW / LATE_IMPORT).
+    const importModeLock = useMemo(
+        () => resolveImportModeLock(drawDate, eligibleStations, cutoffTime, !isLoadingStations),
+        [drawDate, eligibleStations, cutoffTime, isLoadingStations]
+    );
+
+    const isImportModeLocked = importModeLock.locked;
+    const importModeLockReason = importModeLock.locked ? importModeLock.reason : undefined;
+
+    const noEligibleStations =
+        !!drawDate && !isLoadingStations && eligibleStations.length === 0;
+
+    const drawDateHelperText =
+        errors.drawDate?.message ??
+        (noEligibleStations
+            ? 'Không có nhà đài nào phù hợp với ngày quay và loại nhập đã chọn.'
+            : undefined);
+
+    // Shared receipt is required for in-day imports (NEW / LATE_IMPORT).
     const showSharedReceipt = importMode === 'IN_DAY';
+
+    useEffect(() => {
+        if (importModeLock.locked && importMode !== importModeLock.mode) {
+            setValue('importMode', importModeLock.mode, { shouldValidate: true });
+        }
+    }, [importModeLock, importMode, setValue]);
 
     useEffect(() => {
         lines.forEach((line, index) => {
@@ -130,9 +147,13 @@ export const ImportBatchCreatePage = () => {
                         shouldValidate: true,
                     });
                 }
+            } else if (isPastDrawDate(drawDate)) {
+                setValue(`lines.${index}.resolvedBatchType`, 'ADJUSTMENT', {
+                    shouldValidate: true,
+                });
             }
         });
-    }, [eligibleStationIds, eligibleStations, lines, setValue]);
+    }, [eligibleStationIds, eligibleStations, lines, drawDate, setValue]);
 
     const maxRows = eligibleStations.length;
     const isAtRowLimit = maxRows > 0 && fields.length >= maxRows;
@@ -149,13 +170,6 @@ export const ImportBatchCreatePage = () => {
         );
         return { totalQty, totalCost };
     }, [lines]);
-
-    useEffect(() => {
-        if (!addTicketIntent || isCheckingDraft || !activeDraft?.id) {
-            return;
-        }
-        navigate(resolveContinueDraftPath(activeDraft), { replace: true });
-    }, [activeDraft, addTicketIntent, isCheckingDraft, navigate]);
 
     const localTheme = useMemo(
         () =>
@@ -178,10 +192,6 @@ export const ImportBatchCreatePage = () => {
     );
 
     const onSubmit = (data: CreateImportBatchFormValues) => {
-        if (activeDraft?.id) {
-            toast.error('Bạn đang có phiếu nhập lô chưa hoàn thành. Vui lòng tiếp tục phiếu hiện tại.');
-            return;
-        }
         if (!canSubmit) {
             toast.error('Vui lòng chọn nhà đài hợp lệ cho ngày quay đã chọn.');
             return;
@@ -218,75 +228,19 @@ export const ImportBatchCreatePage = () => {
                 toast.success(res.message || 'Tạo phiếu nhập lô thành công.');
                 setConfirmOpen(false);
                 setPendingFormData(null);
-                const firstLine = res.data?.lines?.[0];
-                if (addTicketIntent) {
-                    if ((res.data?.lines?.length ?? 0) > 1) {
-                        navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(res.data!.id));
-                    } else if (firstLine?.id) {
-                        navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH_LINE(firstLine.id));
-                    }
-                } else {
-                    navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(res.data!.id));
-                }
+                navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST);
             } else {
                 toast.error(res.message || 'Tạo phiếu nhập lô thất bại.');
             }
         } catch (err: any) {
-            const status = err?.response?.status;
             const message =
                 err?.response?.data?.message || err?.message || 'Tạo phiếu nhập lô thất bại.';
             toast.error(message);
-
-            if (status === 409) {
-                setConfirmOpen(false);
-                setPendingFormData(null);
-                if (activeDraft?.id) {
-                    navigate(resolveContinueDraftPath(activeDraft));
-                }
-            }
         }
     };
 
-    if (isCheckingDraft || isLoadingSuppliers || (addTicketIntent && activeDraft?.id)) {
+    if (isLoadingSuppliers) {
         return null;
-    }
-
-    if (activeDraft?.id) {
-        return (
-            <ThemeProvider theme={localTheme}>
-                <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
-                    <Breadcrumb
-                        items={[
-                            { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
-                            { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.CREATE },
-                            { label: 'Khai báo phiếu nhập' },
-                        ]}
-                    />
-                    <Title title="Khai báo phiếu nhập lô vé" />
-
-                    <Alert severity="warning" sx={{ mb: 2 }}>
-                        Bạn đang có phiếu nhập lô chưa hoàn thành (#{activeDraft.id}). Hệ thống chỉ
-                        cho phép một phiếu nháp tại một thời điểm. Vui lòng tiếp tục phiếu hiện tại
-                        trước khi tạo phiếu mới.
-                    </Alert>
-
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                        <Button
-                            variant="contained"
-                            onClick={() => navigate(resolveContinueDraftPath(activeDraft))}
-                        >
-                            Tiếp tục nhập vé
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(activeDraft.id))}
-                        >
-                            Xem phiếu hiện tại
-                        </Button>
-                    </Stack>
-                </Box>
-            </ThemeProvider>
-        );
     }
 
     if (activeSuppliers.length === 0) {
@@ -296,11 +250,11 @@ export const ImportBatchCreatePage = () => {
                     <Breadcrumb
                         items={[
                             { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
-                            { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.CREATE },
+                            { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
                             { label: 'Khai báo phiếu nhập' },
                         ]}
                     />
-                    <Title title={addTicketIntent ? 'Tạo phiếu nhập lô vé' : 'Khai báo phiếu nhập lô vé'} />
+                    <Title title="Khai báo phiếu nhập lô vé" />
 
                     <Alert severity="warning" sx={{ mb: 2 }}>
                         Chưa có nhà cung cấp. Vui lòng tạo nhà cung cấp trước khi nhập vé.
@@ -331,18 +285,13 @@ export const ImportBatchCreatePage = () => {
                 <Breadcrumb
                     items={[
                         { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
-                        { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.CREATE },
+                        { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
                         { label: 'Khai báo phiếu nhập' },
                     ]}
                 />
-                <Title title={addTicketIntent ? 'Tạo phiếu nhập lô vé' : 'Khai báo phiếu nhập lô vé'} />
+                <Title title="Khai báo phiếu nhập lô vé" />
 
-                <ImportBatchDrawDateInfo
-                    drawDate={drawDate}
-                    importMode={importMode}
-                    eligibleStations={eligibleStations}
-                >
-                    <form onSubmit={handleSubmit(onSubmit)}>
+                <form onSubmit={handleSubmit(onSubmit)}>
                         <CollapsibleCard
                             title="Thông tin khai báo"
                             expanded={expandedDetail}
@@ -362,7 +311,12 @@ export const ImportBatchCreatePage = () => {
                                                 sx={{ maxWidth: { sm: 280 } }}
                                                 InputLabelProps={{ shrink: true }}
                                                 error={!!errors.drawDate}
-                                                helperText={errors.drawDate?.message}
+                                                helperText={drawDateHelperText}
+                                                FormHelperTextProps={
+                                                    noEligibleStations && !errors.drawDate
+                                                        ? { sx: { color: 'warning.main' } }
+                                                        : undefined
+                                                }
                                             />
                                         )}
                                     />
@@ -402,29 +356,40 @@ export const ImportBatchCreatePage = () => {
                                         render={({ field }) => (
                                             <FormControl fullWidth sx={{ maxWidth: { sm: 360 } }}>
                                                 <InputLabel>Loại lô vé cần nhập</InputLabel>
-                                                <Select {...field} label="Loại lô vé cần nhập">
+                                                <Select
+                                                    {...field}
+                                                    label="Loại lô vé cần nhập"
+                                                    disabled={isImportModeLocked}
+                                                >
                                                     {IMPORT_MODE_OPTIONS.map((option) => (
                                                         <MenuItem key={option.value} value={option.value}>
                                                             {option.label}
                                                         </MenuItem>
                                                     ))}
                                                 </Select>
+                                                {isImportModeLocked && (
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {importModeLockReason}
+                                                    </Typography>
+                                                )}
                                             </FormControl>
                                         )}
                                     />
                                 </Stack>
 
                                 <TableContainer component={Paper} variant="outlined">
-                                    <Table size="small">
+                                    <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
                                         <TableHead>
                                             <TableRow>
-                                                <TableCell>Nhà đài</TableCell>
-                                                <TableCell>Ngày quay</TableCell>
-                                                <TableCell>Loại lô</TableCell>
-                                                <TableCell>Số lượng khai báo</TableCell>
-                                                <TableCell>Giá vốn</TableCell>
-                                                <TableCell align="right">Tổng giá vốn</TableCell>
-                                                <TableCell align="center" width={56} />
+                                                <TableCell sx={{ width: '26%' }}>Nhà đài</TableCell>
+                                                <TableCell sx={{ width: 100, whiteSpace: 'nowrap' }}>Ngày quay</TableCell>
+                                                <TableCell sx={{ width: 168 }}>Loại lô</TableCell>
+                                                <TableCell sx={{ width: 88 }}>Số lượng khai báo</TableCell>
+                                                <TableCell sx={{ width: 148 }}>Giá vốn</TableCell>
+                                                <TableCell align="right" sx={{ width: 108 }}>
+                                                    Tổng giá vốn
+                                                </TableCell>
+                                                <TableCell align="center" width={48} />
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -437,7 +402,7 @@ export const ImportBatchCreatePage = () => {
                                                     drawDate={drawDate}
                                                     eligibleStations={eligibleStations}
                                                     declareQuantity={lines[index]?.declareQuantity ?? 0}
-                                                    importCost={lines[index]?.importCost ?? 0}
+                                                    importCost={lines[index]?.importCost ?? 10000}
                                                     lotteryStationId={lines[index]?.lotteryStationId ?? 0}
                                                     resolvedBatchType={lines[index]?.resolvedBatchType}
                                                     canRemove={fields.length > 1}
@@ -527,7 +492,6 @@ export const ImportBatchCreatePage = () => {
                             </Stack>
                         </CollapsibleCard>
                     </form>
-                </ImportBatchDrawDateInfo>
 
                 <ImportBatchConfirmDialog
                     open={confirmOpen}
