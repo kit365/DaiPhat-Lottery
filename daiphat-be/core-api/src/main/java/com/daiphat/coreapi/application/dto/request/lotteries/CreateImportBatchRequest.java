@@ -20,7 +20,9 @@ public record CreateImportBatchRequest(
         @NotNull(message = "Loại nhập lô không được để trống")
         ImportBatchImportMode importMode,
 
-        String sharedInvoiceEvidenceUrl,
+        String invoiceEvidenceUrl,
+
+        String note,
 
         @NotEmpty(message = "Danh sách nhà đài không được để trống")
         @Valid
