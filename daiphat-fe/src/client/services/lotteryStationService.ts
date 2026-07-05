@@ -21,9 +21,19 @@ export const lotteryStationService = {
     return (response.data.data || []).map(mapStationDrawToClient);
   },
 
-  async getPublicSchedule(region?: string): Promise<LotteryStationSchedulePublicResponse[]> {
+  async getPublicSchedule(params?: {
+    region?: string;
+    stationId?: number;
+    stationIds?: number[];
+    drawDate?: string;
+  }): Promise<LotteryStationSchedulePublicResponse[]> {
     const response = await apiApp.get<ApiResponse<LotteryStationSchedulePublicResponse[]>>(`${BASE_URL}/schedule/all`, {
-      params: { region },
+      params: {
+        region: params?.region,
+        stationId: params?.stationId,
+        stationIds: params?.stationIds,
+        drawDate: params?.drawDate,
+      },
     });
     return response.data.data || [];
   },

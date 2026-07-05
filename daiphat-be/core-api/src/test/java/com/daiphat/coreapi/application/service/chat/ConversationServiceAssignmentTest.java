@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.application.service.chat;
 
-import com.daiphat.coreapi.application.config.ChatAiProperties;
 import com.daiphat.coreapi.application.config.ChatConversationProperties;
+import com.daiphat.coreapi.application.strategy.chat.ChatAiMessages;
 import com.daiphat.coreapi.application.dto.request.chat.SendChatMessageSocketRequest;
 import com.daiphat.coreapi.application.dto.response.chat.ChatConversationSocketEvent;
 import com.daiphat.coreapi.application.dto.response.chat.ChatMessageSocketResponse;
@@ -16,7 +16,7 @@ import com.daiphat.coreapi.application.port.out.chat.ChatConversationEventPublis
 import com.daiphat.coreapi.application.port.out.chat.ChatMessagePublisherPort;
 import com.daiphat.coreapi.application.port.out.chat.ConversationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.chat.MessageRepositoryPort;
-import com.daiphat.coreapi.application.strategy.chat.ChatResponseStrategy;
+import com.daiphat.coreapi.application.port.in.chat.ChatBotPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.auth.RoleModel;
@@ -78,9 +78,7 @@ class ConversationServiceAssignmentTest {
     @Mock
     private ChatConversationProperties chatConversationProperties;
     @Mock
-    private ChatAiProperties chatAiProperties;
-    @Mock
-    private ChatResponseStrategy chatResponseStrategy;
+    private ChatBotPort chatBotPort;
     @Mock
     private ChatEscalationPort chatEscalationPort;
 
@@ -96,8 +94,7 @@ class ConversationServiceAssignmentTest {
                 chatConversationEventPublisherPort,
                 chatMessagePublisherPort,
                 chatConversationProperties,
-                chatAiProperties,
-                chatResponseStrategy,
+                chatBotPort,
                 chatEscalationPort
         );
     }
@@ -111,7 +108,6 @@ class ConversationServiceAssignmentTest {
         when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(customer);
         when(conversationRepositoryPort.findLatestOpenByCustomerId(CUSTOMER_ID)).thenReturn(Optional.empty());
         when(conversationRepositoryPort.findLatestClosedByCustomerId(CUSTOMER_ID)).thenReturn(Optional.empty());
-        when(chatAiProperties.isEnabled()).thenReturn(true);
         when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> {
             ConversationModel model = invocation.getArgument(0);
             if (model.getId() == null) {
@@ -132,7 +128,7 @@ class ConversationServiceAssignmentTest {
                 new com.daiphat.coreapi.application.dto.request.chat.InitConversationRequest("Support", "Hello", null)
         );
 
-        verify(chatResponseStrategy).handle(any(), any());
+        verify(chatBotPort).processCustomerMessage(any(), any());
         ArgumentCaptor<ConversationModel> conversationCaptor = ArgumentCaptor.forClass(ConversationModel.class);
         verify(conversationRepositoryPort, times(2)).save(conversationCaptor.capture());
         assertThat(conversationCaptor.getAllValues().getFirst().getStatus()).isEqualTo(ConversationStatus.OPEN);
@@ -141,7 +137,7 @@ class ConversationServiceAssignmentTest {
     }
 
     @Test
-    void createConversation_withAiDisabled_escalatesOnFirstMessage() {
+    void createConversation_withAiDisabled_delegatesToChatBot() {
         UserModel customer = user("Customer");
         ConversationModel savedConversation = conversation(ConversationStatus.OPEN, null);
         savedConversation.setId(CONVERSATION_ID);
@@ -149,8 +145,6 @@ class ConversationServiceAssignmentTest {
         when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(customer);
         when(conversationRepositoryPort.findLatestOpenByCustomerId(CUSTOMER_ID)).thenReturn(Optional.empty());
         when(conversationRepositoryPort.findLatestClosedByCustomerId(CUSTOMER_ID)).thenReturn(Optional.empty());
-        when(chatAiProperties.isEnabled()).thenReturn(false);
-        when(chatAiProperties.getDisabledMessage()).thenReturn("AI disabled handoff");
         when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(savedConversation));
         when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -163,12 +157,8 @@ class ConversationServiceAssignmentTest {
                 new com.daiphat.coreapi.application.dto.request.chat.InitConversationRequest("Support", "Hello", null)
         );
 
-        verify(chatEscalationPort).escalateFromBot(
-                any(),
-                eq(EscalationReason.AI_DISABLED),
-                eq("AI disabled handoff")
-        );
-        verify(chatResponseStrategy, never()).handle(any(), any());
+        verify(chatBotPort).processCustomerMessage(any(), any());
+        verify(chatEscalationPort, never()).escalateFromBot(any(), any(), any());
     }
 
     @Test
@@ -178,7 +168,6 @@ class ConversationServiceAssignmentTest {
 
         when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(customer);
         when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
-        when(chatAiProperties.isEnabled()).thenReturn(true);
         when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepositoryPort.save(any())).thenAnswer(invocation -> {
             MessageModel message = invocation.getArgument(0);
@@ -192,7 +181,7 @@ class ConversationServiceAssignmentTest {
         );
 
         assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.WAITING_FOR_OPERATOR);
-        verify(chatResponseStrategy, never()).handle(any(), any());
+        verify(chatBotPort, never()).processCustomerMessage(any(), any());
         verify(chatEscalationPort, never()).escalateFromBot(any(), any(), any());
         assertThat(response.content()).isEqualTo("Xin chào");
     }
@@ -203,7 +192,6 @@ class ConversationServiceAssignmentTest {
         when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(user("Customer"));
         when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
         when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
-        when(chatAiProperties.getHandoffMessage()).thenReturn("Handoff");
         when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
         when(chatApplicationMapper.toConversationResponse(any()))
                 .thenReturn(mockConversationResponse(ConversationStatus.OPEN, null));
@@ -211,7 +199,7 @@ class ConversationServiceAssignmentTest {
 
         conversationService.escalateConversation(CUSTOMER_ID, CONVERSATION_ID, EscalationReason.CUSTOMER_REQUEST);
 
-        verify(chatEscalationPort).escalateFromBot(conversation, EscalationReason.CUSTOMER_REQUEST, "Handoff");
+        verify(chatEscalationPort).escalateFromBot(conversation, EscalationReason.CUSTOMER_REQUEST, ChatAiMessages.HANDOFF);
         verify(chatConversationEventPublisherPort, never()).publishToOperators(any());
     }
 
@@ -373,7 +361,6 @@ class ConversationServiceAssignmentTest {
         when(chatConversationProperties.getCustomerSilenceMinutes()).thenReturn(30L);
         when(chatConversationProperties.getAutoCloseWarningLeadMinutes()).thenReturn(5L);
         when(chatConversationProperties.getStaffResponseSlaMinutes()).thenReturn(15L);
-        when(chatAiProperties.getNoOperatorOnlineMessage()).thenReturn("Chưa có nhân viên trực tuyến");
         when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
         when(conversationRepositoryPort.findByStatusAndUpdatedAtBefore(
                 eq(ConversationStatus.WAITING_FOR_OPERATOR), any()))
@@ -415,7 +402,6 @@ class ConversationServiceAssignmentTest {
 
         when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(customer);
         when(conversationRepositoryPort.findLatestOpenByCustomerId(CUSTOMER_ID)).thenReturn(Optional.empty());
-        when(chatAiProperties.isEnabled()).thenReturn(true);
         when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> {
             ConversationModel model = invocation.getArgument(0);
             if (model.getId() == null) {
@@ -449,7 +435,7 @@ class ConversationServiceAssignmentTest {
 
         assertThat(closedConversation.getStatus()).isEqualTo(ConversationStatus.CLOSED);
         verify(conversationRepositoryPort).save(argThat(model -> model.getId() == null));
-        verify(chatResponseStrategy).handle(any(), any());
+        verify(chatBotPort).processCustomerMessage(any(), any());
     }
 
     @Test
@@ -461,7 +447,6 @@ class ConversationServiceAssignmentTest {
         when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(customer);
         when(conversationRepositoryPort.findLatestOpenByCustomerId(CUSTOMER_ID))
                 .thenReturn(Optional.of(openConversation));
-        when(chatAiProperties.isEnabled()).thenReturn(true);
         when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(openConversation));
         when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -480,7 +465,7 @@ class ConversationServiceAssignmentTest {
         );
 
         verify(messageRepositoryPort).save(any(MessageModel.class));
-        verify(chatResponseStrategy).handle(any(), any());
+        verify(chatBotPort).processCustomerMessage(any(), any());
     }
 
     @Test
