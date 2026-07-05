@@ -1,5 +1,7 @@
 package com.daiphat.coreapi.shared.util;
 
+import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,10 +27,13 @@ import static org.mockito.Mockito.when;
 @DisplayName("ImportBatchStationEligibilityResolver Unit Tests")
 class ImportBatchStationEligibilityResolverTest {
 
-    private static final LocalDate TODAY = LocalDate.of(2026, 7, 5);
+    private static final LocalDate TODAY = LocalDate.of(2026, 7, 6);
+    private static final LocalDate TOMORROW = TODAY.plusDays(1);
 
     @Mock
     private ImportBatchConfigResolver importBatchConfigResolver;
+    @Mock
+    private ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
 
     @InjectMocks
     private ImportBatchStationEligibilityResolver resolver;
@@ -40,52 +45,97 @@ class ImportBatchStationEligibilityResolverTest {
         station = LotteryStationModel.builder()
                 .id(1L)
                 .name("Test Station")
-                .drawDays(List.of(DayOfWeek.FRIDAY))
+                .drawDays(List.of(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.FRIDAY))
                 .drawTime(LocalTime.of(16, 15))
                 .build();
         when(importBatchConfigResolver.resolveImportBatchCutoff()).thenReturn(LocalTime.of(15, 0));
+        when(importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(1L, TODAY)).thenReturn(false);
+        when(importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(1L, TOMORROW)).thenReturn(false);
     }
 
     @Test
-    @DisplayName("past draw date is always treated as completed")
-    void hasCompletedDrawToday_pastDate_returnsTrueEvenWithoutDrawTime() {
-        station.setDrawTime(null);
-
-        assertThat(resolver.hasCompletedDrawToday(
+    @DisplayName("past draw date is eligible only for POST_DRAW_SUPPLEMENT")
+    void isEligibleForSelection_pastDrawDate_postDrawOnly() {
+        LocalDate pastFriday = TODAY.minusDays(3);
+        assertThat(resolver.isEligibleForSelection(
                 station,
-                TODAY.minusDays(2),
-                LocalDateTime.of(TODAY, LocalTime.of(10, 0))
+                pastFriday,
+                LocalDateTime.of(TODAY, LocalTime.of(10, 0)),
+                ImportBatchImportMode.POST_DRAW_SUPPLEMENT
         )).isTrue();
-    }
-
-    @Test
-    @DisplayName("today after station draw time is completed")
-    void hasCompletedDrawToday_todayAfterDrawTime_returnsTrue() {
-        assertThat(resolver.hasCompletedDrawToday(
+        assertThat(resolver.isEligibleForSelection(
                 station,
-                TODAY,
-                LocalDateTime.of(TODAY, LocalTime.of(17, 0))
-        )).isTrue();
-    }
-
-    @Test
-    @DisplayName("today before station draw time is not completed")
-    void hasCompletedDrawToday_todayBeforeDrawTime_returnsFalse() {
-        assertThat(resolver.hasCompletedDrawToday(
-                station,
-                TODAY,
-                LocalDateTime.of(TODAY, LocalTime.of(10, 0))
+                pastFriday,
+                LocalDateTime.of(TODAY, LocalTime.of(10, 0)),
+                ImportBatchImportMode.IN_DAY
         )).isFalse();
     }
 
     @Test
-    @DisplayName("past draw date stations remain selectable for IN_DAY")
-    void isEligibleForSelection_pastDrawDate_returnsTrue() {
+    @DisplayName("tomorrow is eligible only for IN_DAY")
+    void isEligibleForSelection_tomorrow_inDayOnly() {
         assertThat(resolver.isEligibleForSelection(
                 station,
-                TODAY.minusDays(2),
+                TOMORROW,
                 LocalDateTime.of(TODAY, LocalTime.of(10, 0)),
-                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode.IN_DAY
+                ImportBatchImportMode.IN_DAY
+        )).isTrue();
+        assertThat(resolver.isEligibleForSelection(
+                station,
+                TOMORROW,
+                LocalDateTime.of(TODAY, LocalTime.of(10, 0)),
+                ImportBatchImportMode.POST_DRAW_SUPPLEMENT
+        )).isFalse();
+    }
+
+    @Test
+    @DisplayName("today before cutoff is eligible for IN_DAY")
+    void isEligibleForSelection_todayBeforeCutoff_inDay() {
+        assertThat(resolver.isEligibleForSelection(
+                station,
+                TODAY,
+                LocalDateTime.of(TODAY, LocalTime.of(10, 0)),
+                ImportBatchImportMode.IN_DAY
+        )).isTrue();
+    }
+
+    @Test
+    @DisplayName("today after cutoff is eligible for POST_DRAW_SUPPLEMENT without requiring draw completion")
+    void isEligibleForSelection_todayAfterCutoff_postDraw() {
+        assertThat(resolver.isEligibleForSelection(
+                station,
+                TODAY,
+                LocalDateTime.of(TODAY, LocalTime.of(15, 30)),
+                ImportBatchImportMode.POST_DRAW_SUPPLEMENT
+        )).isTrue();
+        assertThat(resolver.isEligibleForSelection(
+                station,
+                TODAY,
+                LocalDateTime.of(TODAY, LocalTime.of(15, 30)),
+                ImportBatchImportMode.IN_DAY
+        )).isFalse();
+    }
+
+    @Test
+    @DisplayName("station with draft batch is not eligible")
+    void isEligibleForSelection_draftExists_returnsFalse() {
+        when(importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(1L, TODAY)).thenReturn(true);
+
+        assertThat(resolver.isEligibleForSelection(
+                station,
+                TODAY,
+                LocalDateTime.of(TODAY, LocalTime.of(10, 0)),
+                ImportBatchImportMode.IN_DAY
+        )).isFalse();
+    }
+
+    @Test
+    @DisplayName("hasCompletedDrawToday past date returns true")
+    void hasCompletedDrawToday_pastDate_returnsTrue() {
+        assertThat(resolver.hasCompletedDrawToday(
+                station,
+                TODAY.minusDays(2),
+                LocalDateTime.of(TODAY, LocalTime.of(10, 0))
         )).isTrue();
     }
 }
