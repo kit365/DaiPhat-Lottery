@@ -5,6 +5,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicket
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse;
 import com.daiphat.coreapi.application.event.LotteryTicketProxyExpiredEvent;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryTicketApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
@@ -90,9 +91,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         requestedTicket.validateDrawDate(resolvedDrawDate);
         requestedTicket.setDrawDate(resolvedDrawDate);
         validateTicketAgainstImportBatchLine(importBatchLine, importBatch, station.getId(), resolvedDrawDate);
-        requestedTicket.setImportBatchId(importBatch.getId());
-        requestedTicket.setImportBatchLineId(importBatchLine.getId());
-        requestedTicket.setBatchCode(requireLineBatchCode(importBatchLine));
 
         var existingTicket = lotteryTicketRepositoryPort.findByUniqueFields(
                 request.stationId(),
@@ -109,20 +107,18 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                     return lotteryTicketRepositoryPort.save(requestedTicket);
                 });
 
-        if (ticket.getImportBatchLineId() == null) {
-            ticket.setImportBatchId(importBatch.getId());
-            ticket.setImportBatchLineId(importBatchLine.getId());
-            ticket.setBatchCode(requireLineBatchCode(importBatchLine));
-            ticket = lotteryTicketRepositoryPort.save(ticket);
-        } else if (!ticket.getImportBatchLineId().equals(importBatchLine.getId())) {
-            throw new DomainException(ErrorCode.LOTTERY_TICKET_IMPORT_BATCH_MISMATCH);
-        } else if (!requireLineBatchCode(importBatchLine).equals(ticket.getBatchCode())) {
-            ticket.setBatchCode(requireLineBatchCode(importBatchLine));
-            ticket = lotteryTicketRepositoryPort.save(ticket);
-        }
-
         final LotteryTicketModel resolvedTicket = ticket;
-        request.serials().forEach(serialReq -> lotteryTicketSerialService.upsertSerialForTicket(resolvedTicket, serialReq, importedById));
+        final Long importBatchId = importBatch.getId();
+        final Long importBatchLineId = importBatchLine.getId();
+        request.serials().forEach(serialReq ->
+                lotteryTicketSerialService.upsertSerialForTicket(
+                        resolvedTicket,
+                        serialReq,
+                        importedById,
+                        importBatchId,
+                        importBatchLineId
+                )
+        );
 
         LotteryTicketModel saved = recomputeTicketAggregate(resolvedTicket.getId());
         saved = applyImportBatchProgress(saved, importBatchLine, importBatch);
@@ -135,11 +131,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     @Transactional(readOnly = true)
     public LotteryTicketResponse getById(Long id) {
         LotteryTicketModel model = getTicketOrThrow(id);
-        List<LotteryTicketSerialModel> serials = lotteryTicketSerialService.findAllByTicketId(model.getId());
-        String stationName = lotteryStationServicePort.findModelById(model.getStationId())
-                .map(LotteryStationModel::getName)
-                .orElse(null);
-        return lotteryTicketApplicationMapper.toResponseDetail(model, serials, stationName);
+        return mapToDetailResponse(model);
     }
 
     @Override
@@ -235,7 +227,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             model.validateDrawDate(nextDrawDate);
             model.setDrawDate(nextDrawDate);
         }
-        // batchCode is system-generated from the import batch line and cannot be changed.
+        // batchCode is resolved from import batch line when mapping responses.
 
         if (request.status() != null && request.status() != model.getStatus()) {
             applyStatusTransition(model, request.status());
@@ -412,7 +404,18 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         String stationName = lotteryStationServicePort.findModelById(model.getStationId())
                 .map(LotteryStationModel::getName)
                 .orElse(null);
-        return lotteryTicketApplicationMapper.toResponseDetail(model, serials, stationName);
+        List<LotteryTicketSerialResponse> serialResponses = serials.stream()
+                .map(serial -> lotteryTicketApplicationMapper.toSerialResponse(
+                        serial,
+                        resolveBatchCode(serial)
+                ))
+                .toList();
+        return lotteryTicketApplicationMapper.toResponseDetail(
+                model,
+                serialResponses,
+                stationName,
+                serials.isEmpty() ? null : resolveBatchCode(serials.getFirst())
+        );
     }
 
     private LotteryTicketResponse mapToResponse(
@@ -421,7 +424,25 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             Map<Long, String> stationNameCache
     ) {
         String stationName = resolveStationName(model.getStationId(), stationNameCache);
-        return lotteryTicketApplicationMapper.toResponse(model, serial, stationName);
+        return lotteryTicketApplicationMapper.toResponse(
+                model,
+                serial,
+                stationName,
+                resolveBatchCode(serial)
+        );
+    }
+
+    private String resolveBatchCode(LotteryTicketSerialModel serial) {
+        return resolveBatchCodeForSerial(serial);
+    }
+
+    private String resolveBatchCodeForSerial(LotteryTicketSerialModel serial) {
+        if (serial == null || serial.getImportBatchLineId() == null) {
+            return null;
+        }
+        return importBatchLineRepositoryPort.findById(serial.getImportBatchLineId())
+                .map(ImportBatchLineModel::getBatchCode)
+                .orElse(null);
     }
 
     private String resolveStationName(Long stationId, Map<Long, String> stationNameCache) {
@@ -546,15 +567,6 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         return line;
     }
 
-    private String requireLineBatchCode(ImportBatchLineModel importBatchLine) {
-        if (importBatchLine == null
-                || importBatchLine.getBatchCode() == null
-                || importBatchLine.getBatchCode().isBlank()) {
-            throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_BATCH_CODE_MISSING);
-        }
-        return importBatchLine.getBatchCode().trim();
-    }
-
     private ImportBatchModel getImportBatchOrThrow(Long importBatchId) {
         return importBatchRepositoryPort.findById(importBatchId)
                 .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
@@ -600,13 +612,15 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     }
 
     private void activateImportBatchLineTickets(Long importBatchLineId) {
-        lotteryTicketRepositoryPort.findAllByImportBatchLineId(importBatchLineId).forEach(batchTicket -> {
-            batchTicket.setActive(true);
-            if (batchTicket.getStatus() == LotteryTicketStatus.IMPORTING) {
-                batchTicket.setStatus(LotteryTicketStatus.IN_STOCK);
-            }
-            lotteryTicketRepositoryPort.save(batchTicket);
-        });
+        lotteryTicketSerialService.findDistinctTicketIdsByImportBatchLineId(importBatchLineId)
+                .forEach(ticketId -> {
+                    LotteryTicketModel batchTicket = getTicketOrThrow(ticketId);
+                    batchTicket.setActive(true);
+                    if (batchTicket.getStatus() == LotteryTicketStatus.IMPORTING) {
+                        batchTicket.setStatus(LotteryTicketStatus.IN_STOCK);
+                    }
+                    lotteryTicketRepositoryPort.save(batchTicket);
+                });
     }
 
     private void validateTicketAgainstImportBatchLine(
