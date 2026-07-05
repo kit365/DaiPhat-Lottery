@@ -34,7 +34,11 @@ import { createImportBatchSchema, CreateImportBatchFormValues } from './schemas/
 import { ImportBatchConfirmDialog } from './components/ImportBatchConfirmDialog';
 import { ImportBatchLineRow } from './components/ImportBatchLineRow';
 import { IMPORT_MODE_OPTIONS } from './utils/batchTypeLabels';
-import { isPastDrawDate, resolveImportModeLock } from './utils/importBatchDrawDate';
+import {
+    getDrawDateInputBounds,
+    isDrawDateToday,
+    resolveImportModeLock,
+} from './utils/importBatchDrawDate';
 import { computeImportBatchTotals } from './utils/importBatchTotals';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
@@ -66,6 +70,8 @@ export const ImportBatchCreatePage = () => {
         formState: { errors },
     } = useForm<CreateImportBatchFormValues>({
         resolver: zodResolver(createImportBatchSchema),
+        mode: 'onChange',
+        reValidateMode: 'onChange',
         defaultValues: {
             drawDate: dayjs().format('YYYY-MM-DD'),
             supplierId: 0,
@@ -83,10 +89,13 @@ export const ImportBatchCreatePage = () => {
     const { data: timePolicy } = useImportBatchTimePolicy();
     const cutoffTime = timePolicy?.importBatchCutoffTime ?? '15:00';
 
-    const { data: eligibleStations = [], isLoading: isLoadingStations } = useEligibleImportBatchStations(
+    const { data: stationsResult, isLoading: isLoadingStations } = useEligibleImportBatchStations(
         drawDate,
         importMode
     );
+    const eligibleStations = stationsResult?.eligible ?? [];
+    const blockedStations = stationsResult?.blocked ?? [];
+    const drawDateBounds = getDrawDateInputBounds();
     const { data: activeSuppliers = [], isLoading: isLoadingSuppliers } = useActiveSuppliers();
     const { mutateAsync: createAsync, isPending } = useCreateImportBatch();
 
@@ -115,14 +124,24 @@ export const ImportBatchCreatePage = () => {
     const isImportModeLocked = importModeLock.locked;
     const importModeLockReason = importModeLock.locked ? importModeLock.reason : undefined;
 
+    const allStationsDraftBlocked =
+        !!drawDate &&
+        !isLoadingStations &&
+        importMode === 'IN_DAY' &&
+        isDrawDateToday(drawDate) &&
+        eligibleStations.length === 0 &&
+        blockedStations.length > 0;
+
     const noEligibleStations =
         !!drawDate && !isLoadingStations && eligibleStations.length === 0;
 
     const drawDateHelperText =
         errors.drawDate?.message ??
-        (noEligibleStations
-            ? 'Không có nhà đài nào phù hợp với ngày quay và loại nhập đã chọn.'
-            : undefined);
+        (allStationsDraftBlocked
+            ? 'Tất cả nhà đài trong ngày quay đã có phiếu nhập nháp. Vui lòng hoàn tất các phiếu hiện tại hoặc chọn ngày quay khác.'
+            : noEligibleStations
+              ? 'Không có nhà đài nào phù hợp với ngày quay và loại nhập đã chọn.'
+              : undefined);
 
     // Shared receipt is required for in-day imports (NEW / LATE_IMPORT).
     const showSharedReceipt = importMode === 'IN_DAY';
@@ -202,9 +221,7 @@ export const ImportBatchCreatePage = () => {
                     (s) => s.lotteryStationId === line.lotteryStationId
                 );
                 const resolvedBatchType =
-                    line.resolvedBatchType
-                    ?? station?.resolvedBatchType
-                    ?? (isPastDrawDate(data.drawDate) ? 'ADJUSTMENT' : undefined);
+                    line.resolvedBatchType ?? station?.resolvedBatchType;
                 return { ...line, resolvedBatchType };
             }),
         };
@@ -322,10 +339,12 @@ export const ImportBatchCreatePage = () => {
                                                 fullWidth
                                                 sx={{ maxWidth: { sm: 280 } }}
                                                 InputLabelProps={{ shrink: true }}
+                                                inputProps={{ max: drawDateBounds.max }}
                                                 error={!!errors.drawDate}
                                                 helperText={drawDateHelperText}
                                                 FormHelperTextProps={
-                                                    noEligibleStations && !errors.drawDate
+                                                    (noEligibleStations || allStationsDraftBlocked) &&
+                                                    !errors.drawDate
                                                         ? { sx: { color: 'warning.main' } }
                                                         : undefined
                                                 }
@@ -389,6 +408,41 @@ export const ImportBatchCreatePage = () => {
                                     />
                                 </Stack>
 
+                                {blockedStations.length > 0 && (
+                                    <Alert severity="info">
+                                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                                            Một số nhà đài đã có phiếu nhập nháp:
+                                        </Typography>
+                                        {blockedStations.map((station) => (
+                                            <Typography key={station.lotteryStationId} variant="body2">
+                                                {station.name}
+                                                {station.existingDraftBatchId
+                                                    ? ` — phiếu #${station.existingDraftBatchId}`
+                                                    : ''}
+                                                {station.existingDraftBatchId && (
+                                                    <>
+                                                        {' '}
+                                                        <Button
+                                                            size="small"
+                                                            variant="text"
+                                                            sx={{ p: 0, minWidth: 0, verticalAlign: 'baseline' }}
+                                                            onClick={() =>
+                                                                navigate(
+                                                                    ROUTES.ADMIN.IMPORT_BATCH.DETAIL(
+                                                                        station.existingDraftBatchId!
+                                                                    )
+                                                                )
+                                                            }
+                                                        >
+                                                            Xem phiếu
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </Typography>
+                                        ))}
+                                    </Alert>
+                                )}
+
                                 <TableContainer component={Paper} variant="outlined">
                                     <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
                                         <TableHead>
@@ -420,7 +474,6 @@ export const ImportBatchCreatePage = () => {
                                                     selectedStationIdsInOtherRows={selectedStationIdsByRow[index] ?? []}
                                                     canRemove={fields.length > 1}
                                                     onRemove={() => remove(index)}
-                                                    errors={errors.lines?.[index]}
                                                 />
                                             ))}
                                         </TableBody>

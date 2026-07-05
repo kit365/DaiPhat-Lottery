@@ -3,6 +3,7 @@ import type { ImportBatchEligibleStation, ImportBatchType } from '../../../api/i
 import type { ImportBatchImportMode } from './batchTypeLabels';
 
 const DEFAULT_CUTOFF_TIME = '15:00';
+const DEFAULT_LATE_IMPORT_TIME = '14:30';
 
 /** Draw date is before today — batch type is always additional import. */
 export const isPastDrawDate = (drawDate?: string) =>
@@ -10,6 +11,12 @@ export const isPastDrawDate = (drawDate?: string) =>
 
 export const isDrawDateToday = (drawDate?: string) =>
     !!drawDate && dayjs(drawDate).isSame(dayjs(), 'day');
+
+export const isTomorrowDrawDate = (drawDate?: string) =>
+    !!drawDate && dayjs(drawDate).isSame(dayjs().add(1, 'day'), 'day');
+
+export const isFutureBeyondTomorrow = (drawDate?: string) =>
+    !!drawDate && dayjs(drawDate).isAfter(dayjs().add(1, 'day'), 'day');
 
 export const parseImportCutoffTime = (cutoffTime?: string): Dayjs | null => {
     if (!cutoffTime?.trim()) {
@@ -38,6 +45,21 @@ export const isAfterImportCutoff = (cutoffTime?: string, now: Dayjs = dayjs()) =
     return now.isAfter(todayCutoff);
 };
 
+export const isInLateImportWindow = (
+    lateImportTime?: string,
+    cutoffTime?: string,
+    now: Dayjs = dayjs()
+) => {
+    const late = parseImportCutoffTime(lateImportTime ?? DEFAULT_LATE_IMPORT_TIME);
+    const cutoff = parseImportCutoffTime(cutoffTime ?? DEFAULT_CUTOFF_TIME);
+    if (!late || !cutoff) {
+        return false;
+    }
+    const todayLate = now.hour(late.hour()).minute(late.minute()).second(0).millisecond(0);
+    const todayCutoff = now.hour(cutoff.hour()).minute(cutoff.minute()).second(0).millisecond(0);
+    return !now.isBefore(todayLate) && !now.isAfter(todayCutoff);
+};
+
 /** All eligible stations resolve to post-draw additional import. */
 export const areAllStationsAdditionalImport = (stations: ImportBatchEligibleStation[] = []) =>
     stations.length > 0 && stations.every((station) => station.resolvedBatchType === 'ADJUSTMENT');
@@ -48,8 +70,6 @@ export type ImportModeLockState =
 
 /**
  * Resolve whether import mode dropdown should be locked and to which value.
- * - Today before cutoff & draw not completed → lock IN_DAY
- * - Past date / after cutoff / all stations drew → lock POST_DRAW_SUPPLEMENT
  */
 export const resolveImportModeLock = (
     drawDate?: string,
@@ -65,6 +85,22 @@ export const resolveImportModeLock = (
         };
     }
 
+    if (isTomorrowDrawDate(drawDate)) {
+        return {
+            locked: true,
+            mode: 'IN_DAY',
+            reason: 'Tự động chọn Nhập vé trong ngày vì nhập trước cho kỳ quay ngày mai.',
+        };
+    }
+
+    if (isFutureBeyondTomorrow(drawDate)) {
+        return {
+            locked: true,
+            mode: 'POST_DRAW_SUPPLEMENT',
+            reason: 'Chỉ hỗ trợ nhập cho ngày quay hôm nay, ngày mai hoặc ngày đã qua.',
+        };
+    }
+
     if (isDrawDateToday(drawDate) && isAfterImportCutoff(cutoffTime)) {
         return {
             locked: true,
@@ -74,40 +110,25 @@ export const resolveImportModeLock = (
     }
 
     if (isDrawDateToday(drawDate) && !isAfterImportCutoff(cutoffTime)) {
-        if (stationsLoaded && areAllStationsAdditionalImport(eligibleStations)) {
-            return {
-                locked: true,
-                mode: 'POST_DRAW_SUPPLEMENT',
-                reason: 'Tự động chọn Nhập vé bổ sung vì đài đã quay số.',
-            };
-        }
-
         return {
             locked: true,
             mode: 'IN_DAY',
-            reason: 'Tự động chọn Nhập vé trong ngày vì ngày quay là hôm nay và chưa đến giờ quay số.',
+            reason: 'Tự động chọn Nhập vé trong ngày vì ngày quay là hôm nay và chưa qua giờ chốt.',
         };
     }
 
     return { locked: false };
 };
 
-/** Resolved batch type for display when draw has already completed for the selected date. */
+/** Resolved batch type for display — prefer API classification from eligible stations. */
 export const resolveDisplayBatchType = (
-    drawDate?: string,
     resolvedBatchType?: ImportBatchType,
     stationResolvedBatchType?: ImportBatchType
-): ImportBatchType | undefined => {
-    if (resolvedBatchType) {
-        return resolvedBatchType;
-    }
-    if (stationResolvedBatchType) {
-        return stationResolvedBatchType;
-    }
-    if (isPastDrawDate(drawDate)) {
-        return 'ADJUSTMENT';
-    }
-    return undefined;
-};
+): ImportBatchType | undefined => resolvedBatchType ?? stationResolvedBatchType;
 
 export const isAdditionalBatchType = (batchType?: ImportBatchType) => batchType === 'ADJUSTMENT';
+
+export const getDrawDateInputBounds = () => ({
+    min: undefined as string | undefined,
+    max: dayjs().add(1, 'day').format('YYYY-MM-DD'),
+});
