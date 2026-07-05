@@ -1,47 +1,59 @@
-import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography, IconButton } from "@mui/material"
-import { Breadcrumb } from "../../components/ui/Breadcrumb"
-import { Title } from "../../components/ui/Title"
-import { useState, useMemo } from "react"
-import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
-import { TicketSerialImageField } from "./components/TicketSerialImageField"
-import { prefixAdmin, ROUTES } from "../../constants/routes";
-import { useCreateTicket } from "./hooks/useTicket";
-import { toast } from "react-toastify";
-import { useForm, Controller, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { createTicketSchema, CreateTicketFormValues } from "../../schemas/ticket.schema";
-import { LoadingButton } from "../../components/ui/LoadingButton";
-import { useProviders } from "../provider/hooks/useProvider";
-import { StationSelector } from "./components/StationSelector";
-import { useImportBatchDetail, useActiveImportBatchDraft } from "../import-batch/hooks/useImportBatch";
-import { getBatchTypeLabel } from "../import-batch/utils/batchTypeLabels";
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
-import { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import dayjs from "dayjs";
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import {
+    Alert,
+    Autocomplete,
+    Box,
+    Chip,
+    IconButton,
+    Paper,
+    Stack,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    TextField,
+    ThemeProvider,
+    Typography,
+    createTheme,
+    useTheme,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
+} from '@mui/material';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { Title } from '../../components/ui/Title';
+import { LoadingButton } from '../../components/ui/LoadingButton';
+import { prefixAdmin, ROUTES } from '../../constants/routes';
+import { useCreateTicket } from './hooks/useTicket';
+import { toast } from 'react-toastify';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createTicketSchema, CreateTicketFormValues } from '../../schemas/ticket.schema';
+import { useProviders } from '../provider/hooks/useProvider';
+import { useDraftImportBatches, useImportBatchDetail } from '../import-batch/hooks/useImportBatch';
+import { getBatchTypeLabel } from '../import-batch/utils/batchTypeLabels';
+import { TicketSerialImageField } from './components/TicketSerialImageField';
+import type { ImportBatch } from '../../api/importBatch.api';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import dayjs from 'dayjs';
+
+const emptySerial = () => ({ serialNumber: '', ticketImg: undefined as string | undefined });
 
 export const TicketCreatePage = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const importBatchLineId = searchParams.get("importBatchLineId");
-    const importBatchIdParam = searchParams.get("importBatchId");
+    const importBatchIdParam = searchParams.get('importBatchId');
+    const importBatchLineIdParam = searchParams.get('importBatchLineId');
+    const isBatchPreSelected = !!importBatchIdParam;
 
-    const { data: activeDraft, isLoading: isLoadingActiveDraft } = useActiveImportBatchDraft(
-        !importBatchIdParam && !!importBatchLineId
-    );
-    const resolvedBatchId = importBatchIdParam || (activeDraft?.id ? String(activeDraft.id) : undefined);
-    const { data: importBatch, isLoading: isLoadingBatch } = useImportBatchDetail(resolvedBatchId);
-
-    const batchLines = importBatch?.lines ?? [];
-    const hasMultipleLines = batchLines.length > 1;
-
-    useEffect(() => {
-        if (!importBatchLineId && !importBatchIdParam) {
-            toast.info("Vui lòng tạo phiếu nhập lô trước khi thêm vé số.");
-            navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST, { replace: true });
-        }
-    }, [importBatchLineId, importBatchIdParam, navigate]);
+    const { data: draftBatches = [], isLoading: isLoadingDrafts } = useDraftImportBatches(!isBatchPreSelected);
+    const [selectedBatchId, setSelectedBatchId] = useStateFromParam(importBatchIdParam);
+    const { data: importBatch, isLoading: isLoadingBatch } = useImportBatchDetail(selectedBatchId || undefined);
 
     const {
         control,
@@ -49,294 +61,305 @@ export const TicketCreatePage = () => {
         reset,
         watch,
         setValue,
+        formState: { errors },
     } = useForm<CreateTicketFormValues>({
         resolver: zodResolver(createTicketSchema),
         defaultValues: {
-            importBatchLineId: importBatchLineId || "",
-            importBatchId: importBatchIdParam || "",
-            stationId: "",
-            serials: [{ serialNumber: "", ticketImg: undefined }],
-            numbers: "",
-            batchCode: "",
-            drawDate: "",
+            importBatchId: importBatchIdParam || '',
+            importBatchLineId: importBatchLineIdParam || '',
+            stationId: '',
+            serials: [emptySerial()],
+            numbers: '',
+            drawDate: '',
         },
     });
 
-    const watchedLineId = watch("importBatchLineId");
+    const watchedLineId = watch('importBatchLineId');
+    const batchLines = importBatch?.lines ?? [];
+    const hasMultipleLines = batchLines.length > 1;
+
     const selectedLine = useMemo(() => {
-        const lineId = importBatchLineId || watchedLineId;
+        const lineId = importBatchLineIdParam || watchedLineId;
         return (
-            batchLines.find((l) => String(l.id) === String(lineId))
-            ?? (batchLines.length === 1 ? batchLines[0] : undefined)
+            batchLines.find((l) => String(l.id) === String(lineId)) ??
+            (batchLines.length === 1 ? batchLines[0] : undefined)
         );
-    }, [batchLines, importBatchLineId, watchedLineId]);
-
-    useEffect(() => {
-        if (!importBatch || !selectedLine) return;
-
-        reset({
-            importBatchLineId: String(selectedLine.id),
-            importBatchId: String(importBatch.id),
-            stationId: String(selectedLine.lotteryStationId),
-            serials: [{ serialNumber: "", ticketImg: undefined }],
-            numbers: "",
-            batchCode: selectedLine.batchCode || "",
-            drawDate: importBatch.drawDate,
-        });
-    }, [importBatch, selectedLine, reset]);
-
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: "serials"
-    });
-
-    const [expandedDetail, setExpandedDetail] = useState(true);
-    const [expandedSerials, setExpandedSerials] = useState(true);
-    const [resetKey, setResetKey] = useState(0);
+    }, [batchLines, importBatchLineIdParam, watchedLineId]);
 
     const { data: providersRes } = useProviders({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
     const { mutateAsync: createAsync, isPending } = useCreateTicket();
 
-    const outerTheme = useTheme();
+    const resolveStationName = useCallback(
+        (stationId?: number | string) => {
+            if (!stationId) return '—';
+            return (
+                providers.find((p: any) => String(p.id || p._id) === String(stationId))?.name ??
+                `Đài #${stationId}`
+            );
+        },
+        [providers]
+    );
 
-    const localTheme = useMemo(() => createTheme(outerTheme, {
-        components: {
-            MuiCard: {
-                styleOverrides: {
-                    root: {
-                        backgroundImage: "none !important",
-                        backdropFilter: "none !important",
-                        backgroundColor: "var(--palette-background-paper) !important",
-                        boxShadow: "var(--customShadows-card)",
-                        borderRadius: "var(--shape-borderRadius-lg)",
-                        color: "var(--palette-text-primary)",
+    useEffect(() => {
+        if (!importBatch || batchLines.length === 0) return;
+
+        const lineFromParam = importBatchLineIdParam
+            ? batchLines.find((l) => String(l.id) === importBatchLineIdParam)
+            : undefined;
+        const line = lineFromParam ?? (batchLines.length === 1 ? batchLines[0] : undefined);
+
+        reset({
+            importBatchId: String(importBatch.id),
+            importBatchLineId: line ? String(line.id) : '',
+            stationId: line ? String(line.lotteryStationId) : '',
+            serials: [emptySerial()],
+            numbers: '',
+            drawDate: importBatch.drawDate,
+        });
+    }, [importBatch, batchLines, importBatchLineIdParam, reset]);
+
+    const { fields, append, remove } = useFieldArray({ control, name: 'serials' });
+
+    const outerTheme = useTheme();
+    const localTheme = useMemo(
+        () =>
+            createTheme(outerTheme, {
+                components: {
+                    MuiCard: {
+                        styleOverrides: {
+                            root: {
+                                backgroundImage: 'none !important',
+                                backdropFilter: 'none !important',
+                                backgroundColor: 'var(--palette-background-paper) !important',
+                                boxShadow: 'var(--customShadows-card)',
+                                borderRadius: 'var(--shape-borderRadius-lg)',
+                            },
+                        },
                     },
-                }
-            },
-            MuiInputLabel: {
-                styleOverrides: {
-                    root: {
-                        fontSize: "1rem",
-                    }
-                }
-            },
-            MuiOutlinedInput: {
-                styleOverrides: {
-                    root: {
-                        fontSize: "1rem",
-                    }
-                }
-            }
+                },
+            }),
+        [outerTheme]
+    );
+
+    const handleBatchChange = (batch: ImportBatch | null) => {
+        if (!batch) {
+            setSelectedBatchId('');
+            reset({
+                importBatchId: '',
+                importBatchLineId: '',
+                stationId: '',
+                serials: [emptySerial()],
+                numbers: '',
+                drawDate: '',
+            });
+            return;
         }
-    }), [outerTheme]);
+        setSelectedBatchId(String(batch.id));
+    };
+
+    const formatBatchLabel = (batch: ImportBatch) =>
+        `#${batch.id} · ${dayjs(batch.drawDate).format('DD/MM/YYYY')} · ${batch.supplierName || 'N/A'} · ${batch.lines?.length ?? 0} đài`;
 
     const onSubmit = async (data: CreateTicketFormValues) => {
-        const selectedProvider = providers.find((p: any) => String(p.id || p._id) === String(data.stationId));
-        if (!selectedProvider) {
-            toast.error("Vui lòng chọn nhà đài");
+        if (!selectedLine) {
+            toast.error('Vui lòng chọn nhà đài trong phiếu nhập lô');
             return;
         }
 
         const payload = {
-            importBatchLineId: Number(data.importBatchLineId || importBatchLineId),
-            importBatchId: data.importBatchId ? Number(data.importBatchId) : undefined,
+            importBatchLineId: Number(data.importBatchLineId),
             stationId: data.stationId,
             drawDate: data.drawDate || importBatch?.drawDate,
-            serials: data.serials.map(s => ({
-                serialNumber: s.serialNumber,
-                ticketImg: typeof s.ticketImg === "string" && s.ticketImg.trim() ? s.ticketImg.trim() : undefined,
+            serials: data.serials.map((s) => ({
+                serialNumber: s.serialNumber.trim(),
+                ticketImg:
+                    typeof s.ticketImg === 'string' && s.ticketImg.trim() ? s.ticketImg.trim() : undefined,
             })),
-            numbers: data.numbers,
+            numbers: data.numbers.trim(),
         };
 
         try {
             const res: any = await createAsync(payload);
             if (res.success) {
-                toast.success("Nhập các vé số vào kho thành công!");
+                toast.success('Nhập vé số thành công!');
                 reset({
-                    importBatchLineId: String(selectedLine?.id || data.importBatchLineId || ""),
-                    importBatchId: String(importBatch?.id || data.importBatchId || ""),
-                    stationId: String(selectedLine?.lotteryStationId || data.stationId || ""),
-                    serials: [{ serialNumber: "", ticketImg: undefined }],
-                    numbers: "",
-                    batchCode: selectedLine?.batchCode || "",
-                    drawDate: importBatch?.drawDate || data.drawDate || "",
+                    importBatchId: String(importBatch?.id ?? data.importBatchId),
+                    importBatchLineId: String(selectedLine.id),
+                    stationId: String(selectedLine.lotteryStationId),
+                    serials: [emptySerial()],
+                    numbers: '',
+                    drawDate: importBatch?.drawDate ?? data.drawDate ?? '',
                 });
-                setResetKey(prev => prev + 1);
             } else {
-                toast.error(res.message || "Tạo vé số thất bại");
+                toast.error(res.message || 'Nhập vé số thất bại');
             }
         } catch (err: any) {
-            toast.error(err?.response?.data?.message || err?.message || "Đã xảy ra lỗi khi tạo vé số");
+            toast.error(err?.response?.data?.message || err?.message || 'Đã xảy ra lỗi khi nhập vé số');
         }
     };
 
-    const handleQuickCreateBenTre = async () => {
-        const benTre = providers.find((p: any) => p.province === "Bến Tre" || p.name.includes("Bến Tre"));
-        if (!benTre) {
-            toast.error("Không tìm thấy đài Bến Tre trong hệ thống!");
-            return;
-        }
-
-        const confirm = window.confirm("Bạn có chắc muốn tạo nhanh 3 lô vé số Bến Tre (mỗi lô 10 tờ) không?");
-        if (!confirm) return;
-
-        const stationId = benTre.id || benTre._id;
-
-        const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        const batches = [
-            { numbers: "778899", prefix: `BT1_${randomSuffix}_` },
-            { numbers: "556677", prefix: `BT2_${randomSuffix}_` },
-            { numbers: "334455", prefix: `BT3_${randomSuffix}_` }
-        ];
-
-        try {
-            for (const batch of batches) {
-                const serials = Array.from({ length: 10 }).map((_, i) => ({
-                    serialNumber: `${batch.prefix}${String(i + 1).padStart(3, '0')}`,
-                    ticketImg: ""
-                }));
-
-                await createAsync({
-                    stationId,
-                    serials,
-                    numbers: batch.numbers,
-                    batchCode: `LOHANG_BT_${batch.prefix}`
-                });
-            }
-            toast.success("Tạo nhanh 3 lô Bến Tre thành công!");
-            window.location.reload();
-        } catch (err) {
-            toast.error("Lỗi khi tạo nhanh Bến Tre!");
-        }
-    };
-
-    const isLoading = isLoadingBatch || isLoadingActiveDraft;
-    if ((!importBatchLineId && !importBatchIdParam) || isLoading) {
-        return null;
-    }
+    const isLoading = isLoadingBatch || isLoadingDrafts;
+    const canEnterTickets = !!importBatch && !!selectedLine && importBatch.status === 'DRAFT';
+    const importedCount = selectedLine?.totalQuantity ?? 0;
+    const declareCount = selectedLine?.declareQuantity ?? 0;
 
     return (
         <>
             <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
                 <div className="mr-auto">
-                    <Title title={"Tạo mới lô vé số"} />
+                    <Title title="Nhập vé số" />
                     <Breadcrumb
                         items={[
-                            { label: "Dashboard", to: "/" },
-                            { label: "Kho vé số", to: `/${prefixAdmin}/ticket/list` },
-                            { label: "Nhập vé" }
+                            { label: 'Dashboard', to: '/' },
+                            { label: 'Kho vé số', to: `/${prefixAdmin}/ticket/list` },
+                            { label: 'Nhập vé' },
                         ]}
                     />
                 </div>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                    <Button
-                        onClick={handleQuickCreateBenTre}
-                        disabled={isPending}
-                        sx={{
-                            background: '#10b981',
-                            minHeight: "2.25rem",
-                            fontWeight: 700,
-                            fontSize: "0.875rem",
-                            padding: "6px 12px",
-                            borderRadius: "var(--shape-borderRadius)",
-                            textTransform: "none",
-                            boxShadow: "none",
-                            color: "#fff",
-                            "&:hover": {
-                                background: "#059669",
-                                boxShadow: "var(--customShadows-z8)"
-                            }
-                        }}
-                        variant="contained"
-                    >
-                        {isPending ? "Đang tạo..." : "Tạo mẫu 3 lô Bến Tre"}
-                    </Button>
-                </div>
             </div>
+
             <ThemeProvider theme={localTheme}>
                 <form onSubmit={handleSubmit(onSubmit)}>
-                    <Stack sx={{
-                        margin: "0px calc(15 * var(--spacing))",
-                        gap: "calc(5 * var(--spacing))",
-                        pb: 10
-                    }}>
+                    <Stack spacing={3} sx={{ maxWidth: 960, mx: 'auto', pb: 6 }}>
+                        <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
+                            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
+                                Phiếu nhập lô
+                            </Typography>
 
-                        <CollapsibleCard
-                            title={"Thông tin chung"}
-                            subheader={"Nhà đài, dãy số, mã lô..."}
-                            expanded={expandedDetail}
-                            onToggle={() => setExpandedDetail(!expandedDetail)}
-                        >
-                            <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
+                            {isBatchPreSelected ? (
+                                <TextField
+                                    label="Phiếu nhập lô"
+                                    fullWidth
+                                    value={importBatch ? formatBatchLabel(importBatch) : 'Đang tải...'}
+                                    InputProps={{ readOnly: true }}
+                                    disabled={isLoading}
+                                />
+                            ) : (
+                                <Autocomplete
+                                    options={draftBatches}
+                                    loading={isLoadingDrafts}
+                                    value={importBatch ?? null}
+                                    onChange={(_e, batch) => handleBatchChange(batch)}
+                                    getOptionLabel={formatBatchLabel}
+                                    isOptionEqualToValue={(a, b) => a.id === b.id}
+                                    noOptionsText="Không có phiếu nhập lô ở trạng thái Nháp"
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label="Chọn phiếu nhập lô"
+                                            placeholder="Chọn phiếu nhập lô trước khi nhập vé"
+                                            error={!!errors.importBatchId}
+                                            helperText={
+                                                errors.importBatchId?.message ||
+                                                'Chỉ hiển thị các phiếu nhập lô đang ở trạng thái Nháp.'
+                                            }
+                                        />
+                                    )}
+                                />
+                            )}
+
+                            {importBatch && importBatch.status !== 'DRAFT' && (
+                                <Alert severity="warning" sx={{ mt: 2 }}>
+                                    Phiếu nhập lô này không còn ở trạng thái Nháp. Không thể nhập thêm vé.
+                                </Alert>
+                            )}
+                        </Paper>
+
+                        {importBatch && (
+                            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
+                                <Stack
+                                    direction={{ xs: 'column', sm: 'row' }}
+                                    spacing={2}
+                                    alignItems={{ sm: 'center' }}
+                                    sx={{ mb: 2 }}
+                                >
+                                    <Typography variant="subtitle1" fontWeight={700} sx={{ flex: 1 }}>
+                                        Thông tin lô vé
+                                    </Typography>
+                                    {selectedLine && (
+                                        <Chip
+                                            size="small"
+                                            label={`Đã nhập ${importedCount}/${declareCount}`}
+                                            color={importedCount >= declareCount ? 'success' : 'default'}
+                                        />
+                                    )}
+                                </Stack>
+
                                 <Box
                                     sx={{
-                                        display: "grid",
-                                        gridTemplateColumns: "repeat(12, 1fr)",
-                                        gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))",
+                                        display: 'grid',
+                                        gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                                        gap: 2,
                                     }}
                                 >
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                        {hasMultipleLines ? (
-                                            <Controller
-                                                name="importBatchLineId"
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <FormControl fullWidth>
-                                                        <InputLabel>Dòng nhập lô (nhà đài)</InputLabel>
-                                                        <Select
-                                                            {...field}
-                                                            label="Dòng nhập lô (nhà đài)"
-                                                            value={field.value || ""}
-                                                            onChange={(e) => {
-                                                                const lineId = String(e.target.value);
-                                                                field.onChange(lineId);
-                                                                const line = batchLines.find((l) => String(l.id) === lineId);
-                                                                if (line) {
-                                                                    setValue("stationId", String(line.lotteryStationId));
-                                                                }
-                                                            }}
-                                                        >
-                                                            {batchLines.map((line) => (
-                                                                <MenuItem key={line.id} value={String(line.id)}>
-                                                                    {providers.find((p: any) => String(p.id || p._id) === String(line.lotteryStationId))?.name
-                                                                        ?? `Đài #${line.lotteryStationId}`}{" "}
-                                                                    ({getBatchTypeLabel(line.batchType)})
-                                                                </MenuItem>
-                                                            ))}
-                                                        </Select>
-                                                    </FormControl>
-                                                )}
-                                            />
-                                        ) : (
-                                            <Controller
-                                                name="stationId"
-                                                control={control}
-                                                render={({ field, fieldState }) => (
-                                                    <StationSelector
-                                                        value={field.value}
-                                                        onChange={field.onChange}
-                                                        providers={providers}
-                                                        error={!!fieldState.error}
-                                                        helperText={fieldState.error?.message}
-                                                    />
-                                                )}
-                                            />
-                                        )}
-                                    </Box>
-
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                        <TextField
-                                            label="Mã lô nhập"
-                                            fullWidth
-                                            value={selectedLine?.batchCode || "—"}
-                                            InputProps={{ readOnly: true }}
-                                            helperText="Mã lô được hệ thống tạo tự động khi khai báo phiếu nhập."
+                                    {hasMultipleLines ? (
+                                        <Controller
+                                            name="importBatchLineId"
+                                            control={control}
+                                            render={({ field }) => (
+                                                <FormControl fullWidth>
+                                                    <InputLabel>Nhà đài</InputLabel>
+                                                    <Select
+                                                        {...field}
+                                                        label="Nhà đài"
+                                                        value={field.value || ''}
+                                                        onChange={(e) => {
+                                                            const lineId = String(e.target.value);
+                                                            field.onChange(lineId);
+                                                            const line = batchLines.find(
+                                                                (l) => String(l.id) === lineId
+                                                            );
+                                                            if (line) {
+                                                                setValue('stationId', String(line.lotteryStationId));
+                                                            }
+                                                        }}
+                                                    >
+                                                        {batchLines.map((line) => (
+                                                            <MenuItem key={line.id} value={String(line.id)}>
+                                                                {resolveStationName(line.lotteryStationId)} (
+                                                                {getBatchTypeLabel(line.batchType)})
+                                                            </MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+                                            )}
                                         />
-                                    </Box>
+                                    ) : (
+                                        <TextField
+                                            label="Nhà đài"
+                                            fullWidth
+                                            value={resolveStationName(selectedLine?.lotteryStationId)}
+                                            InputProps={{ readOnly: true }}
+                                        />
+                                    )}
 
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 12" } }}>
+                                    <TextField
+                                        label="Ngày quay"
+                                        fullWidth
+                                        value={
+                                            importBatch.drawDate
+                                                ? dayjs(importBatch.drawDate).format('DD/MM/YYYY')
+                                                : '—'
+                                        }
+                                        InputProps={{ readOnly: true }}
+                                    />
+
+                                    <TextField
+                                        label="Mã lô"
+                                        fullWidth
+                                        value={selectedLine?.batchCode || '—'}
+                                        InputProps={{ readOnly: true }}
+                                    />
+
+                                    <TextField
+                                        label="Nhà cung cấp"
+                                        fullWidth
+                                        value={importBatch.supplierName || '—'}
+                                        InputProps={{ readOnly: true }}
+                                    />
+
+                                    <Box sx={{ gridColumn: { xs: 'span 1', sm: 'span 2' } }}>
                                         <Controller
                                             name="numbers"
                                             control={control}
@@ -345,98 +368,139 @@ export const TicketCreatePage = () => {
                                                     {...field}
                                                     label="Dãy số"
                                                     fullWidth
+                                                    disabled={!canEnterTickets}
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
+                                                    autoFocus
                                                 />
                                             )}
                                         />
                                     </Box>
                                 </Box>
-                            </Stack>
-                        </CollapsibleCard>
+                            </Paper>
+                        )}
 
-                        <CollapsibleCard
-                            title={"Danh sách vé số (Sê-ri)"}
-                            subheader={"Thêm các số sê-ri và ảnh vé số thuộc lô này"}
-                            expanded={expandedSerials}
-                            onToggle={() => setExpandedSerials(!expandedSerials)}
-                        >
-                            <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
-                                {fields.map((item, index) => (
-                                    <Box key={item.id} sx={{
-                                        p: 3,
-                                        border: "1px dashed var(--palette-divider)",
-                                        borderRadius: 2,
-                                        position: "relative"
-                                    }}>
-                                        <Box sx={{
-                                            display: "flex",
-                                            justifyContent: "space-between",
-                                            alignItems: "center",
-                                            mb: 2
-                                        }}>
-                                            <Typography variant="subtitle2" fontWeight="600">
-                                                Vé #{index + 1}
-                                            </Typography>
-                                            {fields.length > 1 && (
-                                                <IconButton 
-                                                    size="small" 
-                                                    color="error"
-                                                    onClick={() => remove(index)}
-                                                >
-                                                    <DeleteOutlineIcon />
-                                                </IconButton>
-                                            )}
-                                        </Box>
-                                        
-                                        <Box sx={{
-                                            display: "grid",
-                                            gridTemplateColumns: "repeat(12, 1fr)",
-                                            gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))",
-                                        }}>
-                                            <Box sx={{ gridColumn: { xs: "span 12", md: "span 12" } }}>
-                                                <Controller
-                                                    name={`serials.${index}.serialNumber`}
-                                                    control={control}
-                                                    render={({ field, fieldState }) => (
-                                                        <TextField
-                                                            {...field}
-                                                            label="Số sê-ri"
-                                                            fullWidth
-                                                            error={!!fieldState.error}
-                                                            helperText={fieldState.error?.message}
-                                                        />
-                                                    )}
-                                                />
-                                            </Box>
-                                            <TicketSerialImageField control={control} index={index} />
-                                        </Box>
-                                    </Box>
-                                ))}
-
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<AddIcon />}
-                                    onClick={() => append({ serialNumber: "", ticketImg: undefined })}
-                                    sx={{ alignSelf: "flex-start", mt: 1 }}
+                        {canEnterTickets && (
+                            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
+                                <Stack
+                                    direction="row"
+                                    alignItems="center"
+                                    justifyContent="space-between"
+                                    sx={{ mb: 1.5 }}
                                 >
-                                    Thêm Số sê-ri
-                                </Button>
-                            </Stack>
-                        </CollapsibleCard>
+                                    <Typography variant="subtitle1" fontWeight={700}>
+                                        Số sê-ri
+                                    </Typography>
+                                    <LoadingButton
+                                        type="button"
+                                        variant="outlined"
+                                        size="small"
+                                        label="Thêm dòng"
+                                        startIcon={<AddIcon />}
+                                        onClick={() => append(emptySerial())}
+                                        sx={{ minHeight: '2rem' }}
+                                    />
+                                </Stack>
 
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: "calc(2 * var(--spacing))" }}>
+                                <TableContainer>
+                                    <Table size="small">
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell width={48}>#</TableCell>
+                                                <TableCell>Số sê-ri</TableCell>
+                                                <TableCell width={140}>Ảnh vé</TableCell>
+                                                <TableCell width={48} />
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {fields.map((item, index) => (
+                                                <TableRow key={item.id} hover>
+                                                    <TableCell>{index + 1}</TableCell>
+                                                    <TableCell sx={{ py: 1 }}>
+                                                        <Controller
+                                                            name={`serials.${index}.serialNumber`}
+                                                            control={control}
+                                                            render={({ field, fieldState }) => (
+                                                                <TextField
+                                                                    {...field}
+                                                                    size="small"
+                                                                    fullWidth
+                                                                    placeholder="Nhập số sê-ri"
+                                                                    error={!!fieldState.error}
+                                                                    helperText={fieldState.error?.message}
+                                                                />
+                                                            )}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell sx={{ py: 1 }}>
+                                                        <TicketSerialImageField
+                                                            control={control}
+                                                            index={index}
+                                                            compact
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell sx={{ py: 1 }}>
+                                                        {fields.length > 1 && (
+                                                            <IconButton
+                                                                size="small"
+                                                                color="error"
+                                                                aria-label="Xóa dòng"
+                                                                onClick={() => remove(index)}
+                                                            >
+                                                                <DeleteOutlineIcon fontSize="small" />
+                                                            </IconButton>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                            </Paper>
+                        )}
+
+                        {!importBatch && !isLoading && (
+                            <Alert severity="info">
+                                Chọn phiếu nhập lô để bắt đầu nhập vé số. Nếu chưa có phiếu, hãy{' '}
+                                <Typography
+                                    component="span"
+                                    sx={{ cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}
+                                    onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.CREATE)}
+                                >
+                                    khai báo phiếu nhập lô
+                                </Typography>{' '}
+                                trước.
+                            </Alert>
+                        )}
+
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                            <LoadingButton
+                                type="button"
+                                variant="outlined"
+                                label="Quay lại"
+                                onClick={() => navigate(ROUTES.ADMIN.TICKETS.LIST)}
+                                sx={{ minHeight: '2.75rem' }}
+                            />
                             <LoadingButton
                                 type="submit"
                                 loading={isPending}
-                                label={"Nhập vé"}
+                                disabled={!canEnterTickets}
+                                label="Nhập vé"
                                 loadingLabel="Đang xử lý..."
-                                sx={{ minHeight: "3rem", minWidth: "4rem" }}
+                                sx={{ minHeight: '2.75rem', minWidth: '7rem' }}
                             />
                         </Box>
                     </Stack>
                 </form>
             </ThemeProvider>
         </>
-    )
+    );
+};
+
+function useStateFromParam(param: string | null) {
+    const [value, setValue] = useState(param || '');
+    useEffect(() => {
+        if (param) setValue(param);
+    }, [param]);
+    return [value, setValue] as const;
 }
