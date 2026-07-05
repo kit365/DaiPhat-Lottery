@@ -1,8 +1,6 @@
 package com.daiphat.coreapi.shared.util;
 
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
-import com.daiphat.coreapi.domain.exception.DomainException;
-import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
@@ -24,7 +22,6 @@ public class ImportBatchTypeResolver {
     private static final DateTimeFormatter TIME_DISPLAY = DateTimeFormatter.ofPattern("H:mm");
 
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
-    private final ImportBatchStationEligibilityResolver stationEligibilityResolver;
     private final ImportBatchConfigResolver importBatchConfigResolver;
     private final Clock clock;
 
@@ -35,54 +32,44 @@ public class ImportBatchTypeResolver {
             ImportBatchImportMode importMode
     ) {
         LocalDateTime now = LocalDateTime.now(clock);
-        validateSameDayCutoffOrThrow(drawDate, station, importMode, now);
+        LocalDate today = now.toLocalDate();
 
-        // After official draw time for the selected draw date + station → ADDITIONAL (ADJUSTMENT).
-        // Takes precedence over NEW / SUPPLEMENTARY (and LATE_IMPORT).
-        if (importMode == ImportBatchImportMode.POST_DRAW_SUPPLEMENT
-                || stationEligibilityResolver.hasCompletedDrawToday(station, drawDate, now)) {
+        if (drawDate == null) {
             return new ClassificationResult(ImportBatchType.ADJUSTMENT, false, List.of());
         }
 
-        if (drawDate != null
-                && drawDate.equals(now.toLocalDate())
-                && isInLateImportWindow(now.toLocalTime())) {
+        if (drawDate.isBefore(today)) {
+            return new ClassificationResult(ImportBatchType.ADJUSTMENT, false, List.of());
+        }
+
+        if (importMode == ImportBatchImportMode.POST_DRAW_SUPPLEMENT) {
+            return new ClassificationResult(ImportBatchType.ADJUSTMENT, false, List.of());
+        }
+
+        if (drawDate.equals(today) && isAfterSameDayCutoff(now.toLocalTime())) {
+            return new ClassificationResult(ImportBatchType.ADJUSTMENT, false, List.of());
+        }
+
+        if (drawDate.isAfter(today.plusDays(1))) {
+            return new ClassificationResult(ImportBatchType.ADJUSTMENT, false, List.of());
+        }
+
+        if (drawDate.equals(today) && isInLateImportWindow(now.toLocalTime())) {
             List<String> warnings = new ArrayList<>();
             warnings.add(buildLateImportWarning());
             return new ClassificationResult(ImportBatchType.LATE_IMPORT, true, warnings);
         }
 
-        if (importBatchLineRepositoryPort.existsByStationAndDrawDateAndBatchType(
-                stationId,
-                drawDate,
-                ImportBatchType.NEW
-        )) {
+        if (importBatchLineRepositoryPort.existsNonDraftLineForStationAndDrawDate(stationId, drawDate)) {
             return new ClassificationResult(ImportBatchType.SUPPLEMENTARY, false, List.of());
         }
 
         return new ClassificationResult(ImportBatchType.NEW, false, List.of());
     }
 
-    public void validateSameDayCutoffOrThrow(
-            LocalDate drawDate,
-            LotteryStationModel station,
-            ImportBatchImportMode importMode,
-            LocalDateTime now
-    ) {
-        if (drawDate == null || !drawDate.equals(now.toLocalDate())) {
-            return;
-        }
-
+    private boolean isAfterSameDayCutoff(LocalTime currentTime) {
         LocalTime cutoff = importBatchConfigResolver.resolveImportBatchCutoff();
-        if (!now.toLocalTime().isAfter(cutoff)) {
-            return;
-        }
-
-        if (importMode == ImportBatchImportMode.POST_DRAW_SUPPLEMENT) {
-            return;
-        }
-
-        throw new DomainException(ErrorCode.IMPORT_BATCH_CUTOFF_PASSED);
+        return currentTime.isAfter(cutoff);
     }
 
     private boolean isInLateImportWindow(LocalTime currentTime) {

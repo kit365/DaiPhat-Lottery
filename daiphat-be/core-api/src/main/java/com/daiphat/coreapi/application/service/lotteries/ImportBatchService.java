@@ -4,8 +4,11 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchLi
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchClassificationPreviewRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchBlockedStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationsResponse;
+import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchTimePolicyResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
@@ -57,6 +60,7 @@ public class ImportBatchService implements ImportBatchServicePort {
     private static final DateTimeFormatter TIME_DISPLAY = DateTimeFormatter.ofPattern("H:mm");
 
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
+    private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
     private final LotteryStationServicePort lotteryStationServicePort;
     private final LotterySupplierServicePort lotterySupplierServicePort;
     private final ImportBatchApplicationMapper importBatchApplicationMapper;
@@ -73,6 +77,7 @@ public class ImportBatchService implements ImportBatchServicePort {
 
         ensureUniqueStations(request.lines());
         lotterySupplierServicePort.ensureActiveSupplierConfigured();
+        validateInDayCreateAllowed(request);
 
         if (request.supplierId() == null) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_SUPPLIER_REQUIRED);
@@ -193,28 +198,52 @@ public class ImportBatchService implements ImportBatchServicePort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ImportBatchEligibleStationResponse> getEligibleStations(
+    public ImportBatchEligibleStationsResponse getEligibleStations(
             LocalDate drawDate,
             ImportBatchImportMode importMode
     ) {
         LocalDateTime now = LocalDateTime.now(clock);
-        return lotteryStationServicePort.getScheduleModelsByDrawDate(drawDate).stream()
-                .filter(station -> stationEligibilityResolver.isEligibleForSelection(
-                        station, drawDate, now, importMode))
-                .map(station -> {
-                    ImportBatchTypeResolver.ClassificationResult classification = importBatchTypeResolver.resolve(
-                            station.getId(),
-                            drawDate,
-                            station,
-                            importMode
-                    );
-                    return ImportBatchEligibleStationResponse.builder()
-                            .lotteryStationId(station.getId())
-                            .name(station.getName())
-                            .resolvedBatchType(classification.resolvedBatchType())
-                            .build();
-                })
-                .toList();
+        List<ImportBatchEligibleStationResponse> eligible = new ArrayList<>();
+        List<ImportBatchBlockedStationResponse> blocked = new ArrayList<>();
+
+        for (LotteryStationModel station : lotteryStationServicePort.getScheduleModelsByDrawDate(drawDate)) {
+            if (!stationEligibilityResolver.isScheduledOnDrawDate(station, drawDate)) {
+                continue;
+            }
+
+            if (importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(station.getId(), drawDate)) {
+                blocked.add(ImportBatchBlockedStationResponse.builder()
+                        .lotteryStationId(station.getId())
+                        .name(station.getName())
+                        .existingDraftBatchId(importBatchLineRepositoryPort
+                                .findDraftBatchIdForStationAndDrawDate(station.getId(), drawDate)
+                                .orElse(null))
+                        .blockedReason("Đài đã có phiếu nhập nháp cho ngày quay này.")
+                        .build());
+                continue;
+            }
+
+            if (!stationEligibilityResolver.isEligibleForSelection(station, drawDate, now, importMode)) {
+                continue;
+            }
+
+            ImportBatchTypeResolver.ClassificationResult classification = importBatchTypeResolver.resolve(
+                    station.getId(),
+                    drawDate,
+                    station,
+                    importMode
+            );
+            eligible.add(ImportBatchEligibleStationResponse.builder()
+                    .lotteryStationId(station.getId())
+                    .name(station.getName())
+                    .resolvedBatchType(classification.resolvedBatchType())
+                    .build());
+        }
+
+        return ImportBatchEligibleStationsResponse.builder()
+                .eligible(eligible)
+                .blocked(blocked)
+                .build();
     }
 
     @Override
@@ -245,6 +274,27 @@ public class ImportBatchService implements ImportBatchServicePort {
                 .lateImportTime(importBatchConfigResolver.resolveLateImportTime().format(TIME_DISPLAY))
                 .importBatchCutoffTime(importBatchConfigResolver.resolveImportBatchCutoff().format(TIME_DISPLAY))
                 .build();
+    }
+
+    private void validateInDayCreateAllowed(CreateImportBatchRequest request) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDate today = now.toLocalDate();
+        if (request.importMode() != ImportBatchImportMode.IN_DAY || !today.equals(request.drawDate())) {
+            return;
+        }
+
+        List<LotteryStationModel> scheduled = lotteryStationServicePort.getScheduleModelsByDrawDate(request.drawDate());
+        if (scheduled.isEmpty()) {
+            return;
+        }
+
+        boolean anyEligible = scheduled.stream()
+                .anyMatch(station -> stationEligibilityResolver.isEligibleForSelection(
+                        station, request.drawDate(), now, ImportBatchImportMode.IN_DAY));
+
+        if (!anyEligible) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_ALL_STATIONS_DRAFT);
+        }
     }
 
     private void ensureUniqueStations(List<CreateImportBatchLineRequest> lines) {

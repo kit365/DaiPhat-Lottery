@@ -220,6 +220,16 @@ public enum ErrorCode {
             "Dòng phiếu nhập lô chưa có mã lô hệ thống.",
             HttpStatus.BAD_REQUEST
     ),
+    IMPORT_BATCH_STATION_DRAFT_EXISTS(
+            "LT_086",
+            "Nhà đài đã có phiếu nhập nháp cho ngày quay này. Vui lòng hoàn tất phiếu hiện tại trước khi tạo mới.",
+            HttpStatus.CONFLICT
+    ),
+    IMPORT_BATCH_ALL_STATIONS_DRAFT(
+            "LT_087",
+            "Tất cả nhà đài trong ngày quay đã có phiếu nhập nháp. Vui lòng hoàn tất các phiếu hiện tại hoặc chọn ngày quay khác.",
+            HttpStatus.CONFLICT
+    ),
 
     LOTTERY_SUPPLIER_ACTIVATION_INCOMPLETE(
             "LT_081",
