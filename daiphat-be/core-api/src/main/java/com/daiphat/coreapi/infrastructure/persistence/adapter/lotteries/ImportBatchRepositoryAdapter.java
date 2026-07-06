@@ -20,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -91,5 +92,19 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
                         pageable
                 )
                 .map(importBatchPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public List<ImportBatchModel> findDraftInDayBatchesByDrawDate(LocalDate drawDate) {
+        return importBatchRepository.findDraftInDayBatchesByDrawDate(drawDate).stream()
+                .map(importBatchPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<ImportBatchModel> findDraftBatchesWithDrawDateBefore(LocalDate today) {
+        return importBatchRepository.findDraftBatchesWithDrawDateBefore(today).stream()
+                .map(importBatchPersistenceMapper::toDomain)
+                .toList();
     }
 }
