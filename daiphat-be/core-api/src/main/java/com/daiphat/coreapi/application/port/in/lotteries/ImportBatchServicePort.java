@@ -45,4 +45,6 @@ public interface ImportBatchServicePort {
     ImportBatchEligibleStationsResponse getEligibleStations(LocalDate drawDate, ImportBatchImportMode importMode);
 
     ImportBatchTimePolicyResponse getTimePolicy();
+
+    int cancelOverdueDrafts();
 }

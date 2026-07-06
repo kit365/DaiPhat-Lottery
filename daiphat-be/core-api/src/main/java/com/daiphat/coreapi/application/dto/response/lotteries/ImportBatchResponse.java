@@ -33,6 +33,7 @@ public record ImportBatchResponse(
         LocalDateTime completedAt,
         LocalDateTime ledgerAt,
         String note,
+        String cancelReason,
         boolean lateImportWarning,
         List<String> warnings,
         List<ImportBatchLineResponse> lines,

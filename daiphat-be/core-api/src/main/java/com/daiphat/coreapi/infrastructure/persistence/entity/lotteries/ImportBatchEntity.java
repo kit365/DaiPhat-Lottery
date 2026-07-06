@@ -89,6 +89,9 @@ public class ImportBatchEntity extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    @Column(name = "cancel_reason", columnDefinition = "TEXT")
+    private String cancelReason;
+
     @OneToMany(mappedBy = "importBatch", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ImportBatchLineEntity> lines = new ArrayList<>();

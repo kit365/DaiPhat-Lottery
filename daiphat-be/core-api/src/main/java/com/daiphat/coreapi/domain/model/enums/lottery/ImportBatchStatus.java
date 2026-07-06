@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum ImportBatchStatus {
     DRAFT("Phiếu nháp"),
+    CANCELLED("Đã hủy"),
     IMPORTED("Đã nhập kho"),
     IN_LEDGER("Đã vào sổ công nợ");
 
