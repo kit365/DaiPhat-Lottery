@@ -16,7 +16,7 @@ const withAuth = () => {
 };
 
 export type ImportBatchType = 'NEW' | 'SUPPLEMENTARY' | 'LATE_IMPORT' | 'ADJUSTMENT';
-export type ImportBatchStatus = 'DRAFT' | 'IMPORTED' | 'IN_LEDGER';
+export type ImportBatchStatus = 'DRAFT' | 'CANCELLED' | 'IMPORTED' | 'IN_LEDGER';
 export type ImportBatchLineStatus = 'OPEN' | 'IMPORTING' | 'IMPORTED';
 
 export interface ImportBatchLine {
@@ -42,6 +42,7 @@ export interface ImportBatch {
     importMode?: ImportBatchImportMode;
     invoiceEvidenceUrl?: string;
     status: ImportBatchStatus;
+    cancelReason?: string;
     lineCount?: number;
     totalDeclareQuantity?: number;
     totalDeclaredCostValue?: number;

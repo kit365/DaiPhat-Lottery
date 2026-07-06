@@ -35,7 +35,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { createTicketSchema, CreateTicketFormValues } from '../../schemas/ticket.schema';
 import { useProviders } from '../provider/hooks/useProvider';
 import { useDraftImportBatches, useImportBatchDetail } from '../import-batch/hooks/useImportBatch';
-import { getBatchTypeLabel } from '../import-batch/utils/batchTypeLabels';
+import { getBatchTypeLabel, getImportBatchCancelledAlertMessage } from '../import-batch/utils/batchTypeLabels';
 import { TicketSerialImageField } from './components/TicketSerialImageField';
 import type { ImportBatch } from '../../api/importBatch.api';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -259,7 +259,13 @@ export const TicketCreatePage = () => {
                                 />
                             )}
 
-                            {importBatch && importBatch.status !== 'DRAFT' && (
+                            {importBatch && importBatch.status === 'CANCELLED' && (
+                                <Alert severity="error" sx={{ mt: 2 }}>
+                                    {getImportBatchCancelledAlertMessage(importBatch.cancelReason)}
+                                </Alert>
+                            )}
+
+                            {importBatch && importBatch.status !== 'DRAFT' && importBatch.status !== 'CANCELLED' && (
                                 <Alert severity="warning" sx={{ mt: 2 }}>
                                     Phiếu nhập lô này không còn ở trạng thái Nháp. Không thể nhập thêm vé.
                                 </Alert>
