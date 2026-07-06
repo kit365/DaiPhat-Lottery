@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { GridColDef } from '@mui/x-data-grid';
 import { RenderActionsCell, RenderTicketCell, RenderStatusCell, RenderCreatedAtCell, RenderDrawDateCell } from '../utils/render-cells';
+import { formatImportBatchCode } from '../../import-batch/utils/importBatchCode';
 import { ITicket } from '../configs/types';
 import { useMemo } from 'react';
 
@@ -26,8 +27,11 @@ export const useTicketColumns = () => {
         {
             field: "batchCode",
             headerName: "Lô nhập",
-            width: 140,
+            width: 220,
             filterable: true,
+            renderCell: (params) => (
+                <span title={String(params.value ?? '')}>{formatImportBatchCode(params.value as string)}</span>
+            ),
         },
         {
             field: "createdAt",
