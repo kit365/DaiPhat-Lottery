@@ -1,4 +1,5 @@
 import {
+    Alert,
     Box,
     Button,
     Chip,
@@ -22,14 +23,8 @@ import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../constants/routes';
 import { useImportBatchDetail } from './hooks/useImportBatch';
 import { useProviders } from '../provider/hooks/useProvider';
-import { getBatchTypeLabel, getImportBatchLineStatusLabel, getImportModeLabel } from './utils/batchTypeLabels';
+import { getBatchTypeLabel, getImportBatchCancelledAlertMessage, getImportBatchLineStatusLabel, getImportBatchStatusChipColor, getImportBatchStatusLabel, getImportModeLabel, formatImportBatchCancelReason, importBatchStatusChipSx } from './utils/batchTypeLabels';
 import dayjs from 'dayjs';
-
-const STATUS_LABELS: Record<string, string> = {
-    DRAFT: 'Nháp',
-    IMPORTED: 'Đã nhập',
-    IN_LEDGER: 'Đã vào sổ',
-};
 
 export const ImportBatchDetailPage = () => {
     const { id } = useParams<{ id: string }>();
@@ -47,6 +42,9 @@ export const ImportBatchDetailPage = () => {
     const totalDeclaredCostValue = batch?.totalDeclaredCostValue ?? 0;
     const totalImportedQuantity = batch?.totalImportedQuantity ?? 0;
     const totalImportedCostValue = batch?.totalImportedCostValue ?? 0;
+
+    const cancelledReasonText =
+        batch?.status === 'CANCELLED' ? formatImportBatchCancelReason(batch.cancelReason) : undefined;
 
     if (isLoading) {
         return null;
@@ -71,19 +69,31 @@ export const ImportBatchDetailPage = () => {
             />
             <Stack
                 direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
                 justifyContent="space-between"
                 spacing={2}
                 sx={{ mb: 2 }}
             >
-                <Stack direction="row" alignItems="center" spacing={2}>
-                    <Title title={`Phiếu nhập lô #${batch.id}`} />
-                    <Chip
-                        label={STATUS_LABELS[batch.status] || batch.status}
-                        color={batch.status === 'DRAFT' ? 'warning' : 'default'}
-                        size="small"
-                    />
-                </Stack>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
+                        <Title title={`Phiếu nhập lô #${batch.id}`} />
+                        <Chip
+                            label={getImportBatchStatusLabel(batch.status)}
+                            color={getImportBatchStatusChipColor(batch.status)}
+                            size="small"
+                            sx={importBatchStatusChipSx}
+                        />
+                    </Stack>
+                    {cancelledReasonText && (
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ mt: 0.75, maxWidth: 720 }}
+                        >
+                            {cancelledReasonText}
+                        </Typography>
+                    )}
+                </Box>
                 {batch.status === 'DRAFT' && (
                     <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
                         <Button
@@ -245,6 +255,12 @@ export const ImportBatchDetailPage = () => {
                     </TableContainer>
                 </Stack>
             </CollapsibleCard>
+
+            {batch.status === 'CANCELLED' && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                    {getImportBatchCancelledAlertMessage(batch.cancelReason)}
+                </Alert>
+            )}
 
             {batch.status === 'DRAFT' && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
