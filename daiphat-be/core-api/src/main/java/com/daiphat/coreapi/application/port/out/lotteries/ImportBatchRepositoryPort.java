@@ -32,4 +32,6 @@ public interface ImportBatchRepositoryPort {
     List<ImportBatchModel> findDraftInDayBatchesByDrawDate(LocalDate drawDate);
 
     List<ImportBatchModel> findDraftBatchesWithDrawDateBefore(LocalDate today);
+
+    long nextHeaderBatchCodeSequence();
 }

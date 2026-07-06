@@ -99,6 +99,7 @@ public class ImportBatchService implements ImportBatchServicePort {
                 .build();
         header.initializeForCreate(operatorId, now);
         header.markSubmitted(now);
+        header.setBatchCode(importBatchCodeGenerator.generateHeaderCode(request.drawDate()));
 
         boolean lateImportWarning = false;
         List<String> warnings = new ArrayList<>();
@@ -122,10 +123,10 @@ public class ImportBatchService implements ImportBatchServicePort {
 
             ImportBatchLineModel line = importBatchApplicationMapper.toLineModel(lineRequest);
             line.applyResolvedBatchType(classification.resolvedBatchType());
-            line.setBatchCode(importBatchCodeGenerator.generate(
+            line.setBatchCode(importBatchCodeGenerator.generateLineCode(
                     station,
                     classification.resolvedBatchType(),
-                    LocalDate.now(clock)
+                    request.drawDate()
             ));
             line.recalculateDeclaredCostValue();
             line.setStatus(ImportBatchLineStatus.OPEN);

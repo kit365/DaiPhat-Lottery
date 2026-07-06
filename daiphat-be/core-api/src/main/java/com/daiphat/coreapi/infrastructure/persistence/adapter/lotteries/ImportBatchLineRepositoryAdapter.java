@@ -76,7 +76,13 @@ public class ImportBatchLineRepositoryAdapter implements ImportBatchLineReposito
     }
 
     @Override
-    public long nextBatchCodeSequence() {
+    public long nextLineBatchCodeSequence() {
         return importBatchLineRepository.nextBatchCodeSequence();
+    }
+
+    @Override
+    @Deprecated
+    public long nextBatchCodeSequence() {
+        return nextLineBatchCodeSequence();
     }
 }

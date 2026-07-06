@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.shared.util;
 
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import lombok.RequiredArgsConstructor;
@@ -11,20 +12,56 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
+/**
+ * Generates unique codes for import batch headers and lines.
+ * <ul>
+ *   <li>Header (phiếu nhập): {@code PN-{drawDate}-{sequence}} e.g. {@code PN-20260707-0004}</li>
+ *   <li>Line (lô theo đài): {@code LO-{drawDate}-{station}-{type}-{sequence}} e.g. {@code LO-20260707-BACLIEU-NEW-0005}</li>
+ * </ul>
+ */
 @Component
 @RequiredArgsConstructor
 public class ImportBatchCodeGenerator {
 
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.BASIC_ISO_DATE;
+    public static final String HEADER_PREFIX = "PN";
+    public static final String LINE_PREFIX = "LO";
+    public static final String SEGMENT_SEPARATOR = "-";
 
+    private static final DateTimeFormatter DRAW_DATE_FORMAT = DateTimeFormatter.BASIC_ISO_DATE;
+
+    private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
 
-    public String generate(LotteryStationModel station, ImportBatchType batchType, LocalDate importDate) {
-        long sequence = importBatchLineRepositoryPort.nextBatchCodeSequence();
+    /** Short header code for the import batch voucher (no station — multi-station lives on lines). */
+    public String generateHeaderCode(LocalDate drawDate) {
+        long sequence = importBatchRepositoryPort.nextHeaderBatchCodeSequence();
+        String drawDatePart = formatDrawDate(drawDate);
+        return String.join(
+                SEGMENT_SEPARATOR,
+                HEADER_PREFIX,
+                drawDatePart,
+                String.format("%04d", sequence)
+        );
+    }
+
+    /** Detailed line code scoped to one lottery station and batch type. */
+    public String generateLineCode(LotteryStationModel station, ImportBatchType batchType, LocalDate drawDate) {
+        long sequence = importBatchLineRepositoryPort.nextLineBatchCodeSequence();
+        String drawDatePart = formatDrawDate(drawDate);
         String stationCode = toStationCode(station != null ? station.getName() : null);
         String typeCode = toTypeCode(batchType);
-        String datePart = (importDate != null ? importDate : LocalDate.now()).format(DATE_FORMAT);
-        return String.format("%04d_%s_%s_%s", sequence, stationCode, typeCode, datePart);
+        return String.join(
+                SEGMENT_SEPARATOR,
+                LINE_PREFIX,
+                drawDatePart,
+                stationCode,
+                typeCode,
+                String.format("%04d", sequence)
+        );
+    }
+
+    private String formatDrawDate(LocalDate drawDate) {
+        return (drawDate != null ? drawDate : LocalDate.now()).format(DRAW_DATE_FORMAT);
     }
 
     static String toStationCode(String stationName) {
@@ -40,18 +77,18 @@ public class ImportBatchCodeGenerator {
         if (normalized.isBlank()) {
             return "STATION";
         }
-        return normalized.length() > 20 ? normalized.substring(0, 20) : normalized;
+        return normalized.length() > 16 ? normalized.substring(0, 16) : normalized;
     }
 
     static String toTypeCode(ImportBatchType batchType) {
         if (batchType == null) {
-            return "UNKNOWN";
+            return "UNK";
         }
         return switch (batchType) {
             case NEW -> "NEW";
-            case SUPPLEMENTARY -> "SUPPLEMENT";
-            case LATE_IMPORT -> "LATE_IMPORT";
-            case ADJUSTMENT -> "ADDITIONAL";
+            case SUPPLEMENTARY -> "SUPP";
+            case LATE_IMPORT -> "LATE";
+            case ADJUSTMENT -> "ADJ";
         };
     }
 }
