@@ -50,6 +50,7 @@ public class ImportBatchModel {
     private LocalDateTime completedAt;
     private LocalDateTime ledgerAt;
     private String note;
+    private String cancelReason;
     @Builder.Default
     private List<ImportBatchLineModel> lines = new ArrayList<>();
 
@@ -118,6 +119,24 @@ public class ImportBatchModel {
         ensureStatus(ImportBatchStatus.DRAFT);
         this.status = ImportBatchStatus.IMPORTED;
         this.completedAt = now;
+    }
+
+    public boolean isSubjectToSameDayCutoffCancellation(LocalDate today) {
+        return status == ImportBatchStatus.DRAFT
+                && importMode == ImportBatchImportMode.IN_DAY
+                && drawDate != null
+                && drawDate.equals(today);
+    }
+
+    public void markCancelled(LocalDateTime now, String cancelReason) {
+        ensureStatus(ImportBatchStatus.DRAFT);
+        this.status = ImportBatchStatus.CANCELLED;
+        this.cancelReason = cancelReason;
+        this.updatedAt = now;
+    }
+
+    public boolean hasExpiredDrawDate(LocalDate today) {
+        return drawDate != null && drawDate.isBefore(today);
     }
 
     private void ensureStatus(ImportBatchStatus expectedStatus) {

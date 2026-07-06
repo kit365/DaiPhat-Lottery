@@ -29,6 +29,7 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.shared.util.ImportBatchConfigResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchCodeGenerator;
+import com.daiphat.coreapi.shared.util.ImportBatchDraftExpiryService;
 import com.daiphat.coreapi.shared.util.ImportBatchStationEligibilityResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchTypeResolver;
 import com.daiphat.coreapi.shared.util.SortUtils;
@@ -68,6 +69,7 @@ public class ImportBatchService implements ImportBatchServicePort {
     private final ImportBatchStationEligibilityResolver stationEligibilityResolver;
     private final ImportBatchCodeGenerator importBatchCodeGenerator;
     private final ImportBatchConfigResolver importBatchConfigResolver;
+    private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
     private final Clock clock;
 
     @Override
@@ -139,8 +141,9 @@ public class ImportBatchService implements ImportBatchServicePort {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public Optional<ImportBatchResponse> getActiveDraft(UUID operatorId) {
+        importBatchDraftExpiryService.cancelOverdueDrafts();
         if (operatorId == null) {
             return Optional.empty();
         }
@@ -150,14 +153,15 @@ public class ImportBatchService implements ImportBatchServicePort {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public ImportBatchResponse getById(Long id) {
+        importBatchDraftExpiryService.cancelOverdueDrafts();
         ImportBatchModel model = getImportBatchOrThrow(id);
         return importBatchApplicationMapper.toResponse(model);
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public PageResponse<ImportBatchResponse> getAll(
             int page,
             int size,
@@ -168,6 +172,7 @@ public class ImportBatchService implements ImportBatchServicePort {
             String sortBy,
             String direction
     ) {
+        importBatchDraftExpiryService.cancelOverdueDrafts();
         PageRequest pageable = PageRequest.of(
                 Math.max(0, page - 1),
                 size,
@@ -274,6 +279,12 @@ public class ImportBatchService implements ImportBatchServicePort {
                 .lateImportTime(importBatchConfigResolver.resolveLateImportTime().format(TIME_DISPLAY))
                 .importBatchCutoffTime(importBatchConfigResolver.resolveImportBatchCutoff().format(TIME_DISPLAY))
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public int cancelOverdueDrafts() {
+        return importBatchDraftExpiryService.cancelOverdueDrafts();
     }
 
     private void validateInDayCreateAllowed(CreateImportBatchRequest request) {

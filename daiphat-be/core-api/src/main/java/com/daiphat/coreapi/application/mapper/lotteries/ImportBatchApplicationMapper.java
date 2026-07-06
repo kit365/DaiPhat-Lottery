@@ -65,6 +65,7 @@ public interface ImportBatchApplicationMapper {
                 .completedAt(model.getCompletedAt())
                 .ledgerAt(model.getLedgerAt())
                 .note(model.getNote())
+                .cancelReason(model.getCancelReason())
                 .lateImportWarning(lateImportWarning)
                 .warnings(warnings == null ? List.of() : warnings)
                 .lines(lineResponses)

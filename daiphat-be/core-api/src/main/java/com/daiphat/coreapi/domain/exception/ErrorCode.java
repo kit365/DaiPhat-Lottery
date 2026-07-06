@@ -225,6 +225,11 @@ public enum ErrorCode {
             "Tất cả nhà đài trong ngày quay đã có phiếu nhập nháp. Vui lòng hoàn tất các phiếu hiện tại hoặc chọn ngày quay khác.",
             HttpStatus.CONFLICT
     ),
+    IMPORT_BATCH_CANCELLED(
+            "LT_088",
+            "Phiếu nhập lô đã bị hủy vì quá giờ chốt nhập lô cho kỳ quay hôm nay.",
+            HttpStatus.BAD_REQUEST
+    ),
 
     LOTTERY_SUPPLIER_ACTIVATION_INCOMPLETE(
             "LT_081",
