@@ -104,6 +104,9 @@ class LotteryTicketServiceTest {
     private com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
 
     @Mock
+    private com.daiphat.coreapi.shared.util.ImportBatchDraftExpiryService importBatchDraftExpiryService;
+
+    @Mock
     private com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort orderRepositoryPort;
 
     @Mock
@@ -122,6 +125,7 @@ class LotteryTicketServiceTest {
                 lotteryTicketRepositoryPort,
                 importBatchRepositoryPort,
                 importBatchLineRepositoryPort,
+                importBatchDraftExpiryService,
                 lotteryStationServicePort,
                 lotteryTicketApplicationMapper,
                 lotteryTicketSerialService,
