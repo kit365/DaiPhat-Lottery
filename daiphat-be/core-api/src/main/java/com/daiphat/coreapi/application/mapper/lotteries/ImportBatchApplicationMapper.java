@@ -47,6 +47,7 @@ public interface ImportBatchApplicationMapper {
 
         return ImportBatchResponse.builder()
                 .id(model.getId())
+                .batchCode(model.getBatchCode())
                 .drawDate(model.getDrawDate())
                 .supplierId(model.getSupplierId())
                 .supplierName(model.getSupplierName())

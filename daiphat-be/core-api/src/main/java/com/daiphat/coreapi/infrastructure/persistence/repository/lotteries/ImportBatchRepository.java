@@ -36,4 +36,7 @@ public interface ImportBatchRepository extends JpaRepository<ImportBatchEntity, 
               AND b.drawDate < :today
             """)
     List<ImportBatchEntity> findDraftBatchesWithDrawDateBefore(@Param("today") LocalDate today);
+
+    @Query(value = "SELECT nextval('import_batch_header_code_seq')", nativeQuery = true)
+    long nextHeaderBatchCodeSequence();
 }
