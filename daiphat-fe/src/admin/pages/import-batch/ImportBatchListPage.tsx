@@ -31,13 +31,7 @@ import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../constants/routes';
 import type { ImportBatch } from '../../api/importBatch.api';
 import { useImportBatchList } from './hooks/useImportBatch';
-import { getBatchTypeLabel } from './utils/batchTypeLabels';
-
-const STATUS_LABELS: Record<string, string> = {
-    DRAFT: 'Nháp',
-    IMPORTED: 'Đã nhập',
-    IN_LEDGER: 'Đã vào sổ',
-};
+import { getBatchTypeLabel, getImportBatchStatusChipColor, getImportBatchStatusLabel, importBatchStatusChipSx } from './utils/batchTypeLabels';
 
 export const ImportBatchListPage = () => {
     const { t } = useTranslation();
@@ -109,7 +103,7 @@ export const ImportBatchListPage = () => {
                             <TableCell>Mã phiếu</TableCell>
                             <TableCell>Ngày quay</TableCell>
                             <TableCell>Nhà cung cấp</TableCell>
-                            <TableCell>Trạng thái</TableCell>
+                            <TableCell sx={{ width: 96, whiteSpace: 'nowrap' }}>Trạng thái</TableCell>
                             <TableCell>Mã lô / Loại</TableCell>
                             <TableCell align="right">Khai báo</TableCell>
                             <TableCell align="right">Đã nhập</TableCell>
@@ -165,11 +159,12 @@ export const ImportBatchListPage = () => {
                                                 : '—'}
                                         </TableCell>
                                         <TableCell>{batch.supplierName || '—'}</TableCell>
-                                        <TableCell>
+                                        <TableCell sx={{ width: 96, whiteSpace: 'nowrap' }}>
                                             <Chip
                                                 size="small"
-                                                label={STATUS_LABELS[batch.status] || batch.status}
-                                                color={batch.status === 'DRAFT' ? 'warning' : 'default'}
+                                                label={getImportBatchStatusLabel(batch.status)}
+                                                color={getImportBatchStatusChipColor(batch.status)}
+                                                sx={importBatchStatusChipSx}
                                             />
                                         </TableCell>
                                         <TableCell sx={{ maxWidth: 280 }}>
