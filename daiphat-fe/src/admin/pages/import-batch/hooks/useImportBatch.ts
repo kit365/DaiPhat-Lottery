@@ -25,12 +25,28 @@ export const useActiveImportBatchDraft = (enabled = true) => {
 };
 
 export const useImportBatchDetail = (id?: string | number) => {
-    return useQuery({
-        queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL, id],
-        queryFn: () => getImportBatchById(id!),
-        enabled: !!id,
+    const normalizedId =
+        id !== undefined && id !== null && String(id).trim() !== '' ? String(id) : undefined;
+
+    const query = useQuery({
+        queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL, normalizedId],
+        queryFn: () => getImportBatchById(normalizedId!),
+        enabled: !!normalizedId,
         select: (res) => res.data ?? null,
+        staleTime: 0,
+        refetchOnMount: 'always',
     });
+
+    const data =
+        query.data && normalizedId && String(query.data.id) === normalizedId
+            ? query.data
+            : undefined;
+
+    return {
+        ...query,
+        data,
+        isLoading: query.isLoading || (!!normalizedId && !data && query.isFetching),
+    };
 };
 
 export const useCreateImportBatch = () => {
