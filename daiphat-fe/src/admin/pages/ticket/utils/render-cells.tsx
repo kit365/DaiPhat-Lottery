@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { confirmDelete } from "../../../utils/swal";
 import { ReloadIcon } from "../../../assets/icons/index";
 import { useProviders } from "../../provider/hooks/useProvider";
+import { formatImportBatchCode } from "../../import-batch/utils/importBatchCode";
 
 // Vé số
 export const RenderTicketCell = (params: GridRenderCellParams) => {
@@ -62,7 +63,7 @@ export const RenderTicketCell = (params: GridRenderCellParams) => {
                         {displayName}
                     </Box>
                 }
-                secondary={`Mã lô: ${batchCode || 'N/A'} - Dãy số: ${numbers || 'N/A'} - SL: ${quantity ?? 0}`}
+                secondary={`Mã lô: ${formatImportBatchCode(batchCode)} - Dãy số: ${numbers || 'N/A'} - SL: ${quantity ?? 0}`}
                 slotProps={{
                     primary: {
                         component: 'span',
