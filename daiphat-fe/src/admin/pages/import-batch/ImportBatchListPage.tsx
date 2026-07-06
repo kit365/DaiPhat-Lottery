@@ -31,7 +31,13 @@ import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../constants/routes';
 import type { ImportBatch } from '../../api/importBatch.api';
 import { useImportBatchList } from './hooks/useImportBatch';
-import { getBatchTypeLabel, getImportBatchStatusChipColor, getImportBatchStatusLabel, importBatchStatusChipSx } from './utils/batchTypeLabels';
+import { getImportBatchStatusChipColor, getImportBatchStatusLabel, importBatchStatusChipSx } from './utils/batchTypeLabels';
+import {
+    displayImportBatchHeaderCodeRaw,
+    displayImportBatchLineCodeRaw,
+    formatImportBatchHeaderCode,
+    importBatchCodeMonospaceSx,
+} from './utils/importBatchCode';
 
 export const ImportBatchListPage = () => {
     const { t } = useTranslation();
@@ -144,15 +150,20 @@ export const ImportBatchListPage = () => {
                                         0
                                     );
                                 const lineSummary = (batch.lines ?? [])
-                                    .map(
-                                        (line) =>
-                                            `${line.batchCode || '—'} (${getBatchTypeLabel(line.batchType)})`
-                                    )
+                                    .map((line) => displayImportBatchLineCodeRaw(line.batchCode))
                                     .join(', ');
 
                                 return (
                                     <TableRow key={batch.id} hover>
-                                        <TableCell>#{batch.id}</TableCell>
+                                        <TableCell>
+                                            <Typography
+                                                variant="body2"
+                                                sx={importBatchCodeMonospaceSx}
+                                                title={displayImportBatchHeaderCodeRaw(batch.batchCode, batch.id)}
+                                            >
+                                                {formatImportBatchHeaderCode(batch.batchCode, batch.id)}
+                                            </Typography>
+                                        </TableCell>
                                         <TableCell>
                                             {batch.drawDate
                                                 ? dayjs(batch.drawDate).format('DD/MM/YYYY')

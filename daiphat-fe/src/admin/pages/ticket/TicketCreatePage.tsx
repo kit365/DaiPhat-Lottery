@@ -36,6 +36,7 @@ import { createTicketSchema, CreateTicketFormValues } from '../../schemas/ticket
 import { useProviders } from '../provider/hooks/useProvider';
 import { useDraftImportBatches, useImportBatchDetail } from '../import-batch/hooks/useImportBatch';
 import { getBatchTypeLabel, getImportBatchCancelledAlertMessage } from '../import-batch/utils/batchTypeLabels';
+import { displayImportBatchCodeRaw, formatImportBatchCode, formatImportBatchHeaderCode } from '../import-batch/utils/importBatchCode';
 import { TicketSerialImageField } from './components/TicketSerialImageField';
 import type { ImportBatch } from '../../api/importBatch.api';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -159,7 +160,7 @@ export const TicketCreatePage = () => {
     };
 
     const formatBatchLabel = (batch: ImportBatch) =>
-        `#${batch.id} · ${dayjs(batch.drawDate).format('DD/MM/YYYY')} · ${batch.supplierName || 'N/A'} · ${batch.lines?.length ?? 0} đài`;
+        `${formatImportBatchHeaderCode(batch.batchCode, batch.id)} · ${batch.supplierName || 'N/A'} · ${batch.lines?.length ?? 0} đài`;
 
     const onSubmit = async (data: CreateTicketFormValues) => {
         if (!selectedLine) {
@@ -354,7 +355,12 @@ export const TicketCreatePage = () => {
                                     <TextField
                                         label="Mã lô"
                                         fullWidth
-                                        value={selectedLine?.batchCode || '—'}
+                                        value={displayImportBatchCodeRaw(selectedLine?.batchCode)}
+                                        helperText={
+                                            selectedLine?.batchCode
+                                                ? formatImportBatchCode(selectedLine.batchCode)
+                                                : undefined
+                                        }
                                         InputProps={{ readOnly: true }}
                                     />
 
