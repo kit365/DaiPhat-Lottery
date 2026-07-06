@@ -107,4 +107,9 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
                 .map(importBatchPersistenceMapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public long nextHeaderBatchCodeSequence() {
+        return importBatchRepository.nextHeaderBatchCodeSequence();
+    }
 }

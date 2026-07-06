@@ -15,6 +15,7 @@ import java.util.UUID;
 @Builder
 public record ImportBatchResponse(
         Long id,
+        String batchCode,
         LocalDate drawDate,
         Long supplierId,
         String supplierName,

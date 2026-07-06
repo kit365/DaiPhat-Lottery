@@ -109,7 +109,8 @@ class ImportBatchServiceTest {
                 .isActive(true)
                 .build();
         when(lotterySupplierServicePort.getActiveModelById(SUPPLIER_ID)).thenReturn(activeSupplier);
-        when(importBatchCodeGenerator.generate(any(), any(), any())).thenReturn("0001_CAMAU_NEW_20260706");
+        when(importBatchCodeGenerator.generateHeaderCode(any())).thenReturn("PN-20260706-0001");
+        when(importBatchCodeGenerator.generateLineCode(any(), any(), any())).thenReturn("LO-20260706-CAMAU-NEW-0001");
         when(lotteryStationServicePort.getScheduleModelsByDrawDate(DRAW_DATE)).thenReturn(List.of(activeStation));
         when(stationEligibilityResolver.isEligibleForSelection(
                 any(), eq(DRAW_DATE), any(), eq(ImportBatchImportMode.IN_DAY)
