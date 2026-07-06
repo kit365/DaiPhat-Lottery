@@ -28,6 +28,9 @@ public class ImportBatchEntity extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "batch_code", nullable = false, length = 50, unique = true)
+    private String batchCode;
+
     @Column(name = "draw_date", nullable = false)
     private LocalDate drawDate;
 

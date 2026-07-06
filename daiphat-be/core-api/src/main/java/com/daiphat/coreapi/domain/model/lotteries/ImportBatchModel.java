@@ -26,6 +26,7 @@ import java.util.UUID;
 public class ImportBatchModel {
 
     private Long id;
+    private String batchCode;
     private LocalDate drawDate;
     private Long supplierId;
     private String supplierName;

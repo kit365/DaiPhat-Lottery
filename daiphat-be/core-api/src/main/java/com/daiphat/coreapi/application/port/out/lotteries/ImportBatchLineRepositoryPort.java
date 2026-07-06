@@ -23,5 +23,11 @@ public interface ImportBatchLineRepositoryPort {
 
     Optional<Long> findDraftBatchIdForStationAndDrawDate(Long stationId, LocalDate drawDate);
 
-    long nextBatchCodeSequence();
+    long nextLineBatchCodeSequence();
+
+    /** @deprecated use {@link #nextLineBatchCodeSequence()} */
+    @Deprecated
+    default long nextBatchCodeSequence() {
+        return nextLineBatchCodeSequence();
+    }
 }
