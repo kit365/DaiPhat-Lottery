@@ -69,7 +69,7 @@ public class ImportBatchController {
     }
 
     @GetMapping("/{id:\\d+}")
-    @PreAuthorize("hasAnyAuthority('importBatch:view')")
+    @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create', 'ticket:create')")
     public ApiResponse<ImportBatchResponse> getById(@PathVariable Long id) {
         return ApiResponse.success(null, importBatchServicePort.getById(id));
     }
