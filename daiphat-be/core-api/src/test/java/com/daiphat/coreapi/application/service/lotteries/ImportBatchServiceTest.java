@@ -21,6 +21,7 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotterySupplierModel;
 import com.daiphat.coreapi.shared.util.ImportBatchConfigResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchCodeGenerator;
+import com.daiphat.coreapi.shared.util.ImportBatchDraftExpiryService;
 import com.daiphat.coreapi.shared.util.ImportBatchStationEligibilityResolver;
 import com.daiphat.coreapi.shared.util.ImportBatchTypeResolver;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,6 +80,10 @@ class ImportBatchServiceTest {
     private ImportBatchCodeGenerator importBatchCodeGenerator;
     @Mock
     private ImportBatchConfigResolver importBatchConfigResolver;
+    @Mock
+    private ImportBatchDraftExpiryService importBatchDraftExpiryService;
+    @Mock
+    private com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
     @Mock
     private Clock clock;
 
