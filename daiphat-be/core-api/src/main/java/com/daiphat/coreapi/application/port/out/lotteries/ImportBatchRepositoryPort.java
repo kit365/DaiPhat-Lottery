@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,4 +28,8 @@ public interface ImportBatchRepositoryPort {
             ImportBatchStatus status,
             ImportBatchType batchType
     );
+
+    List<ImportBatchModel> findDraftInDayBatchesByDrawDate(LocalDate drawDate);
+
+    List<ImportBatchModel> findDraftBatchesWithDrawDateBefore(LocalDate today);
 }
