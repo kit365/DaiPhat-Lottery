@@ -30,6 +30,7 @@ import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
+import com.daiphat.coreapi.shared.util.ImportBatchDraftExpiryService;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import com.daiphat.coreapi.shared.util.SortUtils;
@@ -68,6 +69,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
+    private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
     private final LotteryStationServicePort lotteryStationServicePort;
     private final LotteryTicketApplicationMapper lotteryTicketApplicationMapper;
     private final LotteryTicketSerialServicePort lotteryTicketSerialService;
@@ -557,6 +559,12 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
 
         ImportBatchModel importBatch = getImportBatchOrThrow(line.getImportBatchId());
+        importBatchDraftExpiryService.cancelIfOverdue(importBatch);
+        importBatch = getImportBatchOrThrow(line.getImportBatchId());
+
+        if (importBatch.getStatus() == ImportBatchStatus.CANCELLED) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_CANCELLED);
+        }
         if (importBatch.getStatus() != ImportBatchStatus.DRAFT) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
         }
