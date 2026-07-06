@@ -24,6 +24,7 @@ import { prefixAdmin, ROUTES } from '../../constants/routes';
 import { useImportBatchDetail } from './hooks/useImportBatch';
 import { useProviders } from '../provider/hooks/useProvider';
 import { getBatchTypeLabel, getImportBatchCancelledAlertMessage, getImportBatchLineStatusLabel, getImportBatchStatusChipColor, getImportBatchStatusLabel, getImportModeLabel, formatImportBatchCancelReason, importBatchStatusChipSx } from './utils/batchTypeLabels';
+import { displayImportBatchLineCodeRaw, formatImportBatchHeaderCode, formatImportBatchLineCode, importBatchCodeMonospaceSx } from './utils/importBatchCode';
 import dayjs from 'dayjs';
 
 export const ImportBatchDetailPage = () => {
@@ -64,7 +65,7 @@ export const ImportBatchDetailPage = () => {
                 items={[
                     { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
                     { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
-                    { label: `Phiếu #${batch.id}` },
+                    { label: formatImportBatchHeaderCode(batch.batchCode, batch.id) },
                 ]}
             />
             <Stack
@@ -76,7 +77,7 @@ export const ImportBatchDetailPage = () => {
             >
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
-                        <Title title={`Phiếu nhập lô #${batch.id}`} />
+                        <Title title={`Phiếu nhập lô ${formatImportBatchHeaderCode(batch.batchCode, batch.id)}`} />
                         <Chip
                             label={getImportBatchStatusLabel(batch.status)}
                             color={getImportBatchStatusChipColor(batch.status)}
@@ -223,7 +224,15 @@ export const ImportBatchDetailPage = () => {
                                                 size="small"
                                             />
                                         </TableCell>
-                                        <TableCell>{line.batchCode || '—'}</TableCell>
+                                        <TableCell>
+                                            <Typography
+                                                variant="body2"
+                                                sx={importBatchCodeMonospaceSx}
+                                                title={formatImportBatchLineCode(line.batchCode)}
+                                            >
+                                                {displayImportBatchLineCodeRaw(line.batchCode)}
+                                            </Typography>
+                                        </TableCell>
                                         <TableCell>
                                             <Chip
                                                 label={getImportBatchLineStatusLabel(line.status)}

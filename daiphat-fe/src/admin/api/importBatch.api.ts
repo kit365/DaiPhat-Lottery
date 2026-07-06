@@ -35,6 +35,7 @@ export interface ImportBatchLine {
 
 export interface ImportBatch {
     id: number;
+    batchCode?: string;
     drawDate: string;
     supplierId?: number;
     supplierName?: string;
