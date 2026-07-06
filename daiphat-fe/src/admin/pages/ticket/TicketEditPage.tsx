@@ -4,6 +4,7 @@ import { Title } from "../../components/ui/Title"
 import { useState, useMemo, useEffect } from "react"
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
 import { TicketSerialImageField } from "./components/TicketSerialImageField"
+import { formatImportBatchCode } from "../import-batch/utils/importBatchCode";
 import { prefixAdmin } from "../../constants/routes";
 import { useUpdateTicket, useTicketDetail } from "./hooks/useTicket";
 import { toast } from "react-toastify";
@@ -443,7 +444,7 @@ export const TicketEditPage = () => {
                                             <Box sx={{ gridColumn: { xs: "span 12", md: "span 12" } }}>
                                                 <Stack direction={{ xs: "column", md: "row" }} gap={2}>
                                                     <Typography variant="caption" color="text.secondary">
-                                                        Mã lô nhập: <strong>{ticketDetail?.serials?.[index]?.batchCode || "N/A"}</strong>
+                                                        Mã lô nhập: <strong>{formatImportBatchCode(ticketDetail?.serials?.[index]?.batchCode)}</strong>
                                                     </Typography>
                                                     <Typography variant="caption" color="text.secondary">
                                                         Trạng thái: <strong>{ticketDetail?.serials?.[index]?.statusDisplayName || "N/A"}</strong>
