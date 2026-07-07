@@ -60,7 +60,7 @@ public class ImportBatchDraftExpiryService {
 
     @Transactional
     public boolean cancelIfOverdue(ImportBatchModel batch) {
-        if (batch == null || batch.getStatus() != ImportBatchStatus.DRAFT) {
+        if (batch == null || !batch.isEditable()) {
             return false;
         }
 
@@ -80,7 +80,7 @@ public class ImportBatchDraftExpiryService {
     }
 
     private boolean cancelBatch(ImportBatchModel batch, LocalDateTime now, String cancelReason) {
-        if (batch.getStatus() != ImportBatchStatus.DRAFT) {
+        if (!batch.isEditable()) {
             return false;
         }
         batch.markCancelled(now, cancelReason);

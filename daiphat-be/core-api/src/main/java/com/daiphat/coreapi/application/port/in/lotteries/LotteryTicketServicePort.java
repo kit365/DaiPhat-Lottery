@@ -33,6 +33,10 @@ public interface LotteryTicketServicePort {
 
     void delete(Long id);
 
+    void purgeImportBatchLineTickets(Long importBatchLineId);
+
+    void activateTicketsForImportBatchLine(Long importBatchLineId);
+
     LotteryTicketResponse verify(Long id, UUID verifierId);
 
     LotteryTicketResponse changeStatus(Long id, LotteryTicketStatus status);

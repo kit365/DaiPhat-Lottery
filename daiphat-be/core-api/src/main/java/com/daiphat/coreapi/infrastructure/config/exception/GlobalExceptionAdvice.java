@@ -107,6 +107,10 @@ public class GlobalExceptionAdvice {
             return "Sê-ri vé đã tồn tại trong cùng một vé số.";
         }
 
+        if (rawMessage.contains("uq_import_batch_lines_batch_station")) {
+            return "Nhà đài này đã có trong phiếu nhập lô.";
+        }
+
         return ErrorCode.INVALID_INPUT.getMessage();
     }
 

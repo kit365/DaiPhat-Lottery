@@ -272,6 +272,26 @@ public enum ErrorCode {
             "Số sê-ri phải thuộc một dãy số.",
             HttpStatus.BAD_REQUEST
     ),
+    IMPORT_BATCH_LINE_NOT_DELETABLE(
+            "LT_091",
+            "Chỉ có thể xóa dòng phiếu nhập lô chưa hoàn tất.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LAST_LINE_CANNOT_DELETE(
+            "LT_092",
+            "Không thể xóa dòng cuối cùng của phiếu nhập lô.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_HAS_LOCKED_TICKETS(
+            "LT_093",
+            "Không thể xóa dòng phiếu vì có vé đã được giữ chỗ hoặc đã bán.",
+            HttpStatus.CONFLICT
+    ),
+    IMPORT_BATCH_LINE_NOT_EDITABLE(
+            "LT_094",
+            "Dòng phiếu nhập lô không thể chỉnh sửa ở trạng thái hiện tại.",
+            HttpStatus.BAD_REQUEST
+    ),
 
     // Street Agent Profile Errors
     STREET_AGENT_PROFILE_NOT_FOUND("SAG_001", "Hồ sơ đại lý bán dạo không tồn tại.", HttpStatus.NOT_FOUND),
