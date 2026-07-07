@@ -20,9 +20,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -37,35 +39,87 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
 
     @Override
     public ImportBatchModel save(ImportBatchModel model) {
+        if (model.getId() == null) {
+            return toDomainWithActiveLines(saveNewBatch(model));
+        }
+        return toDomainWithActiveLines(saveExistingBatch(model));
+    }
+
+    private ImportBatchEntity saveNewBatch(ImportBatchModel model) {
         ImportBatchEntity entity = importBatchPersistenceMapper.toEntity(model);
+        applyBatchReferences(entity, model);
+        entity.getLines().clear();
+        if (model.getLines() != null) {
+            for (ImportBatchLineModel lineModel : model.getLines()) {
+                ImportBatchLineEntity lineEntity = importBatchLinePersistenceMapper.toEntity(lineModel);
+                lineEntity.setImportBatch(entity);
+                applyLineStation(lineEntity, lineModel);
+                entity.getLines().add(lineEntity);
+            }
+        }
+        return importBatchRepository.save(entity);
+    }
+
+    private ImportBatchEntity saveExistingBatch(ImportBatchModel model) {
+        ImportBatchEntity entity = importBatchRepository.findById(model.getId())
+                .orElseThrow();
+
+        importBatchPersistenceMapper.updateEntityFromModel(model, entity);
+        applyBatchReferences(entity, model);
+
+        if (model.getLines() != null) {
+            var existingById = entity.getLines().stream()
+                    .filter(line -> line.getId() != null)
+                    .collect(Collectors.toMap(ImportBatchLineEntity::getId, line -> line));
+
+            for (ImportBatchLineModel lineModel : model.getLines()) {
+                if (lineModel.getId() != null && existingById.containsKey(lineModel.getId())) {
+                    ImportBatchLineEntity lineEntity = existingById.get(lineModel.getId());
+                    importBatchLinePersistenceMapper.updateEntityFromModel(lineModel, lineEntity);
+                    applyLineStation(lineEntity, lineModel);
+                } else if (lineModel.getId() == null) {
+                    ImportBatchLineEntity lineEntity = importBatchLinePersistenceMapper.toEntity(lineModel);
+                    lineEntity.setImportBatch(entity);
+                    applyLineStation(lineEntity, lineModel);
+                    entity.getLines().add(lineEntity);
+                }
+            }
+        }
+
+        return importBatchRepository.save(entity);
+    }
+
+    private void applyBatchReferences(ImportBatchEntity entity, ImportBatchModel model) {
         if (model.getImportedBy() != null) {
             entity.setImportedBy(userRepository.getReferenceById(model.getImportedBy()));
         }
         if (model.getSupplierId() != null) {
             entity.setSupplier(lotterySupplierRepository.getReferenceById(model.getSupplierId()));
         }
+    }
 
-        entity.getLines().clear();
-        if (model.getLines() != null) {
-            for (ImportBatchLineModel lineModel : model.getLines()) {
-                ImportBatchLineEntity lineEntity = importBatchLinePersistenceMapper.toEntity(lineModel);
-                lineEntity.setImportBatch(entity);
-                if (lineModel.getLotteryStationId() != null) {
-                    lineEntity.setLotteryStation(
-                            lotteryStationRepository.getReferenceById(lineModel.getLotteryStationId())
-                    );
-                }
-                entity.getLines().add(lineEntity);
-            }
+    private void applyLineStation(ImportBatchLineEntity lineEntity, ImportBatchLineModel lineModel) {
+        if (lineModel.getLotteryStationId() != null) {
+            lineEntity.setLotteryStation(
+                    lotteryStationRepository.getReferenceById(lineModel.getLotteryStationId())
+            );
         }
+    }
 
-        return importBatchPersistenceMapper.toDomain(importBatchRepository.save(entity));
+    private ImportBatchModel toDomainWithActiveLines(ImportBatchEntity entity) {
+        ImportBatchModel model = importBatchPersistenceMapper.toDomain(entity);
+        if (model.getLines() != null) {
+            model.setLines(model.getLines().stream()
+                    .filter(line -> line.getDeletedAt() == null)
+                    .toList());
+        }
+        return model;
     }
 
     @Override
     public Optional<ImportBatchModel> findById(Long id) {
         return importBatchRepository.findById(id)
-                .map(importBatchPersistenceMapper::toDomain);
+                .map(this::toDomainWithActiveLines);
     }
 
     @Override
@@ -74,9 +128,26 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
     }
 
     @Override
+    public boolean existsEditableBatchByImportedBy(UUID importedBy) {
+        return importBatchRepository.existsByImportedBy_IdAndStatusIn(
+                importedBy,
+                List.of(ImportBatchStatus.DRAFT, ImportBatchStatus.RECEIVING)
+        );
+    }
+
+    @Override
     public Optional<ImportBatchModel> findByImportedByAndStatus(UUID importedBy, ImportBatchStatus status) {
         return importBatchRepository.findFirstByImportedBy_IdAndStatusOrderByImportedAtDesc(importedBy, status)
-                .map(importBatchPersistenceMapper::toDomain);
+                .map(this::toDomainWithActiveLines);
+    }
+
+    @Override
+    public Optional<ImportBatchModel> findEditableBatchByImportedBy(UUID importedBy) {
+        return importBatchRepository.findFirstByImportedBy_IdAndStatusInOrderByImportedAtDesc(
+                        importedBy,
+                        List.of(ImportBatchStatus.DRAFT, ImportBatchStatus.RECEIVING)
+                )
+                .map(this::toDomainWithActiveLines);
     }
 
     @Override
@@ -91,20 +162,27 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
                         ImportBatchSpecification.filter(lotteryStationId, drawDate, status, batchType),
                         pageable
                 )
-                .map(importBatchPersistenceMapper::toDomain);
+                .map(this::toDomainWithActiveLines);
     }
 
     @Override
     public List<ImportBatchModel> findDraftInDayBatchesByDrawDate(LocalDate drawDate) {
         return importBatchRepository.findDraftInDayBatchesByDrawDate(drawDate).stream()
-                .map(importBatchPersistenceMapper::toDomain)
+                .map(this::toDomainWithActiveLines)
                 .toList();
     }
 
     @Override
     public List<ImportBatchModel> findDraftBatchesWithDrawDateBefore(LocalDate today) {
         return importBatchRepository.findDraftBatchesWithDrawDateBefore(today).stream()
-                .map(importBatchPersistenceMapper::toDomain)
+                .map(this::toDomainWithActiveLines)
+                .toList();
+    }
+
+    @Override
+    public List<ImportBatchModel> findIncompleteDraftBatches() {
+        return importBatchRepository.findIncompleteDraftBatches().stream()
+                .map(this::toDomainWithActiveLines)
                 .toList();
     }
 
