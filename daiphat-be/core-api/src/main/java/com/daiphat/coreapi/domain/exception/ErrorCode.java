@@ -140,7 +140,11 @@ public enum ErrorCode {
     LOTTERY_TICKET_STATUS_REQUIRED("LT_012", "Trạng thái vé số không được để trống.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_NUMBERS_REQUIRED("LT_014", "Dãy số vé không được để trống.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_NUMBERS_INVALID("LT_015", "Dãy số vé chỉ được chứa chữ số.", HttpStatus.BAD_REQUEST),
-    LOTTERY_TICKET_NUMBERS_LENGTH_INVALID("LT_016", "Dãy số vé không đúng độ dài yêu cầu.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_NUMBERS_LENGTH_INVALID(
+            "LT_016",
+            "Dãy số vé phải có từ %d đến %d chữ số.",
+            HttpStatus.BAD_REQUEST
+    ),
     LOTTERY_TICKET_DRAW_DATE_REQUIRED("LT_017", "Ngày quay không được để trống.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_DRAW_DATE_INVALID("LT_018", "Ngày quay không hợp lệ.", HttpStatus.BAD_REQUEST),
     PRIZE_STRUCTURE_LIST_REQUIRED("LT_019", "Danh sách cấu trúc giải thưởng không được để trống.", HttpStatus.BAD_REQUEST),
@@ -248,6 +252,26 @@ public enum ErrorCode {
     ),
     LOTTERY_TICKET_IMPORT_BATCH_REQUIRED("LT_074", "Vé số phải được tạo thông qua phiếu nhập lô.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_IMPORT_BATCH_MISMATCH("LT_075", "Thông tin vé số không khớp với phiếu nhập lô.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_LINE_QUANTITY_EXCEEDED(
+            "LT_084",
+            "Số lượng vé nhập vượt quá số lượng khai báo của dòng phiếu.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_TICKET_NUMBERS_DUPLICATED_IN_REQUEST(
+            "LT_085",
+            "Dãy số bị trùng trong cùng một lần nhập.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_TICKET_SECTION_SERIALS_REQUIRED(
+            "LT_089",
+            "Mỗi dãy số phải có ít nhất một số sê-ri.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_TICKET_SERIAL_WITHOUT_NUMBERS(
+            "LT_090",
+            "Số sê-ri phải thuộc một dãy số.",
+            HttpStatus.BAD_REQUEST
+    ),
 
     // Street Agent Profile Errors
     STREET_AGENT_PROFILE_NOT_FOUND("SAG_001", "Hồ sơ đại lý bán dạo không tồn tại.", HttpStatus.NOT_FOUND),

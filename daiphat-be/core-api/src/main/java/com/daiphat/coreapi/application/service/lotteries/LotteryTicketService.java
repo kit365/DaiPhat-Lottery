@@ -1,9 +1,13 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
 import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
+import com.daiphat.coreapi.application.dto.request.lotteries.BulkCreateLotteryTicketsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketNumberSectionRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.BulkCreateLotteryTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse;
 import com.daiphat.coreapi.application.event.LotteryTicketProxyExpiredEvent;
@@ -94,6 +98,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         requestedTicket.validateDrawDate(resolvedDrawDate);
         requestedTicket.setDrawDate(resolvedDrawDate);
         validateTicketAgainstImportBatchLine(importBatchLine, importBatch, station.getId(), resolvedDrawDate);
+        validateImportQuantity(importBatchLine, request.serials().size());
 
         var existingTicket = lotteryTicketRepositoryPort.findByUniqueFields(
                 request.stationId(),
@@ -128,6 +133,51 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
         log.info("Lottery ticket imported with id: {}", saved.getId());
         return mapToDetailResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public BulkCreateLotteryTicketsResponse createBulk(BulkCreateLotteryTicketsRequest request, UUID importedById) {
+        log.info(
+                "Bulk importing {} lottery ticket number sections for import batch line: {}",
+                request.tickets().size(),
+                request.importBatchLineId()
+        );
+
+        ImportBatchLineModel importBatchLine = getDraftImportBatchLineForOperatorOrThrow(
+                request.importBatchLineId(),
+                importedById
+        );
+        ImportBatchModel importBatch = getImportBatchOrThrow(importBatchLine.getImportBatchId());
+        LotteryStationModel station = getStationOrThrow(request.stationId());
+        LocalDate resolvedDrawDate = resolveRequestedDrawDate(request.drawDate(), station);
+        validateTicketAgainstImportBatchLine(importBatchLine, importBatch, station.getId(), resolvedDrawDate);
+
+        validateBulkTicketSections(request.tickets());
+
+        int incomingSerialCount = request.tickets().stream()
+                .mapToInt(section -> section.serials().size())
+                .sum();
+        validateImportQuantity(importBatchLine, incomingSerialCount);
+
+        List<LotteryTicketResponse> responses = new ArrayList<>();
+        for (CreateLotteryTicketNumberSectionRequest section : request.tickets()) {
+            responses.add(create(
+                    CreateLotteryTicketRequest.builder()
+                            .stationId(request.stationId())
+                            .importBatchLineId(request.importBatchLineId())
+                            .drawDate(resolvedDrawDate)
+                            .numbers(section.numbers())
+                            .serials(section.serials())
+                            .build(),
+                    importedById
+            ));
+        }
+
+        return BulkCreateLotteryTicketsResponse.builder()
+                .tickets(responses)
+                .importedSerialCount(incomingSerialCount)
+                .build();
     }
 
     @Override
@@ -642,6 +692,59 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
     }
 
+    private void validateImportQuantity(ImportBatchLineModel importBatchLine, int incomingSerialCount) {
+        if (incomingSerialCount <= 0) {
+            return;
+        }
+
+        int declareQuantity = importBatchLine.getDeclareQuantity() != null ? importBatchLine.getDeclareQuantity() : 0;
+        if (declareQuantity <= 0) {
+            return;
+        }
+
+        int importedCount = (int) lotteryTicketSerialService.countByImportBatchLineId(importBatchLine.getId());
+        if (importedCount + incomingSerialCount > declareQuantity) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_QUANTITY_EXCEEDED);
+        }
+    }
+
+    private void validateBulkTicketSections(List<CreateLotteryTicketNumberSectionRequest> tickets) {
+        if (tickets == null || tickets.isEmpty()) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_NUMBERS_REQUIRED);
+        }
+
+        Set<String> normalizedNumbers = new HashSet<>();
+        Set<String> normalizedSerials = new HashSet<>();
+
+        for (CreateLotteryTicketNumberSectionRequest section : tickets) {
+            String normalizedNumber = section.numbers() != null ? section.numbers().trim() : "";
+            if (normalizedNumber.isEmpty()) {
+                throw new DomainException(ErrorCode.LOTTERY_TICKET_NUMBERS_REQUIRED);
+            }
+            if (!normalizedNumbers.add(normalizedNumber)) {
+                throw new DomainException(ErrorCode.LOTTERY_TICKET_NUMBERS_DUPLICATED_IN_REQUEST);
+            }
+
+            int filledSerialCount = 0;
+            for (CreateLotteryTicketSerialRequest serial : section.serials()) {
+                String normalizedSerial = serial.serialNumber() != null
+                        ? serial.serialNumber().trim().toLowerCase(Locale.ROOT)
+                        : "";
+                if (normalizedSerial.isEmpty()) {
+                    continue;
+                }
+                filledSerialCount += 1;
+                if (!normalizedSerials.add(normalizedSerial)) {
+                    throw new DomainException(ErrorCode.LOTTERY_TICKET_SERIAL_EXISTED);
+                }
+            }
+
+            if (filledSerialCount == 0) {
+                throw new DomainException(ErrorCode.LOTTERY_TICKET_SECTION_SERIALS_REQUIRED);
+            }
+        }
+    }
+
     private LotteryStationModel getStationOrThrow(Long id) {
         return lotteryStationServicePort.getModelById(id);
     }
@@ -708,7 +811,11 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         if (station.getRegion() == null) {
             throw new DomainException(ErrorCode.LOTTERY_STATION_SYNC_REGION_REQUIRED);
         }
-        return LotteryTicketNumber.from(numbers, station.getRegion().numberLength());
+        return LotteryTicketNumber.from(
+                numbers,
+                station.getRegion().minLength(),
+                station.getRegion().maxLength()
+        );
     }
 
     private LocalDate resolveCurrentStationDrawDate(LotteryStationModel station) {

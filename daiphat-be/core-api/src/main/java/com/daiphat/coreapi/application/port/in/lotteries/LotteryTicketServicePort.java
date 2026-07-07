@@ -1,11 +1,13 @@
 package com.daiphat.coreapi.application.port.in.lotteries;
 
 import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
+import com.daiphat.coreapi.application.dto.request.lotteries.BulkCreateLotteryTicketsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.BulkCreateLotteryTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 
@@ -15,6 +17,8 @@ import java.util.UUID;
 public interface LotteryTicketServicePort {
 
     LotteryTicketResponse create(CreateLotteryTicketRequest request, UUID importedById);
+
+    BulkCreateLotteryTicketsResponse createBulk(BulkCreateLotteryTicketsRequest request, UUID importedById);
 
     LotteryTicketResponse getById(Long id);
 
