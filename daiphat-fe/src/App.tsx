@@ -42,6 +42,8 @@ import { AuthInitializer } from './components/auth/AuthInitializer';
 import './styles/client.css'; // New Client Theme
 
 import { Footer } from './client/components/layout/Footer';
+import { QuickCheckTicketModal } from './client/components/home/QuickCheckTicketModal';
+import { QuickCheckFloatingButton } from './client/components/home/QuickCheckFloatingButton';
 
 // --- Theme Layout Components ---
 
@@ -52,6 +54,8 @@ const ClientThemeLayout = () => (
         <Outlet />
       </Suspense>
     </div>
+    <QuickCheckTicketModal />
+    <QuickCheckFloatingButton />
     <Footer />
   </div>
 );
