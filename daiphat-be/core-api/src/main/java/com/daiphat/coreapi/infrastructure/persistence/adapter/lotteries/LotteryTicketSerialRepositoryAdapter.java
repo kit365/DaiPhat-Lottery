@@ -98,4 +98,9 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     public List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId) {
         return lotteryTicketSerialRepository.findDistinctTicketIdsByImportBatchLineId(importBatchLineId);
     }
+
+    @Override
+    public void hardDeleteByImportBatchLineId(Long importBatchLineId) {
+        lotteryTicketSerialRepository.deleteByImportBatchLine_Id(importBatchLineId);
+    }
 }

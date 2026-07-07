@@ -5,6 +5,7 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchClassificationPreviewRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateImportBatchRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationsResponse;
@@ -52,6 +53,17 @@ public class ImportBatchController {
         );
     }
 
+    @PutMapping("/{id:\\d+}")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ImportBatchResponse> update(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateImportBatchRequest request) {
+        return ApiResponse.success(
+                "Cập nhật phiếu nhập lô vé thành công.",
+                importBatchServicePort.update(id, request)
+        );
+    }
+
     @GetMapping("/active-draft")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<ImportBatchResponse>> getActiveDraft(
@@ -72,6 +84,17 @@ public class ImportBatchController {
     @PreAuthorize("hasAnyAuthority('importBatch:view', 'ticket:create')")
     public ApiResponse<List<ImportBatchResponse>> getIncompleteBatches() {
         return ApiResponse.success(null, importBatchServicePort.getIncompleteBatches());
+    }
+
+    @DeleteMapping("/{batchId:\\d+}/lines/{lineId:\\d+}")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ImportBatchResponse> deleteLine(
+            @PathVariable Long batchId,
+            @PathVariable Long lineId) {
+        return ApiResponse.success(
+                "Xóa dòng phiếu nhập lô thành công.",
+                importBatchServicePort.deleteLine(batchId, lineId)
+        );
     }
 
     @GetMapping("/{id:\\d+}")
@@ -113,8 +136,12 @@ public class ImportBatchController {
     @PreAuthorize("hasAnyAuthority('importBatch:create')")
     public ApiResponse<ImportBatchEligibleStationsResponse> getEligibleStations(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate,
-            @RequestParam ImportBatchImportMode importMode) {
-        return ApiResponse.success(null, importBatchServicePort.getEligibleStations(drawDate, importMode));
+            @RequestParam ImportBatchImportMode importMode,
+            @RequestParam(required = false) Long excludeBatchId) {
+        return ApiResponse.success(
+                null,
+                importBatchServicePort.getEligibleStations(drawDate, importMode, excludeBatchId)
+        );
     }
 
     @GetMapping("/classify-preview")
@@ -122,11 +149,13 @@ public class ImportBatchController {
     public ApiResponse<ImportBatchClassificationPreviewResponse> previewClassification(
             @RequestParam Long lotteryStationId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate,
-            @RequestParam ImportBatchImportMode importMode) {
+            @RequestParam ImportBatchImportMode importMode,
+            @RequestParam(required = false) Long excludeBatchId) {
         ImportBatchClassificationPreviewRequest request = ImportBatchClassificationPreviewRequest.builder()
                 .lotteryStationId(lotteryStationId)
                 .drawDate(drawDate)
                 .importMode(importMode)
+                .excludeBatchId(excludeBatchId)
                 .build();
         return ApiResponse.success(null, importBatchServicePort.previewClassification(request));
     }

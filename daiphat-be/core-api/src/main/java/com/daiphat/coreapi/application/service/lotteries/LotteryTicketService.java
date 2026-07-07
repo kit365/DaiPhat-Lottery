@@ -317,6 +317,37 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     @Override
     @Transactional
+    public void purgeImportBatchLineTickets(Long importBatchLineId) {
+        List<Long> ticketIds = lotteryTicketSerialService.findDistinctTicketIdsByImportBatchLineId(importBatchLineId);
+        Set<Long> stationIds = new HashSet<>();
+
+        for (Long ticketId : ticketIds) {
+            LotteryTicketModel ticket = getTicketOrThrow(ticketId);
+            if (ticket.getStatus() != LotteryTicketStatus.IMPORTING) {
+                throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_HAS_LOCKED_TICKETS);
+            }
+
+            long lockedSerials = lotteryTicketSerialService.countByStatuses(ticketId, NON_EDITABLE_SERIAL_STATUSES);
+            if (lockedSerials > 0) {
+                throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_HAS_LOCKED_TICKETS);
+            }
+
+            stationIds.add(ticket.getStationId());
+        }
+
+        lotteryTicketSerialService.hardDeleteByImportBatchLineId(importBatchLineId);
+        ticketIds.forEach(lotteryTicketRepositoryPort::deleteById);
+        stationIds.forEach(this::syncStationInventory);
+    }
+
+    @Override
+    @Transactional
+    public void activateTicketsForImportBatchLine(Long importBatchLineId) {
+        activateImportBatchLineTickets(importBatchLineId);
+    }
+
+    @Override
+    @Transactional
     public LotteryTicketResponse uploadImage(Long id, UploadRequest request) {
         LotteryTicketModel model = getTicketOrThrow(id);
         StorageUtils.validateImageUpload(request);
@@ -615,7 +646,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         if (importBatch.getStatus() == ImportBatchStatus.CANCELLED) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_CANCELLED);
         }
-        if (importBatch.getStatus() != ImportBatchStatus.DRAFT) {
+        if (!importBatch.isEditable()) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
         }
 
@@ -641,31 +672,28 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         importBatchLine.updateImportProgress(importedCount, now);
 
         int declareQuantity = importBatchLine.getDeclareQuantity() != null ? importBatchLine.getDeclareQuantity() : 0;
-        boolean lineComplete = declareQuantity > 0 && importedCount >= declareQuantity;
 
         importBatchLineRepositoryPort.save(importBatchLine);
 
         ImportBatchModel refreshedBatch = importBatchRepositoryPort.findById(importBatch.getId())
                 .orElse(importBatch);
+        refreshedBatch.setLines(importBatchLineRepositoryPort.findByImportBatchId(importBatch.getId()));
         refreshedBatch.recalculateAggregates();
+        refreshedBatch.refreshImportStatus(now);
+
+        boolean batchJustCompleted = refreshedBatch.getStatus() == ImportBatchStatus.IMPORTED;
         importBatchRepositoryPort.save(refreshedBatch);
 
-        if (lineComplete && importBatch.getStatus() == ImportBatchStatus.DRAFT) {
-            refreshedBatch = importBatchRepositoryPort.findById(importBatch.getId())
-                    .orElse(importBatch);
-            if (refreshedBatch.areAllLinesImportComplete()) {
-                refreshedBatch.markImported(now);
-                importBatchRepositoryPort.save(refreshedBatch);
-                refreshedBatch.getLines().forEach(line ->
-                        activateImportBatchLineTickets(line.getId())
-                );
-                ticket = getTicketOrThrow(ticket.getId());
-                syncStationInventory(ticket.getStationId());
-                return ticket;
-            }
+        if (batchJustCompleted) {
+            refreshedBatch.getActiveLines().forEach(line ->
+                    activateImportBatchLineTickets(line.getId())
+            );
+            ticket = getTicketOrThrow(ticket.getId());
+            syncStationInventory(ticket.getStationId());
+            return ticket;
         }
 
-        if (importBatch.getStatus() == ImportBatchStatus.DRAFT && importedCount < declareQuantity) {
+        if (importBatch.isEditable() && importedCount < declareQuantity) {
             ticket.setStatus(LotteryTicketStatus.IMPORTING);
             ticket.setActive(false);
             ticket = lotteryTicketRepositoryPort.save(ticket);

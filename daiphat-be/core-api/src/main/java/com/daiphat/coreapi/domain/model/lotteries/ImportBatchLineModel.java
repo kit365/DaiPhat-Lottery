@@ -41,6 +41,21 @@ public class ImportBatchLineModel {
     private LocalDateTime updatedAt;
     private String createdBy;
     private String lastModifiedBy;
+    private LocalDateTime deletedAt;
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
+    public boolean isEditable() {
+        return !isDeleted()
+                && (status == ImportBatchLineStatus.OPEN || status == ImportBatchLineStatus.IMPORTING);
+    }
+
+    public void softDelete(LocalDateTime now) {
+        this.deletedAt = now;
+        this.updatedAt = now;
+    }
 
     public void applyResolvedBatchType(ImportBatchType resolvedBatchType) {
         if (resolvedBatchType == null) {

@@ -15,6 +15,8 @@ public record ImportBatchClassificationPreviewRequest(
         LocalDate drawDate,
 
         @NotNull(message = "Loại nhập lô không được để trống")
-        ImportBatchImportMode importMode
+        ImportBatchImportMode importMode,
+
+        Long excludeBatchId
 ) {
 }

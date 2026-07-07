@@ -14,6 +14,11 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
 
     List<ImportBatchLineEntity> findByImportBatch_IdAndDeletedAtIsNull(Long importBatchId);
 
+    Optional<ImportBatchLineEntity> findByImportBatch_IdAndLotteryStation_IdAndDeletedAtIsNotNull(
+            Long importBatchId,
+            Long lotteryStationId
+    );
+
     Optional<ImportBatchLineEntity> findByIdAndDeletedAtIsNull(Long id);
 
     @Query("""
@@ -38,7 +43,10 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
             JOIN l.importBatch b
             WHERE l.lotteryStation.id = :stationId
               AND b.drawDate = :drawDate
-              AND b.status = com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT
+              AND b.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT,
+                  com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING
+              )
               AND l.deletedAt IS NULL
               AND b.deletedAt IS NULL
             """)
@@ -71,7 +79,10 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
             JOIN l.importBatch b
             WHERE l.lotteryStation.id = :stationId
               AND b.drawDate = :drawDate
-              AND b.status = com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT
+              AND b.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT,
+                  com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING
+              )
               AND l.deletedAt IS NULL
               AND b.deletedAt IS NULL
             ORDER BY b.id ASC
@@ -80,6 +91,49 @@ public interface ImportBatchLineRepository extends JpaRepository<ImportBatchLine
             @Param("stationId") Long stationId,
             @Param("drawDate") LocalDate drawDate
     );
+
+    @Query("""
+            SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END
+            FROM ImportBatchLineEntity l
+            JOIN l.importBatch b
+            WHERE l.lotteryStation.id = :stationId
+              AND b.drawDate = :drawDate
+              AND b.id <> :excludeBatchId
+              AND b.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT,
+                  com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING
+              )
+              AND l.deletedAt IS NULL
+              AND b.deletedAt IS NULL
+            """)
+    boolean existsDraftLineForStationAndDrawDateExcludingBatch(
+            @Param("stationId") Long stationId,
+            @Param("drawDate") LocalDate drawDate,
+            @Param("excludeBatchId") Long excludeBatchId
+    );
+
+    @Query("""
+            SELECT b.id
+            FROM ImportBatchLineEntity l
+            JOIN l.importBatch b
+            WHERE l.lotteryStation.id = :stationId
+              AND b.drawDate = :drawDate
+              AND b.id <> :excludeBatchId
+              AND b.status IN (
+                  com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT,
+                  com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING
+              )
+              AND l.deletedAt IS NULL
+              AND b.deletedAt IS NULL
+            ORDER BY b.id ASC
+            """)
+    List<Long> findDraftBatchIdsForStationAndDrawDateExcludingBatch(
+            @Param("stationId") Long stationId,
+            @Param("drawDate") LocalDate drawDate,
+            @Param("excludeBatchId") Long excludeBatchId
+    );
+
+    long countByImportBatch_IdAndDeletedAtIsNull(Long importBatchId);
 
     @Query(value = "SELECT nextval('import_batch_code_seq')", nativeQuery = true)
     long nextBatchCodeSequence();

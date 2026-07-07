@@ -62,5 +62,7 @@ public interface LotteryTicketSerialServicePort {
 
     List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId);
 
+    void hardDeleteByImportBatchLineId(Long importBatchLineId);
+
     List<EnumOptionResponse> getStatuses();
 }
