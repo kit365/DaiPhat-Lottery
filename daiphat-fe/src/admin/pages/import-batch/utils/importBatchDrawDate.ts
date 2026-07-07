@@ -128,6 +128,17 @@ export const resolveDisplayBatchType = (
 
 export const isAdditionalBatchType = (batchType?: ImportBatchType) => batchType === 'ADJUSTMENT';
 
+/** Post-draw supplementary batches are exempt from scheduler auto-cancellation. */
+export const isPostDrawSupplementImportMode = (importMode?: ImportBatchImportMode) =>
+    importMode === 'POST_DRAW_SUPPLEMENT';
+
+/** ADJUSTMENT lines represent post-draw supplementary compensation imports. */
+export const isLineExemptFromAutoCancellation = (batchType?: ImportBatchType) =>
+    isAdditionalBatchType(batchType);
+
+export const isBatchExemptFromAutoCancellation = (importMode?: ImportBatchImportMode) =>
+    isPostDrawSupplementImportMode(importMode);
+
 export const getDrawDateInputBounds = () => ({
     min: undefined as string | undefined,
     max: dayjs().add(1, 'day').format('YYYY-MM-DD'),

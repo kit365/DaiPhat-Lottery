@@ -64,7 +64,7 @@ const updateImportBatchLineSchema = z
         resolvedBatchType: z
             .enum(['NEW', 'SUPPLEMENTARY', 'LATE_IMPORT', 'ADJUSTMENT'])
             .optional(),
-        status: z.enum(['OPEN', 'IMPORTING', 'IMPORTED']).optional(),
+        status: z.enum(['OPEN', 'IMPORTING', 'IMPORTED', 'CANCELLED']).optional(),
         readOnly: z.boolean().optional(),
         removed: z.boolean().optional(),
         stationName: z.string().optional(),

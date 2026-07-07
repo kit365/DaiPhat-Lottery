@@ -27,6 +27,8 @@ import {
     getBatchTypeLabel,
     getImportBatchCancelledAlertMessage,
     getImportBatchLineStatusLabel,
+    getImportBatchLineStatusChipColor,
+    formatImportBatchLineCancelReason,
     getImportBatchStatusChipColor,
     getImportBatchStatusLabel,
     getImportModeLabel,
@@ -144,7 +146,7 @@ export const ImportBatchDetailPage = () => {
                         </Stack>
                     </CanAccess>
                 )}
-                {batch.status === 'RECEIVING' && (
+                {canEditBatch && batch.status !== 'DRAFT' && (
                     <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
                         <Button
                             variant="contained"
@@ -297,14 +299,17 @@ export const ImportBatchDetailPage = () => {
                                                 <Chip
                                                     label={getImportBatchLineStatusLabel(line.status)}
                                                     size="small"
-                                                    color={
-                                                        line.status === 'IMPORTED'
-                                                            ? 'success'
-                                                            : line.status === 'IMPORTING'
-                                                              ? 'info'
-                                                              : 'default'
-                                                    }
+                                                    color={getImportBatchLineStatusChipColor(line.status)}
                                                 />
+                                                {line.status === 'CANCELLED' && line.cancelReason && (
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                        sx={{ display: 'block', mt: 0.5, maxWidth: 280 }}
+                                                    >
+                                                        {formatImportBatchLineCancelReason(line.cancelReason)}
+                                                    </Typography>
+                                                )}
                                             </TableCell>
                                             <TableCell align="right">{line.declareQuantity}</TableCell>
                                             <TableCell align="right">{line.totalQuantity}</TableCell>
