@@ -19,6 +19,7 @@ public record ImportBatchLineResponse(
         BigDecimal importCost,
         BigDecimal totalCostValue,
         ImportBatchLineStatus status,
-        LocalDateTime importedAt
+        LocalDateTime importedAt,
+        String cancelReason
 ) {
 }

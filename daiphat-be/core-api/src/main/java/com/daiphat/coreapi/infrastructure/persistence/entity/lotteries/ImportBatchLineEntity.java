@@ -63,4 +63,7 @@ public class ImportBatchLineEntity extends BaseEntity {
 
     @Column(name = "imported_at")
     private LocalDateTime importedAt;
+
+    @Column(name = "cancel_reason")
+    private String cancelReason;
 }
