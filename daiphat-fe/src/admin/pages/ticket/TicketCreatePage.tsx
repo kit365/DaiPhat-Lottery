@@ -23,6 +23,7 @@ import { useProviders } from '../provider/hooks/useProvider';
 import { useRegions } from '../region/hooks/useRegion';
 import { useDraftImportBatches, useImportBatchDetail } from '../import-batch/hooks/useImportBatch';
 import { getImportBatchCancelledAlertMessage } from '../import-batch/utils/batchTypeLabels';
+import { isImportBatchEditable } from './utils/importBatchProgress';
 import { formatImportBatchSelectLabel } from '../import-batch/utils/importBatchCode';
 import { ImportBatchSelectionCard } from './components/ImportBatchSelectionCard';
 import { ImportBatchLineImportTabs } from './components/ImportBatchLineImportTabs';
@@ -657,6 +658,7 @@ export const TicketCreatePage = () => {
                             batch={resolvedBatch}
                             isLoading={isBatchLoading}
                             selectedBatchId={selectedBatchId}
+                            resolveStationName={resolveStationName}
                         />
 
                         {resolvedBatch && resolvedBatch.status === 'CANCELLED' && (
@@ -666,10 +668,10 @@ export const TicketCreatePage = () => {
                         )}
 
                         {resolvedBatch &&
-                            resolvedBatch.status !== 'DRAFT' &&
+                            !isImportBatchEditable(resolvedBatch) &&
                             resolvedBatch.status !== 'CANCELLED' && (
                                 <Alert severity="warning" sx={{ mt: 2 }}>
-                                    Phiếu nhập lô này không còn ở trạng thái Nháp. Không thể nhập thêm vé.
+                                    Phiếu nhập lô này không còn ở trạng thái cho phép nhập. Không thể nhập thêm vé.
                                 </Alert>
                             )}
                     </Paper>

@@ -23,8 +23,27 @@ import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../constants/routes';
 import { useImportBatchDetail } from './hooks/useImportBatch';
 import { useProviders } from '../provider/hooks/useProvider';
-import { getBatchTypeLabel, getImportBatchCancelledAlertMessage, getImportBatchLineStatusLabel, getImportBatchStatusChipColor, getImportBatchStatusLabel, getImportModeLabel, formatImportBatchCancelReason, importBatchStatusChipSx } from './utils/batchTypeLabels';
-import { displayImportBatchLineCodeRaw, formatImportBatchHeaderCode, formatImportBatchLineCode, importBatchCodeMonospaceSx } from './utils/importBatchCode';
+import {
+    getBatchTypeLabel,
+    getImportBatchCancelledAlertMessage,
+    getImportBatchLineStatusLabel,
+    getImportBatchStatusChipColor,
+    getImportBatchStatusLabel,
+    getImportModeLabel,
+    formatImportBatchCancelReason,
+    importBatchStatusChipSx,
+} from './utils/batchTypeLabels';
+import {
+    displayImportBatchLineCodeRaw,
+    formatImportBatchHeaderCode,
+    formatImportBatchLineCode,
+    importBatchCodeMonospaceSx,
+} from './utils/importBatchCode';
+import {
+    findFirstIncompleteLine,
+    isImportBatchEditable,
+} from '../ticket/utils/importBatchProgress';
+import { ImportBatchProgressBar } from './components/ImportBatchProgressBar';
 import dayjs from 'dayjs';
 
 export const ImportBatchDetailPage = () => {
@@ -43,6 +62,7 @@ export const ImportBatchDetailPage = () => {
     const totalDeclaredCostValue = batch?.totalDeclaredCostValue ?? 0;
     const totalImportedQuantity = batch?.totalImportedQuantity ?? 0;
     const totalImportedCostValue = batch?.totalImportedCostValue ?? 0;
+    const canEditBatch = batch ? isImportBatchEditable(batch) : false;
 
     const cancelledReasonText =
         batch?.status === 'CANCELLED' ? formatImportBatchCancelReason(batch.cancelReason) : undefined;
@@ -58,6 +78,8 @@ export const ImportBatchDetailPage = () => {
             </Box>
         );
     }
+
+    const firstIncompleteLine = findFirstIncompleteLine(batch);
 
     return (
         <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
@@ -96,14 +118,44 @@ export const ImportBatchDetailPage = () => {
                     )}
                 </Box>
                 {batch.status === 'DRAFT' && (
+                    <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
+                        <Stack direction="row" spacing={1}>
+                            <Button
+                                variant="outlined"
+                                onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id))}
+                            >
+                                Chỉnh sửa phiếu
+                            </Button>
+                            <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                                <Button
+                                    variant="contained"
+                                    onClick={() =>
+                                        navigate(
+                                            ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(
+                                                batch.id,
+                                                firstIncompleteLine?.id
+                                            )
+                                        )
+                                    }
+                                >
+                                    Nhập vé vào phiếu
+                                </Button>
+                            </CanAccess>
+                        </Stack>
+                    </CanAccess>
+                )}
+                {batch.status === 'RECEIVING' && (
                     <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
                         <Button
                             variant="contained"
-                            onClick={() => {
-                                const lines = batch.lines ?? [];
-                                const lineId = lines.length === 1 ? lines[0]?.id : undefined;
-                                navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(batch.id, lineId));
-                            }}
+                            onClick={() =>
+                                navigate(
+                                    ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(
+                                        batch.id,
+                                        firstIncompleteLine?.id
+                                    )
+                                )
+                            }
                         >
                             Nhập vé vào phiếu
                         </Button>
@@ -167,6 +219,11 @@ export const ImportBatchDetailPage = () => {
                         />
                     </Stack>
 
+                    <ImportBatchProgressBar
+                        batch={batch}
+                        resolveStationName={resolveStationName}
+                    />
+
                     {batch.note && (
                         <TextField
                             label="Ghi chú"
@@ -215,50 +272,57 @@ export const ImportBatchDetailPage = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {batchLines.map((line) => (
-                                    <TableRow key={line.id}>
-                                        <TableCell>{resolveStationName(line.lotteryStationId)}</TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                label={getBatchTypeLabel(line.batchType)}
-                                                size="small"
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <Typography
-                                                variant="body2"
-                                                sx={importBatchCodeMonospaceSx}
-                                                title={formatImportBatchLineCode(line.batchCode)}
-                                            >
-                                                {displayImportBatchLineCodeRaw(line.batchCode)}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                label={getImportBatchLineStatusLabel(line.status)}
-                                                size="small"
-                                                color={
-                                                    line.status === 'IMPORTED'
-                                                        ? 'success'
-                                                        : line.status === 'IMPORTING'
-                                                          ? 'info'
-                                                          : 'default'
-                                                }
-                                            />
-                                        </TableCell>
-                                        <TableCell align="right">{line.declareQuantity}</TableCell>
-                                        <TableCell align="right">{line.totalQuantity}</TableCell>
-                                        <TableCell align="right">
-                                            {Number(line.importCost).toLocaleString('vi-VN')}
-                                        </TableCell>
-                                        <TableCell align="right">
-                                            {Number(line.declaredCostValue ?? line.declareQuantity * line.importCost).toLocaleString('vi-VN')}
-                                        </TableCell>
-                                        <TableCell align="right">
-                                            {Number(line.totalCostValue).toLocaleString('vi-VN')}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {batchLines.map((line) => {
+                                    const stationName = resolveStationName(line.lotteryStationId);
+
+                                    return (
+                                        <TableRow key={line.id}>
+                                            <TableCell>{stationName}</TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    label={getBatchTypeLabel(line.batchType)}
+                                                    size="small"
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={importBatchCodeMonospaceSx}
+                                                    title={formatImportBatchLineCode(line.batchCode)}
+                                                >
+                                                    {displayImportBatchLineCodeRaw(line.batchCode)}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    label={getImportBatchLineStatusLabel(line.status)}
+                                                    size="small"
+                                                    color={
+                                                        line.status === 'IMPORTED'
+                                                            ? 'success'
+                                                            : line.status === 'IMPORTING'
+                                                              ? 'info'
+                                                              : 'default'
+                                                    }
+                                                />
+                                            </TableCell>
+                                            <TableCell align="right">{line.declareQuantity}</TableCell>
+                                            <TableCell align="right">{line.totalQuantity}</TableCell>
+                                            <TableCell align="right">
+                                                {Number(line.importCost).toLocaleString('vi-VN')}
+                                            </TableCell>
+                                            <TableCell align="right">
+                                                {Number(
+                                                    line.declaredCostValue ??
+                                                        line.declareQuantity * line.importCost
+                                                ).toLocaleString('vi-VN')}
+                                            </TableCell>
+                                            <TableCell align="right">
+                                                {Number(line.totalCostValue).toLocaleString('vi-VN')}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     </TableContainer>
@@ -271,10 +335,16 @@ export const ImportBatchDetailPage = () => {
                 </Alert>
             )}
 
-            {batch.status === 'DRAFT' && (
+            {canEditBatch && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                    Phiếu đang ở trạng thái nháp. Bạn có thể nhập vé ngay hoặc quay lại sau.
+                    Phiếu đang trong quá trình nhập. Bạn có thể chỉnh sửa phiếu hoặc tiếp tục nhập vé.
                 </Typography>
+            )}
+
+            {batch.status === 'IMPORTED' && (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                    Phiếu đã nhập kho. Không thể chỉnh sửa hoặc xóa dòng.
+                </Alert>
             )}
         </Box>
     );

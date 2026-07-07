@@ -1,5 +1,6 @@
 export const IMPORT_BATCH_STATUS_LABELS: Record<string, string> = {
     DRAFT: 'Nháp',
+    RECEIVING: 'Đang nhập lô',
     CANCELLED: 'Đã hủy',
     IMPORTED: 'Đã nhập',
     IN_LEDGER: 'Đã vào sổ',
@@ -14,6 +15,7 @@ export const getImportBatchStatusChipColor = (
     status?: string
 ): 'default' | 'warning' | 'error' | 'success' => {
     if (status === 'DRAFT') return 'warning';
+    if (status === 'RECEIVING') return 'info';
     if (status === 'CANCELLED') return 'error';
     if (status === 'IMPORTED') return 'success';
     return 'default';
@@ -62,8 +64,8 @@ export const getImportBatchCancelledAlertMessage = (cancelReason?: string) => {
 };
 
 export const IMPORT_BATCH_LINE_STATUS_LABELS: Record<string, string> = {
-    OPEN: 'Chưa nhập',
-    IMPORTING: 'Đang nhập',
+    OPEN: 'Nháp',
+    IMPORTING: 'Đang nhập lô',
     IMPORTED: 'Đã nhập đủ',
 };
 
