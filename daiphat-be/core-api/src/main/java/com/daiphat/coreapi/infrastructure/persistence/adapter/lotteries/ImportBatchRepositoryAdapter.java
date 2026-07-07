@@ -131,7 +131,11 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
     public boolean existsEditableBatchByImportedBy(UUID importedBy) {
         return importBatchRepository.existsByImportedBy_IdAndStatusIn(
                 importedBy,
-                List.of(ImportBatchStatus.DRAFT, ImportBatchStatus.RECEIVING)
+                List.of(
+                        ImportBatchStatus.DRAFT,
+                        ImportBatchStatus.RECEIVING,
+                        ImportBatchStatus.PARTIALLY_IMPORTED
+                )
         );
     }
 
@@ -145,7 +149,11 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
     public Optional<ImportBatchModel> findEditableBatchByImportedBy(UUID importedBy) {
         return importBatchRepository.findFirstByImportedBy_IdAndStatusInOrderByImportedAtDesc(
                         importedBy,
-                        List.of(ImportBatchStatus.DRAFT, ImportBatchStatus.RECEIVING)
+                        List.of(
+                        ImportBatchStatus.DRAFT,
+                        ImportBatchStatus.RECEIVING,
+                        ImportBatchStatus.PARTIALLY_IMPORTED
+                )
                 )
                 .map(this::toDomainWithActiveLines);
     }

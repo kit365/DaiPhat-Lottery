@@ -36,6 +36,7 @@ public class ImportBatchLineModel {
     @Builder.Default
     private ImportBatchLineStatus status = ImportBatchLineStatus.OPEN;
     private LocalDateTime importedAt;
+    private String cancelReason;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -47,9 +48,27 @@ public class ImportBatchLineModel {
         return deletedAt != null;
     }
 
+    public boolean isCancelled() {
+        return status == ImportBatchLineStatus.CANCELLED;
+    }
+
+    public boolean isTerminal() {
+        return status == ImportBatchLineStatus.IMPORTED || status == ImportBatchLineStatus.CANCELLED;
+    }
+
     public boolean isEditable() {
         return !isDeleted()
                 && (status == ImportBatchLineStatus.OPEN || status == ImportBatchLineStatus.IMPORTING);
+    }
+
+    public boolean isExemptFromAutoCancellation() {
+        return batchType == ImportBatchType.ADJUSTMENT;
+    }
+
+    public void markCancelled(LocalDateTime now, String cancelReason) {
+        this.status = ImportBatchLineStatus.CANCELLED;
+        this.cancelReason = cancelReason;
+        this.updatedAt = now;
     }
 
     public void softDelete(LocalDateTime now) {
