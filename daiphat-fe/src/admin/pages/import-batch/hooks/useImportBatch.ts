@@ -2,14 +2,17 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useMemo, useState } from 'react';
 import {
     createImportBatch,
+    deleteImportBatchLine,
     getActiveImportBatchDraft,
     getImportBatchById,
     getImportBatches,
     getIncompleteImportBatches,
     getEligibleImportBatchStations,
     getImportBatchTimePolicy,
+    updateImportBatch,
     CreateImportBatchPayload,
     ImportBatchListParams,
+    UpdateImportBatchPayload,
 } from '../../../api/importBatch.api';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 import type { ImportBatchImportMode } from '../utils/batchTypeLabels';
@@ -59,6 +62,20 @@ export const useCreateImportBatch = () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+        },
+    });
+};
+
+export const useUpdateImportBatch = (batchId?: string | number) => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (payload: UpdateImportBatchPayload) => updateImportBatch(batchId!, payload),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL, batchId != null ? String(batchId) : undefined] });
         },
     });
 };
@@ -116,6 +133,22 @@ export const useIncompleteImportBatches = (enabled = true) => {
     });
 };
 
+export const useDeleteImportBatchLine = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ batchId, lineId }: { batchId: number | string; lineId: number | string }) =>
+            deleteImportBatchLine(batchId, lineId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({ queryKey: ['tickets'] });
+        },
+    });
+};
+
 export const useImportBatchTimePolicy = () => {
     return useQuery({
         queryKey: [QUERY_KEYS.IMPORT_BATCH_TIME_POLICY],
@@ -127,11 +160,12 @@ export const useImportBatchTimePolicy = () => {
 
 export const useEligibleImportBatchStations = (
     drawDate?: string,
-    importMode?: ImportBatchImportMode
+    importMode?: ImportBatchImportMode,
+    excludeBatchId?: string | number
 ) => {
     return useQuery({
-        queryKey: [QUERY_KEYS.IMPORT_BATCH_ELIGIBLE_STATIONS, drawDate, importMode],
-        queryFn: () => getEligibleImportBatchStations(drawDate!, importMode!),
+        queryKey: [QUERY_KEYS.IMPORT_BATCH_ELIGIBLE_STATIONS, drawDate, importMode, excludeBatchId],
+        queryFn: () => getEligibleImportBatchStations(drawDate!, importMode!, excludeBatchId),
         enabled: !!drawDate && !!importMode,
         select: (res) => res.data ?? { eligible: [], blocked: [] },
         staleTime: 10_000,
