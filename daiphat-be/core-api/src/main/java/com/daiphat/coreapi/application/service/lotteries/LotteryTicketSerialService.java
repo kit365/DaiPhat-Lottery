@@ -233,6 +233,96 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     }
 
     @Override
+    public List<LotteryTicketSerialModel> findAllByImportBatchLineId(Long importBatchLineId) {
+        return lotteryTicketSerialRepositoryPort.findAllByImportBatchLineId(importBatchLineId);
+    }
+
+    @Override
+    public List<LotteryTicketSerialModel> findAllByTicketIdAndImportBatchLineId(
+            Long ticketId,
+            Long importBatchLineId
+    ) {
+        return lotteryTicketSerialRepositoryPort.findAllByTicketIdAndImportBatchLineId(ticketId, importBatchLineId);
+    }
+
+    @Override
+    @Transactional
+    public void syncImportBatchLineSerials(
+            LotteryTicketModel ticket,
+            Long importBatchId,
+            Long importBatchLineId,
+            List<UpdateLotteryTicketSerialRequest> serials,
+            UUID editorId
+    ) {
+        if (serials == null || serials.isEmpty()) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_SECTION_SERIALS_REQUIRED);
+        }
+
+        List<LotteryTicketSerialModel> lineSerials =
+                findAllByTicketIdAndImportBatchLineId(ticket.getId(), importBatchLineId);
+        Set<Long> requestedIds = serials.stream()
+                .map(UpdateLotteryTicketSerialRequest::id)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(HashSet::new));
+
+        for (UpdateLotteryTicketSerialRequest serialReq : serials) {
+            String normalizedSerial = serialReq.serialNumber().trim();
+            if (normalizedSerial.isEmpty()) {
+                throw new DomainException(ErrorCode.LOTTERY_TICKET_SECTION_SERIALS_REQUIRED);
+            }
+
+            if (serialReq.id() != null) {
+                LotteryTicketSerialModel existing = lineSerials.stream()
+                        .filter(serial -> serialReq.id().equals(serial.getId()))
+                        .findFirst()
+                        .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+                ensureSerialEditable(existing);
+
+                if (!normalizedSerial.equalsIgnoreCase(existing.getSerialNumber())) {
+                    if (lotteryTicketSerialRepositoryPort.existsByTicketIdAndSerialNumber(
+                            ticket.getId(),
+                            normalizedSerial
+                    )) {
+                        throw new DomainException(ErrorCode.LOTTERY_TICKET_SERIAL_EXISTED);
+                    }
+                    existing.setSerialNumber(normalizedSerial);
+                }
+                if (hasText(serialReq.ticketImg())) {
+                    existing.setTicketImg(serialReq.ticketImg().trim());
+                }
+                lotteryTicketSerialRepositoryPort.save(existing);
+                continue;
+            }
+
+            upsertSerialForTicket(
+                    ticket,
+                    new CreateLotteryTicketSerialRequest(serialReq.ticketImg(), normalizedSerial),
+                    editorId,
+                    importBatchId,
+                    importBatchLineId
+            );
+        }
+
+        for (LotteryTicketSerialModel existing : lineSerials) {
+            if (requestedIds.contains(existing.getId())) {
+                continue;
+            }
+            ensureSerialEditable(existing);
+            hardDeleteById(existing.getId());
+        }
+    }
+
+    @Override
+    public void hardDeleteById(Long id) {
+        lotteryTicketSerialRepositoryPort.hardDeleteById(id);
+    }
+
+    @Override
+    public void hardDeleteByTicketIdAndImportBatchLineId(Long ticketId, Long importBatchLineId) {
+        lotteryTicketSerialRepositoryPort.hardDeleteByTicketIdAndImportBatchLineId(ticketId, importBatchLineId);
+    }
+
+    @Override
     public void hardDeleteByImportBatchLineId(Long importBatchLineId) {
         lotteryTicketSerialRepositoryPort.hardDeleteByImportBatchLineId(importBatchLineId);
     }

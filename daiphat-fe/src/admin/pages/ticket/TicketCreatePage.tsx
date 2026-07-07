@@ -14,7 +14,9 @@ import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Title } from '../../components/ui/Title';
 import { LoadingButton } from '../../components/ui/LoadingButton';
 import { prefixAdmin, ROUTES } from '../../constants/routes';
-import { useBulkCreateTickets } from './hooks/useTicket';
+import { useBulkCreateTickets, useImportedTicketsByLine } from './hooks/useTicket';
+import { useTicketEntryAutosave } from './hooks/useTicketEntryAutosave';
+import { useTicketEntryResume } from './hooks/useTicketEntryResume';
 import { toast } from 'react-toastify';
 import { useForm, useFieldArray, FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -175,6 +177,22 @@ export const TicketCreatePage = () => {
 
     const watchedLineId = watch('importBatchLineId');
     const watchedStationId = watch('stationId');
+    const watchedTicketSections = watch('ticketSections');
+
+    const {
+        buildLineFormDraft,
+        isLoadingDrafts: isLoadingTicketEntryDrafts,
+        isSaving: isDraftSaving,
+        lastSavedAt: draftLastSavedAt,
+        saveError: draftSaveError,
+        flushSave,
+        clearDraft,
+    } = useTicketEntryAutosave({
+        importBatchId: resolvedBatch?.id,
+        importBatchLineId: watchedLineId,
+        ticketSections: watchedTicketSections,
+        enabled: !!resolvedBatch && isImportBatchEditable(resolvedBatch),
+    });
 
     const selectedLine = useMemo(() => {
         if (!watchedLineId) {
@@ -202,6 +220,16 @@ export const TicketCreatePage = () => {
     }, [selectedLine]);
 
     const { mutateAsync: bulkCreateAsync, isPending } = useBulkCreateTickets();
+    const {
+        data: importedTickets = [],
+        isLoading: isLoadingImportedTickets,
+        isFetching: isFetchingImportedTickets,
+    } = useImportedTicketsByLine(watchedLineId);
+
+    const { resumeFocusTarget, notifyLineFormReady } = useTicketEntryResume({
+        ticketSections: watchedTicketSections,
+        enabled: !!resolvedBatch && isImportBatchEditable(resolvedBatch),
+    });
 
     const resolveStationName = useCallback(
         (stationId?: number | string) => {
@@ -246,27 +274,41 @@ export const TicketCreatePage = () => {
     const applyLineToForm = useCallback(
         (lineId: string, drafts: Record<string, LineFormDraft>) => {
             if (!resolvedBatch) {
-                return;
+                return null;
             }
             const line = batchLines.find((item) => String(item.id) === lineId);
             if (!line) {
-                return;
+                return null;
             }
             const draft = drafts[lineId] ?? defaultLineDraft();
+            const ticketSections =
+                draft.ticketSections.length > 0 ? draft.ticketSections : [defaultSection()];
             reset({
                 importBatchId: String(resolvedBatch.id),
                 importBatchLineId: lineId,
                 stationId: String(line.lotteryStationId),
-                ticketSections:
-                    draft.ticketSections.length > 0 ? draft.ticketSections : [defaultSection()],
+                ticketSections,
                 drawDate: resolvedBatch.drawDate,
             });
+            return ticketSections;
         },
         [batchLines, reset, resolvedBatch]
     );
 
+    const buildDraftsMapFromServer = useCallback(() => {
+        const map: Record<string, LineFormDraft> = {};
+        for (const line of batchLines) {
+            const lineId = String(line.id);
+            const draft = buildLineFormDraft(lineId);
+            if (draft) {
+                map[lineId] = draft;
+            }
+        }
+        return map;
+    }, [batchLines, buildLineFormDraft]);
+
     useEffect(() => {
-        if (!resolvedBatch || batchLines.length === 0) {
+        if (!resolvedBatch || batchLines.length === 0 || isLoadingTicketEntryDrafts) {
             return;
         }
 
@@ -284,13 +326,18 @@ export const TicketCreatePage = () => {
                 : findFirstIncompleteLine(resolvedBatch);
         const lineId = line ? String(line.id) : '';
 
+        const serverDraftsMap = buildDraftsMapFromServer();
+
         lastInitializedBatchIdRef.current = batchId;
         initialLineAppliedRef.current = true;
-        setLineFormDrafts({});
+        setLineFormDrafts(serverDraftsMap);
 
         if (lineId) {
-            applyLineToForm(lineId, {});
+            const restoredSections = applyLineToForm(lineId, serverDraftsMap);
             syncBatchToUrl(batchId, lineId);
+            if (restoredSections) {
+                notifyLineFormReady(lineId, restoredSections);
+            }
         }
     }, [
         resolvedBatch?.id,
@@ -298,9 +345,13 @@ export const TicketCreatePage = () => {
         importBatchLineIdParam,
         applyLineToForm,
         syncBatchToUrl,
+        isLoadingTicketEntryDrafts,
+        buildDraftsMapFromServer,
+        notifyLineFormReady,
     ]);
 
-    const handleTabChange = (lineId: string) => {
+    const handleTabChange = async (lineId: string) => {
+        await flushSave();
         const currentLineId = watch('importBatchLineId');
         let nextDrafts = lineFormDrafts;
         if (currentLineId) {
@@ -312,7 +363,10 @@ export const TicketCreatePage = () => {
             };
             setLineFormDrafts(nextDrafts);
         }
-        applyLineToForm(lineId, nextDrafts);
+        const restoredSections = applyLineToForm(lineId, nextDrafts);
+        if (restoredSections) {
+            notifyLineFormReady(lineId, restoredSections);
+        }
         if (selectedBatchId) {
             syncBatchToUrl(selectedBatchId, lineId);
         }
@@ -524,6 +578,7 @@ export const TicketCreatePage = () => {
             if (res.success) {
                 toast.success('Nhập vé số thành công!');
                 const lineId = String(selectedLine.id);
+                await clearDraft(lineId);
                 const clearedDraft = defaultLineDraft();
                 setLineFormDrafts((prev) => ({
                     ...prev,
@@ -716,6 +771,20 @@ export const TicketCreatePage = () => {
                             onNumbersFieldChange={handleNumbersFieldChange}
                             numberLengthRules={numberLengthRules}
                             remainingSerialQuota={remainingSerialQuota}
+                            draftSaveStatus={{
+                                isSaving: isDraftSaving,
+                                lastSavedAt: draftLastSavedAt,
+                                saveError: draftSaveError,
+                            }}
+                            importedTickets={importedTickets}
+                            isLoadingImportedTickets={
+                                isLoadingImportedTickets || isFetchingImportedTickets
+                            }
+                            importBatchLineId={watchedLineId}
+                            canManageImportedTickets={
+                                !!resolvedBatch && isImportBatchEditable(resolvedBatch)
+                            }
+                            resumeFocusTarget={resumeFocusTarget}
                         />
                     )}
 

@@ -53,9 +53,15 @@ class LotteryTicketControllerTest {
     @Mock
     private LotteryTicketServicePort lotteryTicketServicePort;
 
+    @Mock
+    private com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketEntryDraftServicePort lotteryTicketEntryDraftServicePort;
+
     @BeforeEach
     void setUp() {
-        lotteryTicketController = new LotteryTicketController(lotteryTicketServicePort);
+        lotteryTicketController = new LotteryTicketController(
+                lotteryTicketServicePort,
+                lotteryTicketEntryDraftServicePort
+        );
     }
 
     @AfterEach

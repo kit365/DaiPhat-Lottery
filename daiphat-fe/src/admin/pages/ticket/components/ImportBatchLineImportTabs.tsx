@@ -30,7 +30,16 @@ import {
 import { TicketImportProgressTrack } from '../../import-batch/components/TicketImportProgressTrack';
 import { CreateTicketFormValues } from '../../../schemas/ticket.schema';
 import { TicketNumberSectionBlock } from './TicketNumberSectionBlock';
+import { ImportedTicketSectionsPanel } from './ImportedTicketSectionsPanel';
 import { TicketNumberLengthRules } from '../utils/ticketNumberValidation';
+import type { ImportedTicketForLine } from '../../../api/ticket.api';
+import type { TicketEntryResumeFocus } from '../utils/ticketEntryResume';
+
+type DraftSaveStatus = {
+    isSaving: boolean;
+    lastSavedAt: Date | null;
+    saveError: string | null;
+};
 
 type ImportBatchLineImportTabsProps = {
     lines: ImportBatchLine[];
@@ -51,6 +60,12 @@ type ImportBatchLineImportTabsProps = {
     onNumbersFieldChange?: (sectionIndex: number) => void;
     numberLengthRules: TicketNumberLengthRules;
     remainingSerialQuota?: number;
+    draftSaveStatus?: DraftSaveStatus;
+    importedTickets?: ImportedTicketForLine[];
+    isLoadingImportedTickets?: boolean;
+    importBatchLineId?: string;
+    canManageImportedTickets?: boolean;
+    resumeFocusTarget?: TicketEntryResumeFocus | null;
 };
 
 export const ImportBatchLineImportTabs = ({
@@ -72,6 +87,12 @@ export const ImportBatchLineImportTabs = ({
     onNumbersFieldChange,
     numberLengthRules,
     remainingSerialQuota,
+    draftSaveStatus,
+    importedTickets = [],
+    isLoadingImportedTickets = false,
+    importBatchLineId,
+    canManageImportedTickets = false,
+    resumeFocusTarget = null,
 }: ImportBatchLineImportTabsProps) => {
     const { isSubmitted } = useFormState({ control });
     const activeLine = lines.find((line) => String(line.id) === String(activeLineId));
@@ -95,6 +116,14 @@ export const ImportBatchLineImportTabs = ({
         remainingSerialQuota !== undefined && remainingSerialQuota > 0
             ? `Còn lại ${remainingSerialQuota} vé có thể nhập`
             : undefined;
+
+    const draftStatusLabel = draftSaveStatus?.isSaving
+        ? 'Đang lưu...'
+        : draftSaveStatus?.saveError
+          ? draftSaveStatus.saveError
+          : draftSaveStatus?.lastSavedAt
+            ? `Đã lưu nháp lúc ${dayjs(draftSaveStatus.lastSavedAt).format('HH:mm')}`
+            : null;
 
     return (
         <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
@@ -156,6 +185,17 @@ export const ImportBatchLineImportTabs = ({
                     );
                 })}
             </Tabs>
+
+            {draftStatusLabel && (
+                <Box sx={{ px: 2.5, pt: 1 }}>
+                    <Typography
+                        variant="caption"
+                        color={draftSaveStatus?.saveError ? 'error.main' : 'text.secondary'}
+                    >
+                        {draftStatusLabel}
+                    </Typography>
+                </Box>
+            )}
 
             {activeLine && activeProgress && activeStationColors && (
                 <Box sx={{ p: 2.5 }}>
@@ -259,8 +299,16 @@ export const ImportBatchLineImportTabs = ({
                         />
                     </Box>
 
+                    <ImportedTicketSectionsPanel
+                        tickets={importedTickets}
+                        importBatchLineId={importBatchLineId}
+                        canManage={canManageImportedTickets}
+                        isLoading={isLoadingImportedTickets}
+                        numberLengthRules={numberLengthRules}
+                    />
+
                     <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
-                        Danh sách dãy số
+                        {importedTickets.length > 0 ? 'Nhập thêm dãy số' : 'Danh sách dãy số'}
                     </Typography>
 
                     <Stack spacing={1.5} sx={{ pb: 10 }}>
@@ -277,6 +325,7 @@ export const ImportBatchLineImportTabs = ({
                                 onSerialFieldChange={onSerialFieldChange}
                                 onRemoveSerial={onRemoveSerial}
                                 onNumbersFieldChange={onNumbersFieldChange}
+                                resumeFocusTarget={resumeFocusTarget}
                             />
                         ))}
                     </Stack>

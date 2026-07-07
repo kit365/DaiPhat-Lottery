@@ -46,6 +46,7 @@ import {
     isImportBatchEditable,
 } from '../ticket/utils/importBatchProgress';
 import { ImportBatchProgressBar } from './components/ImportBatchProgressBar';
+import { ImagePreview } from '../../components/ui/ImagePreview';
 import dayjs from 'dayjs';
 
 export const ImportBatchDetailPage = () => {
@@ -242,11 +243,31 @@ export const ImportBatchDetailPage = () => {
                             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
                                 Ảnh biên lai
                             </Typography>
-                            <Box
-                                component="img"
+                            <ImagePreview
                                 src={batch.invoiceEvidenceUrl}
-                                alt="Biên lai"
-                                sx={{
+                                alt="Ảnh biên lai"
+                                dialogTitle="Ảnh biên lai"
+                                infoItems={[
+                                    {
+                                        label: 'Mã phiếu',
+                                        value: formatImportBatchHeaderCode(batch.batchCode, batch.id),
+                                    },
+                                    {
+                                        label: 'Ngày quay',
+                                        value: batch.drawDate
+                                            ? dayjs(batch.drawDate).format('DD/MM/YYYY')
+                                            : '—',
+                                    },
+                                    {
+                                        label: 'Nhà cung cấp',
+                                        value: batch.supplierName || '—',
+                                    },
+                                    {
+                                        label: 'Loại nhập',
+                                        value: getImportModeLabel(batch.importMode),
+                                    },
+                                ]}
+                                thumbnailSx={{
                                     maxWidth: 240,
                                     maxHeight: 180,
                                     borderRadius: 1,

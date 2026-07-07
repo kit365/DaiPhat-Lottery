@@ -6,7 +6,7 @@ import { useAuthStore } from "../../../../stores/useAuthStore";
 import { toast } from "react-toastify";
 import { ROUTES } from "../../../constants/routes";
 import { USER_ROLES } from "../../../../constants/role.constants";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { User } from "../../../../types/user.type";
 import { LoginResponse } from "../types/auth.type";
 import { LoginFormValues } from "../../../schemas/login.schema";
@@ -27,6 +27,21 @@ export const useAuth = () => {
         retry: false,
         staleTime: 1000 * 60 * 10,
     });
+
+    const queryUser = useMemo(() => {
+        if (!getMeQuery.data) {
+            return null;
+        }
+        const isSuccess = getMeQuery.data.isSuccess ?? getMeQuery.data.success;
+        return isSuccess && getMeQuery.data.data ? (getMeQuery.data.data as User) : null;
+    }, [getMeQuery.data]);
+
+    const resolvedUser = user ?? queryUser;
+    const isUserPending =
+        !!token &&
+        !resolvedUser &&
+        !getMeQuery.isError &&
+        (getMeQuery.isLoading || getMeQuery.isFetching || !getMeQuery.data);
 
     useEffect(() => {
         if (getMeQuery.data) {
@@ -223,10 +238,12 @@ export const useAuth = () => {
     });
 
     return {
-        user,
+        user: resolvedUser,
         token,
         isLoading: getMeQuery.isLoading || loginMutation.isPending || oauthCallbackMutation.isPending,
         isUserLoading: getMeQuery.isLoading,
+        isUserPending,
+        isUserError: getMeQuery.isError,
         isFetching: getMeQuery.isFetching,
         login: loginMutation.mutate,
         logout,

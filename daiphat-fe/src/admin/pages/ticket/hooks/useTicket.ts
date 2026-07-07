@@ -4,6 +4,10 @@ import {
     getCreateTicketData,
     createTicket,
     bulkCreateTickets,
+    getImportedTicketsByLine,
+    updateImportedTicketDuringBatch,
+    hardDeleteImportedTicketDuringBatch,
+    type UpdateImportedTicketPayload,
     getTicketById,
     updateTicket,
     deleteTicket,
@@ -42,6 +46,63 @@ export const useTicketDetail = (id?: string | number) => {
     });
 };
 
+export const useImportedTicketsByLine = (importBatchLineId?: string | number) => {
+    const normalizedLineId =
+        importBatchLineId !== undefined && importBatchLineId !== null && String(importBatchLineId).trim() !== ''
+            ? String(importBatchLineId)
+            : undefined;
+
+    return useQuery({
+        queryKey: [QUERY_KEYS.IMPORTED_TICKETS_BY_LINE, normalizedLineId],
+        queryFn: () => getImportedTicketsByLine(normalizedLineId!),
+        enabled: !!normalizedLineId,
+        select: (res: ApiResponse<any>) => res.data ?? [],
+        staleTime: 0,
+        refetchOnMount: 'always',
+    });
+};
+
+const invalidateImportEntryQueries = (queryClient: ReturnType<typeof useQueryClient>) => {
+    queryClient.invalidateQueries({ queryKey: ['tickets'] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORTED_TICKETS_BY_LINE] });
+};
+
+export const useUpdateImportedTicketDuringBatch = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (variables: {
+            ticketId: string | number;
+            importBatchLineId: string | number;
+            data: UpdateImportedTicketPayload;
+        }) =>
+            updateImportedTicketDuringBatch(
+                variables.ticketId,
+                variables.importBatchLineId,
+                variables.data
+            ),
+        onSuccess: () => {
+            invalidateImportEntryQueries(queryClient);
+        },
+    });
+};
+
+export const useHardDeleteImportedTicketDuringBatch = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (variables: { ticketId: string | number; importBatchLineId: string | number }) =>
+            hardDeleteImportedTicketDuringBatch(variables.ticketId, variables.importBatchLineId),
+        onSuccess: () => {
+            invalidateImportEntryQueries(queryClient);
+        },
+    });
+};
+
 export const useCreateTicket = () => {
     const queryClient = useQueryClient();
 
@@ -60,6 +121,8 @@ export const useCreateTicket = () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKET_ENTRY_DRAFTS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORTED_TICKETS_BY_LINE] });
         },
     });
 };
@@ -78,6 +141,8 @@ export const useBulkCreateTickets = () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TICKET_ENTRY_DRAFTS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORTED_TICKETS_BY_LINE] });
         },
     });
 };

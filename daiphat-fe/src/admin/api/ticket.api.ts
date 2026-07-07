@@ -117,6 +117,106 @@ export const bulkCreateTickets = async (
     return response.data;
 };
 
+export type TicketEntryDraftSection = {
+    numbers: string;
+    serials: Array<{ serialNumber: string; ticketImg?: string }>;
+};
+
+export type TicketEntryDraftResponse = {
+    importBatchLineId: number;
+    ticketSections: TicketEntryDraftSection[];
+    updatedAt?: string;
+};
+
+export type SaveTicketEntryDraftPayload = {
+    importBatchLineId: number;
+    ticketSections: TicketEntryDraftSection[];
+};
+
+/** Lấy nháp nhập vé theo phiếu nhập lô */
+export const getTicketEntryDrafts = async (
+    importBatchId: string | number
+): Promise<ApiResponse<TicketEntryDraftResponse[]>> => {
+    const response = await apiApp.get(`${BASE_URL}/entry-drafts`, {
+        params: { importBatchId },
+        ...withAuth(),
+    });
+    return response.data;
+};
+
+/** Lưu nháp nhập vé cho một dòng phiếu nhập lô */
+export const saveTicketEntryDraft = async (
+    data: SaveTicketEntryDraftPayload,
+    options?: { skipGlobalErrorToast?: boolean }
+): Promise<ApiResponse<TicketEntryDraftResponse>> => {
+    const response = await apiApp.put(`${BASE_URL}/entry-drafts`, data, {
+        ...withAuth(),
+        skipGlobalErrorToast: options?.skipGlobalErrorToast,
+    } as any);
+    return response.data;
+};
+
+/** Xóa nháp nhập vé sau khi nhập thành công */
+export const deleteTicketEntryDraft = async (
+    importBatchLineId: string | number,
+    options?: { skipGlobalErrorToast?: boolean }
+): Promise<ApiResponse<void>> => {
+    const response = await apiApp.delete(`${BASE_URL}/entry-drafts`, {
+        params: { importBatchLineId },
+        ...withAuth(),
+        skipGlobalErrorToast: options?.skipGlobalErrorToast,
+    } as any);
+    return response.data;
+};
+
+export type ImportedTicketForLine = {
+    id: number;
+    numbers: string;
+    serials?: Array<{ id?: number; serialNumber: string; ticketImg?: string }>;
+    status?: string;
+};
+
+export type UpdateImportedTicketPayload = {
+    numbers: string;
+    serials: Array<{ id?: number; serialNumber: string; ticketImg?: string }>;
+};
+
+/** Lấy danh sách vé đã nhập theo dòng phiếu nhập lô */
+export const getImportedTicketsByLine = async (
+    importBatchLineId: string | number
+): Promise<ApiResponse<ImportedTicketForLine[]>> => {
+    const response = await apiApp.get(`${BASE_URL}/by-import-batch-line`, {
+        params: { importBatchLineId },
+        ...withAuth(),
+    });
+    return response.data;
+};
+
+/** Cập nhật vé đã nhập trong quá trình nhập lô */
+export const updateImportedTicketDuringBatch = async (
+    ticketId: string | number,
+    importBatchLineId: string | number,
+    data: UpdateImportedTicketPayload
+): Promise<ApiResponse<ImportedTicketForLine>> => {
+    const response = await apiApp.put(`${BASE_URL}/${ticketId}/import-batch-entry`, data, {
+        params: { importBatchLineId },
+        ...withAuth(),
+    });
+    return response.data;
+};
+
+/** Xóa vĩnh viễn vé đã nhập trong quá trình nhập lô */
+export const hardDeleteImportedTicketDuringBatch = async (
+    ticketId: string | number,
+    importBatchLineId: string | number
+): Promise<ApiResponse<void>> => {
+    const response = await apiApp.delete(`${BASE_URL}/${ticketId}/import-batch-entry`, {
+        params: { importBatchLineId },
+        ...withAuth(),
+    });
+    return response.data;
+};
+
 /** Lấy chi tiết vé cho trang Edit */
 export const getTicketById = async (id: string | number): Promise<ApiResponse<any>> => {
     const response = await apiApp.get(`${BASE_URL}/${id}`, withAuth());

@@ -5,12 +5,15 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.BulkCreateLotteryTicketsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.SaveLotteryTicketEntryDraftRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.base.Views;
 import com.daiphat.coreapi.application.dto.response.lotteries.BulkCreateLotteryTicketsResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketEntryDraftResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketEntryDraftServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
@@ -45,6 +48,77 @@ public class LotteryTicketController {
     private static final String HOME_DEFAULT_DRAW_DATE = "today";
 
     private final LotteryTicketServicePort lotteryTicketServicePort;
+    private final LotteryTicketEntryDraftServicePort lotteryTicketEntryDraftServicePort;
+
+    @GetMapping("/entry-drafts")
+    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    public ApiResponse<List<LotteryTicketEntryDraftResponse>> getEntryDrafts(
+            @RequestParam Long importBatchId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        List<LotteryTicketEntryDraftResponse> drafts =
+                lotteryTicketEntryDraftServicePort.getByImportBatchId(importBatchId, principal.getId());
+        return ApiResponse.success(null, drafts);
+    }
+
+    @PutMapping("/entry-drafts")
+    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    public ApiResponse<LotteryTicketEntryDraftResponse> saveEntryDraft(
+            @Valid @RequestBody SaveLotteryTicketEntryDraftRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        LotteryTicketEntryDraftResponse response =
+                lotteryTicketEntryDraftServicePort.upsert(request, principal.getId());
+        return ApiResponse.success("Đã lưu nháp nhập vé.", response);
+    }
+
+    @DeleteMapping("/entry-drafts")
+    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    public ApiResponse<Void> deleteEntryDraft(
+            @RequestParam Long importBatchLineId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        lotteryTicketEntryDraftServicePort.deleteByImportBatchLineId(importBatchLineId, principal.getId());
+        return ApiResponse.success("Đã xóa nháp nhập vé.", null);
+    }
+
+    @GetMapping("/by-import-batch-line")
+    @PreAuthorize("hasAnyAuthority('ticket:create', 'ticket:view')")
+    public MappingJacksonValue getImportedByImportBatchLine(
+            @RequestParam Long importBatchLineId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        List<LotteryTicketResponse> tickets = lotteryTicketServicePort.getImportedByImportBatchLineId(
+                importBatchLineId,
+                principal.getId()
+        );
+        ApiResponse<List<LotteryTicketResponse>> apiResponse = ApiResponse.success(null, tickets);
+        MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
+        mappingJacksonValue.setSerializationView(resolveLotteryTicketView(principal));
+        return mappingJacksonValue;
+    }
+
+    @PutMapping(ID_PATH + "/import-batch-entry")
+    @PreAuthorize("hasAnyAuthority('ticket:edit', 'ticket:create')")
+    public ApiResponse<LotteryTicketResponse> updateImportedTicketDuringBatch(
+            @PathVariable Long id,
+            @RequestParam Long importBatchLineId,
+            @Valid @RequestBody UpdateLotteryTicketRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        LotteryTicketResponse response = lotteryTicketServicePort.updateImportedTicketDuringBatch(
+                importBatchLineId,
+                id,
+                request,
+                principal.getId()
+        );
+        return ApiResponse.success("Cập nhật vé đã nhập thành công.", response);
+    }
+
+    @DeleteMapping(ID_PATH + "/import-batch-entry")
+    @PreAuthorize("hasAnyAuthority('ticket:delete', 'ticket:create')")
+    public ApiResponse<Void> hardDeleteImportedTicketDuringBatch(
+            @PathVariable Long id,
+            @RequestParam Long importBatchLineId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        lotteryTicketServicePort.hardDeleteImportedTicketDuringBatch(importBatchLineId, id, principal.getId());
+        return ApiResponse.success("Đã xóa vé đã nhập khỏi dòng phiếu.", null);
+    }
 
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ticket:create')")
