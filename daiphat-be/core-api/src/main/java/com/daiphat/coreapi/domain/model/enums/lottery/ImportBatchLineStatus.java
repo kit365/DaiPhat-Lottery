@@ -8,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 public enum ImportBatchLineStatus {
     OPEN("Chưa nhập"),
     IMPORTING("Đang nhập"),
-    IMPORTED("Đã nhập đủ");
+    IMPORTED("Đã nhập đủ"),
+    CANCELLED("Đã hủy");
 
     private final String label;
 }

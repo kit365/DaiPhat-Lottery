@@ -22,8 +22,12 @@ import { buildCreateTicketSchema, CreateTicketFormValues } from '../../schemas/t
 import { useProviders } from '../provider/hooks/useProvider';
 import { useRegions } from '../region/hooks/useRegion';
 import { useDraftImportBatches, useImportBatchDetail } from '../import-batch/hooks/useImportBatch';
-import { getImportBatchCancelledAlertMessage } from '../import-batch/utils/batchTypeLabels';
-import { isImportBatchEditable } from './utils/importBatchProgress';
+import { getImportBatchCancelledAlertMessage, getImportBatchLineCancelledAlertMessage } from '../import-batch/utils/batchTypeLabels';
+import {
+    findFirstIncompleteLine,
+    isImportBatchEditable,
+    isLineCancelled,
+} from './utils/importBatchProgress';
 import { formatImportBatchSelectLabel } from '../import-batch/utils/importBatchCode';
 import { ImportBatchSelectionCard } from './components/ImportBatchSelectionCard';
 import { ImportBatchLineImportTabs } from './components/ImportBatchLineImportTabs';
@@ -125,8 +129,9 @@ export const TicketCreatePage = () => {
     );
 
     const batchLines = resolvedBatch?.lines ?? [];
+    const defaultActionableLine = resolvedBatch ? findFirstIncompleteLine(resolvedBatch) : undefined;
     const bootstrapLineId =
-        importBatchLineIdParam || (batchLines[0] ? String(batchLines[0].id) : '');
+        importBatchLineIdParam || (defaultActionableLine ? String(defaultActionableLine.id) : '');
     const bootstrapLine = batchLines.find((line) => String(line.id) === bootstrapLineId);
     const numberLengthRulesRef = useRef(resolveRulesForStation(bootstrapLine?.lotteryStationId));
 
@@ -270,9 +275,13 @@ export const TicketCreatePage = () => {
             return;
         }
 
-        const line = importBatchLineIdParam
+        const paramLine = importBatchLineIdParam
             ? batchLines.find((item) => String(item.id) === importBatchLineIdParam)
-            : batchLines[0];
+            : undefined;
+        const line =
+            paramLine && !isLineCancelled(paramLine)
+                ? paramLine
+                : findFirstIncompleteLine(resolvedBatch);
         const lineId = line ? String(line.id) : '';
 
         lastInitializedBatchIdRef.current = batchId;
@@ -427,6 +436,11 @@ export const TicketCreatePage = () => {
     const onSubmit = async (data: CreateTicketFormValues) => {
         if (!selectedLine || !resolvedBatch) {
             toast.error('Vui lòng chọn nhà đài trong phiếu nhập lô');
+            return;
+        }
+
+        if (isLineCancelled(selectedLine)) {
+            toast.error(getImportBatchLineCancelledAlertMessage(selectedLine.cancelReason));
             return;
         }
 
@@ -676,7 +690,13 @@ export const TicketCreatePage = () => {
                             )}
                     </Paper>
 
-                    {resolvedBatch && batchLines.length > 0 && (
+                        {resolvedBatch && selectedLine && isLineCancelled(selectedLine) && (
+                            <Alert severity="error" sx={{ mt: 2 }}>
+                                {getImportBatchLineCancelledAlertMessage(selectedLine.cancelReason)}
+                            </Alert>
+                        )}
+
+                        {resolvedBatch && batchLines.length > 0 && (
                         <ImportBatchLineImportTabs
                             lines={batchLines}
                             activeLineId={watchedLineId}

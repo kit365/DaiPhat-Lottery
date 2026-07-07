@@ -27,7 +27,8 @@ public interface ImportBatchRepository extends JpaRepository<ImportBatchEntity, 
             SELECT b FROM ImportBatchEntity b
             WHERE b.status IN (
                 com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT,
-                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING,
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.PARTIALLY_IMPORTED
             )
               AND b.drawDate = :drawDate
               AND b.importMode = com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode.IN_DAY
@@ -39,7 +40,8 @@ public interface ImportBatchRepository extends JpaRepository<ImportBatchEntity, 
             SELECT b FROM ImportBatchEntity b
             WHERE b.status IN (
                 com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT,
-                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING,
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.PARTIALLY_IMPORTED
             )
               AND b.drawDate < :today
               AND b.deletedAt IS NULL
@@ -53,9 +55,13 @@ public interface ImportBatchRepository extends JpaRepository<ImportBatchEntity, 
               AND l.deletedAt IS NULL
               AND b.status IN (
                 com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT,
-                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING,
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.PARTIALLY_IMPORTED
               )
-              AND l.status <> com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.IMPORTED
+              AND l.status NOT IN (
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.IMPORTED,
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus.CANCELLED
+              )
             ORDER BY b.drawDate DESC, b.importedAt DESC
             """)
     List<ImportBatchEntity> findIncompleteDraftBatches();

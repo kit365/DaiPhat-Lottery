@@ -113,13 +113,33 @@ public class ImportBatchModel {
     }
 
     public boolean areAllLinesImported() {
+        List<ImportBatchLineModel> nonCancelledLines = getNonCancelledActiveLines();
+        return !nonCancelledLines.isEmpty()
+                && nonCancelledLines.stream()
+                .allMatch(line -> line.getStatus() == ImportBatchLineStatus.IMPORTED);
+    }
+
+    public boolean hasAnyFullyImportedLine() {
+        return getActiveLines().stream()
+                .anyMatch(line -> line.getStatus() == ImportBatchLineStatus.IMPORTED);
+    }
+
+    private List<ImportBatchLineModel> getNonCancelledActiveLines() {
+        return getActiveLines().stream()
+                .filter(line -> !line.isCancelled())
+                .toList();
+    }
+
+    public boolean areAllActiveLinesCancelled() {
         List<ImportBatchLineModel> activeLines = getActiveLines();
         return !activeLines.isEmpty()
-                && activeLines.stream().allMatch(line -> line.getStatus() == ImportBatchLineStatus.IMPORTED);
+                && activeLines.stream().allMatch(ImportBatchLineModel::isCancelled);
     }
 
     public boolean isEditable() {
-        return status == ImportBatchStatus.DRAFT || status == ImportBatchStatus.RECEIVING;
+        return status == ImportBatchStatus.DRAFT
+                || status == ImportBatchStatus.RECEIVING
+                || status == ImportBatchStatus.PARTIALLY_IMPORTED;
     }
 
     public void validateInvoiceEvidence() {
@@ -143,8 +163,19 @@ public class ImportBatchModel {
         }
     }
 
+    public void markPartiallyImported(LocalDateTime now) {
+        if (status == ImportBatchStatus.DRAFT
+                || status == ImportBatchStatus.RECEIVING
+                || status == ImportBatchStatus.PARTIALLY_IMPORTED) {
+            this.status = ImportBatchStatus.PARTIALLY_IMPORTED;
+            this.updatedAt = now;
+        }
+    }
+
     public void markImported(LocalDateTime now) {
-        if (status != ImportBatchStatus.DRAFT && status != ImportBatchStatus.RECEIVING) {
+        if (status != ImportBatchStatus.DRAFT
+                && status != ImportBatchStatus.RECEIVING
+                && status != ImportBatchStatus.PARTIALLY_IMPORTED) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
         }
         this.status = ImportBatchStatus.IMPORTED;
@@ -161,11 +192,16 @@ public class ImportBatchModel {
             return;
         }
 
+        if (hasAnyFullyImportedLine()) {
+            markPartiallyImported(now);
+            return;
+        }
+
         boolean hasAnyImport = getActiveLines().stream()
                 .anyMatch(line -> line.getTotalQuantity() != null && line.getTotalQuantity() > 0);
         if (hasAnyImport) {
             markReceiving(now);
-        } else if (status == ImportBatchStatus.RECEIVING) {
+        } else if (status == ImportBatchStatus.RECEIVING || status == ImportBatchStatus.PARTIALLY_IMPORTED) {
             this.status = ImportBatchStatus.DRAFT;
             this.updatedAt = now;
         }
@@ -173,9 +209,14 @@ public class ImportBatchModel {
 
     public boolean isSubjectToSameDayCutoffCancellation(LocalDate today) {
         return isEditable()
+                && !isExemptFromAutoCancellation()
                 && importMode == ImportBatchImportMode.IN_DAY
                 && drawDate != null
                 && drawDate.equals(today);
+    }
+
+    public boolean isExemptFromAutoCancellation() {
+        return importMode == ImportBatchImportMode.POST_DRAW_SUPPLEMENT;
     }
 
     public void markCancelled(LocalDateTime now, String cancelReason) {
