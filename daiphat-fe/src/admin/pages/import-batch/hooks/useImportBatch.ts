@@ -5,6 +5,7 @@ import {
     getActiveImportBatchDraft,
     getImportBatchById,
     getImportBatches,
+    getIncompleteImportBatches,
     getEligibleImportBatchStations,
     getImportBatchTimePolicy,
     CreateImportBatchPayload,
@@ -57,6 +58,7 @@ export const useCreateImportBatch = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
         },
     });
 };
@@ -100,6 +102,17 @@ export const useDraftImportBatches = (enabled = true) => {
         enabled,
         select: (res) => res.data?.recordList ?? [],
         staleTime: 30_000,
+    });
+};
+
+export const useIncompleteImportBatches = (enabled = true) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE],
+        queryFn: getIncompleteImportBatches,
+        enabled,
+        staleTime: 0,
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true,
     });
 };
 

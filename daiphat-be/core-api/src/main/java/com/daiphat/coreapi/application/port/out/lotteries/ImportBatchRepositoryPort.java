@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,7 +20,11 @@ public interface ImportBatchRepositoryPort {
 
     boolean existsByImportedByAndStatus(UUID importedBy, ImportBatchStatus status);
 
+    boolean existsEditableBatchByImportedBy(UUID importedBy);
+
     Optional<ImportBatchModel> findByImportedByAndStatus(UUID importedBy, ImportBatchStatus status);
+
+    Optional<ImportBatchModel> findEditableBatchByImportedBy(UUID importedBy);
 
     Page<ImportBatchModel> findAll(
             Pageable pageable,
@@ -32,6 +37,8 @@ public interface ImportBatchRepositoryPort {
     List<ImportBatchModel> findDraftInDayBatchesByDrawDate(LocalDate drawDate);
 
     List<ImportBatchModel> findDraftBatchesWithDrawDateBefore(LocalDate today);
+
+    List<ImportBatchModel> findIncompleteDraftBatches();
 
     long nextHeaderBatchCodeSequence();
 }

@@ -155,6 +155,15 @@ public class ImportBatchService implements ImportBatchServicePort {
 
     @Override
     @Transactional
+    public List<ImportBatchResponse> getIncompleteBatches() {
+        importBatchDraftExpiryService.cancelOverdueDrafts();
+        return importBatchRepositoryPort.findIncompleteDraftBatches().stream()
+                .map(importBatchApplicationMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
     public ImportBatchResponse getById(Long id) {
         importBatchDraftExpiryService.cancelOverdueDrafts();
         ImportBatchModel model = getImportBatchOrThrow(id);
