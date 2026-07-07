@@ -1,16 +1,16 @@
 import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography, IconButton, CircularProgress, FormHelperText } from "@mui/material"
 import { Breadcrumb } from "../../components/ui/Breadcrumb"
 import { Title } from "../../components/ui/Title"
-import { useState, useMemo, useEffect } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
 import { TicketSerialImageField } from "./components/TicketSerialImageField"
 import { formatImportBatchCode } from "../import-batch/utils/importBatchCode";
 import { prefixAdmin } from "../../constants/routes";
 import { useUpdateTicket, useTicketDetail } from "./hooks/useTicket";
 import { toast } from "react-toastify";
-import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { useForm, Controller, useFieldArray, useFormState } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { updateTicketSchema, UpdateTicketFormValues } from "../../schemas/ticket.schema";
+import { buildLegacyUpdateTicketSchema, LegacyUpdateTicketFormValues } from "../../schemas/ticket.schema";
 import {
     TICKET_STATUS_OPTIONS,
     canTransitionTicketStatus,
@@ -21,6 +21,16 @@ import {
 } from "./configs/ticket-status.config";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { useProviders } from "../provider/hooks/useProvider";
+import { useRegions } from "../region/hooks/useRegion";
+import {
+    getVisibleFieldErrorMessage,
+    shouldShowFieldError,
+} from "./utils/ticketSerialValidation";
+import {
+    getTicketNumberLengthHint,
+    resolveRegionLengthRules,
+    sanitizeTicketNumberInput,
+} from "./utils/ticketNumberValidation";
 import dayjs from "dayjs";
 import "dayjs/locale/en-gb";
 import { useParams, useNavigate } from "react-router-dom";
@@ -54,6 +64,23 @@ export const TicketEditPage = () => {
 
     const { data: ticketDetail, isLoading: isLoadingTicket } = useTicketDetail(id);
 
+    const { data: providersRes } = useProviders({ size: 1000 });
+    const providers = (providersRes as any)?.data?.recordList || [];
+    const { data: regionsRes } = useRegions();
+    const regions = regionsRes?.data || [];
+
+    const numberLengthRulesRef = useRef(resolveRegionLengthRules(null));
+
+    const dynamicLegacyResolver = useCallback(
+        async (values: LegacyUpdateTicketFormValues, context: unknown, options: unknown) =>
+            zodResolver(buildLegacyUpdateTicketSchema(numberLengthRulesRef.current))(
+                values,
+                context as never,
+                options as never
+            ),
+        []
+    );
+
     const {
         control,
         handleSubmit,
@@ -61,8 +88,10 @@ export const TicketEditPage = () => {
         setError,
         reset,
         watch,
-    } = useForm<UpdateTicketFormValues>({
-        resolver: zodResolver(updateTicketSchema),
+    } = useForm<LegacyUpdateTicketFormValues>({
+        resolver: dynamicLegacyResolver,
+        mode: 'onTouched',
+        reValidateMode: 'onChange',
         defaultValues: {
             stationId: "",
             serials: [{ serialNumber: "", ticketImg: undefined }],
@@ -76,6 +105,8 @@ export const TicketEditPage = () => {
         name: "serials"
     });
 
+    const { isSubmitted } = useFormState({ control });
+
     const originalStatus = normalizeTicketStatus(ticketDetail?.status);
     const allowedStatusValues = new Set(getAllowedTicketStatusTransitions(ticketDetail?.status));
     const canManuallyChangeStatus = allowedStatusValues.size > 1;
@@ -87,8 +118,24 @@ export const TicketEditPage = () => {
     const [expandedSerials, setExpandedSerials] = useState(true);
     const [resetKey, setResetKey] = useState(0);
 
-    const { data: providersRes } = useProviders({ size: 1000 });
-    const providers = (providersRes as any)?.data?.recordList || [];
+    const watchedStationId = watch("stationId");
+    const numberLengthRules = useMemo(() => {
+        const stationId =
+            watchedStationId ||
+            ticketDetail?.stationId ||
+            ticketDetail?.productId ||
+            ticketDetail?.providerId;
+        const provider = providers.find(
+            (p: any) => String(p.id || p._id) === String(stationId)
+        );
+        const region = regions.find((r: any) => r.code === provider?.region);
+        return resolveRegionLengthRules(region);
+    }, [providers, regions, ticketDetail, watchedStationId]);
+
+    useEffect(() => {
+        numberLengthRulesRef.current = numberLengthRules;
+    }, [numberLengthRules]);
+
     const { mutate: update, isPending } = useUpdateTicket();
 
     const isExistingLockedSerial = (index: number) => {
@@ -155,7 +202,7 @@ export const TicketEditPage = () => {
         }
     }, [ticketDetail, reset]);
 
-    const onSubmit = (data: UpdateTicketFormValues) => {
+    const onSubmit = (data: LegacyUpdateTicketFormValues) => {
         const selectedProvider = providers.find((p: any) => String(p.id || p._id) === String(data.stationId));
         let finalDrawDate = "";
         
@@ -259,7 +306,7 @@ export const TicketEditPage = () => {
                                             name="stationId"
                                             control={control}
                                             render={({ field, fieldState }) => (
-                                                <FormControl fullWidth error={!!fieldState.error}>
+                                                <FormControl fullWidth error={shouldShowFieldError(fieldState, isSubmitted)}>
                                                     <InputLabel shrink>{"Nhà đài"}</InputLabel>
                                                     <Select
                                                         {...field}
@@ -279,7 +326,9 @@ export const TicketEditPage = () => {
                                                             );
                                                         })}
                                                     </Select>
-                                                    {fieldState.error && <p className="text-red-500 text-xs mt-1 ml-3">{fieldState.error.message}</p>}
+                                                    {shouldShowFieldError(fieldState, isSubmitted) && (
+                                                        <p className="text-red-500 text-xs mt-1 ml-3">{fieldState.error?.message}</p>
+                                                    )}
                                                 </FormControl>
                                             )}
                                         />
@@ -308,8 +357,21 @@ export const TicketEditPage = () => {
                                                     label="Dãy số"
                                                     fullWidth
                                                     disabled={!isTicketEditable}
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
+                                                    error={shouldShowFieldError(fieldState, isSubmitted)}
+                                                    helperText={getVisibleFieldErrorMessage(fieldState, isSubmitted)}
+                                                    placeholder={getTicketNumberLengthHint(numberLengthRules)}
+                                                    inputProps={{
+                                                        inputMode: "numeric",
+                                                        maxLength: numberLengthRules.maxLength,
+                                                    }}
+                                                    onChange={(event) => {
+                                                        field.onChange(
+                                                            sanitizeTicketNumberInput(
+                                                                event.target.value,
+                                                                numberLengthRules.maxLength
+                                                            )
+                                                        );
+                                                    }}
                                                 />
                                             )}
                                         />
@@ -430,8 +492,8 @@ export const TicketEditPage = () => {
                                                             label="Số sê-ri"
                                                             fullWidth
                                                             disabled={isExistingLockedSerial(index)}
-                                                            error={!!fieldState.error}
-                                                            helperText={fieldState.error?.message}
+                                                            error={shouldShowFieldError(fieldState, isSubmitted)}
+                                                            helperText={getVisibleFieldErrorMessage(fieldState, isSubmitted)}
                                                         />
                                                     )}
                                                 />

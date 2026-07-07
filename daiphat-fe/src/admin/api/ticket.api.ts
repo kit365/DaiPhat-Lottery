@@ -85,9 +85,35 @@ export const getCreateTicketData = async (): Promise<ApiResponse<any>> => {
     } as any;
 };
 
-/** Tạo vé mới */
-export const createTicket = async (data: any): Promise<ApiResponse<any>> => {
-    const response = await apiApp.post(BASE_URL, data, withAuth());
+/** Tạo vé mới (một dãy số) */
+export const createTicket = async (
+    data: any,
+    options?: { skipGlobalErrorToast?: boolean }
+): Promise<ApiResponse<any>> => {
+    const response = await apiApp.post(BASE_URL, data, {
+        ...withAuth(),
+        skipGlobalErrorToast: options?.skipGlobalErrorToast,
+    } as any);
+    return response.data;
+};
+
+/** Nhập nhiều dãy số trong cùng một dòng phiếu nhập lô */
+export const bulkCreateTickets = async (
+    data: {
+        importBatchLineId: number;
+        stationId: number | string;
+        drawDate?: string;
+        tickets: Array<{
+            numbers: string;
+            serials: Array<{ serialNumber: string; ticketImg?: string }>;
+        }>;
+    },
+    options?: { skipGlobalErrorToast?: boolean }
+): Promise<ApiResponse<any>> => {
+    const response = await apiApp.post(`${BASE_URL}/bulk-import`, data, {
+        ...withAuth(),
+        skipGlobalErrorToast: options?.skipGlobalErrorToast,
+    } as any);
     return response.data;
 };
 
