@@ -3,8 +3,8 @@ package com.daiphat.coreapi.domain.model.lotteries;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
-import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -73,8 +73,18 @@ public class ImportBatchModel {
         this.submittedAt = now;
     }
 
+    public List<ImportBatchLineModel> getActiveLines() {
+        if (lines == null) {
+            return List.of();
+        }
+        return lines.stream()
+                .filter(line -> line.getDeletedAt() == null)
+                .toList();
+    }
+
     public void recalculateAggregates() {
-        if (lines == null || lines.isEmpty()) {
+        List<ImportBatchLineModel> activeLines = getActiveLines();
+        if (activeLines.isEmpty()) {
             lineCount = 0;
             totalDeclareQuantity = 0;
             totalDeclaredCostValue = BigDecimal.ZERO;
@@ -83,30 +93,40 @@ public class ImportBatchModel {
             return;
         }
 
-        lineCount = lines.size();
-        totalDeclareQuantity = lines.stream()
+        lineCount = activeLines.size();
+        totalDeclareQuantity = activeLines.stream()
                 .mapToInt(line -> line.getDeclareQuantity() != null ? line.getDeclareQuantity() : 0)
                 .sum();
-        totalDeclaredCostValue = lines.stream()
+        totalDeclaredCostValue = activeLines.stream()
                 .map(line -> line.getDeclaredCostValue() != null ? line.getDeclaredCostValue() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        totalImportedQuantity = lines.stream()
+        totalImportedQuantity = activeLines.stream()
                 .mapToInt(line -> line.getTotalQuantity() != null ? line.getTotalQuantity() : 0)
                 .sum();
-        totalImportedCostValue = lines.stream()
+        totalImportedCostValue = activeLines.stream()
                 .map(line -> line.getTotalCostValue() != null ? line.getTotalCostValue() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     public boolean areAllLinesImportComplete() {
-        return !lines.isEmpty() && lines.stream().allMatch(ImportBatchLineModel::isImportComplete);
+        return areAllLinesImported();
+    }
+
+    public boolean areAllLinesImported() {
+        List<ImportBatchLineModel> activeLines = getActiveLines();
+        return !activeLines.isEmpty()
+                && activeLines.stream().allMatch(line -> line.getStatus() == ImportBatchLineStatus.IMPORTED);
+    }
+
+    public boolean isEditable() {
+        return status == ImportBatchStatus.DRAFT || status == ImportBatchStatus.RECEIVING;
     }
 
     public void validateInvoiceEvidence() {
         if (importMode != ImportBatchImportMode.IN_DAY) {
             return;
         }
-        boolean requiresInvoice = lines != null && lines.stream()
+        boolean requiresInvoice = getActiveLines().stream()
                 .anyMatch(ImportBatchLineModel::requiresInvoiceEvidence);
         if (!requiresInvoice) {
             return;
@@ -116,21 +136,52 @@ public class ImportBatchModel {
         }
     }
 
+    public void markReceiving(LocalDateTime now) {
+        if (status == ImportBatchStatus.DRAFT) {
+            this.status = ImportBatchStatus.RECEIVING;
+            this.updatedAt = now;
+        }
+    }
+
     public void markImported(LocalDateTime now) {
-        ensureStatus(ImportBatchStatus.DRAFT);
+        if (status != ImportBatchStatus.DRAFT && status != ImportBatchStatus.RECEIVING) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
+        }
         this.status = ImportBatchStatus.IMPORTED;
         this.completedAt = now;
+        this.updatedAt = now;
+    }
+
+    public void refreshImportStatus(LocalDateTime now) {
+        if (!isEditable()) {
+            return;
+        }
+        if (areAllLinesImported()) {
+            markImported(now);
+            return;
+        }
+
+        boolean hasAnyImport = getActiveLines().stream()
+                .anyMatch(line -> line.getTotalQuantity() != null && line.getTotalQuantity() > 0);
+        if (hasAnyImport) {
+            markReceiving(now);
+        } else if (status == ImportBatchStatus.RECEIVING) {
+            this.status = ImportBatchStatus.DRAFT;
+            this.updatedAt = now;
+        }
     }
 
     public boolean isSubjectToSameDayCutoffCancellation(LocalDate today) {
-        return status == ImportBatchStatus.DRAFT
+        return isEditable()
                 && importMode == ImportBatchImportMode.IN_DAY
                 && drawDate != null
                 && drawDate.equals(today);
     }
 
     public void markCancelled(LocalDateTime now, String cancelReason) {
-        ensureStatus(ImportBatchStatus.DRAFT);
+        if (!isEditable()) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
+        }
         this.status = ImportBatchStatus.CANCELLED;
         this.cancelReason = cancelReason;
         this.updatedAt = now;
@@ -138,11 +189,5 @@ public class ImportBatchModel {
 
     public boolean hasExpiredDrawDate(LocalDate today) {
         return drawDate != null && drawDate.isBefore(today);
-    }
-
-    private void ensureStatus(ImportBatchStatus expectedStatus) {
-        if (this.status != expectedStatus) {
-            throw new DomainException(ErrorCode.IMPORT_BATCH_INVALID_STATUS);
-        }
     }
 }

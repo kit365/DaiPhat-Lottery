@@ -2,6 +2,8 @@ package com.daiphat.coreapi.application.port.in.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ImportBatchClassificationPreviewRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateImportBatchRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.UpdateImportBatchLineRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchBlockedStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
@@ -22,6 +24,8 @@ import java.util.UUID;
 public interface ImportBatchServicePort {
 
     ImportBatchResponse create(CreateImportBatchRequest request, UUID operatorId);
+
+    ImportBatchResponse update(Long id, UpdateImportBatchRequest request);
 
     Optional<ImportBatchResponse> getActiveDraft(UUID operatorId);
 
@@ -44,9 +48,15 @@ public interface ImportBatchServicePort {
 
     ImportBatchClassificationPreviewResponse previewClassification(ImportBatchClassificationPreviewRequest request);
 
-    ImportBatchEligibleStationsResponse getEligibleStations(LocalDate drawDate, ImportBatchImportMode importMode);
+    ImportBatchEligibleStationsResponse getEligibleStations(
+            LocalDate drawDate,
+            ImportBatchImportMode importMode,
+            Long excludeBatchId
+    );
 
     ImportBatchTimePolicyResponse getTimePolicy();
 
     int cancelOverdueDrafts();
+
+    ImportBatchResponse deleteLine(Long batchId, Long lineId);
 }

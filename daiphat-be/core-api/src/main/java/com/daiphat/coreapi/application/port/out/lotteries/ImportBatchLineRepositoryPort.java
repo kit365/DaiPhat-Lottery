@@ -15,13 +15,29 @@ public interface ImportBatchLineRepositoryPort {
 
     List<ImportBatchLineModel> findByImportBatchId(Long importBatchId);
 
+    Optional<ImportBatchLineModel> findDeletedByImportBatchIdAndStationId(Long importBatchId, Long lotteryStationId);
+
+    long countActiveByImportBatchId(Long importBatchId);
+
     boolean existsByStationAndDrawDateAndBatchType(Long stationId, LocalDate drawDate, ImportBatchType batchType);
 
     boolean existsDraftLineForStationAndDrawDate(Long stationId, LocalDate drawDate);
 
+    boolean existsDraftLineForStationAndDrawDateExcludingBatch(
+            Long stationId,
+            LocalDate drawDate,
+            Long excludeBatchId
+    );
+
     boolean existsNonDraftLineForStationAndDrawDate(Long stationId, LocalDate drawDate);
 
     Optional<Long> findDraftBatchIdForStationAndDrawDate(Long stationId, LocalDate drawDate);
+
+    Optional<Long> findDraftBatchIdForStationAndDrawDateExcludingBatch(
+            Long stationId,
+            LocalDate drawDate,
+            Long excludeBatchId
+    );
 
     long nextLineBatchCodeSequence();
 

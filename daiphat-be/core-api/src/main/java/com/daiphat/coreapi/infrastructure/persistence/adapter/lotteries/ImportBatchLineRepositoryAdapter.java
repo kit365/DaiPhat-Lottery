@@ -51,6 +51,21 @@ public class ImportBatchLineRepositoryAdapter implements ImportBatchLineReposito
     }
 
     @Override
+    public Optional<ImportBatchLineModel> findDeletedByImportBatchIdAndStationId(
+            Long importBatchId,
+            Long lotteryStationId
+    ) {
+        return importBatchLineRepository
+                .findByImportBatch_IdAndLotteryStation_IdAndDeletedAtIsNotNull(importBatchId, lotteryStationId)
+                .map(importBatchLinePersistenceMapper::toDomain);
+    }
+
+    @Override
+    public long countActiveByImportBatchId(Long importBatchId) {
+        return importBatchLineRepository.countByImportBatch_IdAndDeletedAtIsNull(importBatchId);
+    }
+
+    @Override
     public boolean existsByStationAndDrawDateAndBatchType(
             Long stationId,
             LocalDate drawDate,
@@ -65,6 +80,19 @@ public class ImportBatchLineRepositoryAdapter implements ImportBatchLineReposito
     }
 
     @Override
+    public boolean existsDraftLineForStationAndDrawDateExcludingBatch(
+            Long stationId,
+            LocalDate drawDate,
+            Long excludeBatchId
+    ) {
+        return importBatchLineRepository.existsDraftLineForStationAndDrawDateExcludingBatch(
+                stationId,
+                drawDate,
+                excludeBatchId
+        );
+    }
+
+    @Override
     public boolean existsNonDraftLineForStationAndDrawDate(Long stationId, LocalDate drawDate) {
         return importBatchLineRepository.existsNonDraftLineForStationAndDrawDate(stationId, drawDate);
     }
@@ -73,6 +101,19 @@ public class ImportBatchLineRepositoryAdapter implements ImportBatchLineReposito
     public Optional<Long> findDraftBatchIdForStationAndDrawDate(Long stationId, LocalDate drawDate) {
         return importBatchLineRepository.findDraftBatchIdsForStationAndDrawDate(stationId, drawDate).stream()
                 .findFirst();
+    }
+
+    @Override
+    public Optional<Long> findDraftBatchIdForStationAndDrawDateExcludingBatch(
+            Long stationId,
+            LocalDate drawDate,
+            Long excludeBatchId
+    ) {
+        return importBatchLineRepository.findDraftBatchIdsForStationAndDrawDateExcludingBatch(
+                stationId,
+                drawDate,
+                excludeBatchId
+        ).stream().findFirst();
     }
 
     @Override

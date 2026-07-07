@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -33,11 +34,25 @@ public class ImportBatchStationEligibilityResolver {
             LocalDateTime now,
             ImportBatchImportMode importMode
     ) {
+        return isEligibleForSelection(station, drawDate, now, importMode, null);
+    }
+
+    public boolean isEligibleForSelection(
+            LotteryStationModel station,
+            LocalDate drawDate,
+            LocalDateTime now,
+            ImportBatchImportMode importMode,
+            Long excludeBatchId
+    ) {
         if (drawDate == null || importMode == null || !isScheduledOnDrawDate(station, drawDate)) {
             return false;
         }
 
-        if (importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(station.getId(), drawDate)) {
+        boolean hasDraftLine = excludeBatchId != null
+                ? importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDateExcludingBatch(
+                        station.getId(), drawDate, excludeBatchId)
+                : importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(station.getId(), drawDate);
+        if (hasDraftLine) {
             return false;
         }
 
@@ -85,6 +100,16 @@ public class ImportBatchStationEligibilityResolver {
             LocalDateTime now,
             ImportBatchImportMode importMode
     ) {
+        validateStationEligibleOrThrow(station, drawDate, now, importMode, null);
+    }
+
+    public void validateStationEligibleOrThrow(
+            LotteryStationModel station,
+            LocalDate drawDate,
+            LocalDateTime now,
+            ImportBatchImportMode importMode,
+            Long excludeBatchId
+    ) {
         if (!isScheduledOnDrawDate(station, drawDate)) {
             throw new com.daiphat.coreapi.domain.exception.DomainException(
                     com.daiphat.coreapi.domain.exception.ErrorCode.IMPORT_BATCH_DRAW_DATE_INVALID,
@@ -92,15 +117,21 @@ public class ImportBatchStationEligibilityResolver {
             );
         }
 
-        if (importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(station.getId(), drawDate)) {
-            Long draftBatchId = importBatchLineRepositoryPort
-                    .findDraftBatchIdForStationAndDrawDate(station.getId(), drawDate)
-                    .orElse(null);
-            String message = draftBatchId != null
+        boolean hasDraftLine = excludeBatchId != null
+                ? importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDateExcludingBatch(
+                        station.getId(), drawDate, excludeBatchId)
+                : importBatchLineRepositoryPort.existsDraftLineForStationAndDrawDate(station.getId(), drawDate);
+
+        if (hasDraftLine) {
+            Optional<Long> draftBatchId = excludeBatchId != null
+                    ? importBatchLineRepositoryPort.findDraftBatchIdForStationAndDrawDateExcludingBatch(
+                            station.getId(), drawDate, excludeBatchId)
+                    : importBatchLineRepositoryPort.findDraftBatchIdForStationAndDrawDate(station.getId(), drawDate);
+            String message = draftBatchId.isPresent()
                     ? String.format(
                     "Đài %s đã có phiếu nhập nháp #%d cho ngày quay %s. Vui lòng hoàn tất phiếu hiện tại.",
                     station.getName(),
-                    draftBatchId,
+                    draftBatchId.get(),
                     drawDate
             )
                     : String.format(
@@ -114,7 +145,7 @@ public class ImportBatchStationEligibilityResolver {
             );
         }
 
-        if (!isEligibleForSelection(station, drawDate, now, importMode)) {
+        if (!isEligibleForSelection(station, drawDate, now, importMode, excludeBatchId)) {
             throw new com.daiphat.coreapi.domain.exception.DomainException(
                     com.daiphat.coreapi.domain.exception.ErrorCode.IMPORT_BATCH_DRAW_DATE_INVALID,
                     "Đài " + station.getName() + " không khả dụng cho ngày quay và loại nhập đã chọn."
