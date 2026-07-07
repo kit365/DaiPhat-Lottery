@@ -5,6 +5,7 @@ import {
     formatImportProgressPercent,
     getImportBatchProgress,
 } from '../../ticket/utils/importBatchProgress';
+import { formatImportBatchLineCancelReason } from '../utils/batchTypeLabels';
 
 type ImportBatchProgressBarProps = {
     batch: ImportBatch;
@@ -102,6 +103,11 @@ export const ImportBatchProgressBar = ({
                                         <Typography variant="caption" display="block">
                                             Trạng thái: {segment.statusLabel}
                                         </Typography>
+                                        {segment.cancelReason && (
+                                            <Typography variant="caption" display="block">
+                                                {formatImportBatchLineCancelReason(segment.cancelReason)}
+                                            </Typography>
+                                        )}
                                     </Stack>
                                 }
                             >

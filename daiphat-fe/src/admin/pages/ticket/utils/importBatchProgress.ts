@@ -1,7 +1,9 @@
 import type { ImportBatch, ImportBatchLine, ImportBatchLineStatus } from '../../../api/importBatch.api';
 import { getImportBatchLineStatusLabel, getImportBatchStatusLabel } from '../../import-batch/utils/batchTypeLabels';
 
-export type IncompleteImportBatchDisplayStatus = 'DRAFT' | 'RECEIVING';
+export type IncompleteImportBatchDisplayStatus = 'DRAFT' | 'RECEIVING' | 'PARTIALLY_IMPORTED';
+
+export const CANCELLED_LINE_SEGMENT_COLORS = { main: '#9e9e9e', track: '#eeeeee' } as const;
 
 export const IMPORT_BATCH_STATION_SEGMENT_COLORS = [
     { main: '#1976d2', track: '#bbdefb' },
@@ -25,6 +27,7 @@ export type ImportBatchProgressSegment = {
     statusLabel: string;
     color: string;
     trackColor: string;
+    cancelReason?: string;
 };
 
 export const getStationSegmentColor = (index: number) =>
@@ -63,7 +66,10 @@ export const buildImportBatchProgressSegments = (
 ): ImportBatchProgressSegment[] =>
     (batch.lines ?? []).map((line, index) => {
         const { imported, declared, percent } = getLineImportProgress(line);
-        const colors = getStationSegmentColor(index);
+        const colors =
+            line.status === 'CANCELLED'
+                ? CANCELLED_LINE_SEGMENT_COLORS
+                : getStationSegmentColor(index);
 
         return {
             lineId: line.id,
@@ -72,17 +78,22 @@ export const buildImportBatchProgressSegments = (
                 resolveStationName?.(line.lotteryStationId) ?? `Đài #${line.lotteryStationId}`,
             imported,
             declared,
-            percent,
+            percent: line.status === 'CANCELLED' ? 0 : percent,
             status: line.status,
             statusLabel: getImportBatchLineStatusLabel(line.status),
             color: colors.main,
             trackColor: colors.track,
+            cancelReason: line.cancelReason,
         };
     });
 
+export const isLineCancelled = (line: ImportBatchLine) => line.status === 'CANCELLED';
+
+export const isLineActionable = (line: ImportBatchLine) => isLineIncomplete(line);
+
 export const isLineIncomplete = (line: ImportBatchLine) =>
-    line.status !== 'IMPORTED' ||
-    (line.totalQuantity ?? 0) < (line.declareQuantity ?? 0);
+    !isLineCancelled(line) &&
+    (line.status !== 'IMPORTED' || (line.totalQuantity ?? 0) < (line.declareQuantity ?? 0));
 
 export const getIncompleteLines = (batch: ImportBatch): ImportBatchLine[] =>
     (batch.lines ?? []).filter(isLineIncomplete);
@@ -108,7 +119,7 @@ export const getIncompleteLineProgress = (batch: ImportBatch) => {
 };
 
 export const isImportBatchEditable = (batch: ImportBatch) =>
-    batch.status === 'DRAFT' || batch.status === 'RECEIVING';
+    batch.status === 'DRAFT' || batch.status === 'RECEIVING' || batch.status === 'PARTIALLY_IMPORTED';
 
 export const batchHasPendingLines = (batch: ImportBatch) =>
     isImportBatchEditable(batch) && getIncompleteLines(batch).length > 0;
@@ -117,6 +128,9 @@ export const batchHasPendingLines = (batch: ImportBatch) =>
 export const getIncompleteImportBatchDisplayStatus = (
     batch: ImportBatch
 ): { key: IncompleteImportBatchDisplayStatus; label: string } => {
+    if (batch.status === 'PARTIALLY_IMPORTED') {
+        return { key: 'PARTIALLY_IMPORTED', label: getImportBatchStatusLabel('PARTIALLY_IMPORTED') };
+    }
     if (batch.status === 'RECEIVING' || (batch.totalImportedQuantity ?? 0) > 0) {
         return { key: 'RECEIVING', label: 'Đang nhập lô' };
     }
@@ -125,8 +139,11 @@ export const getIncompleteImportBatchDisplayStatus = (
 
 export const findFirstIncompleteLine = (batch: ImportBatch): ImportBatchLine | undefined => {
     const incompleteLines = getIncompleteLines(batch);
-    return incompleteLines[0] ?? batch.lines?.[0];
+    return incompleteLines[0];
 };
+
+export const getActionableLines = (batch: ImportBatch): ImportBatchLine[] =>
+    (batch.lines ?? []).filter(isLineActionable);
 
 export const resolveImportBatchStationNames = (
     batch: ImportBatch,
@@ -139,5 +156,6 @@ export const resolveImportBatchStationNames = (
 
 export const isLineDeletable = (line: ImportBatchLine, batch: ImportBatch) =>
     isImportBatchEditable(batch) &&
-    isLineIncomplete(line) &&
+    isLineActionable(line) &&
+    line.status === 'OPEN' &&
     (batch.lines?.length ?? 0) > 1;
