@@ -3,8 +3,10 @@ package com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ImportBatchEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
+import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 import org.mapstruct.ReportingPolicy;
 
 import java.util.UUID;
@@ -25,6 +27,26 @@ public interface ImportBatchPersistenceMapper {
     @Mapping(target = "supplier", ignore = true)
     @Mapping(target = "lines", source = "lines")
     ImportBatchEntity toEntity(ImportBatchModel model);
+
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(target = "batchCode")
+    @Mapping(target = "drawDate")
+    @Mapping(target = "supplierSettlementId")
+    @Mapping(target = "importMode")
+    @Mapping(target = "invoiceEvidenceUrl")
+    @Mapping(target = "importedAt")
+    @Mapping(target = "status")
+    @Mapping(target = "lineCount")
+    @Mapping(target = "totalDeclareQuantity")
+    @Mapping(target = "totalDeclaredCostValue")
+    @Mapping(target = "totalImportedQuantity")
+    @Mapping(target = "totalImportedCostValue")
+    @Mapping(target = "submittedAt")
+    @Mapping(target = "completedAt")
+    @Mapping(target = "ledgerAt")
+    @Mapping(target = "note")
+    @Mapping(target = "cancelReason")
+    void updateEntityFromModel(ImportBatchModel model, @MappingTarget ImportBatchEntity entity);
 
     default UserEntity mapImportedBy(UUID importedBy) {
         if (importedBy == null) {

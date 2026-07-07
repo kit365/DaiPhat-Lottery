@@ -44,4 +44,12 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             WHERE s.deletedAt IS NULL AND s.importBatchLine.id = :importBatchLineId
             """)
     List<Long> findDistinctTicketIdsByImportBatchLineId(@Param("importBatchLineId") Long importBatchLineId);
+
+    @Query("""
+            SELECT s FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL AND s.importBatchLine.id = :importBatchLineId
+            """)
+    List<LotteryTicketSerialEntity> findAllByImportBatchLineId(@Param("importBatchLineId") Long importBatchLineId);
+
+    void deleteByImportBatchLine_Id(Long importBatchLineId);
 }
