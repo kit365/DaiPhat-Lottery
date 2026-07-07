@@ -1,4 +1,4 @@
-import type { ImportBatchType } from '../../../api/importBatch.api';
+import type { ImportBatchLine, ImportBatchType } from '../../../api/importBatch.api';
 import { getBatchTypeLabel } from './batchTypeLabels';
 import dayjs from 'dayjs';
 
@@ -92,6 +92,42 @@ export const formatImportBatchCode = formatImportBatchLineCode;
 
 export const displayImportBatchLineCodeRaw = (batchCode?: string) =>
     batchCode?.trim() || '—';
+
+/** Single line: stored batch code + stored batch type enum. */
+export const formatImportBatchLineCodeAndTypeStored = (line: Pick<ImportBatchLine, 'batchCode' | 'batchType'>) => {
+    const code = displayImportBatchLineCodeRaw(line.batchCode);
+    const type = line.batchType || '—';
+    return `${code} / ${type}`;
+};
+
+/** Compact table display: station · type segment · sequence (draw date omitted). */
+export const formatImportBatchLineCodeShort = (line: Pick<ImportBatchLine, 'batchCode' | 'batchType'>) => {
+    const trimmed = line.batchCode?.trim();
+    const match = trimmed?.match(IMPORT_BATCH_LINE_CODE_PATTERN);
+    if (match) {
+        const [, , stationCode, typeSegment, sequence] = match;
+        return `${stationCode}·${typeSegment}·${sequence}`;
+    }
+    if (trimmed) {
+        const parts = trimmed.split('-');
+        const tail = parts.length >= 2 ? parts.slice(-2).join('·') : trimmed;
+        const type = line.batchType ?? '—';
+        return `${tail}·${type}`;
+    }
+    return line.batchType ?? '—';
+};
+
+/** Concise comma-separated summary for list table cells. */
+export const formatImportBatchLinesSummaryShort = (lines: ImportBatchLine[] = []) =>
+    lines.map(formatImportBatchLineCodeShort).join(', ');
+
+/** Compact comma-separated summary for table cells. */
+export const formatImportBatchLinesSummaryCompact = (lines: ImportBatchLine[] = []) =>
+    formatImportBatchLinesSummaryShort(lines);
+
+/** Multiline tooltip content showing every line's stored code and type. */
+export const formatImportBatchLinesSummaryTooltip = (lines: ImportBatchLine[] = []) =>
+    lines.map(formatImportBatchLineCodeAndTypeStored).join('\n');
 
 /** @deprecated use {@link displayImportBatchLineCodeRaw} */
 export const displayImportBatchCodeRaw = displayImportBatchLineCodeRaw;
