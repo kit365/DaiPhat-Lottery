@@ -8,6 +8,8 @@ import {
     Menu,
     MenuItem,
     Paper,
+    Stack,
+    Box,
     Table,
     TableBody,
     TableCell,
@@ -15,9 +17,11 @@ import {
     TableHead,
     TablePagination,
     TableRow,
+    Tooltip,
     Typography,
 } from '@mui/material';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
@@ -38,6 +42,8 @@ import {
     formatImportBatchHeaderCode,
     importBatchCodeMonospaceSx,
 } from './utils/importBatchCode';
+import { IncompleteImportBatchNotification } from './components/IncompleteImportBatchNotification';
+import { findFirstIncompleteLine, batchHasPendingLines, isImportBatchEditable } from '../ticket/utils/importBatchProgress';
 
 export const ImportBatchListPage = () => {
     const { t } = useTranslation();
@@ -68,9 +74,15 @@ export const ImportBatchListPage = () => {
 
     const handleAddTicket = useCallback(
         (batch: ImportBatch) => {
-            const lines = batch.lines ?? [];
-            const lineId = lines.length === 1 ? lines[0]?.id : undefined;
-            navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(batch.id, lineId));
+            const firstLine = findFirstIncompleteLine(batch);
+            navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(batch.id, firstLine?.id));
+        },
+        [navigate]
+    );
+
+    const handleEditBatch = useCallback(
+        (batchId: number) => {
+            navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batchId));
         },
         [navigate]
     );
@@ -101,6 +113,10 @@ export const ImportBatchListPage = () => {
                     />
                 </CanAccess>
             </div>
+
+            <CanAccess anyOf={[PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.TICKET.CREATE]}>
+                <IncompleteImportBatchNotification variant="compact" />
+            </CanAccess>
 
             <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
                 <Table size="small">
@@ -156,13 +172,31 @@ export const ImportBatchListPage = () => {
                                 return (
                                     <TableRow key={batch.id} hover>
                                         <TableCell>
-                                            <Typography
-                                                variant="body2"
-                                                sx={importBatchCodeMonospaceSx}
-                                                title={displayImportBatchHeaderCodeRaw(batch.batchCode, batch.id)}
-                                            >
-                                                {formatImportBatchHeaderCode(batch.batchCode, batch.id)}
-                                            </Typography>
+                                            <Stack direction="row" spacing={0.75} alignItems="center">
+                                                {batchHasPendingLines(batch) && (
+                                                    <Tooltip title="Còn dòng chưa nhập đủ vé">
+                                                        <Box
+                                                            sx={{
+                                                                width: 8,
+                                                                height: 8,
+                                                                borderRadius: '50%',
+                                                                bgcolor: 'warning.main',
+                                                                flexShrink: 0,
+                                                            }}
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={importBatchCodeMonospaceSx}
+                                                    title={displayImportBatchHeaderCodeRaw(
+                                                        batch.batchCode,
+                                                        batch.id
+                                                    )}
+                                                >
+                                                    {formatImportBatchHeaderCode(batch.batchCode, batch.id)}
+                                                </Typography>
+                                            </Stack>
                                         </TableCell>
                                         <TableCell>
                                             {batch.drawDate
@@ -254,6 +288,23 @@ export const ImportBatchListPage = () => {
                     <ListItemText primary="Xem chi tiết" />
                 </MenuItem>
                 {menuBatch?.status === 'DRAFT' && (
+                    <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
+                        <MenuItem
+                            onClick={() => {
+                                if (menuBatch) {
+                                    handleEditBatch(menuBatch.id);
+                                }
+                                handleCloseMenu();
+                            }}
+                        >
+                            <ListItemIcon>
+                                <EditOutlinedIcon fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText primary="Chỉnh sửa" />
+                        </MenuItem>
+                    </CanAccess>
+                )}
+                {menuBatch && isImportBatchEditable(menuBatch) && (
                     <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
                         <MenuItem
                             onClick={() => {

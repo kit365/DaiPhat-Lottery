@@ -22,12 +22,19 @@ import {
 } from '../../import-batch/utils/importBatchCode';
 import {
     findFirstIncompleteLine,
-    getImportBatchProgress,
     getIncompleteImportBatchDisplayStatus,
+    getIncompleteLineProgress,
+    getIncompleteLines,
     resolveImportBatchStationNames,
-} from '../utils/importBatchProgress';
+} from '../../ticket/utils/importBatchProgress';
 
-export const IncompleteImportBatchBanner = () => {
+type IncompleteImportBatchNotificationProps = {
+    variant: 'detailed' | 'compact';
+};
+
+export const IncompleteImportBatchNotification = ({
+    variant,
+}: IncompleteImportBatchNotificationProps) => {
     const navigate = useNavigate();
     const { data: batches = [], isLoading } = useIncompleteImportBatches();
     const { data: providersRes } = useProviders({ size: 1000 });
@@ -42,6 +49,42 @@ export const IncompleteImportBatchBanner = () => {
 
     if (isLoading || batches.length === 0) {
         return null;
+    }
+
+    if (variant === 'compact') {
+        const firstBatch = batches[0];
+        const firstLine = firstBatch ? findFirstIncompleteLine(firstBatch) : undefined;
+        const pendingStations = firstBatch
+            ? resolveImportBatchStationNames(firstBatch, resolveStationName)
+            : [];
+
+        return (
+            <Alert severity="warning" icon={<InfoOutlinedIcon fontSize="inherit" />} sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                    Có <strong>{batches.length}</strong> phiếu nhập lô chưa hoàn tất.
+                    {pendingStations.length > 0 && (
+                        <>
+                            {' '}
+                            Còn thiếu: <strong>{pendingStations.join(', ')}</strong>
+                        </>
+                    )}
+                </Typography>
+                {firstBatch && (
+                    <Button
+                        size="small"
+                        color="warning"
+                        sx={{ mt: 1, px: 0 }}
+                        onClick={() =>
+                            navigate(
+                                ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(firstBatch.id, firstLine?.id)
+                            )
+                        }
+                    >
+                        Tiếp tục nhập
+                    </Button>
+                )}
+            </Alert>
+        );
     }
 
     return (
@@ -59,9 +102,14 @@ export const IncompleteImportBatchBanner = () => {
 
             <Stack divider={<Divider flexItem />} spacing={1.5}>
                 {batches.map((batch) => {
-                    const progress = getImportBatchProgress(batch);
+                    const incompleteLines = getIncompleteLines(batch);
+                    const progress = getIncompleteLineProgress(batch);
                     const displayStatus = getIncompleteImportBatchDisplayStatus(batch);
-                    const stationNames = resolveImportBatchStationNames(batch, resolveStationName);
+                    const stationNames = resolveImportBatchStationNames(
+                        batch,
+                        resolveStationName,
+                        incompleteLines
+                    );
                     const firstLine = findFirstIncompleteLine(batch);
 
                     return (
@@ -87,7 +135,9 @@ export const IncompleteImportBatchBanner = () => {
                                         <Chip
                                             size="small"
                                             label={displayStatus.label}
-                                            color={displayStatus.key === 'RECEIVING' ? 'info' : 'warning'}
+                                            color={
+                                                displayStatus.key === 'RECEIVING' ? 'info' : 'warning'
+                                            }
                                             variant="outlined"
                                         />
                                     </Stack>
@@ -96,7 +146,7 @@ export const IncompleteImportBatchBanner = () => {
                                         Mã phiếu: {displayImportBatchHeaderCodeRaw(batch.batchCode, batch.id)}
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary" display="block">
-                                        Nhà đài: {stationNames.length > 0 ? stationNames.join(', ') : '—'}
+                                        Còn thiếu: {stationNames.length > 0 ? stationNames.join(', ') : '—'}
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary" display="block">
                                         Ngày quay:{' '}
@@ -107,7 +157,7 @@ export const IncompleteImportBatchBanner = () => {
 
                                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
                                         <Typography variant="body2" fontWeight={600}>
-                                            Tiến độ: {progress.imported} / {progress.declared} vé
+                                            Tiến độ còn lại: {progress.imported} / {progress.declared} vé
                                         </Typography>
                                         <Box sx={{ flex: 1, maxWidth: 160 }}>
                                             <LinearProgress
@@ -132,7 +182,10 @@ export const IncompleteImportBatchBanner = () => {
                                             )
                                         )
                                     }
-                                    sx={{ flexShrink: 0, alignSelf: { xs: 'flex-start', md: 'center' } }}
+                                    sx={{
+                                        flexShrink: 0,
+                                        alignSelf: { xs: 'flex-start', md: 'center' },
+                                    }}
                                 >
                                     Tiếp tục nhập
                                 </Button>
