@@ -25,6 +25,7 @@ import {
     importBatchStatusChipSx,
 } from '../../import-batch/utils/batchTypeLabels';
 import { ROUTES } from '../../../constants/routes';
+import { ImportBatchProgressBar } from '../../import-batch/components/ImportBatchProgressBar';
 
 const IMPORT_BATCH_DETAIL_PERMISSIONS = [
     PERMISSIONS.IMPORT_BATCH.VIEW,
@@ -36,6 +37,7 @@ type ImportBatchSelectionCardProps = {
     batch?: ImportBatch | null;
     isLoading?: boolean;
     selectedBatchId?: string;
+    resolveStationName?: (stationId: number) => string;
 };
 
 const resolveLineCount = (batch: ImportBatch) =>
@@ -45,6 +47,7 @@ export const ImportBatchSelectionCard = ({
     batch,
     isLoading,
     selectedBatchId,
+    resolveStationName,
 }: ImportBatchSelectionCardProps) => {
     const navigate = useNavigate();
     if (isLoading || (selectedBatchId && !batch)) {
@@ -61,6 +64,7 @@ export const ImportBatchSelectionCard = ({
                 <Skeleton width="45%" height={28} />
                 <Skeleton width="70%" sx={{ mt: 1 }} />
                 <Skeleton width="55%" sx={{ mt: 1 }} />
+                <Skeleton width="100%" height={40} sx={{ mt: 2, borderRadius: 1 }} />
             </Box>
         );
     }
@@ -142,6 +146,8 @@ export const ImportBatchSelectionCard = ({
                 <InfoItem label="SL khai báo" value={String(declaredQty)} />
                 <InfoItem label="SL đã nhập" value={String(importedQty)} />
             </Box>
+
+            <ImportBatchProgressBar batch={batch} resolveStationName={resolveStationName} />
         </Box>
     );
 };

@@ -54,3 +54,102 @@ export const createImportBatchSchema = z
 
 export type CreateImportBatchFormValues = z.infer<typeof createImportBatchSchema>;
 export type CreateImportBatchLineFormValues = z.infer<typeof importBatchLineSchema>;
+
+const updateImportBatchLineSchema = z
+    .object({
+        id: z.number().optional(),
+        lotteryStationId: z.coerce.number().optional(),
+        declareQuantity: z.coerce.number().optional(),
+        importCost: z.coerce.number().optional(),
+        resolvedBatchType: z
+            .enum(['NEW', 'SUPPLEMENTARY', 'LATE_IMPORT', 'ADJUSTMENT'])
+            .optional(),
+        status: z.enum(['OPEN', 'IMPORTING', 'IMPORTED']).optional(),
+        readOnly: z.boolean().optional(),
+        removed: z.boolean().optional(),
+        stationName: z.string().optional(),
+    })
+    .superRefine((line, ctx) => {
+        if (line.removed) {
+            return;
+        }
+
+        if (!line.lotteryStationId || line.lotteryStationId < 1) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Vui lòng chọn nhà đài',
+                path: ['lotteryStationId'],
+            });
+        }
+
+        if (!line.declareQuantity || line.declareQuantity < 1) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Số lượng khai báo phải lớn hơn 0',
+                path: ['declareQuantity'],
+            });
+        }
+
+        if (line.importCost == null || line.importCost < 0.01) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Giá vốn phải lớn hơn 0',
+                path: ['importCost'],
+            });
+        }
+    });
+
+export const updateImportBatchSchema = z
+    .object({
+        supplierId: z.coerce.number().min(1, 'Vui lòng chọn nhà cung cấp'),
+        invoiceEvidenceUrl: z.string().optional(),
+        importMode: z.enum(['IN_DAY', 'POST_DRAW_SUPPLEMENT']),
+        drawDate: z.string().min(1),
+        lines: z.array(updateImportBatchLineSchema).min(1, 'Phải có ít nhất một dòng nhập lô'),
+    })
+    .superRefine((data, ctx) => {
+        const activeLines = data.lines.filter((line) => !line.removed);
+        if (activeLines.length < 1) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Phải giữ lại ít nhất một dòng nhập lô.',
+                path: ['lines'],
+            });
+            return;
+        }
+
+        const stationIds = new Set<number>();
+        let requiresInvoice = false;
+
+        activeLines.forEach((line) => {
+            const lineIndex = data.lines.indexOf(line);
+            if (stationIds.has(line.lotteryStationId)) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'Mỗi nhà đài chỉ được xuất hiện một lần trong phiếu.',
+                    path: ['lines', lineIndex, 'lotteryStationId'],
+                });
+            }
+            stationIds.add(line.lotteryStationId);
+
+            const type = line.resolvedBatchType as ImportBatchType | undefined;
+            if (data.importMode === 'IN_DAY' && (type === 'NEW' || type === 'LATE_IMPORT')) {
+                requiresInvoice = true;
+            }
+        });
+
+        if (
+            data.importMode === 'IN_DAY' &&
+            requiresInvoice &&
+            !data.invoiceEvidenceUrl?.trim()
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Vui lòng tải lên ảnh biên lai.',
+                path: ['invoiceEvidenceUrl'],
+            });
+        }
+    });
+
+export type UpdateImportBatchFormValues = z.infer<typeof updateImportBatchSchema>;
+export type UpdateImportBatchLineFormValues = z.infer<typeof updateImportBatchLineSchema>;

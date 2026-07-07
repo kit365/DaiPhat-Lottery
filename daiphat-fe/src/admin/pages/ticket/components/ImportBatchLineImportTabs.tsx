@@ -3,7 +3,6 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import {
     Box,
     Fab,
-    LinearProgress,
     Paper,
     Stack,
     Tab,
@@ -22,6 +21,11 @@ import {
     formatImportBatchLineCode,
     importBatchCodeMonospaceSx,
 } from '../../import-batch/utils/importBatchCode';
+import {
+    getLineImportProgress,
+    getLineStationColor,
+} from '../../ticket/utils/importBatchProgress';
+import { TicketImportProgressTrack } from '../../import-batch/components/TicketImportProgressTrack';
 import { CreateTicketFormValues } from '../../../schemas/ticket.schema';
 import { TicketNumberSectionBlock } from './TicketNumberSectionBlock';
 import { TicketNumberLengthRules } from '../utils/ticketNumberValidation';
@@ -47,14 +51,6 @@ type ImportBatchLineImportTabsProps = {
     remainingSerialQuota?: number;
 };
 
-const lineProgress = (line: ImportBatchLine) => {
-    const imported = line.totalQuantity ?? 0;
-    const declared = line.declareQuantity ?? 0;
-    const percent = declared > 0 ? Math.min(100, Math.round((imported / declared) * 100)) : 0;
-    const isComplete = declared > 0 && imported >= declared;
-    return { imported, declared, percent, isComplete };
-};
-
 export const ImportBatchLineImportTabs = ({
     lines,
     activeLineId,
@@ -77,9 +73,13 @@ export const ImportBatchLineImportTabs = ({
 }: ImportBatchLineImportTabsProps) => {
     const { isSubmitted } = useFormState({ control });
     const activeLine = lines.find((line) => String(line.id) === String(activeLineId));
-    const activeProgress = activeLine ? lineProgress(activeLine) : null;
+    const activeProgress = activeLine ? getLineImportProgress(activeLine) : null;
+    const activeStationColors = activeLine ? getLineStationColor(lines, activeLine) : null;
     const canImport =
-        batchStatus === 'DRAFT' && !!activeLine && activeProgress && !activeProgress.isComplete;
+        (batchStatus === 'DRAFT' || batchStatus === 'RECEIVING') &&
+        !!activeLine &&
+        activeProgress &&
+        !activeProgress.isComplete;
 
     const activeTabIndex = Math.max(
         0,
@@ -111,12 +111,23 @@ export const ImportBatchLineImportTabs = ({
                 }}
             >
                 {lines.map((line) => {
-                    const { imported, declared, isComplete } = lineProgress(line);
+                    const { imported, declared, isComplete } = getLineImportProgress(line);
+                    const stationColor = getLineStationColor(lines, line);
                     return (
                         <Tab
                             key={line.id}
                             label={
                                 <Stack direction="row" spacing={0.75} alignItems="center">
+                                    <Box
+                                        component="span"
+                                        sx={{
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: '50%',
+                                            bgcolor: stationColor.main,
+                                            flexShrink: 0,
+                                        }}
+                                    />
                                     <span>{resolveStationName(line.lotteryStationId)}</span>
                                     {isComplete && (
                                         <CheckCircleOutlineIcon
@@ -139,7 +150,7 @@ export const ImportBatchLineImportTabs = ({
                 })}
             </Tabs>
 
-            {activeLine && activeProgress && (
+            {activeLine && activeProgress && activeStationColors && (
                 <Box sx={{ p: 2.5 }}>
                     <Stack
                         direction={{ xs: 'column', md: 'row' }}
@@ -158,14 +169,16 @@ export const ImportBatchLineImportTabs = ({
                                     Tiến độ nhập vé
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    {activeProgress.imported} / {activeProgress.declared}
+                                    {activeProgress.imported.toLocaleString('vi-VN')} /{' '}
+                                    {activeProgress.declared.toLocaleString('vi-VN')} vé
                                 </Typography>
                             </Stack>
-                            <LinearProgress
-                                variant="determinate"
-                                value={activeProgress.percent}
-                                color={activeProgress.isComplete ? 'success' : 'warning'}
-                                sx={{ height: 8, borderRadius: 1 }}
+                            <TicketImportProgressTrack
+                                imported={activeProgress.imported}
+                                declared={activeProgress.declared}
+                                color={activeStationColors.main}
+                                trackColor={activeStationColors.track}
+                                ariaLabel={`Tiến độ nhập vé ${resolveStationName(activeLine.lotteryStationId)}`}
                             />
                             {quotaHint && (
                                 <Typography

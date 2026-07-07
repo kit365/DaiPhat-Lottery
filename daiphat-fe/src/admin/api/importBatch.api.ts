@@ -16,7 +16,7 @@ const withAuth = () => {
 };
 
 export type ImportBatchType = 'NEW' | 'SUPPLEMENTARY' | 'LATE_IMPORT' | 'ADJUSTMENT';
-export type ImportBatchStatus = 'DRAFT' | 'CANCELLED' | 'IMPORTED' | 'IN_LEDGER';
+export type ImportBatchStatus = 'DRAFT' | 'RECEIVING' | 'CANCELLED' | 'IMPORTED' | 'IN_LEDGER';
 export type ImportBatchLineStatus = 'OPEN' | 'IMPORTING' | 'IMPORTED';
 
 export interface ImportBatchLine {
@@ -59,6 +59,20 @@ export interface ImportBatch {
     importedAt?: string;
     createdAt?: string;
     updatedAt?: string;
+}
+
+export interface UpdateImportBatchLinePayload {
+    id?: number;
+    lotteryStationId: number;
+    declareQuantity: number;
+    importCost: number;
+    removed?: boolean;
+}
+
+export interface UpdateImportBatchPayload {
+    supplierId: number;
+    invoiceEvidenceUrl?: string;
+    lines: UpdateImportBatchLinePayload[];
 }
 
 export interface CreateImportBatchLinePayload {
@@ -151,6 +165,17 @@ export const createImportBatch = async (
     return response.data;
 };
 
+export const updateImportBatch = async (
+    id: number | string,
+    payload: UpdateImportBatchPayload
+): Promise<ApiResponse<ImportBatch>> => {
+    const response = await apiApp.put(`${BASE_URL}/${id}`, payload, {
+        ...withAuth(),
+        skipGlobalErrorToast: true,
+    });
+    return response.data;
+};
+
 export interface ImportBatchTimePolicy {
     lateImportTime: string;
     importBatchCutoffTime: string;
@@ -163,11 +188,16 @@ export const getImportBatchTimePolicy = async (): Promise<ApiResponse<ImportBatc
 
 export const getEligibleImportBatchStations = async (
     drawDate: string,
-    importMode: ImportBatchImportMode
+    importMode: ImportBatchImportMode,
+    excludeBatchId?: number | string
 ): Promise<ApiResponse<ImportBatchEligibleStationsResult>> => {
     const response = await apiApp.get(`${BASE_URL}/eligible-stations`, {
         ...withAuth(),
-        params: { drawDate, importMode },
+        params: {
+            drawDate,
+            importMode,
+            ...(excludeBatchId != null ? { excludeBatchId } : {}),
+        },
     });
     return response.data;
 };
@@ -175,11 +205,18 @@ export const getEligibleImportBatchStations = async (
 export const previewImportBatchClassification = async (
     lotteryStationId: number,
     drawDate: string,
-    importMode: ImportBatchImportMode
+    importMode: ImportBatchImportMode,
+    excludeBatchId?: number | string
 ): Promise<ApiResponse<ImportBatchClassificationPreview>> => {
     const response = await apiApp.get(`${BASE_URL}/classify-preview`, {
         ...withAuth(),
-        params: { lotteryStationId, drawDate, importMode },
+        skipGlobalErrorToast: true,
+        params: {
+            lotteryStationId,
+            drawDate,
+            importMode,
+            ...(excludeBatchId != null ? { excludeBatchId } : {}),
+        },
     });
     return response.data;
 };
@@ -190,6 +227,14 @@ export const getIncompleteImportBatches = async (): Promise<ImportBatch[]> => {
         skipGlobalErrorToast: true,
     });
     return response.data?.data ?? [];
+};
+
+export const deleteImportBatchLine = async (
+    batchId: number | string,
+    lineId: number | string
+): Promise<ApiResponse<ImportBatch>> => {
+    const response = await apiApp.delete(`${BASE_URL}/${batchId}/lines/${lineId}`, withAuth());
+    return response.data;
 };
 
 export const getImportBatchTypeOptions = async (): Promise<ApiResponse<{ value: string; label: string }[]>> => {
