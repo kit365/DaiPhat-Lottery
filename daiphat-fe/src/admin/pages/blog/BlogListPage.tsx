@@ -4,23 +4,20 @@ import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { prefixAdmin } from "../../constants/routes";
 import { useNavigate } from "react-router-dom";
-import { Box, Card, Tabs, Tab, styled, ToggleButtonGroup, ToggleButton, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
-import GridViewIcon from '@mui/icons-material/GridView';
-import ViewListIcon from '@mui/icons-material/ViewList';
-import FolderIcon from '@mui/icons-material/Folder';
-import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
+import { Box, Card, Tabs, Tab, styled,  } from "@mui/material";
 import { Search } from "../../components/ui/Search";
 import { SelectSingle } from "../../components/ui/SelectSingle";
 import { BlogList } from "./sections/BlogList";
-import { useBlogs, useBlogTypes } from "./hooks/useBlog";
-import { useNestedBlogCategories } from "../blog-category/hooks/useBlogCategory";
+import { BlogToolbar } from "./sections/BlogToolbar";
+import { useBlogs, useBlogTypes } from "../../hooks/useBlog";
+import { useNestedBlogCategories } from "../../hooks/useBlogCategory";
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { CanAccess } from "../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../constants/permission.constants";
 
 import { getTabBadgeStyles } from "../../utils/badge";
-import { BLOG_STATUS } from "../../../types/blogs.type";
+import { BLOG_STATUS } from "../../../types/blog.type";
 
 // Styled component cho con số (Badge nhãn)
 const TabBadge = styled('span')(() => ({
@@ -68,38 +65,28 @@ export const BlogListPage = () => {
     const { data: nestedCategories } = useNestedBlogCategories();
     const { data: blogTypes } = useBlogTypes();
 
+    
+    const categoryOptions = useMemo(() => {
+        const flatten = (nodes: any[], level = 0): any[] => {
+            if (!nodes) return [];
+            return nodes.filter(n => n && n.id != null).flatMap(n => {
+                const prefix = '-'.repeat(level);
+                return [
+                    { value: String(n.id), label: `${prefix ? prefix + ' ' : ''}${n.name || n.label}` },
+                    ...flatten(n.children, level + 1)
+                ];
+            });
+        };
+        return flatten(nestedCategories || []);
+    }, [nestedCategories]);
+
     const typeOptions = useMemo(() => {
         const base = [{ value: '', label: 'Tất cả loại' }];
         if (!blogTypes) return base;
         return [...base, ...blogTypes.map(t => ({ value: t.code, label: t.name }))];
     }, [blogTypes]);
 
-    /** Render đệ quy MenuItem dạng cây cho dropdown danh mục */
-    const renderCategoryTree = (nodes: any[], level = 0): React.ReactNode[] => {
-        if (!nodes) return [];
-        return nodes.filter(n => n && n.id != null).flatMap(node => [
-            <MenuItem
-                key={node.id}
-                value={String(node.id)}
-                sx={{
-                    pl: 2 + level * 2,
-                    py: '6px',
-                    fontSize: '0.875rem',
-                    fontWeight: level === 0 ? 600 : 400,
-                    gap: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                }}
-            >
-                {level === 0
-                    ? <FolderIcon sx={{ fontSize: 16, color: 'var(--palette-text-disabled)', flexShrink: 0 }} />
-                    : <SubdirectoryArrowRightIcon sx={{ fontSize: 14, color: 'var(--palette-text-disabled)', flexShrink: 0 }} />
-                }
-                {node.name || node.label}
-            </MenuItem>,
-            ...renderCategoryTree(node.children || [], level + 1),
-        ]);
-    };
+    
 
     const statusFromTab =
         tabStatus === 1 ? BLOG_STATUS.PUBLISHED :
@@ -256,130 +243,29 @@ export const BlogListPage = () => {
                         />
                     </Tabs>
 
-                <Box sx={{ p: "calc(2 * var(--spacing))", display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Box sx={{ flex: 1, minWidth: 240 }}>
-                        <Search
-                            placeholder="Tìm kiếm bài viết..."
-                            value={search}
-                            onChange={(val) => { setSearch(val); setPage(1); }}
-                            maxWidth="100%"
-                        />
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                        {/* Filter danh mục – dạng cây */}
-                        <FormControl sx={{ minWidth: 180 }}>
-                            {!!categoryId && (
-                                <InputLabel
-                                    sx={{
-                                        fontSize: '0.9375rem',
-                                        color: '#637381',
-                                        "&.MuiInputLabel-shrink": {
-                                            color: '#919eab',
-                                            fontWeight: 600,
-                                        },
-                                    }}
-                                    shrink
-                                >
-                                    Danh mục
-                                </InputLabel>
-                            )}
-                            <Select
-                                value={categoryId}
-                                label={categoryId ? "Danh mục" : undefined}
-                                onChange={(e) => { setCategoryId(e.target.value); setPage(1); }}
-                                displayEmpty
-                                notched={!!categoryId}
-                                MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
-                                renderValue={(selected) => {
-                                    if (!selected) {
-                                        return (
-                                            <span style={{
-                                                color: '#637381',
-                                                fontSize: '0.9375rem',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                height: '100%',
-                                            }}>
-                                                Danh mục
-                                            </span>
-                                        );
-                                    }
-                                    const findCategoryName = (nodes: any[], id: string): string => {
-                                        if (!nodes) return "";
-                                        for (const node of nodes) {
-                                            if (node && String(node.id) === id) return node.name || node.label;
-                                            if (node && node.children) {
-                                                const found = findCategoryName(node.children, id);
-                                                if (found) return found;
-                                            }
-                                        }
-                                        return "";
-                                    };
-                                    return findCategoryName(nestedCategories || [], selected) || selected;
-                                }}
-                                sx={{
-                                    fontSize: '0.9375rem',
-                                    borderRadius: '8px',
-                                    '& .MuiSelect-select': { display: 'flex', alignItems: 'center' },
-                                }}
-                            >
-                                <MenuItem value="" sx={{ fontSize: '0.875rem', fontStyle: 'italic', color: 'var(--palette-text-secondary)' }}>
-                                    Tất cả danh mục
-                                </MenuItem>
-                                {renderCategoryTree(nestedCategories || [])}
-                            </Select>
-                        </FormControl>
-                        {/* Filter loại bài */}
-                        <SelectSingle
-                            label="Loại bài"
-                            options={typeOptions}
-                            value={type}
-                            onChange={(val) => { setType(val); setPage(1); }}
-                            sx={{ minWidth: 140 }}
-                        />
-                        {/* Sort */}
-                        <SelectSingle
-                            label="Sắp xếp"
-                            options={sortOptions}
-                            value={sortBy}
-                            onChange={(val) => { setSortBy(val); setPage(1); }}
-                            sx={{ minWidth: 140 }}
-                        />
-                        <ToggleButtonGroup
-                            value={viewMode}
-                            exclusive
-                            onChange={(_, value) => { if (value !== null) setViewMode(value); }}
-                            size="small"
-                            sx={{
-                                border: 'none',
-                                '& .MuiToggleButton-root': {
-                                    border: 'none',
-                                    borderRadius: '8px !important',
-                                    color: 'var(--palette-text-disabled)',
-                                    p: '6px',
-                                    mx: '2px',
-                                    '&.Mui-selected': {
-                                        color: 'var(--palette-text-primary)',
-                                        bgcolor: 'rgba(145, 158, 171, 0.16)',
-                                        '&:hover': {
-                                            bgcolor: 'rgba(145, 158, 171, 0.24)',
-                                        }
-                                    }
-                                }
-                            }}
-                        >
-                            <ToggleButton value="grid" aria-label="Xem lưới">
-                                <GridViewIcon fontSize="small" />
-                            </ToggleButton>
-                            <ToggleButton value="list" aria-label="Xem danh sách">
-                                <ViewListIcon fontSize="small" />
-                            </ToggleButton>
-                        </ToggleButtonGroup>
-                    </Box>
-                </Box>
-
-            </Card>
+                <BlogToolbar
+                    search={search}
+                    onSearchChange={(val) => { setSearch(val); setPage(1); }}
+                    filters={{ categoryId, type }}
+                    onFilterChange={(fieldId, values) => {
+                        const val = values.length > 0 ? values[0] : "";
+                        if (fieldId === 'categoryId') setCategoryId(val);
+                        if (fieldId === 'type') setType(val);
+                        setPage(1);
+                    }}
+                    onClearFilters={() => {
+                        setCategoryId("");
+                        setType("");
+                        setPage(1);
+                    }}
+                    sortByUI={sortBy}
+                    onSortChange={(val) => { setSortBy(val); setPage(1); }}
+                    categoryOptions={categoryOptions}
+                    typeOptions={typeOptions}
+                    viewMode={viewMode}
+                    onViewModeChange={setViewMode}
+                />
+</Card>
 
             <BlogList
                 blogs={blogs}

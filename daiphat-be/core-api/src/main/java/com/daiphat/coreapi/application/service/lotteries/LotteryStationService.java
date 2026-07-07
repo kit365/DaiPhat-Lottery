@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryStationSourcePreviewItem;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryStationSourcePreviewResult;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
+import com.daiphat.coreapi.application.event.LotteryStationChangedEvent;
 import com.daiphat.coreapi.application.event.LotteryStationDrawReminderEvent;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryStationApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
@@ -92,6 +93,7 @@ public class LotteryStationService implements LotteryStationServicePort {
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         increaseRegionStationCount(saved.getRegion());
         log.info("Lottery product created with id: {}", saved.getId());
+        publishStationChanged(saved.getId());
 
         return lotteryStationApplicationMapper.toResponse(saved);
     }
@@ -220,10 +222,17 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
-    public List<LotteryStationSchedulePublicResponse> getPublicSchedule(String region) {
+    public List<LotteryStationSchedulePublicResponse> getPublicSchedule(
+            String region,
+            Long stationId,
+            List<Long> stationIds,
+            LocalDate drawDate
+    ) {
         return lotteryStationRepositoryPort.findAll().stream()
                 .filter(this::isActiveStation)
                 .filter(model -> matchesRegion(model, region))
+                .filter(model -> matchesStationIds(model, stationId, stationIds))
+                .filter(model -> matchesDrawDate(model, drawDate))
                 .map(this::sortDrawDays)
                 .sorted(this::comparePublicSchedule)
                 .map(lotteryStationApplicationMapper::toSchedulePublicResponse)
@@ -278,6 +287,7 @@ public class LotteryStationService implements LotteryStationServicePort {
 
         recalculateInventory(saved);
         log.info("Lottery product updated with id: {}", saved.getId());
+        publishStationChanged(saved.getId());
 
         return lotteryStationApplicationMapper.toResponse(saved);
     }
@@ -293,6 +303,26 @@ public class LotteryStationService implements LotteryStationServicePort {
         return model.getRegion() != null
                 && model.getRegion().region() != null
                 && model.getRegion().region().equalsIgnoreCase(region.trim());
+    }
+
+    private boolean matchesStationIds(LotteryStationModel model, Long stationId, List<Long> stationIds) {
+        if (stationIds != null && !stationIds.isEmpty()) {
+            return stationIds.contains(model.getId());
+        }
+        if (stationId != null) {
+            return stationId.equals(model.getId());
+        }
+        return true;
+    }
+
+    private boolean matchesDrawDate(LotteryStationModel model, LocalDate drawDate) {
+        if (drawDate == null) {
+            return true;
+        }
+        if (model.getDrawDays() == null || model.getDrawDays().isEmpty()) {
+            return false;
+        }
+        return model.getDrawDays().contains(drawDate.getDayOfWeek());
     }
 
     private LotteryStationModel sortDrawDays(LotteryStationModel model) {
@@ -408,6 +438,10 @@ public class LotteryStationService implements LotteryStationServicePort {
             items.add(buildSyncItem(updated, canonicalName, SyncAction.UPDATED, updateNote));
         }
 
+        if (createdCount > 0 || updatedCount > 0) {
+            publishStationChanged(null);
+        }
+
         return LotteryStationSyncResponse.builder()
                 .source(preview.source())
                 .requestUrl(preview.requestUrl())
@@ -419,6 +453,10 @@ public class LotteryStationService implements LotteryStationServicePort {
                 .warnings(List.of())
                 .items(items)
                 .build();
+    }
+
+    private void publishStationChanged(Long stationId) {
+        eventPublisher.publishEvent(LotteryStationChangedEvent.builder().stationId(stationId).build());
     }
 
     @Override

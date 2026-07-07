@@ -12,7 +12,7 @@ import { useGetBankAccounts } from '../../hooks/useBankAccount';
 import { useCreateOrderRefund, useGetOrderRefundEligibility } from '../../hooks/useRefund';
 import { useRefundCountdown } from '../../hooks/useRefundCountdown';
 import { BankAccountFormModal } from './BankAccountFormModal';
-import { AppToast } from '../../utils/toast.util';
+import { AppToast } from '../../../utils/toast.util';
 
 interface RefundRequestModalProps {
     isOpen: boolean;

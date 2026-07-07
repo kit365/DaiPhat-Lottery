@@ -102,6 +102,14 @@ export const menuManagementData = [
         permission: PERMISSIONS.REFUND.VIEW,
     },
     {
+        id: "chat",
+        label: "Chat & Hỗ trợ",
+        tKey: "admin.sidebar.chat",
+        Icon: ChatIcon,
+        path: ROUTES.ADMIN.CHAT,
+        permission: PERMISSIONS.CHAT.VIEW
+    },
+    {
         id: "support-tickets",
         label: "Khiếu nại / Hỗ trợ",
         Icon: ChatIcon,
@@ -143,14 +151,6 @@ export const menuDevelopmentData = [
         Icon: RateReviewIcon,
         path: ROUTES.ADMIN.REVIEWS,
         permission: PERMISSIONS.REVIEW.VIEW
-    },
-    {
-        id: "chat",
-        label: "Hỗ trợ trực tuyến",
-        tKey: "admin.sidebar.chat",
-        Icon: ChatIcon,
-        path: ROUTES.ADMIN.CHAT,
-        permission: PERMISSIONS.CHAT.VIEW
     },
 
     {

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BLOG_STATUS } from "../../types/blogs.type";
+import { BLOG_STATUS } from "../../types/blog.type";
 
 export const createBlogSchema = z.object({
     name: z

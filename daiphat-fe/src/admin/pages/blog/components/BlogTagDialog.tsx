@@ -16,8 +16,8 @@ import {
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Delete as DeleteIcon, Close as CloseIcon } from "@mui/icons-material";
-import { useBlogTags, useCreateBlogTag, useDeleteBlogTag } from "../hooks/useBlog";
-import { toast } from "react-toastify";
+import { useBlogTags, useCreateBlogTag, useDeleteBlogTag } from "../../../hooks/useBlogTag";
+import { AppToast as toast } from '../../../../utils/toast.util';
 import { confirmDelete } from "../../../utils/swal";
 
 interface BlogTagDialogProps {

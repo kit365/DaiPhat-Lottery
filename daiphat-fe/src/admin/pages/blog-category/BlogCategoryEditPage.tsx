@@ -1,20 +1,19 @@
-import { Box, MenuItem, Stack, TextField, ThemeProvider, useTheme, CircularProgress, Typography } from "@mui/material";
+import { Box, MenuItem, Stack, TextField, CircularProgress, Typography } from "@mui/material";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { Title } from "../../components/ui/Title";
 import { Tiptap } from "../../components/layouts/titap/Tiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
-import { useBlogCategoryDetail, useNestedBlogCategories, useUpdateBlogCategory, useBlogCategoryStatuses } from "./hooks/useBlogCategory";
+import { useBlogCategoryDetail, useNestedBlogCategories, useUpdateBlogCategory, useBlogCategoryStatuses } from "../../hooks/useBlogCategory";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { createCategorySchema, CreateCategoryFormValues } from "../../schemas/blog-category.schema";
-import { getBlogCategoryTheme } from "./configs/theme";
 import { prefixAdmin } from "../../constants/routes";
 import { FormUploadSingleFile } from "../../components/upload/FormUploadSingleFile";
 import { toast } from "react-toastify";
 import { CategoryParentSelect } from "../../components/ui/CategoryTreeSelect";
-import { uploadBlogImage } from "../../api/blog.api";
+import { uploadBlogImage } from "../../services/blog.service";
 import { useParams } from "react-router-dom";
 import dayjs from "dayjs";
 
@@ -25,9 +24,6 @@ export const BlogCategoryEditPage = () => {
 
     const toggle = (setter: Dispatch<SetStateAction<boolean>>) =>
         () => setter(prev => !prev);
-
-    const outerTheme = useTheme();
-    const localTheme = getBlogCategoryTheme(outerTheme);
 
     const { data: detailRes, isLoading: isLoadingDetail } = useBlogCategoryDetail(id);
     const { data: nestedCategories = [] } = useNestedBlogCategories();
@@ -134,120 +130,118 @@ export const BlogCategoryEditPage = () => {
                 </div>
             </div>
 
-            <ThemeProvider theme={localTheme}>
-                <form onSubmit={handleSubmit(onSubmit)}>
-                    <Stack sx={{ margin: "0px calc(15 * var(--spacing))", gap: "calc(5 * var(--spacing))" }}>
-                        <CollapsibleCard
-                            title="Chi tiết"
-                            subheader="Cập nhật tiêu đề, mô tả và hình ảnh danh mục"
-                            expanded={expandedDetail}
-                            onToggle={toggle(setExpandedDetail)}
-                        >
-                            <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
-                                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))" }}>
-                                    <Controller
-                                        name="name"
-                                        control={control}
-                                        render={({ field, fieldState }) => (
-                                            <TextField
-                                                {...field}
-                                                label="Tên danh mục"
-                                                error={!!fieldState.error}
-                                                helperText={fieldState.error?.message}
-                                                fullWidth
-                                            />
-                                        )}
-                                    />
-                                    <CategoryParentSelect
-                                        control={control}
-                                        categories={nestedCategories}
-                                        excludedId={id}
-                                    />
-                                </Box>
-
+            <form onSubmit={handleSubmit(onSubmit)}>
+                <Stack sx={{ margin: "0px calc(15 * var(--spacing))", gap: "calc(5 * var(--spacing))" }}>
+                    <CollapsibleCard
+                        title="Chi tiết"
+                        subheader="Cập nhật tiêu đề, mô tả và hình ảnh danh mục"
+                        expanded={expandedDetail}
+                        onToggle={toggle(setExpandedDetail)}
+                    >
+                        <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
+                            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))" }}>
                                 <Controller
-                                    name="description"
+                                    name="name"
                                     control={control}
-                                    render={({ field }) => (
-                                        <Tiptap
-                                            value={field.value ?? ""}
-                                            onChange={field.onChange}
+                                    render={({ field, fieldState }) => (
+                                        <TextField
+                                            {...field}
+                                            label="Tên danh mục"
+                                            error={!!fieldState.error}
+                                            helperText={fieldState.error?.message}
+                                            fullWidth
                                         />
                                     )}
                                 />
-
-                                <FormUploadSingleFile
-                                    name="avatar"
+                                <CategoryParentSelect
                                     control={control}
-                                    useRawFile={true}
+                                    categories={nestedCategories}
+                                    excludedId={id}
                                 />
-                            </Stack>
-                        </CollapsibleCard>
+                            </Box>
 
-                        {detailRes && (
-                            <CollapsibleCard
-                                title="Lịch sử hệ thống"
-                                subheader="Thông tin khởi tạo và cập nhật danh mục"
-                                expanded={expandedHistory}
-                                onToggle={toggle(setExpandedHistory)}
-                            >
-                                <Stack p="calc(3 * var(--spacing))" gap="calc(2.5 * var(--spacing))">
-                                    <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center' }}>
-                                        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Người tạo:</Typography>
-                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>{detailRes.createdBy || 'SYSTEM'}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center' }}>
-                                        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Thời gian tạo:</Typography>
-                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                            {detailRes.createdAt ? dayjs(detailRes.createdAt).format('DD/MM/YYYY HH:mm:ss') : '--'}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center' }}>
-                                        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Người sửa cuối:</Typography>
-                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>{detailRes.lastModifiedBy || 'SYSTEM'}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center' }}>
-                                        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Thời gian sửa cuối:</Typography>
-                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                                            {detailRes.updatedAt ? dayjs(detailRes.updatedAt).format('DD/MM/YYYY HH:mm:ss') : '--'}
-                                        </Typography>
-                                    </Box>
-                                </Stack>
-                            </CollapsibleCard>
-                        )}
-
-                        <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center" }}>
                             <Controller
-                                name="status"
+                                name="description"
                                 control={control}
-                                render={({ field, fieldState }) => (
-                                    <TextField
-                                        select
-                                        label="Trạng thái"
-                                        {...field}
-                                        error={!!fieldState.error}
-                                        helperText={fieldState.error?.message}
-                                        sx={{ minWidth: 150 }}
-                                    >
-                                        {statuses.map((opt) => (
-                                            <MenuItem key={opt.value} value={opt.value}>
-                                                {opt.label}
-                                            </MenuItem>
-                                        ))}
-                                    </TextField>
+                                render={({ field }) => (
+                                    <Tiptap
+                                        value={field.value ?? ""}
+                                        onChange={field.onChange}
+                                    />
                                 )}
                             />
 
-                            <LoadingButton
-                                type="submit"
-                                loading={isUpdating || isUploading}
-                                label="Cập nhật danh mục"
-                                loadingLabel="Đang cập nhật..."
+                            <FormUploadSingleFile
+                                name="avatar"
+                                control={control}
+                                useRawFile={true}
                             />
-                        </Box>
-                    </Stack>
-                </form>
-            </ThemeProvider>
+                        </Stack>
+                    </CollapsibleCard>
+
+                    {detailRes && (
+                        <CollapsibleCard
+                            title="Lịch sử hệ thống"
+                            subheader="Thông tin khởi tạo và cập nhật danh mục"
+                            expanded={expandedHistory}
+                            onToggle={toggle(setExpandedHistory)}
+                        >
+                            <Stack p="calc(3 * var(--spacing))" gap="calc(2.5 * var(--spacing))">
+                                <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center' }}>
+                                    <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Người tạo:</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>{detailRes.createdBy || 'SYSTEM'}</Typography>
+                                </Box>
+                                <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center' }}>
+                                    <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Thời gian tạo:</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                        {detailRes.createdAt ? dayjs(detailRes.createdAt).format('DD/MM/YYYY HH:mm:ss') : '--'}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center' }}>
+                                    <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Người sửa cuối:</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>{detailRes.lastModifiedBy || 'SYSTEM'}</Typography>
+                                </Box>
+                                <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '8px', alignItems: 'center' }}>
+                                    <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>Thời gian sửa cuối:</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                        {detailRes.updatedAt ? dayjs(detailRes.updatedAt).format('DD/MM/YYYY HH:mm:ss') : '--'}
+                                    </Typography>
+                                </Box>
+                            </Stack>
+                        </CollapsibleCard>
+                    )}
+
+                    <Box gap="calc(3 * var(--spacing))" sx={{ display: "flex", alignItems: "center" }}>
+                        <Controller
+                            name="status"
+                            control={control}
+                            render={({ field, fieldState }) => (
+                                <TextField
+                                    select
+                                    label="Trạng thái"
+                                    {...field}
+                                    error={!!fieldState.error}
+                                    helperText={fieldState.error?.message}
+                                    sx={{ minWidth: 150 }}
+                                >
+                                    {statuses.map((opt) => (
+                                        <MenuItem key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            )}
+                        />
+
+                        <LoadingButton
+                            type="submit"
+                            loading={isUpdating || isUploading}
+                            label="Cập nhật danh mục"
+                            loadingLabel="Đang cập nhật..."
+                        />
+                    </Box>
+                </Stack>
+            </form>
         </>
     );
 };

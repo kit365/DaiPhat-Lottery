@@ -26,7 +26,7 @@ import { useShifts } from '../hooks/useShifts';
 import { useAccounts } from '../../account-admin/hooks/useAccountAdmin';
 import { useSchedules } from '../hooks/useSchedules';
 import { useTicketServiceOrderConfig } from '../../ticket-service-order/hooks/useTicketServiceOrderConfig';
-import { useRoles } from '../../role/hooks/useRole';
+import { useRoles } from '../../../hooks/useRole';
 import CloseIcon from '@mui/icons-material/Close';
 import { dialogStyles } from '../configs/styles.config';
 import { Icon } from '@iconify/react';
