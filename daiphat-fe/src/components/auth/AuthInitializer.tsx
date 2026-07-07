@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { STORAGE_KEYS } from "../../constants/storage.constants";
 import { useAuthStore } from "../../stores/useAuthStore";
+import { useAuth } from "../../admin/pages/authen/hooks/useAuth";
 
 /**
  * AuthInitializer component
@@ -8,6 +9,7 @@ import { useAuthStore } from "../../stores/useAuthStore";
  * It uses the useAuth hook which automatically fetches the user profile if a token exists.
  */
 export const AuthInitializer = () => {
+    useAuth();
     const { isHydrated, user, isProfileSetupModalOpen, openProfileSetupModal } = useAuthStore();
 
     useEffect(() => {

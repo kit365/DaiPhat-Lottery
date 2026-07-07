@@ -50,6 +50,10 @@ export const QUERY_KEYS = {
     IMPORT_BATCH_TIME_POLICY: 'import-batch-time-policy',
     IMPORT_BATCH_INCOMPLETE: 'import-batch-incomplete',
 
+    // Ticket entry drafts
+    TICKET_ENTRY_DRAFTS: 'ticket-entry-drafts',
+    IMPORTED_TICKETS_BY_LINE: 'imported-tickets-by-line',
+
     // Supplier
     SUPPLIERS: 'suppliers',
     SUPPLIER_DETAIL: 'supplier-detail',

@@ -14,15 +14,15 @@ interface Props {
 }
 
 export const PermissionGuard = ({ children, permission, permissions, fallback }: Props) => {
-    const { user, logout, token, isHydrated } = useAuthStore();
-    const { isUserLoading: isLoading, isFetching } = useAuth();
+    const { logout, token, isHydrated } = useAuthStore();
+    const { user, isUserLoading: isLoading, isFetching, isUserPending, isUserError } = useAuth();
 
-    // 1. Nếu CHƯA HYDRATE xong thì tuyệt đối không được làm gì, cứ đứng đợi
     const isReady = isHydrated;
-    
-    // 2. Nếu đã Hydrate (có token) nhưng đang đợi fetch thông tin user mới
-    // Phải chờ cả isLoading (lần đầu) và isFetching (mọi lần reload) để đảm bảo có data mới nhất
-    const isFetchingUser = isReady && !!token && (isLoading || isFetching);
+    const isFetchingUser =
+        isReady &&
+        !!token &&
+        !isUserError &&
+        (isUserPending || isLoading || isFetching);
 
     const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || "");
     const normalizedRole = roleCode.startsWith("ROLE_") ? roleCode : `ROLE_${roleCode}`;
@@ -64,6 +64,13 @@ export const PermissionGuard = ({ children, permission, permissions, fallback }:
         // Nếu là Staff/Admin mà chỉ thiếu quyền con -> Đẩy về Dashboard chứ ko sút Logout
         if (!isOnlyMember && user) {
             return <Navigate to={ROUTES.ADMIN.DASHBOARD.ROOT} replace />;
+        }
+        if (token && !isUserError) {
+            return fallback || (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                    Đang kiểm tra quyền truy cập...
+                </div>
+            );
         }
         return <Navigate to={ROUTES.ADMIN.AUTH.LOGIN} replace />;
     }

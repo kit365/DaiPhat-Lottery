@@ -19,12 +19,12 @@ import LoadingScreen from "../components/ui/LoadingScreen";
 import { ROUTES } from "../constants/routes";
 
 const LayoutAdminContent = () => {
-    const { user, isLoading } = useAuth();
+    const { user, isLoading, isUserPending } = useAuth();
     const location = useLocation();
     const { isOpen } = useSidebar();
 
     // [THE VAULT DOOR] - Chặn đứng mọi nỗ lực xem Dashboard khi chưa setup xong
-    if (isLoading && !user) {
+    if ((isLoading || isUserPending) && !user) {
         return <LoadingScreen />;
     }
 

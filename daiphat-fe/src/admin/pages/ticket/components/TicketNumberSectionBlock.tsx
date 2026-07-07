@@ -37,6 +37,10 @@ import {
     getTicketNumberLengthHint,
     sanitizeTicketNumberInput,
 } from '../utils/ticketNumberValidation';
+import {
+    highlightAndFocusTicketEntryField,
+    type TicketEntryResumeFocus,
+} from '../utils/ticketEntryResume';
 
 type TicketNumberSectionBlockProps = {
     sectionIndex: number;
@@ -49,6 +53,7 @@ type TicketNumberSectionBlockProps = {
     onSerialFieldChange?: (sectionIndex: number, serialIndex: number) => void;
     onRemoveSerial?: (sectionIndex: number, serialIndex: number) => void;
     onNumbersFieldChange?: (sectionIndex: number) => void;
+    resumeFocusTarget?: TicketEntryResumeFocus | null;
 };
 
 export const TicketNumberSectionBlock = ({
@@ -62,6 +67,7 @@ export const TicketNumberSectionBlock = ({
     onSerialFieldChange,
     onRemoveSerial,
     onNumbersFieldChange,
+    resumeFocusTarget,
 }: TicketNumberSectionBlockProps) => {
     const { fields, append, remove } = useFieldArray({
         control,
@@ -88,6 +94,22 @@ export const TicketNumberSectionBlock = ({
             setSerialsExpanded(true);
         }
     }, [sectionSerialMessage]);
+
+    useEffect(() => {
+        if (!resumeFocusTarget || resumeFocusTarget.sectionIndex !== sectionIndex) {
+            return;
+        }
+
+        if (resumeFocusTarget.field === 'serial') {
+            setSerialsExpanded(true);
+        }
+
+        const timer = window.setTimeout(() => {
+            highlightAndFocusTicketEntryField(resumeFocusTarget);
+        }, resumeFocusTarget.field === 'serial' ? 40 : 0);
+
+        return () => window.clearTimeout(timer);
+    }, [resumeFocusTarget, sectionIndex]);
 
     return (
         <Box
