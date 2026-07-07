@@ -3,6 +3,7 @@ import {
     getTickets,
     getCreateTicketData,
     createTicket,
+    bulkCreateTickets,
     getTicketById,
     updateTicket,
     deleteTicket,
@@ -45,7 +46,30 @@ export const useCreateTicket = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: createTicket,
+        mutationFn: (variables: { data: any; skipGlobalErrorToast?: boolean } | any) => {
+            if (variables && typeof variables === 'object' && 'data' in variables) {
+                return createTicket(variables.data, {
+                    skipGlobalErrorToast: variables.skipGlobalErrorToast,
+                });
+            }
+            return createTicket(variables);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tickets'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+        },
+    });
+};
+
+export const useBulkCreateTickets = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (variables: { data: any; skipGlobalErrorToast?: boolean }) =>
+            bulkCreateTickets(variables.data, {
+                skipGlobalErrorToast: variables.skipGlobalErrorToast,
+            }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tickets'] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });

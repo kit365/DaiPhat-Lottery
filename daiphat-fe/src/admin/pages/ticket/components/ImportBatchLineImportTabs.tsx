@@ -1,25 +1,19 @@
 import AddIcon from '@mui/icons-material/Add';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import {
     Box,
-    IconButton,
+    Fab,
     LinearProgress,
     Paper,
     Stack,
     Tab,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     Tabs,
     TextField,
+    Tooltip,
     Typography,
 } from '@mui/material';
 import dayjs from 'dayjs';
-import { Control, Controller, FieldArrayWithId, FieldErrors, UseFieldArrayAppend, UseFieldArrayRemove } from 'react-hook-form';
+import { Control, FieldArrayWithId, FieldErrors, useFormState } from 'react-hook-form';
 import type { ImportBatchLine, ImportBatchStatus } from '../../../api/importBatch.api';
 import { LoadingButton } from '../../../components/ui/LoadingButton';
 import { getBatchTypeLabel } from '../../import-batch/utils/batchTypeLabels';
@@ -29,7 +23,8 @@ import {
     importBatchCodeMonospaceSx,
 } from '../../import-batch/utils/importBatchCode';
 import { CreateTicketFormValues } from '../../../schemas/ticket.schema';
-import { TicketSerialImageField } from './TicketSerialImageField';
+import { TicketNumberSectionBlock } from './TicketNumberSectionBlock';
+import { TicketNumberLengthRules } from '../utils/ticketNumberValidation';
 
 type ImportBatchLineImportTabsProps = {
     lines: ImportBatchLine[];
@@ -42,9 +37,14 @@ type ImportBatchLineImportTabsProps = {
     isSubmitting: boolean;
     control: Control<CreateTicketFormValues>;
     errors: FieldErrors<CreateTicketFormValues>;
-    fields: FieldArrayWithId<CreateTicketFormValues, 'serials', 'id'>[];
-    append: UseFieldArrayAppend<CreateTicketFormValues, 'serials'>;
-    remove: UseFieldArrayRemove;
+    sectionFields: FieldArrayWithId<CreateTicketFormValues, 'ticketSections', 'id'>[];
+    onAppendSection: () => void;
+    removeSection: (index: number) => void;
+    onSerialFieldChange?: (sectionIndex: number, serialIndex: number) => void;
+    onRemoveSerial?: (sectionIndex: number, serialIndex: number) => void;
+    onNumbersFieldChange?: (sectionIndex: number) => void;
+    numberLengthRules: TicketNumberLengthRules;
+    remainingSerialQuota?: number;
 };
 
 const lineProgress = (line: ImportBatchLine) => {
@@ -66,10 +66,16 @@ export const ImportBatchLineImportTabs = ({
     isSubmitting,
     control,
     errors,
-    fields,
-    append,
-    remove,
+    sectionFields,
+    onAppendSection,
+    removeSection,
+    onSerialFieldChange,
+    onRemoveSerial,
+    onNumbersFieldChange,
+    numberLengthRules,
+    remainingSerialQuota,
 }: ImportBatchLineImportTabsProps) => {
+    const { isSubmitted } = useFormState({ control });
     const activeLine = lines.find((line) => String(line.id) === String(activeLineId));
     const activeProgress = activeLine ? lineProgress(activeLine) : null;
     const canImport =
@@ -79,6 +85,11 @@ export const ImportBatchLineImportTabs = ({
         0,
         lines.findIndex((line) => String(line.id) === String(activeLineId))
     );
+
+    const quotaHint =
+        remainingSerialQuota !== undefined && remainingSerialQuota > 0
+            ? `Còn lại ${remainingSerialQuota} vé có thể nhập`
+            : undefined;
 
     return (
         <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
@@ -156,6 +167,15 @@ export const ImportBatchLineImportTabs = ({
                                 color={activeProgress.isComplete ? 'success' : 'warning'}
                                 sx={{ height: 8, borderRadius: 1 }}
                             />
+                            {quotaHint && (
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ mt: 0.5, display: 'block' }}
+                                >
+                                    {quotaHint}
+                                </Typography>
+                            )}
                         </Box>
                         <LoadingButton
                             type="button"
@@ -175,7 +195,7 @@ export const ImportBatchLineImportTabs = ({
                             display: 'grid',
                             gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
                             gap: 2,
-                            mb: 2.5,
+                            mb: 2,
                         }}
                     >
                         <TextField
@@ -214,107 +234,52 @@ export const ImportBatchLineImportTabs = ({
                         />
                     </Box>
 
-                    <Box sx={{ mb: 2 }}>
-                        <Controller
-                            name="numbers"
-                            control={control}
-                            render={({ field, fieldState }) => (
-                                <TextField
-                                    {...field}
-                                    label="Dãy số"
-                                    fullWidth
-                                    disabled={!canImport}
-                                    error={!!fieldState.error}
-                                    helperText={fieldState.error?.message}
-                                    autoFocus={canImport}
-                                />
-                            )}
-                        />
-                    </Box>
+                    <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
+                        Danh sách dãy số
+                    </Typography>
 
-                    <Stack
-                        direction="row"
-                        alignItems="center"
-                        justifyContent="space-between"
-                        sx={{ mb: 1.5 }}
-                    >
-                        <Typography variant="subtitle2" fontWeight={700}>
-                            Số sê-ri
-                        </Typography>
-                        <LoadingButton
-                            type="button"
-                            variant="outlined"
-                            size="small"
-                            label="Thêm dòng"
-                            startIcon={<AddIcon />}
-                            onClick={() => append({ serialNumber: '', ticketImg: undefined })}
-                            disabled={!canImport}
-                            sx={{ minHeight: '2rem' }}
-                        />
+                    <Stack spacing={1.5} sx={{ pb: 10 }}>
+                        {sectionFields.map((section, sectionIndex) => (
+                            <TicketNumberSectionBlock
+                                key={section.id}
+                                sectionIndex={sectionIndex}
+                                control={control}
+                                errors={errors}
+                                canEdit={!!canImport}
+                                canRemove={sectionFields.length > 1}
+                                numberLengthRules={numberLengthRules}
+                                onRemove={() => removeSection(sectionIndex)}
+                                onSerialFieldChange={onSerialFieldChange}
+                                onRemoveSerial={onRemoveSerial}
+                                onNumbersFieldChange={onNumbersFieldChange}
+                            />
+                        ))}
                     </Stack>
 
-                    <TableContainer>
-                        <Table size="small">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell width={48}>#</TableCell>
-                                    <TableCell>Số sê-ri</TableCell>
-                                    <TableCell width={140}>Ảnh vé</TableCell>
-                                    <TableCell width={48} />
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {fields.map((item, index) => (
-                                    <TableRow key={item.id} hover>
-                                        <TableCell>{index + 1}</TableCell>
-                                        <TableCell sx={{ py: 1 }}>
-                                            <Controller
-                                                name={`serials.${index}.serialNumber`}
-                                                control={control}
-                                                render={({ field, fieldState }) => (
-                                                    <TextField
-                                                        {...field}
-                                                        size="small"
-                                                        fullWidth
-                                                        placeholder="Nhập số sê-ri"
-                                                        disabled={!canImport}
-                                                        error={!!fieldState.error}
-                                                        helperText={fieldState.error?.message}
-                                                    />
-                                                )}
-                                            />
-                                        </TableCell>
-                                        <TableCell sx={{ py: 1 }}>
-                                            <TicketSerialImageField
-                                                control={control}
-                                                index={index}
-                                                compact
-                                                disabled={!canImport}
-                                            />
-                                        </TableCell>
-                                        <TableCell sx={{ py: 1 }}>
-                                            {fields.length > 1 && (
-                                                <IconButton
-                                                    size="small"
-                                                    color="error"
-                                                    aria-label="Xóa dòng"
-                                                    disabled={!canImport}
-                                                    onClick={() => remove(index)}
-                                                >
-                                                    <DeleteOutlineIcon fontSize="small" />
-                                                </IconButton>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-
-                    {errors.serials?.message && (
+                    {isSubmitted && errors.ticketSections?.message && (
                         <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-                            {errors.serials.message}
+                            {errors.ticketSections.message}
                         </Typography>
+                    )}
+
+                    {canImport && (
+                        <Tooltip title="Thêm dãy số" placement="left">
+                            <Fab
+                                type="button"
+                                color="primary"
+                                aria-label="Thêm dãy số"
+                                onClick={onAppendSection}
+                                sx={{
+                                    position: 'fixed',
+                                    bottom: 96,
+                                    right: 24,
+                                    zIndex: (theme) => theme.zIndex.speedDial,
+                                    boxShadow: 4,
+                                }}
+                            >
+                                <AddIcon />
+                            </Fab>
+                        </Tooltip>
                     )}
                 </Box>
             )}

@@ -14,31 +14,63 @@ import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Title } from '../../components/ui/Title';
 import { LoadingButton } from '../../components/ui/LoadingButton';
 import { prefixAdmin, ROUTES } from '../../constants/routes';
-import { useCreateTicket } from './hooks/useTicket';
+import { useBulkCreateTickets } from './hooks/useTicket';
 import { toast } from 'react-toastify';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createTicketSchema, CreateTicketFormValues } from '../../schemas/ticket.schema';
+import { buildCreateTicketSchema, CreateTicketFormValues } from '../../schemas/ticket.schema';
 import { useProviders } from '../provider/hooks/useProvider';
+import { useRegions } from '../region/hooks/useRegion';
 import { useDraftImportBatches, useImportBatchDetail } from '../import-batch/hooks/useImportBatch';
 import { getImportBatchCancelledAlertMessage } from '../import-batch/utils/batchTypeLabels';
 import { formatImportBatchSelectLabel } from '../import-batch/utils/importBatchCode';
 import { ImportBatchSelectionCard } from './components/ImportBatchSelectionCard';
 import { ImportBatchLineImportTabs } from './components/ImportBatchLineImportTabs';
 import type { ImportBatch } from '../../api/importBatch.api';
+import {
+    applyDuplicateNumberFieldErrors,
+    applyQuotaOverflowFieldErrors,
+    applySectionRelationshipFieldErrors,
+    applySerialDuplicateFieldErrors,
+    clearDuplicateNumberFieldErrors,
+    clearSerialDuplicateFieldErrors,
+    countFilledSerials,
+    findDuplicateNumberSectionIndices,
+    findDuplicateSerialPaths,
+    findFirstSerialErrorPath,
+    findQuotaOverflowSerialPaths,
+    findSectionRelationshipIssues,
+    findSerialPathsForApiFailure,
+    isDuplicateNumbersApiError,
+    isQuotaExceededApiError,
+    isSerialDuplicateApiError,
+    QUOTA_UNDER_DECLARE_MESSAGE,
+    scrollAndFocusNumberField,
+    scrollToNumberField,
+    scrollToSerialField,
+} from './utils/ticketSerialValidation';
+import {
+    getTicketNumberLengthMessage,
+    isTicketNumberLengthApiError,
+    isTicketNumberLengthValid,
+    resolveRegionLengthRules,
+} from './utils/ticketNumberValidation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 type LineFormDraft = {
-    numbers: string;
-    serials: CreateTicketFormValues['serials'];
+    ticketSections: CreateTicketFormValues['ticketSections'];
 };
 
 const emptySerial = () => ({ serialNumber: '', ticketImg: undefined as string | undefined });
 
-const defaultLineDraft = (): LineFormDraft => ({
+const defaultSection = () => ({
     numbers: '',
     serials: [emptySerial()],
+});
+
+const defaultLineDraft = (): LineFormDraft => ({
+    ticketSections: [defaultSection()],
 });
 
 export const TicketCreatePage = () => {
@@ -75,28 +107,68 @@ export const TicketCreatePage = () => {
     const lastInitializedBatchIdRef = useRef<string | null>(null);
     const [lineFormDrafts, setLineFormDrafts] = useState<Record<string, LineFormDraft>>({});
 
+    const { data: providersRes } = useProviders({ size: 1000 });
+    const providers = (providersRes as any)?.data?.recordList || [];
+    const { data: regionsRes } = useRegions();
+    const regions = regionsRes?.data || [];
+
+    const resolveRulesForStation = useCallback(
+        (stationId?: string | number) => {
+            const provider = providers.find(
+                (p: any) => String(p.id || p._id) === String(stationId)
+            );
+            const region = regions.find((r: any) => r.code === provider?.region);
+            return resolveRegionLengthRules(region);
+        },
+        [providers, regions]
+    );
+
+    const batchLines = resolvedBatch?.lines ?? [];
+    const bootstrapLineId =
+        importBatchLineIdParam || (batchLines[0] ? String(batchLines[0].id) : '');
+    const bootstrapLine = batchLines.find((line) => String(line.id) === bootstrapLineId);
+    const numberLengthRulesRef = useRef(resolveRulesForStation(bootstrapLine?.lotteryStationId));
+
+    const dynamicTicketResolver = useCallback(
+        async (values: CreateTicketFormValues, context: unknown, options: unknown) =>
+            zodResolver(buildCreateTicketSchema(numberLengthRulesRef.current))(
+                values,
+                context as never,
+                options as never
+            ),
+        []
+    );
+
     const {
         control,
         handleSubmit,
         reset,
         watch,
+        getValues,
+        setError,
+        clearErrors,
         formState: { errors },
     } = useForm<CreateTicketFormValues>({
-        resolver: zodResolver(createTicketSchema),
+        resolver: dynamicTicketResolver,
+        mode: 'onTouched',
+        reValidateMode: 'onChange',
         defaultValues: {
             importBatchId: importBatchIdParam || '',
             importBatchLineId: importBatchLineIdParam || '',
             stationId: '',
-            serials: [emptySerial()],
-            numbers: '',
+            ticketSections: [defaultSection()],
             drawDate: '',
         },
     });
 
-    const { fields, append, remove } = useFieldArray({ control, name: 'serials' });
+    const {
+        fields: sectionFields,
+        append: appendSection,
+        remove: removeSection,
+    } = useFieldArray({ control, name: 'ticketSections' });
 
     const watchedLineId = watch('importBatchLineId');
-    const batchLines = resolvedBatch?.lines ?? [];
+    const watchedStationId = watch('stationId');
 
     const selectedLine = useMemo(() => {
         if (!watchedLineId) {
@@ -105,9 +177,25 @@ export const TicketCreatePage = () => {
         return batchLines.find((line) => String(line.id) === String(watchedLineId));
     }, [batchLines, watchedLineId]);
 
-    const { data: providersRes } = useProviders({ size: 1000 });
-    const providers = (providersRes as any)?.data?.recordList || [];
-    const { mutateAsync: createAsync, isPending } = useCreateTicket();
+    const numberLengthRules = useMemo(
+        () => resolveRulesForStation(watchedStationId || selectedLine?.lotteryStationId),
+        [resolveRulesForStation, selectedLine?.lotteryStationId, watchedStationId]
+    );
+
+    useEffect(() => {
+        numberLengthRulesRef.current = numberLengthRules;
+    }, [numberLengthRules]);
+
+    const remainingSerialQuota = useMemo(() => {
+        if (!selectedLine) {
+            return undefined;
+        }
+        const imported = selectedLine.totalQuantity ?? 0;
+        const declared = selectedLine.declareQuantity ?? 0;
+        return Math.max(0, declared - imported);
+    }, [selectedLine]);
+
+    const { mutateAsync: bulkCreateAsync, isPending } = useBulkCreateTickets();
 
     const resolveStationName = useCallback(
         (stationId?: number | string) => {
@@ -163,8 +251,8 @@ export const TicketCreatePage = () => {
                 importBatchId: String(resolvedBatch.id),
                 importBatchLineId: lineId,
                 stationId: String(line.lotteryStationId),
-                numbers: draft.numbers,
-                serials: draft.serials.length > 0 ? draft.serials : [emptySerial()],
+                ticketSections:
+                    draft.ticketSections.length > 0 ? draft.ticketSections : [defaultSection()],
                 drawDate: resolvedBatch.drawDate,
             });
         },
@@ -209,8 +297,7 @@ export const TicketCreatePage = () => {
             nextDrafts = {
                 ...lineFormDrafts,
                 [currentLineId]: {
-                    numbers: watch('numbers'),
-                    serials: watch('serials'),
+                    ticketSections: watch('ticketSections'),
                 },
             };
             setLineFormDrafts(nextDrafts);
@@ -233,8 +320,7 @@ export const TicketCreatePage = () => {
                 importBatchId: '',
                 importBatchLineId: '',
                 stationId: '',
-                serials: [emptySerial()],
-                numbers: '',
+                ticketSections: [defaultSection()],
                 drawDate: '',
             });
             return;
@@ -244,6 +330,98 @@ export const TicketCreatePage = () => {
         setSelectedBatchId(batchId);
         syncBatchToUrl(batchId);
     };
+
+    const refreshDuplicateFieldState = useCallback(() => {
+        const sections = getValues('ticketSections');
+        const duplicatePaths = findDuplicateSerialPaths(sections);
+        const duplicateNumberIndices = findDuplicateNumberSectionIndices(sections);
+
+        const allPaths = sections.flatMap((section, sectionIndex) =>
+            (section.serials ?? []).map((_, serialIndex) => ({ sectionIndex, serialIndex }))
+        );
+        const nonDuplicatePaths = allPaths.filter(
+            (path) =>
+                !duplicatePaths.some(
+                    (dup) =>
+                        dup.sectionIndex === path.sectionIndex && dup.serialIndex === path.serialIndex
+                )
+        );
+        clearSerialDuplicateFieldErrors(nonDuplicatePaths, clearErrors);
+
+        const nonDuplicateNumberIndices = sections
+            .map((_, sectionIndex) => sectionIndex)
+            .filter((sectionIndex) => !duplicateNumberIndices.includes(sectionIndex));
+        clearDuplicateNumberFieldErrors(nonDuplicateNumberIndices, clearErrors);
+
+        if (duplicatePaths.length > 0) {
+            applySerialDuplicateFieldErrors(duplicatePaths, setError);
+        }
+        if (duplicateNumberIndices.length > 0) {
+            applyDuplicateNumberFieldErrors(duplicateNumberIndices, setError);
+        }
+    }, [clearErrors, getValues, setError]);
+
+    const handleNumbersFieldChange = useCallback(
+        (sectionIndex: number) => {
+            const sections = getValues('ticketSections');
+            const value = sections[sectionIndex]?.numbers ?? '';
+            if (isTicketNumberLengthValid(value, numberLengthRulesRef.current)) {
+                clearErrors(`ticketSections.${sectionIndex}.numbers`);
+            }
+            refreshDuplicateFieldState();
+        },
+        [clearErrors, getValues, refreshDuplicateFieldState]
+    );
+
+    const handleSerialFieldChange = useCallback(
+        (_sectionIndex: number, _serialIndex: number) => {
+            refreshDuplicateFieldState();
+        },
+        [refreshDuplicateFieldState]
+    );
+
+    const handleRemoveSerial = useCallback(
+        (_sectionIndex: number, _serialIndex: number) => {
+            queueMicrotask(() => {
+                refreshDuplicateFieldState();
+            });
+        },
+        [refreshDuplicateFieldState]
+    );
+
+    const handleAppendSection = useCallback(() => {
+        const newIndex = getValues('ticketSections').length;
+        appendSection(defaultSection());
+        scrollAndFocusNumberField(newIndex);
+    }, [appendSection, getValues]);
+
+    const handleRemoveSection = useCallback(
+        (index: number) => {
+            removeSection(index);
+            queueMicrotask(() => {
+                refreshDuplicateFieldState();
+            });
+        },
+        [refreshDuplicateFieldState, removeSection]
+    );
+
+    const handleInvalidSubmit = useCallback((formErrors: FieldErrors<CreateTicketFormValues>) => {
+        const sections = formErrors.ticketSections;
+        if (sections && Array.isArray(sections)) {
+            for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
+                const sectionError = sections[sectionIndex];
+                if (sectionError && typeof sectionError === 'object' && 'numbers' in sectionError) {
+                    scrollToNumberField(sectionIndex);
+                    return;
+                }
+            }
+        }
+
+        const firstPath = findFirstSerialErrorPath(formErrors);
+        if (firstPath) {
+            scrollToSerialField(firstPath.sectionIndex, firstPath.serialIndex);
+        }
+    }, []);
 
     const onSubmit = async (data: CreateTicketFormValues) => {
         if (!selectedLine || !resolvedBatch) {
@@ -258,20 +436,76 @@ export const TicketCreatePage = () => {
             return;
         }
 
+        const duplicatePaths = findDuplicateSerialPaths(data.ticketSections);
+        if (duplicatePaths.length > 0) {
+            applySerialDuplicateFieldErrors(duplicatePaths, setError);
+            scrollToSerialField(duplicatePaths[0].sectionIndex, duplicatePaths[0].serialIndex);
+            return;
+        }
+
+        const duplicateNumberIndices = findDuplicateNumberSectionIndices(data.ticketSections);
+        if (duplicateNumberIndices.length > 0) {
+            applyDuplicateNumberFieldErrors(duplicateNumberIndices, setError);
+            scrollToNumberField(duplicateNumberIndices[0]);
+            return;
+        }
+
+        const relationshipIssues = findSectionRelationshipIssues(data.ticketSections);
+        if (relationshipIssues.length > 0) {
+            applySectionRelationshipFieldErrors(relationshipIssues, setError);
+            const firstIssue = relationshipIssues[0];
+            if (firstIssue.type === 'serial_without_ticket' || firstIssue.type === 'empty_ticket') {
+                scrollToNumberField(firstIssue.sectionIndex);
+            } else {
+                scrollToSerialField(firstIssue.sectionIndex, 0);
+            }
+            return;
+        }
+
+        const filledSerials = countFilledSerials(data.ticketSections);
+        const remaining = Math.max(0, declared - imported);
+        if (filledSerials > remaining) {
+            const overflowPaths = findQuotaOverflowSerialPaths(data.ticketSections, remaining);
+            applyQuotaOverflowFieldErrors(overflowPaths, setError);
+            if (overflowPaths.length > 0) {
+                scrollToSerialField(overflowPaths[0].sectionIndex, overflowPaths[0].serialIndex);
+            }
+            return;
+        }
+
+        if (filledSerials > 0 && filledSerials < remaining) {
+            toast.info(
+                `${QUOTA_UNDER_DECLARE_MESSAGE} (đang nhập ${filledSerials}, còn thiếu ${remaining - filledSerials} vé).`
+            );
+        }
+
         const payload = {
             importBatchLineId: Number(data.importBatchLineId),
-            stationId: data.stationId,
+            stationId: Number(data.stationId),
             drawDate: data.drawDate || resolvedBatch.drawDate,
-            serials: data.serials.map((s) => ({
-                serialNumber: s.serialNumber.trim(),
-                ticketImg:
-                    typeof s.ticketImg === 'string' && s.ticketImg.trim() ? s.ticketImg.trim() : undefined,
-            })),
-            numbers: data.numbers.trim(),
+            tickets: data.ticketSections
+                .map((section) => ({
+                    numbers: section.numbers.trim(),
+                    serials: section.serials
+                        .filter((serial) => serial.serialNumber.trim())
+                        .map((serial) => ({
+                            serialNumber: serial.serialNumber.trim(),
+                            ticketImg:
+                                typeof serial.ticketImg === 'string' && serial.ticketImg.trim()
+                                    ? serial.ticketImg.trim()
+                                    : undefined,
+                        })),
+                }))
+                .filter((ticket) => ticket.numbers && ticket.serials.length > 0),
         };
 
+        if (filledSerials === 0 || payload.tickets.length === 0) {
+            toast.error('Vui lòng nhập ít nhất một dãy số kèm số sê-ri.');
+            return;
+        }
+
         try {
-            const res: any = await createAsync(payload);
+            const res: any = await bulkCreateAsync({ data: payload, skipGlobalErrorToast: true });
             if (res.success) {
                 toast.success('Nhập vé số thành công!');
                 const lineId = String(selectedLine.id);
@@ -284,14 +518,61 @@ export const TicketCreatePage = () => {
                     importBatchId: String(resolvedBatch.id),
                     importBatchLineId: lineId,
                     stationId: String(selectedLine.lotteryStationId),
-                    serials: clearedDraft.serials,
-                    numbers: clearedDraft.numbers,
+                    ticketSections: clearedDraft.ticketSections,
                     drawDate: resolvedBatch.drawDate,
                 });
             } else {
                 toast.error(res.message || 'Nhập vé số thất bại');
             }
         } catch (err: any) {
+            if (isTicketNumberLengthApiError(err)) {
+                const message =
+                    err?.response?.data?.message || getTicketNumberLengthMessage(numberLengthRules);
+                const sections = getValues('ticketSections');
+                sections.forEach((_, sectionIndex) => {
+                    setError(`ticketSections.${sectionIndex}.numbers`, {
+                        type: 'length',
+                        message,
+                    });
+                });
+                scrollToNumberField(0);
+                return;
+            }
+            if (isDuplicateNumbersApiError(err)) {
+                const sections = getValues('ticketSections');
+                const indices = findDuplicateNumberSectionIndices(sections);
+                applyDuplicateNumberFieldErrors(indices, setError);
+                if (indices.length > 0) {
+                    scrollToNumberField(indices[0]);
+                }
+                return;
+            }
+            if (isSerialDuplicateApiError(err)) {
+                const sections = getValues('ticketSections');
+                const paths = findSerialPathsForApiFailure(sections);
+                applySerialDuplicateFieldErrors(paths, setError);
+                if (paths.length > 0) {
+                    scrollToSerialField(paths[0].sectionIndex, paths[0].serialIndex);
+                }
+                return;
+            }
+            if (isQuotaExceededApiError(err)) {
+                const sections = getValues('ticketSections');
+                const overflowPaths = findQuotaOverflowSerialPaths(
+                    sections,
+                    Math.max(0, declared - imported)
+                );
+                applyQuotaOverflowFieldErrors(overflowPaths, setError);
+                if (overflowPaths.length > 0) {
+                    scrollToSerialField(overflowPaths[0].sectionIndex, overflowPaths[0].serialIndex);
+                } else {
+                    toast.error(
+                        err?.response?.data?.message ||
+                            'Số lượng vé nhập vượt quá số lượng khai báo của dòng phiếu.'
+                    );
+                }
+                return;
+            }
             toast.error(err?.response?.data?.message || err?.message || 'Đã xảy ra lỗi khi nhập vé số');
         }
     };
@@ -401,13 +682,18 @@ export const TicketCreatePage = () => {
                             drawDate={resolvedBatch.drawDate}
                             resolveStationName={resolveStationName}
                             onTabChange={handleTabChange}
-                            onSubmit={handleSubmit(onSubmit)}
+                            onSubmit={handleSubmit(onSubmit, handleInvalidSubmit)}
                             isSubmitting={isPending}
                             control={control}
                             errors={errors}
-                            fields={fields}
-                            append={append}
-                            remove={remove}
+                            sectionFields={sectionFields}
+                            onAppendSection={handleAppendSection}
+                            removeSection={handleRemoveSection}
+                            onSerialFieldChange={handleSerialFieldChange}
+                            onRemoveSerial={handleRemoveSerial}
+                            onNumbersFieldChange={handleNumbersFieldChange}
+                            numberLengthRules={numberLengthRules}
+                            remainingSerialQuota={remainingSerialQuota}
                         />
                     )}
 
