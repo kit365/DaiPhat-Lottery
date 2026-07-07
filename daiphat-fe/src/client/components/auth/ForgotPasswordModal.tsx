@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useForgotPassword } from "../../../admin/pages/authen/hooks/use-forgot-password";
-import { AppToast as toast } from "../../utils/toast.util";
+import { AppToast as toast } from "../../../utils/toast.util";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 import Cookies from "js-cookie";
 import { STORAGE_KEYS } from "../../../constants/storage.constants";

@@ -5,24 +5,21 @@ import { Title } from "../../components/ui/Title"
 import { Tiptap } from "../../components/layouts/titap/Tiptap"
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
-import { useCreateBlogCategory, useNestedBlogCategories, useBlogCategoryStatuses } from "./hooks/useBlogCategory";
+import { useCreateBlogCategory, useNestedBlogCategories, useBlogCategoryStatuses } from "../../hooks/useBlogCategory";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { createCategorySchema, CreateCategoryFormValues } from "../../schemas/blog-category.schema";
-import { getBlogCategoryTheme } from "./configs/theme";
 import { prefixAdmin } from "../../constants/routes";
 import { FormUploadSingleFile } from "../../components/upload/FormUploadSingleFile";
 import { toast } from "react-toastify";
 import { CategoryParentSelect } from "../../components/ui/CategoryTreeSelect";
-import { uploadBlogImage } from "../../api/blog.api";
+import { uploadBlogImage } from "../../services/blog.service";
 
 export const BlogCategoryCreatePage = () => {
     const [expandedDetail, setExpandedDetail] = useState(true);
     const toggle = (setter: Dispatch<SetStateAction<boolean>>) =>
         () => setter(prev => !prev);
 
-    const outerTheme = useTheme();
-    const localTheme = getBlogCategoryTheme(outerTheme);
 
     const {
         control,
@@ -112,7 +109,7 @@ export const BlogCategoryCreatePage = () => {
                     />
                 </div>
             </div>
-            <ThemeProvider theme={localTheme}>
+            <>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Stack sx={{
                         margin: "0px calc(15 * var(--spacing))",
@@ -197,7 +194,7 @@ export const BlogCategoryCreatePage = () => {
                         </Box>
                     </Stack>
                 </form>
-            </ThemeProvider>
+            </>
         </>
     );
 };

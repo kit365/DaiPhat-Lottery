@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { bankAccountService } from '../services/bankAccountService';
 import { bankCatalogService } from '../services/bankCatalogService';
 import { CreateUserBankAccountRequest, UpdateUserBankAccountRequest } from '../../types/refund.type';
-import { AppToast as toast } from '../utils/toast.util';
+import { AppToast as toast } from '../../utils/toast.util';
 import { QUERY_KEYS } from '../../constants/queryKeys';
 
 const getErrorMessage = (error: any, fallback: string) =>

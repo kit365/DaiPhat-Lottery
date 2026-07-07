@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { LogoAdmin } from "../../../assets/admin/logo";
 import { adminTheme } from "../../config/theme";
 import { authService } from "./services/auth.service";
-import { AppToast as toast } from "../../../client/utils/toast.util";
+import { AppToast as toast } from "../../../utils/toast.util";
 import {
     CheckCircleOutline as CheckIcon,
     ErrorOutline as ErrorIcon,

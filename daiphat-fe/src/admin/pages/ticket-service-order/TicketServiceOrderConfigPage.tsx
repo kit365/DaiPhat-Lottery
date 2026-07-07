@@ -9,7 +9,7 @@ import { useTicketServiceOrderConfig, useUpdateTicketServiceOrderConfig } from "
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { useQuery } from "@tanstack/react-query";
 import { getShifts } from "../../api/shift.api";
-import { getRoles } from "../../api/role.api";
+import { getRoles } from "../../services/role.service";
 import { getDepartments } from "../../api/department.api";
 
 const BRAND_COLORS = {

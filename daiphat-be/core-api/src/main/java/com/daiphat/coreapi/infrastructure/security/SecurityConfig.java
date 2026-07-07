@@ -3,6 +3,7 @@ package com.daiphat.coreapi.infrastructure.security;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.application.config.AuthProperties;
 import com.daiphat.coreapi.infrastructure.security.jwt.JwtAuthenticationFilter;
+import com.daiphat.coreapi.infrastructure.websocket.WebSocketConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,7 +45,8 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/webjars/**",
                                 "/actuator/health",
-                                "/actuator/info"
+                                "/actuator/info",
+                                WebSocketConfig.WS_ENDPOINT + "/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 AUTH + "/login",

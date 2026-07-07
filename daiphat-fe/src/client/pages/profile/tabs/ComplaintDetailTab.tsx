@@ -12,7 +12,7 @@ import {
     useGetTicketCategories,
 } from '../../../hooks/useSupportTicket';
 import { TicketRefType, TicketStatus, TICKET_REF_TYPE_LABELS } from '../../../../types/support.type';
-import { AppToast } from '../../../utils/toast.util';
+import { AppToast } from '../../../../utils/toast.util';
 
 export const ComplaintDetailTab = () => {
     const { id } = useParams<{ id: string }>();

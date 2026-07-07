@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ROUTES } from "../../../admin/constants/routes";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { AppToast as toast } from "../../utils/toast.util";
+import { AppToast as toast } from "../../../utils/toast.util";
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();

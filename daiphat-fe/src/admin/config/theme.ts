@@ -220,7 +220,18 @@ export const adminTheme = createTheme({
                         className: 'background-popup'
                     }
                 }
-            } as any
+            } as any,
+            styleOverrides: {
+                listbox: {
+                    padding: 0,
+                },
+                option: {
+                    fontSize: '0.875rem',
+                    padding: '6px',
+                    marginBottom: '4px',
+                    borderRadius: "var(--shape-borderRadius-sm)",
+                },
+            },
         },
         MuiDataGrid: {
             styleOverrides: {
@@ -242,7 +253,13 @@ export const adminTheme = createTheme({
         MuiCard: {
             styleOverrides: {
                 root: {
-                    padding: "0"
+                    padding: "0",
+                    backgroundImage: "none !important",
+                    backdropFilter: "none !important",
+                    backgroundColor: "var(--palette-background-paper) !important",
+                    boxShadow: "var(--customShadows-card)",
+                    borderRadius: "var(--shape-borderRadius-lg)",
+                    color: "var(--palette-text-primary)",
                 }
             }
         },

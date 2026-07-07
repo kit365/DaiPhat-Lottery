@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { authService } from "../services/auth.service";
-import { AppToast as toast } from "../../../../client/utils/toast.util";
+import { AppToast as toast } from "../../../../utils/toast.util";
 import { ForgotPasswordRequest, VerifyOtpRequest, ResetPasswordRequest } from "../types/auth.type";
 
 export const useForgotPassword = () => {
