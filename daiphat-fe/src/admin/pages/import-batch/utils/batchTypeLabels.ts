@@ -177,3 +177,15 @@ export const getImportModeChipColor = (
     if (mode === 'POST_DRAW_SUPPLEMENT') return 'secondary';
     return 'default';
 };
+
+/** Full labels for incomplete-batch notification badges. */
+export const IMPORT_MODE_NOTIFICATION_LABELS: Record<string, string> = {
+    IN_DAY: 'Nhập vé trong ngày',
+    SAME_DAY: 'Nhập vé trong ngày',
+    POST_DRAW_SUPPLEMENT: 'Nhập vé bổ sung',
+};
+
+export const getImportModeNotificationLabel = (mode?: string) => {
+    if (!mode) return '—';
+    return IMPORT_MODE_NOTIFICATION_LABELS[mode] ?? getImportModeLabel(mode);
+};
