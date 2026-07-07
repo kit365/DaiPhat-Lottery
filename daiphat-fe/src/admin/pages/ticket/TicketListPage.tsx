@@ -7,6 +7,7 @@ import { useTickets } from "./hooks/useTickets";
 import AddIcon from '@mui/icons-material/Add';
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { useNavigate } from "react-router-dom";
+import { IncompleteImportBatchBanner } from "./components/IncompleteImportBatchBanner";
 import { CanAccess } from "../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../constants/permission.constants";
 
@@ -41,6 +42,9 @@ export const TicketListPage = () => {
                 </CanAccess>
             </div>
 
+            <CanAccess anyOf={[PERMISSIONS.TICKET.CREATE, PERMISSIONS.IMPORT_BATCH.VIEW]}>
+                <IncompleteImportBatchBanner />
+            </CanAccess>
 
             <TicketList
                 ticketHook={ticketHook}

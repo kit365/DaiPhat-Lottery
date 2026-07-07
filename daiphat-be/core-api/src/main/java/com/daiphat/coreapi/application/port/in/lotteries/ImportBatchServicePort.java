@@ -25,6 +25,8 @@ public interface ImportBatchServicePort {
 
     Optional<ImportBatchResponse> getActiveDraft(UUID operatorId);
 
+    List<ImportBatchResponse> getIncompleteBatches();
+
     ImportBatchResponse getById(Long id);
 
     PageResponse<ImportBatchResponse> getAll(

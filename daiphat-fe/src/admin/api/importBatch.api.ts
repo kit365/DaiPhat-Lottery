@@ -184,6 +184,14 @@ export const previewImportBatchClassification = async (
     return response.data;
 };
 
+export const getIncompleteImportBatches = async (): Promise<ImportBatch[]> => {
+    const response = await apiApp.get(`${BASE_URL}/incomplete`, {
+        ...withAuth(),
+        skipGlobalErrorToast: true,
+    });
+    return response.data?.data ?? [];
+};
+
 export const getImportBatchTypeOptions = async (): Promise<ApiResponse<{ value: string; label: string }[]>> => {
     const response = await apiApp.get(`${BASE_URL}/batch-types`, withAuth());
     return response.data;
