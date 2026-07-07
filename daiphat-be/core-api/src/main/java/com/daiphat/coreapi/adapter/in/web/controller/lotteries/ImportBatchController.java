@@ -68,6 +68,12 @@ public class ImportBatchController {
         return ResponseEntity.ok(ApiResponse.success("No active draft import batch found.", null));
     }
 
+    @GetMapping("/incomplete")
+    @PreAuthorize("hasAnyAuthority('importBatch:view', 'ticket:create')")
+    public ApiResponse<List<ImportBatchResponse>> getIncompleteBatches() {
+        return ApiResponse.success(null, importBatchServicePort.getIncompleteBatches());
+    }
+
     @GetMapping("/{id:\\d+}")
     @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create', 'ticket:create')")
     public ApiResponse<ImportBatchResponse> getById(@PathVariable Long id) {
