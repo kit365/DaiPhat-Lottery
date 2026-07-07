@@ -20,6 +20,17 @@ public interface LotteryTicketServicePort {
 
     BulkCreateLotteryTicketsResponse createBulk(BulkCreateLotteryTicketsRequest request, UUID importedById);
 
+    List<LotteryTicketResponse> getImportedByImportBatchLineId(Long importBatchLineId, UUID operatorId);
+
+    LotteryTicketResponse updateImportedTicketDuringBatch(
+            Long importBatchLineId,
+            Long ticketId,
+            UpdateLotteryTicketRequest request,
+            UUID operatorId
+    );
+
+    void hardDeleteImportedTicketDuringBatch(Long importBatchLineId, Long ticketId, UUID operatorId);
+
     LotteryTicketResponse getById(Long id);
 
     PageResponse<LotteryTicketResponse> getAll(

@@ -60,6 +60,22 @@ public interface LotteryTicketSerialServicePort {
 
     List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId);
 
+    List<LotteryTicketSerialModel> findAllByImportBatchLineId(Long importBatchLineId);
+
+    List<LotteryTicketSerialModel> findAllByTicketIdAndImportBatchLineId(Long ticketId, Long importBatchLineId);
+
+    void syncImportBatchLineSerials(
+            LotteryTicketModel ticket,
+            Long importBatchId,
+            Long importBatchLineId,
+            List<UpdateLotteryTicketSerialRequest> serials,
+            UUID editorId
+    );
+
+    void hardDeleteById(Long id);
+
+    void hardDeleteByTicketIdAndImportBatchLineId(Long ticketId, Long importBatchLineId);
+
     void hardDeleteByImportBatchLineId(Long importBatchLineId);
 
     List<EnumOptionResponse> getStatuses();

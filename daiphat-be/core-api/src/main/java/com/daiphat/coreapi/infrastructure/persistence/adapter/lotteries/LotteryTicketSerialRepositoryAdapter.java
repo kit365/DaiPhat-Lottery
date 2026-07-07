@@ -100,6 +100,35 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     }
 
     @Override
+    public List<LotteryTicketSerialModel> findAllByImportBatchLineId(Long importBatchLineId) {
+        return lotteryTicketSerialRepository.findAllByImportBatchLineId(importBatchLineId).stream()
+                .map(lotteryTicketSerialPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<LotteryTicketSerialModel> findAllByTicketIdAndImportBatchLineId(
+            Long ticketId,
+            Long importBatchLineId
+    ) {
+        return lotteryTicketSerialRepository
+                .findAllByTicketIdAndImportBatchLineId(ticketId, importBatchLineId)
+                .stream()
+                .map(lotteryTicketSerialPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public void hardDeleteById(Long id) {
+        lotteryTicketSerialRepository.deleteById(id);
+    }
+
+    @Override
+    public void hardDeleteByTicketIdAndImportBatchLineId(Long ticketId, Long importBatchLineId) {
+        lotteryTicketSerialRepository.deleteByTicket_IdAndImportBatchLine_Id(ticketId, importBatchLineId);
+    }
+
+    @Override
     public void hardDeleteByImportBatchLineId(Long importBatchLineId) {
         lotteryTicketSerialRepository.deleteByImportBatchLine_Id(importBatchLineId);
     }
