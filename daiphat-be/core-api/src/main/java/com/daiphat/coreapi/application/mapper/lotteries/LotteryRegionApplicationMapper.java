@@ -19,6 +19,8 @@ public class LotteryRegionApplicationMapper {
                 .type(model.getType() != null ? model.getType().name() : null)
                 .minNumber(model.getMinNumber())
                 .maxNumber(model.getMaxNumber())
+                .minLength(model.minLength())
+                .maxLength(model.maxLength())
                 .numberLength(model.numberLength())
                 .stationCount(model.getStationCount())
                 .build();
