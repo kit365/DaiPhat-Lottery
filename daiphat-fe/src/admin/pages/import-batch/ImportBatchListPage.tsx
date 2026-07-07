@@ -35,11 +35,12 @@ import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../constants/routes';
 import type { ImportBatch } from '../../api/importBatch.api';
 import { useImportBatchList } from './hooks/useImportBatch';
-import { getImportBatchStatusChipColor, getImportBatchStatusLabel, importBatchStatusChipSx } from './utils/batchTypeLabels';
+import { getImportBatchStatusChipColor, getImportBatchStatusLabel, getImportModeChipColor, getImportModeChipLabel, getImportModeLabel, importBatchStatusChipSx } from './utils/batchTypeLabels';
 import {
     displayImportBatchHeaderCodeRaw,
-    displayImportBatchLineCodeRaw,
     formatImportBatchHeaderCode,
+    formatImportBatchLinesSummaryCompact,
+    formatImportBatchLinesSummaryTooltip,
     importBatchCodeMonospaceSx,
 } from './utils/importBatchCode';
 import { IncompleteImportBatchNotification } from './components/IncompleteImportBatchNotification';
@@ -125,8 +126,9 @@ export const ImportBatchListPage = () => {
                             <TableCell>Mã phiếu</TableCell>
                             <TableCell>Ngày quay</TableCell>
                             <TableCell>Nhà cung cấp</TableCell>
+                            <TableCell sx={{ whiteSpace: 'nowrap' }}>Hình thức nhập</TableCell>
                             <TableCell sx={{ width: 96, whiteSpace: 'nowrap' }}>Trạng thái</TableCell>
-                            <TableCell>Mã lô / Loại</TableCell>
+                            <TableCell sx={{ maxWidth: 200 }}>Mã lô / Loại</TableCell>
                             <TableCell align="right">Khai báo</TableCell>
                             <TableCell align="right">Đã nhập</TableCell>
                             <TableCell align="center" width={120}>
@@ -137,7 +139,7 @@ export const ImportBatchListPage = () => {
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={8}>
+                                <TableCell colSpan={9}>
                                     <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
                                         Đang tải danh sách phiếu nhập lô...
                                     </Typography>
@@ -145,7 +147,7 @@ export const ImportBatchListPage = () => {
                             </TableRow>
                         ) : batches.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8}>
+                                <TableCell colSpan={9}>
                                     <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
                                         Không có dữ liệu
                                     </Typography>
@@ -165,9 +167,8 @@ export const ImportBatchListPage = () => {
                                         (sum, line) => sum + (line.declareQuantity || 0),
                                         0
                                     );
-                                const lineSummary = (batch.lines ?? [])
-                                    .map((line) => displayImportBatchLineCodeRaw(line.batchCode))
-                                    .join(', ');
+                                const lineSummaryCompact = formatImportBatchLinesSummaryCompact(batch.lines);
+                                const lineSummaryTooltip = formatImportBatchLinesSummaryTooltip(batch.lines);
 
                                 return (
                                     <TableRow key={batch.id} hover>
@@ -204,6 +205,16 @@ export const ImportBatchListPage = () => {
                                                 : '—'}
                                         </TableCell>
                                         <TableCell>{batch.supplierName || '—'}</TableCell>
+                                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                            <Tooltip title={getImportModeLabel(batch.importMode)}>
+                                                <Chip
+                                                    size="small"
+                                                    label={getImportModeChipLabel(batch.importMode)}
+                                                    color={getImportModeChipColor(batch.importMode)}
+                                                    sx={importBatchStatusChipSx}
+                                                />
+                                            </Tooltip>
+                                        </TableCell>
                                         <TableCell sx={{ width: 96, whiteSpace: 'nowrap' }}>
                                             <Chip
                                                 size="small"
@@ -212,10 +223,37 @@ export const ImportBatchListPage = () => {
                                                 sx={importBatchStatusChipSx}
                                             />
                                         </TableCell>
-                                        <TableCell sx={{ maxWidth: 280 }}>
-                                            <Typography variant="body2" noWrap title={lineSummary}>
-                                                {lineSummary || '—'}
-                                            </Typography>
+                                        <TableCell sx={{ maxWidth: 200 }}>
+                                            {lineSummaryCompact ? (
+                                                <Tooltip
+                                                    title={lineSummaryTooltip}
+                                                    slotProps={{
+                                                        tooltip: {
+                                                            sx: {
+                                                                maxWidth: 520,
+                                                                whiteSpace: 'pre-line',
+                                                                fontFamily:
+                                                                    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                                                fontSize: '0.75rem',
+                                                            },
+                                                        },
+                                                    }}
+                                                >
+                                                    <Typography
+                                                        variant="body2"
+                                                        noWrap
+                                                        sx={{
+                                                            ...importBatchCodeMonospaceSx,
+                                                            maxWidth: 200,
+                                                            cursor: 'default',
+                                                        }}
+                                                    >
+                                                        {lineSummaryCompact}
+                                                    </Typography>
+                                                </Tooltip>
+                                            ) : (
+                                                <Typography variant="body2">—</Typography>
+                                            )}
                                         </TableCell>
                                         <TableCell align="right">
                                             {declaredQty}
