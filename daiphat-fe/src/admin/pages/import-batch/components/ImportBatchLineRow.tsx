@@ -16,7 +16,7 @@ import { Controller, Control, UseFormSetValue } from 'react-hook-form';
 import { memo, useMemo } from 'react';
 import dayjs from 'dayjs';
 import { CreateImportBatchFormValues, UpdateImportBatchFormValues } from '../schemas/importBatch.schema';
-import { getBatchTypeLabel, getImportBatchLineStatusLabel } from '../utils/batchTypeLabels';
+import { getBatchTypeLabel, getImportBatchLineStatusLabel, getImportBatchLineStatusChipColor } from '../utils/batchTypeLabels';
 import { resolveDisplayBatchType } from '../utils/importBatchDrawDate';
 import {
     formatViInteger,
@@ -166,7 +166,11 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
             </TableCell>
             {readOnly && lineStatus && (
                 <TableCell sx={{ width: 120, whiteSpace: 'nowrap' }}>
-                    <Chip label={getImportBatchLineStatusLabel(lineStatus)} size="small" />
+                    <Chip
+                        label={getImportBatchLineStatusLabel(lineStatus)}
+                        size="small"
+                        color={getImportBatchLineStatusChipColor(lineStatus)}
+                    />
                 </TableCell>
             )}
             <TableCell sx={{ width: 88 }}>
