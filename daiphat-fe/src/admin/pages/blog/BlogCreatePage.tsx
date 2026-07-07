@@ -6,17 +6,18 @@ import { Title } from "../../components/ui/Title"
 import { useState, type Dispatch, type SetStateAction } from "react"
 import { Tiptap } from "../../components/layouts/titap/Tiptap"
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
-import { useCreateBlog, useBlogTags, useBlogTypes, useBlogStatuses } from "./hooks/useBlog"
-import { uploadBlogImage } from "../../api/blog.api"
+import { useCreateBlog, useBlogTypes, useBlogStatuses } from "../../hooks/useBlog";
+import { useBlogTags } from "../../hooks/useBlogTag";
+import { uploadBlogImage } from "../../services/blog.service"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, Controller } from "react-hook-form"
 import { createBlogSchema, CreateBlogFormValues } from "../../schemas/blog.schema"
 import { FormUploadSingleFile } from "../../components/upload/FormUploadSingleFile"
-import { toast } from "react-toastify"
+import { AppToast as toast } from "../../../utils/toast.util";
 import { prefixAdmin } from "../../constants/routes"
-import { BLOG_STATUS } from "../../../types/blogs.type";
+import { BLOG_STATUS } from "../../../types/blog.type";
 
-import { useNestedBlogCategories } from "../blog-category/hooks/useBlogCategory";
+import { useNestedBlogCategories } from "../../hooks/useBlogCategory";
 import { CategoryTreeSelectGeneric } from "../../components/ui/CategoryTreeSelectGeneric";
 
 const getMinScheduleValue = () => {
@@ -32,37 +33,8 @@ export const BlogCreatePage = () => {
     const toggle = (setter: Dispatch<SetStateAction<boolean>>) =>
         () => setter(prev => !prev);
 
-    const outerTheme = useTheme();
 
-    const localTheme = createTheme(outerTheme, {
-        components: {
-            MuiCard: {
-                styleOverrides: {
-                    root: {
-                        backgroundImage: "none !important",
-                        backdropFilter: "none !important",
-                        backgroundColor: "var(--palette-background-paper) !important",
-                        boxShadow: "var(--customShadows-card)",
-                        borderRadius: "var(--shape-borderRadius-lg)",
-                        color: "var(--palette-text-primary)",
-                    },
-                }
-            },
-            MuiAutocomplete: {
-                styleOverrides: {
-                    listbox: {
-                        padding: 0,
-                    },
-                    option: {
-                        fontSize: '0.875rem',
-                        padding: '6px',
-                        marginBottom: '4px',
-                        borderRadius: "var(--shape-borderRadius-sm)",
-                    },
-                },
-            },
-        }
-    });
+
 
     const { data: blogCategories = [] } = useNestedBlogCategories();
     const { data: blogTags = [], isLoading: isLoadingTags } = useBlogTags();
@@ -151,7 +123,7 @@ export const BlogCreatePage = () => {
                     />
                 </div>
             </div>
-            <ThemeProvider theme={localTheme}>
+            <>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Stack sx={{
                         margin: "0px calc(15 * var(--spacing))",
@@ -351,7 +323,7 @@ export const BlogCreatePage = () => {
                         </Box>
                     </Stack>
                 </form>
-            </ThemeProvider>
+            </>
 
         </>
     )

@@ -17,14 +17,7 @@ public class BlogPostSpecification {
 
     private BlogPostSpecification() {}
 
-    /**
-     * @param search         Tìm kiếm theo tiêu đề (nullable)
-     * @param tagId          Lọc theo id của tag (nullable)
-     * @param categoryId     Lọc theo id của category (nullable)
-     * @param type           Lọc theo loại bài (nullable) – nhận code string, vd: "blog", "news"
-     * @param status         Lọc theo trạng thái (nullable) – nhận code string, vd: "draft", "published"
-     * @param includeDeleted Nếu false, chỉ lấy bài chưa bị xoá mềm
-     */
+
     public static Specification<BlogPostEntity> filter(
             String search,
             Long tagId,
@@ -46,13 +39,11 @@ public class BlogPostSpecification {
             if (tagId != null) {
                 var tagJoin = root.join(BlogPostEntity_.tags);
                 predicates.add(cb.equal(tagJoin.get(BlogTagEntity_.id), tagId));
-                // distinct để tránh kết quả nhân đôi khi join nhiều tag
                 if (query != null) {
                     query.distinct(true);
                 }
             }
 
-            // 3. Lọc theo category – Many-to-One
             if (categoryId != null) {
                 predicates.add(cb.equal(
                         root.get(BlogPostEntity_.category).get(BlogCategoryEntity_.id),
@@ -60,7 +51,6 @@ public class BlogPostSpecification {
                 ));
             }
 
-            // 4. Lọc theo loại bài
             if (type != null && !type.isBlank()) {
                 PostType postType = PostType.fromCode(type);
                 predicates.add(cb.equal(root.get(BlogPostEntity_.type), postType));
@@ -72,7 +62,7 @@ public class BlogPostSpecification {
                 predicates.add(cb.equal(root.get(BlogPostEntity_.status), postStatus));
             }
 
-            // 6. Mặc định chỉ lấy bài chưa xoá mềm
+
             if (!includeDeleted) {
                 predicates.add(cb.isFalse(root.get(BlogPostEntity_.isDeleted)));
             }

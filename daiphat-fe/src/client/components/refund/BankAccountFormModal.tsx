@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { UserBankAccountResponse, VietQrBankResponse } from '../../../types/refund.type';
 import { useCreateBankAccount, useGetBanks, useUpdateBankAccount } from '../../hooks/useBankAccount';
-import { AppToast } from '../../utils/toast.util';
+import { AppToast } from '../../../utils/toast.util';
 
 const BANK_ACCOUNT_TERMS_TEXT =
     'Tôi cam kết thông tin tài khoản ngân hàng đã nhập là chính xác. Tôi hiểu rằng đại lý được miễn trừ trách nhiệm đối với các trường hợp hoàn tiền chậm trễ hoặc thất bại do thông tin tài khoản tôi cung cấp không chính xác.';
