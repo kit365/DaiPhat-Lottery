@@ -3,11 +3,13 @@ package com.daiphat.coreapi.adapter.in.web.controller.lotteries;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
+import com.daiphat.coreapi.application.dto.request.lotteries.BulkCreateLotteryTicketsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.base.Views;
+import com.daiphat.coreapi.application.dto.response.lotteries.BulkCreateLotteryTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
@@ -51,6 +53,20 @@ public class LotteryTicketController {
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to import lottery ticket by user: {}", principal.getUsername());
         LotteryTicketResponse response = lotteryTicketServicePort.create(request, principal.getId());
+        return ApiResponse.success("Nhập vé số vào kho thành công.", response);
+    }
+
+    @PostMapping("/bulk-import")
+    @PreAuthorize("hasAnyAuthority('ticket:create')")
+    public ApiResponse<BulkCreateLotteryTicketsResponse> createBulk(
+            @Valid @RequestBody BulkCreateLotteryTicketsRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        log.info(
+                "REST request to bulk import {} lottery ticket sections by user: {}",
+                request.tickets().size(),
+                principal.getUsername()
+        );
+        BulkCreateLotteryTicketsResponse response = lotteryTicketServicePort.createBulk(request, principal.getId());
         return ApiResponse.success("Nhập vé số vào kho thành công.", response);
     }
 
