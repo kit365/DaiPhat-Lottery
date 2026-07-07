@@ -5,6 +5,8 @@ export interface LotteryRegionResponse {
     type: string;
     minNumber: number;
     maxNumber: number;
+    minLength: number;
+    maxLength: number;
     numberLength: number;
     stationCount: number;
 }
