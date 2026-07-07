@@ -1,6 +1,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import {
+    Alert,
     Box,
     Fab,
     Paper,
@@ -15,7 +16,7 @@ import dayjs from 'dayjs';
 import { Control, FieldArrayWithId, FieldErrors, useFormState } from 'react-hook-form';
 import type { ImportBatchLine, ImportBatchStatus } from '../../../api/importBatch.api';
 import { LoadingButton } from '../../../components/ui/LoadingButton';
-import { getBatchTypeLabel } from '../../import-batch/utils/batchTypeLabels';
+import { getBatchTypeLabel, getImportBatchLineCancelledAlertMessage } from '../../import-batch/utils/batchTypeLabels';
 import {
     displayImportBatchLineCodeRaw,
     formatImportBatchLineCode,
@@ -24,6 +25,7 @@ import {
 import {
     getLineImportProgress,
     getLineStationColor,
+    isLineCancelled,
 } from '../../ticket/utils/importBatchProgress';
 import { TicketImportProgressTrack } from '../../import-batch/components/TicketImportProgressTrack';
 import { CreateTicketFormValues } from '../../../schemas/ticket.schema';
@@ -76,10 +78,13 @@ export const ImportBatchLineImportTabs = ({
     const activeProgress = activeLine ? getLineImportProgress(activeLine) : null;
     const activeStationColors = activeLine ? getLineStationColor(lines, activeLine) : null;
     const canImport =
-        (batchStatus === 'DRAFT' || batchStatus === 'RECEIVING') &&
+        (batchStatus === 'DRAFT' ||
+            batchStatus === 'RECEIVING' ||
+            batchStatus === 'PARTIALLY_IMPORTED') &&
         !!activeLine &&
         activeProgress &&
-        !activeProgress.isComplete;
+        !activeProgress.isComplete &&
+        !isLineCancelled(activeLine);
 
     const activeTabIndex = Math.max(
         0,
@@ -113,9 +118,11 @@ export const ImportBatchLineImportTabs = ({
                 {lines.map((line) => {
                     const { imported, declared, isComplete } = getLineImportProgress(line);
                     const stationColor = getLineStationColor(lines, line);
+                    const cancelled = isLineCancelled(line);
                     return (
                         <Tab
                             key={line.id}
+                            disabled={cancelled}
                             label={
                                 <Stack direction="row" spacing={0.75} alignItems="center">
                                     <Box
@@ -152,6 +159,11 @@ export const ImportBatchLineImportTabs = ({
 
             {activeLine && activeProgress && activeStationColors && (
                 <Box sx={{ p: 2.5 }}>
+                    {isLineCancelled(activeLine) && (
+                        <Alert severity="error" sx={{ mb: 2 }}>
+                            {getImportBatchLineCancelledAlertMessage(activeLine.cancelReason)}
+                        </Alert>
+                    )}
                     <Stack
                         direction={{ xs: 'column', md: 'row' }}
                         spacing={2}
