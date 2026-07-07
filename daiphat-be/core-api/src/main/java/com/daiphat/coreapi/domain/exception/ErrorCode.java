@@ -239,6 +239,11 @@ public enum ErrorCode {
             "Phiếu nhập lô đã bị hủy vì quá giờ chốt nhập lô cho kỳ quay hôm nay.",
             HttpStatus.BAD_REQUEST
     ),
+    IMPORT_BATCH_LINE_CANCELLED(
+            "LT_095",
+            "Dòng nhập lô cho nhà đài này đã bị hủy và không thể nhập thêm vé.",
+            HttpStatus.BAD_REQUEST
+    ),
 
     LOTTERY_SUPPLIER_ACTIVATION_INCOMPLETE(
             "LT_081",

@@ -21,6 +21,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositor
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
@@ -642,7 +643,12 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         ImportBatchModel importBatch = getImportBatchOrThrow(line.getImportBatchId());
         importBatchDraftExpiryService.cancelIfOverdue(importBatch);
         importBatch = getImportBatchOrThrow(line.getImportBatchId());
+        line = importBatchLineRepositoryPort.findById(importBatchLineId)
+                .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
 
+        if (line.getStatus() == ImportBatchLineStatus.CANCELLED) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_LINE_CANCELLED);
+        }
         if (importBatch.getStatus() == ImportBatchStatus.CANCELLED) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_CANCELLED);
         }

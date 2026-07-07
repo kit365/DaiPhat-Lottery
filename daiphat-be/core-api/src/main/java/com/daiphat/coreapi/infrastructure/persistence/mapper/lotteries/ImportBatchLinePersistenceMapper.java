@@ -30,6 +30,7 @@ public interface ImportBatchLinePersistenceMapper {
     @Mapping(target = "totalCostValue")
     @Mapping(target = "status")
     @Mapping(target = "importedAt")
+    @Mapping(target = "cancelReason")
     @Mapping(target = "deletedAt")
     void updateEntityFromModel(ImportBatchLineModel model, @MappingTarget ImportBatchLineEntity entity);
 
