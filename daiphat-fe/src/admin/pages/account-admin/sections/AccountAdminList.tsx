@@ -25,7 +25,7 @@ import {
     dataGridStyles
 } from '../configs/styles.config';
 import { useAccounts, useDeleteAccount } from '../hooks/useAccountAdmin';
-import { useRoles } from '../../role/hooks/useRole';
+import { useRoles } from "../../../hooks/useRole";
 import { ROUTES } from '../../../constants/routes';
 import { toast } from 'react-toastify';
 import { STATUS_LABELS, RoleEnum } from '../configs/constants';

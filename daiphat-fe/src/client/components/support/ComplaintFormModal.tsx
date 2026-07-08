@@ -12,7 +12,7 @@ import {
     useUpdateComplaint,
 } from '../../hooks/useSupportTicket';
 import { ImageUploadPreview } from './ImageUploadPreview';
-import { AppToast } from '../../utils/toast.util';
+import { AppToast } from '../../../utils/toast.util';
 import { TICKET_REF_TYPE_LABELS } from '../../../types/support.type';
 
 interface ComplaintFormModalProps {

@@ -1,101 +1,98 @@
 import { useState } from 'react';
 import {
     Box,
-    Card,
-    Stack,
-    IconButton,
-    Tooltip,
+    Divider
 } from '@mui/material';
-import { Icon } from '@iconify/react';
 import { Title } from '../../components/ui/Title';
-import { ChatSidebar, ChatWindow, ChatDetails } from './sections';
-import { useConversations } from './hooks/useChat';
-import { Conversation } from './types/chat';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
+
+import { ChatList, ChatWindow, ChatDetails, ChatSidebar } from './sections';
+import { useConversations } from '../../hooks/useChat';
+import { useChatOperatorSocket } from '../../hooks/useChatSocket';
+import { Conversation } from '../../../types/chat.type';
+import { useAuthStore } from '../../../stores/useAuthStore';
+import { groupConversationsByCustomer } from './utils';
 
 export const ChatPage = () => {
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [showDetails, setShowDetails] = useState(true);
+    const [viewMode, setViewMode] = useState<'TABLE' | 'MESSENGER'>('TABLE');
+    const [selectedId, setSelectedId] = useState<number | null>(null);
+    const [showDetails, setShowDetails] = useState(false);
+    const userId = useAuthStore((state) => state.user?.id);
     
-    const { data: conversations } = useConversations();
-    const activeConversation = conversations?.find((c: Conversation) => c._id === selectedId);
-    const participant = activeConversation?.participants[0];
+    const { data: conversations = [] } = useConversations();
+    const groupedConversations = groupConversationsByCustomer(conversations);
+    useChatOperatorSocket({
+        currentUserId: userId,
+        onConversationRemoved: (conversationId) => {
+            setSelectedId((prev) => (prev === conversationId ? null : prev));
+        },
+    });
+    const activeConversation = groupedConversations.find((c: Conversation) => c.id === selectedId)
+        ?? conversations.find((c: Conversation) => c.id === selectedId);
+
+    const handleSelectConversation = (id: number) => {
+        setSelectedId(id);
+        setViewMode('MESSENGER');
+        setShowDetails(false);
+    };
 
     return (
-        <Box sx={{ p: { xs: 2, md: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-                <Title title="Chat Management" />
-                <Stack direction="row" spacing={1}>
-                    <Tooltip title="Refresh">
-                        <IconButton><Icon icon="solar:refresh-bold" /></IconButton>
-                    </Tooltip>
-                    <Tooltip title="Settings">
-                        <IconButton><Icon icon="solar:settings-bold" /></IconButton>
-                    </Tooltip>
-                </Stack>
-            </Stack>
-
-            <Card
-                sx={{
-                    flexGrow: 1,
-                    height: 'calc(100vh - 180px)',
-                    display: 'flex',
-                    borderRadius: 3,
-                    boxShadow: 'var(--customShadows-z24)',
-                    overflow: 'hidden',
-                    bgcolor: 'var(--palette-background-paper)',
-                    border: '1px solid var(--palette-divider)',
-                }}
-            >
-                <ChatSidebar
-                    selectedId={selectedId}
-                    onSelect={(id) => setSelectedId(id)}
-                />
-
-                <Box sx={{ 
-                    flexGrow: 1, 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    bgcolor: 'var(--palette-background-default)',
-                    position: 'relative'
-                }}>
-                    <ChatWindow conversationId={selectedId} />
-                    
-                    {/* Toggle details button when hidden */}
-                    {!showDetails && selectedId && (
-                        <IconButton
-                            onClick={() => setShowDetails(true)}
-                            sx={{
-                                position: 'absolute',
-                                right: 16,
-                                top: 16,
-                                bgcolor: 'white',
-                                boxShadow: 'var(--customShadows-z8)',
-                                '&:hover': { bgcolor: 'var(--palette-background-neutral)' }
-                            }}
-                        >
-                            <Icon icon="solar:info-circle-bold" />
-                        </IconButton>
-                    )}
+        <Box sx={{ pb: 5 }}>
+            <Box sx={{ mb: 5, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', gap: 2 }}>
+                <Box sx={{ mr: 'auto' }}>
+                    <Title title={"Hỗ trợ trực tuyến"} />
+                    <Breadcrumb
+                        items={[
+                            { label: "Dashboard", to: "/" },
+                            { label: "Hỗ trợ trực tuyến" }
+                        ]}
+                    />
                 </Box>
+            </Box>
 
-                {showDetails && selectedId && (
-                    <Box sx={{ position: 'relative' }}>
-                        <ChatDetails participant={participant} />
-                        <IconButton
-                            size="small"
-                            onClick={() => setShowDetails(false)}
-                            sx={{
-                                position: 'absolute',
-                                right: 8,
-                                top: 8,
-                                zIndex: 1,
-                            }}
-                        >
-                            <Icon icon="solar:close-circle-bold" />
-                        </IconButton>
+            <ChatList 
+                conversations={groupedConversations} 
+                onSelectConversation={handleSelectConversation}
+                onToggleMode={() => setViewMode(viewMode === 'TABLE' ? 'MESSENGER' : 'TABLE')}
+                viewMode={viewMode}
+                messengerContent={(filteredConversations) => (
+                    <Box sx={{ 
+                        height: 'calc(100vh - 220px)',
+                        minHeight: 600,
+                        display: 'flex', 
+                        overflow: 'hidden',
+                        bgcolor: 'var(--palette-background-paper)'
+                    }}>
+                        <ChatSidebar 
+                            conversations={filteredConversations}
+                            selectedId={selectedId} 
+                            onSelect={setSelectedId} 
+                        />
+
+                        <Box sx={{ 
+                            flexGrow: 1, 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            bgcolor: '#f8f9fa',
+                            position: 'relative'
+                        }}>
+                            <ChatWindow 
+                                conversationId={selectedId} 
+                                onToggleDetails={() => setShowDetails(!showDetails)}
+                            />
+                        </Box>
+
+                        {showDetails && (
+                            <>
+                                <Divider orientation="vertical" flexItem />
+                                <Box sx={{ width: 340, flexShrink: 0, bgcolor: 'white', overflowY: 'auto' }}>
+                                    <ChatDetails conversation={activeConversation} />
+                                </Box>
+                            </>
+                        )}
                     </Box>
                 )}
-            </Card>
+            />
         </Box>
     );
 };

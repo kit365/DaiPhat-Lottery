@@ -1,0 +1,77 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getRoles, getRoleById, createRole, updateRolePermissions, deleteRole, getPermissions, reorderPermissions } from "../services/role.service";
+import { QUERY_KEYS } from "../../constants/queryKeys";
+
+export const usePermissions = () => {
+    return useQuery({
+        queryKey: ["permissions_all"],
+        queryFn: () => getPermissions(),
+        select: (res) => res.data || [],
+    });
+};
+
+export const useRoles = (params?: any) => {
+    return useQuery({
+        queryKey: ["roles", params],
+        queryFn: () => getRoles(params),
+        select: (res) => {
+            // Because PaginatedResponse has recordList, we extract it here, 
+            // but also handle array case just in case
+            if (res.data && 'recordList' in res.data) {
+                return res.data.recordList;
+            }
+            return Array.isArray(res.data) ? res.data : [];
+        },
+    });
+};
+
+export const useRoleDetail = (id?: string) => {
+    return useQuery({
+        queryKey: ["role", id],
+        queryFn: () => getRoleById(id!),
+        enabled: !!id,
+        select: (res) => res.data,
+    });
+};
+
+export const useCreateRole = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: any) => createRole(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["roles"] });
+        },
+    });
+};
+
+export const useUpdateRole = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, permissions, data }: { id: string; permissions?: string[]; data?: any }) => updateRolePermissions(id, permissions ?? data?.permissions ?? []),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["roles"] });
+            queryClient.invalidateQueries({ queryKey: ["role"] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.AUTH_ME] });
+        },
+    });
+};
+
+export const useReorderPermissions = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (positionMap: Record<string, number>) => reorderPermissions(positionMap),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["permissions_all"] });
+        }
+    });
+};
+
+export const useDeleteRole = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => deleteRole(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["roles"] });
+        },
+    });
+};

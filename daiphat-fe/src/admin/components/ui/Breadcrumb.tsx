@@ -1,5 +1,6 @@
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
+import { Typography } from "@mui/material";
 
 type BreadcrumbItem = {
     label: string;
@@ -29,28 +30,29 @@ export const Breadcrumb = ({ items }: BreadcrumbProps) => {
         >
             {items.map((item, index) =>
                 item.to ? (
-                    <Link
+                    <Typography
                         key={index}
+                        component={RouterLink}
                         to={item.to}
-                        className="text-[0.875rem] text-[#1C252E] hover:underline"
+                        sx={{ fontSize: '0.875rem', color: '#1C252E', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
                     >
                         {item.label}
-                    </Link>
+                    </Typography>
                 ) : item.onClick ? (
-                    <span
+                    <Typography
                         key={index}
                         onClick={item.onClick}
-                        className="text-[0.875rem] text-[#1C252E] hover:underline cursor-pointer"
+                        sx={{ fontSize: '0.875rem', color: '#1C252E', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
                     >
                         {item.label}
-                    </span>
+                    </Typography>
                 ) : (
-                    <span
+                    <Typography
                         key={index}
-                        className="text-[0.875rem] text-[#637381] cursor-default"
+                        sx={{ fontSize: '0.875rem', color: '#637381', cursor: 'default' }}
                     >
                         {item.label}
-                    </span>
+                    </Typography>
                 )
             )}
         </Breadcrumbs>

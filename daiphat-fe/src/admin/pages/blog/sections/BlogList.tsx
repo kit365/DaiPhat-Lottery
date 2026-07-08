@@ -12,10 +12,10 @@ import 'dayjs/locale/vi';
 
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
-import { toast } from "react-toastify";
+import { AppToast as toast } from '../../../../utils/toast.util';
 import { confirmAction, confirmDelete } from "../../../utils/swal";
-import { useDeleteBlog, useUpdateBlog } from "../hooks/useBlog";
-import { BLOG_STATUS } from "../../../../types/blogs.type";
+import { useDeleteBlog, useUpdateBlog } from "../../../hooks/useBlog";
+import { BLOG_STATUS } from "../../../../types/blog.type";
 import { usePermissions } from "../../../hooks/usePermission";
 import { PERMISSIONS } from "../../../constants/permission.constants";
 

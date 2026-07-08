@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useInitiateResetPassword, useConfirmResetPassword } from '../hooks/useAccountUser';
-import { AppToast as toast } from "../../../../client/utils/toast.util";
+import { AppToast as toast } from "../../../../utils/toast.util";
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AccountResetPasswordModalProps {
