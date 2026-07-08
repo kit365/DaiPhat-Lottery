@@ -208,7 +208,11 @@ public enum ErrorCode {
     IMPORT_BATCH_STATION_INACTIVE("LT_070", "Nhà đài chưa được kích hoạt.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_INVALID_STATUS("LT_071", "Trạng thái phiếu nhập lô không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
     IMPORT_BATCH_IMPORT_COST_INVALID("LT_072", "Giá vốn nhập lô phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
-    IMPORT_BATCH_DRAFT_ALREADY_EXISTS("LT_073", "Bạn đang có phiếu nhập lô chưa hoàn thành. Vui lòng tiếp tục phiếu hiện tại.", HttpStatus.CONFLICT),
+    IMPORT_BATCH_DRAFT_ALREADY_EXISTS(
+            "LT_073",
+            "Bạn đã có phiếu nhập lô chưa hoàn tất cho cùng nhà cung cấp, ngày quay và hình thức nhập. Bạn có thể tiếp tục phiếu hiện tại hoặc tạo phiếu mới cho đợt giao khác.",
+            HttpStatus.CONFLICT
+    ),
     IMPORT_BATCH_DUPLICATE_STATION("LT_076", "Mỗi nhà đài chỉ được khai báo một lần trong cùng phiếu nhập lô.", HttpStatus.BAD_REQUEST),
     LOTTERY_SUPPLIER_NOT_FOUND("LT_077", "Nhà cung cấp không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_SUPPLIER_CODE_DUPLICATE("LT_078", "Mã nhà cung cấp đã tồn tại.", HttpStatus.BAD_REQUEST),
@@ -300,6 +304,21 @@ public enum ErrorCode {
     IMPORT_BATCH_LINE_NOT_EDITABLE(
             "LT_094",
             "Dòng phiếu nhập lô không thể chỉnh sửa ở trạng thái hiện tại.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_DRAW_DATE_LOCKED_IMPORTED_LINES(
+            "LT_095",
+            "Không thể đổi ngày quay vì phiếu nhập lô đã có dòng đã nhập đủ.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_SUPPLIER_LOCKED_IMPORTED_LINES(
+            "LT_097",
+            "Không thể thay đổi nhà cung cấp vì phiếu nhập đã có lô vé được nhập hoàn tất.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_DECLARE_QUANTITY_BELOW_IMPORTED(
+            "LT_096",
+            "Số lượng khai báo (%d) không được nhỏ hơn số vé đã nhập (%d). Vui lòng xóa bớt vé đã nhập trước khi giảm số lượng khai báo.",
             HttpStatus.BAD_REQUEST
     ),
 
