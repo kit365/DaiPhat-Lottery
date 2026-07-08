@@ -49,6 +49,7 @@ export const QUERY_KEYS = {
     IMPORT_BATCH_ELIGIBLE_STATIONS: 'import-batch-eligible-stations',
     IMPORT_BATCH_TIME_POLICY: 'import-batch-time-policy',
     IMPORT_BATCH_INCOMPLETE: 'import-batch-incomplete',
+    IMPORT_BATCH_WITHOUT_LINES: 'import-batch-without-lines',
 
     // Supplier
     SUPPLIERS: 'suppliers',
