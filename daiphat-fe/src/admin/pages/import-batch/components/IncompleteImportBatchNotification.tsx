@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import dayjs from 'dayjs';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ImportBatch } from '../../../api/importBatch.api';
 import { ROUTES } from '../../../constants/routes';
@@ -31,6 +31,7 @@ import {
     getIncompleteLines,
     resolveImportBatchStationNames,
 } from '../../ticket/utils/importBatchProgress';
+import { ImportBatchNotificationDetailDialog } from './ImportBatchNotificationDetailDialog';
 
 type IncompleteImportBatchNotificationProps = {
     variant: 'detailed' | 'compact';
@@ -39,7 +40,7 @@ type IncompleteImportBatchNotificationProps = {
 type IncompleteBatchItemProps = {
     batch: ImportBatch;
     resolveStationName: (stationId: number) => string;
-    onContinue: (batchId: number, lineId?: number) => void;
+    onContinue: () => void;
 };
 
 const IncompleteBatchItem = ({
@@ -54,7 +55,6 @@ const IncompleteBatchItem = ({
         resolveStationName,
         incompleteLines
     );
-    const firstLine = findFirstIncompleteLine(batch);
     const stationLabel =
         stationNames.length > 0 ? stationNames.join(', ') : '—';
     const drawDateLabel = batch.drawDate
@@ -119,7 +119,7 @@ const IncompleteBatchItem = ({
                 size="small"
                 variant="contained"
                 color="warning"
-                onClick={() => onContinue(batch.id, firstLine?.id)}
+                onClick={onContinue}
                 sx={{
                     flexShrink: 0,
                     justifySelf: { xs: 'flex-start', md: 'end' },
@@ -136,6 +136,7 @@ export const IncompleteImportBatchNotification = ({
     variant,
 }: IncompleteImportBatchNotificationProps) => {
     const navigate = useNavigate();
+    const [detailOpen, setDetailOpen] = useState(false);
     const { data: batches = [], isLoading } = useIncompleteImportBatches();
     const { data: providersRes } = useProviders({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
@@ -147,8 +148,9 @@ export const IncompleteImportBatchNotification = ({
         [providers]
     );
 
-    const handleContinue = (batchId: number, lineId?: number) => {
-        navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(batchId, lineId));
+    const handleContinue = (batch: ImportBatch) => {
+        const firstLine = findFirstIncompleteLine(batch);
+        navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(batch.id, firstLine?.id));
     };
 
     if (isLoading || batches.length === 0) {
@@ -156,53 +158,81 @@ export const IncompleteImportBatchNotification = ({
     }
 
     if (variant === 'compact') {
-        const firstBatch = batches[0];
-        const firstLine = firstBatch ? findFirstIncompleteLine(firstBatch) : undefined;
-        const pendingStations = firstBatch
-            ? resolveImportBatchStationNames(firstBatch, resolveStationName)
+        const isMulti = batches.length >= 2;
+        const singleBatch = isMulti ? null : batches[0];
+        const pendingStations = singleBatch
+            ? resolveImportBatchStationNames(singleBatch, resolveStationName)
             : [];
 
         return (
-            <Alert severity="warning" icon={<WarningAmberOutlinedIcon fontSize="inherit" />} sx={{ mb: 2 }}>
-                <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    spacing={1}
-                    alignItems={{ sm: 'center' }}
-                    justifyContent="space-between"
-                    useFlexGap
+            <>
+                <Alert
+                    severity="warning"
+                    icon={<WarningAmberOutlinedIcon fontSize="inherit" />}
+                    sx={{ mb: 2 }}
                 >
-                    <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
-                        <Typography variant="body2">
-                            <strong>{batches.length}</strong> phiếu nhập lô chưa hoàn tất
-                            {pendingStations.length > 0 && (
-                                <>
-                                    {' '}
-                                    · {pendingStations.join(', ')}
-                                </>
+                    <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={1}
+                        alignItems={{ sm: 'center' }}
+                        justifyContent="space-between"
+                        useFlexGap
+                    >
+                        <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
+                            <Typography variant="body2">
+                                <strong>{batches.length}</strong> phiếu nhập lô chưa hoàn tất
+                                {!isMulti && pendingStations.length > 0 && (
+                                    <>
+                                        {' '}
+                                        · {pendingStations.join(', ')}
+                                    </>
+                                )}
+                            </Typography>
+                            {!isMulti && singleBatch && (
+                                <Chip
+                                    size="small"
+                                    label={getImportModeNotificationLabel(singleBatch.importMode)}
+                                    color={getImportModeChipColor(singleBatch.importMode)}
+                                    sx={importBatchStatusChipSx}
+                                />
                             )}
-                        </Typography>
-                        {firstBatch && (
-                            <Chip
+                        </Stack>
+                        {isMulti ? (
+                            <Button
                                 size="small"
-                                label={getImportModeNotificationLabel(firstBatch.importMode)}
-                                color={getImportModeChipColor(firstBatch.importMode)}
-                                sx={importBatchStatusChipSx}
-                            />
+                                color="warning"
+                                variant="contained"
+                                onClick={() => setDetailOpen(true)}
+                                sx={{ flexShrink: 0 }}
+                            >
+                                Xem chi tiết
+                            </Button>
+                        ) : (
+                            singleBatch && (
+                                <Button
+                                    size="small"
+                                    color="warning"
+                                    variant="contained"
+                                    onClick={() => handleContinue(singleBatch)}
+                                    sx={{ flexShrink: 0 }}
+                                >
+                                    Tiếp tục nhập
+                                </Button>
+                            )
                         )}
                     </Stack>
-                    {firstBatch && (
-                        <Button
-                            size="small"
-                            color="warning"
-                            variant="contained"
-                            onClick={() => handleContinue(firstBatch.id, firstLine?.id)}
-                            sx={{ flexShrink: 0 }}
-                        >
-                            Tiếp tục nhập
-                        </Button>
-                    )}
-                </Stack>
-            </Alert>
+                </Alert>
+
+                <ImportBatchNotificationDetailDialog
+                    open={detailOpen}
+                    title="Phiếu nhập lô chưa hoàn tất"
+                    batches={batches}
+                    actionType="continue-import"
+                    resolveStationName={resolveStationName}
+                    onClose={() => setDetailOpen(false)}
+                    onAction={handleContinue}
+                />
+            </>
         );
     }
 
@@ -267,7 +297,7 @@ export const IncompleteImportBatchNotification = ({
                             key={batch.id}
                             batch={batch}
                             resolveStationName={resolveStationName}
-                            onContinue={handleContinue}
+                            onContinue={() => handleContinue(batch)}
                         />
                     ))}
                 </Stack>
