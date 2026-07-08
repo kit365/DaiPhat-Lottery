@@ -6,7 +6,7 @@ spring:
   application:
     name: daiphat
   config:
-    import: optional:classpath:chat/chat-schedule.yml,optional:classpath:chat/chat-intent.yml
+    import: optional:classpath:chat/chat-schedule.yml,optional:classpath:chat/chat-intent.yml,optional:classpath:chat/chat-messages.yml
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
   threads:
@@ -54,7 +54,6 @@ daiphat:
     payment-failure-max-attempts: ${ORDER_PAYMENT_FAILURE_MAX_ATTEMPTS:3}
   chat:
     ai:
-      enabled: ${CHAT_AI_ENABLED:false}
       confidence-threshold: ${CHAT_AI_CONFIDENCE_THRESHOLD:0.7}
       bot-display-name: ${CHAT_AI_BOT_DISPLAY_NAME:Đại Phát AI Bot}
       service:
@@ -62,7 +61,6 @@ daiphat:
         connect-timeout-ms: ${DAIPHAT_AI_CONNECT_TIMEOUT_MS:3000}
         read-timeout-ms: ${DAIPHAT_AI_READ_TIMEOUT_MS:5000}
     flow:
-      switch-intent-threshold: ${CHAT_FLOW_SWITCH_INTENT_THRESHOLD:0.85}
       slot-fill-min-confidence: ${CHAT_FLOW_SLOT_FILL_MIN_CONFIDENCE:0.3}
       ttl-minutes: ${CHAT_FLOW_TTL_MINUTES:10}
     conversation:

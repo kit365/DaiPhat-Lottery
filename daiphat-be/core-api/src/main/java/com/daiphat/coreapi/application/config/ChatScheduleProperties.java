@@ -17,6 +17,7 @@ import java.util.Map;
 public class ChatScheduleProperties {
 
     private List<String> intentKeywords = new ArrayList<>();
+    private List<String> bareIntentPhrases = new ArrayList<>();
     private List<String> restartPhrases = new ArrayList<>();
     private List<String> allDaysPhrases = new ArrayList<>();
     private DateModePhrases dateModePhrases = new DateModePhrases();
@@ -29,6 +30,8 @@ public class ChatScheduleProperties {
     private List<StationAlias> stations = new ArrayList<>();
     private Map<String, List<String>> weekdays = new LinkedHashMap<>();
     private Map<String, List<String>> relativeDays = new LinkedHashMap<>();
+    private Integer fuzzyMinTokenWords = 2;
+    private Integer fuzzyMaxTokenWords = 4;
 
     @Getter
     @Setter
