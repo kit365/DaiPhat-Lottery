@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.application.listener;
 
 import com.daiphat.coreapi.application.event.LotteryStationChangedEvent;
-import com.daiphat.coreapi.application.service.chat.schedule.ChatScheduleStationResolver;
+import com.daiphat.coreapi.application.service.chat.flow.schedule.ChatScheduleStationResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
