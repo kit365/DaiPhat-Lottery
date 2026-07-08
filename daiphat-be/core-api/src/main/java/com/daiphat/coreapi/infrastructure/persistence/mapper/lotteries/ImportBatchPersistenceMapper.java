@@ -21,6 +21,12 @@ public interface ImportBatchPersistenceMapper {
     @Mapping(target = "importedBy", source = "importedBy.id")
     @Mapping(target = "supplierId", source = "supplier.id")
     @Mapping(target = "supplierName", source = "supplier.name")
+    @Mapping(target = "lines", ignore = true)
+    ImportBatchModel toDomainHeaderOnly(ImportBatchEntity entity);
+
+    @Mapping(target = "importedBy", source = "importedBy.id")
+    @Mapping(target = "supplierId", source = "supplier.id")
+    @Mapping(target = "supplierName", source = "supplier.name")
     ImportBatchModel toDomain(ImportBatchEntity entity);
 
     @Mapping(target = "importedBy", source = "importedBy")

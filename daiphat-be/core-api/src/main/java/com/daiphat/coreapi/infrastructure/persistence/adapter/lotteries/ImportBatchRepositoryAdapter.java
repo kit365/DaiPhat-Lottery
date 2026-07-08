@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries;
 
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchType;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
@@ -116,6 +117,12 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
         return model;
     }
 
+    private ImportBatchModel toDomainHeaderOnly(ImportBatchEntity entity) {
+        ImportBatchModel model = importBatchPersistenceMapper.toDomainHeaderOnly(entity);
+        model.setLines(List.of());
+        return model;
+    }
+
     @Override
     public Optional<ImportBatchModel> findById(Long id) {
         return importBatchRepository.findById(id)
@@ -159,6 +166,25 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
     }
 
     @Override
+    public Optional<ImportBatchModel> findEditableBatchByImportedByAndDrawDateAndSupplierAndImportMode(
+            UUID importedBy,
+            LocalDate drawDate,
+            Long supplierId,
+            ImportBatchImportMode importMode
+    ) {
+        return importBatchRepository
+                .findEditableBatchesByImportedByAndDrawDateAndSupplierAndImportMode(
+                        importedBy,
+                        drawDate,
+                        supplierId,
+                        importMode
+                )
+                .stream()
+                .findFirst()
+                .map(this::toDomainWithActiveLines);
+    }
+
+    @Override
     public Page<ImportBatchModel> findAll(
             Pageable pageable,
             Long lotteryStationId,
@@ -191,6 +217,13 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
     public List<ImportBatchModel> findIncompleteDraftBatches() {
         return importBatchRepository.findIncompleteDraftBatches().stream()
                 .map(this::toDomainWithActiveLines)
+                .toList();
+    }
+
+    @Override
+    public List<ImportBatchModel> findEditableBatchesWithoutLines() {
+        return importBatchRepository.findEditableBatchesWithoutLines().stream()
+                .map(this::toDomainHeaderOnly)
                 .toList();
     }
 
