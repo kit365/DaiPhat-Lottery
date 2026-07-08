@@ -22,6 +22,7 @@ import 'package:daiphat_mobile/src/features/notifications/presentation/views/not
 import 'package:daiphat_mobile/src/features/notifications/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/my_orders_view.dart';
 import 'package:daiphat_mobile/src/features/profile/presentation/views/order_detail_view.dart';
+import 'package:daiphat_mobile/src/features/ticket_check/presentation/views/ticket_check_view.dart';
 import 'app_routes.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -100,6 +101,14 @@ GoRouter createAppRouter({
           ),
           _route(
             AppRoute.buyTicket,
+            loginViewModel,
+            registerViewModel,
+            forgotPasswordViewModel,
+            profileViewModel,
+            notificationViewModel,
+          ),
+          _route(
+            AppRoute.checkTicket,
             loginViewModel,
             registerViewModel,
             forgotPasswordViewModel,
@@ -271,6 +280,8 @@ Widget _buildRoute(
       return ForgotPasswordView(viewModel: forgotPasswordViewModel);
     case AppRoute.buyTicket:
       return const BuyTicketView();
+    case AppRoute.checkTicket:
+      return const TicketCheckView();
     case AppRoute.cart:
       return const CartView();
     case AppRoute.checkout:
