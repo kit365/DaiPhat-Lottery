@@ -5,6 +5,8 @@ import com.daiphat.coreapi.domain.model.refund.RefundRequestModel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,11 +20,18 @@ public interface RefundRequestRepositoryPort {
             Pageable pageable,
             UUID requestedBy,
             RefundRequestStatus status,
+            Collection<RefundRequestStatus> statuses,
             UUID orderId,
             String search
     );
 
-    long countAll(UUID requestedBy, RefundRequestStatus status, UUID orderId, String search);
+    long countAll(
+            UUID requestedBy,
+            RefundRequestStatus status,
+            Collection<RefundRequestStatus> statuses,
+            UUID orderId,
+            String search
+    );
 
     long countByStatus(
             RefundRequestStatus status,
@@ -32,4 +41,11 @@ public interface RefundRequestRepositoryPort {
     );
 
     boolean existsPendingByBankAccountId(Long bankAccountId);
+
+    boolean existsActiveByOrderId(UUID orderId);
+
+    List<RefundRequestModel> findExpirableByStatusesAndCreatedBefore(
+            Collection<RefundRequestStatus> statuses,
+            java.time.LocalDateTime createdBefore
+    );
 }

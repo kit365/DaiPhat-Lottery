@@ -31,4 +31,14 @@ public final class StorageUtils {
             throw new DomainException(ErrorCode.IMAGE_INVALID_TYPE);
         }
     }
+
+    public static void validateImageEvidenceUrl(String url) {
+        if (url == null || url.isBlank()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "URL minh chứng chuyển khoản là bắt buộc.");
+        }
+        String trimmed = url.trim();
+        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "URL minh chứng chuyển khoản không hợp lệ.");
+        }
+    }
 }
