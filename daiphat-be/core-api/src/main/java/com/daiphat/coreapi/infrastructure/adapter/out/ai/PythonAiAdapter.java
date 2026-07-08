@@ -1,11 +1,10 @@
 package com.daiphat.coreapi.infrastructure.adapter.out.ai;
 
-import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponseDto;
-import com.daiphat.coreapi.application.dto.response.chat.ChatGenerateResponseDto;
+import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponse;
+import com.daiphat.coreapi.application.dto.response.chat.ChatGenerateResponse;
 import com.daiphat.coreapi.application.port.out.ai.AiConsultPort;
-import com.daiphat.coreapi.infrastructure.adapter.out.ai.dto.AiConsultRequest;
-import com.daiphat.coreapi.infrastructure.adapter.out.ai.dto.AiRemoteApiResponse;
-import com.daiphat.coreapi.infrastructure.adapter.out.ai.dto.AiApiConstants;
+import com.daiphat.coreapi.infrastructure.dto.AiConsultRequest;
+import com.daiphat.coreapi.infrastructure.dto.AiRemoteApiResponse;
 import com.daiphat.coreapi.shared.util.UrlUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,9 +41,9 @@ public class PythonAiAdapter implements AiConsultPort {
     }
 
     @Override
-    public ChatClassifyResponseDto classifyMessage(String message, Long conversationId) {
+    public ChatClassifyResponse classifyMessage(String message, Long conversationId) {
         try {
-            ResponseEntity<AiRemoteApiResponse<ChatClassifyResponseDto>> response = restTemplate.exchange(
+            ResponseEntity<AiRemoteApiResponse<ChatClassifyResponse>> response = restTemplate.exchange(
                     endpointUrl(AiApiConstants.CLASSIFY_PATH),
                     HttpMethod.POST,
                     buildRequest(message, conversationId),
@@ -61,14 +60,14 @@ public class PythonAiAdapter implements AiConsultPort {
     @Override
     public String generateFortuneReply(String message, Long conversationId) {
         try {
-            ResponseEntity<AiRemoteApiResponse<ChatGenerateResponseDto>> response = restTemplate.exchange(
+            ResponseEntity<AiRemoteApiResponse<ChatGenerateResponse>> response = restTemplate.exchange(
                     endpointUrl(AiApiConstants.GENERATE_PATH),
                     HttpMethod.POST,
                     buildRequest(message, conversationId),
                     new ParameterizedTypeReference<>() {
                     }
             );
-            ChatGenerateResponseDto data = extractData(response, endpointUrl(AiApiConstants.GENERATE_PATH));
+            ChatGenerateResponse data = extractData(response, endpointUrl(AiApiConstants.GENERATE_PATH));
             return data != null ? data.getReply() : null;
         } catch (Exception e) {
             log.error("Failed to generate fortune reply using AI service", e);

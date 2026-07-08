@@ -23,6 +23,7 @@ import {
   CustomerChatTimelineResponse,
   ChatConversationSocketEvent,
   BACKEND_HANDOFF_ESCALATION_REASONS,
+  MessageSenderRole,
 } from '../../../types/chat.type';
 import { ChatSocketMessageEvent } from '../../../types/websocket.type';
 import { ChatLotterySchedule } from './ChatLotterySchedule';
@@ -408,9 +409,6 @@ const buildMessagesFromTimeline = (pages: CustomerChatTimelineResponse[]): Messa
   return result;
 };
 
-const isTransientMessage = (message: Message): boolean =>
-  message.id.startsWith('local-') || message.id.startsWith('system-');
-
 const pruneOverlayMessages = (overlay: Message[], timelineMessages: Message[]): Message[] =>
   overlay.filter((extra) => {
     if (extra.id.startsWith('local-')) {
@@ -451,8 +449,6 @@ export const ChatbotPopup = () => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [conversationStatus, setConversationStatus] = useState<ConversationStatus | null>(null);
-  const [hasAssignedOperator, setHasAssignedOperator] = useState(false);
-  const [assignedOperatorName, setAssignedOperatorName] = useState<string | null>(null);
   const [isEscalating, setIsEscalating] = useState(false);
   const [overlayMessages, setOverlayMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -493,24 +489,27 @@ export const ChatbotPopup = () => {
       }
 
       const sortedMessages = [...detail.messages].sort((left, right) => {
-        const leftTime = new Date(left.createdAt).getTime();
-        const rightTime = new Date(right.createdAt).getTime();
+        const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0;
+        const rightTime = right.createdAt ? new Date(right.createdAt).getTime() : 0;
         if (leftTime !== rightTime) {
           return leftTime - rightTime;
         }
         return left.id - right.id;
       });
 
-      queryClient.setQueryData(clientTimelineKey(), (prev) => {
-        if (!prev?.pages?.length) {
-          return buildTimelineInfiniteDataFromMessages(sortedMessages);
-        }
+      queryClient.setQueryData<InfiniteData<CustomerChatTimelineResponse>>(
+        clientTimelineKey(),
+        (prev) => {
+          if (!prev?.pages?.length) {
+            return buildTimelineInfiniteDataFromMessages(sortedMessages);
+          }
 
-        return sortedMessages.reduce(
-          (data, message) => mergeCustomerTimelineMessage(data, message),
-          prev
-        );
-      });
+          return sortedMessages.reduce(
+            (data, message) => mergeCustomerTimelineMessage(data, message),
+            prev
+          );
+        }
+      );
     },
     [queryClient]
   );
@@ -607,8 +606,6 @@ export const ChatbotPopup = () => {
   const applyConversationState = (detail: ConversationDetailResponse) => {
     setConversationId(detail.conversation.id);
     setConversationStatus(detail.conversation.status);
-    setHasAssignedOperator(Boolean(detail.conversation.assignedOperatorId));
-    setAssignedOperatorName(detail.conversation.assignedOperatorName ?? null);
     sessionStorage.setItem(CHAT_LAST_CONVERSATION_KEY, String(detail.conversation.id));
   };
 
@@ -868,8 +865,6 @@ export const ChatbotPopup = () => {
     if (!token) {
       setConversationId(null);
       setConversationStatus(null);
-      setHasAssignedOperator(false);
-      setAssignedOperatorName(null);
       setOverlayMessages([]);
       return;
     }
@@ -970,14 +965,14 @@ export const ChatbotPopup = () => {
         return;
       }
 
-      queryClient.setQueryData(
+      queryClient.setQueryData<InfiniteData<CustomerChatTimelineResponse>>(
         clientTimelineKey(),
         (prev) =>
           mergeCustomerTimelineMessage(prev, {
             id: payload.id ?? Date.now(),
             conversationId: payload.conversationId,
             senderId: payload.senderId ?? null,
-            senderType: payload.senderType ?? 'CUSTOMER',
+            senderType: payload.senderType ?? MessageSenderRole.CUSTOMER,
             content: payload.content?.trim() || '',
             type: payload.type ?? 'TEXT',
             intent: payload.intent ?? null,
@@ -1005,10 +1000,13 @@ export const ChatbotPopup = () => {
     const isFromStaff =
       payload.senderType === 'OPERATOR' || payload.senderType === 'AI_SYSTEM';
     if (isFromStaff && payload.senderType === 'OPERATOR') {
-      queryClient.setQueryData(clientTimelineKey(), (prev) => markCustomerTimelineAsRead(prev));
+      queryClient.setQueryData<InfiniteData<CustomerChatTimelineResponse>>(
+        clientTimelineKey(),
+        (prev) => markCustomerTimelineAsRead(prev)
+      );
       void markConversationAsRead(activeConversationId);
     }
-  }, [conversationId, isMinimized, isOpen, markConversationAsRead, mergeSocketMessageToTimeline, queryClient, userId]);
+  }, [conversationId, isMinimized, isOpen, markConversationAsRead, mergeSocketMessageToTimeline, queryClient]);
 
   const syncConversationFromEvent = useCallback(
     (event: ChatConversationSocketEvent) => {
@@ -1017,10 +1015,6 @@ export const ChatbotPopup = () => {
         sessionStorage.setItem(CHAT_LAST_CONVERSATION_KEY, String(event.conversationId));
       }
       setConversationStatus(event.status);
-      setHasAssignedOperator(Boolean(event.assignedOperatorId));
-      if (!event.assignedOperatorId) {
-        setAssignedOperatorName(null);
-      }
     },
     []
   );
@@ -1061,8 +1055,6 @@ export const ChatbotPopup = () => {
     }
 
     if (event.eventType === 'CONVERSATION_CLOSED') {
-      setHasAssignedOperator(false);
-      setAssignedOperatorName(null);
       void refreshTimelineMessages();
       void loadOpenConversation().then((openDetail) => {
         if (!openDetail) {
@@ -1324,12 +1316,7 @@ export const ChatbotPopup = () => {
                 <div className="text-center text-sm text-gray-400 py-4">Đang tải hội thoại...</div>
               )}
 
-              {!timelineQuery.isLoading &&
-                !timelineQuery.isError &&
-                timelineMessages.length === 0 &&
-                overlayMessages.length === 0 && (
-                  <div className="text-center text-sm text-gray-400 py-4">Chưa có tin nhắn.</div>
-                )}
+
               
               {displayMessages.map((msg) =>
                 msg.variant === 'date' ? (

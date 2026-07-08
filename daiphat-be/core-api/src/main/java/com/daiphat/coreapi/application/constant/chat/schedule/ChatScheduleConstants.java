@@ -20,6 +20,7 @@ public final class ChatScheduleConstants {
     public static final String SLOT_DATE_MODE = "dateMode";
     public static final String SLOT_SCOPE = "scope";
     public static final String SLOT_CONFIRM_STATION_IDS = "confirmStationIds";
+    public static final String SLOT_REGION_ALL_INTENT = "regionAllIntent";
 
     public static final String SCOPE_STATION = "STATION";
     public static final String SCOPE_STATIONS = "STATIONS";
@@ -48,9 +49,4 @@ public final class ChatScheduleConstants {
     public static final String RESULT_PARAM_REGION = "region";
     public static final String RESULT_PARAM_DATE = "date";
     public static final String RESULT_PARAM_SCOPE_ALL = "scope=all";
-
-    public static final double FUZZY_MATCH_THRESHOLD = 0.75;
-    public static final double FUZZY_AMBIGUITY_GAP = 0.10;
-    public static final int FUZZY_MIN_TOKEN_WORDS = 2;
-    public static final int FUZZY_MAX_TOKEN_WORDS = 4;
 }
