@@ -11,7 +11,7 @@ import { redirectToGoogleOAuth } from "../../utils/google-oauth.util";
 
 import { UseFormReturn } from "react-hook-form";
 import { RegisterFormValues } from "../../../client/types/auth.schema";
-import { AppToast } from "../../utils/toast.util";
+import { AppToast } from "../../../utils/toast.util";
 
 interface RegisterContentProps {
     onSwitchToLogin?: () => void;

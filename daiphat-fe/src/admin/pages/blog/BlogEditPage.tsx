@@ -5,17 +5,18 @@ import { Title } from "../../components/ui/Title";
 import { Tiptap } from "../../components/layouts/titap/Tiptap";
 import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
 import { CollapsibleCard } from "../../components/ui/CollapsibleCard";
-import { useBlogDetail, useUpdateBlog, useBlogTags, useBlogStatuses, useBlogTypes } from "./hooks/useBlog";
-import { BLOG_STATUS } from "../../../types/blogs.type";
+import { useBlogDetail, useUpdateBlog, useBlogStatuses, useBlogTypes } from "../../hooks/useBlog";
+import { useBlogTags } from "../../hooks/useBlogTag";
+import { BLOG_STATUS } from "../../../types/blog.type";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { createBlogSchema, CreateBlogFormValues } from "../../schemas/blog.schema";
 import { prefixAdmin } from "../../constants/routes";
 import { FormUploadSingleFile } from "../../components/upload/FormUploadSingleFile";
-import { uploadBlogImage } from "../../api/blog.api";
-import { toast } from "react-toastify";
+import { uploadBlogImage } from "../../services/blog.service";
+import { AppToast as toast } from '../../../utils/toast.util';
 import { useParams } from "react-router-dom";
-import { useNestedBlogCategories } from "../blog-category/hooks/useBlogCategory";
+import { useNestedBlogCategories } from "../../hooks/useBlogCategory";
 import { CategoryTreeSelectGeneric } from "../../components/ui/CategoryTreeSelectGeneric";
 import { confirmAction } from "../../utils/swal";
 
@@ -33,34 +34,7 @@ export const BlogEditPage = () => {
     const toggle = (setter: Dispatch<SetStateAction<boolean>>) =>
         () => setter(prev => !prev);
 
-    const outerTheme = useTheme();
-    const localTheme = createTheme(outerTheme, {
-        components: {
-            MuiCard: {
-                styleOverrides: {
-                    root: {
-                        backgroundImage: "none !important",
-                        backdropFilter: "none !important",
-                        backgroundColor: "var(--palette-background-paper) !important",
-                        boxShadow: "var(--customShadows-card)",
-                        borderRadius: "var(--shape-borderRadius-lg)",
-                        color: "var(--palette-text-primary)",
-                    },
-                }
-            },
-            MuiAutocomplete: {
-                styleOverrides: {
-                    listbox: { padding: 0 },
-                    option: {
-                        fontSize: '0.875rem',
-                        padding: '6px',
-                        marginBottom: '4px',
-                        borderRadius: "var(--shape-borderRadius-sm)",
-                    },
-                },
-            },
-        }
-    });
+
 
     const { data: detailRes, isLoading: isLoadingDetail } = useBlogDetail(id);
     const { data: blogCategories = [] } = useNestedBlogCategories();
@@ -214,7 +188,7 @@ export const BlogEditPage = () => {
     // Dynamic Button properties based on selectedStatus
     let buttonLabel = "Cập nhật";
     let loadingLabel = "Đang cập nhật...";
-    let targetStatus: string = selectedStatus;
+    const targetStatus: string = selectedStatus;
     let confirmBeforeSubmit = false;
 
     if (selectedStatus === BLOG_STATUS.DRAFT) {
@@ -273,7 +247,7 @@ export const BlogEditPage = () => {
                 </div>
             </div>
 
-            <ThemeProvider theme={localTheme}>
+            <>
                 <form>
                     <Stack sx={{ margin: "0px calc(15 * var(--spacing))", gap: "calc(5 * var(--spacing))" }}>
                         {/* ─── Details card ──────────────────────────────────── */}
@@ -484,7 +458,7 @@ export const BlogEditPage = () => {
                         </Box>
                     </Stack>
                 </form>
-            </ThemeProvider>
+            </>
         </>
     );
 };

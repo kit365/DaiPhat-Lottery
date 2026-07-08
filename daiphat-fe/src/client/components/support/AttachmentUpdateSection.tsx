@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { SupportTicketResponse } from '../../../types/support.type';
 import { useUpdateComplaint } from '../../hooks/useSupportTicket';
 import { ImageUploadPreview } from './ImageUploadPreview';
-import { AppToast } from '../../utils/toast.util';
+import { AppToast } from '../../../utils/toast.util';
 
 interface AttachmentUpdateSectionProps {
     ticket: SupportTicketResponse;

@@ -38,7 +38,12 @@ public interface LotteryStationServicePort {
 
     List<LotteryStationResponse> getDrawingTomorrow();
 
-    List<LotteryStationSchedulePublicResponse> getPublicSchedule(String region);
+    List<LotteryStationSchedulePublicResponse> getPublicSchedule(
+            String region,
+            Long stationId,
+            List<Long> stationIds,
+            LocalDate drawDate
+    );
 
     LotteryStationResponse update(Long id, UpdateLotteryStationRequest request);
 

@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     tailwindcss()
   ],
+  define: {
+    global: 'window',
+  },
   server: {
     proxy: {
       "/api": {

@@ -45,10 +45,10 @@ import { Footer } from './client/components/layout/Footer';
 import { QuickCheckTicketModal } from './client/components/home/QuickCheckTicketModal';
 import { QuickCheckFloatingButton } from './client/components/home/QuickCheckFloatingButton';
 
-// --- Theme Layout Components ---
+import { ChatbotPopup } from './client/components/support/ChatbotPopup';
 
 const ClientThemeLayout = () => (
-  <div className="client-theme min-h-screen text-inherit font-inherit flex flex-col">
+  <div className="client-theme min-h-screen text-inherit font-inherit flex flex-col relative">
     <div className="flex-1 flex flex-col">
       <Suspense fallback={<LoadingSpinner />}>
         <Outlet />
@@ -57,6 +57,7 @@ const ClientThemeLayout = () => (
     <QuickCheckTicketModal />
     <QuickCheckFloatingButton />
     <Footer />
+    <ChatbotPopup />
   </div>
 );
 

@@ -453,7 +453,7 @@ export const TicketServiceOrderList = () => {
                                                         onClick={(e) => handleOpenMenu(e, row._id)}
                                                         sx={{
                                                             color: 'var(--palette-text-primary)',
-                                                            bgcolor: Boolean(anchorEl[row._id]) ? 'var(--palette-action-hover)' : 'transparent',
+                                                            bgcolor: anchorEl[row._id] ? 'var(--palette-action-hover)' : 'transparent',
                                                             '&:hover': {
                                                                 bgcolor: 'rgba(var(--palette-action-activeChannel) / var(--palette-action-hoverOpacity))',
                                                             }

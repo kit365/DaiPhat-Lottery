@@ -5,6 +5,8 @@ server:
 spring:
   application:
     name: daiphat
+  config:
+    import: optional:classpath:chat/chat-schedule.yml,optional:classpath:chat/chat-intent.yml
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
   threads:
@@ -50,6 +52,30 @@ daiphat:
     pending-payment-ttl-seconds: ${ORDER_PENDING_PAYMENT_TTL_SECONDS:600}
     pending-payment-expire-rate-ms: ${ORDER_PENDING_PAYMENT_EXPIRE_RATE_MS:60000}
     payment-failure-max-attempts: ${ORDER_PAYMENT_FAILURE_MAX_ATTEMPTS:3}
+  chat:
+    ai:
+      enabled: ${CHAT_AI_ENABLED:false}
+      confidence-threshold: ${CHAT_AI_CONFIDENCE_THRESHOLD:0.7}
+      bot-display-name: ${CHAT_AI_BOT_DISPLAY_NAME:Đại Phát AI Bot}
+      service:
+        base-url: ${DAIPHAT_AI_BASE_URL:http://localhost:8000}
+        connect-timeout-ms: ${DAIPHAT_AI_CONNECT_TIMEOUT_MS:3000}
+        read-timeout-ms: ${DAIPHAT_AI_READ_TIMEOUT_MS:5000}
+    flow:
+      switch-intent-threshold: ${CHAT_FLOW_SWITCH_INTENT_THRESHOLD:0.85}
+      slot-fill-min-confidence: ${CHAT_FLOW_SLOT_FILL_MIN_CONFIDENCE:0.3}
+      ttl-minutes: ${CHAT_FLOW_TTL_MINUTES:10}
+    conversation:
+      timeout:
+        # Chờ NV nhận (không ai claim) — chỉ gửi thông báo, không auto-close
+        waiting-operator-seconds: ${CHAT_WAITING_OPERATOR_TIMEOUT_SECONDS:86400}
+        # Khách im sau staff/bot trả lời
+        customer-silence-minutes: ${CHAT_CUSTOMER_SILENCE_TIMEOUT_MINUTES:30}
+        # Nhắc trước auto-close (vd. phút 25 nếu silence = 30)
+        auto-close-warning-lead-minutes: ${CHAT_AUTO_CLOSE_WARNING_LEAD_MINUTES:5}
+        # Khách chờ staff — chỉ SLA alert, không auto-close
+        staff-response-sla-minutes: ${CHAT_STAFF_RESPONSE_SLA_MINUTES:15}
+        scheduler-rate-ms: ${CHAT_TIMEOUT_SCHEDULER_RATE_MS:10000}
   lottery:
     crawler:
       user-agent: ${LOTTERY_CRAWLER_USER_AGENT:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36}
@@ -106,6 +132,10 @@ daiphat:
       - "order:view"
       - "order:create"
       - "order:edit"
+      - "chat:view"
+      - "chat:create"
+      - "chat:edit"
+      - "chat:manage"
     seed:
       admin:
         username: ${AUTH_SEED_ADMIN_USERNAME:}

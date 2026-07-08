@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { orderService } from '../services/orderService';
 import { CreateOnlineOrderRequest, GetMyOrdersParams } from '../../types/order.type';
-import { AppToast as toast } from '../utils/toast.util';
+import { AppToast as toast } from '../../utils/toast.util';
 import { QUERY_KEYS } from '../../constants/queryKeys';
 
 export const useCreateOnlineOrder = () => {

@@ -8,7 +8,6 @@ import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStatio
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSchedulePublicResponse;
-import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncItemResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncResponse;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryStationSourcePreviewItem;
@@ -26,6 +25,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureReposito
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.MatchFrom;
@@ -40,8 +40,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -53,15 +51,11 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -297,8 +291,22 @@ class LotteryStationServiceTest {
         when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(modelD, modelC, modelB, modelA));
         when(lotteryStationApplicationMapper.toSchedulePublicResponse(any())).thenReturn(LotteryStationSchedulePublicResponse.builder().build());
 
-        List<LotteryStationSchedulePublicResponse> res = lotteryStationService.getPublicSchedule(null);
+        List<LotteryStationSchedulePublicResponse> res = lotteryStationService.getPublicSchedule(null, null, null, null);
         assertThat(res).hasSize(4); // A, B, C, D sorted by Region(Nam(1), Bac(3)), Time
+    }
+
+    @Test
+    @DisplayName("[DP-37] getPublicSchedule_filtersStationIds")
+    void getPublicSchedule_filtersStationIds() {
+        LotteryStationModel modelA = LotteryStationModel.builder().id(1L).name("A").region(regionModel).status(LotteryStationStatus.ACTIVE).drawTime(LocalTime.of(16, 0)).build();
+        LotteryStationModel modelB = LotteryStationModel.builder().id(2L).name("B").region(regionModel).status(LotteryStationStatus.ACTIVE).drawTime(LocalTime.of(17, 0)).build();
+        LotteryStationModel modelC = LotteryStationModel.builder().id(3L).name("C").region(regionModel).status(LotteryStationStatus.ACTIVE).drawTime(null).build();
+
+        when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(modelC, modelB, modelA));
+        when(lotteryStationApplicationMapper.toSchedulePublicResponse(any())).thenReturn(LotteryStationSchedulePublicResponse.builder().build());
+
+        List<LotteryStationSchedulePublicResponse> res = lotteryStationService.getPublicSchedule(null, null, List.of(1L, 3L), null);
+        assertThat(res).hasSize(2);
     }
 
     @Test

@@ -134,9 +134,18 @@ public class LotteryStationController {
                     description = "Loc theo ma mien neu can. Bo trong de lay toan quoc.",
                     example = "MIEN_NAM"
             )
-            @RequestParam(required = false) String region
+            @RequestParam(required = false) String region,
+            @Parameter(description = "Loc theo id nha dai cu the.")
+            @RequestParam(required = false) Long stationId,
+            @Parameter(description = "Loc theo danh sach id nha dai (vd: 1,2,3).")
+            @RequestParam(required = false) List<Long> stationIds,
+            @Parameter(description = "Loc theo ngay quay (yyyy-MM-dd). Chi giu cac dai co lich quay vao thu tuong ung.")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate
     ) {
-        return ApiResponse.success(null, lotteryStationServicePort.getPublicSchedule(region));
+        return ApiResponse.success(
+                null,
+                lotteryStationServicePort.getPublicSchedule(region, stationId, stationIds, drawDate)
+        );
     }
 
     @PutMapping(ID_PATH)
