@@ -8,6 +8,7 @@ const importBatchLineSchema = z.object({
     resolvedBatchType: z
         .enum(['NEW', 'SUPPLEMENTARY', 'LATE_IMPORT', 'ADJUSTMENT'])
         .optional(),
+    stationName: z.string().optional(),
 });
 
 export const createImportBatchSchema = z
@@ -17,9 +18,18 @@ export const createImportBatchSchema = z
         importMode: z.enum(['IN_DAY', 'POST_DRAW_SUPPLEMENT']),
         invoiceEvidenceUrl: z.string().optional(),
         note: z.string().optional(),
-        lines: z.array(importBatchLineSchema).min(1, 'Phải có ít nhất một dòng nhập lô'),
+        lines: z.array(importBatchLineSchema),
     })
     .superRefine((data, ctx) => {
+        if (data.lines.length < 1) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Phải có ít nhất một dòng nhập lô.',
+                path: ['lines'],
+            });
+            return;
+        }
+
         const stationIds = new Set<number>();
         let requiresInvoice = false;
 
@@ -68,6 +78,8 @@ const updateImportBatchLineSchema = z
         readOnly: z.boolean().optional(),
         removed: z.boolean().optional(),
         stationName: z.string().optional(),
+        totalQuantity: z.number().optional(),
+        restoredFromCreate: z.boolean().optional(),
     })
     .superRefine((line, ctx) => {
         if (line.removed) {
@@ -90,6 +102,19 @@ const updateImportBatchLineSchema = z
             });
         }
 
+        const imported = line.totalQuantity ?? 0;
+        if (
+            imported > 0 &&
+            line.declareQuantity != null &&
+            line.declareQuantity < imported
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Số lượng khai báo (${line.declareQuantity.toLocaleString('vi-VN')}) không được nhỏ hơn số vé đã nhập (${imported.toLocaleString('vi-VN')}). Vui lòng xóa bớt vé đã nhập trước khi giảm số lượng khai báo.`,
+                path: ['declareQuantity'],
+            });
+        }
+
         if (line.importCost == null || line.importCost < 0.01) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
@@ -99,20 +124,28 @@ const updateImportBatchLineSchema = z
         }
     });
 
+export const updateImportBatchHeaderSchema = z.object({
+    supplierId: z.coerce.number().min(1, 'Vui lòng chọn nhà cung cấp'),
+    drawDate: z.string().min(1, 'Vui lòng chọn ngày quay'),
+    invoiceEvidenceUrl: z.string().optional(),
+});
+
+export type UpdateImportBatchHeaderFormValues = z.infer<typeof updateImportBatchHeaderSchema>;
+
 export const updateImportBatchSchema = z
     .object({
         supplierId: z.coerce.number().min(1, 'Vui lòng chọn nhà cung cấp'),
         invoiceEvidenceUrl: z.string().optional(),
         importMode: z.enum(['IN_DAY', 'POST_DRAW_SUPPLEMENT']),
         drawDate: z.string().min(1),
-        lines: z.array(updateImportBatchLineSchema).min(1, 'Phải có ít nhất một dòng nhập lô'),
+        lines: z.array(updateImportBatchLineSchema),
     })
     .superRefine((data, ctx) => {
         const activeLines = data.lines.filter((line) => !line.removed);
         if (activeLines.length < 1) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: 'Phải giữ lại ít nhất một dòng nhập lô.',
+                message: 'Phải có ít nhất một dòng nhập lô.',
                 path: ['lines'],
             });
             return;
