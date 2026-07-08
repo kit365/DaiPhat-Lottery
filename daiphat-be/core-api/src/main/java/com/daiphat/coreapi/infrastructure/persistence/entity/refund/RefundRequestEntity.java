@@ -1,8 +1,10 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.refund;
 
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundFundSource;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
+import com.daiphat.coreapi.domain.model.enums.order.refund.ReimburseStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
@@ -66,6 +68,17 @@ public class RefundRequestEntity {
     @Column(nullable = false, length = 20)
     private RefundRequestStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fund_source", nullable = false, length = 30)
+    private RefundFundSource fundSource;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reimburse_status", nullable = false, length = 20)
+    private ReimburseStatus reimburseStatus;
+
+    @Column(name = "attempt_number", nullable = false)
+    private int attemptNumber;
+
     @Column(name = "reject_reason", length = 500)
     private String rejectReason;
 
@@ -85,6 +98,9 @@ public class RefundRequestEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "transferred_by")
     private UserEntity transferredBy;
+
+    @Column(name = "transfer_note", length = 500)
+    private String transferNote;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)

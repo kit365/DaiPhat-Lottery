@@ -24,6 +24,10 @@ export interface TransactionResponse {
     paymentRef: string;
     status: TransactionStatus;
     type: TransactionType;
+    paidAt?: string;
+    cancelledAt?: string;
+    failureReason?: string;
+    note?: string;
 }
 
 export interface ProcessPaymentRequest {

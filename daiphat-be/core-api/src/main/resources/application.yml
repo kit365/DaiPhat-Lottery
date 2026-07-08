@@ -52,6 +52,10 @@ daiphat:
     pending-payment-ttl-seconds: ${ORDER_PENDING_PAYMENT_TTL_SECONDS:600}
     pending-payment-expire-rate-ms: ${ORDER_PENDING_PAYMENT_EXPIRE_RATE_MS:60000}
     payment-failure-max-attempts: ${ORDER_PAYMENT_FAILURE_MAX_ATTEMPTS:3}
+    refund:
+      closing-time: ${ORDER_REFUND_CLOSING_TIME:14:00}
+      window-minutes: ${ORDER_REFUND_WINDOW_MINUTES:30}
+      timezone: ${ORDER_REFUND_TIMEZONE:Asia/Ho_Chi_Minh}
   chat:
     ai:
       confidence-threshold: ${CHAT_AI_CONFIDENCE_THRESHOLD:0.7}
@@ -124,6 +128,10 @@ daiphat:
       - "order:view"
       - "order:create"
       - "order:edit"
+      - "refund:view"
+      - "refund:approve"
+      - "refund:reject"
+      - "refund:process"
       - "chat:view"
       - "chat:create"
       - "chat:edit"

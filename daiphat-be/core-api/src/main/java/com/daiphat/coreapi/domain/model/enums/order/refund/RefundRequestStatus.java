@@ -10,7 +10,11 @@ public enum RefundRequestStatus implements LabeledEnum {
     PENDING("Chờ duyệt"),
     APPROVED("Đã duyệt"),
     REJECTED("Từ chối"),
+    READY_TO_PAY("Chờ chuyển khoản"),
+    @Deprecated
     TRANSFERRED("Đã chuyển khoản"),
+    PAID("Đã chuyển khoản"),
+    EXPIRED("Hết hạn"),
     CANCELLED("Đã hủy");
 
     private final String label;

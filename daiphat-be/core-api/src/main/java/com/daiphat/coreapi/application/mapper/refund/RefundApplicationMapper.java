@@ -45,14 +45,65 @@ public interface RefundApplicationMapper {
                 base.refundReason(),
                 base.bankAccountId(),
                 bankAccount != null ? toBankAccountResponse(bankAccount) : null,
+                base.fundSource(),
+                base.reimburseStatus(),
+                base.attemptNumber(),
                 base.rejectReason(),
                 base.reviewedBy(),
                 base.reviewedAt(),
                 base.transferEvidenceUrl(),
                 base.transferredAt(),
                 base.transferredBy(),
+                base.transferNote(),
                 base.createdAt(),
-                base.updatedAt()
+                base.updatedAt(),
+                null,
+                null,
+                null,
+                null
+        );
+    }
+
+    default RefundRequestResponse enrichResponse(
+            RefundRequestModel model,
+            UserBankAccountModel bankAccount,
+            String orderCode,
+            java.time.LocalDateTime processingDeadlineAt,
+            Long remainingProcessingSeconds,
+            com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency processingUrgency
+    ) {
+        RefundRequestResponse base = toRefundResponse(model, bankAccount);
+        if (base == null) {
+            return null;
+        }
+        return new RefundRequestResponse(
+                base.id(),
+                base.refundType(),
+                base.orderId(),
+                base.orderDetailId(),
+                base.requestedBy(),
+                base.requestRole(),
+                base.status(),
+                base.refundAmount(),
+                base.refundReason(),
+                base.bankAccountId(),
+                base.bankAccount(),
+                base.fundSource(),
+                base.reimburseStatus(),
+                base.attemptNumber(),
+                base.rejectReason(),
+                base.reviewedBy(),
+                base.reviewedAt(),
+                base.transferEvidenceUrl(),
+                base.transferredAt(),
+                base.transferredBy(),
+                base.transferNote(),
+                base.createdAt(),
+                base.updatedAt(),
+                orderCode,
+                processingDeadlineAt,
+                remainingProcessingSeconds,
+                processingUrgency
         );
     }
 }

@@ -11,12 +11,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import com.daiphat.coreapi.application.config.AuthProperties;
+import com.daiphat.coreapi.application.config.OrderRefundProperties;
 import com.daiphat.coreapi.application.config.PaymentProperties;
 
 @SpringBootApplication
 @EnableAsync
 @EnableScheduling
-@EnableConfigurationProperties({AuthProperties.class, PaymentProperties.class})
+@EnableConfigurationProperties({AuthProperties.class, PaymentProperties.class, OrderRefundProperties.class})
 public class CoreApiApplication {
 
     public static void main(String[] args) {

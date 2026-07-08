@@ -93,4 +93,9 @@ export interface OrderResponse {
     createdAt: string;
     orderDetails?: any[];
     transactions: TransactionResponse[];
+    refundEligible?: boolean;
+    refundRemainingSeconds?: number;
+    refundGraceMinutes?: number;
+    refundPaymentSuccessAt?: string;
+    refundDeadlineAt?: string;
 }

@@ -30,6 +30,10 @@ public record OrderResponse(
         List<OrderDetailResponse> orderDetails,
         List<TransactionResponse> transactions,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Boolean refundEligible,
+        Long refundRemainingSeconds,
+        Integer refundGraceMinutes,
+        LocalDateTime refundPaymentSuccessAt
 ) {
 }
