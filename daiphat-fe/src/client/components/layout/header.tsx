@@ -20,7 +20,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { Skeleton } from "../../../components/ui/Skeleton";
-import { AppToast as toast } from "../../utils/toast.util";
+import { AppToast as toast } from "../../../utils/toast.util";
 import { useQuickCheckStore } from "../../../stores/useQuickCheckStore";
 
 export const Header = () => {

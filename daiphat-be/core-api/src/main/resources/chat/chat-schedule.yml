@@ -1,0 +1,171 @@
+daiphat:
+  chat:
+    schedule:
+      intent-keywords:
+        - tra cứu lịch khác
+        - tra cuu lich khac
+        - lịch quay
+        - lich quay
+        - lịch mở thưởng
+        - lich mo thuong
+        - giờ quay
+        - gio quay
+        - hôm nay quay
+        - hom nay quay
+        - ngày mai quay
+        - ngay mai quay
+        - tra cứu đài
+        - tra cuu dai
+        - lịch đài
+        - lich dai
+        - tìm đài
+        - tim dai
+        - xem lịch đài
+        - xem lich dai
+      restart-phrases:
+        - tra cuu lich khac
+      all-days-phrases:
+        - tat ca ngay
+        - tat ca ngay trong tuan
+        - ca tuan
+        - lich tuan
+        - ca ngay trong tuan
+        - all days
+        - full week
+      date-mode-phrases:
+        pick-date:
+          - chon ngay
+        pick-weekday:
+          - chon thu
+      slot-answers:
+        relative-day-exact:
+          - hom nay
+          - hnay
+          - ngay mai
+        all-stations-exact:
+          - tat ca
+          - all
+          - "1"
+        all-stations-contains:
+          - tat ca dai
+          - xem tat ca
+        pick-station-exact:
+          - "2"
+        pick-station-contains:
+          - dai cu the
+          - chon dai
+          - chon mot dai
+      nation-all-phrases:
+        - ca 3 mien
+        - ca ba mien
+        - tat ca mien
+        - toan quoc
+        - ca nuoc
+      region-all-intent-phrases:
+        - quay dai nao
+        - co may dai
+        - co bao nhieu dai
+        - may dai quay
+        - dai nao quay
+        - tat ca dai
+        - dai mien nam
+        - dai mien bac
+        - dai mien trung
+        - dai mien
+      station-exclusion-phrases:
+        - dai mien
+        - quay dai nao
+      region-list-intent:
+        station-cue-word: dai
+        station-suffix-word: thu
+      regions:
+        MIEN_NAM:
+          - miền nam
+          - mien nam
+        MIEN_TRUNG:
+          - miền trung
+          - mien trung
+        MIEN_BAC:
+          - miền bắc
+          - mien bac
+      stations:
+        - name: "Hồ Chí Minh"
+          aliases:
+            - tphcm
+            - tp.hcm
+            - tp hcm
+            - hcm
+            - ho chi minh
+            - hồ chí minh
+            - sai gon
+            - sài gòn
+        - name: "Đồng Nai"
+          aliases:
+            - dong nai
+            - đồng nai
+            - bien hoa
+            - biên hòa
+        - name: "Cần Thơ"
+          aliases:
+            - can tho
+            - cần thơ
+        - name: "Bình Phước"
+          aliases:
+            - binh phuoc
+            - bình phước
+        - name: "An Giang"
+          aliases:
+            - an giang
+            - long xuyen
+            - long xuyên
+        - name: "Bình Dương"
+          aliases:
+            - binh duong
+            - bình dương
+        - name: "Đà Nẵng"
+          aliases:
+            - da nang
+            - đà nẵng
+        - name: "Khánh Hòa"
+          aliases:
+            - khanh hoa
+            - khánh hòa
+            - nha trang
+        - name: "Hà Nội"
+          aliases:
+            - ha noi
+            - hà nội
+            - hn
+      weekdays:
+        MONDAY:
+          - thứ 2
+          - thu 2
+        TUESDAY:
+          - thứ 3
+          - thu 3
+        WEDNESDAY:
+          - thứ 4
+          - thu 4
+        THURSDAY:
+          - thứ 5
+          - thu 5
+        FRIDAY:
+          - thứ 6
+          - thu 6
+        SATURDAY:
+          - thứ 7
+          - thu 7
+        SUNDAY:
+          - chủ nhật
+          - chu nhat
+      relative-days:
+        TODAY:
+          - hôm nay
+          - hom nay
+          - hnay
+        TOMORROW:
+          - ngày mai
+          - ngay mai
+        YESTERDAY:
+          - hôm qua
+          - hom qua

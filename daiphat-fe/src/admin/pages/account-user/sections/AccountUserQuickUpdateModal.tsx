@@ -17,7 +17,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useUserDetail, useUpdateUser, useUserStatuses } from '../hooks/useAccountUser';
-import { AppToast as toast } from '../../../../client/utils/toast.util';
+import { AppToast as toast } from '../../../../utils/toast.util';
 
 interface AccountUserQuickUpdateModalProps {
     open: boolean;

@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
-import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 class MainLayout extends StatefulWidget {
@@ -76,7 +74,7 @@ class _MainLayoutState extends State<MainLayout> {
     if (location.startsWith('/results')) {
       return 2;
     }
-    if (location.startsWith(AppRoute.cart.path)) {
+    if (location.startsWith(AppRoute.checkTicket.path)) {
       return 4;
     }
     if (location.startsWith(AppRoute.profile.path)) {
@@ -103,7 +101,7 @@ class _MainLayoutState extends State<MainLayout> {
         break;
       case 4:
         _goToMain();
-        context.go(AppRoute.cart.path);
+        context.go(AppRoute.checkTicket.path);
         break;
       case 5:
         _goToMain();
@@ -154,13 +152,13 @@ class _MainLayoutState extends State<MainLayout> {
           onDestinationSelected: (index) => _onNavTap(index, context),
           indicatorColor: const Color(0xFFFFF0F0),
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: [
-            const NavigationDestination(
+          destinations: const [
+            NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home, color: AppColors.primary),
               label: 'Trang chủ',
             ),
-            const NavigationDestination(
+            NavigationDestination(
               icon: Icon(Icons.confirmation_number_outlined),
               selectedIcon: Icon(
                 Icons.confirmation_number,
@@ -168,43 +166,22 @@ class _MainLayoutState extends State<MainLayout> {
               ),
               label: 'Mua vé',
             ),
-            const NavigationDestination(
+            NavigationDestination(
               icon: Icon(Icons.emoji_events_outlined),
               selectedIcon: Icon(Icons.emoji_events, color: AppColors.primary),
               label: 'Kết quả',
             ),
-            const NavigationDestination(
+            NavigationDestination(
               icon: Icon(Icons.article_outlined),
               selectedIcon: Icon(Icons.article, color: AppColors.primary),
               label: 'Tin tức',
             ),
             NavigationDestination(
-              icon: Consumer(
-                builder: (context, ref, child) {
-                  final count = ref.watch(cartTicketCountProvider);
-                  return Badge(
-                    isLabelVisible: count > 0,
-                    label: Text('$count'),
-                    child: const Icon(Icons.shopping_cart_outlined),
-                  );
-                },
-              ),
-              selectedIcon: Consumer(
-                builder: (context, ref, child) {
-                  final count = ref.watch(cartTicketCountProvider);
-                  return Badge(
-                    isLabelVisible: count > 0,
-                    label: Text('$count'),
-                    child: const Icon(
-                      Icons.shopping_cart,
-                      color: AppColors.primary,
-                    ),
-                  );
-                },
-              ),
-              label: 'Giỏ hàng',
+              icon: Icon(Icons.search_outlined),
+              selectedIcon: Icon(Icons.search, color: AppColors.primary),
+              label: 'Tra cứu',
             ),
-            const NavigationDestination(
+            NavigationDestination(
               icon: Icon(Icons.person_outline),
               selectedIcon: Icon(Icons.person, color: AppColors.primary),
               label: 'Cá nhân',
