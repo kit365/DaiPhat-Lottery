@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useCancelRefund, useGetRefundDetail } from '../../../hooks/useRefund';
-import { RefundRequestStatus, RefundType } from '../../../../types/refund.type';
+import { RefundRequestStatus, RefundType, isRefundTransferComplete, maskBankAccountNo } from '../../../../types/refund.type';
 import { RefundStatusBadge } from '../../../components/refund/RefundStatusBadge';
 import { RefundStatusStepper } from '../../../components/refund/RefundStatusStepper';
 import { AppToast } from '../../../../utils/toast.util';
@@ -153,7 +153,9 @@ export const RefundDetailTab = () => {
                             </div>
                             <div>
                                 <p className="text-[15px] font-bold text-[#212B36]">{bankAccount.bankName}</p>
-                                <p className="text-[14px] text-[#637381] font-mono mt-0.5">{bankAccount.bankAccountNo}</p>
+                                <p className="text-[14px] text-[#637381] font-mono mt-0.5">
+                                    {maskBankAccountNo(bankAccount.bankAccountNo)}
+                                </p>
                                 <p className="text-[13px] text-[#919EAB] mt-0.5">{bankAccount.bankAccountName}</p>
                             </div>
                         </div>
@@ -163,7 +165,7 @@ export const RefundDetailTab = () => {
                 </div>
             </div>
 
-            {refund.status === RefundRequestStatus.TRANSFERRED && (
+            {isRefundTransferComplete(refund.status) && (
                 <div className="bg-[#E4F8ED] rounded-[20px] p-6 lg:p-8 border border-[#1CD162]/20 flex flex-col gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-[#1CD162] text-white flex items-center justify-center text-lg shrink-0">
@@ -177,14 +179,23 @@ export const RefundDetailTab = () => {
                         </p>
                     )}
                     {refund.transferEvidenceUrl && (
-                        <a
-                            href={refund.transferEvidenceUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-[#2065D1] font-bold text-[14px] hover:underline w-max"
-                        >
-                            <i className="fa-solid fa-image"></i> Xem chứng từ chuyển khoản
-                        </a>
+                        <div className="mt-3">
+                            <p className="text-[14px] text-[#637381] mb-2">Minh chứng chuyển khoản</p>
+                            <img
+                                src={refund.transferEvidenceUrl}
+                                alt="Minh chứng chuyển khoản"
+                                className="max-w-full max-h-[360px] rounded-lg border border-[#919EAB3D] cursor-pointer object-contain"
+                                onClick={() => window.open(refund.transferEvidenceUrl, '_blank', 'noopener,noreferrer')}
+                            />
+                            <a
+                                href={refund.transferEvidenceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 text-[#2065D1] font-bold text-[14px] hover:underline w-max mt-2"
+                            >
+                                <i className="fa-solid fa-up-right-from-square"></i> Mở ảnh gốc
+                            </a>
+                        </div>
                     )}
                 </div>
             )}

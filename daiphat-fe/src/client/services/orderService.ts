@@ -59,5 +59,10 @@ export const orderService = {
     getMyOrderDetail: async (id: string): Promise<ApiResponse<OrderResponse>> => {
         const response = await apiApp.get(`${BASE_URL}/my-orders/${id}`);
         return response.data;
+    },
+
+    getRefundEligibility: async (orderId: string) => {
+        const response = await apiApp.get(`${BASE_URL}/my-orders/${orderId}/refund-eligibility`);
+        return response.data;
     }
 };

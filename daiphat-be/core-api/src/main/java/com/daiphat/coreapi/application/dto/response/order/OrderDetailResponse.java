@@ -21,6 +21,7 @@ public record OrderDetailResponse(
         Long replacedByTicketId,
         Long replacedByTicketSerialId,
         BigDecimal price,
+        Integer quantity,
         OrderDetailStatus status,
         List<OrderRefundResponse> refunds
 ) {

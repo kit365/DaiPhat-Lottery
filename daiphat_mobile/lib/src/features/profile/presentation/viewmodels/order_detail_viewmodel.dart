@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/order_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/data/transaction_service.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
+import 'package:daiphat_mobile/src/features/checkout/models/refund_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/transaction_type.dart';
 
 class OrderDetailViewModel extends ChangeNotifier {
@@ -41,7 +42,21 @@ class OrderDetailViewModel extends ChangeNotifier {
   bool get isPendingPayment => _order?.status == 'PENDING_PAYMENT';
   bool get isCancelled => _order?.status == 'CANCELLED';
   bool get isCancellable => _order?.status == 'PAID';
-  bool get isRefundable => _order?.status == 'PAID';
+  bool get isRefundable {
+    final order = _order;
+    if (order == null) return false;
+    if (!const {'PAID', 'PREPARING', 'PENDING_PICKUP'}.contains(order.status)) {
+      return false;
+    }
+    if (order.refundEligible == true) return true;
+    if ((order.refundRemainingSeconds ?? 0) > 0) return true;
+    return isRefundWindowOpen(
+      refundDeadlineAt: order.refundDeadlineAt,
+      paymentSuccessAt: order.refundPaymentSuccessAt,
+      graceMinutes: order.refundGraceMinutes,
+      remainingSeconds: order.refundRemainingSeconds,
+    );
+  }
 
   Future<void> fetchOrderDetail() async {
     _isLoading = true;
@@ -100,12 +115,19 @@ class OrderDetailViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> requestRefund() async {
+  Future<OrderRefundEligibilityResponse> getRefundEligibility() async {
+    if (_order == null) {
+      throw Exception('Không tìm thấy thông tin đơn hàng');
+    }
+    return _orderService.getRefundEligibility(_order!.id);
+  }
+
+  Future<bool> requestRefund(CreateOrderRefundRequest request) async {
     if (_order == null) return false;
     _isRefunding = true;
     notifyListeners();
     try {
-      await _orderService.refundOrder(_order!.id);
+      await _orderService.requestOrderRefund(_order!.id, request);
       await fetchOrderDetail();
       return true;
     } catch (_) {

@@ -13,4 +13,5 @@ public final class StorageFolderConstants {
     public static final String STATION_IMAGE_FOLDER = "lottery-stations";
     public static final String TICKET_IMAGE_FOLDER = "lottery-tickets";
     public static final String SUPPORT_TICKET_FOLDER = "support-tickets";
+    public static final String REFUND_TRANSFER_EVIDENCE_FOLDER = "refund-transfers";
 }
