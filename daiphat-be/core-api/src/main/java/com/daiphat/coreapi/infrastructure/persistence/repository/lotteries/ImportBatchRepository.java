@@ -66,6 +66,44 @@ public interface ImportBatchRepository extends JpaRepository<ImportBatchEntity, 
             """)
     List<ImportBatchEntity> findIncompleteDraftBatches();
 
+    @Query("""
+            SELECT b FROM ImportBatchEntity b
+            WHERE b.deletedAt IS NULL
+              AND b.status IN (
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT,
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING,
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.PARTIALLY_IMPORTED
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM ImportBatchLineEntity l
+                WHERE l.importBatch.id = b.id
+                  AND l.deletedAt IS NULL
+              )
+            ORDER BY b.drawDate DESC, b.importedAt DESC
+            """)
+    List<ImportBatchEntity> findEditableBatchesWithoutLines();
+
+    @Query("""
+            SELECT b FROM ImportBatchEntity b
+            WHERE b.deletedAt IS NULL
+              AND b.importedBy.id = :importedBy
+              AND b.drawDate = :drawDate
+              AND b.supplier.id = :supplierId
+              AND b.importMode = :importMode
+              AND b.status IN (
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT,
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.RECEIVING,
+                com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.PARTIALLY_IMPORTED
+              )
+            ORDER BY b.importedAt DESC
+            """)
+    List<ImportBatchEntity> findEditableBatchesByImportedByAndDrawDateAndSupplierAndImportMode(
+            @Param("importedBy") UUID importedBy,
+            @Param("drawDate") LocalDate drawDate,
+            @Param("supplierId") Long supplierId,
+            @Param("importMode") ImportBatchImportMode importMode
+    );
+
     Optional<ImportBatchEntity> findFirstByImportedBy_IdAndStatusInOrderByImportedAtDesc(
             UUID importedBy,
             Collection<ImportBatchStatus> statuses
