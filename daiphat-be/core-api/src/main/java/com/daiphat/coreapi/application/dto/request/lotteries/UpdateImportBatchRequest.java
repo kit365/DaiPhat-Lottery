@@ -1,16 +1,17 @@
 package com.daiphat.coreapi.application.dto.request.lotteries;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Builder
 public record UpdateImportBatchRequest(
         @NotNull Long supplierId,
+        LocalDate drawDate,
         String invoiceEvidenceUrl,
-        @NotEmpty @Valid List<UpdateImportBatchLineRequest> lines
+        @Valid List<UpdateImportBatchLineRequest> lines
 ) {
 }
