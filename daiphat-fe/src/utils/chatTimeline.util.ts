@@ -131,8 +131,8 @@ export const buildTimelineInfiniteDataFromMessages = (
     messages: ChatMessageResponse[]
 ): InfiniteData<CustomerChatTimelineResponse> => {
     const sorted = [...messages].sort((left, right) => {
-        const leftTime = new Date(left.createdAt).getTime();
-        const rightTime = new Date(right.createdAt).getTime();
+        const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0;
+        const rightTime = right.createdAt ? new Date(right.createdAt).getTime() : 0;
         if (leftTime !== rightTime) {
             return leftTime - rightTime;
         }
