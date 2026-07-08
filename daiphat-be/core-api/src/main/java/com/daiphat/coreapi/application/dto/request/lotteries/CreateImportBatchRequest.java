@@ -24,6 +24,12 @@ public record CreateImportBatchRequest(
 
         String note,
 
+        /**
+         * When true, skip the soft check for an unfinished batch with the same
+         * drawDate + supplierId + importMode and create a new batch anyway.
+         */
+        Boolean forceCreate,
+
         @NotEmpty(message = "Danh sách nhà đài không được để trống")
         @Valid
         List<CreateImportBatchLineRequest> lines

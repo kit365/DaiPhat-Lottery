@@ -72,8 +72,9 @@ export interface UpdateImportBatchLinePayload {
 
 export interface UpdateImportBatchPayload {
     supplierId: number;
+    drawDate?: string;
     invoiceEvidenceUrl?: string;
-    lines: UpdateImportBatchLinePayload[];
+    lines?: UpdateImportBatchLinePayload[];
 }
 
 export interface CreateImportBatchLinePayload {
@@ -88,6 +89,11 @@ export interface CreateImportBatchPayload {
     importMode: ImportBatchImportMode;
     invoiceEvidenceUrl?: string;
     note?: string;
+    /**
+     * When true, bypass the soft duplicate check for an unfinished batch.
+     * The backend will still enforce per-station hard conflicts.
+     */
+    forceCreate?: boolean;
     lines: CreateImportBatchLinePayload[];
 }
 
@@ -162,7 +168,10 @@ export const getImportBatches = async (
 export const createImportBatch = async (
     payload: CreateImportBatchPayload
 ): Promise<ApiResponse<ImportBatch>> => {
-    const response = await apiApp.post(BASE_URL, payload, withAuth());
+    const response = await apiApp.post(BASE_URL, payload, {
+        ...withAuth(),
+        skipGlobalErrorToast: true,
+    });
     return response.data;
 };
 
@@ -224,6 +233,14 @@ export const previewImportBatchClassification = async (
 
 export const getIncompleteImportBatches = async (): Promise<ImportBatch[]> => {
     const response = await apiApp.get(`${BASE_URL}/incomplete`, {
+        ...withAuth(),
+        skipGlobalErrorToast: true,
+    });
+    return response.data?.data ?? [];
+};
+
+export const getImportBatchesWithoutLines = async (): Promise<ImportBatch[]> => {
+    const response = await apiApp.get(`${BASE_URL}/without-lines`, {
         ...withAuth(),
         skipGlobalErrorToast: true,
     });
