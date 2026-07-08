@@ -45,6 +45,10 @@ public interface ImportBatchApplicationMapper {
                 ? List.of()
                 : model.getLines().stream().map(this::toLineResponse).toList();
 
+        int resolvedLineCount = model.getLines() != null
+                ? model.getActiveLines().size()
+                : (model.getLineCount() != null ? model.getLineCount() : 0);
+
         return ImportBatchResponse.builder()
                 .id(model.getId())
                 .batchCode(model.getBatchCode())
@@ -57,7 +61,7 @@ public interface ImportBatchApplicationMapper {
                 .importedBy(model.getImportedBy())
                 .importedAt(model.getImportedAt())
                 .status(model.getStatus())
-                .lineCount(model.getLineCount())
+                .lineCount(resolvedLineCount)
                 .totalDeclareQuantity(model.getTotalDeclareQuantity())
                 .totalDeclaredCostValue(model.getTotalDeclaredCostValue())
                 .totalImportedQuantity(model.getTotalImportedQuantity())

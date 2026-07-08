@@ -31,6 +31,8 @@ public interface ImportBatchServicePort {
 
     List<ImportBatchResponse> getIncompleteBatches();
 
+    List<ImportBatchResponse> getBatchesWithoutLines();
+
     ImportBatchResponse getById(Long id);
 
     PageResponse<ImportBatchResponse> getAll(

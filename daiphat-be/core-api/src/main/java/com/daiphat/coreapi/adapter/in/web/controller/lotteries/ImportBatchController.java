@@ -86,6 +86,12 @@ public class ImportBatchController {
         return ApiResponse.success(null, importBatchServicePort.getIncompleteBatches());
     }
 
+    @GetMapping("/without-lines")
+    @PreAuthorize("hasAnyAuthority('importBatch:view', 'ticket:create')")
+    public ApiResponse<List<ImportBatchResponse>> getBatchesWithoutLines() {
+        return ApiResponse.success(null, importBatchServicePort.getBatchesWithoutLines());
+    }
+
     @DeleteMapping("/{batchId:\\d+}/lines/{lineId:\\d+}")
     @PreAuthorize("hasAnyAuthority('importBatch:create')")
     public ApiResponse<ImportBatchResponse> deleteLine(

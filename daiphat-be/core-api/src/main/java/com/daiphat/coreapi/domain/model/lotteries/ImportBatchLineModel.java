@@ -61,6 +61,13 @@ public class ImportBatchLineModel {
                 && (status == ImportBatchLineStatus.OPEN || status == ImportBatchLineStatus.IMPORTING);
     }
 
+    public boolean isDeletable() {
+        return !isDeleted()
+                && (status == ImportBatchLineStatus.OPEN
+                || status == ImportBatchLineStatus.IMPORTING
+                || status == ImportBatchLineStatus.CANCELLED);
+    }
+
     public boolean isExemptFromAutoCancellation() {
         return batchType == ImportBatchType.ADJUSTMENT;
     }
