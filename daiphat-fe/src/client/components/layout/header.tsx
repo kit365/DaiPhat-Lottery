@@ -21,16 +21,19 @@ import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { AppToast as toast } from "../../utils/toast.util";
-
-const navItems = [
-  { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },
-  { label: "Mua vé số", to: "/buy-ticket", icon: Ticket },
-  { label: "Vé của tôi", to: "/profile/tickets", icon: Ticket },
-  { label: "Lịch mở thưởng", to: "/lich-mo-thuong", icon: CalendarDays },
-  { label: "Bài viết", to: "/blogs", icon: BookOpen },
-];
+import { useQuickCheckStore } from "../../../stores/useQuickCheckStore";
 
 export const Header = () => {
+  const { openModal: openQuickCheck } = useQuickCheckStore();
+
+  const navItems = [
+    { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },
+    { label: "Mua vé số", to: "/buy-ticket", icon: Ticket },
+    { label: "Vé của tôi", to: "/profile/tickets", icon: Ticket },
+    { label: "Dò vé số", to: "#", icon: Search, action: () => openQuickCheck() },
+    { label: "Lịch mở thưởng", to: "/lich-mo-thuong", icon: CalendarDays },
+    { label: "Bài viết", to: "/blogs", icon: BookOpen },
+  ];
   const { 
     user: realUser, 
     logout, 
@@ -114,6 +117,12 @@ export const Header = () => {
                 <Link
                   key={item.label}
                   to={item.to}
+                  onClick={(e) => {
+                    if (item.action) {
+                      e.preventDefault();
+                      item.action();
+                    }
+                  }}
                   className={`flex items-center gap-2 font-bold no-underline transition-colors px-4 py-2.5 rounded-2xl text-[15px] tracking-tight font-client-display ${
                     isActive
                       ? "bg-[#FFF4F4] text-[#ee1314]" 
@@ -341,7 +350,13 @@ export const Header = () => {
                       <Link
                         to={item.to}
                         className="mobile-nav-link"
-                        onClick={() => setIsMenuOpen(false)}
+                        onClick={(e) => {
+                          setIsMenuOpen(false);
+                          if (item.action) {
+                            e.preventDefault();
+                            item.action();
+                          }
+                        }}
                       >
                         {item.label}
                       </Link>
