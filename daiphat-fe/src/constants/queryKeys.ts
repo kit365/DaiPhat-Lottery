@@ -77,6 +77,7 @@ export const QUERY_KEYS = {
     CLIENT_REFUND_TYPES: 'client-refund-types',
     CLIENT_BANK_ACCOUNTS: 'client-bank-accounts',
     CLIENT_BANK_CATALOG: 'client-bank-catalog',
+    CLIENT_ORDER_REFUND_ELIGIBILITY: 'client-order-refund-eligibility',
 
     // Support / Complaints (Client)
     CLIENT_TICKET_CATEGORIES: 'client-ticket-categories',
@@ -89,6 +90,8 @@ export const QUERY_KEYS = {
     ADMIN_SUPPORT_TICKET_DETAIL: 'admin-support-ticket-detail',
     ADMIN_SUPPORT_TICKET_COMMENTS: 'admin-support-ticket-comments',
     ADMIN_TICKET_CATEGORIES: 'admin-ticket-categories',
+    ADMIN_REFUNDS: 'admin-refunds',
+    ADMIN_REFUND_DETAIL: 'admin-refund-detail',
 
     // Lottery Results
     LOTTERY_RESULTS: 'lottery-results',

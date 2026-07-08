@@ -38,11 +38,7 @@ public class GlobalExceptionAdvice {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<?>> handleValidationException(MethodArgumentNotValidException exception) {
-        String message = "Dữ liệu không hợp lệ.";
-        if (exception.getBindingResult().hasErrors() && exception.getBindingResult().getFieldError() != null) {
-            message = exception.getBindingResult().getFieldError().getDefaultMessage();
-        }
-
+        String message = resolveValidationMessage(exception);
         return ResponseEntity.badRequest().body(ApiResponse.error(message));
     }
 
@@ -111,7 +107,29 @@ public class GlobalExceptionAdvice {
             return "Nhà đài này đã có trong phiếu nhập lô.";
         }
 
+        if (rawMessage.contains("uk_order_detail_serials_serial")) {
+            return "Một hoặc nhiều vé đã được phân bổ cho đơn hàng khác.";
+        }
+
         return ErrorCode.INVALID_INPUT.getMessage();
+    }
+
+    private String resolveValidationMessage(MethodArgumentNotValidException exception) {
+        if (!exception.getBindingResult().hasErrors()) {
+            return "Dữ liệu nhập vào không hợp lệ.";
+        }
+        var fieldError = exception.getBindingResult().getFieldError();
+        if (fieldError != null && fieldError.getDefaultMessage() != null && !fieldError.getDefaultMessage().isBlank()) {
+            return fieldError.getDefaultMessage();
+        }
+        if (fieldError != null) {
+            return switch (fieldError.getField()) {
+                case "refundReason" -> "Vui lòng nhập lý do hoàn tiền.";
+                case "bankAccountId" -> "Vui lòng chọn tài khoản nhận hoàn tiền.";
+                default -> "Dữ liệu nhập vào không hợp lệ.";
+            };
+        }
+        return "Dữ liệu nhập vào không hợp lệ.";
     }
 
     private String resolveDomainMessage(DomainException exception) {
@@ -142,7 +160,12 @@ public class GlobalExceptionAdvice {
                 || errorCode == ErrorCode.LOTTERY_STATION_SYNC_SOURCE_INVALID
                 || errorCode == ErrorCode.LOTTERY_STATION_SYNC_SOURCE_DUPLICATE
                 || errorCode == ErrorCode.LOTTERY_STATION_SYNC_DEFAULT_PRICE_REQUIRED
-                || errorCode == ErrorCode.LOTTERY_STATION_SYNC_CANONICAL_NAME_REQUIRED) {
+                || errorCode == ErrorCode.LOTTERY_STATION_SYNC_CANONICAL_NAME_REQUIRED
+                || errorCode == ErrorCode.REFUND_WINDOW_EXPIRED
+                || errorCode == ErrorCode.REFUND_REQUEST_INVALID_AMOUNT
+                || errorCode == ErrorCode.REFUND_REQUEST_BANK_ACCOUNT_MISMATCH
+                || errorCode == ErrorCode.REFUND_ORDER_ALREADY_REQUESTED
+                || errorCode == ErrorCode.ORDER_INVALID_STATUS) {
             return exception.getInternalMessage();
         }
 

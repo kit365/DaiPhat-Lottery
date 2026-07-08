@@ -4,10 +4,11 @@ import { OrderStatus, OrderType, GetMyOrdersParams, OrderResponse } from '../../
 import { useGetMyOrders, useGetMyOrderDetail } from '../../../hooks/useOrder';
 import { useProcessPayment } from '../../../hooks/useTransaction';
 import { PaymentGateway } from '../../../../types/transaction.type';
+import { isRefundWindowOpen } from '../../../../types/refund.type';
 import { AppToast } from '../../../../utils/toast.util';
-import { isOrderPreparing } from '../../../utils/order.util';
 import { RefundRequestModal } from '../../../components/refund/RefundRequestModal';
 import { useGetMyRefunds } from '../../../hooks/useRefund';
+import { OrderRowActionsMenu } from '../components/OrderRowActionsMenu';
 import { format } from 'date-fns';
 
 const ORDER_STATUS_MAP: Record<OrderStatus, { label: string, bg: string, text: string }> = {
@@ -72,7 +73,27 @@ export const OrdersTab = () => {
     const { data: refundOrderData, isLoading: isLoadingRefundOrder } = useGetMyOrderDetail(refundOrderId || '');
 
     const { data: allRefundsData } = useGetMyRefunds({ limit: 100, page: 1 });
-    const pendingRefunds = useMemo(() => allRefundsData?.data?.recordList?.filter((r: any) => r.status === 'PENDING') || [], [allRefundsData]);
+    const pendingRefunds = useMemo(
+        () =>
+            allRefundsData?.data?.recordList?.filter((r: any) =>
+                ['PENDING', 'READY_TO_PAY', 'APPROVED'].includes(r.status)
+            ) || [],
+        [allRefundsData]
+    );
+
+    const handleRequestRefund = (order: OrderResponse) => {
+        if (
+            !isRefundWindowOpen({
+                paymentSuccessAt: order.refundPaymentSuccessAt,
+                graceMinutes: order.refundGraceMinutes,
+                remainingSeconds: order.refundRemainingSeconds
+            })
+        ) {
+            AppToast.error('Đã hết thời gian yêu cầu hoàn tiền');
+            return;
+        }
+        setRefundOrderId(order.id);
+    };
 
     const handleQuickPayment = (order: OrderResponse) => {
         if (!order?.id) {
@@ -349,38 +370,19 @@ export const OrdersTab = () => {
                                                     {getStatusBadge(order.status)}
                                                 </td>
                                                 <td className="py-4 px-5 text-right align-top">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        {order.status === OrderStatus.PENDING_PAYMENT && (
-                                                            <button 
-                                                                onClick={() => handleQuickPayment(order)}
-                                                                disabled={processPaymentMutation.isPending}
-                                                                className="w-8 h-8 rounded-lg border border-[#ee1314] text-[#ee1314] hover:bg-[#FFF4F4] transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
-                                                                title="Thanh toán ngay"
-                                                            >
-                                                                {processPaymentMutation.isPending ? (
-                                                                    <i className="fa-solid fa-spinner fa-spin text-[13px]"></i>
-                                                                ) : (
-                                                                    <i className="fa-solid fa-credit-card text-[13px]"></i>
-                                                                )}
-                                                            </button>
-                                                        )}
-                                                        {isOrderPreparing(order.status) && !hasPendingRefund && (
-                                                            <button
-                                                                onClick={() => setRefundOrderId(order.id)}
-                                                                className="px-3 py-2 rounded-lg bg-[#ee1314] text-white hover:bg-[#c80f11] transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[12px] font-bold whitespace-nowrap shadow-sm"
-                                                                title="Yêu cầu hủy đơn"
-                                                            >
-                                                                <i className="fa-solid fa-rotate-left text-[11px]"></i>
-                                                                Yêu cầu hủy đơn
-                                                            </button>
-                                                        )}
-                                                        <button 
-                                                            onClick={() => navigate(`/profile/orders/${order.id}`)}
-                                                            className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#919EAB] hover:text-[#2065D1] hover:border-[#2065D1] hover:bg-[#F0F5FF] transition-all cursor-pointer"
-                                                            title="Xem chi tiết"
-                                                        >
-                                                            <i className="fa-regular fa-eye text-[13px]"></i>
-                                                        </button>
+                                                    <div className="flex items-center justify-end">
+                                                        <OrderRowActionsMenu
+                                                            order={order}
+                                                            hasPendingRefund={hasPendingRefund}
+                                                            isPaying={processPaymentMutation.isPending}
+                                                            onViewDetail={() => navigate(`/profile/orders/${order.id}`)}
+                                                            onRequestRefund={() => handleRequestRefund(order)}
+                                                            onQuickPayment={
+                                                                order.status === OrderStatus.PENDING_PAYMENT
+                                                                    ? () => handleQuickPayment(order)
+                                                                    : undefined
+                                                            }
+                                                        />
                                                     </div>
                                                 </td>
                                             </tr>

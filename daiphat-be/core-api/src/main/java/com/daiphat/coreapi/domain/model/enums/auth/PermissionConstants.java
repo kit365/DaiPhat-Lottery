@@ -23,6 +23,7 @@ public final class PermissionConstants {
     public static final String PROVIDER = "provider";
     public static final String STREET_AGENT = "streetAgent";
     public static final String ORDER = "order";
+    public static final String REFUND = "refund";
     public static final String TICKET_SERVICE = "ticketService";
     public static final String TICKET_SERVICE_ORDER = "ticketServiceOrder";
     public static final String COUPON = "coupon";
@@ -40,4 +41,7 @@ public final class PermissionConstants {
     public static final String SYSTEM = ":system";
     public static final String ANALYTICS = ":analytics";
     public static final String ECOMMERCE = ":ecommerce";
+    public static final String APPROVE = ":approve";
+    public static final String REJECT = ":reject";
+    public static final String PROCESS = ":process";
 }

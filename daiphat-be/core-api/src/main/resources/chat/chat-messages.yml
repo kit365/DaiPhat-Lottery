@@ -1,0 +1,27 @@
+daiphat:
+  chat:
+    messages:
+      handoff: "Đang kết nối bạn với nhân viên hỗ trợ. Vui lòng đợi trong giây lát."
+      unavailable: "Hệ thống AI tạm thời không khả dụng. Bạn vui lòng thử lại sau hoặc bấm \"Trò chuyện với nhân viên hỗ trợ\" nếu cần."
+      disabled: "Trợ lý AI hiện chưa được kích hoạt. Tin nhắn của bạn đã được ghi nhận."
+      no-operator-online: "Hiện chưa có nhân viên trực tuyến. Chúng tôi sẽ phản hồi sớm nhất có thể."
+      not-understood: "Xin lỗi, mình chưa hiểu rõ yêu cầu. Bạn có thể hỏi về lịch quay, kết quả xổ số hoặc đơn hàng. Nếu cần gặp nhân viên, bấm \"Trò chuyện với nhân viên hỗ trợ\" bên dưới."
+      schedule:
+        ask-location: "Bạn muốn xem lịch đài nào hoặc miền nào ạ?"
+        ask-date: "Bạn muốn xem lịch ngày/thứ nào? (vd: hôm nay, thứ 7)"
+        ask-date-mode: "Bạn muốn xem lịch ngày nào?"
+        ask-date-year: "Mình cần thêm năm để chắc đúng lịch. Bạn muốn xem ngày {date} năm nào? (vd: {date}/2026)"
+        ask-confirm-station: "Mình tìm thấy vài đài gần giống. Bạn chọn đài nào ạ?"
+        ask-region-choice: "Bạn muốn xem tất cả đài miền {region} hay chọn đài cụ thể?"
+        ask-station-in-region: "Bạn muốn xem đài nào ở {region} ạ? (vd: Bến Tre, TP.HCM)"
+        region-not-found: "Mình chưa nhận ra khu vực này. Bạn có thể chọn miền hoặc gõ tên đài cụ thể ạ?"
+        date-not-found: "Mình chưa nhận ra ngày/thứ này. Bạn thử gõ hôm nay, ngày mai hoặc thứ trong tuần nhé."
+        station-not-found: "Mình chưa tìm thấy đài này. Bạn thử gõ lại tên đài hoặc chọn miền ạ?"
+      account:
+        no-orders: "Bạn chưa có đơn hàng nào trên tài khoản. Bạn có thể mua vé trực tuyến trên website hoặc nhắn nhân viên nếu cần hỗ trợ."
+        latest-order-prefix: "Đơn hàng gần nhất của bạn: "
+        latest-order-status-separator: " — trạng thái "
+        latest-order-created-at-prefix: " ("
+        latest-order-created-at-suffix: ")"
+        latest-order-footer: ". Xem chi tiết tại mục Đơn hàng của tôi trên website."
+        lookup-failed: "Bạn có thể xem đơn hàng tại mục Đơn hàng của tôi trên website. Nếu cần hỗ trợ thanh toán hoặc nhận vé, hãy nhắn \"gặp nhân viên\"."

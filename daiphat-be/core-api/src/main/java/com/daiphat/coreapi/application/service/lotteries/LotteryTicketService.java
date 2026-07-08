@@ -559,6 +559,13 @@ public class LotteryTicketService implements LotteryTicketServicePort {
 
     @Override
     @Transactional
+    public void returnSoldTicketForOrder(Long ticketSerialId) {
+        LotteryTicketSerialModel serial = lotteryTicketSerialService.returnSoldToStock(ticketSerialId);
+        recomputeTicketAggregate(serial.getTicketId());
+    }
+
+    @Override
+    @Transactional
     public int expireDueTickets() {
         List<LotteryTicketModel> tickets = lotteryTicketRepositoryPort.findExpirableTickets(LocalDate.now(), EXPIRABLE_STATUSES);
         int expiredCount = 0;

@@ -54,15 +54,15 @@ daiphat:
       refresh-token-ttl-seconds: ${AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS}
     cookie:
       name: ${AUTH_REFRESH_COOKIE_NAME}
-      secure: ${AUTH_REFRESH_COOKIE_SECURE:true}
-      same-site: ${AUTH_REFRESH_COOKIE_SAME_SITE:Lax}
+      secure: ${AUTH_REFRESH_COOKIE_SECURE:}
+      same-site: ${AUTH_REFRESH_COOKIE_SAME_SITE:}
       path: ${AUTH_REFRESH_COOKIE_PATH}
     cors:
       allowed-origins: ${AUTH_CORS_ALLOWED_ORIGINS}
-      allowed-methods: ${AUTH_CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,PATCH,OPTIONS}
-      allowed-headers: ${AUTH_CORS_ALLOWED_HEADERS:*}
-      allow-credentials: ${AUTH_CORS_ALLOW_CREDENTIALS:true}
-      max-age: ${AUTH_CORS_MAX_AGE:3600}
+      allowed-methods: ${AUTH_CORS_ALLOWED_METHODS:}
+      allowed-headers: ${AUTH_CORS_ALLOWED_HEADERS:}
+      allow-credentials: ${AUTH_CORS_ALLOW_CREDENTIALS:}
+      max-age: ${AUTH_CORS_MAX_AGE:}
     cache:
       verification-token-ttl-seconds: ${AUTH_VERIFICATION_TOKEN_TTL_SECONDS}
       otp-ttl-seconds: ${AUTH_OTP_TTL_SECONDS}

@@ -8,6 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/checkout/models/order_type.dart';
 import 'package:daiphat_mobile/src/features/checkout/presentation/providers/checkout_provider.dart';
+import 'package:daiphat_mobile/src/features/profile/data/bank_account_service.dart';
+import 'package:daiphat_mobile/src/features/profile/presentation/widgets/refund_request_sheet.dart';
+import 'package:daiphat_mobile/src/shared/providers/api_providers.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 import '../viewmodels/order_detail_viewmodel.dart';
 
@@ -22,6 +25,7 @@ class OrderDetailView extends ConsumerStatefulWidget {
 
 class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
   late OrderDetailViewModel _viewModel;
+  late BankAccountService _bankAccountService;
 
   static const _stepLabels = ['Đặt hàng', 'Thanh toán', 'Chuẩn bị', 'Chờ nhận', 'Hoàn thành'];
   static const _stepIcons = [
@@ -40,6 +44,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       transactionService: ref.read(transactionServiceProvider),
       orderId: widget.orderId,
     );
+    _bankAccountService = BankAccountService(ref.read(apiClientProvider));
   }
 
   @override
@@ -1279,6 +1284,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     );
   }
 
+  // ignore: unused_element
   Future<void> _handleRequestRefund() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1299,7 +1305,10 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    final ok = await _viewModel.requestRefund();
+    final ok = false;
+    await _showRefundRequestSheet();
+    return;
+    // ignore: dead_code
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1309,8 +1318,39 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
     );
   }
 
+  Future<void> _showRefundRequestSheet() async {
+    final order = _viewModel.order;
+    if (order == null) return;
+
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (_) => RefundRequestSheet(
+        order: order,
+        orderService: ref.read(orderServiceProvider),
+        bankAccountService: _bankAccountService,
+        onSubmit: _viewModel.requestRefund,
+      ),
+    );
+
+    if (result != true || !mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Yêu cầu hoàn tiền đã được gửi'),
+        backgroundColor: Color(0xFF2E7D32),
+      ),
+    );
+  }
+
   Widget _buildBottomActionBar() {
     final isBusy = _viewModel.isCancelling || _viewModel.isRefunding;
+    final showCancel = _viewModel.isCancellable;
+    final showRefund = _viewModel.isRefundable;
     return Container(
       padding: EdgeInsets.fromLTRB(
           16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
@@ -1327,6 +1367,7 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
       ),
       child: Row(
         children: [
+          if (showCancel)
           Expanded(
             child: OutlinedButton.icon(
               onPressed: isBusy ? null : _handleCancelOrder,
@@ -1355,10 +1396,11 @@ class _OrderDetailViewState extends ConsumerState<OrderDetailView> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          if (showCancel && showRefund) const SizedBox(width: 12),
+          if (showRefund)
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: isBusy ? null : _handleRequestRefund,
+              onPressed: isBusy ? null : _showRefundRequestSheet,
               icon: _viewModel.isRefunding
                   ? const SizedBox(
                       width: 16,
