@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.application.service.chat;
 
 import com.daiphat.coreapi.application.config.ChatConversationProperties;
-import com.daiphat.coreapi.application.strategy.chat.ChatAiMessages;
+import com.daiphat.coreapi.application.constant.chat.bot.ChatAiMessages;
 import com.daiphat.coreapi.application.dto.request.chat.SendChatMessageSocketRequest;
 import com.daiphat.coreapi.application.dto.response.chat.ChatConversationSocketEvent;
 import com.daiphat.coreapi.application.dto.response.chat.ChatMessageSocketResponse;

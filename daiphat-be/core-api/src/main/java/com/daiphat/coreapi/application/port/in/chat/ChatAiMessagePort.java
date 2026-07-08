@@ -8,5 +8,7 @@ public interface ChatAiMessagePort {
 
     void saveBotReply(ConversationModel conversation, String content, Long parentId, String intent);
 
+    void saveBotReply(ConversationModel conversation, String content, String displayContent, Long parentId, String intent);
+
     void saveSystemNoticeAndPublish(ConversationModel conversation, String content);
 }

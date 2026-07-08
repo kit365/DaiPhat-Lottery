@@ -24,6 +24,10 @@ public enum LotteryRegionCode {
         };
     }
 
+    public String displayName() {
+        return "Miền " + shortDisplayName();
+    }
+
     public static Optional<LotteryRegionCode> fromCode(String regionCode) {
         if (regionCode == null || regionCode.isBlank()) {
             return Optional.empty();
