@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.application.service.chat;
 
 import com.daiphat.coreapi.application.config.ChatConversationProperties;
-import com.daiphat.coreapi.application.strategy.chat.ChatAiMessages;
+import com.daiphat.coreapi.application.config.ChatMessageProperties;
 import com.daiphat.coreapi.application.dto.request.chat.CloseConversationRequest;
 import com.daiphat.coreapi.application.dto.request.chat.InitConversationRequest;
 import com.daiphat.coreapi.application.dto.request.chat.SendChatMessageSocketRequest;
@@ -71,6 +71,7 @@ public class ConversationService implements ConversationServicePort {
     private final ChatConversationProperties chatConversationProperties;
     private final ChatBotPort chatBotPort;
     private final ChatEscalationPort chatEscalationPort;
+    private final ChatMessageProperties chatMessageProperties;
 
     @Override
     @Transactional
@@ -348,18 +349,10 @@ public class ConversationService implements ConversationServicePort {
         updateConversationStatusAfterMessage(conversation, senderType);
         conversationRepositoryPort.save(conversation);
 
-        ChatMessageSocketResponse response = ChatMessageSocketResponse.builder()
-                .id(savedMessage.getId())
-                .conversationId(savedMessage.getConversationId())
-                .parentId(savedMessage.getParentId())
-                .senderId(savedMessage.getSenderId())
-                .senderName(sender.getFullName())
-                .senderType(savedMessage.getSenderType())
-                .content(savedMessage.getContent())
-                .intent(savedMessage.getIntent())
-                .type(savedMessage.getType())
-                .createdAt(savedMessage.getCreatedAt())
-                .build();
+        ChatMessageSocketResponse response = chatApplicationMapper.enrichSocketResponse(
+                chatApplicationMapper.toChatMessageSocketResponse(savedMessage),
+                sender.getFullName()
+        );
         chatMessagePublisherPort.publishToConversation(conversation.getId(), response);
         chatMessagePublisherPort.publishToCustomer(conversation.getCustomerId(), response);
         return response;
@@ -674,7 +667,7 @@ public class ConversationService implements ConversationServicePort {
         chatEscalationPort.escalateFromBot(
                 conversation,
                 reason != null ? reason : EscalationReason.CUSTOMER_REQUEST,
-                ChatAiMessages.HANDOFF
+                chatMessageProperties.getHandoff()
         );
     }
 
@@ -812,27 +805,7 @@ public class ConversationService implements ConversationServicePort {
         }
 
         if (!message.createdAt().isAfter(conversation.getCustomerLastReadAt())) {
-            return MessageResponse.builder()
-                    .id(message.id())
-                    .conversationId(message.conversationId())
-                    .parentId(message.parentId())
-                    .senderId(message.senderId())
-                    .senderType(message.senderType())
-                    .content(message.content())
-                    .intent(message.intent())
-                    .confidence(message.confidence())
-                    .type(message.type())
-                    .fileUrl(message.fileUrl())
-                    .fileName(message.fileName())
-                    .isEdited(message.isEdited())
-                    .editedAt(message.editedAt())
-                    .isRead(true)
-                    .readerCount(Math.max(message.readerCount(), 1))
-                    .isDeleted(message.isDeleted())
-                    .deletedAt(message.deletedAt())
-                    .createdAt(message.createdAt())
-                    .updatedAt(message.updatedAt())
-                    .build();
+            return chatApplicationMapper.markAsRead(message);
         }
 
         return message;
@@ -874,24 +847,15 @@ public class ConversationService implements ConversationServicePort {
         String operatorName = response.assignedOperatorId() != null
                 ? resolveOperatorNames(List.of(conversation)).get(response.assignedOperatorId())
                 : null;
-        return ConversationResponse.builder()
-                .id(response.id())
-                .title(response.title())
-                .status(response.status())
-                .customerId(response.customerId())
-                .assignedOperatorId(response.assignedOperatorId())
-                .assignedOperatorName(operatorName)
-                .customerLastReadAt(response.customerLastReadAt())
-                .operatorLastReadAt(response.operatorLastReadAt())
-                .unreadCount(response.unreadCount())
-                .createdAt(response.createdAt())
-                .updatedAt(response.updatedAt())
-                .deletedAt(response.deletedAt())
-                .build();
+        return chatApplicationMapper.enrichConversationResponse(
+                response,
+                operatorName,
+                response.unreadCount()
+        );
     }
 
     private void notifyNoOperatorAvailableIfNeeded(ConversationModel conversation) {
-        String message = ChatAiMessages.NO_OPERATOR_ONLINE;
+        String message = chatMessageProperties.getNoOperatorOnline();
         if (message == null || message.isBlank()) {
             return;
         }
@@ -905,17 +869,7 @@ public class ConversationService implements ConversationServicePort {
     private void saveSystemDividerMessage(Long conversationId, String content) {
         MessageModel savedMessage = messageRepositoryPort.save(MessageModel.systemDivider(conversationId, content));
         ConversationModel conversation = getConversationOrThrow(conversationId);
-        ChatMessageSocketResponse response = ChatMessageSocketResponse.builder()
-                .id(savedMessage.getId())
-                .conversationId(savedMessage.getConversationId())
-                .parentId(savedMessage.getParentId())
-                .senderId(savedMessage.getSenderId())
-                .senderType(savedMessage.getSenderType())
-                .content(savedMessage.getContent())
-                .intent(savedMessage.getIntent())
-                .type(savedMessage.getType())
-                .createdAt(savedMessage.getCreatedAt())
-                .build();
+        ChatMessageSocketResponse response = chatApplicationMapper.toChatMessageSocketResponse(savedMessage);
         chatMessagePublisherPort.publishToConversation(conversationId, response);
         chatMessagePublisherPort.publishToCustomer(conversation.getCustomerId(), response);
     }
@@ -974,22 +928,13 @@ public class ConversationService implements ConversationServicePort {
         Map<UUID, String> operatorNames = resolveOperatorNames(conversations);
         return conversations.stream()
                 .map(chatApplicationMapper::toConversationResponse)
-                .map(response -> ConversationResponse.builder()
-                        .id(response.id())
-                        .title(response.title())
-                        .status(response.status())
-                        .customerId(response.customerId())
-                        .assignedOperatorId(response.assignedOperatorId())
-                        .assignedOperatorName(response.assignedOperatorId() != null
+                .map(response -> chatApplicationMapper.enrichConversationResponse(
+                        response,
+                        response.assignedOperatorId() != null
                                 ? operatorNames.get(response.assignedOperatorId())
-                                : null)
-                        .customerLastReadAt(response.customerLastReadAt())
-                        .operatorLastReadAt(response.operatorLastReadAt())
-                        .unreadCount(includeUnreadCount ? resolveUnreadCount(response.id(), userId) : null)
-                        .createdAt(response.createdAt())
-                        .updatedAt(response.updatedAt())
-                        .deletedAt(response.deletedAt())
-                        .build())
+                                : null,
+                        includeUnreadCount ? resolveUnreadCount(response.id(), userId) : null
+                ))
                 .toList();
     }
 

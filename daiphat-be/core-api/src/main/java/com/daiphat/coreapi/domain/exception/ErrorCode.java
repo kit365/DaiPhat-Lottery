@@ -227,6 +227,8 @@ public enum ErrorCode {
     CONVERSATION_UNASSIGN_DENIED("CHT_009", "Bạn không thể trả hội thoại này.", HttpStatus.FORBIDDEN),
     CONVERSATION_ESCALATE_DENIED("CHT_010", "Bạn không có quyền chuyển hội thoại này.", HttpStatus.FORBIDDEN),
     CONVERSATION_VIEW_DENIED("CHT_011", "Bạn không có quyền xem lịch sử hội thoại này.", HttpStatus.FORBIDDEN),
+    AI_SERVICE_CONFIG_NOT_FOUND("CHT_012", "Thiếu cấu hình AI bắt buộc trong hệ thống.", HttpStatus.INTERNAL_SERVER_ERROR),
+    AI_SERVICE_CONFIG_INVALID("CHT_013", "Cấu hình AI không hợp lệ hoặc thiếu giá trị bắt buộc.", HttpStatus.INTERNAL_SERVER_ERROR),
 
     // System Config Errors
     SYSTEM_CONFIG_NOT_FOUND("CFG_001", "Cấu hình hệ thống không tồn tại.", HttpStatus.NOT_FOUND),
