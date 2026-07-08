@@ -7,6 +7,7 @@ import {
     getImportBatchById,
     getImportBatches,
     getIncompleteImportBatches,
+    getImportBatchesWithoutLines,
     getEligibleImportBatchStations,
     getImportBatchTimePolicy,
     updateImportBatch,
@@ -62,6 +63,7 @@ export const useCreateImportBatch = () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_WITHOUT_LINES] });
         },
     });
 };
@@ -75,6 +77,7 @@ export const useUpdateImportBatch = (batchId?: string | number) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_WITHOUT_LINES] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL, batchId != null ? String(batchId) : undefined] });
         },
     });
@@ -133,6 +136,19 @@ export const useIncompleteImportBatches = (enabled = true) => {
     });
 };
 
+export const useImportBatchesWithoutLines = (enabled = true) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.IMPORT_BATCH_WITHOUT_LINES],
+        queryFn: getImportBatchesWithoutLines,
+        enabled,
+        staleTime: 0,
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true,
+        retry: false,
+        throwOnError: false,
+    });
+};
+
 export const useDeleteImportBatchLine = () => {
     const queryClient = useQueryClient();
 
@@ -143,6 +159,7 @@ export const useDeleteImportBatchLine = () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_WITHOUT_LINES] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
             queryClient.invalidateQueries({ queryKey: ['tickets'] });
         },
