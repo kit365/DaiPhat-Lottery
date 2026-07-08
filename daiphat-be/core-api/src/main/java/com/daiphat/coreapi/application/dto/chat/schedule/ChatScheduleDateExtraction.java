@@ -8,31 +8,36 @@ import java.util.Optional;
 public record ChatScheduleDateExtraction(
         ChatScheduleDateMode mode,
         LocalDate date,
-        boolean invalidDateAttempt
+        boolean invalidDateAttempt,
+        boolean missingYearClarification
 ) {
 
     public static ChatScheduleDateExtraction allDays() {
-        return new ChatScheduleDateExtraction(ChatScheduleDateMode.ALL_DAYS, null, false);
+        return new ChatScheduleDateExtraction(ChatScheduleDateMode.ALL_DAYS, null, false, false);
     }
 
     public static ChatScheduleDateExtraction specific(LocalDate date) {
-        return new ChatScheduleDateExtraction(ChatScheduleDateMode.SPECIFIC_DATE, date, false);
+        return new ChatScheduleDateExtraction(ChatScheduleDateMode.SPECIFIC_DATE, date, false, false);
     }
 
     public static ChatScheduleDateExtraction today() {
-        return new ChatScheduleDateExtraction(ChatScheduleDateMode.TODAY, LocalDate.now(), false);
+        return new ChatScheduleDateExtraction(ChatScheduleDateMode.TODAY, LocalDate.now(), false, false);
     }
 
     public static ChatScheduleDateExtraction tomorrow() {
-        return new ChatScheduleDateExtraction(ChatScheduleDateMode.TOMORROW, LocalDate.now().plusDays(1), false);
+        return new ChatScheduleDateExtraction(ChatScheduleDateMode.TOMORROW, LocalDate.now().plusDays(1), false, false);
     }
 
     public static ChatScheduleDateExtraction invalid() {
-        return new ChatScheduleDateExtraction(null, null, true);
+        return new ChatScheduleDateExtraction(null, null, true, false);
+    }
+
+    public static ChatScheduleDateExtraction missingYear() {
+        return new ChatScheduleDateExtraction(null, null, false, true);
     }
 
     public static ChatScheduleDateExtraction empty() {
-        return new ChatScheduleDateExtraction(null, null, false);
+        return new ChatScheduleDateExtraction(null, null, false, false);
     }
 
     public Optional<LocalDate> resolvedDate() {

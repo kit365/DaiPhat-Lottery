@@ -35,7 +35,7 @@ export default defineConfig({
           'mui-vendor': ['@mui/material', '@mui/icons-material', '@mui/x-data-grid', '@mui/x-date-pickers'],
           'fullcalendar': ['@fullcalendar/react', '@fullcalendar/daygrid', '@fullcalendar/interaction', '@fullcalendar/list', '@fullcalendar/timegrid'],
           'chart-vendor': ['apexcharts', 'react-apexcharts'],
-          'editor-vendor': ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/pm']
+          'editor-vendor': ['@tiptap/react', '@tiptap/starter-kit']
         }
       }
     },
