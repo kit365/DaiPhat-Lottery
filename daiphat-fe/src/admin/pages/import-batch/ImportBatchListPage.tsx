@@ -44,7 +44,8 @@ import {
     importBatchCodeMonospaceSx,
 } from './utils/importBatchCode';
 import { IncompleteImportBatchNotification } from './components/IncompleteImportBatchNotification';
-import { findFirstIncompleteLine, batchHasPendingLines, isImportBatchEditable } from '../ticket/utils/importBatchProgress';
+import { MissingStationImportBatchNotification } from './components/MissingStationImportBatchNotification';
+import { findFirstIncompleteLine, batchHasPendingLines, importBatchMissingStations, isImportBatchEditable } from '../ticket/utils/importBatchProgress';
 
 export const ImportBatchListPage = () => {
     const { t } = useTranslation();
@@ -117,6 +118,7 @@ export const ImportBatchListPage = () => {
 
             <CanAccess anyOf={[PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.TICKET.CREATE]}>
                 <IncompleteImportBatchNotification variant="compact" />
+                <MissingStationImportBatchNotification pageBatches={batches} />
             </CanAccess>
 
             <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
@@ -174,7 +176,21 @@ export const ImportBatchListPage = () => {
                                     <TableRow key={batch.id} hover>
                                         <TableCell>
                                             <Stack direction="row" spacing={0.75} alignItems="center">
-                                                {batchHasPendingLines(batch) && (
+                                                {importBatchMissingStations(batch) && (
+                                                    <Tooltip title="Chưa bổ sung nhà đài">
+                                                        <Box
+                                                            sx={{
+                                                                width: 8,
+                                                                height: 8,
+                                                                borderRadius: '50%',
+                                                                bgcolor: 'warning.main',
+                                                                flexShrink: 0,
+                                                            }}
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                                {!importBatchMissingStations(batch) &&
+                                                    batchHasPendingLines(batch) && (
                                                     <Tooltip title="Còn dòng chưa nhập đủ vé">
                                                         <Box
                                                             sx={{
@@ -325,7 +341,7 @@ export const ImportBatchListPage = () => {
                     </ListItemIcon>
                     <ListItemText primary="Xem chi tiết" />
                 </MenuItem>
-                {menuBatch?.status === 'DRAFT' && (
+                {menuBatch && isImportBatchEditable(menuBatch) && (
                     <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                         <MenuItem
                             onClick={() => {
