@@ -124,6 +124,16 @@ export const isImportBatchEditable = (batch: ImportBatch) =>
 export const batchHasPendingLines = (batch: ImportBatch) =>
     isImportBatchEditable(batch) && getIncompleteLines(batch).length > 0;
 
+export const importBatchHasNoLines = (batch: ImportBatch) => {
+    if (Array.isArray(batch.lines)) {
+        return batch.lines.length === 0;
+    }
+    return (batch.lineCount ?? 0) === 0;
+};
+
+export const importBatchMissingStations = (batch: ImportBatch) =>
+    isImportBatchEditable(batch) && importBatchHasNoLines(batch);
+
 /** Maps batch status for display in incomplete notifications. */
 export const getIncompleteImportBatchDisplayStatus = (
     batch: ImportBatch

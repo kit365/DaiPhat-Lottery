@@ -120,7 +120,7 @@ export const ImportBatchDetailPage = () => {
                         </Typography>
                     )}
                 </Box>
-                {batch.status === 'DRAFT' && (
+                {canEditBatch && (
                     <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
                         <Stack direction="row" spacing={1}>
                             <Button
@@ -145,23 +145,6 @@ export const ImportBatchDetailPage = () => {
                                 </Button>
                             </CanAccess>
                         </Stack>
-                    </CanAccess>
-                )}
-                {canEditBatch && batch.status !== 'DRAFT' && (
-                    <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                        <Button
-                            variant="contained"
-                            onClick={() =>
-                                navigate(
-                                    ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(
-                                        batch.id,
-                                        firstIncompleteLine?.id
-                                    )
-                                )
-                            }
-                        >
-                            Nhập vé vào phiếu
-                        </Button>
                     </CanAccess>
                 )}
             </Stack>
