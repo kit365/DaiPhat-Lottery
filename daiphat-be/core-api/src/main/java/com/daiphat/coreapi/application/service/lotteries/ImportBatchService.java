@@ -188,12 +188,6 @@ public class ImportBatchService implements ImportBatchServicePort {
 
         LocalDateTime now = LocalDateTime.now(clock);
 
-        boolean drawDateChanged = request.drawDate() != null
-                && !request.drawDate().equals(batch.getDrawDate());
-        if (drawDateChanged) {
-            applyDrawDateChange(batch, request.drawDate(), now);
-        }
-
         boolean hasLineUpdates = request.lines() != null && !request.lines().isEmpty();
         if (hasLineUpdates) {
             applyLineUpdates(batch, request, now);
@@ -310,41 +304,6 @@ public class ImportBatchService implements ImportBatchServicePort {
         LotterySupplierModel supplier = lotterySupplierServicePort.getActiveModelById(supplierId);
         batch.setSupplierId(supplier.getId());
         batch.setSupplierName(supplier.getName());
-    }
-
-    private void applyDrawDateChange(ImportBatchModel batch, LocalDate newDrawDate, LocalDateTime now) {
-        boolean hasImportedLine = batch.getActiveLines().stream()
-                .anyMatch(line -> line.getStatus() == ImportBatchLineStatus.IMPORTED);
-        if (hasImportedLine) {
-            throw new DomainException(ErrorCode.IMPORT_BATCH_DRAW_DATE_LOCKED_IMPORTED_LINES);
-        }
-
-        for (ImportBatchLineModel line : List.copyOf(batch.getActiveLines())) {
-            ImportBatchLineStatus status = line.getStatus();
-            if (status != ImportBatchLineStatus.OPEN
-                    && status != ImportBatchLineStatus.IMPORTING
-                    && status != ImportBatchLineStatus.CANCELLED) {
-                continue;
-            }
-
-            if (status == ImportBatchLineStatus.OPEN || status == ImportBatchLineStatus.IMPORTING) {
-                lotteryTicketServicePort.purgeImportBatchLineTickets(line.getId());
-            }
-            line.softDelete(now);
-            importBatchLineRepositoryPort.save(line);
-        }
-
-        batch.setDrawDate(newDrawDate);
-        ImportBatchImportMode resolvedImportMode = importBatchImportModeResolver.resolve(newDrawDate, now);
-        batch.setImportMode(resolvedImportMode);
-        if (resolvedImportMode != ImportBatchImportMode.IN_DAY) {
-            batch.setInvoiceEvidenceUrl(null);
-        }
-        batch.setBatchCode(importBatchCodeGenerator.generateHeaderCode(newDrawDate));
-
-        batch.setLines(importBatchLineRepositoryPort.findByImportBatchId(batch.getId()));
-        batch.recalculateAggregates();
-        batch.refreshImportStatus(now);
     }
 
     @Override
