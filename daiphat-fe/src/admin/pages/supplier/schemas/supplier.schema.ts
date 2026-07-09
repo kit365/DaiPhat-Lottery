@@ -32,3 +32,17 @@ export const supplierFormSchema = z.object({
 });
 
 export type SupplierFormValues = z.infer<typeof supplierFormSchema>;
+
+export const supplierFormDefaultValues: SupplierFormValues = {
+    name: '',
+    code: '',
+    type: 'DISTRIBUTOR',
+    contactName: '',
+    contactPhone: '',
+    contactEmail: '',
+    address: '',
+    taxCode: '',
+    paymentTermDays: 0,
+    defaultImportCost: 10000,
+    isActive: false,
+};
