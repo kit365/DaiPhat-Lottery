@@ -20,6 +20,7 @@ import {
     Typography,
     createTheme,
     useTheme,
+    InputAdornment,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
@@ -44,6 +45,8 @@ import {
     type UpdateImportBatchLineFormValues,
 } from './schemas/importBatch.schema';
 import { ImportBatchEditConfirmDialog } from './components/ImportBatchEditConfirmDialog';
+import { ImportBatchReduceDeclaredQuantityDialog } from './components/ImportBatchReduceDeclaredQuantityDialog';
+import { ImportBatchDeclaredQuantityProgress } from './components/ImportBatchDeclaredQuantityProgress';
 import { ImportBatchLineRow } from './components/ImportBatchLineRow';
 import { getImportBatchStatusLabel, getImportModeLabel } from './utils/batchTypeLabels';
 import { formatImportBatchHeaderCode } from './utils/importBatchCode';
@@ -56,10 +59,28 @@ import {
     IMPORT_BATCH_SUPPLIER_LOCKED_MESSAGE,
 } from './utils/importBatchHeaderEdit';
 import { resolveImportModeLock } from './utils/importBatchDrawDate';
+import {
+    declaredQuantitiesMatch,
+    sumImportBatchLineDeclaredQuantity,
+} from './utils/importBatchDeclaredQuantity';
+import {
+    canReduceDeclareQuantity,
+    IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_IMPORTED_ONLY_MESSAGE,
+    IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_WARNING,
+    requiresDeclareQuantityReduction,
+} from './utils/importBatchDeclareQuantityReduction';
+import {
+    getDraftLineIndicesForQuantityAdjustment,
+    IMPORT_BATCH_DECLARE_QUANTITY_LINE_ADJUSTMENT_HELPER,
+    IMPORT_BATCH_DECLARE_QUANTITY_LINE_ADJUSTMENT_WARNING,
+    requiresLineQuantityAdjustment,
+} from './utils/importBatchDeclareQuantityAdjustment';
+import { formatViInteger, parseNonNegativeIntegerInput } from '../supplier/utils/supplierNumberFields';
 import { computeImportBatchTotals } from './utils/importBatchTotals';
 import { computeImportBatchRowLimit, IMPORT_BATCH_ROW_LIMIT_MESSAGE } from './utils/importBatchRowLimit';
 import {
     buildFormValuesFromBatch,
+    hasUnsavedImportBatchEditDraft,
     mergeImportBatchEditDraftWithServer,
     readLocalImportBatchEditDraft,
 } from './utils/importBatchEditDraft';
@@ -69,6 +90,7 @@ import {
     type ImportBatchEditChangeSummary,
 } from './utils/importBatchEditChanges';
 import { isImportBatchEditable } from '../ticket/utils/importBatchProgress';
+import LoadingScreen from '../../components/ui/LoadingScreen';
 import type { ImportBatch, ImportBatchEligibleStation, UpdateImportBatchPayload } from '../../api/importBatch.api';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
@@ -92,9 +114,18 @@ export const ImportBatchEditPage = () => {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [pendingValues, setPendingValues] = useState<UpdateImportBatchFormValues | null>(null);
     const [changeSummary, setChangeSummary] = useState<ImportBatchEditChangeSummary | null>(null);
+    const [reductionDialogOpen, setReductionDialogOpen] = useState(false);
+    const [pendingReductionTarget, setPendingReductionTarget] = useState<number | null>(null);
+    const [pendingReductionExcess, setPendingReductionExcess] = useState(0);
+    const [isReductionSubmitting, setIsReductionSubmitting] = useState(false);
+    const [removedTicketIds, setRemovedTicketIds] = useState<number[]>([]);
+    const [lineQuantityAdjustmentHighlightIndices, setLineQuantityAdjustmentHighlightIndices] =
+        useState<Set<number>>(new Set());
+    const [scrollToAdjustmentLineIndex, setScrollToAdjustmentLineIndex] = useState<number | null>(null);
+    const previousTotalDeclareQuantityRef = useRef<number>(0);
     const baselineRef = useRef<UpdateImportBatchFormValues | null>(null);
 
-    const { data: batch, isLoading: isBatchLoading } = useImportBatchDetail(id);
+    const { data: batch, isLoading: isBatchLoading, isError: isBatchError, refetch: refetchBatch } = useImportBatchDetail(id);
     const { mutateAsync: updateAsync, isPending } = useUpdateImportBatch(id);
     const { data: activeSuppliers = [], isLoading: isLoadingSuppliers } = useActiveSuppliers();
     const { data: providersRes } = useProviders({ size: 1000 });
@@ -122,6 +153,7 @@ export const ImportBatchEditPage = () => {
             supplierId: 0,
             drawDate: '',
             importMode: 'IN_DAY',
+            totalDeclareQuantity: 0,
             invoiceEvidenceUrl: '',
             lines: [],
         },
@@ -131,6 +163,7 @@ export const ImportBatchEditPage = () => {
     const drawDate = useWatch({ control, name: 'drawDate' });
     const importMode = useWatch({ control, name: 'importMode' });
     const supplierId = useWatch({ control, name: 'supplierId' });
+    const totalDeclareQuantity = useWatch({ control, name: 'totalDeclareQuantity' });
     const invoiceEvidenceUrl = useWatch({ control, name: 'invoiceEvidenceUrl' });
     const lines = useWatch({ control, name: 'lines' }) ?? [];
 
@@ -251,10 +284,11 @@ export const ImportBatchEditPage = () => {
             supplierId,
             drawDate,
             importMode,
+            totalDeclareQuantity,
             invoiceEvidenceUrl,
             lines,
         }),
-        [supplierId, drawDate, importMode, invoiceEvidenceUrl, lines]
+        [supplierId, drawDate, importMode, totalDeclareQuantity, invoiceEvidenceUrl, lines]
     );
 
     const { clearDraft } = useImportBatchEditDraft({
@@ -276,6 +310,29 @@ export const ImportBatchEditPage = () => {
             importCost: line.importCost ?? 0,
         }))
     );
+    const linesDeclaredQuantity = sumImportBatchLineDeclaredQuantity(activeLines);
+    const quantitiesMatch = declaredQuantitiesMatch(totalDeclareQuantity ?? 0, lines);
+    const lineQuantityAdjustmentActive = lineQuantityAdjustmentHighlightIndices.size > 0;
+
+    useEffect(() => {
+        if (!lineQuantityAdjustmentActive) {
+            return;
+        }
+
+        if (quantitiesMatch) {
+            setLineQuantityAdjustmentHighlightIndices(new Set());
+            setScrollToAdjustmentLineIndex(null);
+        }
+    }, [lineQuantityAdjustmentActive, quantitiesMatch]);
+
+    useEffect(() => {
+        if (scrollToAdjustmentLineIndex == null) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => setScrollToAdjustmentLineIndex(null), 600);
+        return () => window.clearTimeout(timer);
+    }, [scrollToAdjustmentLineIndex]);
 
     const showStatusColumn = lines.some((line) => !line.removed && !!line.status);
     const showProgressColumn = lines.some(
@@ -356,6 +413,7 @@ export const ImportBatchEditPage = () => {
         };
 
         reset(enrichedValues, { keepDirty: false, keepTouched: false, keepErrors: false });
+        previousTotalDeclareQuantityRef.current = enrichedValues.totalDeclareQuantity ?? 0;
         formInitializedForBatchIdRef.current = id;
         setInitializedBatchId(id);
 
@@ -506,14 +564,117 @@ export const ImportBatchEditPage = () => {
     const buildUpdatePayload = (data: UpdateImportBatchFormValues): UpdateImportBatchPayload => {
         const payload: UpdateImportBatchPayload = {
             supplierId: canEditSupplier ? data.supplierId : (batch!.supplierId ?? data.supplierId),
+            totalDeclareQuantity: data.totalDeclareQuantity,
             lines: buildLinesPayload(data),
         };
+
+        if (removedTicketIds.length > 0) {
+            payload.removedTicketIds = removedTicketIds;
+        }
 
         if (showSharedReceipt) {
             payload.invoiceEvidenceUrl = data.invoiceEvidenceUrl?.trim() || '';
         }
 
         return payload;
+    };
+
+    const handleTotalDeclareQuantityBlur = (newValue: number) => {
+        if (!batch) {
+            return;
+        }
+
+        const totalImportedQuantity = batch.totalImportedQuantity ?? 0;
+        const currentLines = getValues('lines') ?? [];
+        const linesSum = sumImportBatchLineDeclaredQuantity(currentLines);
+
+        if (requiresDeclareQuantityReduction(newValue, totalImportedQuantity)) {
+            const reductionCheck = canReduceDeclareQuantity(batch, newValue);
+            if (!reductionCheck.allowed) {
+                setValue('totalDeclareQuantity', previousTotalDeclareQuantityRef.current, {
+                    shouldValidate: true,
+                });
+                toast.error(IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_IMPORTED_ONLY_MESSAGE);
+                return;
+            }
+
+            setValue('totalDeclareQuantity', previousTotalDeclareQuantityRef.current, {
+                shouldValidate: true,
+            });
+            setLineQuantityAdjustmentHighlightIndices(new Set());
+            setScrollToAdjustmentLineIndex(null);
+            setPendingReductionTarget(newValue);
+            setPendingReductionExcess(reductionCheck.excess);
+            setReductionDialogOpen(true);
+            toast.warning(IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_WARNING);
+            return;
+        }
+
+        previousTotalDeclareQuantityRef.current = newValue;
+
+        if (requiresLineQuantityAdjustment(newValue, linesSum, totalImportedQuantity)) {
+            const draftIndices = getDraftLineIndicesForQuantityAdjustment(currentLines);
+            if (draftIndices.length > 0) {
+                setLineQuantityAdjustmentHighlightIndices(new Set(draftIndices));
+                setScrollToAdjustmentLineIndex(draftIndices[0] ?? null);
+                toast.warning(IMPORT_BATCH_DECLARE_QUANTITY_LINE_ADJUSTMENT_WARNING);
+                return;
+            }
+        }
+
+        setLineQuantityAdjustmentHighlightIndices(new Set());
+        setScrollToAdjustmentLineIndex(null);
+        if (removedTicketIds.length > 0) {
+            setRemovedTicketIds([]);
+        }
+    };
+
+    const handleReductionConfirm = async (selectedTicketIds: number[]) => {
+        if (!batch || pendingReductionTarget == null) {
+            return;
+        }
+
+        const currentValues = getValues();
+        const reductionPayload: UpdateImportBatchPayload = {
+            ...buildUpdatePayload({
+                ...currentValues,
+                totalDeclareQuantity: pendingReductionTarget,
+            }),
+            totalDeclareQuantity: pendingReductionTarget,
+            removedTicketIds: selectedTicketIds,
+        };
+
+        try {
+            setIsReductionSubmitting(true);
+            const res = await updateAsync(reductionPayload);
+
+            if (res.success) {
+                setValue('totalDeclareQuantity', pendingReductionTarget, { shouldValidate: true });
+                previousTotalDeclareQuantityRef.current = pendingReductionTarget;
+                setRemovedTicketIds([]);
+                setReductionDialogOpen(false);
+                setPendingReductionTarget(null);
+                setPendingReductionExcess(0);
+                formInitializedForBatchIdRef.current = null;
+                await refetchBatch();
+                toast.success(res.message || 'Đã cập nhật số lượng khai báo và xóa vé thừa.');
+            } else {
+                toast.error(res.message || 'Không thể giảm số lượng khai báo.');
+            }
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || 'Không thể giảm số lượng khai báo.');
+        } finally {
+            setIsReductionSubmitting(false);
+        }
+    };
+
+    const handleReductionDialogClose = () => {
+        if (isReductionSubmitting) {
+            return;
+        }
+        setReductionDialogOpen(false);
+        setPendingReductionTarget(null);
+        setPendingReductionExcess(0);
     };
 
     const submitUpdate = async (data: UpdateImportBatchFormValues) => {
@@ -536,6 +697,7 @@ export const ImportBatchEditPage = () => {
 
             if (res.success) {
                 clearDraft();
+                setRemovedTicketIds([]);
                 toast.success(res.message || 'Cập nhật phiếu nhập lô thành công.');
                 navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batch.id));
             } else {
@@ -612,7 +774,20 @@ export const ImportBatchEditPage = () => {
     };
 
     if (isBatchLoading || isLoadingSuppliers) {
-        return null;
+        return <LoadingScreen />;
+    }
+
+    if (!batch && isBatchError) {
+        return (
+            <Box sx={{ p: 3 }}>
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    Không thể tải phiếu nhập lô. Vui lòng thử lại.
+                </Alert>
+                <Button variant="contained" onClick={() => refetchBatch()}>
+                    Thử lại
+                </Button>
+            </Box>
+        );
     }
 
     if (!batch) {
@@ -659,6 +834,13 @@ export const ImportBatchEditPage = () => {
                     />
                     <Chip label={getImportBatchStatusLabel(batch.status)} size="small" />
                 </Stack>
+
+                {id && hasUnsavedImportBatchEditDraft(id) && (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        Phiếu nhập lô đang được chỉnh sửa và chưa được lưu. Nội dung nháp cục bộ đã
+                        được khôi phục tự động.
+                    </Alert>
+                )}
 
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <CollapsibleCard
@@ -748,6 +930,54 @@ export const ImportBatchEditPage = () => {
                                 />
                             </Stack>
 
+                            <Controller
+                                name="totalDeclareQuantity"
+                                control={control}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        name={field.name}
+                                        onBlur={field.onBlur}
+                                        inputRef={field.ref}
+                                        value={formatViInteger(field.value)}
+                                        label="Tổng số lượng khai báo phiếu nhập lô"
+                                        fullWidth
+                                        sx={{ maxWidth: { sm: 360 } }}
+                                        error={isSubmitted && !!fieldState.error}
+                                        helperText={isSubmitted && fieldState.error?.message}
+                                        onChange={(e) => {
+                                            field.onChange(parseNonNegativeIntegerInput(e.target.value) ?? 0);
+                                        }}
+                                        onBlur={(e) => {
+                                            field.onBlur();
+                                            const parsed = parseNonNegativeIntegerInput(e.target.value) ?? 0;
+                                            handleTotalDeclareQuantityBlur(parsed);
+                                        }}
+                                        inputProps={{ inputMode: 'numeric' }}
+                                        InputProps={{
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        vé
+                                                    </Typography>
+                                                </InputAdornment>
+                                            ),
+                                        }}
+                                    />
+                                )}
+                            />
+
+                            <ImportBatchDeclaredQuantityProgress
+                                totalDeclareQuantity={totalDeclareQuantity ?? 0}
+                                linesSum={linesDeclaredQuantity}
+                                showError={isSubmitted || lineQuantityAdjustmentActive}
+                            />
+
+                            {lineQuantityAdjustmentActive && (
+                                <Alert severity="warning">
+                                    {IMPORT_BATCH_DECLARE_QUANTITY_LINE_ADJUSTMENT_WARNING}
+                                </Alert>
+                            )}
+
                             {blockedStations.length > 0 && (
                                 <Alert severity="info">
                                     <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
@@ -831,6 +1061,17 @@ export const ImportBatchEditPage = () => {
                                                     showProgressColumn={showProgressColumn}
                                                     showErrors={isSubmitted}
                                                     highlighted={highlightedRowIndices.has(index)}
+                                                    declareQuantityHighlighted={lineQuantityAdjustmentHighlightIndices.has(
+                                                        index
+                                                    )}
+                                                    declareQuantityAdjustmentHelper={
+                                                        lineQuantityAdjustmentHighlightIndices.has(index)
+                                                            ? IMPORT_BATCH_DECLARE_QUANTITY_LINE_ADJUSTMENT_HELPER
+                                                            : undefined
+                                                    }
+                                                    shouldScrollDeclareQuantityIntoView={
+                                                        scrollToAdjustmentLineIndex === index
+                                                    }
                                                 />
                                             );
                                         })}
@@ -854,10 +1095,6 @@ export const ImportBatchEditPage = () => {
                                     flexWrap: 'wrap',
                                 }}
                             >
-                                <Typography variant="body2">
-                                    <strong>Tổng số lượng khai báo:</strong>{' '}
-                                    {totals.totalQty.toLocaleString('vi-VN')} vé
-                                </Typography>
                                 <Typography variant="body2">
                                     <strong>Tổng giá trị lô vé nhập:</strong>{' '}
                                     {totals.totalCost.toLocaleString('vi-VN')} VNĐ
@@ -920,7 +1157,7 @@ export const ImportBatchEditPage = () => {
                                     type="submit"
                                     variant="contained"
                                     loading={isPending}
-                                    disabled={!supplierId || isLoadingStations}
+                                    disabled={!supplierId || isLoadingStations || !quantitiesMatch}
                                     label="Lưu thay đổi"
                                     loadingLabel="Đang xử lý..."
                                 />
@@ -949,6 +1186,20 @@ export const ImportBatchEditPage = () => {
                         }
                     }}
                 />
+
+                {batch && pendingReductionTarget != null && (
+                    <ImportBatchReduceDeclaredQuantityDialog
+                        open={reductionDialogOpen}
+                        batchId={batch.id}
+                        targetTotalDeclareQuantity={pendingReductionTarget}
+                        excessToRemove={pendingReductionExcess}
+                        isSubmitting={isReductionSubmitting}
+                        onClose={handleReductionDialogClose}
+                        onConfirm={(ticketIds) => {
+                            void handleReductionConfirm(ticketIds);
+                        }}
+                    />
+                )}
             </Box>
         </ThemeProvider>
     );

@@ -10,6 +10,8 @@ import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchBlocked
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationsResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionLineResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionTicketsResponse;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchTimePolicyResponse;
@@ -125,6 +127,8 @@ public class ImportBatchService implements ImportBatchServicePort {
         header.initializeForCreate(operatorId, now);
         header.markSubmitted(now);
         header.setBatchCode(importBatchCodeGenerator.generateHeaderCode(request.drawDate()));
+        validateTotalDeclareQuantity(request.totalDeclareQuantity());
+        header.setTotalDeclareQuantity(request.totalDeclareQuantity());
 
         boolean lateImportWarning = false;
         List<String> warnings = new ArrayList<>();
@@ -159,6 +163,7 @@ public class ImportBatchService implements ImportBatchServicePort {
             header.getLines().add(line);
         }
 
+        validateDeclaredQuantityMatchesLines(header);
         header.validateInvoiceEvidence();
         header.recalculateAggregates();
 
@@ -185,6 +190,10 @@ public class ImportBatchService implements ImportBatchServicePort {
             throw new DomainException(ErrorCode.IMPORT_BATCH_SUPPLIER_REQUIRED);
         }
         applySupplierUpdate(batch, request.supplierId());
+        validateTotalDeclareQuantity(request.totalDeclareQuantity());
+        applyDeclareQuantityReductionIfNeeded(batch, request);
+        batch = getImportBatchOrThrow(id);
+        batch.setTotalDeclareQuantity(request.totalDeclareQuantity());
 
         LocalDateTime now = LocalDateTime.now(clock);
 
@@ -195,6 +204,7 @@ public class ImportBatchService implements ImportBatchServicePort {
             applyInvoiceEvidenceUpdate(batch, request);
         }
 
+        validateDeclaredQuantityMatchesLines(batch);
         batch.validateInvoiceEvidence();
         batch.recalculateAggregates();
         if (hasLineUpdates) {
@@ -822,6 +832,97 @@ public class ImportBatchService implements ImportBatchServicePort {
     private void validateDeclareQuantity(Integer declareQuantity) {
         if (declareQuantity == null || declareQuantity <= 0) {
             throw new DomainException(ErrorCode.IMPORT_BATCH_DECLARE_QUANTITY_INVALID);
+        }
+    }
+
+    private void validateTotalDeclareQuantity(Integer totalDeclareQuantity) {
+        if (totalDeclareQuantity == null || totalDeclareQuantity <= 0) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_DECLARE_QUANTITY_INVALID);
+        }
+    }
+
+    private void applyDeclareQuantityReductionIfNeeded(ImportBatchModel batch, UpdateImportBatchRequest request) {
+        int currentImported = batch.getTotalImportedQuantity() != null ? batch.getTotalImportedQuantity() : 0;
+        int newTotal = request.totalDeclareQuantity();
+
+        if (newTotal >= currentImported) {
+            return;
+        }
+
+        int excess = currentImported - newTotal;
+        validateDeclareQuantityReductionIsPossible(batch, excess);
+
+        List<Long> removedTicketIds = request.removedTicketIds() != null ? request.removedTicketIds() : List.of();
+        if (removedTicketIds.isEmpty()) {
+            throw new DomainException(
+                    ErrorCode.IMPORT_BATCH_DECLARE_QUANTITY_BELOW_IMPORTED,
+                    null,
+                    newTotal,
+                    currentImported
+            );
+        }
+
+        lotteryTicketServicePort.hardDeleteImportBatchTicketsForReduction(
+                batch.getId(),
+                removedTicketIds,
+                excess
+        );
+    }
+
+    private void validateDeclareQuantityReductionIsPossible(ImportBatchModel batch, int excess) {
+        int removableImported = batch.getActiveLines().stream()
+                .filter(line -> line.getStatus() == ImportBatchLineStatus.OPEN
+                        || line.getStatus() == ImportBatchLineStatus.IMPORTING)
+                .mapToInt(line -> line.getTotalQuantity() != null ? line.getTotalQuantity() : 0)
+                .sum();
+
+        if (excess > removableImported) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_IMPORTED_ONLY);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ImportBatchReductionTicketsResponse getReductionTickets(Long importBatchId) {
+        ImportBatchModel batch = getImportBatchOrThrow(importBatchId);
+        List<ImportBatchReductionLineResponse> lineResponses = new ArrayList<>();
+        int removableImported = 0;
+
+        for (ImportBatchLineModel line : batch.getActiveLines()) {
+            boolean deletable = line.getStatus() == ImportBatchLineStatus.OPEN
+                    || line.getStatus() == ImportBatchLineStatus.IMPORTING;
+            int importedQuantity = line.getTotalQuantity() != null ? line.getTotalQuantity() : 0;
+
+            if (deletable) {
+                removableImported += importedQuantity;
+            }
+
+            LotteryStationModel station = lotteryStationServicePort.getModelById(line.getLotteryStationId());
+            lineResponses.add(ImportBatchReductionLineResponse.builder()
+                    .lineId(line.getId())
+                    .lotteryStationId(line.getLotteryStationId())
+                    .stationName(station.getName())
+                    .status(line.getStatus())
+                    .deletable(deletable)
+                    .importedQuantity(importedQuantity)
+                    .tickets(lotteryTicketServicePort.listReductionTicketsByImportBatchLine(line.getId()))
+                    .build());
+        }
+
+        return ImportBatchReductionTicketsResponse.builder()
+                .totalImportedQuantity(batch.getTotalImportedQuantity())
+                .removableImportedQuantity(removableImported)
+                .lines(lineResponses)
+                .build();
+    }
+
+    private void validateDeclaredQuantityMatchesLines(ImportBatchModel batch) {
+        int linesSum = batch.getActiveLines().stream()
+                .mapToInt(line -> line.getDeclareQuantity() != null ? line.getDeclareQuantity() : 0)
+                .sum();
+        Integer totalDeclareQuantity = batch.getTotalDeclareQuantity();
+        if (totalDeclareQuantity == null || totalDeclareQuantity != linesSum) {
+            throw new DomainException(ErrorCode.IMPORT_BATCH_DECLARE_QUANTITY_MISMATCH);
         }
     }
 

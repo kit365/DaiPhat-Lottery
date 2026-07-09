@@ -9,6 +9,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.UpdateImportBatchRe
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationsResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchTimePolicyResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
@@ -124,6 +125,12 @@ public class ImportBatchController {
                 null,
                 importBatchServicePort.getAll(page, size, lotteryStationId, drawDate, status, batchType, sortBy, direction)
         );
+    }
+
+    @GetMapping("/{id:\\d+}/reduction-tickets")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ImportBatchReductionTicketsResponse> getReductionTickets(@PathVariable Long id) {
+        return ApiResponse.success(null, importBatchServicePort.getReductionTickets(id));
     }
 
     @GetMapping("/batch-types")

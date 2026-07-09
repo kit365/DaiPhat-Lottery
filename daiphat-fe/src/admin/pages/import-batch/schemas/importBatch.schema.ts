@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import type { ImportBatchType } from '../../../api/importBatch.api';
+import {
+    declaredQuantitiesMatch,
+    IMPORT_BATCH_DECLARE_QUANTITY_MISMATCH_MESSAGE,
+    sumImportBatchLineDeclaredQuantity,
+} from '../utils/importBatchDeclaredQuantity';
 
 const importBatchLineSchema = z.object({
     lotteryStationId: z.coerce.number().min(1, 'Vui lòng chọn nhà đài'),
@@ -16,6 +21,9 @@ export const createImportBatchSchema = z
         drawDate: z.string().min(1, 'Vui lòng chọn ngày quay'),
         supplierId: z.coerce.number().min(1, 'Vui lòng chọn nhà cung cấp'),
         importMode: z.enum(['IN_DAY', 'POST_DRAW_SUPPLEMENT']),
+        totalDeclareQuantity: z.coerce
+            .number()
+            .min(1, 'Tổng số lượng khai báo phiếu nhập lô phải lớn hơn 0'),
         invoiceEvidenceUrl: z.string().optional(),
         note: z.string().optional(),
         lines: z.array(importBatchLineSchema),
@@ -28,6 +36,14 @@ export const createImportBatchSchema = z
                 path: ['lines'],
             });
             return;
+        }
+
+        if (!declaredQuantitiesMatch(data.totalDeclareQuantity, data.lines)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: IMPORT_BATCH_DECLARE_QUANTITY_MISMATCH_MESSAGE,
+                path: ['totalDeclareQuantity'],
+            });
         }
 
         const stationIds = new Set<number>();
@@ -135,6 +151,9 @@ export type UpdateImportBatchHeaderFormValues = z.infer<typeof updateImportBatch
 export const updateImportBatchSchema = z
     .object({
         supplierId: z.coerce.number().min(1, 'Vui lòng chọn nhà cung cấp'),
+        totalDeclareQuantity: z.coerce
+            .number()
+            .min(1, 'Tổng số lượng khai báo phiếu nhập lô phải lớn hơn 0'),
         invoiceEvidenceUrl: z.string().optional(),
         importMode: z.enum(['IN_DAY', 'POST_DRAW_SUPPLEMENT']),
         drawDate: z.string().min(1),
@@ -149,6 +168,14 @@ export const updateImportBatchSchema = z
                 path: ['lines'],
             });
             return;
+        }
+
+        if (!declaredQuantitiesMatch(data.totalDeclareQuantity, data.lines)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: IMPORT_BATCH_DECLARE_QUANTITY_MISMATCH_MESSAGE,
+                path: ['totalDeclareQuantity'],
+            });
         }
 
         const stationIds = new Set<number>();

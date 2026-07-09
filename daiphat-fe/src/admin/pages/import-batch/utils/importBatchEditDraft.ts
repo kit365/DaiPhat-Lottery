@@ -69,6 +69,33 @@ const toPositiveId = (value: unknown): number => {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 };
 
+/** User has entered at least one import batch line in the local edit draft. */
+export const hasStartedImportBatchLineEntry = (batchId: string | number): boolean => {
+    const draft = readLocalImportBatchEditDraft(batchId);
+    if (!draft) {
+        return false;
+    }
+
+    return (draft.values.lines ?? []).some(
+        (line) => !line.removed && toPositiveId(line.lotteryStationId) > 0
+    );
+};
+
+/** Local edit draft exists for this batch (autosaved while editing). */
+export const hasUnsavedImportBatchEditDraft = (batchId: string | number): boolean =>
+    readLocalImportBatchEditDraft(batchId) != null;
+
+export const getImportBatchEditDraftStationNames = (batchId: string | number): string[] => {
+    const draft = readLocalImportBatchEditDraft(batchId);
+    if (!draft) {
+        return [];
+    }
+
+    return (draft.values.lines ?? [])
+        .filter((line) => !line.removed && toPositiveId(line.lotteryStationId) > 0)
+        .map((line) => line.stationName?.trim() || `Đài #${line.lotteryStationId}`);
+};
+
 const mapServerLineToFormLine = (
     line: ImportBatchLine,
     resolveStationName?: (stationId: number) => string | undefined
@@ -95,6 +122,7 @@ export const convertCreateFormToEditDraft = (
     supplierId: Number(createValues.supplierId) || 0,
     drawDate: createValues.drawDate ?? '',
     importMode: createValues.importMode ?? 'IN_DAY',
+    totalDeclareQuantity: Number(createValues.totalDeclareQuantity) || 0,
     invoiceEvidenceUrl: createValues.invoiceEvidenceUrl?.trim() ?? '',
     lines: (createValues.lines ?? [])
         .map((line) => ({
@@ -163,6 +191,7 @@ export const buildFormValuesFromBatch = (
         supplierId: batch.supplierId ?? 0,
         drawDate: batch.drawDate,
         importMode: batch.importMode ?? 'IN_DAY',
+        totalDeclareQuantity: batch.totalDeclareQuantity ?? 0,
         invoiceEvidenceUrl: batch.invoiceEvidenceUrl ?? '',
         lines: mappedLines.length > 0 ? mappedLines : [emptyLine()],
     };
@@ -242,6 +271,8 @@ export const mergeImportBatchEditDraftWithServer = (
         supplierId: draft.supplierId || serverValues.supplierId,
         drawDate: draft.drawDate || serverValues.drawDate,
         importMode: draft.importMode || serverValues.importMode,
+        totalDeclareQuantity:
+            draft.totalDeclareQuantity || serverValues.totalDeclareQuantity || 0,
         invoiceEvidenceUrl:
             draft.invoiceEvidenceUrl?.trim() || serverValues.invoiceEvidenceUrl || '',
         lines,
