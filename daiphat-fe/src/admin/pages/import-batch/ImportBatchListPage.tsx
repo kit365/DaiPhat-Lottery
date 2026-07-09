@@ -1,0 +1,381 @@
+import AddIcon from '@mui/icons-material/Add';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import {
+    Chip,
+    IconButton,
+    ListItemIcon,
+    ListItemText,
+    Menu,
+    MenuItem,
+    Paper,
+    Stack,
+    Box,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TablePagination,
+    TableRow,
+    Tooltip,
+    Typography,
+} from '@mui/material';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
+import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useCallback, useState } from 'react';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { Title } from '../../components/ui/Title';
+import { LoadingButton } from '../../components/ui/LoadingButton';
+import { CanAccess } from '../../components/auth/CanAccess';
+import { PERMISSIONS } from '../../constants/permission.constants';
+import { prefixAdmin, ROUTES } from '../../constants/routes';
+import type { ImportBatch } from '../../api/importBatch.api';
+import { useImportBatchList } from './hooks/useImportBatch';
+import { getImportBatchStatusChipColor, getImportBatchStatusLabel, getImportModeChipColor, getImportModeChipLabel, getImportModeLabel, importBatchStatusChipSx } from './utils/batchTypeLabels';
+import {
+    displayImportBatchHeaderCodeRaw,
+    formatImportBatchHeaderCode,
+    formatImportBatchLinesSummaryCompact,
+    formatImportBatchLinesSummaryTooltip,
+    importBatchCodeMonospaceSx,
+} from './utils/importBatchCode';
+import { IncompleteImportBatchNotification } from './components/IncompleteImportBatchNotification';
+import { MissingStationImportBatchNotification } from './components/MissingStationImportBatchNotification';
+import { findFirstIncompleteLine, batchHasPendingLines, importBatchMissingStations, isImportBatchEditable } from '../ticket/utils/importBatchProgress';
+
+export const ImportBatchListPage = () => {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
+    const { batches, pagination, isLoading, filters, setPage, setLimit } = useImportBatchList();
+    const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+    const [menuBatch, setMenuBatch] = useState<ImportBatch | null>(null);
+
+    const page = (filters.page ?? 1) - 1;
+    const rowsPerPage = filters.size ?? 10;
+
+    const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, batch: ImportBatch) => {
+        setMenuAnchor(event.currentTarget);
+        setMenuBatch(batch);
+    };
+
+    const handleCloseMenu = () => {
+        setMenuAnchor(null);
+        setMenuBatch(null);
+    };
+
+    const handleViewDetail = useCallback(
+        (batchId: number) => {
+            navigate(ROUTES.ADMIN.IMPORT_BATCH.DETAIL(batchId));
+        },
+        [navigate]
+    );
+
+    const handleAddTicket = useCallback(
+        (batch: ImportBatch) => {
+            const firstLine = findFirstIncompleteLine(batch);
+            navigate(ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(batch.id, firstLine?.id));
+        },
+        [navigate]
+    );
+
+    const handleEditBatch = useCallback(
+        (batchId: number) => {
+            navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batchId));
+        },
+        [navigate]
+    );
+
+    return (
+        <>
+            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
+                <div className="mr-auto">
+                    <Title title="Danh sách phiếu nhập lô" />
+                    <Breadcrumb
+                        items={[
+                            { label: t('admin.dashboard.title'), to: '/' },
+                            { label: 'Vé số', to: `/${prefixAdmin}/ticket/list` },
+                            { label: 'Nhập lô vé', to: ROUTES.ADMIN.IMPORT_BATCH.LIST },
+                            { label: 'Danh sách' },
+                        ]}
+                    />
+                </div>
+                <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
+                    <LoadingButton
+                        onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.CREATE)}
+                        label="Khai báo phiếu nhập"
+                        startIcon={<AddIcon />}
+                        sx={{
+                            minHeight: '2.25rem',
+                            padding: 'var(--shape-borderRadius-sm) calc(2 * var(--spacing))',
+                        }}
+                    />
+                </CanAccess>
+            </div>
+
+            <CanAccess anyOf={[PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.TICKET.CREATE]}>
+                <IncompleteImportBatchNotification variant="compact" />
+                <MissingStationImportBatchNotification pageBatches={batches} />
+            </CanAccess>
+
+            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                <Table size="small">
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Mã phiếu</TableCell>
+                            <TableCell>Ngày quay</TableCell>
+                            <TableCell>Nhà cung cấp</TableCell>
+                            <TableCell sx={{ whiteSpace: 'nowrap' }}>Hình thức nhập</TableCell>
+                            <TableCell sx={{ width: 96, whiteSpace: 'nowrap' }}>Trạng thái</TableCell>
+                            <TableCell sx={{ maxWidth: 200 }}>Mã lô / Loại</TableCell>
+                            <TableCell align="right">Khai báo</TableCell>
+                            <TableCell align="right">Đã nhập</TableCell>
+                            <TableCell align="center" width={120}>
+                                Thao tác
+                            </TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {isLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={9}>
+                                    <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
+                                        Đang tải danh sách phiếu nhập lô...
+                                    </Typography>
+                                </TableCell>
+                            </TableRow>
+                        ) : batches.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={9}>
+                                    <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
+                                        Không có dữ liệu
+                                    </Typography>
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            batches.map((batch) => {
+                                const importedQty =
+                                    batch.totalImportedQuantity ??
+                                    (batch.lines ?? []).reduce(
+                                        (sum, line) => sum + (line.totalQuantity || 0),
+                                        0
+                                    );
+                                const declaredQty =
+                                    batch.totalDeclareQuantity ??
+                                    (batch.lines ?? []).reduce(
+                                        (sum, line) => sum + (line.declareQuantity || 0),
+                                        0
+                                    );
+                                const lineSummaryCompact = formatImportBatchLinesSummaryCompact(batch.lines);
+                                const lineSummaryTooltip = formatImportBatchLinesSummaryTooltip(batch.lines);
+
+                                return (
+                                    <TableRow key={batch.id} hover>
+                                        <TableCell>
+                                            <Stack direction="row" spacing={0.75} alignItems="center">
+                                                {importBatchMissingStations(batch) && (
+                                                    <Tooltip title="Chưa bổ sung nhà đài">
+                                                        <Box
+                                                            sx={{
+                                                                width: 8,
+                                                                height: 8,
+                                                                borderRadius: '50%',
+                                                                bgcolor: 'warning.main',
+                                                                flexShrink: 0,
+                                                            }}
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                                {!importBatchMissingStations(batch) &&
+                                                    batchHasPendingLines(batch) && (
+                                                    <Tooltip title="Còn dòng chưa nhập đủ vé">
+                                                        <Box
+                                                            sx={{
+                                                                width: 8,
+                                                                height: 8,
+                                                                borderRadius: '50%',
+                                                                bgcolor: 'warning.main',
+                                                                flexShrink: 0,
+                                                            }}
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={importBatchCodeMonospaceSx}
+                                                    title={displayImportBatchHeaderCodeRaw(
+                                                        batch.batchCode,
+                                                        batch.id
+                                                    )}
+                                                >
+                                                    {formatImportBatchHeaderCode(batch.batchCode, batch.id)}
+                                                </Typography>
+                                            </Stack>
+                                        </TableCell>
+                                        <TableCell>
+                                            {batch.drawDate
+                                                ? dayjs(batch.drawDate).format('DD/MM/YYYY')
+                                                : '—'}
+                                        </TableCell>
+                                        <TableCell>{batch.supplierName || '—'}</TableCell>
+                                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                                            <Tooltip title={getImportModeLabel(batch.importMode)}>
+                                                <Chip
+                                                    size="small"
+                                                    label={getImportModeChipLabel(batch.importMode)}
+                                                    color={getImportModeChipColor(batch.importMode)}
+                                                    sx={importBatchStatusChipSx}
+                                                />
+                                            </Tooltip>
+                                        </TableCell>
+                                        <TableCell sx={{ width: 96, whiteSpace: 'nowrap' }}>
+                                            <Chip
+                                                size="small"
+                                                label={getImportBatchStatusLabel(batch.status)}
+                                                color={getImportBatchStatusChipColor(batch.status)}
+                                                sx={importBatchStatusChipSx}
+                                            />
+                                        </TableCell>
+                                        <TableCell sx={{ maxWidth: 200 }}>
+                                            {lineSummaryCompact ? (
+                                                <Tooltip
+                                                    title={lineSummaryTooltip}
+                                                    slotProps={{
+                                                        tooltip: {
+                                                            sx: {
+                                                                maxWidth: 520,
+                                                                whiteSpace: 'pre-line',
+                                                                fontFamily:
+                                                                    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                                                fontSize: '0.75rem',
+                                                            },
+                                                        },
+                                                    }}
+                                                >
+                                                    <Typography
+                                                        variant="body2"
+                                                        noWrap
+                                                        sx={{
+                                                            ...importBatchCodeMonospaceSx,
+                                                            maxWidth: 200,
+                                                            cursor: 'default',
+                                                        }}
+                                                    >
+                                                        {lineSummaryCompact}
+                                                    </Typography>
+                                                </Tooltip>
+                                            ) : (
+                                                <Typography variant="body2">—</Typography>
+                                            )}
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            {declaredQty}
+                                        </TableCell>
+                                        <TableCell align="right">{importedQty}</TableCell>
+                                        <TableCell align="center">
+                                            <IconButton
+                                                size="small"
+                                                aria-label="Thao tác"
+                                                onClick={(e) => handleOpenMenu(e, batch)}
+                                                sx={{
+                                                    color: 'text.primary',
+                                                    bgcolor:
+                                                        menuBatch?.id === batch.id && menuAnchor
+                                                            ? 'action.hover'
+                                                            : 'transparent',
+                                                }}
+                                            >
+                                                <MoreVertIcon fontSize="small" />
+                                            </IconButton>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })
+                        )}
+                    </TableBody>
+                </Table>
+                <TablePagination
+                    component="div"
+                    count={pagination.totalRecords ?? 0}
+                    page={page}
+                    onPageChange={(_e, newPage) => setPage(newPage + 1)}
+                    rowsPerPage={rowsPerPage}
+                    onRowsPerPageChange={(e) => setLimit(parseInt(e.target.value, 10))}
+                    labelRowsPerPage="Số hàng mỗi trang:"
+                    labelDisplayedRows={({ from, to, count }) =>
+                        `${from}-${to} của ${count !== -1 ? count : `hơn ${to}`}`
+                    }
+                />
+            </TableContainer>
+
+            <Menu
+                anchorEl={menuAnchor}
+                open={Boolean(menuAnchor && menuBatch)}
+                onClose={handleCloseMenu}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                slotProps={{
+                    paper: {
+                        sx: {
+                            minWidth: 180,
+                            boxShadow: 3,
+                            borderRadius: 1.5,
+                            py: 0.5,
+                        },
+                    },
+                }}
+            >
+                <MenuItem
+                    onClick={() => {
+                        if (menuBatch) {
+                            handleViewDetail(menuBatch.id);
+                        }
+                        handleCloseMenu();
+                    }}
+                >
+                    <ListItemIcon>
+                        <VisibilityOutlinedIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="Xem chi tiết" />
+                </MenuItem>
+                {menuBatch && isImportBatchEditable(menuBatch) && (
+                    <CanAccess permission={PERMISSIONS.IMPORT_BATCH.CREATE}>
+                        <MenuItem
+                            onClick={() => {
+                                if (menuBatch) {
+                                    handleEditBatch(menuBatch.id);
+                                }
+                                handleCloseMenu();
+                            }}
+                        >
+                            <ListItemIcon>
+                                <EditOutlinedIcon fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText primary="Chỉnh sửa" />
+                        </MenuItem>
+                    </CanAccess>
+                )}
+                {menuBatch && isImportBatchEditable(menuBatch) && (
+                    <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                        <MenuItem
+                            onClick={() => {
+                                if (menuBatch) {
+                                    handleAddTicket(menuBatch);
+                                }
+                                handleCloseMenu();
+                            }}
+                        >
+                            <ListItemIcon>
+                                <ConfirmationNumberOutlinedIcon fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText primary="Nhập vé" />
+                        </MenuItem>
+                    </CanAccess>
+                )}
+            </Menu>
+        </>
+    );
+};

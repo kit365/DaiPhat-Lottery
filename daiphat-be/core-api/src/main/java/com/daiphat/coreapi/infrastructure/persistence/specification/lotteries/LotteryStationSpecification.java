@@ -1,14 +1,15 @@
 package com.daiphat.coreapi.infrastructure.persistence.specification.lotteries;
 
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryRegionEntity_;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity_;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -22,10 +23,10 @@ public final class LotteryStationSpecification {
 
     public static Specification<LotteryStationEntity> filter(
             String search,
-            LotteryStationStatus status,
             String type,
             String region,
-            List<String> drawDay
+            String drawDay,
+            Boolean isActive
     ) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -41,10 +42,6 @@ public final class LotteryStationSpecification {
                 ));
             }
 
-            if (status != null) {
-                predicates.add(cb.equal(root.get(LotteryStationEntity_.status), status));
-            }
-
             if (type != null && !type.isBlank()) {
                 try {
                     LotteryStationType productType = LotteryStationType.valueOf(type.trim().toUpperCase());
@@ -57,43 +54,82 @@ public final class LotteryStationSpecification {
                 }
             }
 
-            if (region != null && !region.isBlank()) {
-                predicates.add(cb.equal(
-                        cb.upper(root.get(LotteryStationEntity_.region).get(LotteryRegionEntity_.code)),
-                        LotteryRegionModel.normalizeCode(region.trim())
-                ));
+            List<String> normalizedRegions = normalizeRegions(region);
+            if (!normalizedRegions.isEmpty()) {
+                predicates.add(
+                        cb.upper(root.get(LotteryStationEntity_.region).get(LotteryRegionEntity_.code))
+                                .in(normalizedRegions)
+                );
             }
 
-            Set<String> normalizedDrawDays = normalizeDrawDays(drawDay);
+            Set<DayOfWeek> normalizedDrawDays = normalizeDrawDays(drawDay);
             if (!normalizedDrawDays.isEmpty()) {
                 List<Predicate> drawDayPredicates = new ArrayList<>();
-                for (String day : normalizedDrawDays) {
-                    drawDayPredicates.add(
-                            cb.like(
-                                    cb.upper(root.get(LotteryStationEntity_.drawDays).as(String.class)),
-                                    "%" + day + "%"
-                            )
-                    );
+                for (DayOfWeek day : normalizedDrawDays) {
+                    drawDayPredicates.add(drawDayContains(root, cb, day));
                 }
                 predicates.add(cb.or(drawDayPredicates.toArray(new Predicate[0])));
+            }
+
+            if (isActive != null) {
+                predicates.add(cb.equal(root.get(LotteryStationEntity_.isActive), isActive));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
 
-    private static Set<String> normalizeDrawDays(List<String> drawDays) {
-        Set<String> normalized = new LinkedHashSet<>();
-        if (drawDays == null) {
-            return normalized;
-        }
+    private static Predicate drawDayContains(
+            jakarta.persistence.criteria.Root<LotteryStationEntity> root,
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            DayOfWeek day
+    ) {
+        Expression<?> dayJson = cb.function(
+                "jsonb_build_array",
+                Object.class,
+                cb.literal(day.name())
+        );
+        return cb.isTrue(
+                cb.function(
+                        "jsonb_contains",
+                        Boolean.class,
+                        root.get(LotteryStationEntity_.drawDays),
+                        dayJson
+                )
+        );
+    }
 
-        for (String drawDay : drawDays) {
-            if (drawDay == null || drawDay.isBlank()) {
-                continue;
+    private static List<String> normalizeRegions(String region) {
+        Set<String> normalized = new LinkedHashSet<>();
+        for (String value : expandParamValues(region)) {
+            normalized.add(LotteryRegionModel.normalizeCode(value));
+        }
+        return List.copyOf(normalized);
+    }
+
+    private static Set<DayOfWeek> normalizeDrawDays(String drawDay) {
+        Set<DayOfWeek> normalized = new LinkedHashSet<>();
+        for (String value : expandParamValues(drawDay)) {
+            try {
+                normalized.add(DayOfWeek.valueOf(value.trim().toUpperCase(Locale.ROOT)));
+            } catch (IllegalArgumentException ignored) {
+                // Skip invalid draw-day filter values.
             }
-            normalized.add(drawDay.trim().toUpperCase(Locale.ROOT));
         }
         return normalized;
+    }
+
+    private static List<String> expandParamValues(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+
+        List<String> expanded = new ArrayList<>();
+        for (String part : value.split(",")) {
+            if (!part.isBlank()) {
+                expanded.add(part.trim());
+            }
+        }
+        return expanded;
     }
 }

@@ -6,6 +6,7 @@ import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../constants/routes";
 import { useTicketDetail } from "./hooks/useTicket";
 import { useParams, useNavigate } from "react-router-dom";
+import { formatImportBatchCode } from "../import-batch/utils/importBatchCode";
 import dayjs from "dayjs";
 import { useProviders } from "../provider/hooks/useProvider";
 
@@ -103,11 +104,6 @@ export const TicketDetailPage = () => {
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Nhà đài</Typography>
                                     <Typography variant="body1" fontWeight={600}>{providerName}</Typography>
-                                </Box>
-
-                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
-                                    <Typography variant="caption" color="text.secondary">Mã lô nhập</Typography>
-                                    <Typography variant="body1" fontWeight={600}>{ticketDetail.batchCode || 'N/A'}</Typography>
                                 </Box>
 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
@@ -259,6 +255,12 @@ export const TicketDetailPage = () => {
                                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
                                                     <Typography variant="caption" color="text.secondary">Số sê-ri</Typography>
                                                     <Typography variant="body2" fontWeight={600}>{serial.serialNumber || "N/A"}</Typography>
+                                                </Box>
+                                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
+                                                    <Typography variant="caption" color="text.secondary">Mã lô nhập</Typography>
+                                                    <Typography variant="body2" fontWeight={600}>
+                                                        {formatImportBatchCode(serial.batchCode)}
+                                                    </Typography>
                                                 </Box>
                                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
                                                     <Typography variant="caption" color="text.secondary">Trạng thái</Typography>

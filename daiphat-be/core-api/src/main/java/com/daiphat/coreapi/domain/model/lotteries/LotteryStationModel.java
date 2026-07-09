@@ -1,5 +1,8 @@
 package com.daiphat.coreapi.domain.model.lotteries;
 
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationActivationField;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import lombok.*;
 
@@ -8,8 +11,11 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Getter
 @Setter
@@ -25,6 +31,7 @@ public class LotteryStationModel {
 
     // Giá & Tồn kho
     private BigDecimal price;
+    private BigDecimal commissionRate;
 
     @Builder.Default
     private Integer inventoryCount = 0;
@@ -34,9 +41,12 @@ public class LotteryStationModel {
     private LocalTime drawTime;
     private LocalDate nextDrawDate;
 
-    // Trạng thái
+    // Legacy column kept for future use; not used in current workflow.
     @Builder.Default
-    private LotteryStationStatus status = LotteryStationStatus.ACTIVE;
+    private LotteryStationStatus status = LotteryStationStatus.INACTIVE;
+
+    @Builder.Default
+    private boolean isActive = false;
 
     private UUID approvedById;
     private LocalDateTime approvedAt;
@@ -56,8 +66,83 @@ public class LotteryStationModel {
 
     // ---- Business methods ----
 
-    public void deactivate() {
-        this.status = LotteryStationStatus.INACTIVE;
+    public boolean isActivationReady() {
+        return getMissingActivationFields().isEmpty();
+    }
+
+    public List<String> getMissingActivationFields() {
+        List<String> missing = new ArrayList<>();
+        if (!hasText(name)) {
+            missing.add(LotteryStationActivationField.NAME.name());
+        }
+        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
+            missing.add(LotteryStationActivationField.PRICE.name());
+        }
+        if (!hasValidCommissionRate()) {
+            missing.add(LotteryStationActivationField.COMMISSION_RATE.name());
+        }
+        if (region == null) {
+            missing.add(LotteryStationActivationField.REGION.name());
+        }
+        if (!hasText(province)) {
+            missing.add(LotteryStationActivationField.PROVINCE.name());
+        }
+        if (drawDays == null || drawDays.isEmpty()) {
+            missing.add(LotteryStationActivationField.DRAW_SCHEDULE.name());
+        }
+        if (drawTime == null) {
+            missing.add(LotteryStationActivationField.DRAW_TIME.name());
+        }
+        return missing;
+    }
+
+    public void applyIsActive(Boolean requestedActive) {
+        if (!isActivationReady()) {
+            this.isActive = false;
+            return;
+        }
+        if (requestedActive != null) {
+            this.isActive = requestedActive;
+        }
+    }
+
+    public void requireActivationReady() {
+        List<String> missing = getMissingActivationFields();
+        if (missing.isEmpty()) {
+            return;
+        }
+
+        throw new DomainException(
+                ErrorCode.LOTTERY_STATION_ACTIVATION_INCOMPLETE,
+                Map.of("missingFields", missing)
+        );
+    }
+
+    public static String buildActivationIncompleteMessage(List<String> missingFields) {
+        String fieldList = missingFields.stream()
+                .map(LotteryStationModel::toDisplayLabel)
+                .map(label -> "- " + label)
+                .collect(Collectors.joining("\n"));
+        return "This lottery station cannot be activated yet.\n\nPlease complete the following required fields:\n\n"
+                + fieldList;
+    }
+
+    private static String toDisplayLabel(String fieldKey) {
+        try {
+            return LotteryStationActivationField.valueOf(fieldKey).displayLabel();
+        } catch (IllegalArgumentException ex) {
+            return fieldKey;
+        }
+    }
+
+    private boolean hasValidCommissionRate() {
+        return commissionRate != null
+                && commissionRate.compareTo(BigDecimal.ZERO) >= 0
+                && commissionRate.compareTo(BigDecimal.ONE) <= 0;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     public void increaseInventory(int amount) {
@@ -77,7 +162,7 @@ public class LotteryStationModel {
     }
 
     public boolean isAvailable() {
-        return this.status == LotteryStationStatus.ACTIVE
+        return this.isActive
                 && this.inventoryCount != null
                 && this.inventoryCount > 0;
     }

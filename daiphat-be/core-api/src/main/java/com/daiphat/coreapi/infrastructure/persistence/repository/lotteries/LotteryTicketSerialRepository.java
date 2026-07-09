@@ -3,6 +3,8 @@ package com.daiphat.coreapi.infrastructure.persistence.repository.lotteries;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -30,4 +32,24 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
     long countByTicket_IdAndStatusInAndDeletedAtIsNull(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
     List<LotteryTicketSerialEntity> findByTicket_IdAndStatusInAndDeletedAtIsNull(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
+
+    @Query("""
+            SELECT COUNT(s) FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL AND s.importBatchLine.id = :importBatchLineId
+            """)
+    long countByImportBatchLineId(@Param("importBatchLineId") Long importBatchLineId);
+
+    @Query("""
+            SELECT DISTINCT s.ticket.id FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL AND s.importBatchLine.id = :importBatchLineId
+            """)
+    List<Long> findDistinctTicketIdsByImportBatchLineId(@Param("importBatchLineId") Long importBatchLineId);
+
+    @Query("""
+            SELECT s FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL AND s.importBatchLine.id = :importBatchLineId
+            """)
+    List<LotteryTicketSerialEntity> findAllByImportBatchLineId(@Param("importBatchLineId") Long importBatchLineId);
+
+    void deleteByImportBatchLine_Id(Long importBatchLineId);
 }

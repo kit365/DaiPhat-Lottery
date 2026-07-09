@@ -1,351 +1,757 @@
-import { Box, Stack, TextField, ThemeProvider, useTheme, createTheme, FormControl, InputLabel, MenuItem, OutlinedInput, Select, Button, Typography, IconButton } from "@mui/material"
-import { Breadcrumb } from "../../components/ui/Breadcrumb"
-import { Title } from "../../components/ui/Title"
-import { useState, useMemo } from "react"
-import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
-import { TicketSerialImageField } from "./components/TicketSerialImageField"
-import { prefixAdmin } from "../../constants/routes";
-import { useCreateTicket } from "./hooks/useTicket";
-import { toast } from "react-toastify";
-import { useForm, Controller, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { createTicketSchema, CreateTicketFormValues } from "../../schemas/ticket.schema";
-import { LoadingButton } from "../../components/ui/LoadingButton";
-import { useProviders } from "../provider/hooks/useProvider";
-import { StationSelector } from "./components/StationSelector";
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import AddIcon from '@mui/icons-material/Add';
+import {
+    Alert,
+    Autocomplete,
+    Box,
+    Paper,
+    Stack,
+    TextField,
+    ThemeProvider,
+    Typography,
+    createTheme,
+    useTheme,
+} from '@mui/material';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { Title } from '../../components/ui/Title';
+import { LoadingButton } from '../../components/ui/LoadingButton';
+import { prefixAdmin, ROUTES } from '../../constants/routes';
+import { useBulkCreateTickets } from './hooks/useTicket';
+import { toast } from 'react-toastify';
+import { useForm, useFieldArray, FieldErrors } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { buildCreateTicketSchema, CreateTicketFormValues } from '../../schemas/ticket.schema';
+import { useProviders } from '../provider/hooks/useProvider';
+import { useRegions } from '../region/hooks/useRegion';
+import { useDraftImportBatches, useImportBatchDetail } from '../import-batch/hooks/useImportBatch';
+import { getImportBatchCancelledAlertMessage, getImportBatchLineCancelledAlertMessage } from '../import-batch/utils/batchTypeLabels';
+import {
+    findFirstIncompleteLine,
+    isImportBatchEditable,
+    isLineCancelled,
+} from './utils/importBatchProgress';
+import { formatImportBatchSelectLabel } from '../import-batch/utils/importBatchCode';
+import { ImportBatchSelectionCard } from './components/ImportBatchSelectionCard';
+import { ImportBatchLineImportTabs } from './components/ImportBatchLineImportTabs';
+import type { ImportBatch } from '../../api/importBatch.api';
+import {
+    applyDuplicateNumberFieldErrors,
+    applyQuotaOverflowFieldErrors,
+    applySectionRelationshipFieldErrors,
+    applySerialDuplicateFieldErrors,
+    clearDuplicateNumberFieldErrors,
+    clearSerialDuplicateFieldErrors,
+    countFilledSerials,
+    findDuplicateNumberSectionIndices,
+    findDuplicateSerialPaths,
+    findFirstSerialErrorPath,
+    findQuotaOverflowSerialPaths,
+    findSectionRelationshipIssues,
+    findSerialPathsForApiFailure,
+    isDuplicateNumbersApiError,
+    isQuotaExceededApiError,
+    isSerialDuplicateApiError,
+    QUOTA_UNDER_DECLARE_MESSAGE,
+    scrollAndFocusNumberField,
+    scrollToNumberField,
+    scrollToSerialField,
+} from './utils/ticketSerialValidation';
+import {
+    getTicketNumberLengthMessage,
+    isTicketNumberLengthApiError,
+    isTicketNumberLengthValid,
+    resolveRegionLengthRules,
+} from './utils/ticketNumberValidation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+
+type LineFormDraft = {
+    ticketSections: CreateTicketFormValues['ticketSections'];
+};
+
+const emptySerial = () => ({ serialNumber: '', ticketImg: undefined as string | undefined });
+
+const defaultSection = () => ({
+    numbers: '',
+    serials: [emptySerial()],
+});
+
+const defaultLineDraft = (): LineFormDraft => ({
+    ticketSections: [defaultSection()],
+});
 
 export const TicketCreatePage = () => {
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const importBatchIdParam = searchParams.get('importBatchId');
+    const importBatchLineIdParam = searchParams.get('importBatchLineId');
+    const isBatchPreSelected = !!importBatchIdParam;
+
+    const { data: draftBatches = [], isLoading: isLoadingDrafts } = useDraftImportBatches(true);
+    const [selectedBatchId, setSelectedBatchId] = useStateFromParam(importBatchIdParam);
+    const {
+        data: importBatchDetail,
+        isLoading: isLoadingBatch,
+        isFetching: isFetchingBatch,
+    } = useImportBatchDetail(selectedBatchId || undefined);
+
+    const resolvedBatch = useMemo(() => {
+        if (!selectedBatchId) {
+            return null;
+        }
+        if (importBatchDetail && String(importBatchDetail.id) === String(selectedBatchId)) {
+            return importBatchDetail;
+        }
+        return draftBatches.find((batch) => String(batch.id) === String(selectedBatchId)) ?? null;
+    }, [draftBatches, importBatchDetail, selectedBatchId]);
+
+    const isBatchLoading =
+        !!selectedBatchId &&
+        (isLoadingBatch || isFetchingBatch) &&
+        (!importBatchDetail || String(importBatchDetail.id) !== String(selectedBatchId));
+
+    const initialLineAppliedRef = useRef(false);
+    const lastInitializedBatchIdRef = useRef<string | null>(null);
+    const [lineFormDrafts, setLineFormDrafts] = useState<Record<string, LineFormDraft>>({});
+
+    const { data: providersRes } = useProviders({ size: 1000 });
+    const providers = (providersRes as any)?.data?.recordList || [];
+    const { data: regionsRes } = useRegions();
+    const regions = regionsRes?.data || [];
+
+    const resolveRulesForStation = useCallback(
+        (stationId?: string | number) => {
+            const provider = providers.find(
+                (p: any) => String(p.id || p._id) === String(stationId)
+            );
+            const region = regions.find((r: any) => r.code === provider?.region);
+            return resolveRegionLengthRules(region);
+        },
+        [providers, regions]
+    );
+
+    const batchLines = resolvedBatch?.lines ?? [];
+    const defaultActionableLine = resolvedBatch ? findFirstIncompleteLine(resolvedBatch) : undefined;
+    const bootstrapLineId =
+        importBatchLineIdParam || (defaultActionableLine ? String(defaultActionableLine.id) : '');
+    const bootstrapLine = batchLines.find((line) => String(line.id) === bootstrapLineId);
+    const numberLengthRulesRef = useRef(resolveRulesForStation(bootstrapLine?.lotteryStationId));
+
+    const dynamicTicketResolver = useCallback(
+        async (values: CreateTicketFormValues, context: unknown, options: unknown) =>
+            zodResolver(buildCreateTicketSchema(numberLengthRulesRef.current))(
+                values,
+                context as never,
+                options as never
+            ),
+        []
+    );
+
     const {
         control,
         handleSubmit,
         reset,
+        watch,
+        getValues,
+        setError,
+        clearErrors,
+        formState: { errors },
     } = useForm<CreateTicketFormValues>({
-        resolver: zodResolver(createTicketSchema),
+        resolver: dynamicTicketResolver,
+        mode: 'onTouched',
+        reValidateMode: 'onChange',
         defaultValues: {
-            stationId: "",
-            serials: [{ serialNumber: "", ticketImg: undefined }],
-            numbers: "",
-            batchCode: "",
+            importBatchId: importBatchIdParam || '',
+            importBatchLineId: importBatchLineIdParam || '',
+            stationId: '',
+            ticketSections: [defaultSection()],
+            drawDate: '',
         },
     });
 
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: "serials"
-    });
+    const {
+        fields: sectionFields,
+        append: appendSection,
+        remove: removeSection,
+    } = useFieldArray({ control, name: 'ticketSections' });
 
-    const [expandedDetail, setExpandedDetail] = useState(true);
-    const [expandedSerials, setExpandedSerials] = useState(true);
-    const [resetKey, setResetKey] = useState(0);
+    const watchedLineId = watch('importBatchLineId');
+    const watchedStationId = watch('stationId');
 
-    const { data: providersRes } = useProviders({ size: 1000 });
-    const providers = (providersRes as any)?.data?.recordList || [];
-    const { mutateAsync: createAsync, isPending } = useCreateTicket();
+    const selectedLine = useMemo(() => {
+        if (!watchedLineId) {
+            return batchLines.length === 1 ? batchLines[0] : undefined;
+        }
+        return batchLines.find((line) => String(line.id) === String(watchedLineId));
+    }, [batchLines, watchedLineId]);
 
-    const outerTheme = useTheme();
+    const numberLengthRules = useMemo(
+        () => resolveRulesForStation(watchedStationId || selectedLine?.lotteryStationId),
+        [resolveRulesForStation, selectedLine?.lotteryStationId, watchedStationId]
+    );
 
-    const localTheme = useMemo(() => createTheme(outerTheme, {
-        components: {
-            MuiCard: {
-                styleOverrides: {
-                    root: {
-                        backgroundImage: "none !important",
-                        backdropFilter: "none !important",
-                        backgroundColor: "var(--palette-background-paper) !important",
-                        boxShadow: "var(--customShadows-card)",
-                        borderRadius: "var(--shape-borderRadius-lg)",
-                        color: "var(--palette-text-primary)",
-                    },
-                }
-            },
-            MuiInputLabel: {
-                styleOverrides: {
-                    root: {
-                        fontSize: "1rem",
-                    }
-                }
-            },
-            MuiOutlinedInput: {
-                styleOverrides: {
-                    root: {
-                        fontSize: "1rem",
-                    }
+    useEffect(() => {
+        numberLengthRulesRef.current = numberLengthRules;
+    }, [numberLengthRules]);
+
+    const remainingSerialQuota = useMemo(() => {
+        if (!selectedLine) {
+            return undefined;
+        }
+        const imported = selectedLine.totalQuantity ?? 0;
+        const declared = selectedLine.declareQuantity ?? 0;
+        return Math.max(0, declared - imported);
+    }, [selectedLine]);
+
+    const { mutateAsync: bulkCreateAsync, isPending } = useBulkCreateTickets();
+
+    const resolveStationName = useCallback(
+        (stationId?: number | string) => {
+            if (!stationId) return '—';
+            return (
+                providers.find((p: any) => String(p.id || p._id) === String(stationId))?.name ??
+                `Đài #${stationId}`
+            );
+        },
+        [providers]
+    );
+
+    useEffect(() => {
+        if (importBatchIdParam) {
+            return;
+        }
+        if (!importBatchLineIdParam || draftBatches.length === 0) {
+            return;
+        }
+        const owningBatch = draftBatches.find((batch) =>
+            batch.lines?.some((line) => String(line.id) === importBatchLineIdParam)
+        );
+        if (owningBatch) {
+            setSelectedBatchId(String(owningBatch.id));
+        }
+    }, [draftBatches, importBatchIdParam, importBatchLineIdParam]);
+
+    const syncBatchToUrl = useCallback(
+        (batchId: string, lineId?: string) => {
+            const params = new URLSearchParams();
+            if (batchId) {
+                params.set('importBatchId', batchId);
+            }
+            if (lineId) {
+                params.set('importBatchLineId', lineId);
+            }
+            setSearchParams(params, { replace: true });
+        },
+        [setSearchParams]
+    );
+
+    const applyLineToForm = useCallback(
+        (lineId: string, drafts: Record<string, LineFormDraft>) => {
+            if (!resolvedBatch) {
+                return;
+            }
+            const line = batchLines.find((item) => String(item.id) === lineId);
+            if (!line) {
+                return;
+            }
+            const draft = drafts[lineId] ?? defaultLineDraft();
+            reset({
+                importBatchId: String(resolvedBatch.id),
+                importBatchLineId: lineId,
+                stationId: String(line.lotteryStationId),
+                ticketSections:
+                    draft.ticketSections.length > 0 ? draft.ticketSections : [defaultSection()],
+                drawDate: resolvedBatch.drawDate,
+            });
+        },
+        [batchLines, reset, resolvedBatch]
+    );
+
+    useEffect(() => {
+        if (!resolvedBatch || batchLines.length === 0) {
+            return;
+        }
+
+        const batchId = String(resolvedBatch.id);
+        if (lastInitializedBatchIdRef.current === batchId && initialLineAppliedRef.current) {
+            return;
+        }
+
+        const paramLine = importBatchLineIdParam
+            ? batchLines.find((item) => String(item.id) === importBatchLineIdParam)
+            : undefined;
+        const line =
+            paramLine && !isLineCancelled(paramLine)
+                ? paramLine
+                : findFirstIncompleteLine(resolvedBatch);
+        const lineId = line ? String(line.id) : '';
+
+        lastInitializedBatchIdRef.current = batchId;
+        initialLineAppliedRef.current = true;
+        setLineFormDrafts({});
+
+        if (lineId) {
+            applyLineToForm(lineId, {});
+            syncBatchToUrl(batchId, lineId);
+        }
+    }, [
+        resolvedBatch?.id,
+        batchLines.length,
+        importBatchLineIdParam,
+        applyLineToForm,
+        syncBatchToUrl,
+    ]);
+
+    const handleTabChange = (lineId: string) => {
+        const currentLineId = watch('importBatchLineId');
+        let nextDrafts = lineFormDrafts;
+        if (currentLineId) {
+            nextDrafts = {
+                ...lineFormDrafts,
+                [currentLineId]: {
+                    ticketSections: watch('ticketSections'),
+                },
+            };
+            setLineFormDrafts(nextDrafts);
+        }
+        applyLineToForm(lineId, nextDrafts);
+        if (selectedBatchId) {
+            syncBatchToUrl(selectedBatchId, lineId);
+        }
+    };
+
+    const handleBatchChange = (batch: ImportBatch | null) => {
+        initialLineAppliedRef.current = false;
+        lastInitializedBatchIdRef.current = null;
+        setLineFormDrafts({});
+
+        if (!batch) {
+            setSelectedBatchId('');
+            syncBatchToUrl('');
+            reset({
+                importBatchId: '',
+                importBatchLineId: '',
+                stationId: '',
+                ticketSections: [defaultSection()],
+                drawDate: '',
+            });
+            return;
+        }
+
+        const batchId = String(batch.id);
+        setSelectedBatchId(batchId);
+        syncBatchToUrl(batchId);
+    };
+
+    const refreshDuplicateFieldState = useCallback(() => {
+        const sections = getValues('ticketSections');
+        const duplicatePaths = findDuplicateSerialPaths(sections);
+        const duplicateNumberIndices = findDuplicateNumberSectionIndices(sections);
+
+        const allPaths = sections.flatMap((section, sectionIndex) =>
+            (section.serials ?? []).map((_, serialIndex) => ({ sectionIndex, serialIndex }))
+        );
+        const nonDuplicatePaths = allPaths.filter(
+            (path) =>
+                !duplicatePaths.some(
+                    (dup) =>
+                        dup.sectionIndex === path.sectionIndex && dup.serialIndex === path.serialIndex
+                )
+        );
+        clearSerialDuplicateFieldErrors(nonDuplicatePaths, clearErrors);
+
+        const nonDuplicateNumberIndices = sections
+            .map((_, sectionIndex) => sectionIndex)
+            .filter((sectionIndex) => !duplicateNumberIndices.includes(sectionIndex));
+        clearDuplicateNumberFieldErrors(nonDuplicateNumberIndices, clearErrors);
+
+        if (duplicatePaths.length > 0) {
+            applySerialDuplicateFieldErrors(duplicatePaths, setError);
+        }
+        if (duplicateNumberIndices.length > 0) {
+            applyDuplicateNumberFieldErrors(duplicateNumberIndices, setError);
+        }
+    }, [clearErrors, getValues, setError]);
+
+    const handleNumbersFieldChange = useCallback(
+        (sectionIndex: number) => {
+            const sections = getValues('ticketSections');
+            const value = sections[sectionIndex]?.numbers ?? '';
+            if (isTicketNumberLengthValid(value, numberLengthRulesRef.current)) {
+                clearErrors(`ticketSections.${sectionIndex}.numbers`);
+            }
+            refreshDuplicateFieldState();
+        },
+        [clearErrors, getValues, refreshDuplicateFieldState]
+    );
+
+    const handleSerialFieldChange = useCallback(
+        (_sectionIndex: number, _serialIndex: number) => {
+            refreshDuplicateFieldState();
+        },
+        [refreshDuplicateFieldState]
+    );
+
+    const handleRemoveSerial = useCallback(
+        (_sectionIndex: number, _serialIndex: number) => {
+            queueMicrotask(() => {
+                refreshDuplicateFieldState();
+            });
+        },
+        [refreshDuplicateFieldState]
+    );
+
+    const handleAppendSection = useCallback(() => {
+        const newIndex = getValues('ticketSections').length;
+        appendSection(defaultSection());
+        scrollAndFocusNumberField(newIndex);
+    }, [appendSection, getValues]);
+
+    const handleRemoveSection = useCallback(
+        (index: number) => {
+            removeSection(index);
+            queueMicrotask(() => {
+                refreshDuplicateFieldState();
+            });
+        },
+        [refreshDuplicateFieldState, removeSection]
+    );
+
+    const handleInvalidSubmit = useCallback((formErrors: FieldErrors<CreateTicketFormValues>) => {
+        const sections = formErrors.ticketSections;
+        if (sections && Array.isArray(sections)) {
+            for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
+                const sectionError = sections[sectionIndex];
+                if (sectionError && typeof sectionError === 'object' && 'numbers' in sectionError) {
+                    scrollToNumberField(sectionIndex);
+                    return;
                 }
             }
         }
-    }), [outerTheme]);
+
+        const firstPath = findFirstSerialErrorPath(formErrors);
+        if (firstPath) {
+            scrollToSerialField(firstPath.sectionIndex, firstPath.serialIndex);
+        }
+    }, []);
 
     const onSubmit = async (data: CreateTicketFormValues) => {
-        const selectedProvider = providers.find((p: any) => String(p.id || p._id) === String(data.stationId));
-        if (!selectedProvider) {
-            toast.error("Vui lòng chọn nhà đài");
+        if (!selectedLine || !resolvedBatch) {
+            toast.error('Vui lòng chọn nhà đài trong phiếu nhập lô');
             return;
+        }
+
+        if (isLineCancelled(selectedLine)) {
+            toast.error(getImportBatchLineCancelledAlertMessage(selectedLine.cancelReason));
+            return;
+        }
+
+        const imported = selectedLine.totalQuantity ?? 0;
+        const declared = selectedLine.declareQuantity ?? 0;
+        if (declared > 0 && imported >= declared) {
+            toast.info('Đài này đã nhập đủ số lượng khai báo');
+            return;
+        }
+
+        const duplicatePaths = findDuplicateSerialPaths(data.ticketSections);
+        if (duplicatePaths.length > 0) {
+            applySerialDuplicateFieldErrors(duplicatePaths, setError);
+            scrollToSerialField(duplicatePaths[0].sectionIndex, duplicatePaths[0].serialIndex);
+            return;
+        }
+
+        const duplicateNumberIndices = findDuplicateNumberSectionIndices(data.ticketSections);
+        if (duplicateNumberIndices.length > 0) {
+            applyDuplicateNumberFieldErrors(duplicateNumberIndices, setError);
+            scrollToNumberField(duplicateNumberIndices[0]);
+            return;
+        }
+
+        const relationshipIssues = findSectionRelationshipIssues(data.ticketSections);
+        if (relationshipIssues.length > 0) {
+            applySectionRelationshipFieldErrors(relationshipIssues, setError);
+            const firstIssue = relationshipIssues[0];
+            if (firstIssue.type === 'serial_without_ticket' || firstIssue.type === 'empty_ticket') {
+                scrollToNumberField(firstIssue.sectionIndex);
+            } else {
+                scrollToSerialField(firstIssue.sectionIndex, 0);
+            }
+            return;
+        }
+
+        const filledSerials = countFilledSerials(data.ticketSections);
+        const remaining = Math.max(0, declared - imported);
+        if (filledSerials > remaining) {
+            const overflowPaths = findQuotaOverflowSerialPaths(data.ticketSections, remaining);
+            applyQuotaOverflowFieldErrors(overflowPaths, setError);
+            if (overflowPaths.length > 0) {
+                scrollToSerialField(overflowPaths[0].sectionIndex, overflowPaths[0].serialIndex);
+            }
+            return;
+        }
+
+        if (filledSerials > 0 && filledSerials < remaining) {
+            toast.info(
+                `${QUOTA_UNDER_DECLARE_MESSAGE} (đang nhập ${filledSerials}, còn thiếu ${remaining - filledSerials} vé).`
+            );
         }
 
         const payload = {
-            stationId: data.stationId,
-            serials: data.serials.map(s => ({
-                serialNumber: s.serialNumber,
-                ticketImg: typeof s.ticketImg === "string" && s.ticketImg.trim() ? s.ticketImg.trim() : undefined,
-            })),
-            numbers: data.numbers,
-            batchCode: data.batchCode
+            importBatchLineId: Number(data.importBatchLineId),
+            stationId: Number(data.stationId),
+            drawDate: data.drawDate || resolvedBatch.drawDate,
+            tickets: data.ticketSections
+                .map((section) => ({
+                    numbers: section.numbers.trim(),
+                    serials: section.serials
+                        .filter((serial) => serial.serialNumber.trim())
+                        .map((serial) => ({
+                            serialNumber: serial.serialNumber.trim(),
+                            ticketImg:
+                                typeof serial.ticketImg === 'string' && serial.ticketImg.trim()
+                                    ? serial.ticketImg.trim()
+                                    : undefined,
+                        })),
+                }))
+                .filter((ticket) => ticket.numbers && ticket.serials.length > 0),
         };
 
-        try {
-            const res: any = await createAsync(payload);
-            if (res.success) {
-                toast.success("Nhập các vé số vào kho thành công!");
-                reset({
-                    stationId: "",
-                    serials: [{ serialNumber: "", ticketImg: undefined }],
-                    numbers: "",
-                    batchCode: "",
-                });
-                setResetKey(prev => prev + 1);
-            } else {
-                toast.error(res.message || "Tạo vé số thất bại");
-            }
-        } catch (err: any) {
-            toast.error(err?.response?.data?.message || err?.message || "Đã xảy ra lỗi khi tạo vé số");
-        }
-    };
-
-    const handleQuickCreateBenTre = async () => {
-        const benTre = providers.find((p: any) => p.province === "Bến Tre" || p.name.includes("Bến Tre"));
-        if (!benTre) {
-            toast.error("Không tìm thấy đài Bến Tre trong hệ thống!");
+        if (filledSerials === 0 || payload.tickets.length === 0) {
+            toast.error('Vui lòng nhập ít nhất một dãy số kèm số sê-ri.');
             return;
         }
 
-        const confirm = window.confirm("Bạn có chắc muốn tạo nhanh 3 lô vé số Bến Tre (mỗi lô 10 tờ) không?");
-        if (!confirm) return;
-
-        const stationId = benTre.id || benTre._id;
-
-        const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        const batches = [
-            { numbers: "778899", prefix: `BT1_${randomSuffix}_` },
-            { numbers: "556677", prefix: `BT2_${randomSuffix}_` },
-            { numbers: "334455", prefix: `BT3_${randomSuffix}_` }
-        ];
-
         try {
-            for (const batch of batches) {
-                const serials = Array.from({ length: 10 }).map((_, i) => ({
-                    serialNumber: `${batch.prefix}${String(i + 1).padStart(3, '0')}`,
-                    ticketImg: ""
+            const res: any = await bulkCreateAsync({ data: payload, skipGlobalErrorToast: true });
+            if (res.success) {
+                toast.success('Nhập vé số thành công!');
+                const lineId = String(selectedLine.id);
+                const clearedDraft = defaultLineDraft();
+                setLineFormDrafts((prev) => ({
+                    ...prev,
+                    [lineId]: clearedDraft,
                 }));
-
-                await createAsync({
-                    stationId,
-                    serials,
-                    numbers: batch.numbers,
-                    batchCode: `LOHANG_BT_${batch.prefix}`
+                reset({
+                    importBatchId: String(resolvedBatch.id),
+                    importBatchLineId: lineId,
+                    stationId: String(selectedLine.lotteryStationId),
+                    ticketSections: clearedDraft.ticketSections,
+                    drawDate: resolvedBatch.drawDate,
                 });
+            } else {
+                toast.error(res.message || 'Nhập vé số thất bại');
             }
-            toast.success("Tạo nhanh 3 lô Bến Tre thành công!");
-            window.location.reload();
-        } catch (err) {
-            toast.error("Lỗi khi tạo nhanh Bến Tre!");
+        } catch (err: any) {
+            if (isTicketNumberLengthApiError(err)) {
+                const message =
+                    err?.response?.data?.message || getTicketNumberLengthMessage(numberLengthRules);
+                const sections = getValues('ticketSections');
+                sections.forEach((_, sectionIndex) => {
+                    setError(`ticketSections.${sectionIndex}.numbers`, {
+                        type: 'length',
+                        message,
+                    });
+                });
+                scrollToNumberField(0);
+                return;
+            }
+            if (isDuplicateNumbersApiError(err)) {
+                const sections = getValues('ticketSections');
+                const indices = findDuplicateNumberSectionIndices(sections);
+                applyDuplicateNumberFieldErrors(indices, setError);
+                if (indices.length > 0) {
+                    scrollToNumberField(indices[0]);
+                }
+                return;
+            }
+            if (isSerialDuplicateApiError(err)) {
+                const sections = getValues('ticketSections');
+                const paths = findSerialPathsForApiFailure(sections);
+                applySerialDuplicateFieldErrors(paths, setError);
+                if (paths.length > 0) {
+                    scrollToSerialField(paths[0].sectionIndex, paths[0].serialIndex);
+                }
+                return;
+            }
+            if (isQuotaExceededApiError(err)) {
+                const sections = getValues('ticketSections');
+                const overflowPaths = findQuotaOverflowSerialPaths(
+                    sections,
+                    Math.max(0, declared - imported)
+                );
+                applyQuotaOverflowFieldErrors(overflowPaths, setError);
+                if (overflowPaths.length > 0) {
+                    scrollToSerialField(overflowPaths[0].sectionIndex, overflowPaths[0].serialIndex);
+                } else {
+                    toast.error(
+                        err?.response?.data?.message ||
+                            'Số lượng vé nhập vượt quá số lượng khai báo của dòng phiếu.'
+                    );
+                }
+                return;
+            }
+            toast.error(err?.response?.data?.message || err?.message || 'Đã xảy ra lỗi khi nhập vé số');
         }
     };
+
+    const isLoading = isBatchLoading || (!isBatchPreSelected && isLoadingDrafts);
+
+    const outerTheme = useTheme();
+    const localTheme = useMemo(
+        () =>
+            createTheme(outerTheme, {
+                components: {
+                    MuiCard: {
+                        styleOverrides: {
+                            root: {
+                                backgroundImage: 'none !important',
+                                backdropFilter: 'none !important',
+                                backgroundColor: 'var(--palette-background-paper) !important',
+                                boxShadow: 'var(--customShadows-card)',
+                                borderRadius: 'var(--shape-borderRadius-lg)',
+                            },
+                        },
+                    },
+                },
+            }),
+        [outerTheme]
+    );
 
     return (
         <>
             <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
                 <div className="mr-auto">
-                    <Title title={"Tạo mới lô vé số"} />
+                    <Title title="Nhập vé số" />
                     <Breadcrumb
                         items={[
-                            { label: "Dashboard", to: "/" },
-                            { label: "Kho vé số", to: `/${prefixAdmin}/ticket/list` },
-                            { label: "Nhập vé" }
+                            { label: 'Dashboard', to: '/' },
+                            { label: 'Kho vé số', to: `/${prefixAdmin}/ticket/list` },
+                            { label: 'Nhập vé' },
                         ]}
                     />
                 </div>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                    <Button
-                        onClick={handleQuickCreateBenTre}
-                        disabled={isPending}
-                        sx={{
-                            background: '#10b981',
-                            minHeight: "2.25rem",
-                            fontWeight: 700,
-                            fontSize: "0.875rem",
-                            padding: "6px 12px",
-                            borderRadius: "var(--shape-borderRadius)",
-                            textTransform: "none",
-                            boxShadow: "none",
-                            color: "#fff",
-                            "&:hover": {
-                                background: "#059669",
-                                boxShadow: "var(--customShadows-z8)"
-                            }
-                        }}
-                        variant="contained"
-                    >
-                        {isPending ? "Đang tạo..." : "Tạo mẫu 3 lô Bến Tre"}
-                    </Button>
-                </div>
             </div>
+
             <ThemeProvider theme={localTheme}>
-                <form onSubmit={handleSubmit(onSubmit)}>
-                    <Stack sx={{
-                        margin: "0px calc(15 * var(--spacing))",
-                        gap: "calc(5 * var(--spacing))",
-                        pb: 10
-                    }}>
+                <Stack spacing={3} sx={{ maxWidth: 960, mx: 'auto', pb: 6 }}>
+                    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
+                        <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
+                            Phiếu nhập lô
+                        </Typography>
 
-                        <CollapsibleCard
-                            title={"Thông tin chung"}
-                            subheader={"Nhà đài, dãy số, mã lô..."}
-                            expanded={expandedDetail}
-                            onToggle={() => setExpandedDetail(!expandedDetail)}
-                        >
-                            <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
-                                <Box
-                                    sx={{
-                                        display: "grid",
-                                        gridTemplateColumns: "repeat(12, 1fr)",
-                                        gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))",
-                                    }}
-                                >
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                        <Controller
-                                            name="stationId"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <StationSelector
-                                                    value={field.value}
-                                                    onChange={field.onChange}
-                                                    providers={providers}
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                />
-                                            )}
-                                        />
-                                    </Box>
-
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
-                                        <Controller
-                                            name="batchCode"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    label="Mã lô nhập"
-                                                    fullWidth
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                />
-                                            )}
-                                        />
-                                    </Box>
-
-                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 12" } }}>
-                                        <Controller
-                                            name="numbers"
-                                            control={control}
-                                            render={({ field, fieldState }) => (
-                                                <TextField
-                                                    {...field}
-                                                    label="Dãy số"
-                                                    fullWidth
-                                                    error={!!fieldState.error}
-                                                    helperText={fieldState.error?.message}
-                                                />
-                                            )}
-                                        />
-                                    </Box>
-                                </Box>
-                            </Stack>
-                        </CollapsibleCard>
-
-                        <CollapsibleCard
-                            title={"Danh sách vé số (Sê-ri)"}
-                            subheader={"Thêm các số sê-ri và ảnh vé số thuộc lô này"}
-                            expanded={expandedSerials}
-                            onToggle={() => setExpandedSerials(!expandedSerials)}
-                        >
-                            <Stack p="calc(3 * var(--spacing))" gap="calc(3 * var(--spacing))">
-                                {fields.map((item, index) => (
-                                    <Box key={item.id} sx={{
-                                        p: 3,
-                                        border: "1px dashed var(--palette-divider)",
-                                        borderRadius: 2,
-                                        position: "relative"
-                                    }}>
-                                        <Box sx={{
-                                            display: "flex",
-                                            justifyContent: "space-between",
-                                            alignItems: "center",
-                                            mb: 2
-                                        }}>
-                                            <Typography variant="subtitle2" fontWeight="600">
-                                                Vé #{index + 1}
-                                            </Typography>
-                                            {fields.length > 1 && (
-                                                <IconButton 
-                                                    size="small" 
-                                                    color="error"
-                                                    onClick={() => remove(index)}
-                                                >
-                                                    <DeleteOutlineIcon />
-                                                </IconButton>
-                                            )}
-                                        </Box>
-                                        
-                                        <Box sx={{
-                                            display: "grid",
-                                            gridTemplateColumns: "repeat(12, 1fr)",
-                                            gap: "calc(3 * var(--spacing)) calc(2 * var(--spacing))",
-                                        }}>
-                                            <Box sx={{ gridColumn: { xs: "span 12", md: "span 12" } }}>
-                                                <Controller
-                                                    name={`serials.${index}.serialNumber`}
-                                                    control={control}
-                                                    render={({ field, fieldState }) => (
-                                                        <TextField
-                                                            {...field}
-                                                            label="Số sê-ri"
-                                                            fullWidth
-                                                            error={!!fieldState.error}
-                                                            helperText={fieldState.error?.message}
-                                                        />
-                                                    )}
-                                                />
-                                            </Box>
-                                            <TicketSerialImageField control={control} index={index} />
-                                        </Box>
-                                    </Box>
-                                ))}
-
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<AddIcon />}
-                                    onClick={() => append({ serialNumber: "", ticketImg: undefined })}
-                                    sx={{ alignSelf: "flex-start", mt: 1 }}
-                                >
-                                    Thêm Số sê-ri
-                                </Button>
-                            </Stack>
-                        </CollapsibleCard>
-
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: "calc(2 * var(--spacing))" }}>
-                            <LoadingButton
-                                type="submit"
-                                loading={isPending}
-                                label={"Nhập vé"}
-                                loadingLabel="Đang xử lý..."
-                                sx={{ minHeight: "3rem", minWidth: "4rem" }}
+                        {!isBatchPreSelected && (
+                            <Autocomplete
+                                sx={{ mb: 2 }}
+                                options={draftBatches}
+                                loading={isLoadingDrafts}
+                                value={
+                                    selectedBatchId
+                                        ? draftBatches.find(
+                                              (batch) => String(batch.id) === String(selectedBatchId)
+                                          ) ?? null
+                                        : null
+                                }
+                                onChange={(_e, batch) => handleBatchChange(batch)}
+                                getOptionLabel={formatImportBatchSelectLabel}
+                                isOptionEqualToValue={(a, b) => a.id === b.id}
+                                noOptionsText="Không có phiếu nhập lô ở trạng thái Nháp"
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label="Chọn phiếu nhập lô"
+                                        placeholder="Chọn phiếu nhập lô trước khi nhập vé"
+                                        error={!!errors.importBatchId}
+                                        helperText={
+                                            errors.importBatchId?.message ||
+                                            'Chỉ hiển thị các phiếu nhập lô đang ở trạng thái Nháp.'
+                                        }
+                                    />
+                                )}
                             />
-                        </Box>
-                    </Stack>
-                </form>
+                        )}
+
+                        <ImportBatchSelectionCard
+                            batch={resolvedBatch}
+                            isLoading={isBatchLoading}
+                            selectedBatchId={selectedBatchId}
+                            resolveStationName={resolveStationName}
+                        />
+
+                        {resolvedBatch && resolvedBatch.status === 'CANCELLED' && (
+                            <Alert severity="error" sx={{ mt: 2 }}>
+                                {getImportBatchCancelledAlertMessage(resolvedBatch.cancelReason)}
+                            </Alert>
+                        )}
+
+                        {resolvedBatch &&
+                            !isImportBatchEditable(resolvedBatch) &&
+                            resolvedBatch.status !== 'CANCELLED' && (
+                                <Alert severity="warning" sx={{ mt: 2 }}>
+                                    Phiếu nhập lô này không còn ở trạng thái cho phép nhập. Không thể nhập thêm vé.
+                                </Alert>
+                            )}
+                    </Paper>
+
+                        {resolvedBatch && selectedLine && isLineCancelled(selectedLine) && (
+                            <Alert severity="error" sx={{ mt: 2 }}>
+                                {getImportBatchLineCancelledAlertMessage(selectedLine.cancelReason)}
+                            </Alert>
+                        )}
+
+                        {resolvedBatch && batchLines.length > 0 && (
+                        <ImportBatchLineImportTabs
+                            lines={batchLines}
+                            activeLineId={watchedLineId}
+                            batchStatus={resolvedBatch.status}
+                            drawDate={resolvedBatch.drawDate}
+                            resolveStationName={resolveStationName}
+                            onTabChange={handleTabChange}
+                            onSubmit={handleSubmit(onSubmit, handleInvalidSubmit)}
+                            isSubmitting={isPending}
+                            control={control}
+                            errors={errors}
+                            sectionFields={sectionFields}
+                            onAppendSection={handleAppendSection}
+                            removeSection={handleRemoveSection}
+                            onSerialFieldChange={handleSerialFieldChange}
+                            onRemoveSerial={handleRemoveSerial}
+                            onNumbersFieldChange={handleNumbersFieldChange}
+                            numberLengthRules={numberLengthRules}
+                            remainingSerialQuota={remainingSerialQuota}
+                        />
+                    )}
+
+                    {!resolvedBatch && !isLoading && (
+                        <Alert severity="info">
+                            Chọn phiếu nhập lô để bắt đầu nhập vé số. Nếu chưa có phiếu, hãy{' '}
+                            <Typography
+                                component="span"
+                                sx={{ cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}
+                                onClick={() => navigate(ROUTES.ADMIN.IMPORT_BATCH.CREATE)}
+                            >
+                                khai báo phiếu nhập lô
+                            </Typography>{' '}
+                            trước.
+                        </Alert>
+                    )}
+
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <LoadingButton
+                            type="button"
+                            variant="outlined"
+                            label="Quay lại"
+                            onClick={() => navigate(ROUTES.ADMIN.TICKETS.LIST)}
+                            sx={{ minHeight: '2.75rem' }}
+                        />
+                    </Box>
+                </Stack>
             </ThemeProvider>
         </>
-    )
+    );
+};
+
+function useStateFromParam(param: string | null) {
+    const [value, setValue] = useState(param || '');
+    useEffect(() => {
+        if (param) setValue(param);
+    }, [param]);
+    return [value, setValue] as const;
 }

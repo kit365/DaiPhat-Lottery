@@ -1,12 +1,16 @@
 package com.daiphat.coreapi.infrastructure.persistence.specification;
 
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ImportBatchLineEntity_;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity_;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity_;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity_;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity_;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
@@ -52,7 +56,7 @@ public final class LotteryTicketSpecification {
                 String searchPattern = "%" + search.toLowerCase() + "%";
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get(LotteryTicketEntity_.numbers)), searchPattern),
-                        cb.like(cb.lower(root.get(LotteryTicketEntity_.batchCode)), searchPattern)
+                        batchCodeExistsPredicate(root, query, cb, searchPattern)
                 ));
             }
 
@@ -70,11 +74,9 @@ public final class LotteryTicketSpecification {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.isNull(root.get(BaseEntity_.deletedAt)));
             predicates.add(cb.equal(root.get(LotteryTicketEntity_.status), LotteryTicketStatus.IN_STOCK));
+            predicates.add(cb.isTrue(root.get(LotteryTicketEntity_.active)));
             predicates.add(cb.greaterThan(root.get(LotteryTicketEntity_.quantity), 0));
-            predicates.add(cb.equal(
-                    root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.status),
-                    LotteryStationStatus.ACTIVE
-            ));
+            predicates.add(cb.isTrue(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.isActive)));
             predicates.add(cb.isNull(root.get(LotteryTicketEntity_.station).get(BaseEntity_.deletedAt)));
 
             if (stationId != null) {
@@ -90,11 +92,28 @@ public final class LotteryTicketSpecification {
                 String searchPattern = "%" + search.toLowerCase() + "%";
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get(LotteryTicketEntity_.numbers)), searchPattern),
-                        cb.like(cb.lower(root.get(LotteryTicketEntity_.batchCode)), searchPattern)
+                        batchCodeExistsPredicate(root, query, cb, searchPattern)
                 ));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    private static Predicate batchCodeExistsPredicate(
+            jakarta.persistence.criteria.Root<LotteryTicketEntity> root,
+            jakarta.persistence.criteria.CriteriaQuery<?> query,
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            String searchPattern
+    ) {
+        Subquery<Long> subquery = query.subquery(Long.class);
+        var serialRoot = subquery.from(LotteryTicketSerialEntity.class);
+        var batchLineJoin = serialRoot.join(LotteryTicketSerialEntity_.importBatchLine, JoinType.INNER);
+        subquery.select(cb.literal(1L)).where(
+                cb.equal(serialRoot.get(LotteryTicketSerialEntity_.ticket), root),
+                cb.isNull(serialRoot.get(BaseEntity_.deletedAt)),
+                cb.like(cb.lower(batchLineJoin.get(ImportBatchLineEntity_.batchCode)), searchPattern)
+        );
+        return cb.exists(subquery);
     }
 }
