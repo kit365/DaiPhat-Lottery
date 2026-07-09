@@ -4,6 +4,14 @@ daiphat:
       intent-keywords:
         - tra cứu lịch khác
         - tra cuu lich khac
+        - tra cứu lịch
+        - tra cuu lich
+        - xem lịch
+        - xem lich
+        - coi lịch
+        - coi lich
+        - hỏi lịch
+        - hoi lich
         - lịch quay
         - lich quay
         - lịch mở thưởng
@@ -22,6 +30,21 @@ daiphat:
         - tim dai
         - xem lịch đài
         - xem lich dai
+      bare-intent-phrases:
+        - tra cứu lịch
+        - tra cuu lich
+        - xem lịch
+        - xem lich
+        - coi lịch
+        - coi lich
+        - hỏi lịch
+        - hoi lich
+        - lịch quay
+        - lich quay
+        - lịch mở thưởng
+        - lich mo thuong
+        - giờ quay
+        - gio quay
       restart-phrases:
         - tra cuu lich khac
       all-days-phrases:
@@ -169,3 +192,5 @@ daiphat:
         YESTERDAY:
           - hôm qua
           - hom qua
+      fuzzy-min-token-words: 2
+      fuzzy-max-token-words: 4

@@ -1,10 +1,10 @@
 package com.daiphat.coreapi.application.port.out.ai;
 
-import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponseDto;
+import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponse;
 
 public interface AiConsultPort {
 
-    ChatClassifyResponseDto classifyMessage(String message, Long conversationId);
+    ChatClassifyResponse classifyMessage(String message, Long conversationId);
 
     String generateFortuneReply(String message, Long conversationId);
 }

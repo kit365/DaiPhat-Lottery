@@ -145,7 +145,13 @@ class OrderResponse {
   final String? orderType;
   final String? receiveType;
   final String? expectedPickupAt;
+  final String? actualPickedUpAt;
   final String? createdAt;
+  final bool? refundEligible;
+  final int? refundRemainingSeconds;
+  final int? refundGraceMinutes;
+  final String? refundPaymentSuccessAt;
+  final String? refundDeadlineAt;
   final List<TransactionResponse>? transactions;
   final List<OrderDetailItem>? orderDetails;
 
@@ -159,7 +165,13 @@ class OrderResponse {
     this.orderType,
     this.receiveType,
     this.expectedPickupAt,
+    this.actualPickedUpAt,
     this.createdAt,
+    this.refundEligible,
+    this.refundRemainingSeconds,
+    this.refundGraceMinutes,
+    this.refundPaymentSuccessAt,
+    this.refundDeadlineAt,
     this.transactions,
     this.orderDetails,
   });
@@ -175,7 +187,13 @@ class OrderResponse {
       orderType: json['orderType']?.toString(),
       receiveType: json['receiveType']?.toString(),
       expectedPickupAt: json['expectedPickupAt']?.toString(),
+      actualPickedUpAt: json['actualPickedUpAt']?.toString(),
       createdAt: json['createdAt']?.toString(),
+      refundEligible: json['refundEligible'] as bool?,
+      refundRemainingSeconds: json['refundRemainingSeconds'] as int?,
+      refundGraceMinutes: json['refundGraceMinutes'] as int?,
+      refundPaymentSuccessAt: json['refundPaymentSuccessAt']?.toString(),
+      refundDeadlineAt: json['refundDeadlineAt']?.toString(),
       transactions: (json['transactions'] as List<dynamic>?)
           ?.map((e) => TransactionResponse.fromJson(e as Map<String, dynamic>))
           .toList(),
