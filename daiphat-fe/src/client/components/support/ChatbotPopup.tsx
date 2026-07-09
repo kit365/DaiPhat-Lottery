@@ -1233,7 +1233,7 @@ export const ChatbotPopup = () => {
     return (
       <button
         onClick={handleOpenChat}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-[#df1b1c] to-[#ff4b4b] rounded-full flex items-center justify-center shadow-2xl hover:shadow-[#df1b1c]/50 hover:scale-110 transition-all duration-300 z-50 group"
+        className="fixed bottom-[165px] lg:bottom-24 right-6 w-14 h-14 bg-gradient-to-r from-[#df1b1c] to-[#ff4b4b] rounded-full flex items-center justify-center shadow-2xl hover:shadow-[#df1b1c]/50 hover:scale-110 transition-all duration-300 z-50 group"
         aria-label="Open chat"
       >
         <MessageCircle className="w-7 h-7 text-white group-hover:animate-pulse" />
@@ -1249,7 +1249,7 @@ export const ChatbotPopup = () => {
 
   return (
     <div 
-      className={`fixed right-6 bottom-6 z-50 flex flex-col bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] overflow-hidden transition-all duration-300 ease-in-out border border-gray-100 ${
+      className={`fixed right-6 bottom-[165px] lg:bottom-24 z-50 flex flex-col bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.15)] overflow-hidden transition-all duration-300 ease-in-out border border-gray-100 ${
         isMinimized ? 'h-16 w-[360px]' : 'h-[600px] w-[380px]'
       }`}
     >
