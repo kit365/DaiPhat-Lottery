@@ -7,6 +7,7 @@ interface FormUploadSingleFileProps {
     disabled?: boolean;
     useRawFile?: boolean;
     customUpload?: (file: File) => Promise<string>;
+    compact?: boolean;
 }
 
 export const FormUploadSingleFile = ({
@@ -15,6 +16,7 @@ export const FormUploadSingleFile = ({
     disabled,
     useRawFile,
     customUpload,
+    compact,
 }: FormUploadSingleFileProps) => {
     return (
         <Controller
@@ -28,6 +30,7 @@ export const FormUploadSingleFile = ({
                     error={fieldState.error?.message}
                     useRawFile={useRawFile}
                     customUpload={customUpload}
+                    compact={compact}
                 />
             )}
         />

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProviders, createProvider, getProviderById, updateProvider, deleteProvider, getStationsToday, getStationsTomorrow, getStationsByDrawDate, uploadProviderImage, syncProviders } from '../../../api/provider.api';
+import { getProviders, createProvider, getProviderById, updateProvider, deleteProvider, getStationsToday, getStationsTomorrow, getStationsByDrawDate, uploadProviderImage, previewSyncProviders, confirmSyncProviders } from '../../../api/provider.api';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 
 
@@ -26,10 +26,10 @@ export const useUpdateProvider = () => {
 
     return useMutation({
         mutationFn: ({ id, data }: { id: string | number; data: any }) => updateProvider(id, data),
-        onSuccess: (response) => {
+        onSuccess: (response, variables) => {
             if (response.success) {
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PROVIDERS] });
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PROVIDER_DETAIL] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PROVIDER_DETAIL, variables.id] });
             }
         },
     });
@@ -94,11 +94,17 @@ export const useUploadProviderImage = () => {
     });
 };
 
-export const useSyncProviders = () => {
+export const usePreviewSyncProviders = () => {
+    return useMutation({
+        mutationFn: previewSyncProviders,
+    });
+};
+
+export const useConfirmSyncProviders = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: syncProviders,
+        mutationFn: confirmSyncProviders,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PROVIDERS] });
         },

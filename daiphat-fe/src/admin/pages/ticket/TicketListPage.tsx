@@ -1,17 +1,15 @@
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { TicketList } from "./sections/TicketList";
 import { Title } from "../../components/ui/Title";
-import { prefixAdmin } from "../../constants/routes";
+import { prefixAdmin, ROUTES } from "../../constants/routes";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
-import { LoadingButton } from "../../components/ui/LoadingButton";
 import { useTickets } from "./hooks/useTickets";
+import AddIcon from '@mui/icons-material/Add';
+import { LoadingButton } from "../../components/ui/LoadingButton";
+import { useNavigate } from "react-router-dom";
+import { IncompleteImportBatchNotification } from "../import-batch/components/IncompleteImportBatchNotification";
 import { CanAccess } from "../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../constants/permission.constants";
-import { useState } from "react";
-import Button from "@mui/material/Button";
 
 export const TicketListPage = () => {
     const { t } = useTranslation();
@@ -31,21 +29,22 @@ export const TicketListPage = () => {
                         ]}
                     />
                 </div>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                    <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                        <LoadingButton
-                            onClick={() => navigate(`/${prefixAdmin}/ticket/create`)}
-                            label="Tạo vé số mới"
-                            startIcon={<AddIcon />}
-                            sx={{
-                                minHeight: "2.25rem",
-                                padding: "var(--shape-borderRadius-sm) calc(2 * var(--spacing))",
-                            }}
-                        />
-                    </CanAccess>
-                </div>
+                <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                    <LoadingButton
+                        onClick={() => navigate(ROUTES.ADMIN.TICKETS.CREATE)}
+                        label="Thêm vé số"
+                        startIcon={<AddIcon />}
+                        sx={{
+                            minHeight: "2.25rem",
+                            padding: "var(--shape-borderRadius-sm) calc(2 * var(--spacing))",
+                        }}
+                    />
+                </CanAccess>
             </div>
 
+            <CanAccess anyOf={[PERMISSIONS.TICKET.CREATE, PERMISSIONS.IMPORT_BATCH.VIEW]}>
+                <IncompleteImportBatchNotification variant="detailed" />
+            </CanAccess>
 
             <TicketList
                 ticketHook={ticketHook}

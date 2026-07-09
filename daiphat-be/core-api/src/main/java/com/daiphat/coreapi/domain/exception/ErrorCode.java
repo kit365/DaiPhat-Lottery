@@ -145,7 +145,11 @@ public enum ErrorCode {
     LOTTERY_TICKET_STATUS_REQUIRED("LT_012", "Trạng thái vé số không được để trống.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_NUMBERS_REQUIRED("LT_014", "Dãy số vé không được để trống.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_NUMBERS_INVALID("LT_015", "Dãy số vé chỉ được chứa chữ số.", HttpStatus.BAD_REQUEST),
-    LOTTERY_TICKET_NUMBERS_LENGTH_INVALID("LT_016", "Dãy số vé không đúng độ dài yêu cầu.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_NUMBERS_LENGTH_INVALID(
+            "LT_016",
+            "Dãy số vé phải có từ %d đến %d chữ số.",
+            HttpStatus.BAD_REQUEST
+    ),
     LOTTERY_TICKET_DRAW_DATE_REQUIRED("LT_017", "Ngày quay không được để trống.", HttpStatus.BAD_REQUEST),
     LOTTERY_TICKET_DRAW_DATE_INVALID("LT_018", "Ngày quay không hợp lệ.", HttpStatus.BAD_REQUEST),
     PRIZE_STRUCTURE_LIST_REQUIRED("LT_019", "Danh sách cấu trúc giải thưởng không được để trống.", HttpStatus.BAD_REQUEST),
@@ -176,6 +180,7 @@ public enum ErrorCode {
     LOTTERY_STATION_SYNC_SOURCE_DUPLICATE("LT_041", "Nguồn dữ liệu chứa nhà đài bị trùng, chưa thể đồng bộ an toàn.", HttpStatus.BAD_REQUEST),
     LOTTERY_STATION_SYNC_DEFAULT_PRICE_REQUIRED("LT_042", "Cần truyền giá mặc định để tạo mới nhà đài.", HttpStatus.BAD_REQUEST),
     LOTTERY_STATION_SYNC_CANONICAL_NAME_REQUIRED("LT_043", "Nhà đài từ nguồn dữ liệu thiếu tên chuẩn.", HttpStatus.BAD_REQUEST),
+    LOTTERY_STATION_ACTIVATION_INCOMPLETE("LT_044", "Nhà đài chưa đủ thông tin bắt buộc để kích hoạt.", HttpStatus.BAD_REQUEST),
     LOTTERY_REGION_NOT_FOUND("LT_044", "Miền không tồn tại.", HttpStatus.NOT_FOUND),
     LOTTERY_REGION_NUMBER_RANGE_INVALID("LT_045", "Khoảng số của miền không hợp lệ.", HttpStatus.BAD_REQUEST),
     LOTTERY_RESULT_NOT_FOUND("LT_049", "Kết quả quay số không tồn tại.", HttpStatus.NOT_FOUND),
@@ -193,6 +198,129 @@ public enum ErrorCode {
     LOTTERY_RESULT_SOURCE_EMPTY("LT_061", "Nguồn dữ liệu không trả về kết quả hợp lệ.", HttpStatus.BAD_REQUEST),
     LOTTERY_RESULT_SOURCE_INVALID("LT_062", "Nguồn dữ liệu kết quả chưa đủ sạch để đồng bộ.", HttpStatus.BAD_REQUEST),
     LOTTERY_RESULT_RESYNC_NOT_ALLOWED("LT_063", "Chỉ có thể đồng bộ lại kết quả đang thiếu hoặc lỗi.", HttpStatus.CONFLICT),
+
+    IMPORT_BATCH_NOT_FOUND("LT_064", "Phiếu nhập lô vé không tồn tại.", HttpStatus.NOT_FOUND),
+    IMPORT_BATCH_CUTOFF_PASSED("LT_065", "Đã quá giờ chốt nhập lô vé cho kỳ quay hôm nay.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_INVOICE_REQUIRED("LT_066", "Biên lai nhập lô là bắt buộc cho loại lô này.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_INVALID_BATCH_TYPE("LT_067", "Loại lô nhập không hợp lệ.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_DECLARE_QUANTITY_INVALID("LT_068", "Số lượng khai báo phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_DRAW_DATE_INVALID("LT_069", "Ngày quay không khớp lịch quay của nhà đài.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_STATION_INACTIVE("LT_070", "Nhà đài chưa được kích hoạt.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_INVALID_STATUS("LT_071", "Trạng thái phiếu nhập lô không hợp lệ cho thao tác này.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_IMPORT_COST_INVALID("LT_072", "Giá vốn nhập lô phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_DRAFT_ALREADY_EXISTS(
+            "LT_073",
+            "Bạn đã có phiếu nhập lô chưa hoàn tất cho cùng nhà cung cấp, ngày quay và hình thức nhập. Bạn có thể tiếp tục phiếu hiện tại hoặc tạo phiếu mới cho đợt giao khác.",
+            HttpStatus.CONFLICT
+    ),
+    IMPORT_BATCH_DUPLICATE_STATION("LT_076", "Mỗi nhà đài chỉ được khai báo một lần trong cùng phiếu nhập lô.", HttpStatus.BAD_REQUEST),
+    LOTTERY_SUPPLIER_NOT_FOUND("LT_077", "Nhà cung cấp không tồn tại.", HttpStatus.NOT_FOUND),
+    LOTTERY_SUPPLIER_CODE_DUPLICATE("LT_078", "Mã nhà cung cấp đã tồn tại.", HttpStatus.BAD_REQUEST),
+    LOTTERY_SUPPLIER_INACTIVE("LT_079", "Nhà cung cấp đang ngừng hoạt động.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_SUPPLIER_REQUIRED("LT_080", "Nhà cung cấp không được để trống.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_NO_SUPPLIER_CONFIGURED(
+            "LT_084",
+            "Chưa có nhà cung cấp. Vui lòng tạo nhà cung cấp trước khi nhập vé.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_BATCH_CODE_MISSING(
+            "LT_085",
+            "Dòng phiếu nhập lô chưa có mã lô hệ thống.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_STATION_DRAFT_EXISTS(
+            "LT_086",
+            "Nhà đài đã có phiếu nhập nháp cho ngày quay này. Vui lòng hoàn tất phiếu hiện tại trước khi tạo mới.",
+            HttpStatus.CONFLICT
+    ),
+    IMPORT_BATCH_ALL_STATIONS_DRAFT(
+            "LT_087",
+            "Tất cả nhà đài trong ngày quay đã có phiếu nhập nháp. Vui lòng hoàn tất các phiếu hiện tại hoặc chọn ngày quay khác.",
+            HttpStatus.CONFLICT
+    ),
+    IMPORT_BATCH_CANCELLED(
+            "LT_088",
+            "Phiếu nhập lô đã bị hủy vì quá giờ chốt nhập lô cho kỳ quay hôm nay.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_CANCELLED(
+            "LT_095",
+            "Dòng nhập lô cho nhà đài này đã bị hủy và không thể nhập thêm vé.",
+            HttpStatus.BAD_REQUEST
+    ),
+
+    LOTTERY_SUPPLIER_ACTIVATION_INCOMPLETE(
+            "LT_081",
+            "Nhà cung cấp chưa đủ thông tin bắt buộc để kích hoạt.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_SUPPLIER_PAYMENT_TERM_INVALID(
+            "LT_082",
+            "Số ngày thanh toán không được âm.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_SUPPLIER_IMPORT_COST_INVALID(
+            "LT_083",
+            "Giá vốn mặc định không được âm.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_TICKET_IMPORT_BATCH_REQUIRED("LT_074", "Vé số phải được tạo thông qua phiếu nhập lô.", HttpStatus.BAD_REQUEST),
+    LOTTERY_TICKET_IMPORT_BATCH_MISMATCH("LT_075", "Thông tin vé số không khớp với phiếu nhập lô.", HttpStatus.BAD_REQUEST),
+    IMPORT_BATCH_LINE_QUANTITY_EXCEEDED(
+            "LT_084",
+            "Số lượng vé nhập vượt quá số lượng khai báo của dòng phiếu.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_TICKET_NUMBERS_DUPLICATED_IN_REQUEST(
+            "LT_085",
+            "Dãy số bị trùng trong cùng một lần nhập.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_TICKET_SECTION_SERIALS_REQUIRED(
+            "LT_089",
+            "Mỗi dãy số phải có ít nhất một số sê-ri.",
+            HttpStatus.BAD_REQUEST
+    ),
+    LOTTERY_TICKET_SERIAL_WITHOUT_NUMBERS(
+            "LT_090",
+            "Số sê-ri phải thuộc một dãy số.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_NOT_DELETABLE(
+            "LT_091",
+            "Chỉ có thể xóa dòng phiếu nhập lô chưa hoàn tất.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LAST_LINE_CANNOT_DELETE(
+            "LT_092",
+            "Không thể xóa dòng cuối cùng của phiếu nhập lô.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_HAS_LOCKED_TICKETS(
+            "LT_093",
+            "Không thể xóa dòng phiếu vì có vé đã được giữ chỗ hoặc đã bán.",
+            HttpStatus.CONFLICT
+    ),
+    IMPORT_BATCH_LINE_NOT_EDITABLE(
+            "LT_094",
+            "Dòng phiếu nhập lô không thể chỉnh sửa ở trạng thái hiện tại.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_DRAW_DATE_LOCKED_IMPORTED_LINES(
+            "LT_095",
+            "Không thể đổi ngày quay vì phiếu nhập lô đã có dòng đã nhập đủ.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_SUPPLIER_LOCKED_IMPORTED_LINES(
+            "LT_097",
+            "Không thể thay đổi nhà cung cấp vì phiếu nhập đã có lô vé được nhập hoàn tất.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_DECLARE_QUANTITY_BELOW_IMPORTED(
+            "LT_096",
+            "Số lượng khai báo (%d) không được nhỏ hơn số vé đã nhập (%d). Vui lòng xóa bớt vé đã nhập trước khi giảm số lượng khai báo.",
+            HttpStatus.BAD_REQUEST
+    ),
 
     // Street Agent Profile Errors
     STREET_AGENT_PROFILE_NOT_FOUND("SAG_001", "Hồ sơ đại lý bán dạo không tồn tại.", HttpStatus.NOT_FOUND),

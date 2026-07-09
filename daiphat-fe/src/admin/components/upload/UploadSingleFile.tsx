@@ -16,10 +16,11 @@ interface UploadSingleFileProps {
     error?: string;
     useRawFile?: boolean;
     customUpload?: (file: File) => Promise<string>;
+    compact?: boolean;
 }
 
 export const UploadSingleFile = memo(
-    ({ value, onChange, disabled, error, useRawFile, customUpload }: UploadSingleFileProps) => {
+    ({ value, onChange, disabled, error, useRawFile, customUpload, compact }: UploadSingleFileProps) => {
         const [localFile, setLocalFile] = useState<CustomFile | null>(null);
         const [isUploading, setIsUploading] = useState(false);
         const [previewUrl, setPreviewUrl] = useState<string>("");
@@ -179,6 +180,35 @@ export const UploadSingleFile = memo(
         };
 
         const hasMedia = useRawFile ? Boolean(value) : Boolean(localFile || value);
+
+        if (compact) {
+            return (
+                <Stack spacing={0.5}>
+                    <div {...getRootProps()}>
+                        <input {...getInputProps()} />
+                        {hasMedia ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <ul className="flex gap-[8px] flex-wrap m-0 p-0 list-none">{renderThumb()}</ul>
+                                {!useRawFile && localFile && (
+                                    <Button size="small" onClick={handleUpload} disabled={isUploading} sx={{ minWidth: 0, px: 1 }}>
+                                        {isUploading ? '...' : '↑'}
+                                    </Button>
+                                )}
+                            </Box>
+                        ) : (
+                            <Button size="small" variant="outlined" sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
+                                Chọn ảnh
+                            </Button>
+                        )}
+                    </div>
+                    {(error || (!useRawFile && localFile && !value)) && (
+                        <FormHelperText error sx={{ m: 0 }}>
+                            {getErrorMessage()}
+                        </FormHelperText>
+                    )}
+                </Stack>
+            );
+        }
 
         return (
             <Stack>

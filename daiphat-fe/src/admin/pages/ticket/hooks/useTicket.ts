@@ -3,6 +3,7 @@ import {
     getTickets,
     getCreateTicketData,
     createTicket,
+    bulkCreateTickets,
     getTicketById,
     updateTicket,
     deleteTicket,
@@ -13,6 +14,7 @@ import {
     uploadTicketSerialImage
 } from '../../../api/ticket.api';
 import { ApiResponse } from '../../../config/type';
+import { QUERY_KEYS } from '../../../../constants/queryKeys';
 
 // --- TICKETS ---
 export const useTicketList = (params?: any, options?: any) => {
@@ -44,9 +46,38 @@ export const useCreateTicket = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: createTicket,
+        mutationFn: (variables: { data: any; skipGlobalErrorToast?: boolean } | any) => {
+            if (variables && typeof variables === 'object' && 'data' in variables) {
+                return createTicket(variables.data, {
+                    skipGlobalErrorToast: variables.skipGlobalErrorToast,
+                });
+            }
+            return createTicket(variables);
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tickets'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+        },
+    });
+};
+
+export const useBulkCreateTickets = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (variables: { data: any; skipGlobalErrorToast?: boolean }) =>
+            bulkCreateTickets(variables.data, {
+                skipGlobalErrorToast: variables.skipGlobalErrorToast,
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tickets'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
         },
     });
 };

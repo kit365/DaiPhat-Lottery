@@ -12,9 +12,10 @@ import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationType;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
+import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
+import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
@@ -62,6 +63,8 @@ class LotteryTicketServiceTest {
     private static final Long PRODUCT_ID = 111L;
     private static final Long TICKET_ID = 222L;
     private static final UUID IMPORTED_BY_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    private static final Long IMPORT_BATCH_ID = 99L;
+    private static final Long IMPORT_BATCH_LINE_ID = 199L;
 
     private static final String PRODUCT_NAME = "Vé số TP.HCM";
     private static final String TICKET_IMAGE = "https://cdn.daiphat.com/tickets/ve-so.png";
@@ -95,6 +98,15 @@ class LotteryTicketServiceTest {
     private LotteryTicketApplicationMapper lotteryTicketApplicationMapper;
 
     @Mock
+    private com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort importBatchRepositoryPort;
+
+    @Mock
+    private com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
+
+    @Mock
+    private com.daiphat.coreapi.shared.util.ImportBatchDraftExpiryService importBatchDraftExpiryService;
+
+    @Mock
     private com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort orderRepositoryPort;
 
     @Mock
@@ -111,6 +123,9 @@ class LotteryTicketServiceTest {
     void setUp() {
         lotteryTicketService = new LotteryTicketService(
                 lotteryTicketRepositoryPort,
+                importBatchRepositoryPort,
+                importBatchLineRepositoryPort,
+                importBatchDraftExpiryService,
                 lotteryStationServicePort,
                 lotteryTicketApplicationMapper,
                 lotteryTicketSerialService,
@@ -135,7 +150,7 @@ class LotteryTicketServiceTest {
                 .nextDrawDate(LocalDate.now())
                 .drawDays(java.util.List.of(LocalDate.now().getDayOfWeek()))
                 .drawTime(java.time.LocalTime.of(16, 15))
-                .status(LotteryStationStatus.ACTIVE)
+                .isActive(true)
                 .build();
 
         createRequest = CreateLotteryTicketRequest.builder()
@@ -143,15 +158,36 @@ class LotteryTicketServiceTest {
                 .serials(java.util.List.of(new com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest(SERIAL_NUMBER, TICKET_IMAGE)))
                 .numbers(NUMBERS)
                 .drawDate(LocalDate.now())
-                .batchCode(BATCH_CODE)
+                .importBatchLineId(IMPORT_BATCH_LINE_ID)
                 .build();
+
+        ImportBatchLineModel importBatchLine = ImportBatchLineModel.builder()
+                .id(IMPORT_BATCH_LINE_ID)
+                .importBatchId(IMPORT_BATCH_ID)
+                .lotteryStationId(PRODUCT_ID)
+                .batchCode(BATCH_CODE)
+                .declareQuantity(1000)
+                .build();
+
+        ImportBatchModel importBatch = ImportBatchModel.builder()
+                .id(IMPORT_BATCH_ID)
+                .drawDate(LocalDate.now())
+                .status(com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT)
+                .importedBy(IMPORTED_BY_ID)
+                .lines(new java.util.ArrayList<>(java.util.List.of(importBatchLine)))
+                .build();
+
+        when(importBatchLineRepositoryPort.findById(IMPORT_BATCH_LINE_ID)).thenReturn(Optional.of(importBatchLine));
+        when(importBatchRepositoryPort.findById(IMPORT_BATCH_ID)).thenReturn(Optional.of(importBatch));
+        lenient().when(importBatchLineRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(lotteryTicketSerialService.countByImportBatchLineId(any())).thenReturn(1L);
+        lenient().when(lotteryTicketSerialService.findDistinctTicketIdsByImportBatchLineId(any())).thenReturn(List.of());
 
         mappedModel = LotteryTicketModel.builder()
                 .stationId(PRODUCT_ID)
                 .ticketImg(TICKET_IMAGE)
                 .numbers(NUMBERS)
                 .drawDate(createRequest.drawDate())
-                .batchCode(BATCH_CODE)
                 .build();
 
         existingModel = LotteryTicketModel.builder()
@@ -160,7 +196,6 @@ class LotteryTicketServiceTest {
                 .ticketImg(TICKET_IMAGE)
                 .numbers(NUMBERS)
                 .drawDate(createRequest.drawDate())
-                .batchCode(BATCH_CODE)
                 .status(LotteryTicketStatus.IN_STOCK)
                 .importedById(IMPORTED_BY_ID)
                 .importedAt(LocalDateTime.now().minusDays(1))
@@ -175,7 +210,6 @@ class LotteryTicketServiceTest {
                 .ticketImg(TICKET_IMAGE)
                 .numbers(NUMBERS)
                 .drawDate(createRequest.drawDate())
-                .batchCode(BATCH_CODE)
                 .status(LotteryTicketStatus.IN_STOCK)
                 .importedById(IMPORTED_BY_ID)
                 .importedAt(LocalDateTime.now())
@@ -205,9 +239,9 @@ class LotteryTicketServiceTest {
         lenient().when(lotteryTicketSerialService.findAllByTicketId(any())).thenReturn(List.of());
         lenient().when(lotteryTicketSerialService.findFirstByTicketId(any())).thenReturn(Optional.empty());
         lenient().when(lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(any())).thenReturn(Map.of());
-        lenient().when(lotteryTicketApplicationMapper.toResponseDetail(any(), anyList(), nullable(String.class)))
+        lenient().when(lotteryTicketApplicationMapper.toResponseDetail(any(), anyList(), nullable(String.class), nullable(String.class)))
                 .thenReturn(mappedResponse);
-        lenient().when(lotteryTicketApplicationMapper.toResponse(any(LotteryTicketModel.class), any(), nullable(String.class)))
+        lenient().when(lotteryTicketApplicationMapper.toResponse(any(LotteryTicketModel.class), any(), nullable(String.class), nullable(String.class)))
                 .thenReturn(mappedResponse);
     }
 
@@ -218,7 +252,7 @@ class LotteryTicketServiceTest {
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
-        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
+        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME), any())).thenReturn(mappedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.getById(TICKET_ID);
 
@@ -270,8 +304,8 @@ class LotteryTicketServiceTest {
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
-        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
-        when(lotteryTicketApplicationMapper.toResponseDetail(eq(savedModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
+        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME), any())).thenReturn(mappedResponse);
+        when(lotteryTicketApplicationMapper.toResponseDetail(eq(savedModel), anyList(), eq(PRODUCT_NAME), eq(BATCH_CODE))).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
                 1, 10, PRODUCT_ID, null, null, null, null, "createdAt", "desc"
@@ -297,7 +331,7 @@ class LotteryTicketServiceTest {
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
-        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
+        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME), any())).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
                 1, 10, PRODUCT_ID, null, "IN_STOCK", null, null, null, null
@@ -322,7 +356,7 @@ class LotteryTicketServiceTest {
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
-        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
+        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME), any())).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
                 1, 10, null, null, null, drawDate.toString(), null, null, null
@@ -345,7 +379,7 @@ class LotteryTicketServiceTest {
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
-        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
+        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME), any())).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
                 1, 10, null, null, null, null, "123", null, null
@@ -390,7 +424,7 @@ class LotteryTicketServiceTest {
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
-        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
+        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME), any())).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
                 1, 10, null, null, null, null, null, "drawDate", "asc"
@@ -413,7 +447,7 @@ class LotteryTicketServiceTest {
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
-        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
+        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME), any())).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
                 1, 10, null, null, "INVALID_STATUS", null, null, null, null
@@ -436,7 +470,7 @@ class LotteryTicketServiceTest {
                 .thenReturn(ticketPage);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
-        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(mappedResponse);
+        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME), any())).thenReturn(mappedResponse);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getAll(
                 1, 10, null, null, null, "invalid-date-format", null, null, null
@@ -699,7 +733,6 @@ class LotteryTicketServiceTest {
     @DisplayName("[DP-292] DELETE: Xóa vé số có đầy đủ thông tin (serial, numbers, batch) thành công")
     void delete_ticketWithFullDetails_success() {
         existingModel.setNumbers("12345");
-        existingModel.setBatchCode("BATCH-001");
         existingModel.setTicketImg("https://cdn.example.com/ticket.png");
         int initialInventory = 10;
         productModel.setInventoryCount(initialInventory);
@@ -798,7 +831,7 @@ class LotteryTicketServiceTest {
         when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
-        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(expectedResponse);
+        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME), any())).thenReturn(expectedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.verify(TICKET_ID, verifierId);
 
@@ -897,7 +930,7 @@ class LotteryTicketServiceTest {
         when(lotteryTicketRepositoryPort.save(existingModel)).thenReturn(existingModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         org.mockito.Mockito.lenient().when(lotteryStationServicePort.findModelById(PRODUCT_ID)).thenReturn(java.util.Optional.of(productModel));
-        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME))).thenReturn(expectedResponse);
+        when(lotteryTicketApplicationMapper.toResponseDetail(eq(existingModel), anyList(), eq(PRODUCT_NAME), any())).thenReturn(expectedResponse);
 
         LotteryTicketResponse response = lotteryTicketService.changeStatus(TICKET_ID, LotteryTicketStatus.INTERNAL_FAULT);
 
@@ -977,7 +1010,7 @@ class LotteryTicketServiceTest {
         LotteryTicketResponse response = lotteryTicketService.create(createRequest, IMPORTED_BY_ID);
 
         assertThat(response).isNotNull();
-        verify(lotteryTicketSerialService).upsertSerialForTicket(any(), any(), eq(IMPORTED_BY_ID));
+        verify(lotteryTicketSerialService).upsertSerialForTicket(any(), any(), eq(IMPORTED_BY_ID), eq(IMPORT_BATCH_ID), eq(IMPORT_BATCH_LINE_ID));
         verify(lotteryTicketRepositoryPort, org.mockito.Mockito.atLeastOnce()).save(any());
     }
 
@@ -988,7 +1021,7 @@ class LotteryTicketServiceTest {
     @DisplayName("[DP-272] UPDATE: Cập nhật vé số thành công")
     void update_success() {
         UpdateLotteryTicketRequest updateReq = new UpdateLotteryTicketRequest(
-                "new_img", "67890", LocalDate.now(), "NEW_BATCH", LotteryTicketStatus.IN_STOCK, List.of()
+                "new_img", "67890", LocalDate.now(), LotteryTicketStatus.IN_STOCK, List.of()
         );
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
@@ -1133,7 +1166,7 @@ class LotteryTicketServiceTest {
                 .serials(java.util.List.of())
                 .numbers(NUMBERS)
                 .drawDate(LocalDate.now().plusDays(1)) // Assume not in drawDays
-                .batchCode(BATCH_CODE)
+                .importBatchLineId(IMPORT_BATCH_LINE_ID)
                 .build();
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
 
@@ -1166,7 +1199,7 @@ class LotteryTicketServiceTest {
         existingModel.setStatus(LotteryTicketStatus.SOLD_OUT); // Không thuộc isEditableStatus
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         
-        assertThatThrownBy(() -> lotteryTicketService.update(TICKET_ID, new UpdateLotteryTicketRequest(null, null, null, null, null, null), IMPORTED_BY_ID))
+        assertThatThrownBy(() -> lotteryTicketService.update(TICKET_ID, new UpdateLotteryTicketRequest(null, null, null, null, null), IMPORTED_BY_ID))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
@@ -1178,7 +1211,7 @@ class LotteryTicketServiceTest {
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryTicketSerialService.countByStatuses(any(), anyList())).thenReturn(1L); // locked
         
-        assertThatThrownBy(() -> lotteryTicketService.update(TICKET_ID, new UpdateLotteryTicketRequest(null, null, null, null, null, null), IMPORTED_BY_ID))
+        assertThatThrownBy(() -> lotteryTicketService.update(TICKET_ID, new UpdateLotteryTicketRequest(null, null, null, null, null), IMPORTED_BY_ID))
                 .isInstanceOf(DomainException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
@@ -1188,7 +1221,7 @@ class LotteryTicketServiceTest {
     @DisplayName("[DP-272] UPDATE: Ném lỗi trùng lặp serial (validateUniqueTicket)")
     void update_throwsWhenSerialExisted() {
         UpdateLotteryTicketRequest updateReq = new UpdateLotteryTicketRequest(
-                null, "12345", LocalDate.now(), null, null, null
+                null, "12345", LocalDate.now(), null, null
         );
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(existingModel));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
@@ -1399,29 +1432,58 @@ class LotteryTicketServiceTest {
     @Test
     @DisplayName("[DP-XXX] resolveRequestedDrawDate: Cover null drawDate")
     void create_withNullDrawDate_resolvesCurrentStationDrawDate() {
+        LocalDate drawDate = com.daiphat.coreapi.shared.util.DrawScheduleUtils.resolveNextDrawDate(
+                java.util.List.of(LocalDate.now().getDayOfWeek()),
+                java.time.LocalTime.of(16, 15)
+        );
+        ImportBatchLineModel importBatchLine = ImportBatchLineModel.builder()
+                .id(IMPORT_BATCH_LINE_ID)
+                .importBatchId(IMPORT_BATCH_ID)
+                .lotteryStationId(PRODUCT_ID)
+                .batchCode(BATCH_CODE)
+                .declareQuantity(1000)
+                .build();
+        ImportBatchModel importBatch = ImportBatchModel.builder()
+                .id(IMPORT_BATCH_ID)
+                .drawDate(drawDate)
+                .status(com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus.DRAFT)
+                .importedBy(IMPORTED_BY_ID)
+                .lines(new java.util.ArrayList<>(java.util.List.of(importBatchLine)))
+                .build();
+        when(importBatchLineRepositoryPort.findById(IMPORT_BATCH_LINE_ID)).thenReturn(Optional.of(importBatchLine));
+        when(importBatchRepositoryPort.findById(IMPORT_BATCH_ID)).thenReturn(Optional.of(importBatch));
+
         CreateLotteryTicketRequest req = CreateLotteryTicketRequest.builder()
                 .stationId(PRODUCT_ID)
                 .numbers(NUMBERS)
                 .drawDate(null)
                 .serials(List.of())
+                .importBatchLineId(IMPORT_BATCH_LINE_ID)
                 .build();
 
-        productModel.setDrawDays(java.util.List.of(LocalDate.now().getDayOfWeek()));
+        productModel.setDrawDays(java.util.List.of(drawDate.getDayOfWeek()));
+        productModel.setDrawTime(java.time.LocalTime.of(16, 15));
         when(lotteryStationServicePort.getModelById(PRODUCT_ID)).thenReturn(productModel);
         when(lotteryTicketRepositoryPort.findByUniqueFields(any(), any(), any())).thenReturn(Optional.empty());
         when(lotteryTicketApplicationMapper.toModel(any())).thenReturn(mappedModel);
         when(lotteryTicketRepositoryPort.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(lotteryTicketSerialService.countAvailableSerials(any())).thenReturn(0L);
+        when(lotteryTicketSerialService.countByStatuses(any(), any())).thenReturn(0L);
+        when(lotteryTicketSerialService.findAllByTicketId(any())).thenReturn(List.of());
+        when(lotteryTicketSerialService.countByImportBatchLineId(any())).thenReturn(0L);
+        when(lotteryTicketApplicationMapper.toResponseDetail(any(), anyList(), nullable(String.class), nullable(String.class)))
+                .thenReturn(mappedResponse);
 
         mappedModel.setId(TICKET_ID);
         when(lotteryTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(mappedModel));
-        LotteryTicketResponse res = lotteryTicketService.create(req, UUID.randomUUID());
+        LotteryTicketResponse res = lotteryTicketService.create(req, IMPORTED_BY_ID);
         assertThat(res.drawDate()).isNotNull();
     }
 
     @Test
     @DisplayName("[DP-XXX] recomputeTicketAggregate: Cover PROXY_HOLDING and expired")
     void recomputeTicketAggregate_proxyHoldingExpired() {
-        UpdateLotteryTicketRequest req = new UpdateLotteryTicketRequest(null, null, LocalDate.now().minusDays(1), null, LotteryTicketStatus.PROXY_HOLDING, null);
+        UpdateLotteryTicketRequest req = new UpdateLotteryTicketRequest(null, null, LocalDate.now().minusDays(1), LotteryTicketStatus.PROXY_HOLDING, null);
 
         existingModel.setStatus(LotteryTicketStatus.IN_STOCK);
         productModel.setDrawDays(java.util.List.of(LocalDate.now().minusDays(1).getDayOfWeek()));

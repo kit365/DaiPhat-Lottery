@@ -41,6 +41,21 @@ export const QUERY_KEYS = {
     STATIONS_TODAY: 'stations-today',
     STATIONS_TOMORROW: 'stations-tomorrow',
 
+    // Import batch
+    IMPORT_BATCH_ACTIVE_DRAFT: 'import-batch-active-draft',
+    IMPORT_BATCH_LIST: 'import-batch-list',
+    IMPORT_BATCH_DETAIL: 'import-batch-detail',
+    IMPORT_BATCH_CLASSIFY_PREVIEW: 'import-batch-classify-preview',
+    IMPORT_BATCH_ELIGIBLE_STATIONS: 'import-batch-eligible-stations',
+    IMPORT_BATCH_TIME_POLICY: 'import-batch-time-policy',
+    IMPORT_BATCH_INCOMPLETE: 'import-batch-incomplete',
+    IMPORT_BATCH_WITHOUT_LINES: 'import-batch-without-lines',
+
+    // Supplier
+    SUPPLIERS: 'suppliers',
+    SUPPLIER_DETAIL: 'supplier-detail',
+    SUPPLIERS_ACTIVE: 'suppliers-active',
+
     // Order (Client)
     CLIENT_ORDER_RECEIVE_TYPES: 'client-order-receive-types',
     CLIENT_ORDER_STATUSES: 'client-order-statuses',

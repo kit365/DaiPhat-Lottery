@@ -221,7 +221,8 @@ public class LotteryResultDetailService implements LotteryResultDetailServicePor
         LotteryStationModel station = lotteryStationServicePort.getModelById(stationId);
         LotteryTicketNumber normalizedTicket = LotteryTicketNumber.from(
                 ticketNumber,
-                station.getRegion() != null ? station.getRegion().numberLength() : null
+                station.getRegion() != null ? station.getRegion().minLength() : null,
+                station.getRegion() != null ? station.getRegion().maxLength() : null
         );
 
         Optional<LotteryResultModel> resultOptional = lotteryResultRepositoryPort.findByStationIdAndDrawDate(stationId, drawDate);

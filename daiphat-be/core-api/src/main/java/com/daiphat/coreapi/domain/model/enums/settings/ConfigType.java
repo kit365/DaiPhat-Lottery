@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum ConfigType implements LabeledEnum {
     ORDER_SETTING("Cấu hình đơn hàng"),
+    TICKET_IMPORT("Cấu hình nhập vé"),
     REFUND_SETTING("Cấu hình hoàn tiền");
 
     private final String label;
