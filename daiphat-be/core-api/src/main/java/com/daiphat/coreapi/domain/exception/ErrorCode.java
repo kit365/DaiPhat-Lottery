@@ -306,11 +306,6 @@ public enum ErrorCode {
             "Dòng phiếu nhập lô không thể chỉnh sửa ở trạng thái hiện tại.",
             HttpStatus.BAD_REQUEST
     ),
-    IMPORT_BATCH_DRAW_DATE_LOCKED_IMPORTED_LINES(
-            "LT_095",
-            "Không thể đổi ngày quay vì phiếu nhập lô đã có dòng đã nhập đủ.",
-            HttpStatus.BAD_REQUEST
-    ),
     IMPORT_BATCH_SUPPLIER_LOCKED_IMPORTED_LINES(
             "LT_097",
             "Không thể thay đổi nhà cung cấp vì phiếu nhập đã có lô vé được nhập hoàn tất.",

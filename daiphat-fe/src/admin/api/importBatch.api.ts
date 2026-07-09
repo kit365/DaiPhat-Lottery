@@ -72,7 +72,6 @@ export interface UpdateImportBatchLinePayload {
 
 export interface UpdateImportBatchPayload {
     supplierId: number;
-    drawDate?: string;
     invoiceEvidenceUrl?: string;
     lines?: UpdateImportBatchLinePayload[];
 }
