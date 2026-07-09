@@ -49,18 +49,13 @@ import { getImportBatchStatusLabel, getImportModeLabel } from './utils/batchType
 import { formatImportBatchHeaderCode } from './utils/importBatchCode';
 import {
     batchUsesSharedInvoice,
-    canChangeImportBatchDrawDate,
     canChangeImportBatchSupplier,
     canRemoveImportBatchLine,
-    countRemovableLinesForDrawDateChange,
     hasImportedImportBatchLines,
     importBatchRequiresInvoiceEvidence,
     IMPORT_BATCH_SUPPLIER_LOCKED_MESSAGE,
 } from './utils/importBatchHeaderEdit';
-import {
-    getDrawDateInputBounds,
-    resolveImportModeLock,
-} from './utils/importBatchDrawDate';
+import { resolveImportModeLock } from './utils/importBatchDrawDate';
 import { computeImportBatchTotals } from './utils/importBatchTotals';
 import { computeImportBatchRowLimit, IMPORT_BATCH_ROW_LIMIT_MESSAGE } from './utils/importBatchRowLimit';
 import {
@@ -109,7 +104,6 @@ export const ImportBatchEditPage = () => {
     );
     const { data: timePolicy } = useImportBatchTimePolicy();
     const formInitializedForBatchIdRef = useRef<string | null>(null);
-    const importModeSyncedForDrawDateRef = useRef<string | null>(null);
     const [initializedBatchId, setInitializedBatchId] = useState<string | null>(null);
     const [highlightedRowIndices, setHighlightedRowIndices] = useState<Set<number>>(new Set());
 
@@ -175,11 +169,8 @@ export const ImportBatchEditPage = () => {
     const resolvedImportMode = importModeLock.locked ? importModeLock.mode : importMode;
     const showSharedReceipt = batchUsesSharedInvoice(resolvedImportMode);
     const uploadReceipt = useCallback(async (file: File) => uploadAdminImage(file), []);
-    const drawDateBounds = getDrawDateInputBounds();
-    const canEditDrawDate = canChangeImportBatchDrawDate(batch);
     const hasImportedLines = hasImportedImportBatchLines(batch);
     const canEditSupplier = canChangeImportBatchSupplier(batch);
-    const removableLineCount = countRemovableLinesForDrawDateChange(batch?.lines);
 
     const activeLines = useMemo(() => lines.filter((line) => !line.removed), [lines]);
     const requiresInvoice = importBatchRequiresInvoiceEvidence(
@@ -326,23 +317,9 @@ export const ImportBatchEditPage = () => {
     useEffect(() => {
         setInitializedBatchId(null);
         formInitializedForBatchIdRef.current = null;
-        importModeSyncedForDrawDateRef.current = null;
         baselineRef.current = null;
         setHighlightedRowIndices(new Set());
     }, [id]);
-
-    useEffect(() => {
-        if (!drawDate || !importModeLock.locked) {
-            return;
-        }
-        if (importModeSyncedForDrawDateRef.current === drawDate) {
-            return;
-        }
-        if (importMode !== importModeLock.mode) {
-            setValue('importMode', importModeLock.mode, { shouldValidate: false, shouldDirty: true });
-        }
-        importModeSyncedForDrawDateRef.current = drawDate;
-    }, [drawDate, importMode, importModeLock, setValue]);
 
     useEffect(() => {
         if (!batch || !isImportBatchEditable(batch) || !id) {
@@ -381,7 +358,6 @@ export const ImportBatchEditPage = () => {
         reset(enrichedValues, { keepDirty: false, keepTouched: false, keepErrors: false });
         formInitializedForBatchIdRef.current = id;
         setInitializedBatchId(id);
-        importModeSyncedForDrawDateRef.current = enrichedValues.drawDate ?? null;
 
         if (localDraft) {
             toast.info('Đã khôi phục bản nháp chỉnh sửa chưa lưu.');
@@ -517,36 +493,20 @@ export const ImportBatchEditPage = () => {
     ]);
 
     const buildLinesPayload = (
-        data: UpdateImportBatchFormValues,
-        drawDateChanged: boolean
-    ): UpdateImportBatchPayload['lines'] => {
-        const sourceLines = drawDateChanged
-            ? data.lines.filter((line) => {
-                  if (line.removed) {
-                      return false;
-                  }
-                  if (!line.id) {
-                      return true;
-                  }
-                  return line.status === 'IMPORTED';
-              })
-            : data.lines;
-
-        return sourceLines.map((line) => ({
+        data: UpdateImportBatchFormValues
+    ): UpdateImportBatchPayload['lines'] =>
+        data.lines.map((line) => ({
             id: line.id,
             lotteryStationId: line.lotteryStationId,
             declareQuantity: line.declareQuantity,
             importCost: line.importCost,
             removed: line.removed || undefined,
         }));
-    };
 
     const buildUpdatePayload = (data: UpdateImportBatchFormValues): UpdateImportBatchPayload => {
-        const drawDateChanged = !!batch && data.drawDate !== batch.drawDate;
         const payload: UpdateImportBatchPayload = {
-            supplierId: canEditSupplier ? data.supplierId : (batch.supplierId ?? data.supplierId),
-            drawDate: drawDateChanged ? data.drawDate : undefined,
-            lines: buildLinesPayload(data, drawDateChanged),
+            supplierId: canEditSupplier ? data.supplierId : (batch!.supplierId ?? data.supplierId),
+            lines: buildLinesPayload(data),
         };
 
         if (showSharedReceipt) {
@@ -558,12 +518,6 @@ export const ImportBatchEditPage = () => {
 
     const submitUpdate = async (data: UpdateImportBatchFormValues) => {
         if (!batch) {
-            return;
-        }
-
-        const drawDateChanged = data.drawDate !== batch.drawDate;
-        if (drawDateChanged && hasImportedLines) {
-            toast.error('Không thể đổi ngày quay vì phiếu nhập lô đã có dòng đã nhập đủ.');
             return;
         }
 
@@ -598,12 +552,6 @@ export const ImportBatchEditPage = () => {
 
     const onSubmit = (data: UpdateImportBatchFormValues) => {
         if (!batch || !baselineRef.current) {
-            return;
-        }
-
-        const drawDateChanged = data.drawDate !== batch.drawDate;
-        if (drawDateChanged && hasImportedLines) {
-            toast.error('Không thể đổi ngày quay vì phiếu nhập lô đã có dòng đã nhập đủ.');
             return;
         }
 
@@ -722,9 +670,9 @@ export const ImportBatchEditPage = () => {
                         <Stack spacing={3}>
                             {hasImportedLines && (
                                 <Alert severity="info">
-                                    Phiếu nhập lô đã có dòng đã nhập đủ. Ngày quay và nhà cung cấp
-                                    không thể thay đổi, nhưng bạn vẫn có thể cập nhật ảnh biên lai
-                                    và các dòng phiếu.
+                                    Phiếu nhập lô đã có dòng đã nhập đủ. Nhà cung cấp không thể
+                                    thay đổi, nhưng bạn vẫn có thể cập nhật ảnh biên lai và các dòng
+                                    phiếu.
                                 </Alert>
                             )}
 
@@ -738,19 +686,9 @@ export const ImportBatchEditPage = () => {
                                             label="Ngày quay"
                                             type="date"
                                             fullWidth
-                                            disabled={!canEditDrawDate}
+                                            disabled
                                             InputLabelProps={{ shrink: true }}
-                                            inputProps={{
-                                                min: drawDateBounds.min,
-                                                max: drawDateBounds.max,
-                                            }}
-                                            error={isSubmitted && !!errors.drawDate}
-                                            helperText={
-                                                (isSubmitted && errors.drawDate?.message) ||
-                                                (!canEditDrawDate
-                                                    ? 'Không thể đổi ngày quay khi đã có dòng đã nhập đủ.'
-                                                    : undefined)
-                                            }
+                                            helperText="Ngày quay không thể thay đổi sau khi tạo phiếu nhập lô."
                                             sx={{ maxWidth: { sm: 280 } }}
                                         />
                                     )}
@@ -761,11 +699,7 @@ export const ImportBatchEditPage = () => {
                                     value={getImportModeLabel(resolvedImportMode)}
                                     fullWidth
                                     disabled
-                                    helperText={
-                                        importModeLock.locked && drawDate !== batch.drawDate
-                                            ? importModeLock.reason
-                                            : 'Tự động xác định theo ngày quay.'
-                                    }
+                                    helperText="Tự động xác định theo ngày quay."
                                     sx={{ maxWidth: { sm: 360 } }}
                                 />
 
@@ -813,14 +747,6 @@ export const ImportBatchEditPage = () => {
                                     )}
                                 />
                             </Stack>
-
-                            {drawDate !== batch.drawDate && removableLineCount > 0 && (
-                                <Alert severity="warning">
-                                    Sau khi đổi ngày quay, {removableLineCount} dòng phiếu ở trạng
-                                    thái Nháp/Đang nhập/Đã hủy sẽ bị xóa và loại nhập sẽ được tính
-                                    lại tự động.
-                                </Alert>
-                            )}
 
                             {blockedStations.length > 0 && (
                                 <Alert severity="info">
