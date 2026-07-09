@@ -220,10 +220,17 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
-    public List<LotteryStationSchedulePublicResponse> getPublicSchedule(String region) {
+    public List<LotteryStationSchedulePublicResponse> getPublicSchedule(
+            String region,
+            Long stationId,
+            List<Long> stationIds,
+            LocalDate drawDate
+    ) {
         return lotteryStationRepositoryPort.findAll().stream()
                 .filter(this::isActiveStation)
                 .filter(model -> matchesRegion(model, region))
+                .filter(model -> matchesStationIds(model, stationId, stationIds))
+                .filter(model -> matchesDrawDate(model, drawDate))
                 .map(this::sortDrawDays)
                 .sorted(this::comparePublicSchedule)
                 .map(lotteryStationApplicationMapper::toSchedulePublicResponse)
@@ -300,6 +307,26 @@ public class LotteryStationService implements LotteryStationServicePort {
         return model.getRegion() != null
                 && model.getRegion().region() != null
                 && model.getRegion().region().equalsIgnoreCase(region.trim());
+    }
+
+    private boolean matchesStationIds(LotteryStationModel model, Long stationId, List<Long> stationIds) {
+        if (stationIds != null && !stationIds.isEmpty()) {
+            return stationIds.contains(model.getId());
+        }
+        if (stationId != null) {
+            return stationId.equals(model.getId());
+        }
+        return true;
+    }
+
+    private boolean matchesDrawDate(LotteryStationModel model, LocalDate drawDate) {
+        if (drawDate == null) {
+            return true;
+        }
+        if (model.getDrawDays() == null || model.getDrawDays().isEmpty()) {
+            return false;
+        }
+        return model.getDrawDays().contains(drawDate.getDayOfWeek());
     }
 
     private LotteryStationModel sortDrawDays(LotteryStationModel model) {

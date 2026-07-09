@@ -197,7 +197,29 @@ export const uploadProviderImage = async (id: string | number, file: File): Prom
     return response.data;
 };
 
-export const syncProviders = async (data: any): Promise<any> => {
+export const previewSyncProviders = async (data: {
+    source: string;
+    region: string;
+    defaultPrice: number;
+}): Promise<any> => {
     const response = await apiApp.post(`${BASE_URL}/sync`, data);
+    return response.data;
+};
+
+export const confirmSyncProviders = async (data: {
+    source: string;
+    region: string;
+    defaultPrice: number;
+    items: Array<{
+        name: string;
+        canonicalName: string;
+        drawDays: string[];
+        drawTime: string;
+        commissionRate: number | null;
+        action: string;
+        existingStationId: number | null;
+    }>;
+}): Promise<any> => {
+    const response = await apiApp.post(`${BASE_URL}/sync/confirm`, data);
     return response.data;
 };
