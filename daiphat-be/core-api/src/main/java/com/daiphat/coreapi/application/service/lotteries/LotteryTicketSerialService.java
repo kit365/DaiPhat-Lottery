@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRep
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
@@ -44,7 +45,9 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     public LotteryTicketSerialModel upsertSerialForTicket(
             LotteryTicketModel ticket,
             CreateLotteryTicketSerialRequest request,
-            UUID importedById
+            UUID importedById,
+            Long importBatchId,
+            Long importBatchLineId
     ) {
         String normalizedSerial = request.serialNumber().trim();
         if (lotteryTicketSerialRepositoryPort.existsByTicketIdAndSerialNumber(ticket.getId(), normalizedSerial)) {
@@ -53,8 +56,11 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
 
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
                 .ticketId(ticket.getId())
+                .importBatchId(importBatchId)
+                .importBatchLineId(importBatchLineId)
                 .ticketImg(request.ticketImg())
                 .serialNumber(normalizedSerial)
+                .inputSource(InputSource.MANUAL)
                 .build();
         serial.initializeImport(importedById);
         return lotteryTicketSerialRepositoryPort.save(serial);
@@ -102,7 +108,9 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
             upsertSerialForTicket(
                     ticket,
                     new CreateLotteryTicketSerialRequest(serialReq.ticketImg(), normalizedSerial),
-                    editorId
+                    editorId,
+                    null,
+                    null
             );
         }
 
@@ -219,6 +227,21 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     @Override
     public List<LotteryTicketSerialModel> findAllByTicketId(Long ticketId) {
         return lotteryTicketSerialRepositoryPort.findAllByTicketId(ticketId);
+    }
+
+    @Override
+    public long countByImportBatchLineId(Long importBatchLineId) {
+        return lotteryTicketSerialRepositoryPort.countByImportBatchLineId(importBatchLineId);
+    }
+
+    @Override
+    public List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId) {
+        return lotteryTicketSerialRepositoryPort.findDistinctTicketIdsByImportBatchLineId(importBatchLineId);
+    }
+
+    @Override
+    public void hardDeleteByImportBatchLineId(Long importBatchLineId) {
+        lotteryTicketSerialRepositoryPort.hardDeleteByImportBatchLineId(importBatchLineId);
     }
 
     @Override

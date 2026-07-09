@@ -33,12 +33,37 @@ export const ROUTES = {
         },
         TICKETS: {
             LIST: `/${prefixAdmin}/ticket/list`,
+            CREATE: `/${prefixAdmin}/ticket/create`,
+            CREATE_FOR_BATCH: (importBatchId: number | string, importBatchLineId?: number | string) => {
+                const params = new URLSearchParams({ importBatchId: String(importBatchId) });
+                if (importBatchLineId != null) {
+                    params.set('importBatchLineId', String(importBatchLineId));
+                }
+                return `/${prefixAdmin}/ticket/create?${params.toString()}`;
+            },
+            CREATE_FOR_BATCH_LINE: (importBatchLineId: number | string, importBatchId?: number | string) => {
+                if (importBatchId != null) {
+                    return ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(importBatchId, importBatchLineId);
+                }
+                return `/${prefixAdmin}/ticket/create?importBatchLineId=${importBatchLineId}`;
+            },
             PROVIDER: `/${prefixAdmin}/provider/list`,
             PRIZE_STRUCTURE: `/${prefixAdmin}/prize-structures/list`,
             DRAW_RESULT: `/${prefixAdmin}/draw-results`,
             REGION: `/${prefixAdmin}/region/list`,
             ATTRIBUTE: `/${prefixAdmin}/ticket/attribute/list`,
             EXPIRED: `/${prefixAdmin}/ticket/expired`,
+        },
+        IMPORT_BATCH: {
+            LIST: `/${prefixAdmin}/import-batch/list`,
+            CREATE: `/${prefixAdmin}/import-batch/create`,
+            EDIT: (id: number | string) => `/${prefixAdmin}/import-batch/edit/${id}`,
+            DETAIL: (id: number | string) => `/${prefixAdmin}/import-batch/detail/${id}`,
+        },
+        SUPPLIER: {
+            LIST: `/${prefixAdmin}/supplier/list`,
+            CREATE: `/${prefixAdmin}/supplier/create`,
+            EDIT: (id: number | string) => `/${prefixAdmin}/supplier/edit/${id}`,
         },
         TICKET_SERVICES: {
             LIST: `/${prefixAdmin}/ticketService/list`,

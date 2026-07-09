@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.lotteries;
 
+import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
@@ -35,6 +36,14 @@ public class LotteryTicketSerialEntity extends BaseEntity {
     @JoinColumn(name = "ticket_id", nullable = false)
     private LotteryTicketEntity ticket;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "import_batch_id")
+    private ImportBatchEntity importBatch;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "import_batch_line_id")
+    private ImportBatchLineEntity importBatchLine;
+
     @Column(name = "ticket_img", length = 500)
     private String ticketImg;
 
@@ -45,6 +54,11 @@ public class LotteryTicketSerialEntity extends BaseEntity {
     @Column(nullable = false, length = 50)
     @Builder.Default
     private LotteryTicketSerialStatus status = LotteryTicketSerialStatus.IN_STOCK;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "input_source", nullable = false, length = 20)
+    @Builder.Default
+    private InputSource inputSource = InputSource.MANUAL;
 
     @Column(name = "reserved_at")
     private LocalDateTime reservedAt;

@@ -39,6 +39,12 @@ public class SystemConfigRepositoryAdapter implements SystemConfigRepositoryPort
     }
 
     @Override
+    public Optional<SystemConfigModel> findByConfigKey(String configKey) {
+        return systemConfigRepository.findByConfigKeyAndIsActiveTrue(configKey)
+                .map(systemConfigPersistenceMapper::toDomain);
+    }
+
+    @Override
     public Optional<SystemConfigModel> findActiveByConfigKey(String configKey) {
         return systemConfigRepository.findByConfigKeyAndIsActiveTrue(configKey)
                 .map(systemConfigPersistenceMapper::toDomain);

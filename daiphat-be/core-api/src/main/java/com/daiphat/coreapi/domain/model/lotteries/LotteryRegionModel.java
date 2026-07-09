@@ -57,6 +57,17 @@ public class LotteryRegionModel {
     }
 
     public int numberLength() {
+        return maxLength();
+    }
+
+    public int minLength() {
+        if (minNumber == null || minNumber == 0) {
+            return maxLength();
+        }
+        return String.valueOf(minNumber()).length();
+    }
+
+    public int maxLength() {
         return String.valueOf(maxNumber()).length();
     }
 

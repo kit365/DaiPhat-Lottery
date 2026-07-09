@@ -2,7 +2,6 @@ package com.daiphat.coreapi.infrastructure.persistence.adapter.lotteries.station
 
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.lotteries.LotteryStationPersistenceMapper;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryRegionRepository;
@@ -46,13 +45,13 @@ public class LotteryStationRepositoryAdapter implements LotteryStationRepository
     public Page<LotteryStationModel> findAll(
             Pageable pageable,
             String search,
-            LotteryStationStatus status,
             String type,
             String region,
-            List<String> drawDay
+            String drawDay,
+            Boolean isActive
     ) {
         return lotteryStationRepository.findAll(
-                        LotteryStationSpecification.filter(search, status, type, region, drawDay),
+                        LotteryStationSpecification.filter(search, type, region, drawDay, isActive),
                         pageable
                 )
                 .map(lotteryStationPersistenceMapper::toDomain);

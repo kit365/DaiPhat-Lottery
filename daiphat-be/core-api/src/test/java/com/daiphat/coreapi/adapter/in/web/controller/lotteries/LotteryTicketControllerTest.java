@@ -1091,7 +1091,7 @@ class LotteryTicketControllerTest {
                 .serials(java.util.List.of(new com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest("A999999", "https://cdn.example.com/tickets/new.png")))
                 .numbers("999999")
                 .drawDate(LocalDate.of(2026, 6, 20))
-                .batchCode("BATCH-NEW")
+                .importBatchLineId(1L)
                 .build();
 
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1135,7 +1135,7 @@ class LotteryTicketControllerTest {
                 .serials(java.util.List.of(new com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest("B111111", null)))
                 .numbers("111222")
                 .drawDate(LocalDate.of(2026, 6, 25))
-                .batchCode("BATCH-OP")
+                .importBatchLineId(1L)
                 .build();
 
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1172,7 +1172,7 @@ class LotteryTicketControllerTest {
                 .serials(java.util.List.of(new com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest("C333333", null)))
                 .numbers("333777")
                 .drawDate(LocalDate.of(2026, 7, 1))
-                .batchCode("BATCH-NO-IMG")
+                .importBatchLineId(1L)
                 .build();
 
         LotteryTicketResponse expectedResponse = LotteryTicketResponse.builder()
@@ -1211,7 +1211,6 @@ class LotteryTicketControllerTest {
                 "https://cdn.example.com/tickets/updated.png",
                 "888999",
                 LocalDate.of(2026, 7, 5),
-                "BATCH-UPD",
                 com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.RESERVED,
                 null
         );
@@ -1255,7 +1254,6 @@ class LotteryTicketControllerTest {
                 null,
                 "654321",
                 null,
-                null,
                 com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.SOLD,
                 null
         );
@@ -1287,7 +1285,6 @@ class LotteryTicketControllerTest {
     void update_partialUpdate_returnsUpdatedTicket() {
         UpdateLotteryTicketRequest request = new UpdateLotteryTicketRequest(
                 "https://cdn.example.com/tickets/new-image.png",
-                null,
                 null,
                 null,
                 null,
@@ -1595,7 +1592,7 @@ class LotteryTicketControllerTest {
                 .serials(java.util.List.of(new com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest("X111111", null)))
                 .numbers("111222")
                 .drawDate(LocalDate.of(2026, 7, 1))
-                .batchCode("BATCH-MEMBER")
+                .importBatchLineId(1L)
                 .build();
 
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
@@ -1612,7 +1609,6 @@ class LotteryTicketControllerTest {
                 "https://cdn.example.com/new.png",
                 "999888",
                 LocalDate.of(2026, 7, 5),
-                "BATCH-UPD",
                 com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.RESERVED,
                 null
         );
@@ -1663,7 +1659,6 @@ class LotteryTicketControllerTest {
                 "https://cdn.example.com/updated.png",
                 "888999",
                 LocalDate.of(2026, 7, 5),
-                "BATCH-UPD",
                 com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus.RESERVED,
                 null
         );

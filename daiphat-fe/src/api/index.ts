@@ -21,6 +21,11 @@ const apiApp = axios.create({
     }
 })
 
+type ApiRequestConfig = InternalAxiosRequestConfig & {
+    _retry?: boolean;
+    skipGlobalErrorToast?: boolean;
+};
+
 // Request Interceptor: Attach Token
 apiApp.interceptors.request.use((config) => {
     const token = useAuthStore.getState().token;
@@ -107,7 +112,11 @@ apiApp.interceptors.response.use(
     },
     async (error: AxiosError) => {
         const { response } = error;
-        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        const originalRequest = error.config as ApiRequestConfig | undefined;
+
+        if (originalRequest?.skipGlobalErrorToast) {
+            return Promise.reject(error);
+        }
 
         if (response) {
             const status = response.status;

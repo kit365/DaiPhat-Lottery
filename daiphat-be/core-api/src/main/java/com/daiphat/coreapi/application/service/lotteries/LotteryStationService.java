@@ -1,16 +1,19 @@
 package com.daiphat.coreapi.application.service.lotteries;
 
+import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationItem;
+import com.daiphat.coreapi.application.dto.request.lotteries.ConfirmSyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryStationsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncItemResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncPreviewItemResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSchedulePublicResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationSyncResponse;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryStationSourcePreviewItem;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryStationSourcePreviewResult;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
-import com.daiphat.coreapi.application.event.LotteryStationChangedEvent;
 import com.daiphat.coreapi.application.event.LotteryStationDrawReminderEvent;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryStationApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
@@ -23,7 +26,6 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.SyncAction;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
@@ -85,15 +87,12 @@ public class LotteryStationService implements LotteryStationServicePort {
         LotteryStationModel model = lotteryStationApplicationMapper.toModel(request);
         model.setRegion(resolveRegion(request.region()));
         requireRegionHasPrizeStructures(model.getRegion());
-        if (model.getStatus() == null) {
-            model.setStatus(LotteryStationStatus.ACTIVE);
-        }
+        model.setActive(false);
         syncNextDrawDate(model);
 
         LotteryStationModel saved = lotteryStationRepositoryPort.save(model);
         increaseRegionStationCount(saved.getRegion());
         log.info("Lottery product created with id: {}", saved.getId());
-        publishStationChanged(saved.getId());
 
         return lotteryStationApplicationMapper.toResponse(saved);
     }
@@ -129,13 +128,12 @@ public class LotteryStationService implements LotteryStationServicePort {
     @Override
     public PageResponse<LotteryStationResponse> getAll(
             int page, int size, String search,
-            String status, String type, String region, List<String> drawDay,
+            String status, String type, String region, String drawDay,
+            Boolean isActive,
             String sortBy, String direction) {
 
-        LotteryStationStatus statusEnum = parseStatus(status);
-
         if (sortBy == null || sortBy.isBlank()) {
-            return getAllWithDefaultSorting(page, size, search, statusEnum, type, region, drawDay);
+            return getAllWithDefaultSorting(page, size, search, type, region, drawDay, isActive);
         } else {
             PageRequest pageable = PageRequest.of(
                     Math.max(0, page - 1),
@@ -144,7 +142,7 @@ public class LotteryStationService implements LotteryStationServicePort {
             );
 
             Page<LotteryStationModel> resultPage = lotteryStationRepositoryPort
-                    .findAll(pageable, search, statusEnum, type, region, drawDay);
+                    .findAll(pageable, search, type, region, drawDay, isActive);
 
             Page<LotteryStationResponse> responsePage = resultPage.map(model -> {
                 recalculateInventory(model);
@@ -159,14 +157,14 @@ public class LotteryStationService implements LotteryStationServicePort {
             int page,
             int size,
             String search,
-            LotteryStationStatus status,
             String type,
             String region,
-            List<String> drawDay
+            String drawDay,
+            Boolean isActive
     ) {
         PageRequest unpaged = PageRequest.of(0, 1000);
         Page<LotteryStationModel> allPage = lotteryStationRepositoryPort
-                .findAll(unpaged, search, status, type, region, drawDay);
+                .findAll(unpaged, search, type, region, drawDay, isActive);
 
         List<LotteryStationModel> allModels = sortStationsByDrawDayThenName(allPage.getContent());
         int total = allModels.size();
@@ -270,8 +268,15 @@ public class LotteryStationService implements LotteryStationServicePort {
         }
         syncNextDrawDate(model);
 
-        if (hasText(request.status()) && parseStatus(request.status()) == LotteryStationStatus.INACTIVE) {
-            model.deactivate();
+        if (request.isActive() != null) {
+            if (Boolean.TRUE.equals(request.isActive())) {
+                model.requireActivationReady();
+                model.setActive(true);
+            } else {
+                model.setActive(false);
+            }
+        } else {
+            model.applyIsActive(null);
         }
 
         if (regionChanged) {
@@ -287,13 +292,12 @@ public class LotteryStationService implements LotteryStationServicePort {
 
         recalculateInventory(saved);
         log.info("Lottery product updated with id: {}", saved.getId());
-        publishStationChanged(saved.getId());
 
         return lotteryStationApplicationMapper.toResponse(saved);
     }
 
     private boolean isActiveStation(LotteryStationModel model) {
-        return model.getStatus() == LotteryStationStatus.ACTIVE;
+        return model != null && model.isActive();
     }
 
     private boolean matchesRegion(LotteryStationModel model, String region) {
@@ -400,53 +404,103 @@ public class LotteryStationService implements LotteryStationServicePort {
     }
 
     @Override
-    @Transactional
-    public LotteryStationSyncResponse syncStations(SyncLotteryStationsRequest request) {
-        LotteryStationSourceType sourceType = request.source();
+    @Transactional(readOnly = true)
+    public LotteryStationSyncPreviewResponse previewSyncStations(SyncLotteryStationsRequest request) {
+        LotteryStationSourcePreviewResult preview = fetchAndValidateSyncPreview(request);
         LotteryRegionModel stationRegion = resolveRegion(request.region());
-        LotteryStationSourcePreviewResult preview = lotteryStationSourceSyncPort.preview(sourceType, stationRegion.region());
-        validateSyncSourceResult(preview, stationRegion);
-
         Map<String, LotteryStationModel> existingStations = indexExistingStations(stationRegion);
-        List<LotteryStationSyncItemResponse> items = new ArrayList<>();
-        int createdCount = 0;
-        int updatedCount = 0;
+        List<LotteryStationSyncPreviewItemResponse> items = new ArrayList<>();
 
         for (LotteryStationSourcePreviewItem previewItem : preview.items()) {
             String canonicalName = requireCanonicalName(previewItem);
             String normalizedKey = normalizeName(canonicalName);
             LotteryStationModel existing = existingStations.get(normalizedKey);
+            SyncAction action = existing == null ? SyncAction.CREATED : SyncAction.UPDATED;
 
-            if (existing == null) {
-                LotteryStationModel created = createStationFromSource(previewItem, request.defaultPrice(), stationRegion);
-                existingStations.put(normalizedKey, created);
-                createdCount++;
-                items.add(buildSyncItem(created, canonicalName, SyncAction.CREATED, "Tạo mới từ nguồn " + preview.source()));
-                continue;
-            }
+            List<DayOfWeek> drawDays = parseDrawDays(previewItem.drawDays(), canonicalName);
+            LocalTime drawTime = parseDrawTime(previewItem.drawTime(), canonicalName);
+            LocalDate nextDrawDate = DrawScheduleUtils.resolveNextDrawDate(drawDays, drawTime);
 
-            LotteryStationModel updated = updateStationFromSource(
-                    existing,
-                    previewItem,
-                    stationRegion,
-                    request.defaultPrice()
-            );
-            updatedCount++;
-            String updateNote = request.defaultPrice() != null
-                    ? "Cập nhật lịch quay và áp lại giá mặc định từ nguồn " + preview.source()
-                    : "Cập nhật lịch quay từ nguồn " + preview.source();
-            items.add(buildSyncItem(updated, canonicalName, SyncAction.UPDATED, updateNote));
+            items.add(LotteryStationSyncPreviewItemResponse.builder()
+                    .name(canonicalName)
+                    .canonicalName(canonicalName)
+                    .province(canonicalName)
+                    .region(stationRegion.region())
+                    .drawDays(drawDays)
+                    .drawTime(drawTime)
+                    .nextDrawDate(nextDrawDate)
+                    .price(request.defaultPrice())
+                    .commissionRate(null)
+                    .action(action)
+                    .existingStationId(existing != null ? existing.getId() : null)
+                    .build());
         }
 
-        if (createdCount > 0 || updatedCount > 0) {
-            publishStationChanged(null);
-        }
-
-        return LotteryStationSyncResponse.builder()
+        return LotteryStationSyncPreviewResponse.builder()
                 .source(preview.source())
                 .requestUrl(preview.requestUrl())
                 .fetchedAt(preview.fetchedAt())
                 .totalFetched(preview.totalItems())
+                .region(stationRegion.region())
+                .defaultPrice(request.defaultPrice())
+                .items(items)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public LotteryStationSyncResponse confirmSyncStations(ConfirmSyncLotteryStationsRequest request) {
+        LotteryRegionModel stationRegion = resolveRegion(request.region());
+        requireRegionHasPrizeStructures(stationRegion);
+
+        List<LotteryStationSyncItemResponse> items = new ArrayList<>();
+        int createdCount = 0;
+        int updatedCount = 0;
+
+        for (ConfirmSyncLotteryStationItem item : request.items()) {
+            validateCommissionRate(item.commissionRate());
+            String canonicalName = item.canonicalName().trim();
+
+            if (item.action() == SyncAction.CREATED) {
+                LotteryStationModel created = persistCreatedStationFromSync(item, request.defaultPrice(), stationRegion);
+                createdCount++;
+                items.add(buildSyncItem(
+                        created,
+                        canonicalName,
+                        SyncAction.CREATED,
+                        "Tạo mới từ nguồn " + request.source().name()
+                ));
+                continue;
+            }
+
+            if (item.existingStationId() == null) {
+                throw new DomainException(
+                        ErrorCode.LOTTERY_STATION_NOT_FOUND,
+                        "Thiếu mã nhà đài hiện có cho bản ghi cập nhật: " + canonicalName
+                );
+            }
+
+            LotteryStationModel existing = getProductOrThrow(item.existingStationId());
+            LotteryStationModel updated = persistUpdatedStationFromSync(
+                    existing,
+                    item,
+                    stationRegion,
+                    request.defaultPrice()
+            );
+            updatedCount++;
+            items.add(buildSyncItem(
+                    updated,
+                    canonicalName,
+                    SyncAction.UPDATED,
+                    "Cập nhật từ nguồn " + request.source().name()
+            ));
+        }
+
+        return LotteryStationSyncResponse.builder()
+                .source(request.source().name())
+                .requestUrl(null)
+                .fetchedAt(null)
+                .totalFetched(request.items().size())
                 .createdCount(createdCount)
                 .updatedCount(updatedCount)
                 .skippedCount(0)
@@ -455,8 +509,77 @@ public class LotteryStationService implements LotteryStationServicePort {
                 .build();
     }
 
-    private void publishStationChanged(Long stationId) {
-        eventPublisher.publishEvent(LotteryStationChangedEvent.builder().stationId(stationId).build());
+    private LotteryStationSourcePreviewResult fetchAndValidateSyncPreview(SyncLotteryStationsRequest request) {
+        LotteryStationSourceType sourceType = request.source();
+        LotteryRegionModel stationRegion = resolveRegion(request.region());
+        LotteryStationSourcePreviewResult preview = lotteryStationSourceSyncPort.preview(sourceType, stationRegion.region());
+        validateSyncSourceResult(preview, stationRegion);
+        return preview;
+    }
+
+    private void validateCommissionRate(BigDecimal commissionRate) {
+        if (commissionRate == null) {
+            return;
+        }
+        if (commissionRate.compareTo(BigDecimal.ZERO) < 0 || commissionRate.compareTo(BigDecimal.ONE) > 0) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_STATION_ACTIVATION_INCOMPLETE,
+                    "Tỷ lệ hoa hồng phải nằm trong khoảng 0% - 100%."
+            );
+        }
+    }
+
+    private LotteryStationModel persistCreatedStationFromSync(
+            ConfirmSyncLotteryStationItem item,
+            BigDecimal defaultPrice,
+            LotteryRegionModel stationRegion
+    ) {
+        if (defaultPrice == null) {
+            throw new DomainException(
+                    ErrorCode.LOTTERY_STATION_SYNC_DEFAULT_PRICE_REQUIRED,
+                    "Nguồn dữ liệu có nhà đài mới. Vui lòng truyền defaultPrice để tạo mới an toàn."
+            );
+        }
+
+        LotteryStationModel station = LotteryStationModel.builder()
+                .name(item.name().trim())
+                .province(item.canonicalName().trim())
+                .region(stationRegion)
+                .price(defaultPrice)
+                .commissionRate(item.commissionRate())
+                .drawDays(parseDrawDays(item.drawDays(), item.canonicalName()))
+                .drawTime(parseDrawTime(item.drawTime(), item.canonicalName()))
+                .build();
+        station.setActive(station.isActivationReady());
+        syncNextDrawDate(station);
+
+        LotteryStationModel saved = lotteryStationRepositoryPort.save(station);
+        increaseRegionStationCount(saved.getRegion());
+        return saved;
+    }
+
+    private LotteryStationModel persistUpdatedStationFromSync(
+            LotteryStationModel station,
+            ConfirmSyncLotteryStationItem item,
+            LotteryRegionModel stationRegion,
+            BigDecimal defaultPrice
+    ) {
+        LocalDate previousNextDrawDate = station.getNextDrawDate();
+        station.setName(item.name().trim());
+        station.setProvince(item.canonicalName().trim());
+        station.setRegion(stationRegion);
+        if (defaultPrice != null) {
+            station.setPrice(defaultPrice);
+        }
+        station.setCommissionRate(item.commissionRate());
+        station.setDrawDays(parseDrawDays(item.drawDays(), item.canonicalName()));
+        station.setDrawTime(parseDrawTime(item.drawTime(), item.canonicalName()));
+        station.setActive(station.isActivationReady());
+        syncNextDrawDate(station);
+
+        LotteryStationModel saved = lotteryStationRepositoryPort.save(station);
+        realignActiveTicketsToCurrentDraw(saved, previousNextDrawDate);
+        return saved;
     }
 
     @Override
@@ -496,7 +619,7 @@ public class LotteryStationService implements LotteryStationServicePort {
 
         for (LotteryStationModel station : lotteryStationRepositoryPort.findByNextDrawDate(today)) {
             if (station.getId() == null
-                    || station.getStatus() != LotteryStationStatus.ACTIVE
+                    || !station.isActive()
                     || station.getDrawTime() == null) {
                 continue;
             }
@@ -551,7 +674,7 @@ public class LotteryStationService implements LotteryStationServicePort {
 
     private boolean isStationActive(LotteryStationModel station) {
         return station != null
-                && station.getStatus() == LotteryStationStatus.ACTIVE
+                && station.isActive()
                 && !station.isDeleted();
     }
 
@@ -628,56 +751,6 @@ public class LotteryStationService implements LotteryStationServicePort {
         return indexed;
     }
 
-    private LotteryStationModel createStationFromSource(
-            LotteryStationSourcePreviewItem previewItem,
-            BigDecimal defaultPrice,
-            LotteryRegionModel stationRegion
-    ) {
-        if (defaultPrice == null) {
-            throw new DomainException(
-                    ErrorCode.LOTTERY_STATION_SYNC_DEFAULT_PRICE_REQUIRED,
-                    "Nguồn dữ liệu có nhà đài mới. Vui lòng truyền defaultPrice để tạo mới an toàn."
-            );
-        }
-
-        LotteryStationModel station = LotteryStationModel.builder()
-                .name(requireCanonicalName(previewItem))
-                .province(requireCanonicalName(previewItem))
-                .region(stationRegion)
-                .price(defaultPrice)
-                .drawDays(parseDrawDays(previewItem.drawDays(), previewItem.canonicalName()))
-                .drawTime(parseDrawTime(previewItem.drawTime(), previewItem.canonicalName()))
-                .status(LotteryStationStatus.ACTIVE)
-                .build();
-
-        syncNextDrawDate(station);
-        requireRegionHasPrizeStructures(station.getRegion());
-        LotteryStationModel saved = lotteryStationRepositoryPort.save(station);
-        increaseRegionStationCount(saved.getRegion());
-        return saved;
-    }
-
-    private LotteryStationModel updateStationFromSource(
-            LotteryStationModel station,
-            LotteryStationSourcePreviewItem previewItem,
-            LotteryRegionModel stationRegion,
-            BigDecimal defaultPrice
-    ) {
-        LocalDate previousNextDrawDate = station.getNextDrawDate();
-        station.setName(requireCanonicalName(previewItem));
-        station.setProvince(requireCanonicalName(previewItem));
-        station.setRegion(stationRegion);
-        if (defaultPrice != null) {
-            station.setPrice(defaultPrice);
-        }
-        station.setDrawDays(parseDrawDays(previewItem.drawDays(), previewItem.canonicalName()));
-        station.setDrawTime(parseDrawTime(previewItem.drawTime(), previewItem.canonicalName()));
-        syncNextDrawDate(station);
-        LotteryStationModel saved = lotteryStationRepositoryPort.save(station);
-        realignActiveTicketsToCurrentDraw(saved, previousNextDrawDate);
-        return saved;
-    }
-
     private LotteryStationSyncItemResponse buildSyncItem(
             LotteryStationModel station,
             String canonicalName,
@@ -743,17 +816,6 @@ public class LotteryStationService implements LotteryStationServicePort {
         return normalized.toLowerCase(Locale.ROOT)
                 .replaceAll("[^a-z0-9]+", " ")
                 .trim();
-    }
-
-    private LotteryStationStatus parseStatus(String status) {
-        if (!hasText(status)) {
-            return null;
-        }
-        try {
-            return LotteryStationStatus.valueOf(status.trim().toUpperCase());
-        } catch (IllegalArgumentException ignored) {
-            return null;
-        }
     }
 
     private void recalculateInventory(LotteryStationModel model) {
