@@ -9,7 +9,9 @@ import java.util.List;
 @Builder
 public record UpdateImportBatchRequest(
         @NotNull Long supplierId,
+        @NotNull Integer totalDeclareQuantity,
         String invoiceEvidenceUrl,
-        @Valid List<UpdateImportBatchLineRequest> lines
+        @Valid List<UpdateImportBatchLineRequest> lines,
+        List<Long> removedTicketIds
 ) {
 }

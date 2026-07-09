@@ -72,8 +72,10 @@ export interface UpdateImportBatchLinePayload {
 
 export interface UpdateImportBatchPayload {
     supplierId: number;
+    totalDeclareQuantity: number;
     invoiceEvidenceUrl?: string;
     lines?: UpdateImportBatchLinePayload[];
+    removedTicketIds?: number[];
 }
 
 export interface CreateImportBatchLinePayload {
@@ -86,6 +88,7 @@ export interface CreateImportBatchPayload {
     drawDate: string;
     supplierId: number;
     importMode: ImportBatchImportMode;
+    totalDeclareQuantity: number;
     invoiceEvidenceUrl?: string;
     note?: string;
     /**
@@ -251,6 +254,37 @@ export const deleteImportBatchLine = async (
     lineId: number | string
 ): Promise<ApiResponse<ImportBatch>> => {
     const response = await apiApp.delete(`${BASE_URL}/${batchId}/lines/${lineId}`, withAuth());
+    return response.data;
+};
+
+export interface ImportBatchReductionTicket {
+    id: number;
+    numbers?: string;
+    serialNumber?: string;
+    serialCount: number;
+    status?: string;
+}
+
+export interface ImportBatchReductionLine {
+    lineId: number;
+    lotteryStationId: number;
+    stationName: string;
+    status: ImportBatchLineStatus;
+    deletable: boolean;
+    importedQuantity: number;
+    tickets: ImportBatchReductionTicket[];
+}
+
+export interface ImportBatchReductionTicketsResult {
+    totalImportedQuantity: number;
+    removableImportedQuantity: number;
+    lines: ImportBatchReductionLine[];
+}
+
+export const getImportBatchReductionTickets = async (
+    batchId: number | string
+): Promise<ApiResponse<ImportBatchReductionTicketsResult>> => {
+    const response = await apiApp.get(`${BASE_URL}/${batchId}/reduction-tickets`, withAuth());
     return response.data;
 };
 

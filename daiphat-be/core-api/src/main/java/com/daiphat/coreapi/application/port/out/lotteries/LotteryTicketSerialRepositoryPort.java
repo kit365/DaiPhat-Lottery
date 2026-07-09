@@ -32,5 +32,9 @@ public interface LotteryTicketSerialRepositoryPort {
 
     List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId);
 
+    long countByTicketIdAndImportBatchLineId(Long ticketId, Long importBatchLineId);
+
+    void hardDeleteByTicketIdAndImportBatchLineId(Long ticketId, Long importBatchLineId);
+
     void hardDeleteByImportBatchLineId(Long importBatchLineId);
 }

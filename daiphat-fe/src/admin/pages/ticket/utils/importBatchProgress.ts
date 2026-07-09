@@ -118,6 +118,11 @@ export const getIncompleteLineProgress = (batch: ImportBatch) => {
     return { imported, declared, remaining, percent };
 };
 
+export const hasTicketImportEligibleLines = (batch: ImportBatch): boolean =>
+    (batch.lines ?? []).some(
+        (line) => line.status === 'OPEN' || line.status === 'IMPORTING'
+    );
+
 export const isImportBatchEditable = (batch: ImportBatch) =>
     batch.status === 'DRAFT' || batch.status === 'RECEIVING' || batch.status === 'PARTIALLY_IMPORTED';
 
