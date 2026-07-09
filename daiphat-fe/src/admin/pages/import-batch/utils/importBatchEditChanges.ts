@@ -59,6 +59,7 @@ export const buildImportBatchEditBaseline = (
     supplierId: batch.supplierId ?? 0,
     drawDate: batch.drawDate,
     importMode: batch.importMode ?? 'IN_DAY',
+    totalDeclareQuantity: batch.totalDeclareQuantity ?? 0,
     invoiceEvidenceUrl: batch.invoiceEvidenceUrl ?? '',
     lines: (batch.lines ?? []).map((line) => ({
         id: line.id,
@@ -90,6 +91,14 @@ export const computeImportBatchEditChanges = (
             label: 'Nhà cung cấp',
             oldValue: resolveSupplierName(baseline.supplierId),
             newValue: resolveSupplierName(current.supplierId),
+        });
+    }
+
+    if (baseline.totalDeclareQuantity !== current.totalDeclareQuantity) {
+        headerChanges.push({
+            label: 'Tổng số lượng khai báo phiếu nhập lô',
+            oldValue: `${formatQuantity(baseline.totalDeclareQuantity ?? 0)} vé`,
+            newValue: `${formatQuantity(current.totalDeclareQuantity ?? 0)} vé`,
         });
     }
 

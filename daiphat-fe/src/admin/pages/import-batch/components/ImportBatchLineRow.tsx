@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { Controller, Control, UseFormSetValue } from 'react-hook-form';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
 import { CreateImportBatchFormValues, UpdateImportBatchFormValues } from '../schemas/importBatch.schema';
 import { getBatchTypeLabel, getImportBatchLineStatusLabel, getImportBatchLineStatusChipColor } from '../utils/batchTypeLabels';
@@ -53,6 +53,10 @@ interface ImportBatchLineRowProps {
     showErrors?: boolean;
     /** Temporary highlight for rows restored from the create screen. */
     highlighted?: boolean;
+    /** Highlights declare quantity when batch total was reduced below line sum (draft lines). */
+    declareQuantityHighlighted?: boolean;
+    declareQuantityAdjustmentHelper?: string;
+    shouldScrollDeclareQuantityIntoView?: boolean;
 }
 
 export const ImportBatchLineRow = memo(function ImportBatchLineRow({
@@ -77,6 +81,9 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
     showProgressColumn = false,
     showErrors = true,
     highlighted = false,
+    declareQuantityHighlighted = false,
+    declareQuantityAdjustmentHelper,
+    shouldScrollDeclareQuantityIntoView = false,
 }: ImportBatchLineRowProps) {
     const selectedStation = eligibleStations.find((s) => s.lotteryStationId === lotteryStationId);
     const batchType = resolveDisplayBatchType(resolvedBatchType, selectedStation?.resolvedBatchType);
@@ -129,6 +136,13 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
         1,
         lineStatus === 'IMPORTING' || lineStatus === 'IMPORTED' ? importedQuantity : 1
     );
+    const declareQuantityInputRef = useRef<HTMLInputElement | null>(null);
+
+    useEffect(() => {
+        if (shouldScrollDeclareQuantityIntoView && declareQuantityInputRef.current) {
+            declareQuantityInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [shouldScrollDeclareQuantityIntoView]);
 
     return (
         <TableRow
@@ -263,11 +277,31 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                                 {...field}
                                 type="number"
                                 size="small"
-                                error={showErrors && !!fieldState.error}
-                                helperText={showErrors ? fieldState.error?.message : undefined}
+                                inputRef={(element) => {
+                                    field.ref(element);
+                                    declareQuantityInputRef.current = element;
+                                }}
+                                error={
+                                    (showErrors && !!fieldState.error) || declareQuantityHighlighted
+                                }
+                                helperText={
+                                    declareQuantityAdjustmentHelper ??
+                                    (showErrors ? fieldState.error?.message : undefined)
+                                }
                                 sx={{
                                     width: 80,
-                                    '& .MuiFormHelperText-root': { mx: 0 },
+                                    '& .MuiFormHelperText-root': { mx: 0, whiteSpace: 'normal' },
+                                    ...(declareQuantityHighlighted
+                                        ? {
+                                              '& .MuiOutlinedInput-root': {
+                                                  bgcolor: 'rgba(255, 236, 179, 0.45)',
+                                                  '& fieldset': {
+                                                      borderColor: 'warning.main',
+                                                      borderWidth: 2,
+                                                  },
+                                              },
+                                          }
+                                        : {}),
                                 }}
                                 inputProps={{ min: declareQuantityMin }}
                             />
