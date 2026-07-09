@@ -11,7 +11,7 @@ import { LoadingButton } from '../../components/ui/LoadingButton';
 import { ROUTES } from '../../constants/routes';
 import { useCreateSupplier } from './hooks/useSupplier';
 import { SupplierFormFields } from './SupplierFormFields';
-import { supplierFormSchema, SupplierFormValues } from './schemas/supplier.schema';
+import { supplierFormSchema, SupplierFormValues, supplierFormDefaultValues } from './schemas/supplier.schema';
 import {
     getMissingSupplierFields,
     scrollToFirstMissingField,
@@ -25,19 +25,7 @@ export const SupplierCreatePage = () => {
 
     const { control, handleSubmit, watch, setValue } = useForm<SupplierFormValues>({
         resolver: zodResolver(supplierFormSchema),
-        defaultValues: {
-            name: '',
-            code: '',
-            type: 'DISTRIBUTOR',
-            contactName: '',
-            contactPhone: '',
-            contactEmail: '',
-            address: '',
-            taxCode: '',
-            paymentTermDays: null,
-            defaultImportCost: null,
-            isActive: false,
-        },
+        defaultValues: supplierFormDefaultValues,
     });
 
     const watchedValues = watch();

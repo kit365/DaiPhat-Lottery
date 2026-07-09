@@ -297,7 +297,7 @@ class LotteryStationServiceTest {
         when(lotteryStationRepositoryPort.findAll()).thenReturn(List.of(modelD, modelC, modelB, modelA));
         when(lotteryStationApplicationMapper.toSchedulePublicResponse(any())).thenReturn(LotteryStationSchedulePublicResponse.builder().build());
 
-        List<LotteryStationSchedulePublicResponse> res = lotteryStationService.getPublicSchedule(null);
+        List<LotteryStationSchedulePublicResponse> res = lotteryStationService.getPublicSchedule(null, null, null, null);
         assertThat(res).hasSize(4); // A, B, C, D sorted by Region(Nam(1), Bac(3)), Time
     }
 

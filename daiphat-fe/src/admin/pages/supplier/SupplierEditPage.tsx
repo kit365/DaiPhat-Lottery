@@ -11,7 +11,7 @@ import { LoadingButton } from '../../components/ui/LoadingButton';
 import { ROUTES } from '../../constants/routes';
 import { useSupplierDetail, useUpdateSupplier } from './hooks/useSupplier';
 import { SupplierFormFields } from './SupplierFormFields';
-import { supplierFormSchema, SupplierFormValues } from './schemas/supplier.schema';
+import { supplierFormSchema, SupplierFormValues, supplierFormDefaultValues } from './schemas/supplier.schema';
 import {
     getMissingSupplierFields,
     scrollToFirstMissingField,
@@ -27,19 +27,7 @@ export const SupplierEditPage = () => {
 
     const { control, handleSubmit, reset, watch, setValue } = useForm<SupplierFormValues>({
         resolver: zodResolver(supplierFormSchema),
-        defaultValues: {
-            name: '',
-            code: '',
-            type: 'DISTRIBUTOR',
-            contactName: '',
-            contactPhone: '',
-            contactEmail: '',
-            address: '',
-            taxCode: '',
-            paymentTermDays: null,
-            defaultImportCost: null,
-            isActive: false,
-        },
+        defaultValues: supplierFormDefaultValues,
     });
 
     const watchedValues = watch();
@@ -61,8 +49,8 @@ export const SupplierEditPage = () => {
             contactEmail: supplier.contactEmail ?? '',
             address: supplier.address ?? '',
             taxCode: supplier.taxCode ?? '',
-            paymentTermDays: supplier.paymentTermDays ?? null,
-            defaultImportCost: supplier.defaultImportCost ?? null,
+            paymentTermDays: supplier.paymentTermDays ?? supplierFormDefaultValues.paymentTermDays,
+            defaultImportCost: supplier.defaultImportCost ?? supplierFormDefaultValues.defaultImportCost,
             isActive: supplier.isActive,
         });
         const missing = supplier.missingActivationFields ?? getMissingSupplierFields(supplier);
