@@ -936,7 +936,6 @@ export const ImportBatchEditPage = () => {
                                 render={({ field, fieldState }) => (
                                     <TextField
                                         name={field.name}
-                                        onBlur={field.onBlur}
                                         inputRef={field.ref}
                                         value={formatViInteger(field.value)}
                                         label="Tổng số lượng khai báo phiếu nhập lô"
