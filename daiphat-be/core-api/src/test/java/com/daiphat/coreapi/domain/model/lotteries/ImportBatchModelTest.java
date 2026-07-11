@@ -103,6 +103,9 @@ class ImportBatchModelTest {
         batch.recalculateAggregates();
 
         assertThat(batch.getLineCount()).isEqualTo(1);
+        batch.setTotalDeclareQuantity(10);
+        batch.recalculateAggregates();
+
         assertThat(batch.getTotalDeclareQuantity()).isEqualTo(10);
         assertThat(batch.getTotalImportedQuantity()).isEqualTo(4);
     }
