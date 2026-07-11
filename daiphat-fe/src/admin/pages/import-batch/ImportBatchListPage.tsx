@@ -45,6 +45,7 @@ import {
 } from './utils/importBatchCode';
 import { IncompleteImportBatchNotification } from './components/IncompleteImportBatchNotification';
 import { MissingStationImportBatchNotification } from './components/MissingStationImportBatchNotification';
+import { hasStartedImportBatchLineEntry } from './utils/importBatchEditDraft';
 import { findFirstIncompleteLine, batchHasPendingLines, importBatchMissingStations, isImportBatchEditable } from '../ticket/utils/importBatchProgress';
 
 export const ImportBatchListPage = () => {
@@ -177,7 +178,13 @@ export const ImportBatchListPage = () => {
                                         <TableCell>
                                             <Stack direction="row" spacing={0.75} alignItems="center">
                                                 {importBatchMissingStations(batch) && (
-                                                    <Tooltip title="Chưa bổ sung nhà đài">
+                                                    <Tooltip
+                                                        title={
+                                                            hasStartedImportBatchLineEntry(batch.id)
+                                                                ? 'Tiếp tục nhập phiếu'
+                                                                : 'Chưa bổ sung nhà đài'
+                                                        }
+                                                    >
                                                         <Box
                                                             sx={{
                                                                 width: 8,

@@ -100,6 +100,16 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     }
 
     @Override
+    public long countByTicketIdAndImportBatchLineId(Long ticketId, Long importBatchLineId) {
+        return lotteryTicketSerialRepository.countByTicketIdAndImportBatchLineId(ticketId, importBatchLineId);
+    }
+
+    @Override
+    public void hardDeleteByTicketIdAndImportBatchLineId(Long ticketId, Long importBatchLineId) {
+        lotteryTicketSerialRepository.deleteByTicket_IdAndImportBatchLine_Id(ticketId, importBatchLineId);
+    }
+
+    @Override
     public void hardDeleteByImportBatchLineId(Long importBatchLineId) {
         lotteryTicketSerialRepository.deleteByImportBatchLine_Id(importBatchLineId);
     }

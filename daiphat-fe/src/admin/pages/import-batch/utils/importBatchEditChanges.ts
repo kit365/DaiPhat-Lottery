@@ -1,4 +1,3 @@
-import dayjs from 'dayjs';
 import type { ImportBatch } from '../../../api/importBatch.api';
 import type { UpdateImportBatchFormValues } from '../schemas/importBatch.schema';
 
@@ -36,7 +35,6 @@ export interface ImportBatchEditChangeSummary {
     modifiedLines: ImportBatchEditLineChanges[];
     addedLines: ImportBatchEditAddedLine[];
     removedLines: ImportBatchEditRemovedLine[];
-    drawDateChanged: boolean;
     hasAnyChanges: boolean;
 }
 
@@ -47,8 +45,6 @@ export interface ComputeImportBatchEditChangesParams {
     resolveSupplierName: (supplierId: number) => string;
     resolveStationName: (stationId: number) => string;
 }
-
-const formatDrawDate = (value?: string) => (value ? dayjs(value).format('DD/MM/YYYY') : '—');
 
 const formatQuantity = (value: number) => value.toLocaleString('vi-VN');
 
@@ -63,6 +59,7 @@ export const buildImportBatchEditBaseline = (
     supplierId: batch.supplierId ?? 0,
     drawDate: batch.drawDate,
     importMode: batch.importMode ?? 'IN_DAY',
+    totalDeclareQuantity: batch.totalDeclareQuantity ?? 0,
     invoiceEvidenceUrl: batch.invoiceEvidenceUrl ?? '',
     lines: (batch.lines ?? []).map((line) => ({
         id: line.id,
@@ -89,19 +86,19 @@ export const computeImportBatchEditChanges = (
     const headerChanges: ImportBatchEditFieldChange[] = [];
     let invoiceChange: ImportBatchEditInvoiceChange | null = null;
 
-    if (baseline.drawDate !== current.drawDate) {
-        headerChanges.push({
-            label: 'Ngày quay',
-            oldValue: formatDrawDate(baseline.drawDate),
-            newValue: formatDrawDate(current.drawDate),
-        });
-    }
-
     if (baseline.supplierId !== current.supplierId) {
         headerChanges.push({
             label: 'Nhà cung cấp',
             oldValue: resolveSupplierName(baseline.supplierId),
             newValue: resolveSupplierName(current.supplierId),
+        });
+    }
+
+    if (baseline.totalDeclareQuantity !== current.totalDeclareQuantity) {
+        headerChanges.push({
+            label: 'Tổng số lượng khai báo phiếu nhập lô',
+            oldValue: `${formatQuantity(baseline.totalDeclareQuantity ?? 0)} vé`,
+            newValue: `${formatQuantity(current.totalDeclareQuantity ?? 0)} vé`,
         });
     }
 
@@ -112,8 +109,6 @@ export const computeImportBatchEditChanges = (
             invoiceChange = { oldUrl: oldInvoice, newUrl: newInvoice };
         }
     }
-
-    const drawDateChanged = baseline.drawDate !== current.drawDate;
 
     const baselineActiveLines = baseline.lines.filter((line) => line.id);
     const currentLinesById = new Map<number, (typeof current.lines)[number]>();
@@ -205,7 +200,6 @@ export const computeImportBatchEditChanges = (
         modifiedLines,
         addedLines,
         removedLines,
-        drawDateChanged,
         hasAnyChanges,
     };
 };

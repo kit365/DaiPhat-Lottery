@@ -86,7 +86,6 @@ public class ImportBatchModel {
         List<ImportBatchLineModel> activeLines = getActiveLines();
         if (activeLines.isEmpty()) {
             lineCount = 0;
-            totalDeclareQuantity = 0;
             totalDeclaredCostValue = BigDecimal.ZERO;
             totalImportedQuantity = 0;
             totalImportedCostValue = BigDecimal.ZERO;
@@ -94,9 +93,6 @@ public class ImportBatchModel {
         }
 
         lineCount = activeLines.size();
-        totalDeclareQuantity = activeLines.stream()
-                .mapToInt(line -> line.getDeclareQuantity() != null ? line.getDeclareQuantity() : 0)
-                .sum();
         totalDeclaredCostValue = activeLines.stream()
                 .map(line -> line.getDeclaredCostValue() != null ? line.getDeclaredCostValue() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
