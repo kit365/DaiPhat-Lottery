@@ -177,7 +177,7 @@ public class NotificationService implements NotificationServicePort {
 
         boolean exists = switch (referenceType) {
             case ORDER -> isOrderReferenceAvailable(referenceId);
-            case REFUND -> isRefundReferenceAvailable(referenceId);
+            case REFUND, REFUND_REQUEST -> isRefundReferenceAvailable(referenceId);
             case SUPPORT_TICKET -> isSupportTicketReferenceAvailable(referenceId);
             case BLOG_POST -> isBlogPostReferenceAvailable(referenceId);
             default -> true;

@@ -37,6 +37,8 @@ const NOTIFICATION_ROUTES: Record<string, RouteResolver> = {
     [NOTIFICATION_REFERENCE_TYPE.ORDER]: resolveOrderPath,
     [NOTIFICATION_REFERENCE_TYPE.REFUND]: (referenceId) =>
         referenceId ? `/profile/refunds/${referenceId}` : null,
+    [NOTIFICATION_REFERENCE_TYPE.REFUND_REQUEST]: (referenceId) =>
+        referenceId ? `/profile/refunds/${referenceId}` : null,
     [NOTIFICATION_REFERENCE_TYPE.SUPPORT_TICKET]: (referenceId) =>
         referenceId ? `/profile/complaints/${referenceId}` : null,
     [NOTIFICATION_REFERENCE_TYPE.LOTTERY_STATION]: () => "/buy-ticket",
@@ -78,6 +80,7 @@ export const resolveNotificationNavigation = async (
     const needsReferenceCheck =
         notification.referenceType === NOTIFICATION_REFERENCE_TYPE.ORDER ||
         notification.referenceType === NOTIFICATION_REFERENCE_TYPE.REFUND ||
+        notification.referenceType === NOTIFICATION_REFERENCE_TYPE.REFUND_REQUEST ||
         notification.referenceType === NOTIFICATION_REFERENCE_TYPE.SUPPORT_TICKET ||
         notification.referenceType === NOTIFICATION_REFERENCE_TYPE.BLOG_POST;
 

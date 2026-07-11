@@ -24,6 +24,7 @@ export const getAdminNotificationPath = (notification: AdminNotificationItem): s
             }
             return `${ROUTES.ADMIN.ORDERS.DETAIL}${referenceId}`;
         case "REFUND":
+        case "REFUND_REQUEST":
             return `${ROUTES.ADMIN.REFUNDS.DETAIL}${referenceId}`;
         default:
             return null;
