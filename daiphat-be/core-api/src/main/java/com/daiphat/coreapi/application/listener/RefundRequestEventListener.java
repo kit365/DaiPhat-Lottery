@@ -40,7 +40,7 @@ public class RefundRequestEventListener {
                 .type(NotificationType.ORDER)
                 .channel(NotificationChannel.IN_APP)
                 .referenceId(String.valueOf(event.refundRequestId()))
-                .referenceType(NotificationReferenceType.REFUND)
+                .referenceType(NotificationReferenceType.REFUND_REQUEST)
                 .build();
         notification.markAsSent();
         notificationService.createNotification(notification);
@@ -59,22 +59,34 @@ public class RefundRequestEventListener {
     }
 
     private String resolveContent(RefundRequestStatusChangedEvent event) {
+        String orderLabel = resolveOrderLabel(event);
         return switch (event.status()) {
-            case PENDING -> "Yêu cầu hoàn tiền cho đơn hàng#" + event.orderId()
-                    + " của bạn đã được gửi và đang chờ xử lý.";
-            case APPROVED -> "Yêu cầu hủy đơn #" + event.refundRequestId() + " đã được duyệt. "
+            case PENDING -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
+                    + " đã được gửi và đang chờ xử lý.";
+            case APPROVED -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel + " đã được duyệt. "
                     + "Đơn hàng sẽ được hủy và tiền sẽ được hoàn lại.";
             case REJECTED -> {
                 String reason = event.rejectReason() != null ? event.rejectReason() : "";
-                yield "Yêu cầu hủy đơn #" + event.refundRequestId() + " đã bị từ chối."
+                yield "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel + " đã bị từ chối."
                         + (reason.isBlank() ? "" : " Lý do: " + reason);
             }
-            case READY_TO_PAY -> "Yêu cầu hoàn tiền #" + event.refundRequestId()
+            case READY_TO_PAY -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
                     + " đã được duyệt và đang chờ chuyển khoản.";
-            case PAID -> "Yêu cầu hoàn tiền #" + event.refundRequestId() + " đã được chuyển khoản thành công.";
-            case EXPIRED -> "Yêu cầu hoàn tiền #" + event.refundRequestId()
+            case PAID -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
+                    + " đã được chuyển khoản thành công.";
+            case EXPIRED -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
                     + " đã quá hạn xử lý. Vui lòng liên hệ bộ phận hỗ trợ nếu cần trợ giúp.";
-            default -> "Yêu cầu hoàn tiền #" + event.refundRequestId() + " đã được cập nhật.";
+            default -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel + " đã được cập nhật.";
         };
+    }
+
+    private String resolveOrderLabel(RefundRequestStatusChangedEvent event) {
+        if (event.orderCode() != null && !event.orderCode().isBlank()) {
+            return event.orderCode().trim();
+        }
+        if (event.orderId() != null) {
+            return event.orderId().toString();
+        }
+        return String.valueOf(event.refundRequestId());
     }
 }

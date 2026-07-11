@@ -22,7 +22,12 @@ import java.util.UUID;
 
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-@Table(name = "refund_requests")
+@Table(
+        name = "refund_requests",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_refund_requests_order_id", columnNames = "order_id")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -38,8 +43,8 @@ public class RefundRequestEntity {
     @Column(name = "refund_type", nullable = false, length = 30)
     private RefundType refundType;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false, unique = true)
     private OrderEntity order;
 
     @ManyToOne(fetch = FetchType.LAZY)
