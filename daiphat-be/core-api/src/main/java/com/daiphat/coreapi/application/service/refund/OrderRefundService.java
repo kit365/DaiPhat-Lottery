@@ -60,9 +60,7 @@ public class OrderRefundService implements OrderRefundServicePort {
         OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
 
-        if (!customerId.equals(order.getUserId())) {
-            throw new DomainException(ErrorCode.ACCESS_DENIED);
-        }
+        ensureOrderOwnedByCustomer(order, customerId);
 
         ensureRefundEligible(order);
 
@@ -95,9 +93,7 @@ public class OrderRefundService implements OrderRefundServicePort {
         OrderModel order = orderRepositoryPort.findById(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
 
-        if (!customerId.equals(order.getUserId())) {
-            throw new DomainException(ErrorCode.ACCESS_DENIED);
-        }
+        ensureOrderOwnedByCustomer(order, customerId);
 
         RefundGraceEvaluation evaluation = orderRefundGraceService.evaluate(order);
         List<RefundEligibleTicketItemResponse> refundTickets = buildRefundTicketItems(order);
@@ -176,6 +172,12 @@ public class OrderRefundService implements OrderRefundServicePort {
             return null;
         }
         return serialsById.computeIfAbsent(lotteryTicketSerialId, lotteryTicketSerialServicePort::getByIdOrThrow);
+    }
+
+    private void ensureOrderOwnedByCustomer(OrderModel order, UUID customerId) {
+        if (order.getUserId() == null || !order.getUserId().equals(customerId)) {
+            throw new DomainException(ErrorCode.ACCESS_DENIED);
+        }
     }
 
     private void ensureRefundEligible(OrderModel order) {

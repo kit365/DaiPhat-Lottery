@@ -15,6 +15,9 @@ import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
 import com.daiphat.coreapi.application.port.in.refund.OrderRefundServicePort;
+import com.daiphat.coreapi.application.dto.response.notification.NotificationReferenceAvailabilityResponse;
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.shared.util.SearchConstants;
@@ -156,14 +159,24 @@ public class OrderController {
             @PathVariable java.util.UUID id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to get my order detail: {} by user: {}", id, principal.getId());
-        return ApiResponse.success(
-                "Lấy chi tiết đơn hàng của tôi thành công.",
-                orderServicePort.getMyOrderDetail(id, principal.getId())
-        );
+        try {
+            return ApiResponse.success(
+                    "Lấy chi tiết đơn hàng của tôi thành công.",
+                    orderServicePort.getMyOrderDetail(id, principal.getId())
+            );
+        } catch (DomainException ex) {
+            if (ex.getErrorCode() == ErrorCode.ORDER_NOT_FOUND) {
+                return ApiResponse.success(
+                        NotificationReferenceAvailabilityResponse.UNAVAILABLE_MESSAGE,
+                        null
+                );
+            }
+            throw ex;
+        }
     }
 
     @GetMapping("/my-orders/{id}/refund-eligibility")
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<OrderRefundEligibilityResponse> getRefundEligibility(
             @PathVariable java.util.UUID id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
@@ -173,7 +186,7 @@ public class OrderController {
     }
 
     @PostMapping("/{orderId}/refund")
-    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<RefundRequestResponse> refundPaidOrder(
             @PathVariable java.util.UUID orderId,
             @Valid @RequestBody CreateOrderRefundRequest request,
