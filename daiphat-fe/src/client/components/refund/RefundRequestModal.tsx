@@ -39,40 +39,6 @@ const REFUND_REASON_SUGGESTIONS = [
     'Khác'
 ] as const;
 
-const appendRefundReason = (current: string, suggestion: string, maxLength = 500) => {
-    const trimmed = current.trim();
-    if (!trimmed) {
-        return suggestion.slice(0, maxLength);
-    }
-    if (trimmed.includes(suggestion)) {
-        return trimmed.slice(0, maxLength);
-    }
-    const separator = /[.!,;]$/.test(trimmed) ? ' ' : '. ';
-    return `${trimmed}${separator}${suggestion}`.slice(0, maxLength);
-};
-
-const removeRefundReasonSuggestion = (current: string, suggestion: string) => {
-    if (!current.includes(suggestion)) {
-        return current;
-    }
-
-    let next = current;
-    // Remove ". suggestion" / ", suggestion" / "; suggestion" / leading suggestion
-    const escaped = suggestion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    next = next.replace(new RegExp(`(^|[.\\s,;]+)${escaped}`, 'g'), (_match, prefix: string) => {
-        if (!prefix || !prefix.trim()) {
-            return '';
-        }
-        return prefix.replace(/\s+$/, '');
-    });
-
-    return next
-        .replace(/\s{2,}/g, ' ')
-        .replace(/\.\s*\./g, '.')
-        .replace(/^[.\s,;]+|[.\s,;]+$/g, '')
-        .trim();
-};
-
 export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, onClose, order }) => {
     const navigate = useNavigate();
     const { data: bankAccountsData, isLoading: isLoadingBankAccounts } = useGetBankAccounts(isOpen);
@@ -84,6 +50,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
     const createMutation = useCreateOrderRefund();
 
     const [refundReason, setRefundReason] = useState('');
+    const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null);
     const [bankAccountId, setBankAccountId] = useState<number | ''>('');
     const [showBankForm, setShowBankForm] = useState(false);
 
@@ -113,6 +80,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
     useEffect(() => {
         if (!isOpen) return;
         setRefundReason('');
+        setSelectedSuggestion(null);
         const defaultBank = bankAccounts.find((a) => a.isDefault) || bankAccounts[0];
         setBankAccountId(defaultBank?.id || '');
     }, [isOpen, bankAccounts]);
@@ -166,13 +134,16 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
 
     const handleSuggestionClick = (suggestion: string) => {
         if (isSubmitting || isRefundBlocked) return;
+        setSelectedSuggestion(suggestion);
+        setRefundReason(suggestion.slice(0, 500));
+    };
 
-        if (refundReason.includes(suggestion)) {
-            setRefundReason(removeRefundReasonSuggestion(refundReason, suggestion));
-            return;
+    const handleReasonChange = (value: string) => {
+        const next = value.slice(0, 500);
+        setRefundReason(next);
+        if (!next.trim()) {
+            setSelectedSuggestion(null);
         }
-
-        setRefundReason(appendRefundReason(refundReason, suggestion));
     };
 
     if (!isOpen) return null;
@@ -185,16 +156,75 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                     onClick={handleClose}
                 />
                 <div className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <div className="flex items-center justify-between p-6 border-b border-[#E5E8EB] sticky top-0 bg-white z-10">
-                        <h2 className="text-[18px] font-bold text-[#212B36]">Hủy đơn & Hoàn tiền</h2>
-                        <button
-                            type="button"
-                            onClick={handleClose}
-                            disabled={isSubmitting}
-                            className="w-8 h-8 rounded-lg hover:bg-[#F4F6F8] flex items-center justify-center text-[#637381] cursor-pointer disabled:opacity-50"
-                        >
-                            <i className="fa-solid fa-xmark" />
-                        </button>
+                    <div className="flex items-center justify-between gap-3 p-6 border-b border-[#E5E8EB] sticky top-0 bg-white z-10">
+                        <h2 className="text-[18px] font-bold text-[#212B36] min-w-0 truncate">
+                            Hủy đơn & Hoàn tiền
+                        </h2>
+                        <div className="flex items-center gap-2.5 shrink-0">
+                            {isLoadingEligibility ? (
+                                <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#F4F6F8] border border-[#E5E8EB] text-[13px] text-[#637381]">
+                                    <i className="fa-solid fa-spinner fa-spin text-[12px]" />
+                                    <span className="text-[12px] font-medium">Đang tải...</span>
+                                </div>
+                            ) : (
+                                <div
+                                    className={`inline-flex items-center gap-2.5 px-3 py-2 rounded-xl border tabular-nums ${
+                                        isRefundBlocked
+                                            ? 'bg-[#FFF5F5] border-[#FECACA]'
+                                            : isLowTime
+                                              ? 'bg-[#FFF9F3] border-[#FFD666]'
+                                              : 'bg-[#EAF1FF] border-[#91BAF8]'
+                                    }`}
+                                    title={isRefundBlocked ? 'Hết hạn hoàn tiền' : 'Thời gian còn lại để hoàn tiền'}
+                                >
+                                    <span
+                                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                                            isRefundBlocked
+                                                ? 'bg-[#FEE2E2] text-[#C62828]'
+                                                : isLowTime
+                                                  ? 'bg-[#FFE7BA] text-[#B76E00]'
+                                                  : 'bg-[#D6E4FF] text-[#1557C0]'
+                                        }`}
+                                        aria-hidden
+                                    >
+                                        <i className="fa-regular fa-clock text-[13px]" />
+                                    </span>
+                                    <div className="min-w-0 text-left leading-tight">
+                                        <p
+                                            className={`text-[10px] font-semibold uppercase tracking-wide ${
+                                                isRefundBlocked
+                                                    ? 'text-[#C62828]'
+                                                    : isLowTime
+                                                      ? 'text-[#B76E00]'
+                                                      : 'text-[#2065D1]'
+                                            }`}
+                                        >
+                                            {isRefundBlocked ? 'Hết hạn' : isLowTime ? 'Sắp hết hạn' : 'Còn lại'}
+                                        </p>
+                                        <p
+                                            className={`mt-0.5 text-[14px] font-bold whitespace-nowrap ${
+                                                isRefundBlocked
+                                                    ? 'text-[#B71C1C]'
+                                                    : isLowTime
+                                                      ? 'text-[#8A5A00]'
+                                                      : 'text-[#0B4EA2]'
+                                            }`}
+                                        >
+                                            {formatRefundCountdown(isRefundBlocked ? 0 : secondsLeft)}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                            <button
+                                type="button"
+                                onClick={handleClose}
+                                disabled={isSubmitting}
+                                className="w-8 h-8 rounded-lg hover:bg-[#F4F6F8] flex items-center justify-center text-[#637381] cursor-pointer disabled:opacity-50"
+                                aria-label="Đóng"
+                            >
+                                <i className="fa-solid fa-xmark" />
+                            </button>
+                        </div>
                     </div>
 
                     <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
@@ -395,7 +425,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                             </label>
                             <textarea
                                 value={refundReason}
-                                onChange={(e) => setRefundReason(e.target.value.slice(0, 500))}
+                                onChange={(e) => handleReasonChange(e.target.value)}
                                 rows={4}
                                 placeholder="Mô tả lý do bạn muốn hủy đơn..."
                                 className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314] resize-none disabled:bg-[#F4F6F8] disabled:text-[#919EAB]"
@@ -403,18 +433,20 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                                 disabled={isSubmitting || isRefundBlocked}
                             />
                             <div className="flex items-center justify-between gap-3">
-                                <p className="text-[12px] text-[#919EAB]">Gợi ý nhanh — chọn để điền lý do</p>
+                                <p className="text-[12px] text-[#919EAB]">Gợi ý nhanh — chọn một lý do</p>
                                 <span className="text-[11px] text-[#919EAB] tabular-nums shrink-0">
                                     {refundReason.length}/500
                                 </span>
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Gợi ý lý do hoàn tiền">
                                 {REFUND_REASON_SUGGESTIONS.map((suggestion) => {
-                                    const isSelected = refundReason.includes(suggestion);
+                                    const isSelected = selectedSuggestion === suggestion;
                                     return (
                                         <button
                                             key={suggestion}
                                             type="button"
+                                            role="radio"
+                                            aria-checked={isSelected}
                                             onClick={() => handleSuggestionClick(suggestion)}
                                             disabled={isSubmitting || isRefundBlocked}
                                             className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -430,77 +462,34 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                             </div>
                         </section>
 
-                        {/* 7. Actions + compact countdown */}
-                        <div className="flex flex-col gap-3 pt-2">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                <div className="flex gap-3 flex-1">
-                                    <button
-                                        type="button"
-                                        onClick={handleClose}
-                                        disabled={isSubmitting}
-                                        className="flex-1 py-3 rounded-xl border border-[#E5E8EB] text-[#637381] font-bold text-[14px] hover:bg-[#F4F6F8] transition-colors cursor-pointer disabled:opacity-50"
-                                    >
-                                        Đóng
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={
-                                            isSubmitting ||
-                                            isLoadingBankAccounts ||
-                                            bankAccounts.length === 0 ||
-                                            isRefundBlocked
-                                        }
-                                        className="flex-1 py-3 rounded-xl bg-[#ee1314] text-white font-bold text-[14px] hover:bg-[#c80f11] transition-colors disabled:opacity-50 cursor-pointer"
-                                    >
-                                        {isSubmitting ? (
-                                            <i className="fa-solid fa-spinner fa-spin" />
-                                        ) : isRefundBlocked ? (
-                                            'Hết thời gian hoàn tiền'
-                                        ) : (
-                                            'Xác nhận hủy & hoàn tiền'
-                                        )}
-                                    </button>
-                                </div>
-                                {!isLoadingEligibility && (
-                                    <div
-                                        className={`px-3 py-2 rounded-lg border text-center tabular-nums shrink-0 sm:min-w-[7.5rem] ${
-                                            isRefundBlocked
-                                                ? 'bg-[#FFF5F5] border-[#ee1314]/25'
-                                                : isLowTime
-                                                  ? 'bg-[#FFF9F3] border-[#FFB020]/40'
-                                                  : 'bg-[#F0F5FF] border-[#2065D1]/20'
-                                        }`}
-                                    >
-                                        <p
-                                            className={`text-[10px] font-medium leading-none mb-1 ${
-                                                isRefundBlocked
-                                                    ? 'text-[#ee1314]'
-                                                    : isLowTime
-                                                      ? 'text-[#B76E00]'
-                                                      : 'text-[#919EAB]'
-                                            }`}
-                                        >
-                                            {isRefundBlocked ? 'Hết hạn' : isLowTime ? 'Sắp hết hạn' : 'Còn lại'}
-                                        </p>
-                                        <p
-                                            className={`text-[13px] font-bold leading-none ${
-                                                isRefundBlocked
-                                                    ? 'text-[#ee1314]'
-                                                    : isLowTime
-                                                      ? 'text-[#B76E00]'
-                                                      : 'text-[#2065D1]'
-                                            }`}
-                                        >
-                                            {formatRefundCountdown(isRefundBlocked ? 0 : secondsLeft)}
-                                        </p>
-                                    </div>
+                        {/* 7. Actions */}
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={handleClose}
+                                disabled={isSubmitting}
+                                className="flex-1 py-3 rounded-xl border border-[#E5E8EB] text-[#637381] font-bold text-[14px] hover:bg-[#F4F6F8] transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                                Đóng
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={
+                                    isSubmitting ||
+                                    isLoadingBankAccounts ||
+                                    bankAccounts.length === 0 ||
+                                    isRefundBlocked
+                                }
+                                className="flex-1 py-3 rounded-xl bg-[#ee1314] text-white font-bold text-[14px] hover:bg-[#c80f11] transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                                {isSubmitting ? (
+                                    <i className="fa-solid fa-spinner fa-spin" />
+                                ) : isRefundBlocked ? (
+                                    'Hết thời gian hoàn tiền'
+                                ) : (
+                                    'Xác nhận hủy & hoàn tiền'
                                 )}
-                                {isLoadingEligibility && (
-                                    <div className="px-3 py-2 bg-[#F4F6F8] border border-[#E5E8EB] rounded-lg text-[12px] text-[#637381] text-center sm:min-w-[7.5rem]">
-                                        <i className="fa-solid fa-spinner fa-spin" />
-                                    </div>
-                                )}
-                            </div>
+                            </button>
                         </div>
                     </form>
                 </div>
