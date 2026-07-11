@@ -74,7 +74,6 @@ public class OrderRefundService implements OrderRefundServicePort {
 
         RefundRequestModel refundRequest = RefundRequestModel.builder()
                 .refundType(RefundType.FULL_ORDER)
-                .orderId(orderId)
                 .requestedBy(customerId)
                 .requestRole(RefundRequestRole.CUSTOMER)
                 .refundAmount(refundAmount)
@@ -88,6 +87,7 @@ public class OrderRefundService implements OrderRefundServicePort {
         if (linked <= 0 && order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
             throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
         }
+        savedRefund.setOrderId(orderId);
         savedRefund.setOrderDetailIds(refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(savedRefund.getId()));
         publishRefundStatusChanged(savedRefund, order.getOrderCode());
         return refundApplicationMapper.toRefundResponse(savedRefund, bankAccount);

@@ -26,7 +26,6 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
-import com.daiphat.coreapi.domain.model.enums.order.refund.OrderRefundStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
@@ -318,11 +317,6 @@ public class OrderService implements OrderServicePort {
         return EnumOptionUtils.toEnumOptions(OrderDetailStatus.values());
     }
 
-    @Override
-    public List<EnumOptionResponse> getOrderRefundStatuses() {
-        return EnumOptionUtils.toEnumOptions(OrderRefundStatus.values());
-    }
-
     private OrderDetailModel buildOrderDetail(OrderTicketSnapshot ticketSnapshot) {
         OrderDetailModel detail = orderApplicationMapper.toOrderDetailModel(ticketSnapshot);
         detail.initializeForCreate();
@@ -420,7 +414,6 @@ public class OrderService implements OrderServicePort {
                             .price(base.price())
                             .quantity(detail.getEffectiveQuantity())
                             .status(base.status())
-                            .refunds(base.refunds())
                             .build();
                 })
                 .toList();

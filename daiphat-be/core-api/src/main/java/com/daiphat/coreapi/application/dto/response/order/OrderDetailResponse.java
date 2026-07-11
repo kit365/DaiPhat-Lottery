@@ -5,7 +5,6 @@ import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 
 @Builder
 public record OrderDetailResponse(
@@ -22,7 +21,6 @@ public record OrderDetailResponse(
         Long replacedByTicketSerialId,
         BigDecimal price,
         Integer quantity,
-        OrderDetailStatus status,
-        List<OrderRefundResponse> refunds
+        OrderDetailStatus status
 ) {
 }

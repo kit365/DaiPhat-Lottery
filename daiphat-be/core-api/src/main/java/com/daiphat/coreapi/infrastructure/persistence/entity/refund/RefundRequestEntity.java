@@ -6,7 +6,6 @@ import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.ReimburseStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
-import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -39,11 +38,6 @@ public class RefundRequestEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "refund_type", nullable = false, length = 30)
     private RefundType refundType;
-
-    /** Denormalized order reference for listing/filtering; authoritative link is via orderDetails. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
-    private OrderEntity order;
 
     @OneToMany(mappedBy = "refundRequest", fetch = FetchType.LAZY)
     @Builder.Default
@@ -120,10 +114,6 @@ public class RefundRequestEntity {
     @LastModifiedBy
     @Column(name = "last_modified_by")
     private String lastModifiedBy;
-
-    public UUID getOrderId() {
-        return order != null ? order.getId() : null;
-    }
 
     public UUID getRequestedById() {
         return requestedBy != null ? requestedBy.getId() : null;

@@ -42,11 +42,6 @@ public interface RefundRequestRepositoryPort {
 
     boolean existsPendingByBankAccountId(Long bankAccountId);
 
-    boolean existsActiveByOrderId(UUID orderId);
-
-    /** True if any refund request row exists for the order (denormalized order_id). */
-    boolean existsByOrderId(UUID orderId);
-
     /** True if any order detail of the order is already linked to a refund request. */
     boolean existsLinkedOrderDetailByOrderId(UUID orderId);
 
@@ -54,6 +49,8 @@ public interface RefundRequestRepositoryPort {
     int linkOrderDetailsByOrderId(UUID orderId, Long refundRequestId);
 
     List<Long> findOrderDetailIdsByRefundRequestId(Long refundRequestId);
+
+    Optional<UUID> findOrderIdByRefundRequestId(Long refundRequestId);
 
     long countByRequestedByAndCreatedAtFrom(UUID requestedBy, java.time.LocalDateTime createdFrom);
 
