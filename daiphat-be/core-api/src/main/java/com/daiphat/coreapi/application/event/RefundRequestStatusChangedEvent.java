@@ -10,6 +10,7 @@ public record RefundRequestStatusChangedEvent(
         Long refundRequestId,
         UUID customerId,
         UUID orderId,
+
         RefundRequestStatus status,
         String rejectReason,
         String transferNote
