@@ -164,20 +164,15 @@ export const NotificationsTab = () => {
                 <div className="mb-6">
                     <UnavailableReferenceState
                         message={unavailableMessage}
-                        primaryTo="/profile/notifications"
                         primaryLabel="Đã hiểu"
+                        onPrimaryClick={() => setUnavailableMessage(null)}
                         secondaryTo="/profile/orders"
                         secondaryLabel="Xem đơn hàng"
+                        onSecondaryClick={() => {
+                            setUnavailableMessage(null);
+                            navigate('/profile/orders');
+                        }}
                     />
-                    <div className="flex justify-center mt-3">
-                        <button
-                            type="button"
-                            onClick={() => setUnavailableMessage(null)}
-                            className="text-[13px] text-[#637381] hover:text-[#212B36] cursor-pointer"
-                        >
-                            Đóng thông báo
-                        </button>
-                    </div>
                 </div>
             )}
 
