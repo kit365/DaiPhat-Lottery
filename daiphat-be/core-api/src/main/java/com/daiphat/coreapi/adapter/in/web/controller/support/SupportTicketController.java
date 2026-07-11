@@ -11,6 +11,9 @@ import com.daiphat.coreapi.application.dto.response.support.SupportTicketComment
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketSummaryResponse;
 import com.daiphat.coreapi.application.port.in.support.SupportTicketServicePort;
+import com.daiphat.coreapi.application.dto.response.notification.NotificationReferenceAvailabilityResponse;
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 import jakarta.validation.Valid;
@@ -77,9 +80,19 @@ public class SupportTicketController {
                     "Lấy chi tiết yêu cầu hỗ trợ thành công.",
                     supportTicketServicePort.getByIdForStaff(id, principal.getId()));
         }
-        return ApiResponse.success(
-                "Lấy chi tiết yêu cầu hỗ trợ thành công.",
-                supportTicketServicePort.getByIdForCustomer(id, principal.getId()));
+        try {
+            return ApiResponse.success(
+                    "Lấy chi tiết yêu cầu hỗ trợ thành công.",
+                    supportTicketServicePort.getByIdForCustomer(id, principal.getId()));
+        } catch (DomainException ex) {
+            if (ex.getErrorCode() == ErrorCode.TICKET_NOT_FOUND) {
+                return ApiResponse.success(
+                        NotificationReferenceAvailabilityResponse.UNAVAILABLE_MESSAGE,
+                        null
+                );
+            }
+            throw ex;
+        }
     }
 
     @PatchMapping(value = ID_PATH, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
