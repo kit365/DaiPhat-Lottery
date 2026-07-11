@@ -4,6 +4,7 @@ import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,6 +19,10 @@ public interface RefundRequestRepository extends JpaRepository<RefundRequestEnti
     boolean existsByBankAccount_IdAndStatus(Long bankAccountId, RefundRequestStatus status);
 
     boolean existsByOrder_IdAndStatusIn(UUID orderId, Collection<RefundRequestStatus> statuses);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from RefundRequestEntity r where r.order.id in :orderIds")
+    int deleteByOrderIdIn(@Param("orderIds") Collection<UUID> orderIds);
 
     @Query("""
             select r
