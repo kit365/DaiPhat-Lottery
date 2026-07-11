@@ -20,7 +20,9 @@ export const NOTIFICATION_REFERENCE_TYPE = {
     AUTH: "AUTH",
     BLOG_POST: "BLOG_POST",
     ORDER: "ORDER",
+    /** @deprecated Prefer REFUND_REQUEST; kept for legacy notification rows. */
     REFUND: "REFUND",
+    REFUND_REQUEST: "REFUND_REQUEST",
     LOTTERY_STATION: "LOTTERY_STATION",
     SYSTEM: "SYSTEM",
     SUPPORT_TICKET: "SUPPORT_TICKET",
