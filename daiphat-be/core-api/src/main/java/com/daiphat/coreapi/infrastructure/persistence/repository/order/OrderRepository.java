@@ -21,7 +21,7 @@ import java.util.UUID;
 
 public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSpecificationExecutor<OrderEntity> {
 
-    @EntityGraph(attributePaths = {"transactions"})
+    @EntityGraph(attributePaths = {"user", "transactions"})
     @Override
     Optional<OrderEntity> findById(UUID id);
 
@@ -30,9 +30,26 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSp
 
     boolean existsByOrderCode(String orderCode);
 
+    /**
+     * Fetch only orderDetails (and nested serials). Do not include {@code transactions} here —
+     * Hibernate cannot simultaneously fetch two bags ({@code MultipleBagFetchException}).
+     */
+    @EntityGraph(attributePaths = {
+            "orderDetails",
+            "orderDetails.lotteryTicketSerial",
+            "orderDetails.replacedByTicketSerial"
+    })
+    List<OrderEntity> findByOrderCodeStartingWith(String orderCodePrefix);
+
     @EntityGraph(attributePaths = {"orderDetails"})
     java.util.Optional<OrderEntity> findByOrderCode(String orderCode);
 
+    /**
+     * Lock order for update. Fetch at most one bag collection to avoid
+     * {@code MultipleBagFetchException} (orderDetails + transactions).
+     * Payment time for refund grace falls back to TransactionRepository when needed.
+     */
+    @EntityGraph(attributePaths = {"user", "orderDetails"})
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<OrderEntity> findOrderEntityById(UUID id);
 
