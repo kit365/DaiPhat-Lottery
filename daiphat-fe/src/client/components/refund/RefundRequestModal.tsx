@@ -276,6 +276,58 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                             </p>
                         </section>
 
+                        {/* Policy info */}
+                        <section
+                            className={`p-4 rounded-xl border flex flex-col gap-2.5 ${
+                                eligibility?.dailyLimitReached || eligibility?.refundPeriodExpired
+                                    ? 'bg-[#FFF5F5] border-[#FECACA]'
+                                    : 'bg-[#F0F5FF] border-[#2065D1]/20'
+                            }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <i
+                                    className={`fa-solid text-[13px] ${
+                                        eligibility?.dailyLimitReached || eligibility?.refundPeriodExpired
+                                            ? 'fa-circle-exclamation text-[#C62828]'
+                                            : 'fa-circle-info text-[#2065D1]'
+                                    }`}
+                                    aria-hidden
+                                />
+                                <h3
+                                    className={`text-[13px] font-bold ${
+                                        eligibility?.dailyLimitReached || eligibility?.refundPeriodExpired
+                                            ? 'text-[#C62828]'
+                                            : 'text-[#2065D1]'
+                                    }`}
+                                >
+                                    Quy định hoàn tiền
+                                </h3>
+                            </div>
+                            <div className="flex flex-col gap-1.5 text-[13px] text-[#454F5B]">
+                                <p>
+                                    Số yêu cầu hoàn tiền hôm nay:{' '}
+                                    <span className="font-bold tabular-nums text-[#212B36]">
+                                        {eligibility?.refundRequestsSubmittedToday ?? 0}
+                                        {' / '}
+                                        {eligibility?.maxRefundRequestsPerDay ?? '—'}
+                                    </span>
+                                </p>
+                                <p>
+                                    Thời hạn yêu cầu hoàn tiền:{' '}
+                                    <span className="font-bold text-[#212B36]">
+                                        Trong vòng {eligibility?.refundRequestAllowedDays ?? '—'} ngày kể từ ngày đặt
+                                        đơn
+                                    </span>
+                                </p>
+                            </div>
+                            {(eligibility?.dailyLimitReached || eligibility?.refundPeriodExpired) &&
+                                eligibility?.reason && (
+                                    <p className="text-[12px] text-[#C62828] leading-relaxed pt-1 border-t border-[#FECACA]">
+                                        {eligibility.reason}
+                                    </p>
+                                )}
+                        </section>
+
                         {/* 2. Bank account */}
                         <section className="flex flex-col gap-2">
                             <label className="text-[13px] font-bold text-[#454F5B]">Tài khoản nhận hoàn *</label>
@@ -485,12 +537,19 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                                 {isSubmitting ? (
                                     <i className="fa-solid fa-spinner fa-spin" />
                                 ) : isRefundBlocked ? (
-                                    'Hết thời gian hoàn tiền'
+                                    eligibility?.reason?.trim()
+                                        ? 'Không thể gửi yêu cầu'
+                                        : 'Hết thời gian hoàn tiền'
                                 ) : (
                                     'Xác nhận hủy & hoàn tiền'
                                 )}
                             </button>
                         </div>
+                        {isRefundBlocked && eligibility?.reason && (
+                            <p className="text-[12px] text-[#C62828] leading-relaxed text-center sm:text-left">
+                                {eligibility.reason}
+                            </p>
+                        )}
                     </form>
                 </div>
             </div>

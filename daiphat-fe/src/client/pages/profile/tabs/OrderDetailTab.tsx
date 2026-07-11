@@ -136,14 +136,16 @@ export const OrderDetailTab = () => {
     const getPendingRefundForDetail = (detailId: number) =>
         orderRefunds.find(
             (r) =>
-                r.refundType === RefundType.ORDER_DETAIL &&
-                r.orderDetailId === detailId &&
+                (r.refundType === RefundType.ORDER_DETAIL || r.refundType === RefundType.FULL_ORDER) &&
+                (r.orderDetailIds?.includes(detailId) || r.orderDetailId === detailId) &&
                 r.status === RefundRequestStatus.PENDING
         );
 
     const getRefundForDetail = (detailId: number) =>
         orderRefunds.find(
-            (r) => r.refundType === RefundType.ORDER_DETAIL && r.orderDetailId === detailId
+            (r) =>
+                (r.refundType === RefundType.ORDER_DETAIL || r.refundType === RefundType.FULL_ORDER) &&
+                (r.orderDetailIds?.includes(detailId) || r.orderDetailId === detailId)
         );
 
     const isRefundCandidate =
@@ -152,21 +154,27 @@ export const OrderDetailTab = () => {
         order?.id || '',
         isRefundCandidate
     );
-    const refundEligible = eligibilityData?.data?.eligible === true;
-    const refundIneligibleReason = eligibilityData?.data?.reason;
+    const eligibility = eligibilityData?.data;
+    const refundEligible = eligibility?.eligible === true;
+    const refundIneligibleReason = eligibility?.reason;
     const refundRemainingSeconds =
-        eligibilityData?.data?.remainingSeconds ?? order?.refundRemainingSeconds ?? 0;
+        eligibility?.remainingSeconds ?? order?.refundRemainingSeconds ?? 0;
     const { secondsLeft: refundSecondsLeft, isLowTime: isRefundLowTime, isExpired: isRefundExpired } =
         useRefundCountdown({
-            refundDeadlineAt: eligibilityData?.data?.refundDeadlineAt,
+            refundDeadlineAt: eligibility?.refundDeadlineAt,
             paymentSuccessAt:
-                eligibilityData?.data?.paymentSuccessAt ?? order?.refundPaymentSuccessAt,
-            graceMinutes: eligibilityData?.data?.graceMinutes ?? order?.refundGraceMinutes,
+                eligibility?.paymentSuccessAt ?? order?.refundPaymentSuccessAt,
+            graceMinutes: eligibility?.graceMinutes ?? order?.refundGraceMinutes,
             remainingSeconds: refundRemainingSeconds,
             enabled: isRefundCandidate && !isLoadingEligibility
         });
     const showRefundAction =
         isRefundCandidate && !isLoadingEligibility && refundEligible && !isRefundExpired;
+    const showRefundUnavailable =
+        isRefundCandidate &&
+        !isLoadingEligibility &&
+        (!refundEligible || isRefundExpired) &&
+        !pendingFullOrderRefund;
 
     const openRefundModal = () => {
         setShowRefundModal(true);
@@ -602,79 +610,136 @@ export const OrderDetailTab = () => {
 
             {showRefundAction && (
                 <div
-                    className={`rounded-2xl px-5 py-4 border mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                    className={`rounded-2xl px-5 py-4 border mb-6 flex flex-col gap-4 ${
                         isRefundLowTime
                             ? 'bg-[#FFF9F3] border-[#FFB020]/25'
                             : 'bg-[#F8FAFC] border-[#E5E8EB]'
                     }`}
                 >
-                    <div className="flex items-start gap-3 min-w-0">
-                        <div
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                                isRefundLowTime
-                                    ? 'bg-[#FFF4E5] text-[#B76E00]'
-                                    : 'bg-white border border-[#E5E8EB] text-[#919EAB]'
-                            }`}
-                        >
-                            <i className="fa-solid fa-rotate-left text-[13px]"></i>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3 min-w-0">
+                            <div
+                                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                    isRefundLowTime
+                                        ? 'bg-[#FFF4E5] text-[#B76E00]'
+                                        : 'bg-white border border-[#E5E8EB] text-[#919EAB]'
+                                }`}
+                            >
+                                <i className="fa-solid fa-rotate-left text-[13px]"></i>
+                            </div>
+                            <div className="min-w-0 pt-0.5">
+                                <p className="text-[14px] font-semibold text-[#212B36] leading-tight">
+                                    Hủy đơn & hoàn tiền
+                                </p>
+                                <p className="text-[12px] text-[#637381] mt-1 leading-relaxed">
+                                    Bạn có thể yêu cầu hoàn tiền trong{' '}
+                                    {eligibility?.graceMinutes ?? order.refundGraceMinutes ?? 30} phút
+                                    kể từ khi thanh toán, và trong vòng{' '}
+                                    {eligibility?.refundRequestAllowedDays ?? 7} ngày kể từ ngày đặt đơn.
+                                </p>
+                            </div>
                         </div>
-                        <div className="min-w-0 pt-0.5">
-                            <p className="text-[14px] font-semibold text-[#212B36] leading-tight">
-                                Hủy đơn & hoàn tiền
-                            </p>
-                            <p className="text-[12px] text-[#637381] mt-1 leading-relaxed">
-                                Bạn có thể yêu cầu hoàn tiền trong{' '}
-                                {eligibilityData?.data?.graceMinutes ?? order.refundGraceMinutes ?? 30} phút
-                                kể từ khi thanh toán thành công.
-                            </p>
+
+                        <div className="flex items-center gap-2.5 shrink-0 self-stretch sm:self-center pl-0 sm:pl-2">
+                            <button
+                                onClick={() => openRefundModal()}
+                                className="h-9 px-4 rounded-xl bg-[#ee1314] text-white text-[13px] font-semibold hover:bg-[#c80f11] transition-colors cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap shadow-sm shadow-[#ee1314]/15"
+                            >
+                                <i className="fa-solid fa-rotate-left text-[11px]"></i>
+                                Yêu cầu hoàn tiền
+                            </button>
+                            <div
+                                className={`h-9 px-3 rounded-xl border flex flex-col items-center justify-center tabular-nums min-w-[7.25rem] ${
+                                    isRefundLowTime
+                                        ? 'bg-[#FFF9F3] border-[#FFB020]/40'
+                                        : 'bg-[#F0F5FF] border-[#2065D1]/20'
+                                }`}
+                                title={
+                                    isRefundLowTime
+                                        ? 'Sắp hết thời gian yêu cầu hoàn tiền'
+                                        : 'Thời gian còn lại để yêu cầu hoàn tiền'
+                                }
+                            >
+                                <p
+                                    className={`text-[9px] font-medium leading-none tracking-wide uppercase ${
+                                        isRefundLowTime ? 'text-[#B76E00]' : 'text-[#637381]'
+                                    }`}
+                                >
+                                    {isRefundLowTime ? 'Sắp hết hạn' : 'Còn lại'}
+                                </p>
+                                <p
+                                    className={`text-[12px] font-bold leading-none mt-1 ${
+                                        isRefundLowTime ? 'text-[#B76E00]' : 'text-[#2065D1]'
+                                    }`}
+                                >
+                                    {formatRefundCountdown(refundSecondsLeft)}
+                                </p>
+                            </div>
                         </div>
                     </div>
-
-                    <div className="flex items-center gap-2.5 shrink-0 self-stretch sm:self-center pl-0 sm:pl-2">
-                        <button
-                            onClick={() => openRefundModal()}
-                            className="h-9 px-4 rounded-xl bg-[#ee1314] text-white text-[13px] font-semibold hover:bg-[#c80f11] transition-colors cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap shadow-sm shadow-[#ee1314]/15"
-                        >
-                            <i className="fa-solid fa-rotate-left text-[11px]"></i>
-                            Yêu cầu hoàn tiền
-                        </button>
-                        <div
-                            className={`h-9 px-3 rounded-xl border flex flex-col items-center justify-center tabular-nums min-w-[7.25rem] ${
-                                isRefundLowTime
-                                    ? 'bg-[#FFF9F3] border-[#FFB020]/40'
-                                    : 'bg-[#F0F5FF] border-[#2065D1]/20'
-                            }`}
-                            title={
-                                isRefundLowTime
-                                    ? 'Sắp hết thời gian yêu cầu hoàn tiền'
-                                    : 'Thời gian còn lại để yêu cầu hoàn tiền'
-                            }
-                        >
-                            <p
-                                className={`text-[9px] font-medium leading-none tracking-wide uppercase ${
-                                    isRefundLowTime ? 'text-[#B76E00]' : 'text-[#637381]'
-                                }`}
-                            >
-                                {isRefundLowTime ? 'Sắp hết hạn' : 'Còn lại'}
-                            </p>
-                            <p
-                                className={`text-[12px] font-bold leading-none mt-1 ${
-                                    isRefundLowTime ? 'text-[#B76E00]' : 'text-[#2065D1]'
-                                }`}
-                            >
-                                {formatRefundCountdown(refundSecondsLeft)}
-                            </p>
-                        </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px] text-[#637381] border-t border-[#E5E8EB] pt-3">
+                        <p>
+                            Số yêu cầu hôm nay:{' '}
+                            <span className="font-semibold text-[#212B36] tabular-nums">
+                                {eligibility?.refundRequestsSubmittedToday ?? 0}/
+                                {eligibility?.maxRefundRequestsPerDay ?? '—'}
+                            </span>
+                        </p>
+                        <p>
+                            Thời hạn yêu cầu:{' '}
+                            <span className="font-semibold text-[#212B36]">
+                                Trong {eligibility?.refundRequestAllowedDays ?? 7} ngày kể từ ngày đặt đơn
+                            </span>
+                        </p>
                     </div>
                 </div>
             )}
 
-            {isRefundCandidate && !isLoadingEligibility && !refundEligible && refundIneligibleReason && (
-                <div className="rounded-2xl px-5 py-4 border border-[#E5E8EB] bg-[#F9FAFB] flex items-start gap-3 mb-6">
-                    <div className="w-9 h-9 rounded-xl bg-white border border-[#E5E8EB] text-[#919EAB] flex items-center justify-center shrink-0">
-                        <i className="fa-solid fa-circle-info text-[13px]"></i>
+            {showRefundUnavailable && (
+                <div className="rounded-2xl px-5 py-4 border border-[#E5E8EB] bg-[#F9FAFB] flex flex-col gap-3 mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-white border border-[#E5E8EB] text-[#919EAB] flex items-center justify-center shrink-0">
+                                <i className="fa-solid fa-circle-info text-[13px]"></i>
+                            </div>
+                            <div className="min-w-0 pt-0.5">
+                                <p className="text-[14px] font-semibold text-[#212B36] leading-tight">
+                                    Hủy đơn & hoàn tiền
+                                </p>
+                                <div className="mt-1.5 flex flex-col gap-1 text-[12px] text-[#637381]">
+                                    <p>
+                                        Số yêu cầu hôm nay:{' '}
+                                        <span className="font-semibold text-[#212B36] tabular-nums">
+                                            {eligibility?.refundRequestsSubmittedToday ?? 0}/
+                                            {eligibility?.maxRefundRequestsPerDay ?? '—'}
+                                        </span>
+                                    </p>
+                                    <p>
+                                        Thời hạn yêu cầu:{' '}
+                                        <span className="font-semibold text-[#212B36]">
+                                            Trong {eligibility?.refundRequestAllowedDays ?? 7} ngày kể từ ngày đặt
+                                            đơn
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            disabled
+                            className="h-9 px-4 rounded-xl bg-[#C4CDD5] text-white text-[13px] font-semibold cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap self-start sm:self-center opacity-80"
+                        >
+                            <i className="fa-solid fa-rotate-left text-[11px]"></i>
+                            Yêu cầu hoàn tiền
+                        </button>
                     </div>
-                    <p className="text-[13px] text-[#637381] leading-relaxed pt-2">{refundIneligibleReason}</p>
+                    {(refundIneligibleReason || isRefundExpired) && (
+                        <p className="text-[13px] text-[#637381] leading-relaxed border-t border-[#E5E8EB] pt-3">
+                            {isRefundExpired && refundEligible
+                                ? 'Đã hết thời gian yêu cầu hoàn tiền cho đơn hàng này.'
+                                : refundIneligibleReason}
+                        </p>
+                    )}
                 </div>
             )}
 
