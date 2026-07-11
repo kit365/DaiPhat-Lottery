@@ -165,6 +165,8 @@ public class GlobalExceptionAdvice {
                 || errorCode == ErrorCode.REFUND_REQUEST_INVALID_AMOUNT
                 || errorCode == ErrorCode.REFUND_REQUEST_BANK_ACCOUNT_MISMATCH
                 || errorCode == ErrorCode.REFUND_ORDER_ALREADY_REQUESTED
+                || errorCode == ErrorCode.REFUND_DAILY_LIMIT_EXCEEDED
+                || errorCode == ErrorCode.REFUND_PERIOD_EXPIRED
                 || errorCode == ErrorCode.ORDER_INVALID_STATUS) {
             return exception.getInternalMessage();
         }
