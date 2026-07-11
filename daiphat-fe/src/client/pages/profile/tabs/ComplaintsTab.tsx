@@ -5,6 +5,7 @@ import { ComplaintStatusBadge } from '../../../components/support/ComplaintStatu
 import { ComplaintFormModal } from '../../../components/support/ComplaintFormModal';
 import { useGetMyTickets, useGetTicketCategories } from '../../../hooks/useSupportTicket';
 import { TicketStatus, TICKET_STATUS_LABELS } from '../../../../types/support.type';
+import { ProfileTablePagination } from '../components/ProfileTablePagination';
 
 const STATUS_TABS: { value: TicketStatus | 'ALL'; label: string }[] = [
     { value: 'ALL', label: 'Tất cả' },
@@ -177,42 +178,12 @@ export const ComplaintsTab = () => {
                     </table>
                 </div>
 
-                {pagination && pagination.totalPages > 1 && (
-                    <div className="flex items-center justify-between p-5 border-t border-[#E5E8EB]">
-                        <div className="text-[14px] text-[#637381]">
-                            Hiển thị {(page - 1) * 10 + 1} đến{' '}
-                            {Math.min(page * 10, pagination.totalRecords)} trong tổng số{' '}
-                            {pagination.totalRecords}
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <button
-                                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                disabled={pagination.isFirst}
-                                className={`w-8 h-8 rounded border border-[#E5E8EB] flex items-center justify-center transition-colors ${
-                                    pagination.isFirst
-                                        ? 'text-[#C4CDD5] cursor-not-allowed bg-[#F9FAFB]'
-                                        : 'text-[#919EAB] hover:bg-[#F4F6F8] cursor-pointer'
-                                }`}
-                            >
-                                <i className="fa-solid fa-chevron-left text-[12px]"></i>
-                            </button>
-                            <button className="w-8 h-8 rounded bg-[#ee1314] flex items-center justify-center text-white font-medium text-[13px] cursor-pointer">
-                                {page}
-                            </button>
-                            <button
-                                onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                                disabled={pagination.isLast}
-                                className={`w-8 h-8 rounded border border-[#E5E8EB] flex items-center justify-center transition-colors ${
-                                    pagination.isLast
-                                        ? 'text-[#C4CDD5] cursor-not-allowed bg-[#F9FAFB]'
-                                        : 'text-[#919EAB] hover:bg-[#F4F6F8] cursor-pointer'
-                                }`}
-                            >
-                                <i className="fa-solid fa-chevron-right text-[12px]"></i>
-                            </button>
-                        </div>
-                    </div>
-                )}
+                <ProfileTablePagination
+                    page={page}
+                    pageSize={10}
+                    pagination={pagination}
+                    onPageChange={setPage}
+                />
             </div>
 
             <ComplaintFormModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} />
