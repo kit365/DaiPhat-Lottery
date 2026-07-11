@@ -14,6 +14,7 @@ import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.RefundGraceEvaluation;
+import com.daiphat.coreapi.application.service.refund.OrderRefundPolicyService.PolicyEvaluation;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
@@ -49,6 +50,7 @@ public class OrderRefundService implements OrderRefundServicePort {
     private final LotteryTicketSerialServicePort lotteryTicketSerialServicePort;
     private final RefundApplicationMapper refundApplicationMapper;
     private final OrderRefundGraceService orderRefundGraceService;
+    private final OrderRefundPolicyService orderRefundPolicyService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -61,7 +63,7 @@ public class OrderRefundService implements OrderRefundServicePort {
 
         ensureOrderOwnedByCustomer(order, customerId);
 
-        ensureRefundEligible(order);
+        ensureRefundEligible(order, customerId);
 
         UserBankAccountModel bankAccount = userBankAccountRepositoryPort
                 .findByIdAndUserId(request.bankAccountId(), customerId)
@@ -82,6 +84,11 @@ public class OrderRefundService implements OrderRefundServicePort {
         refundRequest.initializeForCreate();
 
         RefundRequestModel savedRefund = refundRequestRepositoryPort.save(refundRequest);
+        int linked = refundRequestRepositoryPort.linkOrderDetailsByOrderId(orderId, savedRefund.getId());
+        if (linked <= 0 && order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
+            throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
+        }
+        savedRefund.setOrderDetailIds(refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(savedRefund.getId()));
         publishRefundStatusChanged(savedRefund, order.getOrderCode());
         return refundApplicationMapper.toRefundResponse(savedRefund, bankAccount);
     }
@@ -94,24 +101,35 @@ public class OrderRefundService implements OrderRefundServicePort {
 
         ensureOrderOwnedByCustomer(order, customerId);
 
-        RefundGraceEvaluation evaluation = orderRefundGraceService.evaluate(order);
+        RefundGraceEvaluation grace = orderRefundGraceService.evaluate(order);
+        PolicyEvaluation policy = orderRefundPolicyService.evaluate(order, customerId);
+        boolean eligible = grace.eligible() && policy.eligible();
+        String reason = !grace.eligible()
+                ? grace.reason()
+                : (!policy.eligible() ? policy.reason() : null);
         List<RefundEligibleTicketItemResponse> refundTickets = buildRefundTicketItems(order);
         BigDecimal totalRefundAmount = calculateRefundAmount(order);
 
         return new OrderRefundEligibilityResponse(
-                evaluation.eligible(),
-                evaluation.reason(),
-                evaluation.remainingSeconds(),
-                evaluation.graceMinutes(),
-                evaluation.refundDeadlineAt(),
-                evaluation.paymentSuccessAt(),
+                eligible,
+                reason,
+                grace.remainingSeconds(),
+                grace.graceMinutes(),
+                grace.refundDeadlineAt(),
+                grace.paymentSuccessAt(),
                 order.getId(),
                 order.getOrderCode(),
                 order.getStatus() != null ? order.getStatus().name() : null,
                 order.getTotalAmount(),
                 order.getCreatedAt(),
                 refundTickets,
-                totalRefundAmount);
+                totalRefundAmount,
+                policy.maxRefundRequestsPerDay(),
+                policy.refundRequestsSubmittedToday(),
+                policy.refundRequestAllowedDays(),
+                policy.refundPeriodDeadlineAt(),
+                policy.dailyLimitReached(),
+                policy.refundPeriodExpired());
     }
 
     private List<RefundEligibleTicketItemResponse> buildRefundTicketItems(OrderModel order) {
@@ -179,8 +197,9 @@ public class OrderRefundService implements OrderRefundServicePort {
         }
     }
 
-    private void ensureRefundEligible(OrderModel order) {
+    private void ensureRefundEligible(OrderModel order, UUID customerId) {
         orderRefundGraceService.ensureEligible(order);
+        orderRefundPolicyService.ensureWithinPolicy(order, customerId);
     }
 
     private BigDecimal calculateRefundAmount(OrderModel order) {
