@@ -9,7 +9,6 @@ import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
-import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.RefundGraceEvaluation;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
@@ -93,7 +92,7 @@ class OrderRefundServiceTest {
         UserBankAccountModel bankAccount = UserBankAccountModel.builder().id(5L).userId(customerId).build();
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
-        when(refundRequestRepositoryPort.existsActiveByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(false);
         when(userBankAccountRepositoryPort.findByIdAndUserId(5L, customerId)).thenReturn(Optional.of(bankAccount));
         when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(refundApplicationMapper.toRefundResponse(any(), any())).thenReturn(null);
@@ -117,7 +116,7 @@ class OrderRefundServiceTest {
                 .build();
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
-        when(refundRequestRepositoryPort.existsActiveByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(false);
 
         assertThatThrownBy(() -> orderRefundService.refundPaidOrder(
                 orderId, customerId, new CreateOrderRefundRequest("reason", 1L)))
@@ -133,7 +132,7 @@ class OrderRefundServiceTest {
         UserBankAccountModel bankAccount = UserBankAccountModel.builder().id(5L).userId(customerId).build();
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
-        when(refundRequestRepositoryPort.existsActiveByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(false);
         when(userBankAccountRepositoryPort.findByIdAndUserId(5L, customerId)).thenReturn(Optional.of(bankAccount));
         when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(refundApplicationMapper.toRefundResponse(any(), any())).thenReturn(null);
@@ -148,6 +147,23 @@ class OrderRefundServiceTest {
         verify(orderRepositoryPort, never()).save(any());
         verify(lotteryTicketServicePort, never()).returnSoldTicketForOrder(any());
         verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
+    }
+
+    @Test
+    @DisplayName("refundPaidOrder: rejects when order already has a refund request")
+    void refundPaidOrder_rejectsWhenRefundAlreadyExists() {
+        OrderModel order = orderBuilder(OrderStatus.PREPARING).build();
+
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(true);
+
+        assertThatThrownBy(() -> orderRefundService.refundPaidOrder(
+                orderId, customerId, new CreateOrderRefundRequest("reason", 1L)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
     }
 
     @Test
@@ -166,7 +182,7 @@ class OrderRefundServiceTest {
         UserBankAccountModel bankAccount = UserBankAccountModel.builder().id(5L).userId(customerId).build();
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
-        when(refundRequestRepositoryPort.existsActiveByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(false);
         when(userBankAccountRepositoryPort.findByIdAndUserId(5L, customerId)).thenReturn(Optional.of(bankAccount));
         when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -184,7 +200,7 @@ class OrderRefundServiceTest {
     void getRefundEligibility_preparingEligible() {
         OrderModel order = orderBuilder(OrderStatus.PREPARING).build();
         when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
-        when(refundRequestRepositoryPort.existsActiveByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(false);
 
         var response = orderRefundService.getRefundEligibility(orderId, customerId);
 
