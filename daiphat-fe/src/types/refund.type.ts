@@ -81,6 +81,7 @@ export interface VietQrBankResponse {
 export interface CreateRefundRequestRequest {
     refundType: RefundType;
     orderId: string;
+    /** @deprecated Partial refunds are not supported; full order refund links all order details. */
     orderDetailId?: number;
     refundAmount: number;
     refundReason: string;
@@ -116,6 +117,12 @@ export interface OrderRefundEligibilityResponse {
     orderCreatedAt?: string;
     refundTickets?: RefundEligibleTicketItem[];
     totalRefundAmount?: number;
+    maxRefundRequestsPerDay?: number;
+    refundRequestsSubmittedToday?: number;
+    refundRequestAllowedDays?: number;
+    refundPeriodDeadlineAt?: string;
+    dailyLimitReached?: boolean;
+    refundPeriodExpired?: boolean;
 }
 
 export const REFUNDABLE_ORDER_STATUSES: OrderStatus[] = [
@@ -202,6 +209,8 @@ export interface RefundRequestResponse {
     id: number;
     refundType: RefundType;
     orderId: string;
+    orderDetailIds?: number[];
+    /** @deprecated Prefer orderDetailIds */
     orderDetailId?: number;
     requestedBy: string;
     requestRole: RefundRequestRole;

@@ -126,10 +126,12 @@ export const RefundDetailTab = () => {
                                 Xem đơn hàng
                             </Link>
                         </div>
-                        {refund.orderDetailId && (
+                        {(refund.orderDetailIds?.length ?? 0) > 0 && (
                             <div className="flex flex-col gap-1">
-                                <span className="text-[13px] text-[#637381]">Mã chi tiết vé</span>
-                                <span className="text-[15px] font-semibold text-[#212B36]">#{refund.orderDetailId}</span>
+                                <span className="text-[13px] text-[#637381]">Số chi tiết vé trong yêu cầu</span>
+                                <span className="text-[15px] font-semibold text-[#212B36]">
+                                    {refund.orderDetailIds!.length} vé
+                                </span>
                             </div>
                         )}
                         <div className="flex flex-col gap-1">

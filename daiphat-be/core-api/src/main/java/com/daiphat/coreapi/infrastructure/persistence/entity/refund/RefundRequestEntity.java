@@ -18,16 +18,13 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-@Table(
-        name = "refund_requests",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_refund_requests_order_id", columnNames = "order_id")
-        }
-)
+@Table(name = "refund_requests")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -43,13 +40,14 @@ public class RefundRequestEntity {
     @Column(name = "refund_type", nullable = false, length = 30)
     private RefundType refundType;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false, unique = true)
+    /** Denormalized order reference for listing/filtering; authoritative link is via orderDetails. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false)
     private OrderEntity order;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_detail_id")
-    private OrderDetailEntity orderDetail;
+    @OneToMany(mappedBy = "refundRequest", fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<OrderDetailEntity> orderDetails = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "requested_by", nullable = false)
@@ -125,10 +123,6 @@ public class RefundRequestEntity {
 
     public UUID getOrderId() {
         return order != null ? order.getId() : null;
-    }
-
-    public Long getOrderDetailId() {
-        return orderDetail != null ? orderDetail.getId() : null;
     }
 
     public UUID getRequestedById() {

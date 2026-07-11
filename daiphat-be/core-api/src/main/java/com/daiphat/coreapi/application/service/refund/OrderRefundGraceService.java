@@ -51,7 +51,7 @@ public class OrderRefundGraceService {
             return ineligible("Trạng thái đơn hàng không cho phép yêu cầu hoàn tiền.", graceMinutes, null, null);
         }
 
-        if (order.getId() != null && refundRequestRepositoryPort.existsByOrderId(order.getId())) {
+        if (order.getId() != null && refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(order.getId())) {
             return ineligible(ALREADY_REQUESTED_REASON, graceMinutes, null, null);
         }
 

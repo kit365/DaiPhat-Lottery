@@ -44,8 +44,18 @@ public interface RefundRequestRepositoryPort {
 
     boolean existsActiveByOrderId(UUID orderId);
 
-    /** True if any refund request exists for the order (1:1 — any status blocks a second create). */
+    /** True if any refund request row exists for the order (denormalized order_id). */
     boolean existsByOrderId(UUID orderId);
+
+    /** True if any order detail of the order is already linked to a refund request. */
+    boolean existsLinkedOrderDetailByOrderId(UUID orderId);
+
+    /** Links all unlinked order details of the order to the refund request. Returns linked count. */
+    int linkOrderDetailsByOrderId(UUID orderId, Long refundRequestId);
+
+    List<Long> findOrderDetailIdsByRefundRequestId(Long refundRequestId);
+
+    long countByRequestedByAndCreatedAtFrom(UUID requestedBy, java.time.LocalDateTime createdFrom);
 
     List<RefundRequestModel> findExpirableByStatusesAndCreatedBefore(
             Collection<RefundRequestStatus> statuses,
