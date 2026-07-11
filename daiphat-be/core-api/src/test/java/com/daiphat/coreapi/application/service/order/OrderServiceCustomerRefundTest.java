@@ -104,7 +104,7 @@ class OrderServiceCustomerRefundTest {
 
         when(orderRepositoryPort.findMyOrders(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(order), PageRequest.of(0, 10), 1));
-        when(refundRequestRepositoryPort.existsActiveByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(false);
         when(transactionRepositoryPort.findLatestPaymentSuccessAt(orderId)).thenReturn(Optional.of(paidAt));
 
         var response = orderService.getMyOrders(1, 10, List.of(), null, null, List.of(), null, "createdAt", "DESC", customerId);
