@@ -8,7 +8,7 @@ import {
   useNotifications
 } from "../../hooks/useNotifications";
 import { NotificationResponse, NOTIFICATION_TYPE } from "../../../types/notifications.type";
-import { getNotificationPath } from "../../utils/notification.util";
+import { resolveNotificationNavigation } from "../../utils/notification.util";
 import {
   HEADER_DROPDOWN_ACTION_CLASS,
   HEADER_DROPDOWN_ITEM_TITLE_CLASS,
@@ -200,17 +200,23 @@ export const NotificationDropdown = () => {
             {notifications.map((notification) => {
               const meta = getNotificationMeta(notification.type);
               const IconComp = meta.icon;
-              const path = getNotificationPath(notification);
 
               return (
                 <div
                   key={notification.notificationId}
-                  onClick={() => {
+                  onClick={async () => {
                     if (!notification.isRead) {
                       markMyNotificationAsRead(notification.notificationId);
                     }
-                    if (path) {
-                      navigate(path);
+                    const result = await resolveNotificationNavigation(notification);
+                    if (result.kind === "navigate") {
+                      navigate(result.path);
+                      return;
+                    }
+                    if (result.kind === "unavailable") {
+                      navigate("/profile/notifications", {
+                        state: { unavailableMessage: result.message },
+                      });
                     }
                   }}
                   className={`relative flex gap-3 p-3 rounded-xl transition-colors hover:bg-slate-50 ${!notification.isRead ? "bg-[#FFF9F9]" : "bg-white opacity-[0.65]"
