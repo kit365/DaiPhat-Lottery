@@ -18,6 +18,12 @@ public record OrderRefundEligibilityResponse(
         BigDecimal orderTotalAmount,
         LocalDateTime orderCreatedAt,
         List<RefundEligibleTicketItemResponse> refundTickets,
-        BigDecimal totalRefundAmount
+        BigDecimal totalRefundAmount,
+        Integer maxRefundRequestsPerDay,
+        Long refundRequestsSubmittedToday,
+        Integer refundRequestAllowedDays,
+        LocalDateTime refundPeriodDeadlineAt,
+        Boolean dailyLimitReached,
+        Boolean refundPeriodExpired
 ) {
 }
