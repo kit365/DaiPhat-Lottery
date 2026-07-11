@@ -30,7 +30,9 @@ export const refundService = {
     },
 
     getById: async (id: number): Promise<ApiResponse<RefundRequestResponse>> => {
-        const response = await apiApp.get(`${BASE_URL}/${id}`);
+        const response = await apiApp.get(`${BASE_URL}/${id}`, {
+            skipGlobalErrorToast: true,
+        } as any);
         return response.data;
     },
 

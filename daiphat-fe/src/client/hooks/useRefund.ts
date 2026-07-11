@@ -25,7 +25,8 @@ export const useGetRefundDetail = (id: number) => {
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_REFUND_DETAIL, id],
         queryFn: () => refundService.getById(id),
-        enabled: !!id
+        enabled: Number.isFinite(id) && id > 0,
+        retry: false,
     });
 };
 

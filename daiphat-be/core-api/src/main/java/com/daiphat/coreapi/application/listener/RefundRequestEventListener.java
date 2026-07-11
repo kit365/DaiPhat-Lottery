@@ -40,7 +40,7 @@ public class RefundRequestEventListener {
                 .type(NotificationType.ORDER)
                 .channel(NotificationChannel.IN_APP)
                 .referenceId(String.valueOf(event.refundRequestId()))
-                .referenceType(NotificationReferenceType.ORDER)
+                .referenceType(NotificationReferenceType.REFUND)
                 .build();
         notification.markAsSent();
         notificationService.createNotification(notification);

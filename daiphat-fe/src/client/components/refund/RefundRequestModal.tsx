@@ -350,93 +350,77 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                             <span className="text-[11px] text-[#919EAB] text-right">{refundReason.length}/500</span>
                         </section>
 
-                        {/* 7. Countdown */}
-                        {isLoadingEligibility ? (
-                            <div className="p-4 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-center text-[13px] text-[#637381]">
-                                <i className="fa-solid fa-spinner fa-spin mr-2" />
-                                Đang tải thời hạn yêu cầu hoàn tiền...
-                            </div>
-                        ) : isRefundBlocked ? (
-                            <div className="p-5 bg-[#FFF5F5] border border-[#ee1314]/30 rounded-xl text-center">
-                                <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-[#ee1314]/10 flex items-center justify-center">
-                                    <i className="fa-solid fa-clock text-[#ee1314]" />
+                        {/* 7. Actions + compact countdown */}
+                        <div className="flex flex-col gap-3 pt-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                <div className="flex gap-3 flex-1">
+                                    <button
+                                        type="button"
+                                        onClick={handleClose}
+                                        disabled={isSubmitting}
+                                        className="flex-1 py-3 rounded-xl border border-[#E5E8EB] text-[#637381] font-bold text-[14px] hover:bg-[#F4F6F8] transition-colors cursor-pointer disabled:opacity-50"
+                                    >
+                                        Đóng
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={
+                                            isSubmitting ||
+                                            isLoadingBankAccounts ||
+                                            bankAccounts.length === 0 ||
+                                            isRefundBlocked
+                                        }
+                                        className="flex-1 py-3 rounded-xl bg-[#ee1314] text-white font-bold text-[14px] hover:bg-[#c80f11] transition-colors disabled:opacity-50 cursor-pointer"
+                                    >
+                                        {isSubmitting ? (
+                                            <i className="fa-solid fa-spinner fa-spin" />
+                                        ) : isRefundBlocked ? (
+                                            'Hết thời gian hoàn tiền'
+                                        ) : (
+                                            'Xác nhận hủy & hoàn tiền'
+                                        )}
+                                    </button>
                                 </div>
-                                <p className="text-[15px] font-bold text-[#ee1314]">
-                                    Đã hết thời gian yêu cầu hoàn tiền
-                                </p>
-                                <p className="text-[24px] font-bold text-[#ee1314] mt-2">
-                                    {formatRefundCountdown(0)}
-                                </p>
-                                <p className="text-[13px] text-[#637381] mt-2 leading-relaxed">
-                                    {eligibility?.reason ||
-                                        'Thời hạn yêu cầu hoàn tiền đã kết thúc. Vui lòng liên hệ hỗ trợ nếu cần trợ giúp.'}
-                                </p>
-                            </div>
-                        ) : (
-                            <div
-                                className={`p-5 rounded-xl border text-center ${
-                                    isLowTime
-                                        ? 'bg-[#FFF9F3] border-[#FFB020]/50'
-                                        : 'bg-[#F0F5FF] border-[#2065D1]/30'
-                                }`}
-                            >
-                                <p
-                                    className={`text-[13px] font-medium ${
-                                        isLowTime ? 'text-[#B76E00]' : 'text-[#637381]'
-                                    }`}
-                                >
-                                    {isLowTime ? (
-                                        <>
-                                            <i className="fa-solid fa-triangle-exclamation mr-1" />
-                                            Sắp hết thời gian yêu cầu hoàn tiền
-                                        </>
-                                    ) : (
-                                        'Thời gian còn lại để yêu cầu hoàn tiền'
-                                    )}
-                                </p>
-                                <p
-                                    className={`text-[28px] font-bold mt-1 tabular-nums ${
-                                        isLowTime ? 'text-[#B76E00]' : 'text-[#2065D1]'
-                                    }`}
-                                >
-                                    {formatRefundCountdown(secondsLeft)}
-                                </p>
-                                {eligibility?.graceMinutes != null && (
-                                    <p className="text-[12px] text-[#919EAB] mt-1">
-                                        Hạn chót: {eligibility.graceMinutes} phút kể từ khi thanh toán thành công
-                                    </p>
+                                {!isLoadingEligibility && (
+                                    <div
+                                        className={`px-3 py-2 rounded-lg border text-center tabular-nums shrink-0 sm:min-w-[7.5rem] ${
+                                            isRefundBlocked
+                                                ? 'bg-[#FFF5F5] border-[#ee1314]/25'
+                                                : isLowTime
+                                                  ? 'bg-[#FFF9F3] border-[#FFB020]/40'
+                                                  : 'bg-[#F0F5FF] border-[#2065D1]/20'
+                                        }`}
+                                    >
+                                        <p
+                                            className={`text-[10px] font-medium leading-none mb-1 ${
+                                                isRefundBlocked
+                                                    ? 'text-[#ee1314]'
+                                                    : isLowTime
+                                                      ? 'text-[#B76E00]'
+                                                      : 'text-[#919EAB]'
+                                            }`}
+                                        >
+                                            {isRefundBlocked ? 'Hết hạn' : isLowTime ? 'Sắp hết hạn' : 'Còn lại'}
+                                        </p>
+                                        <p
+                                            className={`text-[13px] font-bold leading-none ${
+                                                isRefundBlocked
+                                                    ? 'text-[#ee1314]'
+                                                    : isLowTime
+                                                      ? 'text-[#B76E00]'
+                                                      : 'text-[#2065D1]'
+                                            }`}
+                                        >
+                                            {formatRefundCountdown(isRefundBlocked ? 0 : secondsLeft)}
+                                        </p>
+                                    </div>
+                                )}
+                                {isLoadingEligibility && (
+                                    <div className="px-3 py-2 bg-[#F4F6F8] border border-[#E5E8EB] rounded-lg text-[12px] text-[#637381] text-center sm:min-w-[7.5rem]">
+                                        <i className="fa-solid fa-spinner fa-spin" />
+                                    </div>
                                 )}
                             </div>
-                        )}
-
-                        {/* 8. Submit */}
-                        <div className="flex gap-3 pt-2">
-                            <button
-                                type="button"
-                                onClick={handleClose}
-                                disabled={isSubmitting}
-                                className="flex-1 py-3 rounded-xl border border-[#E5E8EB] text-[#637381] font-bold text-[14px] hover:bg-[#F4F6F8] transition-colors cursor-pointer disabled:opacity-50"
-                            >
-                                Đóng
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={
-                                    isSubmitting ||
-                                    isLoadingBankAccounts ||
-                                    bankAccounts.length === 0 ||
-                                    isRefundBlocked
-                                }
-                                className="flex-1 py-3 rounded-xl bg-[#ee1314] text-white font-bold text-[14px] hover:bg-[#c80f11] transition-colors disabled:opacity-50 cursor-pointer"
-                            >
-                                {isSubmitting ? (
-                                    <i className="fa-solid fa-spinner fa-spin" />
-                                ) : isRefundBlocked ? (
-                                    'Hết thời gian hoàn tiền'
-                                ) : (
-                                    'Xác nhận hủy & hoàn tiền'
-                                )}
-                            </button>
                         </div>
                     </form>
                 </div>
