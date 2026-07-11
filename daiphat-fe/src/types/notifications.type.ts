@@ -20,8 +20,10 @@ export const NOTIFICATION_REFERENCE_TYPE = {
     AUTH: "AUTH",
     BLOG_POST: "BLOG_POST",
     ORDER: "ORDER",
+    REFUND: "REFUND",
     LOTTERY_STATION: "LOTTERY_STATION",
     SYSTEM: "SYSTEM",
+    SUPPORT_TICKET: "SUPPORT_TICKET",
 } as const;
 
 export type NotificationChannel = typeof NOTIFICATION_CHANNEL[keyof typeof NOTIFICATION_CHANNEL];
@@ -29,6 +31,13 @@ export type NotificationType = typeof NOTIFICATION_TYPE[keyof typeof NOTIFICATIO
 export type NotificationStatus = typeof NOTIFICATION_STATUS[keyof typeof NOTIFICATION_STATUS];
 export type NotificationReferenceType =
     typeof NOTIFICATION_REFERENCE_TYPE[keyof typeof NOTIFICATION_REFERENCE_TYPE];
+
+export interface NotificationReferenceAvailabilityResponse {
+    available: boolean;
+    referenceType?: NotificationReferenceType | null;
+    referenceId?: string | null;
+    message?: string | null;
+}
 
 export interface NotificationResponse {
     notificationId: number;
