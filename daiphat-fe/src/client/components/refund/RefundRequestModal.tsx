@@ -29,6 +29,50 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
     CANCELLED: 'Đã hủy'
 };
 
+const REFUND_REASON_SUGGESTIONS = [
+    'Đặt nhầm đơn',
+    'Tôi không còn nhu cầu mua vé',
+    'Thông tin đơn hàng không chính xác',
+    'Đơn hàng bị trùng',
+    'Sự cố thanh toán',
+    'Muốn đổi vé số khác',
+    'Khác'
+] as const;
+
+const appendRefundReason = (current: string, suggestion: string, maxLength = 500) => {
+    const trimmed = current.trim();
+    if (!trimmed) {
+        return suggestion.slice(0, maxLength);
+    }
+    if (trimmed.includes(suggestion)) {
+        return trimmed.slice(0, maxLength);
+    }
+    const separator = /[.!,;]$/.test(trimmed) ? ' ' : '. ';
+    return `${trimmed}${separator}${suggestion}`.slice(0, maxLength);
+};
+
+const removeRefundReasonSuggestion = (current: string, suggestion: string) => {
+    if (!current.includes(suggestion)) {
+        return current;
+    }
+
+    let next = current;
+    // Remove ". suggestion" / ", suggestion" / "; suggestion" / leading suggestion
+    const escaped = suggestion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    next = next.replace(new RegExp(`(^|[.\\s,;]+)${escaped}`, 'g'), (_match, prefix: string) => {
+        if (!prefix || !prefix.trim()) {
+            return '';
+        }
+        return prefix.replace(/\s+$/, '');
+    });
+
+    return next
+        .replace(/\s{2,}/g, ' ')
+        .replace(/\.\s*\./g, '.')
+        .replace(/^[.\s,;]+|[.\s,;]+$/g, '')
+        .trim();
+};
+
 export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, onClose, order }) => {
     const navigate = useNavigate();
     const { data: bankAccountsData, isLoading: isLoadingBankAccounts } = useGetBankAccounts(isOpen);
@@ -118,6 +162,17 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
         } catch {
             return value;
         }
+    };
+
+    const handleSuggestionClick = (suggestion: string) => {
+        if (isSubmitting || isRefundBlocked) return;
+
+        if (refundReason.includes(suggestion)) {
+            setRefundReason(removeRefundReasonSuggestion(refundReason, suggestion));
+            return;
+        }
+
+        setRefundReason(appendRefundReason(refundReason, suggestion));
     };
 
     if (!isOpen) return null;
@@ -347,7 +402,32 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                                 required
                                 disabled={isSubmitting || isRefundBlocked}
                             />
-                            <span className="text-[11px] text-[#919EAB] text-right">{refundReason.length}/500</span>
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-[12px] text-[#919EAB]">Gợi ý nhanh — chọn để điền lý do</p>
+                                <span className="text-[11px] text-[#919EAB] tabular-nums shrink-0">
+                                    {refundReason.length}/500
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {REFUND_REASON_SUGGESTIONS.map((suggestion) => {
+                                    const isSelected = refundReason.includes(suggestion);
+                                    return (
+                                        <button
+                                            key={suggestion}
+                                            type="button"
+                                            onClick={() => handleSuggestionClick(suggestion)}
+                                            disabled={isSubmitting || isRefundBlocked}
+                                            className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                                                isSelected
+                                                    ? 'bg-[#FFF4F4] border-[#ee1314]/40 text-[#ee1314]'
+                                                    : 'bg-[#F9FAFB] border-[#E5E8EB] text-[#637381] hover:border-[#C4CDD5] hover:bg-white hover:text-[#212B36]'
+                                            }`}
+                                        >
+                                            {suggestion}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </section>
 
                         {/* 7. Actions + compact countdown */}
