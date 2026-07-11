@@ -8,6 +8,9 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
 import com.daiphat.coreapi.application.port.in.refund.RefundRequestServicePort;
+import com.daiphat.coreapi.application.dto.response.notification.NotificationReferenceAvailabilityResponse;
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -77,9 +80,19 @@ public class RefundRequestController {
     public ApiResponse<RefundRequestResponse> getById(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        return ApiResponse.success(
-                "Lấy chi tiết yêu cầu hoàn tiền thành công.",
-                refundRequestServicePort.getById(id, principal.getId()));
+        try {
+            return ApiResponse.success(
+                    "Lấy chi tiết yêu cầu hoàn tiền thành công.",
+                    refundRequestServicePort.getById(id, principal.getId()));
+        } catch (DomainException ex) {
+            if (ex.getErrorCode() == ErrorCode.REFUND_REQUEST_NOT_FOUND) {
+                return ApiResponse.success(
+                        NotificationReferenceAvailabilityResponse.UNAVAILABLE_MESSAGE,
+                        null
+                );
+            }
+            throw ex;
+        }
     }
 
     @PatchMapping(ID_PATH + "/cancel")

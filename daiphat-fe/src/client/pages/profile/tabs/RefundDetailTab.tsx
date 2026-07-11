@@ -5,6 +5,10 @@ import { RefundRequestStatus, RefundType, isRefundTransferComplete, maskBankAcco
 import { RefundStatusBadge } from '../../../components/refund/RefundStatusBadge';
 import { RefundStatusStepper } from '../../../components/refund/RefundStatusStepper';
 import { AppToast } from '../../../../utils/toast.util';
+import {
+    UnavailableReferenceState,
+    UNAVAILABLE_REFERENCE_MESSAGE,
+} from '../../../components/notification/UnavailableReferenceState';
 
 const REFUND_TYPE_LABELS: Record<RefundType, string> = {
     [RefundType.FULL_ORDER]: 'Hoàn cả đơn',
@@ -41,12 +45,14 @@ export const RefundDetailTab = () => {
 
     if (isError || !refund) {
         return (
-            <div className="py-16 text-center flex flex-col items-center gap-4">
-                <p className="text-[14px] text-[#637381]">Không tìm thấy yêu cầu hoàn tiền</p>
-                <Link to="/profile/refunds" className="text-[#ee1314] font-bold text-[14px] hover:underline">
-                    Quay lại danh sách
-                </Link>
-            </div>
+            <UnavailableReferenceState
+                title="Thông báo không còn hiệu lực"
+                message={data?.message || UNAVAILABLE_REFERENCE_MESSAGE}
+                primaryTo="/profile/notifications"
+                primaryLabel="Về danh sách thông báo"
+                secondaryTo="/profile/refunds"
+                secondaryLabel="Xem yêu cầu hoàn tiền"
+            />
         );
     }
 

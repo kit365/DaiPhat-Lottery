@@ -44,6 +44,7 @@ export const useGetMyOrderDetail = (id: string) => {
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_MY_ORDER_DETAIL, id],
         queryFn: () => orderService.getMyOrderDetail(id),
-        enabled: !!id
+        enabled: !!id,
+        retry: false,
     });
 };
