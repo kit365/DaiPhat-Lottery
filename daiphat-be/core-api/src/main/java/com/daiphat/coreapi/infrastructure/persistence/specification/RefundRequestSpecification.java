@@ -2,6 +2,8 @@ package com.daiphat.coreapi.infrastructure.persistence.specification;
 
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -44,14 +46,23 @@ public final class RefundRequestSpecification {
                 predicates.add(cb.equal(root.get("status"), status));
             }
 
+            boolean needsOrderDetailJoin = orderId != null || (search != null && !search.isBlank());
+            Join<?, ?> orderJoin = null;
+            if (needsOrderDetailJoin) {
+                if (query != null) {
+                    query.distinct(true);
+                }
+                Join<?, ?> orderDetailsJoin = root.join("orderDetails", JoinType.LEFT);
+                orderJoin = orderDetailsJoin.join("order", JoinType.LEFT);
+            }
+
             if (orderId != null) {
-                predicates.add(cb.equal(root.get("order").get("id"), orderId));
+                predicates.add(cb.equal(orderJoin.get("id"), orderId));
             }
 
             if (search != null && !search.isBlank()) {
                 String likePattern = "%" + search.trim().toLowerCase() + "%";
-                var orderJoin = root.join("order");
-                var requestedByJoin = root.join("requestedBy");
+                var requestedByJoin = root.join("requestedBy", JoinType.LEFT);
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("refundReason")), likePattern),
                         cb.like(cb.lower(root.get("rejectReason")), likePattern),

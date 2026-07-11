@@ -3,7 +3,6 @@ package com.daiphat.coreapi.infrastructure.persistence.entity.order;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
-import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -70,9 +69,6 @@ public class OrderEntity {
 
     @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TransactionEntity> transactions;
-
-    @OneToOne(mappedBy = "order", fetch = FetchType.LAZY)
-    private RefundRequestEntity refundRequest;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

@@ -25,12 +25,6 @@ export enum OrderDetailStatus {
     REFUNDED = 'REFUNDED'
 }
 
-export enum OrderRefundStatus {
-    PENDING = 'PENDING',
-    APPROVED = 'APPROVED',
-    REJECTED = 'REJECTED'
-}
-
 export interface OrderTicketItemRequest {
     lotteryTicketId: number;
     quantity: number;

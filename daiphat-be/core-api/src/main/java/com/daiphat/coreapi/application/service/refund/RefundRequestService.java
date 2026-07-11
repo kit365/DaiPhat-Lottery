@@ -50,6 +50,7 @@ public class RefundRequestService implements RefundRequestServicePort {
     private final OrderRepositoryPort orderRepositoryPort;
     private final RefundApplicationMapper refundApplicationMapper;
     private final OrderRefundGraceService orderRefundGraceService;
+    private final OrderRefundPolicyService orderRefundPolicyService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -68,12 +69,12 @@ public class RefundRequestService implements RefundRequestServicePort {
         }
 
         orderRefundGraceService.ensureEligible(order);
+        orderRefundPolicyService.ensureWithinPolicy(order, userId);
 
         if (order.getStatus() != OrderStatus.PREPARING) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_USE_ORDER_REFUND_API);
         }
 
-        validateOrderDetail(request, order);
         validateCustomerFullOrderRefund(request, order);
 
         UserBankAccountModel bankAccount = userBankAccountRepositoryPort
@@ -81,9 +82,7 @@ public class RefundRequestService implements RefundRequestServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.REFUND_REQUEST_BANK_ACCOUNT_MISMATCH));
 
         RefundRequestModel refundRequest = RefundRequestModel.builder()
-                .refundType(request.refundType())
-                .orderId(request.orderId())
-                .orderDetailId(request.orderDetailId())
+                .refundType(RefundType.FULL_ORDER)
                 .requestedBy(userId)
                 .requestRole(RefundRequestRole.CUSTOMER)
                 .refundAmount(request.refundAmount())
@@ -93,6 +92,12 @@ public class RefundRequestService implements RefundRequestServicePort {
         refundRequest.initializeForCreate();
 
         RefundRequestModel saved = refundRequestRepositoryPort.save(refundRequest);
+        int linked = refundRequestRepositoryPort.linkOrderDetailsByOrderId(request.orderId(), saved.getId());
+        if (linked <= 0 && order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
+            throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
+        }
+        saved.setOrderId(request.orderId());
+        saved.setOrderDetailIds(refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(saved.getId()));
         publishRefundStatusChanged(saved, order.getOrderCode());
         return toResponse(saved, bankAccount);
     }
@@ -239,7 +244,7 @@ public class RefundRequestService implements RefundRequestServicePort {
         if (request.refundType() == RefundType.ORDER_DETAIL) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_PARTIAL_NOT_ALLOWED);
         }
-        if (request.refundType() == RefundType.FULL_ORDER && request.orderDetailId() != null) {
+        if (request.orderDetailId() != null) {
             throw new DomainException(ErrorCode.INVALID_INPUT);
         }
     }
@@ -263,21 +268,6 @@ public class RefundRequestService implements RefundRequestServicePort {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
         return order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO;
-    }
-
-    private void validateOrderDetail(CreateRefundRequestRequest request, OrderModel order) {
-        if (request.orderDetailId() == null) {
-            return;
-        }
-
-        boolean detailBelongsToOrder = order.getOrderDetails() != null
-                && order.getOrderDetails().stream()
-                        .map(OrderDetailModel::getId)
-                        .anyMatch(detailId -> detailId.equals(request.orderDetailId()));
-
-        if (!detailBelongsToOrder) {
-            throw new DomainException(ErrorCode.REFUND_REQUEST_ORDER_MISMATCH);
-        }
     }
 
     private RefundRequestStatus parseStatus(String status) {

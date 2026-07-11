@@ -113,7 +113,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         expireSilentlyIfOverdue(request);
 
         UserBankAccountModel bankAccount = loadBankAccount(request.getBankAccountId());
-        OrderModel order = orderRepositoryPort.findById(request.getOrderId())
+        OrderModel order = orderRepositoryPort.findById(requireOrderId(request))
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
 
         UserModel customer = userRepositoryPort.findById(request.getRequestedBy()).orElse(null);
@@ -156,7 +156,8 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         RefundRequestModel refund = getRequestOrThrow(id);
         ensureProcessable(refund);
 
-        OrderModel order = orderRepositoryPort.findByIdWithLock(refund.getOrderId())
+        UUID orderId = requireOrderId(refund);
+        OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
 
         if (!STAFF_APPROVABLE_ORDER_STATUSES.contains(order.getStatus())) {
@@ -192,7 +193,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
         publishRefundStatusChanged(saved);
 
-        String orderCode = orderRepositoryPort.findById(saved.getOrderId())
+        String orderCode = orderRepositoryPort.findById(requireOrderId(saved))
                 .map(OrderModel::getOrderCode)
                 .orElse(null);
         return toEnrichedResponse(saved, loadBankAccount(saved.getBankAccountId()), orderCode);
@@ -213,7 +214,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
         publishRefundStatusChanged(saved);
 
-        String orderCode = orderRepositoryPort.findById(saved.getOrderId())
+        String orderCode = orderRepositoryPort.findById(requireOrderId(saved))
                 .map(OrderModel::getOrderCode)
                 .orElse(null);
         return toEnrichedResponse(saved, loadBankAccount(saved.getBankAccountId()), orderCode);
@@ -285,6 +286,18 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 .orElseThrow(() -> new DomainException(ErrorCode.REFUND_REQUEST_NOT_FOUND));
     }
 
+    private UUID requireOrderId(RefundRequestModel refund) {
+        UUID orderId = refund.getOrderId();
+        if (orderId == null && refund.getId() != null) {
+            orderId = refundRequestRepositoryPort.findOrderIdByRefundRequestId(refund.getId()).orElse(null);
+            refund.setOrderId(orderId);
+        }
+        if (orderId == null) {
+            throw new DomainException(ErrorCode.ORDER_NOT_FOUND);
+        }
+        return orderId;
+    }
+
     private RefundRequestResponse toEnrichedResponse(
             RefundRequestModel model,
             UserBankAccountModel bankAccount,
@@ -350,16 +363,21 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     }
 
     private void publishRefundStatusChanged(RefundRequestModel refund) {
+        UUID orderId = refund.getOrderId();
+        if (orderId == null && refund.getId() != null) {
+            orderId = refundRequestRepositoryPort.findOrderIdByRefundRequestId(refund.getId()).orElse(null);
+            refund.setOrderId(orderId);
+        }
         String orderCode = null;
-        if (refund.getOrderId() != null) {
-            orderCode = orderRepositoryPort.findById(refund.getOrderId())
+        if (orderId != null) {
+            orderCode = orderRepositoryPort.findById(orderId)
                     .map(OrderModel::getOrderCode)
                     .orElse(null);
         }
         eventPublisher.publishEvent(RefundRequestStatusChangedEvent.builder()
                 .refundRequestId(refund.getId())
                 .customerId(refund.getRequestedBy())
-                .orderId(refund.getOrderId())
+                .orderId(orderId)
                 .orderCode(orderCode)
                 .status(refund.getStatus())
                 .rejectReason(refund.getRejectReason())
