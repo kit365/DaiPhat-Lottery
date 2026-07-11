@@ -16,7 +16,6 @@ import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepository
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.RefundGraceEvaluation;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
@@ -83,7 +82,7 @@ public class OrderRefundService implements OrderRefundServicePort {
         refundRequest.initializeForCreate();
 
         RefundRequestModel savedRefund = refundRequestRepositoryPort.save(refundRequest);
-        publishRefundStatusChanged(savedRefund);
+        publishRefundStatusChanged(savedRefund, order.getOrderCode());
         return refundApplicationMapper.toRefundResponse(savedRefund, bankAccount);
     }
 
@@ -181,10 +180,7 @@ public class OrderRefundService implements OrderRefundServicePort {
     }
 
     private void ensureRefundEligible(OrderModel order) {
-        RefundGraceEvaluation evaluation = orderRefundGraceService.evaluate(order);
-        if (!evaluation.eligible()) {
-            throw new DomainException(ErrorCode.REFUND_WINDOW_EXPIRED, evaluation.reason());
-        }
+        orderRefundGraceService.ensureEligible(order);
     }
 
     private BigDecimal calculateRefundAmount(OrderModel order) {
@@ -199,11 +195,12 @@ public class OrderRefundService implements OrderRefundServicePort {
         return order.getTotalAmount();
     }
 
-    private void publishRefundStatusChanged(RefundRequestModel refund) {
+    private void publishRefundStatusChanged(RefundRequestModel refund, String orderCode) {
         eventPublisher.publishEvent(RefundRequestStatusChangedEvent.builder()
                 .refundRequestId(refund.getId())
                 .customerId(refund.getRequestedBy())
                 .orderId(refund.getOrderId())
+                .orderCode(orderCode)
                 .status(refund.getStatus())
                 .rejectReason(refund.getRejectReason())
                 .transferNote(refund.getTransferNote())
