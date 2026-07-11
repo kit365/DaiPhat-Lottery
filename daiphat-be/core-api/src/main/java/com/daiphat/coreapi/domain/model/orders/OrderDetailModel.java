@@ -36,9 +36,6 @@ public class OrderDetailModel {
     @Builder.Default
     private OrderDetailStatus status = OrderDetailStatus.ACTIVE;
 
-    @Builder.Default
-    private List<OrderRefundModel> refunds = new ArrayList<>();
-
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
@@ -47,9 +44,6 @@ public class OrderDetailModel {
     public void initializeForCreate() {
         if (this.status == null) {
             this.status = OrderDetailStatus.ACTIVE;
-        }
-        if (this.refunds == null) {
-            this.refunds = new ArrayList<>();
         }
     }
 

@@ -2,14 +2,12 @@ package com.daiphat.coreapi.infrastructure.persistence.mapper.order;
 
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
-import com.daiphat.coreapi.domain.model.orders.OrderRefundModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
-import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderRefundEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import org.springframework.stereotype.Component;
@@ -116,14 +114,6 @@ public class OrderPersistenceMapper {
         entity.setCreatedBy(model.getCreatedBy());
         entity.setLastModifiedBy(model.getLastModifiedBy());
 
-        List<OrderRefundEntity> refundEntities = new ArrayList<>();
-        if (model.getRefunds() != null) {
-            for (OrderRefundModel refundModel : model.getRefunds()) {
-                refundEntities.add(toRefundEntity(refundModel, entity));
-            }
-        }
-        entity.setRefunds(refundEntities);
-
         List<OrderDetailSerialEntity> allocationEntities = new ArrayList<>();
         if (model.getId() == null
                 && model.getAllocatedSerialIds() != null
@@ -142,13 +132,6 @@ public class OrderPersistenceMapper {
     }
 
     private OrderDetailModel toDetailDomain(OrderDetailEntity entity) {
-        List<OrderRefundModel> refunds = new ArrayList<>();
-        if (entity.getRefunds() != null) {
-            for (OrderRefundEntity refundEntity : entity.getRefunds()) {
-                refunds.add(toRefundDomain(refundEntity));
-            }
-        }
-
         return OrderDetailModel.builder()
                 .id(entity.getId())
                 .orderId(entity.getOrder() != null ? entity.getOrder().getId() : null)
@@ -165,47 +148,6 @@ public class OrderPersistenceMapper {
                 .allocatedSerialIds(resolveAllocatedSerialIds(entity))
                 .price(entity.getPrice())
                 .status(entity.getStatus())
-                .refunds(refunds)
-                .createdAt(entity.getCreatedAt())
-                .updatedAt(entity.getUpdatedAt())
-                .createdBy(entity.getCreatedBy())
-                .lastModifiedBy(entity.getLastModifiedBy())
-                .build();
-    }
-
-    private OrderRefundEntity toRefundEntity(OrderRefundModel model, OrderDetailEntity detail) {
-        OrderRefundEntity entity = new OrderRefundEntity();
-        entity.setId(model.getId());
-        entity.setOrderDetail(detail);
-        entity.setStatus(model.getStatus());
-        entity.setRefundAmount(model.getRefundAmount());
-        entity.setRefundReason(model.getRefundReason());
-        entity.setBankBin(model.getBankBin());
-        entity.setBankName(model.getBankName());
-        entity.setBankAccountNo(model.getBankAccountNo());
-        entity.setBankAccountName(model.getBankAccountName());
-        entity.setRefundAt(model.getRefundAt());
-        entity.setRefundApprovedBy(userRef(model.getRefundApprovedBy()));
-        entity.setCreatedAt(model.getCreatedAt());
-        entity.setUpdatedAt(model.getUpdatedAt());
-        entity.setCreatedBy(model.getCreatedBy());
-        entity.setLastModifiedBy(model.getLastModifiedBy());
-        return entity;
-    }
-
-    private OrderRefundModel toRefundDomain(OrderRefundEntity entity) {
-        return OrderRefundModel.builder()
-                .id(entity.getId())
-                .orderDetailId(entity.getOrderDetail() != null ? entity.getOrderDetail().getId() : null)
-                .status(entity.getStatus())
-                .refundAmount(entity.getRefundAmount())
-                .refundReason(entity.getRefundReason())
-                .bankBin(entity.getBankBin())
-                .bankName(entity.getBankName())
-                .bankAccountNo(entity.getBankAccountNo())
-                .bankAccountName(entity.getBankAccountName())
-                .refundAt(entity.getRefundAt())
-                .refundApprovedBy(userId(entity.getRefundApprovedBy()))
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .createdBy(entity.getCreatedBy())

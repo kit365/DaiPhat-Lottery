@@ -9,13 +9,14 @@ import com.daiphat.coreapi.domain.model.enums.order.refund.ReimburseStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public record RefundRequestResponse(
         Long id,
         RefundType refundType,
         UUID orderId,
-        Long orderDetailId,
+        List<Long> orderDetailIds,
         UUID requestedBy,
         RefundRequestRole requestRole,
         RefundRequestStatus status,

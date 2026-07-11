@@ -64,7 +64,7 @@ class OrderRefundGraceServiceTest {
                         .build()))
                 .build();
 
-        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
 
         var evaluation = orderRefundGraceService.evaluate(order);
 
@@ -88,7 +88,7 @@ class OrderRefundGraceServiceTest {
                         .build()))
                 .build();
 
-        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
 
         var evaluation = orderRefundGraceService.evaluate(order);
 
@@ -108,7 +108,7 @@ class OrderRefundGraceServiceTest {
                 .transactions(List.of())
                 .build();
 
-        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
         when(transactionRepositoryPort.findLatestPaymentSuccessAt(orderId)).thenReturn(Optional.of(paidAt));
 
         var evaluation = orderRefundGraceService.evaluate(order);
@@ -129,7 +129,7 @@ class OrderRefundGraceServiceTest {
                 .transactions(List.of())
                 .build();
 
-        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
         when(transactionRepositoryPort.findLatestPaymentSuccessAt(orderId)).thenReturn(Optional.empty());
 
         var evaluation = orderRefundGraceService.evaluate(order);
@@ -155,7 +155,7 @@ class OrderRefundGraceServiceTest {
                         .build()))
                 .build();
 
-        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
 
         var evaluation = orderRefundGraceService.evaluate(order);
 
@@ -180,7 +180,7 @@ class OrderRefundGraceServiceTest {
                         .build()))
                 .build();
 
-        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(true);
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(true);
 
         var evaluation = orderRefundGraceService.evaluate(order);
 
@@ -203,7 +203,7 @@ class OrderRefundGraceServiceTest {
                         .build()))
                 .build();
 
-        when(refundRequestRepositoryPort.existsByOrderId(orderId)).thenReturn(true);
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(true);
 
         assertThatThrownBy(() -> orderRefundGraceService.ensureEligible(order))
                 .isInstanceOf(DomainException.class)

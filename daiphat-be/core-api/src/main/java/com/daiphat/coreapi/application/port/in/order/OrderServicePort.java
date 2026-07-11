@@ -59,6 +59,4 @@ public interface OrderServicePort {
     List<EnumOptionResponse> getOrderReceiveTypes();
 
     List<EnumOptionResponse> getOrderDetailStatuses();
-
-    List<EnumOptionResponse> getOrderRefundStatuses();
 }

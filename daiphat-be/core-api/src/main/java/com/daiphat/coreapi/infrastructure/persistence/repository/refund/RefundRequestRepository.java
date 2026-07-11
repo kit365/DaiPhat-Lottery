@@ -18,13 +18,28 @@ public interface RefundRequestRepository extends JpaRepository<RefundRequestEnti
 
     boolean existsByBankAccount_IdAndStatus(Long bankAccountId, RefundRequestStatus status);
 
-    boolean existsByOrder_IdAndStatusIn(UUID orderId, Collection<RefundRequestStatus> statuses);
+    long countByRequestedBy_IdAndCreatedAtGreaterThanEqual(UUID requestedById, LocalDateTime createdFrom);
 
-    boolean existsByOrder_Id(UUID orderId);
+    @Query(value = """
+            SELECT DISTINCT od.refund_request_id
+              FROM order_details od
+             WHERE od.order_id IN (:orderIds)
+               AND od.refund_request_id IS NOT NULL
+            """, nativeQuery = true)
+    List<Long> findIdsLinkedToOrderIdIn(@Param("orderIds") Collection<UUID> orderIds);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("delete from RefundRequestEntity r where r.order.id in :orderIds")
-    int deleteByOrderIdIn(@Param("orderIds") Collection<UUID> orderIds);
+    @Query(value = """
+            UPDATE order_details
+               SET refund_request_id = NULL
+             WHERE order_id IN (:orderIds)
+               AND refund_request_id IS NOT NULL
+            """, nativeQuery = true)
+    int unlinkOrderDetailsByOrderIdIn(@Param("orderIds") Collection<UUID> orderIds);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from RefundRequestEntity r where r.id in :ids")
+    int deleteByIdIn(@Param("ids") Collection<Long> ids);
 
     @Query("""
             select r

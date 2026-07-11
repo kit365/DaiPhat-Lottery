@@ -11,6 +11,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -22,8 +24,13 @@ public class RefundRequestModel {
 
     private Long id;
     private RefundType refundType;
+    /**
+     * Derived from linked {@code OrderDetail}s (not persisted on refund_requests).
+     * Populated when loading or after linking details for a customer order refund.
+     */
     private UUID orderId;
-    private Long orderDetailId;
+    @Builder.Default
+    private List<Long> orderDetailIds = new ArrayList<>();
     private UUID requestedBy;
     private RefundRequestRole requestRole;
 

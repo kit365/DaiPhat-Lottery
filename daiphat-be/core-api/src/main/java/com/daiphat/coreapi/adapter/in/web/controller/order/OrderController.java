@@ -219,10 +219,4 @@ public class OrderController {
     public ApiResponse<List<EnumOptionResponse>> getOrderDetailStatuses() {
         return ApiResponse.success("Lấy danh sách trạng thái chi tiết đơn hàng thành công.", orderServicePort.getOrderDetailStatuses());
     }
-
-    @GetMapping("/refund-statuses")
-    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:view')")
-    public ApiResponse<List<EnumOptionResponse>> getOrderRefundStatuses() {
-        return ApiResponse.success("Lấy danh sách trạng thái hoàn tiền thành công.", orderServicePort.getOrderRefundStatuses());
-    }
 }
