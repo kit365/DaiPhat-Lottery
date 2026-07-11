@@ -44,6 +44,9 @@ public interface RefundRequestRepositoryPort {
 
     boolean existsActiveByOrderId(UUID orderId);
 
+    /** True if any refund request exists for the order (1:1 — any status blocks a second create). */
+    boolean existsByOrderId(UUID orderId);
+
     List<RefundRequestModel> findExpirableByStatusesAndCreatedBefore(
             Collection<RefundRequestStatus> statuses,
             java.time.LocalDateTime createdBefore

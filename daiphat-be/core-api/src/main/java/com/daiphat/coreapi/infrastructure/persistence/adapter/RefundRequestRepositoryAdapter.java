@@ -90,6 +90,11 @@ public class RefundRequestRepositoryAdapter implements RefundRequestRepositoryPo
     }
 
     @Override
+    public boolean existsByOrderId(UUID orderId) {
+        return refundRequestRepository.existsByOrder_Id(orderId);
+    }
+
+    @Override
     public List<RefundRequestModel> findExpirableByStatusesAndCreatedBefore(
             Collection<RefundRequestStatus> statuses,
             java.time.LocalDateTime createdBefore) {
