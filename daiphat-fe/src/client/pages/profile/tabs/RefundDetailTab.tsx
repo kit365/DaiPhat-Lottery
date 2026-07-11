@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useCancelRefund, useGetRefundDetail } from '../../../hooks/useRefund';
 import { RefundRequestStatus, RefundType, isRefundTransferComplete, maskBankAccountNo } from '../../../../types/refund.type';
 import { RefundStatusBadge } from '../../../components/refund/RefundStatusBadge';
 import { RefundStatusStepper } from '../../../components/refund/RefundStatusStepper';
-import { AppToast } from '../../../../utils/toast.util';
+import { CancelRefundConfirmDialog } from '../../../components/refund/CancelRefundConfirmDialog';
 import {
     UnavailableReferenceState,
     UNAVAILABLE_REFERENCE_MESSAGE,
@@ -22,17 +23,18 @@ export const RefundDetailTab = () => {
 
     const { data, isLoading, isError } = useGetRefundDetail(refundId);
     const cancelMutation = useCancelRefund();
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
     const refund = data?.data;
 
-    const handleCancel = async () => {
-        const confirmed = await AppToast.confirm(
-            'Bạn có chắc muốn hủy yêu cầu hoàn tiền này?',
-            'Hủy yêu cầu hoàn tiền'
-        );
-        if (confirmed) {
-            cancelMutation.mutate(refundId);
-        }
+    const handleConfirmCancel = () => {
+        cancelMutation.mutate(refundId, {
+            onSuccess: (response) => {
+                if (response.success) {
+                    setShowCancelConfirm(false);
+                }
+            },
+        });
     };
 
     if (isLoading) {
@@ -57,11 +59,12 @@ export const RefundDetailTab = () => {
     }
 
     const bankAccount = refund.bankAccount;
+    const isCancelling = cancelMutation.isPending;
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="min-w-0">
                     <button
                         onClick={() => navigate('/profile/refunds')}
                         className="text-[13px] text-[#637381] hover:text-[#ee1314] font-medium flex items-center gap-1.5 mb-2 cursor-pointer"
@@ -79,17 +82,19 @@ export const RefundDetailTab = () => {
 
                 {refund.status === RefundRequestStatus.PENDING && (
                     <button
-                        onClick={handleCancel}
-                        disabled={cancelMutation.isPending}
-                        className="px-5 py-3 rounded-xl border border-[#ee1314] text-[#ee1314] font-bold text-[14px] hover:bg-[#FFF4F4] transition-colors cursor-pointer disabled:opacity-50"
+                        type="button"
+                        onClick={() => setShowCancelConfirm(true)}
+                        disabled={isCancelling}
+                        className="inline-flex items-center justify-center gap-2 self-start sm:self-center shrink-0 px-4 py-2.5 rounded-xl border border-[#FECACA] bg-[#FFF5F5] text-[#C62828] text-[13px] font-bold tracking-wide hover:bg-[#FFEBEE] hover:border-[#ef9a9a] hover:text-[#B71C1C] active:bg-[#FFCDD2] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#FFF5F5] disabled:active:scale-100"
                     >
-                        {cancelMutation.isPending ? (
-                            <i className="fa-solid fa-spinner fa-spin"></i>
+                        {isCancelling ? (
+                            <i className="fa-solid fa-spinner fa-spin text-[12px]" aria-hidden />
                         ) : (
-                            <>
-                                <i className="fa-solid fa-ban mr-2"></i> Hủy yêu cầu
-                            </>
+                            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#FFEBEE] text-[#C62828]">
+                                <i className="fa-solid fa-xmark text-[12px]" aria-hidden />
+                            </span>
                         )}
+                        Hủy yêu cầu hoàn tiền
                     </button>
                 )}
             </div>
@@ -211,6 +216,14 @@ export const RefundDetailTab = () => {
                     Cập nhật lần cuối: {format(new Date(refund.updatedAt), 'dd/MM/yyyy HH:mm')}
                 </div>
             )}
+
+            <CancelRefundConfirmDialog
+                isOpen={showCancelConfirm}
+                isPending={isCancelling}
+                orderCode={refund.orderCode}
+                onKeep={() => setShowCancelConfirm(false)}
+                onConfirmCancel={handleConfirmCancel}
+            />
         </div>
     );
 };
