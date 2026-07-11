@@ -350,10 +350,17 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     }
 
     private void publishRefundStatusChanged(RefundRequestModel refund) {
+        String orderCode = null;
+        if (refund.getOrderId() != null) {
+            orderCode = orderRepositoryPort.findById(refund.getOrderId())
+                    .map(OrderModel::getOrderCode)
+                    .orElse(null);
+        }
         eventPublisher.publishEvent(RefundRequestStatusChangedEvent.builder()
                 .refundRequestId(refund.getId())
                 .customerId(refund.getRequestedBy())
                 .orderId(refund.getOrderId())
+                .orderCode(orderCode)
                 .status(refund.getStatus())
                 .rejectReason(refund.getRejectReason())
                 .transferNote(refund.getTransferNote())

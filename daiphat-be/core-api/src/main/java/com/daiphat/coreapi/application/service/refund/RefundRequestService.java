@@ -93,7 +93,7 @@ public class RefundRequestService implements RefundRequestServicePort {
         refundRequest.initializeForCreate();
 
         RefundRequestModel saved = refundRequestRepositoryPort.save(refundRequest);
-        publishRefundStatusChanged(saved);
+        publishRefundStatusChanged(saved, order.getOrderCode());
         return toResponse(saved, bankAccount);
     }
 
@@ -148,8 +148,9 @@ public class RefundRequestService implements RefundRequestServicePort {
         Page<RefundRequestModel> resultPage = refundRequestRepositoryPort.findAll(
                 pageable, requestedBy, status, null, orderId, search);
 
+        Map<UUID, String> orderCodesById = new LinkedHashMap<>();
         Page<RefundRequestResponse> mapped = resultPage.map(model -> toResponse(
-                model, loadBankAccount(model.getBankAccountId())));
+                model, loadBankAccount(model.getBankAccountId()), orderCodesById));
 
         return PageResponse.from(
                 mapped,
@@ -183,14 +184,45 @@ public class RefundRequestService implements RefundRequestServicePort {
     }
 
     private RefundRequestResponse toResponse(RefundRequestModel model, UserBankAccountModel bankAccount) {
-        return refundApplicationMapper.toRefundResponse(model, bankAccount);
+        return toResponse(model, bankAccount, null);
     }
 
-    private void publishRefundStatusChanged(RefundRequestModel refund) {
+    private RefundRequestResponse toResponse(
+            RefundRequestModel model,
+            UserBankAccountModel bankAccount,
+            Map<UUID, String> orderCodesById) {
+        String orderCode = resolveOrderCode(model.getOrderId(), orderCodesById);
+        return refundApplicationMapper.enrichResponse(
+                model,
+                bankAccount,
+                orderCode,
+                null,
+                null,
+                null);
+    }
+
+    private String resolveOrderCode(UUID orderId, Map<UUID, String> cache) {
+        if (orderId == null) {
+            return null;
+        }
+        if (cache != null) {
+            return cache.computeIfAbsent(orderId, this::loadOrderCode);
+        }
+        return loadOrderCode(orderId);
+    }
+
+    private String loadOrderCode(UUID orderId) {
+        return orderRepositoryPort.findById(orderId)
+                .map(OrderModel::getOrderCode)
+                .orElse(null);
+    }
+
+    private void publishRefundStatusChanged(RefundRequestModel refund, String orderCode) {
         eventPublisher.publishEvent(RefundRequestStatusChangedEvent.builder()
                 .refundRequestId(refund.getId())
                 .customerId(refund.getRequestedBy())
                 .orderId(refund.getOrderId())
+                .orderCode(orderCode)
                 .status(refund.getStatus())
                 .rejectReason(refund.getRejectReason())
                 .transferNote(refund.getTransferNote())

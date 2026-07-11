@@ -20,6 +20,8 @@ public interface RefundRequestRepository extends JpaRepository<RefundRequestEnti
 
     boolean existsByOrder_IdAndStatusIn(UUID orderId, Collection<RefundRequestStatus> statuses);
 
+    boolean existsByOrder_Id(UUID orderId);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from RefundRequestEntity r where r.order.id in :orderIds")
     int deleteByOrderIdIn(@Param("orderIds") Collection<UUID> orderIds);
