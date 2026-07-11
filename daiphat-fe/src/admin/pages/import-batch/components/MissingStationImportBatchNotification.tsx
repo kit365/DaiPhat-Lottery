@@ -12,6 +12,7 @@ import {
     getImportModeNotificationLabel,
     importBatchStatusChipSx,
 } from '../utils/batchTypeLabels';
+import { hasStartedImportBatchLineEntry } from '../utils/importBatchEditDraft';
 import { ImportBatchNotificationDetailDialog } from './ImportBatchNotificationDetailDialog';
 
 type MissingStationImportBatchNotificationProps = {
@@ -49,10 +50,32 @@ export const MissingStationImportBatchNotification = ({
 
     const isMulti = batches.length >= 2;
     const singleBatch = isMulti ? null : batches[0];
+    const singleHasStartedEntry = singleBatch
+        ? hasStartedImportBatchLineEntry(singleBatch.id)
+        : false;
+    const startedEntryCount = batches.filter((batch) =>
+        hasStartedImportBatchLineEntry(batch.id)
+    ).length;
+    const allHaveStartedEntry = startedEntryCount === batches.length;
+    const anyHaveStartedEntry = startedEntryCount > 0;
 
-    const handleAddStations = (batch: ImportBatch) => {
+    const handleContinue = (batch: ImportBatch) => {
         navigate(ROUTES.ADMIN.IMPORT_BATCH.EDIT(batch.id));
     };
+
+    const bannerText = !isMulti
+        ? singleHasStartedEntry
+            ? 'Tiếp tục nhập phiếu'
+            : 'Phiếu nhập lô chưa được bổ sung nhà đài'
+        : allHaveStartedEntry
+          ? 'Phiếu nhập lô cần tiếp tục nhập'
+          : anyHaveStartedEntry
+            ? 'Phiếu nhập lô cần được hoàn thiện'
+            : 'Phiếu nhập lô chưa được bổ sung nhà đài';
+
+    const dialogTitle = allHaveStartedEntry
+        ? 'Tiếp tục nhập phiếu'
+        : 'Phiếu nhập lô chưa được bổ sung nhà đài';
 
     return (
         <>
@@ -70,7 +93,13 @@ export const MissingStationImportBatchNotification = ({
                 >
                     <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
                         <Typography variant="body2">
-                            <strong>{batches.length}</strong> Phiếu nhập lô chưa được bổ sung nhà đài
+                            {isMulti ? (
+                                <>
+                                    <strong>{batches.length}</strong> {bannerText}
+                                </>
+                            ) : (
+                                <strong>{bannerText}</strong>
+                            )}
                             {!isMulti && singleBatch && (
                                 <>
                                     {' '}
@@ -103,10 +132,10 @@ export const MissingStationImportBatchNotification = ({
                                 size="small"
                                 color="warning"
                                 variant="contained"
-                                onClick={() => handleAddStations(singleBatch)}
+                                onClick={() => handleContinue(singleBatch)}
                                 sx={{ flexShrink: 0 }}
                             >
-                                Bổ sung nhà đài
+                                {singleHasStartedEntry ? 'Tiếp tục nhập phiếu' : 'Bổ sung nhà đài'}
                             </Button>
                         )
                     )}
@@ -115,12 +144,12 @@ export const MissingStationImportBatchNotification = ({
 
             <ImportBatchNotificationDetailDialog
                 open={detailOpen}
-                title="Phiếu nhập lô chưa được bổ sung nhà đài"
+                title={dialogTitle}
                 batches={batches}
                 actionType="add-stations"
                 resolveStationName={() => ''}
                 onClose={() => setDetailOpen(false)}
-                onAction={handleAddStations}
+                onAction={handleContinue}
             />
         </>
     );

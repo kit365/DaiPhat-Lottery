@@ -43,8 +43,10 @@ import {
 } from './utils/importBatchCode';
 import {
     findFirstIncompleteLine,
+    hasTicketImportEligibleLines,
     isImportBatchEditable,
 } from '../ticket/utils/importBatchProgress';
+import { hasUnsavedImportBatchEditDraft } from './utils/importBatchEditDraft';
 import { ImportBatchProgressBar } from './components/ImportBatchProgressBar';
 import { ImagePreview } from '../../components/ui/ImagePreview';
 import dayjs from 'dayjs';
@@ -66,6 +68,8 @@ export const ImportBatchDetailPage = () => {
     const totalImportedQuantity = batch?.totalImportedQuantity ?? 0;
     const totalImportedCostValue = batch?.totalImportedCostValue ?? 0;
     const canEditBatch = batch ? isImportBatchEditable(batch) : false;
+    const canImportTickets = batch ? hasTicketImportEligibleLines(batch) : false;
+    const hasUnsavedDraft = id ? hasUnsavedImportBatchEditDraft(id) : false;
 
     const cancelledReasonText =
         batch?.status === 'CANCELLED' ? formatImportBatchCancelReason(batch.cancelReason) : undefined;
@@ -129,25 +133,34 @@ export const ImportBatchDetailPage = () => {
                             >
                                 Chỉnh sửa phiếu
                             </Button>
-                            <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
-                                <Button
-                                    variant="contained"
-                                    onClick={() =>
-                                        navigate(
-                                            ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(
-                                                batch.id,
-                                                firstIncompleteLine?.id
+                            {canImportTickets && (
+                                <CanAccess permission={PERMISSIONS.TICKET.CREATE}>
+                                    <Button
+                                        variant="contained"
+                                        onClick={() =>
+                                            navigate(
+                                                ROUTES.ADMIN.TICKETS.CREATE_FOR_BATCH(
+                                                    batch.id,
+                                                    firstIncompleteLine?.id
+                                                )
                                             )
-                                        )
-                                    }
-                                >
-                                    Nhập vé vào phiếu
-                                </Button>
-                            </CanAccess>
+                                        }
+                                    >
+                                        Nhập vé vào phiếu
+                                    </Button>
+                                </CanAccess>
+                            )}
                         </Stack>
                     </CanAccess>
                 )}
             </Stack>
+
+            {hasUnsavedDraft && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    Phiếu nhập lô đang được chỉnh sửa và chưa được lưu. Nội dung nháp cục bộ sẽ được
+                    khôi phục khi bạn mở màn hình chỉnh sửa.
+                </Alert>
+            )}
 
             <CollapsibleCard title="Thông tin phiếu" expanded onToggle={() => undefined}>
                 <Stack spacing={2} sx={{ p: 3 }}>

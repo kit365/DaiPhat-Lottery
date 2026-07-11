@@ -1,6 +1,5 @@
 import CloseIcon from '@mui/icons-material/Close';
 import {
-    Alert,
     Box,
     Button,
     Dialog,
@@ -235,18 +234,6 @@ export const ImportBatchEditConfirmDialog = ({
                         Vui lòng kiểm tra các thay đổi dưới đây trước khi lưu. Chỉ các trường đã
                         thay đổi được hiển thị.
                     </Typography>
-
-                    {summary.drawDateChanged && (
-                        <Alert severity="warning" sx={{ borderRadius: 2, alignItems: 'flex-start' }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                                Thay đổi ngày quay có thể vô hiệu hóa các nhà đài hiện tại.
-                            </Typography>
-                            <Typography variant="body2">
-                                Các dòng phiếu ở trạng thái Nháp, Đang nhập lô hoặc Đã hủy có thể
-                                bị xóa khi đổi ngày quay.
-                            </Typography>
-                        </Alert>
-                    )}
 
                     {(summary.headerChanges.length > 0 || summary.invoiceChange) && (
                         <SectionCard title="Thông tin phiếu nhập lô">
