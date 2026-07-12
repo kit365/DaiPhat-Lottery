@@ -30,6 +30,9 @@ public record CreateImportBatchRequest(
          */
         Boolean forceCreate,
 
+        @NotNull(message = "Tổng số lượng khai báo không được để trống")
+        Integer totalDeclareQuantity,
+
         @NotEmpty(message = "Danh sách nhà đài không được để trống")
         @Valid
         List<CreateImportBatchLineRequest> lines

@@ -308,11 +308,6 @@ public enum ErrorCode {
             "Dòng phiếu nhập lô không thể chỉnh sửa ở trạng thái hiện tại.",
             HttpStatus.BAD_REQUEST
     ),
-    IMPORT_BATCH_DRAW_DATE_LOCKED_IMPORTED_LINES(
-            "LT_095",
-            "Không thể đổi ngày quay vì phiếu nhập lô đã có dòng đã nhập đủ.",
-            HttpStatus.BAD_REQUEST
-    ),
     IMPORT_BATCH_SUPPLIER_LOCKED_IMPORTED_LINES(
             "LT_097",
             "Không thể thay đổi nhà cung cấp vì phiếu nhập đã có lô vé được nhập hoàn tất.",
@@ -321,6 +316,26 @@ public enum ErrorCode {
     IMPORT_BATCH_DECLARE_QUANTITY_BELOW_IMPORTED(
             "LT_096",
             "Số lượng khai báo (%d) không được nhỏ hơn số vé đã nhập (%d). Vui lòng xóa bớt vé đã nhập trước khi giảm số lượng khai báo.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_DECLARE_QUANTITY_MISMATCH(
+            "LT_098",
+            "Tổng số lượng khai báo của các nhà đài phải bằng Tổng số lượng khai báo của phiếu nhập lô.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_IMPORTED_ONLY(
+            "LT_099",
+            "Không thể giảm số lượng khai báo vì phần vé thừa nằm ở các dòng đã nhập hoàn tất (IMPORTED). Chỉ được xóa vé ở dòng OPEN hoặc IMPORTING.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_TICKETS_INVALID(
+            "LT_100",
+            "Danh sách vé cần xóa không hợp lệ hoặc chưa đủ số lượng yêu cầu (%d vé).",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_TICKET_DELETE_LINE_IMPORTED(
+            "LT_101",
+            "Không được xóa vé thuộc dòng phiếu nhập lô đã hoàn tất (IMPORTED).",
             HttpStatus.BAD_REQUEST
     ),
 

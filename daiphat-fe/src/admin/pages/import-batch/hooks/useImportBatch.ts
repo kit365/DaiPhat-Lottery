@@ -40,6 +40,13 @@ export const useImportBatchDetail = (id?: string | number) => {
         select: (res) => res.data ?? null,
         staleTime: 0,
         refetchOnMount: 'always',
+        retry: (failureCount, error: any) => {
+            const status = error?.response?.status;
+            if (status === 404 || status === 403) {
+                return false;
+            }
+            return failureCount < 2;
+        },
     });
 
     const data =
@@ -47,10 +54,15 @@ export const useImportBatchDetail = (id?: string | number) => {
             ? query.data
             : undefined;
 
+    const isLoading =
+        !!normalizedId &&
+        (query.isLoading || (query.isFetching && !query.isFetched && !data));
+
     return {
         ...query,
         data,
-        isLoading: query.isLoading || (!!normalizedId && !data && query.isFetching),
+        isLoading,
+        isNotFound: !!normalizedId && query.isFetched && !query.isLoading && !data && !query.isError,
     };
 };
 
