@@ -50,7 +50,6 @@ public class RefundRequestModel {
     @Builder.Default
     private int attemptNumber = 1;
 
-    private String rejectReason;
     private UUID reviewedBy;
     private LocalDateTime reviewedAt;
     private LocalDateTime createdAt;
@@ -105,18 +104,6 @@ public class RefundRequestModel {
         this.status = RefundRequestStatus.APPROVED;
         this.reviewedBy = reviewerId;
         this.reviewedAt = LocalDateTime.now();
-        this.rejectReason = null;
-    }
-
-    public void reject(UUID reviewerId, String reason) {
-        ensureStatus(RefundRequestStatus.PENDING);
-        if (reason == null || reason.isBlank()) {
-            throw new DomainException(ErrorCode.INVALID_INPUT);
-        }
-        this.status = RefundRequestStatus.REJECTED;
-        this.reviewedBy = reviewerId;
-        this.reviewedAt = LocalDateTime.now();
-        this.rejectReason = reason.trim();
     }
 
     /** Marks refund as paid. Payout evidence is stored on the related Transaction. */
