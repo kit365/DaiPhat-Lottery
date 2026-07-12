@@ -176,6 +176,35 @@ public class PrizeStructureService implements PrizeStructureServicePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PrizeStructureSyncResponse previewSyncByRegion(SyncPrizeStructuresRequest request) {
+        LotteryRegionModel resolvedRegion = resolveRegion(request.region());
+        PrizeStructureSourcePreviewResult preview = loadSyncPreview(request.source(), resolvedRegion);
+        validateSyncSourceResult(preview, resolvedRegion.region());
+
+        Map<String, PrizeStructureModel> existingByCode = indexExistingByCode(resolvedRegion.region());
+        SyncDraft draft = processSyncItems(preview, resolvedRegion, existingByCode);
+        List<PrizeStructureSyncItemResponse> items = new ArrayList<>(draft.items());
+
+        for (PrizeStructureModel obsolete : existingByCode.values()) {
+            items.add(prizeStructureApplicationMapper.toSyncItemResponse(
+                    obsolete.getId(), obsolete, SyncAction.DELETED,
+                    "Sẽ xóa vì không còn xuất hiện trong dữ liệu nguồn"
+            ));
+        }
+
+        return prizeStructureApplicationMapper.toSyncResponse(
+                preview,
+                resolvedRegion,
+                draft.createdCount(),
+                draft.updatedCount(),
+                existingByCode.size(),
+                draft.skippedCount(),
+                items
+        );
+    }
+
+    @Override
     @Transactional
     public void delete(String region, Long id) {
         LotteryRegionModel resolvedRegion = resolveRegion(region);

@@ -4,10 +4,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { AppToast } from '../../utils/toast.util';
 import { chatService } from '../services/chat.service';
 import { ADMIN_CHAT_CONVERSATIONS_KEY, adminChatCustomerTimelineKey, adminChatDetailKey } from './useChat';
-import { Conversation } from '../../../types/chat.type';
+import { Conversation } from '../../types/chat.type';
 
 import { useWebSocket } from '../../hooks/useWebSocket';
-import { ChatConversationSocketEvent } from '../../../types/chat.type';
+import { ChatConversationSocketEvent } from '../../types/chat.type';
 import {
     ChatSocketMessageEvent,
     ChatSocketMessagePayload,

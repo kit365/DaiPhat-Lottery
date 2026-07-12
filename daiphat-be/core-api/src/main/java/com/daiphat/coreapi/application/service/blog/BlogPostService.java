@@ -27,6 +27,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.blogs.BlogCategoryModel;
 import com.daiphat.coreapi.domain.model.blogs.BlogPostModel;
 import com.daiphat.coreapi.domain.model.blogs.BlogTagModel;
+import com.daiphat.coreapi.shared.util.SlugUtils;
 import com.daiphat.coreapi.shared.util.SearchConstants;
 import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import com.daiphat.coreapi.shared.util.PageableUtils;
@@ -92,10 +93,6 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
     @Override
     @Transactional
     public BlogPostResponse createPost(CreateBlogPostRequest request) {
-        if (blogPostRepositoryPort.existsBySlug(request.slug())) {
-            throw new DomainException(ErrorCode.SLUG_EXISTED);
-        }
-
         PostStatus targetStatus = PostStatus.fromCode(request.status());
         validateCreateStatus(targetStatus);
         LocalDateTime normalizedScheduledAt = normalizeScheduledAt(targetStatus, request.scheduledAt());
@@ -111,6 +108,8 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
         }
 
         BlogPostModel postModel = blogPostApplicationMapper.toModel(request);
+        postModel.setSlug(SlugUtils.generateUnique(
+                request.slug(), request.title(), 255, blogPostRepositoryPort::existsBySlug));
         postModel.setCategory(category);
         postModel.setTags(tags);
         postModel.setStatus(targetStatus);
@@ -403,7 +402,7 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
                 limit,
                 search,
                 null,
-                categoryId,
+                categoryId == null ? null : List.of(categoryId),
                 null,
                 PostStatus.PUBLISHED.getCode(),
                 sortBy,
@@ -418,9 +417,9 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
             int page,
             int limit,
             String search,
-            Long tagId,
-            Long categoryId,
-            String type,
+            List<Long> tagIds,
+            List<Long> categoryIds,
+            List<String> types,
             String status,
             String sortBy,
             String direction,
@@ -431,7 +430,7 @@ public class BlogPostService implements BlogPostServicePort, BlogPostCoordinatio
         Pageable pageable = PageableUtils.of(page, limit, sort);
 
         Page<BlogPostModel> postPage = blogPostRepositoryPort.findAll(
-                pageable, search, tagId, categoryId, type, status, includeDeleted
+                pageable, search, tagIds, categoryIds, types, status, includeDeleted
         );
 
         return PageResponse.from(

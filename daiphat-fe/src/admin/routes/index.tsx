@@ -9,33 +9,32 @@ const TicketCreatePage = lazy(() => import("../pages/ticket/TicketCreatePage").t
 const TicketEditPage = lazy(() => import("../pages/ticket/TicketEditPage").then(m => ({ default: m.TicketEditPage })));
 const TicketDetailPage = lazy(() => import("../pages/ticket/TicketDetailPage").then(m => ({ default: m.TicketDetailPage })));
 const ExpiredTicketListPage = lazy(() => import("../pages/ticket/ExpiredTicketListPage").then(m => ({ default: m.ExpiredTicketListPage })));
-const PrizeStructureListPage = lazy(() => import("../pages/prize-structure/PrizeStructureListPage").then(m => ({ default: m.PrizeStructureListPage })));
-const DrawResultPage = lazy(() => import("../pages/draw-result/DrawResultPage").then(m => ({ default: m.DrawResultPage })));
+const PrizeStructureListPage = lazy(() => import("../features/prize-structure").then(m => ({ default: m.PrizeStructureListPage })));
+const DrawResultPage = lazy(() => import("../features/draw-result").then(m => ({ default: m.DrawResultPage })));
 
 const ProviderListPage = lazy(() => import("../pages/provider/ProviderListPage").then(m => ({ default: m.ProviderListPage })));
 const ProviderCreatePage = lazy(() => import("../pages/provider/ProviderCreatePage").then(m => ({ default: m.ProviderCreatePage })));
 const ProviderEditPage = lazy(() => import("../pages/provider/ProviderEditPage").then(m => ({ default: m.ProviderEditPage })));
 const ProviderDetailPage = lazy(() => import("../pages/provider/ProviderDetailPage").then(m => ({ default: m.ProviderDetailPage })));
 const RegionListPage = lazy(() => import("../pages/region/RegionListPage").then(m => ({ default: m.RegionListPage })));
-const BlogListPage = lazy(() => import("../pages/blog/BlogListPage").then(m => ({ default: m.BlogListPage })));
-const BlogCategoryListPage = lazy(() => import("../pages/blog-category/BlogCategoryListPage").then(m => ({ default: m.BlogCategoryListPage })));
-const BlogCategoryCreatePage = lazy(() => import("../pages/blog-category/BlogCategoryCreatePage").then(m => ({ default: m.BlogCategoryCreatePage })));
-const BlogTagListPage = lazy(() => import("../pages/blog-tag/BlogTagListPage").then(m => ({ default: m.BlogTagListPage })));
-const BlogCreatePage = lazy(() => import("../pages/blog/BlogCreatePage").then(m => ({ default: m.BlogCreatePage })));
-const BlogDetailPage = lazy(() => import("../pages/blog/BlogDetailPage").then(m => ({ default: m.BlogDetailPage })));
-const BlogEditPage = lazy(() => import("../pages/blog/BlogEditPage").then(m => ({ default: m.BlogEditPage })));
+const BlogListPage = lazy(() => import("../features/blogs").then(m => ({ default: m.BlogListPage })));
+const BlogCategoryListPage = lazy(() => import("../features/blogs").then(m => ({ default: m.BlogCategoryListPage })));
+const BlogCategoryCreatePage = lazy(() => import("../features/blogs").then(m => ({ default: m.BlogCategoryCreatePage })));
+const BlogTagListPage = lazy(() => import("../features/blogs").then(m => ({ default: m.BlogTagListPage })));
+const BlogCreatePage = lazy(() => import("../features/blogs").then(m => ({ default: m.BlogCreatePage })));
+const BlogDetailPage = lazy(() => import("../features/blogs").then(m => ({ default: m.BlogDetailPage })));
+const BlogEditPage = lazy(() => import("../features/blogs").then(m => ({ default: m.BlogEditPage })));
 const LoginPage = lazy(() => import("../pages/authen/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("../pages/authen/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 const OAuthCallbackPage = lazy(() => import("../pages/authen/OAuthCallbackPage").then(m => ({ default: m.OAuthCallbackPage })));
 const ProfileSetupPage = lazy(() => import("../pages/authen/ProfileSetupPage").then(m => ({ default: m.ProfileSetupPage })));
-const AcceptInvitePage = lazy(() => import("../pages/authen/AcceptInvitePage").then(m => ({ default: m.AcceptInvitePage })));
 
-export { LoginPage, ForgotPasswordPage, OAuthCallbackPage, ProfileSetupPage, AcceptInvitePage };
+export { LoginPage, ForgotPasswordPage, OAuthCallbackPage, ProfileSetupPage };
 const DashboardPage = lazy(() => import("../pages/dashboard/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const SystemPage = lazy(() => import("../pages/dashboard/SystemPage").then(m => ({ default: m.SystemPage })));
 const EcommercePage = lazy(() => import("../pages/dashboard/EcommercePage")); // Default export
 const AnalyticsPage = lazy(() => import("../pages/dashboard/AnalyticsPage")); // Default export
-const BlogCategoryEditPage = lazy(() => import("../pages/blog-category/BlogCategoryEditPage").then(m => ({ default: m.BlogCategoryEditPage })));
+const BlogCategoryEditPage = lazy(() => import("../features/blogs").then(m => ({ default: m.BlogCategoryEditPage })));
 const CouponListPage = lazy(() => import("../pages/coupon/CouponListPage").then(m => ({ default: m.CouponListPage })));
 const CouponCreatePage = lazy(() => import("../pages/coupon/CouponCreatePage").then(m => ({ default: m.CouponCreatePage })));
 const CouponEditPage = lazy(() => import("../pages/coupon/CouponEditPage").then(m => ({ default: m.CouponEditPage })));
@@ -53,17 +52,17 @@ const TicketServiceCategoryCreatePage = lazy(() => import("../pages/ticket-servi
 const TicketServiceCategoryEditPage = lazy(() => import("../pages/ticket-service-category/TicketServiceCategoryEditPage").then(m => ({ default: m.TicketServiceCategoryEditPage })));
 const TicketServiceCategoryDetailPage = lazy(() => import("../pages/ticket-service-category/TicketServiceCategoryDetailPage").then(m => ({ default: m.TicketServiceCategoryDetailPage })));
 const RoleListPage = lazy(() => import("../pages/role/RoleListPage").then(m => ({ default: m.RoleListPage })));
-const AccountAdminListPage = lazy(() => import("../pages/account-admin/AccountAdminListPage").then(m => ({ default: m.AccountAdminListPage })));
-const AccountAdminCreatePage = lazy(() => import("../pages/account-admin/AccountAdminCreatePage").then(m => ({ default: m.AccountAdminCreatePage })));
-const AccountAdminEditPage = lazy(() => import("../pages/account-admin/AccountAdminEditPage").then(m => ({ default: m.AccountAdminEditPage })));
-const AccountAdminDetailPage = lazy(() => import("../pages/account-admin/AccountAdminDetailPage").then(m => ({ default: m.AccountAdminDetailPage })));
-const ProfilePage = lazy(() => import("../pages/account-admin/ProfilePage").then(m => ({ default: m.ProfilePage })));
-const ChangePasswordAdminPage = lazy(() => import("../pages/account-admin/ChangePasswordPage").then(m => ({ default: m.ChangePasswordPage })));
-const AccountUserListPage = lazy(() => import("../pages/account-user/AccountUserListPage").then(m => ({ default: m.AccountUserListPage })));
-const AccountUserCreatePage = lazy(() => import("../pages/account-user/AccountUserCreatePage").then(m => ({ default: m.AccountUserCreatePage })));
-const AccountUserEditPage = lazy(() => import("../pages/account-user/AccountUserEditPage").then(m => ({ default: m.AccountUserEditPage })));
-const AccountUserDetailPage = lazy(() => import("../pages/account-user/AccountUserDetailPage").then(m => ({ default: m.AccountUserDetailPage })));
-const ChangePasswordUserPage = lazy(() => import("../pages/account-user/ChangePasswordPage").then(m => ({ default: m.ChangePasswordPage })));
+const AdminListPage = lazy(() => import("../features/users").then(m => ({ default: m.AdminListPage })));
+const AdminCreatePage = lazy(() => import("../features/users").then(m => ({ default: m.AdminCreatePage })));
+const AdminEditPage = lazy(() => import("../features/users").then(m => ({ default: m.AdminEditPage })));
+const AdminDetailPage = lazy(() => import("../features/users").then(m => ({ default: m.AdminDetailPage })));
+const ProfilePage = lazy(() => import("../features/users").then(m => ({ default: m.ProfilePage })));
+const AdminChangePasswordPage = lazy(() => import("../features/users").then(m => ({ default: m.AdminChangePasswordPage })));
+const ClientListPage = lazy(() => import("../features/users").then(m => ({ default: m.ClientListPage })));
+const ClientCreatePage = lazy(() => import("../features/users").then(m => ({ default: m.ClientCreatePage })));
+const ClientEditPage = lazy(() => import("../features/users").then(m => ({ default: m.ClientEditPage })));
+const ClientDetailPage = lazy(() => import("../features/users").then(m => ({ default: m.ClientDetailPage })));
+const ClientChangePasswordPage = lazy(() => import("../features/users").then(m => ({ default: m.ClientChangePasswordPage })));
 const StreetAgentListPage = lazy(() => import("../pages/street-agent/StreetAgentListPage").then(m => ({ default: m.StreetAgentListPage })));
 const StreetAgentCreatePage = lazy(() => import("../pages/street-agent/StreetAgentCreatePage").then(m => ({ default: m.StreetAgentCreatePage })));
 const StreetAgentEditPage = lazy(() => import("../pages/street-agent/StreetAgentEditPage").then(m => ({ default: m.StreetAgentEditPage })));
@@ -157,17 +156,17 @@ export const AdminRoutes = [
     { path: "ticket/attribute/edit/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.EDIT}><TicketAttributeEditPage /></PermissionGuard> },
     { path: "ticket/attribute/detail/:id", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><TicketAttributeDetailPage /></PermissionGuard> },
     { path: "role/list", element: <PermissionGuard permission={PERMISSIONS.ROLE.VIEW}><RoleListPage /></PermissionGuard> },
-    { path: "account-admin/list", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.VIEW}><AccountAdminListPage /></PermissionGuard> },
-    { path: "account-admin/create", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.CREATE}><AccountAdminCreatePage /></PermissionGuard> },
-    { path: "account-admin/edit/:id", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.EDIT}><AccountAdminEditPage /></PermissionGuard> },
-    { path: "account-admin/detail/:id", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.VIEW}><AccountAdminDetailPage /></PermissionGuard> },
+    { path: "account-admin/list", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.VIEW}><AdminListPage /></PermissionGuard> },
+    { path: "account-admin/create", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.CREATE}><AdminCreatePage /></PermissionGuard> },
+    { path: "account-admin/edit/:id", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.EDIT}><AdminEditPage /></PermissionGuard> },
+    { path: "account-admin/detail/:id", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.VIEW}><AdminDetailPage /></PermissionGuard> },
     { path: "profile", element: <ProfilePage /> },
-    { path: "account-admin/change-password/:id", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.EDIT}><ChangePasswordAdminPage /></PermissionGuard> },
-    { path: "account-user/list", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><AccountUserListPage /></PermissionGuard> },
-    { path: "account-user/create", element: <PermissionGuard permission={PERMISSIONS.USER.CREATE}><AccountUserCreatePage /></PermissionGuard> },
-    { path: "account-user/edit/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><AccountUserEditPage /></PermissionGuard> },
-    { path: "account-user/detail/:id", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><AccountUserDetailPage /></PermissionGuard> },
-    { path: "account-user/change-password/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><ChangePasswordUserPage /></PermissionGuard> },
+    { path: "account-admin/change-password/:id", element: <PermissionGuard permission={PERMISSIONS.ACCOUNT.EDIT}><AdminChangePasswordPage /></PermissionGuard> },
+    { path: "account-user/list", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><ClientListPage /></PermissionGuard> },
+    { path: "account-user/create", element: <PermissionGuard permission={PERMISSIONS.USER.CREATE}><ClientCreatePage /></PermissionGuard> },
+    { path: "account-user/edit/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><ClientEditPage /></PermissionGuard> },
+    { path: "account-user/detail/:id", element: <PermissionGuard permission={PERMISSIONS.USER.VIEW}><ClientDetailPage /></PermissionGuard> },
+    { path: "account-user/change-password/:id", element: <PermissionGuard permission={PERMISSIONS.USER.EDIT}><ClientChangePasswordPage /></PermissionGuard> },
     { path: "street-agent/list", element: <PermissionGuard permission={PERMISSIONS.STREET_AGENT.VIEW}><StreetAgentListPage /></PermissionGuard> },
     { path: "street-agent/create", element: <PermissionGuard permission={PERMISSIONS.STREET_AGENT.CREATE}><StreetAgentCreatePage /></PermissionGuard> },
     { path: "street-agent/edit/:id", element: <PermissionGuard permission={PERMISSIONS.STREET_AGENT.EDIT}><StreetAgentEditPage /></PermissionGuard> },
@@ -201,5 +200,4 @@ export const AdminAuthRoutes = [
 export const CommonRoutes = [
     { path: "setup-profile", element: <ProfileSetupPage /> },
     { path: "auth/callback", element: <OAuthCallbackPage /> },
-    { path: "accept-invite", element: <AcceptInvitePage /> },
 ];

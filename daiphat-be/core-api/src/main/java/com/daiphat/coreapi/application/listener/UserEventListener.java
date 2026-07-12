@@ -3,13 +3,11 @@ package com.daiphat.coreapi.application.listener;
 import com.daiphat.coreapi.application.dto.request.mail.AdminCreateUserContext;
 import com.daiphat.coreapi.application.dto.request.mail.AdminResetPasswordSuccessContext;
 import com.daiphat.coreapi.application.dto.request.mail.ForgotPasswordContext;
-import com.daiphat.coreapi.application.dto.request.mail.StaffInviteContext;
 import com.daiphat.coreapi.application.dto.request.mail.UserVerificationContext;
 import com.daiphat.coreapi.application.config.AuthProperties;
 import com.daiphat.coreapi.application.event.AdminResetPasswordOtpEvent;
 import com.daiphat.coreapi.application.event.AdminResetPasswordSuccessEvent;
 import com.daiphat.coreapi.application.event.ForgotPasswordEvent;
-import com.daiphat.coreapi.application.event.StaffInviteEvent;
 import com.daiphat.coreapi.application.dto.notification.FcmPushData;
 import com.daiphat.coreapi.application.event.UserCreatedEvent;
 import com.daiphat.coreapi.application.event.UserEmailVerifiedEvent;
@@ -214,24 +212,6 @@ public class UserEventListener {
             emailService.sendEmail(EmailType.ADMIN_CREATE_USER, event.email(), emailContext);
         } catch (Exception e) {
             log.error("Failed to dispatch admin create user email for {}: {}", event.email(), e.getMessage());
-        }
-    }
-
-    @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleStaffInvite(StaffInviteEvent event) {
-        log.info("Handling StaffInviteEvent for recipient: {}", event.email());
-        try {
-            StaffInviteContext emailContext = StaffInviteContext.builder()
-                    .email(event.email())
-                    .fullName(event.fullName())
-                    .token(event.token())
-                    .roleName(event.roleName())
-                    .build();
-
-            emailService.sendEmail(EmailType.STAFF_INVITE, event.email(), emailContext);
-        } catch (Exception e) {
-            log.error("Failed to dispatch staff invite email for {}: {}", event.email(), e.getMessage());
         }
     }
 

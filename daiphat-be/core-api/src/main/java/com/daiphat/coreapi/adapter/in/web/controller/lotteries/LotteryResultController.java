@@ -6,6 +6,7 @@ import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryResultDetailRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryResultRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResyncLotteryResultRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryResultsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryResultDetailRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryResultRequest;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryResultSourcePreviewResult;
@@ -17,6 +18,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultBoard
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultBoardSummaryResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultFullBoardResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultSyncBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryWinningCheckResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryResultDetailServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryResultSourceServicePort;
@@ -151,6 +153,18 @@ public class LotteryResultController {
         return ApiResponse.success(
                 null,
                 lotteryResultServicePort.getManagementBoard(region, fromDate, toDate, source)
+        );
+    }
+
+    @PostMapping("/management/sync")
+    @PreAuthorize("hasAnyAuthority('lotteryResult:sync', 'ticket:edit')")
+    @Operation(summary = "Đồng bộ kết quả theo bộ lọc màn quản trị")
+    public ApiResponse<LotteryResultSyncBatchResponse> syncManagementBoard(
+            @Valid @RequestBody SyncLotteryResultsRequest request
+    ) {
+        return ApiResponse.success(
+                "Đã đưa các kết quả vào hàng chờ đồng bộ.",
+                lotteryResultServicePort.requestBoardSync(request)
         );
     }
 

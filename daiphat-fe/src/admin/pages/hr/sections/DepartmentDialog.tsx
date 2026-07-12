@@ -12,7 +12,7 @@ import {
     Typography,
 } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
-import { useAccounts } from '../../account-admin/hooks/useAccountAdmin';
+import { useAccounts } from '../../../features/users/hooks/useUsers';
 import CloseIcon from '@mui/icons-material/Close';
 import { dialogStyles } from '../configs/styles.config';
 
