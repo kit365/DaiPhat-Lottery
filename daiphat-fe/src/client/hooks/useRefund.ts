@@ -130,3 +130,26 @@ export const useCancelRefund = () => {
         }
     });
 };
+
+export const useAttachRefundBankAccount = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, bankAccountId }: { id: number; bankAccountId: number }) =>
+            refundService.attachBankAccount(id, { bankAccountId }),
+        onSuccess: (response, variables) => {
+            if (response.success) {
+                toast.success(response.message || 'Đã cập nhật tài khoản nhận hoàn tiền');
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_REFUNDS] });
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.CLIENT_REFUND_DETAIL, variables.id],
+                });
+            } else {
+                toast.error(response.message || 'Không thể cập nhật tài khoản');
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        }
+    });
+};

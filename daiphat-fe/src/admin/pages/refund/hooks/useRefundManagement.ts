@@ -95,3 +95,53 @@ export const useTransferRefund = () => {
         },
     });
 };
+
+export const useAttachRefundBankAccount = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, bankAccountId }: { id: number; bankAccountId: number }) =>
+            refundAdminApi.attachBankAccount(id, { bankAccountId }),
+        onSuccess: (response, variables) => {
+            if (response.success) {
+                toast.success(response.message || 'Đã gắn tài khoản ngân hàng');
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.ADMIN_REFUND_DETAIL, variables.id],
+                });
+            } else {
+                toast.error(response.message || 'Không thể gắn tài khoản');
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        },
+    });
+};
+
+export const useCancelOrderWithRefund = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({
+            orderId,
+            cancelReason,
+        }: {
+            orderId: string;
+            cancelReason: string;
+        }) => refundAdminApi.cancelOrderWithRefund(orderId, { cancelReason }),
+        onSuccess: (response) => {
+            if (response.success) {
+                toast.success(response.message || 'Đã hủy đơn và tạo yêu cầu hoàn tiền');
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDERS] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDER_DETAIL] });
+            } else {
+                toast.error(response.message || 'Không thể hủy đơn với hoàn tiền');
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        },
+    });
+};

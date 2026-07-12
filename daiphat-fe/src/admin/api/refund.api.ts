@@ -55,6 +55,33 @@ export const refundAdminApi = {
         return response.data;
     },
 
+    attachBankAccount: async (
+        id: number,
+        data: { bankAccountId: number }
+    ): Promise<ApiResponse<RefundRequestResponse>> => {
+        const response = await apiApp.patch(`${STAFF_BASE}/${id}/bank-account`, data, withAuth());
+        return response.data;
+    },
+
+    getCustomerBankAccounts: async (
+        userId: string
+    ): Promise<ApiResponse<import('../../types/refund.type').UserBankAccountResponse[]>> => {
+        const response = await apiApp.get(`/staff/users/${userId}/bank-accounts`, withAuth());
+        return response.data;
+    },
+
+    cancelOrderWithRefund: async (
+        orderId: string,
+        data: { cancelReason: string }
+    ): Promise<ApiResponse<RefundRequestResponse>> => {
+        const response = await apiApp.post(
+            `/staff/orders/${orderId}/cancel-with-refund`,
+            data,
+            withAuth()
+        );
+        return response.data;
+    },
+
     uploadTransferEvidence: async (file: File): Promise<string> => {
         const formData = new FormData();
         formData.append('file', file);

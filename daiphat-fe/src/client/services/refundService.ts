@@ -41,6 +41,14 @@ export const refundService = {
         return response.data;
     },
 
+    attachBankAccount: async (
+        id: number,
+        data: { bankAccountId: number }
+    ): Promise<ApiResponse<RefundRequestResponse>> => {
+        const response = await apiApp.patch(`${BASE_URL}/${id}/bank-account`, data);
+        return response.data;
+    },
+
     getStatuses: async (): Promise<ApiResponse<EnumOptionResponse[]>> => {
         const response = await apiApp.get(`${BASE_URL}/statuses`);
         return response.data;
