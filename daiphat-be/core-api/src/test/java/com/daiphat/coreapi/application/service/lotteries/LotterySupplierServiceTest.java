@@ -16,12 +16,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -45,6 +45,10 @@ class LotterySupplierServiceTest {
                 .code("minh_chinh")
                 .type(LotterySupplierType.DISTRIBUTOR)
                 .contactPhone("0901234567")
+                .contactEmail("supplier@example.com")
+                .address("123 Đường A")
+                .paymentTermDays(0)
+                .defaultImportCost(new BigDecimal("10000"))
                 .build();
         when(lotterySupplierRepositoryPort.existsByCode("MINH_CHINH")).thenReturn(true);
 
@@ -55,19 +59,26 @@ class LotterySupplierServiceTest {
     }
 
     @Test
-    @DisplayName("create succeeds for unique code when inactive")
+    @DisplayName("create succeeds and forces Active when required fields are present")
     void create_success() {
         CreateLotterySupplierRequest request = CreateLotterySupplierRequest.builder()
                 .name("Minh Chính")
                 .code("MINH_CHINH")
                 .type(LotterySupplierType.DISTRIBUTOR)
                 .contactPhone("0901234567")
-                .isActive(false)
+                .contactEmail("supplier@example.com")
+                .address("123 Đường A")
+                .paymentTermDays(0)
+                .defaultImportCost(new BigDecimal("10000"))
                 .build();
         LotterySupplierModel model = LotterySupplierModel.builder()
                 .name("Minh Chính")
                 .code("MINH_CHINH")
                 .contactPhone("0901234567")
+                .contactEmail("supplier@example.com")
+                .address("123 Đường A")
+                .paymentTermDays(0)
+                .defaultImportCost(new BigDecimal("10000"))
                 .isActive(false)
                 .build();
         LotterySupplierModel saved = LotterySupplierModel.builder()
@@ -75,14 +86,18 @@ class LotterySupplierServiceTest {
                 .name("Minh Chính")
                 .code("MINH_CHINH")
                 .contactPhone("0901234567")
-                .isActive(false)
+                .contactEmail("supplier@example.com")
+                .address("123 Đường A")
+                .paymentTermDays(0)
+                .defaultImportCost(new BigDecimal("10000"))
+                .isActive(true)
                 .build();
         LotterySupplierResponse response = LotterySupplierResponse.builder()
                 .id(1L)
                 .name("Minh Chính")
                 .code("MINH_CHINH")
-                .isActive(false)
-                .missingActivationFields(List.of("ADDRESS", "PAYMENT_TERM_DAYS", "DEFAULT_IMPORT_COST"))
+                .isActive(true)
+                .missingActivationFields(List.of())
                 .build();
 
         when(lotterySupplierRepositoryPort.existsByCode("MINH_CHINH")).thenReturn(false);
@@ -93,18 +108,22 @@ class LotterySupplierServiceTest {
         LotterySupplierResponse result = lotterySupplierService.create(request);
 
         assertThat(result.id()).isEqualTo(1L);
+        assertThat(model.isActive()).isTrue();
         verify(lotterySupplierRepositoryPort).save(model);
     }
 
     @Test
-    @DisplayName("create active without required fields is rejected")
-    void create_activeIncomplete_throws() {
+    @DisplayName("create without required fields is rejected")
+    void create_incomplete_throws() {
         CreateLotterySupplierRequest request = CreateLotterySupplierRequest.builder()
                 .name("Minh Chính")
                 .code("MINH_CHINH")
                 .type(LotterySupplierType.DISTRIBUTOR)
                 .contactPhone("0901234567")
-                .isActive(true)
+                .contactEmail("supplier@example.com")
+                .address("123 Đường A")
+                .paymentTermDays(0)
+                .defaultImportCost(new BigDecimal("10000"))
                 .build();
         LotterySupplierModel model = LotterySupplierModel.builder()
                 .name("Minh Chính")

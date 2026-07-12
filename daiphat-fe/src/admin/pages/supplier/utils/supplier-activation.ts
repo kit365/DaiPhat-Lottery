@@ -1,11 +1,15 @@
+import type { SxProps, Theme } from '@mui/material';
+
 export type SupplierActivationField =
     | 'CONTACT_PHONE'
+    | 'CONTACT_EMAIL'
     | 'ADDRESS'
     | 'PAYMENT_TERM_DAYS'
     | 'DEFAULT_IMPORT_COST';
 
 export const SUPPLIER_FIELD_TO_FORM: Record<SupplierActivationField, string> = {
     CONTACT_PHONE: 'contactPhone',
+    CONTACT_EMAIL: 'contactEmail',
     ADDRESS: 'address',
     PAYMENT_TERM_DAYS: 'paymentTermDays',
     DEFAULT_IMPORT_COST: 'defaultImportCost',
@@ -13,6 +17,7 @@ export const SUPPLIER_FIELD_TO_FORM: Record<SupplierActivationField, string> = {
 
 export const ACTIVATION_FIELD_ORDER: SupplierActivationField[] = [
     'CONTACT_PHONE',
+    'CONTACT_EMAIL',
     'ADDRESS',
     'PAYMENT_TERM_DAYS',
     'DEFAULT_IMPORT_COST',
@@ -20,16 +25,20 @@ export const ACTIVATION_FIELD_ORDER: SupplierActivationField[] = [
 
 export const SUPPLIER_ACTIVATION_FIELD_MESSAGES: Record<SupplierActivationField, string> = {
     CONTACT_PHONE: 'Vui lòng nhập số điện thoại để kích hoạt nhà cung cấp.',
+    CONTACT_EMAIL: 'Vui lòng nhập email để kích hoạt nhà cung cấp.',
     ADDRESS: 'Vui lòng nhập địa chỉ để kích hoạt nhà cung cấp.',
     PAYMENT_TERM_DAYS: 'Vui lòng nhập số ngày thanh toán để kích hoạt nhà cung cấp.',
     DEFAULT_IMPORT_COST: 'Vui lòng nhập giá vốn mặc định để kích hoạt nhà cung cấp.',
 };
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const getActivationFieldHelperText = (field: SupplierActivationField) =>
     SUPPLIER_ACTIVATION_FIELD_MESSAGES[field];
 
 export const getMissingSupplierFields = (data: {
     contactPhone?: string;
+    contactEmail?: string;
     address?: string;
     paymentTermDays?: number | null;
     defaultImportCost?: number | null;
@@ -38,6 +47,9 @@ export const getMissingSupplierFields = (data: {
 
     if (!data.contactPhone?.trim()) {
         missing.push('CONTACT_PHONE');
+    }
+    if (!data.contactEmail?.trim() || !EMAIL_REGEX.test(data.contactEmail.trim())) {
+        missing.push('CONTACT_EMAIL');
     }
     if (!data.address?.trim()) {
         missing.push('ADDRESS');
@@ -60,7 +72,7 @@ export const isFieldMissing = (
     field: SupplierActivationField
 ) => missingFields.includes(field);
 
-export const missingFieldInputSx = (isMissing: boolean) =>
+export const missingFieldInputSx = (isMissing: boolean): SxProps<Theme> | undefined =>
     isMissing
         ? {
               '& .MuiOutlinedInput-notchedOutline': {
@@ -71,7 +83,7 @@ export const missingFieldInputSx = (isMissing: boolean) =>
                   color: 'warning.main',
               },
           }
-        : {};
+        : undefined;
 
 export const scrollToFirstMissingField = (missing: SupplierActivationField[]) => {
     if (missing.length === 0) {

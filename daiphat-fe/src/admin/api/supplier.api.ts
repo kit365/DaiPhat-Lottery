@@ -41,17 +41,26 @@ export interface CreateLotterySupplierPayload {
     type: LotterySupplierType;
     contactName?: string;
     contactPhone: string;
+    contactEmail: string;
+    address: string;
+    taxCode?: string;
+    paymentTermDays: number;
+    defaultImportCost: number;
+}
+
+export interface UpdateLotterySupplierPayload {
+    name: string;
+    code: string;
+    type: LotterySupplierType;
+    contactName?: string;
+    contactPhone: string;
     contactEmail?: string;
     address?: string;
     taxCode?: string;
     paymentTermDays?: number | null;
     defaultImportCost?: number | null;
-    isActive?: boolean;
-}
-
-export type UpdateLotterySupplierPayload = CreateLotterySupplierPayload & {
     isActive: boolean;
-};
+}
 
 export interface SupplierListParams {
     page?: number;

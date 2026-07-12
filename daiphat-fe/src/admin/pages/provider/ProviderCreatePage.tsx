@@ -62,9 +62,12 @@ export const ProviderCreatePage = () => {
         handleSubmit,
         reset,
         watch,
-        setValue
+        setValue,
+        formState: { isValid },
     } = useForm<CreateProviderFormValues>({
         resolver: zodResolver(createProviderSchema),
+        mode: "onChange",
+        reValidateMode: "onChange",
         defaultValues: {
             name: "",
             description: "",
@@ -181,6 +184,7 @@ export const ProviderCreatePage = () => {
                                                 <TextField
                                                     {...field}
                                                     label="Tên nhà đài"
+                                                    required
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
                                                     fullWidth
@@ -197,6 +201,7 @@ export const ProviderCreatePage = () => {
                                                 <TextField
                                                     {...field}
                                                     label="Giá vé"
+                                                    required
                                                     value={field.value !== undefined ? new Intl.NumberFormat('vi-VN').format(Number(field.value)) : ''}
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
@@ -228,6 +233,7 @@ export const ProviderCreatePage = () => {
                                                     type="number"
                                                     inputProps={{ min: 0, max: 1, step: 0.01 }}
                                                     label="Tỷ lệ hoa hồng"
+                                                    required
                                                     helperText={fieldState.error?.message || "VD: 0.05 = 5% (giá trị từ 0 đến 1)"}
                                                     error={!!fieldState.error}
                                                     fullWidth
@@ -244,6 +250,7 @@ export const ProviderCreatePage = () => {
                                                     {...field}
                                                     select
                                                     label="Vùng miền"
+                                                    required
                                                     error={!!fieldState.error}
                                                     helperText={fieldState.error?.message}
                                                     onChange={(e) => {
@@ -303,6 +310,7 @@ export const ProviderCreatePage = () => {
                                                     <TextField
                                                         fullWidth
                                                         label="Lịch quay"
+                                                        required
                                                         error={!!fieldState.error}
                                                         helperText={fieldState.error?.message}
                                                         InputLabelProps={{ shrink: true }}
@@ -365,6 +373,7 @@ export const ProviderCreatePage = () => {
                                                     slotProps={{
                                                         textField: {
                                                             fullWidth: true,
+                                                            required: true,
                                                             error: !!fieldState.error,
                                                             helperText: fieldState.error?.message,
                                                             InputLabelProps: { shrink: true },
@@ -432,6 +441,7 @@ export const ProviderCreatePage = () => {
                             <LoadingButton
                                 type="submit"
                                 loading={isPending || isUploadingImage}
+                                disabled={!isValid || isPending || isUploadingImage}
                                 label="Tạo nhà đài"
                                 loadingLabel="Đang tạo..."
                                 sx={{ minHeight: "3rem", minWidth: "4rem" }}

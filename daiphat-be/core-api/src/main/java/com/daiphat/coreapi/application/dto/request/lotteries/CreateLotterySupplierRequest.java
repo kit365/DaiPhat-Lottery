@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.dto.request.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotterySupplierType;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -30,21 +31,24 @@ public record CreateLotterySupplierRequest(
         @Size(max = 30)
         String contactPhone,
 
+        @NotBlank(message = "Email không được để trống")
+        @Email(message = "Email không hợp lệ")
         @Size(max = 150)
         String contactEmail,
 
+        @NotBlank(message = "Địa chỉ không được để trống")
         @Size(max = 500)
         String address,
 
         @Size(max = 50)
         String taxCode,
 
+        @NotNull(message = "Số ngày thanh toán không được để trống")
         @Min(value = 0, message = "Số ngày thanh toán không được âm")
         Integer paymentTermDays,
 
-        @DecimalMin(value = "0", inclusive = true, message = "Giá vốn mặc định không được âm")
-        BigDecimal defaultImportCost,
-
-        Boolean isActive
+        @NotNull(message = "Giá vốn mặc định không được để trống")
+        @DecimalMin(value = "0", inclusive = false, message = "Giá vốn mặc định phải lớn hơn 0")
+        BigDecimal defaultImportCost
 ) {
 }

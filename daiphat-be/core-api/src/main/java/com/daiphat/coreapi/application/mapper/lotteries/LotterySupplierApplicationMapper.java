@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 public class LotterySupplierApplicationMapper {
 
     public LotterySupplierModel toModel(CreateLotterySupplierRequest request) {
-        LotterySupplierModel model = LotterySupplierModel.builder()
+        return LotterySupplierModel.builder()
                 .name(trimToNull(request.name()))
                 .code(normalizeCode(request.code()))
                 .type(request.type())
@@ -23,8 +23,6 @@ public class LotterySupplierApplicationMapper {
                 .defaultImportCost(request.defaultImportCost())
                 .isActive(false)
                 .build();
-        model.applyIsActive(request.isActive() == null || Boolean.TRUE.equals(request.isActive()));
-        return model;
     }
 
     public void updateModel(LotterySupplierModel model, UpdateLotterySupplierRequest request) {

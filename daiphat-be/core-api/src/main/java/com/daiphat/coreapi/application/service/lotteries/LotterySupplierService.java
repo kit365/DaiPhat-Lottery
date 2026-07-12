@@ -39,9 +39,8 @@ public class LotterySupplierService implements LotterySupplierServicePort {
         validateNonNegativeAmounts(request.paymentTermDays(), request.defaultImportCost());
 
         LotterySupplierModel model = lotterySupplierApplicationMapper.toModel(request);
-        if (Boolean.TRUE.equals(request.isActive())) {
-            model.requireActivationReady();
-        }
+        model.requireActivationReady();
+        model.setActive(true);
         LotterySupplierModel saved = lotterySupplierRepositoryPort.save(model);
         log.info("Created lottery supplier id={} code={}", saved.getId(), saved.getCode());
         return lotterySupplierApplicationMapper.toResponse(saved);

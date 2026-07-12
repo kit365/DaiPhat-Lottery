@@ -251,7 +251,7 @@ public enum ErrorCode {
 
     LOTTERY_SUPPLIER_ACTIVATION_INCOMPLETE(
             "LT_081",
-            "Nhà cung cấp chưa đủ thông tin bắt buộc để kích hoạt.",
+            "Nhà cung cấp chưa đủ thông tin bắt buộc (số điện thoại, email, địa chỉ, số ngày thanh toán, giá vốn mặc định).",
             HttpStatus.BAD_REQUEST
     ),
     LOTTERY_SUPPLIER_PAYMENT_TERM_INVALID(

@@ -29,12 +29,18 @@ interface SupplierFormFieldsProps {
     control: Control<SupplierFormValues>;
     missingFields?: SupplierActivationField[];
     onActiveToggle?: (nextActive: boolean) => boolean;
+    /** When false, hides the Active/Inactive switch (Create Supplier). Default true. */
+    showActiveToggle?: boolean;
+    /** Marks create-required fields with asterisks (Create Supplier). */
+    createMode?: boolean;
 }
 
 export const SupplierFormFields = ({
     control,
     missingFields = [],
     onActiveToggle,
+    showActiveToggle = true,
+    createMode = false,
 }: SupplierFormFieldsProps) => {
     const fieldHelper = (field: SupplierActivationField, defaultText?: string) =>
         isFieldMissing(missingFields, field) ? getActivationFieldHelperText(field) : defaultText;
@@ -124,19 +130,28 @@ export const SupplierFormFields = ({
                 </Box>
             </Stack>
 
-            <Controller
-                name="contactEmail"
-                control={control}
-                render={({ field, fieldState }) => (
-                    <TextField
-                        {...field}
-                        label="Email"
-                        fullWidth
-                        error={!!fieldState.error}
-                        helperText={fieldState.error?.message}
-                    />
-                )}
-            />
+            <Box data-activation-field="contactEmail">
+                <Controller
+                    name="contactEmail"
+                    control={control}
+                    render={({ field, fieldState }) => {
+                        const activationMissing = isFieldMissing(missingFields, 'CONTACT_EMAIL');
+                        return (
+                            <TextField
+                                {...field}
+                                label="Email"
+                                fullWidth
+                                required={createMode}
+                                error={!!fieldState.error || activationMissing}
+                                helperText={
+                                    fieldState.error?.message || fieldHelper('CONTACT_EMAIL')
+                                }
+                                sx={missingFieldInputSx(activationMissing)}
+                            />
+                        );
+                    }}
+                />
+            </Box>
 
             <Box data-activation-field="address">
                 <Controller
@@ -149,6 +164,7 @@ export const SupplierFormFields = ({
                                 {...field}
                                 label="Địa chỉ"
                                 fullWidth
+                                required={createMode}
                                 multiline
                                 minRows={2}
                                 error={!!fieldState.error || activationMissing}
@@ -184,6 +200,7 @@ export const SupplierFormFields = ({
                                     type="number"
                                     label="Số ngày thanh toán"
                                     fullWidth
+                                    required={createMode}
                                     error={!!fieldState.error || activationMissing}
                                     helperText={
                                         fieldState.error?.message ||
@@ -240,6 +257,7 @@ export const SupplierFormFields = ({
                                     value={formatViInteger(field.value)}
                                     label="Giá vốn mặc định"
                                     fullWidth
+                                    required={createMode}
                                     error={!!fieldState.error || activationMissing}
                                     helperText={
                                         fieldState.error?.message ||
@@ -272,30 +290,32 @@ export const SupplierFormFields = ({
                 </Box>
             </Stack>
 
-            <Controller
-                name="isActive"
-                control={control}
-                render={({ field }) => (
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={field.value}
-                                onChange={(e) => {
-                                    const nextActive = e.target.checked;
-                                    if (nextActive && onActiveToggle && !onActiveToggle(true)) {
-                                        return;
-                                    }
-                                    if (!nextActive) {
-                                        onActiveToggle?.(false);
-                                    }
-                                    field.onChange(nextActive);
-                                }}
-                            />
-                        }
-                        label={field.value ? 'Hoạt động' : 'Ngừng hoạt động'}
-                    />
-                )}
-            />
+            {showActiveToggle && (
+                <Controller
+                    name="isActive"
+                    control={control}
+                    render={({ field }) => (
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={field.value}
+                                    onChange={(e) => {
+                                        const nextActive = e.target.checked;
+                                        if (nextActive && onActiveToggle && !onActiveToggle(true)) {
+                                            return;
+                                        }
+                                        if (!nextActive) {
+                                            onActiveToggle?.(false);
+                                        }
+                                        field.onChange(nextActive);
+                                    }}
+                                />
+                            }
+                            label={field.value ? 'Hoạt động' : 'Ngừng hoạt động'}
+                        />
+                    )}
+                />
+            )}
         </Stack>
     );
 };

@@ -52,6 +52,9 @@ public class LotterySupplierModel {
         if (!hasText(contactPhone)) {
             missing.add(LotterySupplierActivationField.CONTACT_PHONE.name());
         }
+        if (!hasText(contactEmail) || !isValidEmail(contactEmail)) {
+            missing.add(LotterySupplierActivationField.CONTACT_EMAIL.name());
+        }
         if (!hasText(address)) {
             missing.add(LotterySupplierActivationField.ADDRESS.name());
         }
@@ -87,5 +90,12 @@ public class LotterySupplierModel {
 
     private static boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private static boolean isValidEmail(String value) {
+        if (!hasText(value)) {
+            return false;
+        }
+        return value.trim().matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
     }
 }
