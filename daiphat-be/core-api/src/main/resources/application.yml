@@ -186,7 +186,6 @@ daiphat:
       verification-token-ttl-seconds: ${AUTH_VERIFICATION_TOKEN_TTL_SECONDS:86400}
       otp-ttl-seconds: ${AUTH_OTP_TTL_SECONDS:300}
       reset-token-ttl-seconds: ${AUTH_RESET_TOKEN_TTL_SECONDS:900}
-      invite-ttl-seconds: ${AUTH_INVITE_TTL_SECONDS:86400}
     password-policy:
       min-length: ${AUTH_PASSWORD_MIN_LENGTH:6}
       max-length: ${AUTH_PASSWORD_MAX_LENGTH:100}

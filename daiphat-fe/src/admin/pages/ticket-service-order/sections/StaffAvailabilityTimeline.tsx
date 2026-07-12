@@ -4,7 +4,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import { useSchedules } from '../../hr/hooks/useSchedules';
 import { useTicketServiceOrders } from '../hooks/useTicketServiceOrderManagement';
 import { Icon } from '@iconify/react';
-import { useStaffByTicketService } from '../../account-admin/hooks/useAccountAdmin';
+import { useStaffByTicketService } from '../../../features/users/hooks/useUsers';
 
 interface StaffAvailabilityTimelineProps {
     date: Dayjs;

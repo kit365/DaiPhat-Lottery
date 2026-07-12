@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.port.in.lotteries;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryResultRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResyncLotteryResultRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryResultsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryResultRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ManagementLotteryResultBoardResponse;
@@ -9,6 +10,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultBoard
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultBoardSummaryResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultFullBoardResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultSyncBatchResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryResultModel;
 
@@ -44,6 +46,8 @@ public interface LotteryResultServicePort {
     LotteryResultBoardDetailsResponse getBoardDetails(List<Long> resultIds);
 
     LotteryResultResponse requestResync(Long id, ResyncLotteryResultRequest request, java.util.UUID actorId);
+
+    LotteryResultSyncBatchResponse requestBoardSync(SyncLotteryResultsRequest request);
 
     void requestManualResync(Long resultId, LotteryStationSourceType sourceType);
 

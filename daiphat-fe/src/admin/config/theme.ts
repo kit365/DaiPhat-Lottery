@@ -235,6 +235,91 @@ export const adminTheme = createTheme({
         },
         MuiDataGrid: {
             styleOverrides: {
+
+                root: {
+                    color: 'var(--palette-text-primary)',
+                    borderWidth: "0",
+                    overflow: 'auto',
+                    '--DataGrid-t-color-interactive-focus': 'var(--palette-success-main)',
+                    '--DataGrid-t-color-border-base': 'var(--palette-background-neutral)',
+                    
+                    '& .MuiDataGrid-columnHeaders': {
+                        borderRadius: "0", position: 'sticky', top: 70, zIndex: 3, background: 'var(--palette-background-neutral)',
+                        '& .MuiDataGrid-columnHeader': {
+                            color: 'var(--palette-text-secondary)', fontSize: "0.875rem", border: "none",
+                            borderBottom: `1px solid var(--palette-background-neutral)`, backgroundColor: 'var(--palette-background-neutral)'
+                        },
+                        '& .MuiDataGrid-columnHeader--withRightBorder': { borderRight: `1px solid var(--palette-background-neutral)` },
+                        '& .MuiDataGrid-menuIcon': { '& .MuiButtonBase-root': { color: "var(--palette-text-secondary)", rotate: '90deg' } },
+                        '& .MuiButtonBase-root': { fontSize: "1.125rem" }
+                    },
+                    
+                    '& .MuiDataGrid-footerContainer': {
+                        borderTop: "1px dashed", minHeight: "auto", fontSize: "0.875rem", color: "inherit",
+                        '& .MuiTablePagination-selectLabel': { fontSize: "0.875rem", color: "inherit", marginBottom: "-2px" },
+                        '& .MuiSelect-select': { minHeight: "21.5625px", lineHeight: "1.5rem", fontSize: "0.9375rem" },
+                        '& .MuiSelect-icon': { top: "6px" },
+                        '& .MuiTablePagination-displayedRows': { fontSize: "0.875rem", color: "inherit" },
+                        '& .MuiTablePaginationActions-root': {
+                            marginRight: "8px",
+                            '& .MuiButtonBase-root': { padding: "5px", '& .MuiSvgIcon-root': { width: "1.5rem", height: "1.5rem" } }
+                        },
+                    },
+                    
+                    '& .MuiDataGrid-withBorderColor': { borderColor: 'var(--palette-background-neutral)' },
+                    
+                    '& .MuiDataGrid-cell': {
+                        color: 'inherit', fontSize: "0.875rem", display: 'flex', alignItems: 'center',
+                        '&:hover': {
+                            '& .ticket-title': { color: `var(--palette-success-main) !important` },
+                            '& .date-text': { color: `var(--palette-success-main) !important` }
+                        }
+                    },
+                    
+                    '& .MuiDataGrid-toolbarContainer': {
+                        color: 'inherit', position: 'sticky', top: 0, zIndex: 4, background: 'var(--palette-background-paper)', borderBottom: `none`,
+                    },
+                    
+                    '& .MuiCheckbox-root': {
+                        color: 'var(--palette-text-disabled)',
+                        '&.Mui-checked, &.Mui-indeterminate': { color: 'var(--palette-primary-main)' },
+                    },
+                    
+                    '& .MuiFormControl-root': { color: 'inherit' },
+                    '& .MuiInputLabel-root': { color: 'var(--palette-text-secondary)' },
+                    '& .MuiInputLabel-root.Mui-focused': { color: 'var(--palette-text-primary)' },
+                    
+                    '& .MuiOutlinedInput-root': {
+                        color: 'var(--palette-text-primary)',
+                        '& fieldset': { borderColor: 'rgba(145 158 171 / 20%)' },
+                        '&:hover fieldset': { borderColor: 'rgba(145 158 171 / 40%)' },
+                        '&.Mui-focused fieldset': { borderColor: 'var(--palette-text-primary)' },
+                    },
+                    
+                    '& .MuiDataGrid-actionsCell .MuiIconButton-root': { color: 'var(--palette-text-secondary)' },
+                    '& .MuiDataGrid-actionsCell .MuiSvgIcon-root': { fontSize: '1.25rem' },
+
+                    '& .MuiDataGrid-columnsManagement .MuiCheckbox-root.Mui-disabled': { color: 'var(--palette-text-disabled)' },
+                    '& .MuiDataGrid-columnsManagement .MuiTypography-root.Mui-disabled': { color: 'var(--palette-text-disabled)' },
+                    '& .MuiDataGrid-columnsManagementHeader': { padding: '20px 16px', borderBottom: `1px solid var(--palette-background-neutral)` },
+                    '& .MuiDataGrid-columnsManagementSearchInput .MuiOutlinedInput-root': {
+                        fontSize: '1rem', padding: '0 14px', color: 'var(--palette-text-primary)', borderRadius: "var(--shape-borderRadius)", lineHeight: '24px', height: '56px'
+                    },
+                    '& .MuiDataGrid-columnsManagementSearchInput .MuiOutlinedInput-root.Mui-focused fieldset': { borderColor: 'var(--palette-text-primary)', borderWidth: '2px' },
+                    '& .MuiDataGrid-columnsManagementSearchInput .MuiSvgIcon-root': { fontSize: '1.25rem', color: 'var(--palette-text-secondary)' },
+                    '& .MuiDataGrid-columnsManagement': { padding: '4px 12px', display: 'flex', flexDirection: 'column', gap: '4px' },
+                    '& .MuiTypography-root': { fontSize: '0.875rem !important' },
+                    '& .MuiDataGrid-columnsManagementFooter': {
+                        padding: '12px 8px 12px 12px',
+                        '& .MuiButton-text': {
+                            padding: '6px 8px', fontWeight: '700', fontSize: '0.875rem', textTransform: 'none',
+                            borderRadius: "var(--shape-borderRadius)", color: 'var(--palette-text-primary)',
+                            '&:hover': { background: 'var(--palette-action-hover)' },
+                            '&.Mui-disabled': { color: 'var(--palette-text-disabled)', opacity: 0.48 }
+                        }
+                    },
+                },
+
                 panel: {
                     '& .MuiPaper-root': {
                         ...backgroundPopup,

@@ -73,8 +73,8 @@ import { SortButton } from "../../../components/ui/SortButton";
 import { SettingsList } from "../../../components/ui/SettingsList";
 import { Conversation } from '../../../../types/chat.type';
 import { useAuthStore } from '../../../../stores/useAuthStore';
-import { useAccounts } from '../../account-admin/hooks/useAccountAdmin';
-import { RoleEnum } from '../../account-admin/configs/constants';
+import { useAccounts } from '../../../features/users/hooks/useUsers';
+import { RoleEnum } from "../../../../types/role.type";
 
 type AssigneeFilter = 'all' | 'unassigned' | 'mine' | string;
 

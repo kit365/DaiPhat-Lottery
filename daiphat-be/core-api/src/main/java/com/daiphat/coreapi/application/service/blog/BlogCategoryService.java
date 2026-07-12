@@ -93,14 +93,8 @@ public class BlogCategoryService implements BlogCategoryServicePort {
     @Override
     @Transactional
     public BlogCategoryResponse createCategory(CreateBlogCategoryRequest request) {
-        String slug = request.slug();
-        if (slug == null || slug.isBlank()) {
-            slug = SlugUtils.toSlug(request.name());
-        }
-
-        if (blogCategoryRepositoryPort.existsBySlug(slug)) {
-            throw new DomainException(ErrorCode.SLUG_EXISTED);
-        }
+        String slug = SlugUtils.generateUnique(
+                request.slug(), request.name(), 100, blogCategoryRepositoryPort::existsBySlug);
 
         BlogCategoryModel parent = null;
         if (request.parentId() != null) {

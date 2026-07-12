@@ -551,9 +551,9 @@ class BlogPostServiceTest {
         int page = 1;
         int limit = 10;
         String search = "Tech";
-        Long tagId = 1L;
-        Long categoryId = 2L;
-        String type = "blog";
+        List<Long> tagId = List.of(1L);
+        List<Long> categoryId = List.of(2L);
+        List<String> type = List.of("blog");
         String status = "PUBLISHED";
         String sortBy = "viewCount";
         String direction = "desc";
