@@ -19,6 +19,7 @@ import {
     useTheme,
     createTheme,
     Paper,
+    InputAdornment,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
@@ -40,6 +41,12 @@ import {
     isDrawDateToday,
     resolveImportModeLock,
 } from './utils/importBatchDrawDate';
+import { ImportBatchDeclaredQuantityProgress } from './components/ImportBatchDeclaredQuantityProgress';
+import {
+    declaredQuantitiesMatch,
+    sumImportBatchLineDeclaredQuantity,
+} from './utils/importBatchDeclaredQuantity';
+import { formatViInteger, parseNonNegativeIntegerInput } from '../supplier/utils/supplierNumberFields';
 import { computeImportBatchTotals } from './utils/importBatchTotals';
 import { computeImportBatchRowLimit, IMPORT_BATCH_ROW_LIMIT_MESSAGE } from './utils/importBatchRowLimit';
 import type { ImportBatch, ImportBatchEligibleStation } from '../../api/importBatch.api';
@@ -64,6 +71,7 @@ const buildDefaultFormValues = (): CreateImportBatchFormValues => ({
     drawDate: dayjs().format('YYYY-MM-DD'),
     supplierId: 0,
     importMode: 'IN_DAY',
+    totalDeclareQuantity: 0,
     invoiceEvidenceUrl: '',
     lines: [emptyLine()],
 });
@@ -96,6 +104,7 @@ export const ImportBatchCreatePage = () => {
     const drawDate = useWatch({ control, name: 'drawDate' });
     const importMode = useWatch({ control, name: 'importMode' });
     const supplierId = useWatch({ control, name: 'supplierId' });
+    const totalDeclareQuantity = useWatch({ control, name: 'totalDeclareQuantity' });
     const invoiceEvidenceUrl = useWatch({ control, name: 'invoiceEvidenceUrl' });
     const lines = useWatch({ control, name: 'lines' }) ?? [];
     const { data: timePolicy } = useImportBatchTimePolicy();
@@ -118,10 +127,11 @@ export const ImportBatchCreatePage = () => {
             supplierId,
             drawDate,
             importMode,
+            totalDeclareQuantity,
             invoiceEvidenceUrl,
             lines,
         }),
-        [supplierId, drawDate, importMode, invoiceEvidenceUrl, lines]
+        [supplierId, drawDate, importMode, totalDeclareQuantity, invoiceEvidenceUrl, lines]
     );
 
     const { clearDraft } = useImportBatchCreateDraft({
@@ -291,9 +301,11 @@ export const ImportBatchCreatePage = () => {
 
     const canSubmit =
         eligibleStations.length > 0 &&
-        lines.some((line) => line.lotteryStationId && eligibleStationIds.has(line.lotteryStationId));
+        lines.some((line) => line.lotteryStationId && eligibleStationIds.has(line.lotteryStationId)) &&
+        declaredQuantitiesMatch(totalDeclareQuantity ?? 0, lines);
 
     const totals = computeImportBatchTotals(lines);
+    const linesDeclaredQuantity = sumImportBatchLineDeclaredQuantity(lines);
 
     const confirmTotals = pendingFormData
         ? computeImportBatchTotals(pendingFormData.lines)
@@ -384,6 +396,7 @@ export const ImportBatchCreatePage = () => {
                 drawDate: pendingFormData.drawDate,
                 supplierId: pendingFormData.supplierId,
                 importMode: pendingFormData.importMode,
+                totalDeclareQuantity: pendingFormData.totalDeclareQuantity,
                 forceCreate: true,
                 invoiceEvidenceUrl:
                     pendingFormData.importMode === 'IN_DAY'
@@ -421,6 +434,7 @@ export const ImportBatchCreatePage = () => {
                 drawDate: pendingFormData.drawDate,
                 supplierId: pendingFormData.supplierId,
                 importMode: pendingFormData.importMode,
+                totalDeclareQuantity: pendingFormData.totalDeclareQuantity,
                 invoiceEvidenceUrl:
                     pendingFormData.importMode === 'IN_DAY'
                         ? pendingFormData.invoiceEvidenceUrl?.trim() || undefined
@@ -607,6 +621,43 @@ export const ImportBatchCreatePage = () => {
                                 />
                             </Stack>
 
+                            <Controller
+                                name="totalDeclareQuantity"
+                                control={control}
+                                render={({ field, fieldState }) => (
+                                    <TextField
+                                        name={field.name}
+                                        onBlur={field.onBlur}
+                                        inputRef={field.ref}
+                                        value={formatViInteger(field.value)}
+                                        label="Tổng số lượng khai báo phiếu nhập lô"
+                                        fullWidth
+                                        sx={{ maxWidth: { sm: 360 } }}
+                                        error={isSubmitted && !!fieldState.error}
+                                        helperText={isSubmitted && fieldState.error?.message}
+                                        onChange={(e) => {
+                                            field.onChange(parseNonNegativeIntegerInput(e.target.value) ?? 0);
+                                        }}
+                                        inputProps={{ inputMode: 'numeric' }}
+                                        InputProps={{
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        vé
+                                                    </Typography>
+                                                </InputAdornment>
+                                            ),
+                                        }}
+                                    />
+                                )}
+                            />
+
+                            <ImportBatchDeclaredQuantityProgress
+                                totalDeclareQuantity={totalDeclareQuantity ?? 0}
+                                linesSum={linesDeclaredQuantity}
+                                showError={isSubmitted}
+                            />
+
                             {blockedStations.length > 0 && (
                                 <Alert severity="info">
                                     <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
@@ -702,10 +753,6 @@ export const ImportBatchCreatePage = () => {
                                 }}
                             >
                                 <Typography variant="body2">
-                                    <strong>Tổng số lượng khai báo:</strong>{' '}
-                                    {totals.totalQty.toLocaleString('vi-VN')} vé
-                                </Typography>
-                                <Typography variant="body2">
                                     <strong>Tổng giá trị lô vé nhập:</strong>{' '}
                                     {totals.totalCost.toLocaleString('vi-VN')} VNĐ
                                 </Typography>
@@ -793,7 +840,7 @@ export const ImportBatchCreatePage = () => {
                         declareQuantity: line.declareQuantity,
                         importCost: line.importCost,
                     }))}
-                    totalDeclareQuantity={confirmTotals.totalQty}
+                    totalDeclareQuantity={pendingFormData?.totalDeclareQuantity ?? 0}
                     totalCostValue={confirmTotals.totalCost}
                     isPending={isPending}
                     onClose={handleCloseConfirm}

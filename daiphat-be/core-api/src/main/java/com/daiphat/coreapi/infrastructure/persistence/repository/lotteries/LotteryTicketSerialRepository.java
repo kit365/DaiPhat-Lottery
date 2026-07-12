@@ -51,5 +51,18 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
             """)
     List<LotteryTicketSerialEntity> findAllByImportBatchLineId(@Param("importBatchLineId") Long importBatchLineId);
 
+    @Query("""
+            SELECT COUNT(s) FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL
+              AND s.ticket.id = :ticketId
+              AND s.importBatchLine.id = :importBatchLineId
+            """)
+    long countByTicketIdAndImportBatchLineId(
+            @Param("ticketId") Long ticketId,
+            @Param("importBatchLineId") Long importBatchLineId
+    );
+
+    void deleteByTicket_IdAndImportBatchLine_Id(Long ticketId, Long importBatchLineId);
+
     void deleteByImportBatchLine_Id(Long importBatchLineId);
 }

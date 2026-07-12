@@ -26,6 +26,10 @@ import {
     getIncompleteLines,
     resolveImportBatchStationNames,
 } from '../../ticket/utils/importBatchProgress';
+import {
+    getImportBatchEditDraftStationNames,
+    hasStartedImportBatchLineEntry,
+} from '../utils/importBatchEditDraft';
 
 export type ImportBatchNotificationActionType = 'continue-import' | 'add-stations';
 
@@ -74,16 +78,24 @@ export const ImportBatchNotificationDetailDialog = ({
             <DialogContent sx={{ pt: 1 }}>
                 <Stack spacing={0} divider={<Divider flexItem />}>
                     {batches.map((batch) => {
+                        const rowActionType: ImportBatchNotificationActionType =
+                            actionType === 'add-stations' &&
+                            hasStartedImportBatchLineEntry(batch.id)
+                                ? 'continue-import'
+                                : actionType;
+                        const draftStationNames = getImportBatchEditDraftStationNames(batch.id);
                         const stationNames =
-                            actionType === 'continue-import'
-                                ? resolveImportBatchStationNames(
-                                      batch,
-                                      resolveStationName,
-                                      getIncompleteLines(batch)
-                                  )
+                            rowActionType === 'continue-import'
+                                ? draftStationNames.length > 0
+                                    ? draftStationNames
+                                    : resolveImportBatchStationNames(
+                                          batch,
+                                          resolveStationName,
+                                          getIncompleteLines(batch)
+                                      )
                                 : [];
                         const stationLabel =
-                            actionType === 'add-stations'
+                            rowActionType === 'add-stations'
                                 ? 'Chưa bổ sung nhà đài'
                                 : stationNames.length > 0
                                   ? stationNames.join(', ')
@@ -165,7 +177,7 @@ export const ImportBatchNotificationDetailDialog = ({
                                     onClick={() => handleAction(batch)}
                                     sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
                                 >
-                                    {actionLabel[actionType]}
+                                    {actionLabel[rowActionType]}
                                 </Button>
                             </Box>
                         );
