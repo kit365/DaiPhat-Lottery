@@ -86,19 +86,6 @@ public class RefundRequestEntity {
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
-    @Column(name = "transfer_evidence_url", length = 500)
-    private String transferEvidenceUrl;
-
-    @Column(name = "transferred_at")
-    private LocalDateTime transferredAt;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "transferred_by")
-    private UserEntity transferredBy;
-
-    @Column(name = "transfer_note", length = 500)
-    private String transferNote;
-
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -125,9 +112,5 @@ public class RefundRequestEntity {
 
     public UUID getReviewedById() {
         return reviewedBy != null ? reviewedBy.getId() : null;
-    }
-
-    public UUID getTransferredById() {
-        return transferredBy != null ? transferredBy.getId() : null;
     }
 }

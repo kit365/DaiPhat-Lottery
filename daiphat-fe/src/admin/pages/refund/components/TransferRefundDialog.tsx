@@ -15,7 +15,7 @@ interface TransferRefundDialogProps {
     open: boolean;
     loading?: boolean;
     onClose: () => void;
-    onConfirm: (data: { transferEvidenceUrl: string; transferNote?: string }) => void;
+    onConfirm: (data: { paymentEvidenceUrl: string; note?: string }) => void;
 }
 
 export const TransferRefundDialog = ({ open, loading, onClose, onConfirm }: TransferRefundDialogProps) => {
@@ -38,8 +38,8 @@ export const TransferRefundDialog = ({ open, loading, onClose, onConfirm }: Tran
     const handleConfirm = () => {
         if (!evidenceUrl.trim()) return;
         onConfirm({
-            transferEvidenceUrl: evidenceUrl.trim(),
-            transferNote: note.trim() || undefined,
+            paymentEvidenceUrl: evidenceUrl.trim(),
+            note: note.trim() || undefined,
         });
     };
 
