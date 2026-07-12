@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:daiphat_mobile/src/app/routing/app_routes.dart';
 import 'package:daiphat_mobile/src/features/auth/presentation/viewmodels/login_viewmodel.dart';
 import 'package:daiphat_mobile/src/features/blog/presentation/views/blog_screen.dart';
-import 'package:daiphat_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
 
 class MainLayout extends StatefulWidget {
@@ -76,11 +74,8 @@ class _MainLayoutState extends State<MainLayout> {
     if (location.startsWith('/results')) {
       return 2;
     }
-    if (location.startsWith(AppRoute.cart.path)) {
-      return 4;
-    }
     if (location.startsWith(AppRoute.profile.path)) {
-      return 5;
+      return 4;
     }
     return 0;
   }
@@ -102,10 +97,6 @@ class _MainLayoutState extends State<MainLayout> {
         _goToBlog();
         break;
       case 4:
-        _goToMain();
-        context.go(AppRoute.cart.path);
-        break;
-      case 5:
         _goToMain();
         if (widget.loginViewModel.isAuthenticated) {
           context.go(AppRoute.profile.path);
@@ -177,32 +168,6 @@ class _MainLayoutState extends State<MainLayout> {
               icon: Icon(Icons.article_outlined),
               selectedIcon: Icon(Icons.article, color: AppColors.primary),
               label: 'Tin tức',
-            ),
-            NavigationDestination(
-              icon: Consumer(
-                builder: (context, ref, child) {
-                  final count = ref.watch(cartTicketCountProvider);
-                  return Badge(
-                    isLabelVisible: count > 0,
-                    label: Text('$count'),
-                    child: const Icon(Icons.shopping_cart_outlined),
-                  );
-                },
-              ),
-              selectedIcon: Consumer(
-                builder: (context, ref, child) {
-                  final count = ref.watch(cartTicketCountProvider);
-                  return Badge(
-                    isLabelVisible: count > 0,
-                    label: Text('$count'),
-                    child: const Icon(
-                      Icons.shopping_cart,
-                      color: AppColors.primary,
-                    ),
-                  );
-                },
-              ),
-              label: 'Giỏ hàng',
             ),
             const NavigationDestination(
               icon: Icon(Icons.person_outline),
