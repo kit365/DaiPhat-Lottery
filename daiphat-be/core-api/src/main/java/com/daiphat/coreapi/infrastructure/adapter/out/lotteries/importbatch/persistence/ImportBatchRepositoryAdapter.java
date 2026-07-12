@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out.lotteries;
+package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.importbatch.persistence;
 
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;

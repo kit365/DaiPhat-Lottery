@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out.lotteries;
+package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.ticket.persistence;
 
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
