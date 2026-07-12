@@ -172,22 +172,87 @@ export const RefundDetailPage = () => {
                                     </Typography>
                                     <Typography>{refund.refundReason}</Typography>
                                 </Grid>
-                                {refund.payoutTransaction?.paymentEvidenceUrl && (
-                                    <Grid item xs={12}>
-                                        <TransferEvidencePreview imageUrl={refund.payoutTransaction.paymentEvidenceUrl} />
-                                    </Grid>
-                                )}
-                                {refund.payoutTransaction?.note && (
-                                    <Grid item xs={12}>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Ghi chú chuyển khoản
-                                        </Typography>
-                                        <Typography>{refund.payoutTransaction.note}</Typography>
-                                    </Grid>
-                                )}
                             </Grid>
                         </CardContent>
                     </Card>
+
+                    {(isRefundTransferComplete(refund.status) ||
+                        refund.payoutTransaction?.paymentEvidenceUrl) && (
+                        <Card sx={{ mb: 3 }}>
+                            <CardContent>
+                                <Typography variant="h6" gutterBottom>
+                                    Thông tin thanh toán hoàn tiền
+                                </Typography>
+                                <Grid container spacing={2}>
+                                    {refund.payoutTransaction?.paidAt && (
+                                        <Grid item xs={12} sm={6}>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Thời gian chuyển khoản
+                                            </Typography>
+                                            <Typography>
+                                                {dayjs(refund.payoutTransaction.paidAt).format(
+                                                    'DD/MM/YYYY HH:mm'
+                                                )}
+                                            </Typography>
+                                        </Grid>
+                                    )}
+                                    {detail.transferrerName && (
+                                        <Grid item xs={12} sm={6}>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Nhân viên xử lý
+                                            </Typography>
+                                            <Typography fontWeight={600}>
+                                                {detail.transferrerName}
+                                            </Typography>
+                                        </Grid>
+                                    )}
+                                    {refund.payoutTransaction?.note && (
+                                        <Grid item xs={12}>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Ghi chú
+                                            </Typography>
+                                            <Typography>{refund.payoutTransaction.note}</Typography>
+                                        </Grid>
+                                    )}
+                                    {refund.payoutTransaction?.paymentEvidenceUrl ? (
+                                        <Grid item xs={12}>
+                                            <TransferEvidencePreview
+                                                imageUrl={refund.payoutTransaction.paymentEvidenceUrl}
+                                                infoItems={[
+                                                    {
+                                                        label: 'Mã yêu cầu',
+                                                        value: `#${refund.id}`,
+                                                    },
+                                                    {
+                                                        label: 'Số tiền hoàn',
+                                                        value: `${refund.refundAmount?.toLocaleString('vi-VN') ?? '—'}đ`,
+                                                    },
+                                                    {
+                                                        label: 'Thời gian',
+                                                        value: refund.payoutTransaction.paidAt
+                                                            ? dayjs(
+                                                                  refund.payoutTransaction.paidAt
+                                                              ).format('DD/MM/YYYY HH:mm')
+                                                            : '—',
+                                                    },
+                                                    {
+                                                        label: 'Nhân viên',
+                                                        value: detail.transferrerName || '—',
+                                                    },
+                                                ]}
+                                            />
+                                        </Grid>
+                                    ) : (
+                                        <Grid item xs={12}>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Chưa có ảnh biên lai chuyển khoản.
+                                            </Typography>
+                                        </Grid>
+                                    )}
+                                </Grid>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <Card sx={{ mb: 3 }}>
                         <CardContent>
