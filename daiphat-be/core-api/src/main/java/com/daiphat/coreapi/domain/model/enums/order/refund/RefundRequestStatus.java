@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum RefundRequestStatus implements LabeledEnum {
     PENDING("Chờ duyệt"),
+    WAITING_FOR_INFO("Chờ thông tin STK"),
     APPROVED("Đã duyệt"),
     REJECTED("Từ chối"),
     READY_TO_PAY("Chờ chuyển khoản"),

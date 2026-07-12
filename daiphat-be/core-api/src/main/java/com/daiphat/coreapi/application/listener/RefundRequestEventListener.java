@@ -49,6 +49,7 @@ public class RefundRequestEventListener {
     private String resolveTitle(RefundRequestStatus status) {
         return switch (status) {
             case PENDING -> "Yêu cầu hoàn tiền đã được gửi";
+            case WAITING_FOR_INFO -> "Cần cung cấp tài khoản nhận hoàn tiền";
             case APPROVED -> "Yêu cầu hủy đơn đã được duyệt";
             case REJECTED -> "Yêu cầu hủy đơn bị từ chối";
             case READY_TO_PAY -> "Yêu cầu hoàn tiền chờ chuyển khoản";
@@ -63,6 +64,8 @@ public class RefundRequestEventListener {
         return switch (event.status()) {
             case PENDING -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
                     + " đã được gửi và đang chờ xử lý.";
+            case WAITING_FOR_INFO -> "Đơn hàng #" + orderLabel
+                    + " đã được hủy do sự cố. Vui lòng cung cấp tài khoản ngân hàng để nhận hoàn tiền.";
             case APPROVED -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel + " đã được duyệt. "
                     + "Đơn hàng sẽ được hủy và tiền sẽ được hoàn lại.";
             case REJECTED -> {
@@ -71,7 +74,7 @@ public class RefundRequestEventListener {
                         + (reason.isBlank() ? "" : " Lý do: " + reason);
             }
             case READY_TO_PAY -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
-                    + " đã được duyệt và đang chờ chuyển khoản.";
+                    + " đang chờ chuyển khoản.";
             case PAID -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
                     + " đã được chuyển khoản thành công.";
             case EXPIRED -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel

@@ -80,6 +80,26 @@ public class RefundRequestModel {
         this.attemptNumber = 1;
     }
 
+    /** Staff incident cancel: order already cancelled; wait for customer bank account. */
+    public void initializeForStaffIncidentCancel() {
+        this.status = RefundRequestStatus.WAITING_FOR_INFO;
+        this.requestRole = RefundRequestRole.STAFF;
+        this.bankAccountId = null;
+        this.fundSource = RefundFundSource.COMPANY_FUND;
+        this.reimburseStatus = ReimburseStatus.NONE;
+        this.attemptNumber = 1;
+    }
+
+    /** Customer/staff attaches bank while waiting for STK → ready for payout. */
+    public void attachBankAccount(Long bankAccountId) {
+        ensureStatus(RefundRequestStatus.WAITING_FOR_INFO);
+        if (bankAccountId == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+        this.bankAccountId = bankAccountId;
+        this.status = RefundRequestStatus.READY_TO_PAY;
+    }
+
     public void approve(UUID reviewerId) {
         ensureStatus(RefundRequestStatus.PENDING);
         this.status = RefundRequestStatus.APPROVED;
@@ -114,6 +134,7 @@ public class RefundRequestModel {
 
     public void expire() {
         if (this.status != RefundRequestStatus.PENDING
+                && this.status != RefundRequestStatus.WAITING_FOR_INFO
                 && this.status != RefundRequestStatus.APPROVED
                 && this.status != RefundRequestStatus.READY_TO_PAY) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);

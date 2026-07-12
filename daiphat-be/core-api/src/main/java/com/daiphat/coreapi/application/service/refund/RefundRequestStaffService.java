@@ -1,6 +1,8 @@
 package com.daiphat.coreapi.application.service.refund;
 
+import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
 import com.daiphat.coreapi.application.dto.request.refund.RejectRefundRequestRequest;
+import com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.TransactionResponse;
@@ -28,7 +30,9 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
@@ -48,6 +52,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,6 +70,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
     private static final EnumSet<RefundRequestStatus> EXPIRABLE_STATUSES = EnumSet.of(
             RefundRequestStatus.PENDING,
+            RefundRequestStatus.WAITING_FOR_INFO,
             RefundRequestStatus.APPROVED,
             RefundRequestStatus.READY_TO_PAY);
 
@@ -218,6 +224,11 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         if (refund.getStatus() == RefundRequestStatus.EXPIRED) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS, "Yêu cầu hoàn tiền đã hết hạn xử lý.");
         }
+        if (refund.getBankAccountId() == null) {
+            throw new DomainException(
+                    ErrorCode.REFUND_REQUEST_INVALID_STATUS,
+                    "Yêu cầu hoàn tiền chưa có tài khoản ngân hàng nhận tiền.");
+        }
         StorageUtils.validateImageEvidenceUrl(request.paymentEvidenceUrl());
 
         UUID orderId = requireOrderId(refund);
@@ -243,6 +254,80 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 loadBankAccount(saved.getBankAccountId()),
                 orderCode,
                 orderApplicationMapper.toTransactionResponse(savedPayout));
+    }
+
+    @Override
+    @Transactional
+    public RefundRequestResponse cancelOrderWithRefund(
+            UUID orderId,
+            UUID staffId,
+            StaffCancelOrderWithRefundRequest request) {
+        log.info("Staff {} cancelling order {} with refund (waiting for bank info)", staffId, orderId);
+
+        String cancelReason = request.cancelReason().trim();
+        OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
+                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
+
+        if (!STAFF_APPROVABLE_ORDER_STATUSES.contains(order.getStatus())) {
+            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
+        }
+        if (refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)) {
+            throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
+        }
+        if (order.getUserId() == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Đơn hàng không có khách hàng liên kết.");
+        }
+
+        BigDecimal refundAmount = calculateRefundAmount(order);
+        cancelOrderForStaffApproval(order, cancelReason);
+        releaseSoldTickets(order);
+        orderRepositoryPort.save(order);
+
+        RefundRequestModel refundRequest = RefundRequestModel.builder()
+                .refundType(RefundType.FULL_ORDER)
+                .requestedBy(order.getUserId())
+                .requestRole(RefundRequestRole.STAFF)
+                .refundAmount(refundAmount)
+                .refundReason(cancelReason)
+                .build();
+        refundRequest.initializeForStaffIncidentCancel();
+
+        RefundRequestModel savedRefund = refundRequestRepositoryPort.save(refundRequest);
+        int linked = refundRequestRepositoryPort.linkOrderDetailsByOrderId(orderId, savedRefund.getId());
+        if (linked <= 0) {
+            throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
+        }
+        savedRefund.setOrderId(orderId);
+        savedRefund.setOrderDetailIds(
+                refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(savedRefund.getId()));
+
+        publishRefundStatusChanged(savedRefund);
+        publishOrderCancelled(order);
+
+        return toEnrichedResponse(savedRefund, null, order.getOrderCode());
+    }
+
+    @Override
+    @Transactional
+    public RefundRequestResponse attachBankAccount(
+            Long id,
+            UUID staffId,
+            AttachRefundBankAccountRequest request) {
+        log.info("Staff {} attaching bank account to refund {}", staffId, id);
+
+        RefundRequestModel refund = getRequestOrThrow(id);
+        UserBankAccountModel bankAccount = userBankAccountRepositoryPort
+                .findByIdAndUserId(request.bankAccountId(), refund.getRequestedBy())
+                .orElseThrow(() -> new DomainException(ErrorCode.REFUND_REQUEST_BANK_ACCOUNT_MISMATCH));
+
+        refund.attachBankAccount(bankAccount.getId());
+        RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
+        publishRefundStatusChanged(saved);
+
+        String orderCode = orderRepositoryPort.findById(requireOrderId(saved))
+                .map(OrderModel::getOrderCode)
+                .orElse(null);
+        return toEnrichedResponse(saved, bankAccount, orderCode);
     }
 
     @Override
@@ -459,10 +544,33 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         List<RefundProcessingHistoryItem> history = new ArrayList<>();
 
         if (request.getCreatedAt() != null) {
+            if (request.getRequestRole() == RefundRequestRole.STAFF
+                    || request.getRequestRole() == RefundRequestRole.ADMIN) {
+                history.add(new RefundProcessingHistoryItem(
+                        "Nhân viên báo lỗi & hủy đơn",
+                        request.getRefundReason(),
+                        request.getCreatedAt()));
+            } else {
+                history.add(new RefundProcessingHistoryItem(
+                        "Khách hàng tạo yêu cầu",
+                        request.getRefundReason(),
+                        request.getCreatedAt()));
+            }
+        }
+
+        if (request.getStatus() == RefundRequestStatus.WAITING_FOR_INFO) {
             history.add(new RefundProcessingHistoryItem(
-                    "Khách hàng tạo yêu cầu",
-                    request.getRefundReason(),
+                    "Chờ thông tin STK",
+                    "Đang chờ khách hàng cung cấp tài khoản ngân hàng nhận hoàn tiền.",
                     request.getCreatedAt()));
+        } else if (request.getBankAccountId() != null
+                && (request.getRequestRole() == RefundRequestRole.STAFF
+                || request.getRequestRole() == RefundRequestRole.ADMIN)
+                && request.getReviewedAt() == null) {
+            history.add(new RefundProcessingHistoryItem(
+                    "Đã cung cấp tài khoản ngân hàng",
+                    "Yêu cầu chuyển sang chờ chuyển khoản.",
+                    request.getUpdatedAt() != null ? request.getUpdatedAt() : request.getCreatedAt()));
         }
 
         ProcessingEvaluation deadlineEvaluation = refundProcessingDeadlineService.evaluate(request);
@@ -527,6 +635,9 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     }
 
     private UserBankAccountModel loadBankAccount(Long bankAccountId) {
+        if (bankAccountId == null) {
+            return null;
+        }
         return userBankAccountRepositoryPort.findById(bankAccountId).orElse(null);
     }
 
@@ -559,5 +670,17 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                     }
                 })
                 .toList();
+    }
+
+    private BigDecimal calculateRefundAmount(OrderModel order) {
+        if (order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
+            return order.getOrderDetails().stream()
+                    .map(OrderDetailModel::getLineSubtotal)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+        if (order.getTotalAmount() == null || order.getTotalAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_AMOUNT);
+        }
+        return order.getTotalAmount();
     }
 }

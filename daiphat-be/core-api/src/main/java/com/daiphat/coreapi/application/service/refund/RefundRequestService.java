@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.service.refund;
 
+import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
 import com.daiphat.coreapi.application.dto.request.refund.CreateRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
@@ -119,9 +120,7 @@ public class RefundRequestService implements RefundRequestServicePort {
     @Transactional(readOnly = true)
     public RefundRequestResponse getById(Long id, UUID userId) {
         RefundRequestModel request = getOwnedRequestOrThrow(id, userId);
-        UserBankAccountModel bankAccount = userBankAccountRepositoryPort.findById(request.getBankAccountId())
-                .orElse(null);
-        return toResponse(request, bankAccount);
+        return toResponse(request, loadBankAccount(request.getBankAccountId()));
     }
 
     @Override
@@ -134,6 +133,20 @@ public class RefundRequestService implements RefundRequestServicePort {
         request.cancel();
         RefundRequestModel saved = refundRequestRepositoryPort.save(request);
         return toResponse(saved, loadBankAccount(saved.getBankAccountId()));
+    }
+
+    @Override
+    @Transactional
+    public RefundRequestResponse attachBankAccount(Long id, UUID userId, AttachRefundBankAccountRequest request) {
+        RefundRequestModel refund = getOwnedRequestOrThrow(id, userId);
+        UserBankAccountModel bankAccount = userBankAccountRepositoryPort
+                .findByIdAndUserId(request.bankAccountId(), userId)
+                .orElseThrow(() -> new DomainException(ErrorCode.REFUND_REQUEST_BANK_ACCOUNT_MISMATCH));
+
+        refund.attachBankAccount(bankAccount.getId());
+        RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
+        publishRefundStatusChanged(saved, resolveOrderCode(saved.getOrderId(), null));
+        return toResponse(saved, bankAccount);
     }
 
     @Override
@@ -191,6 +204,9 @@ public class RefundRequestService implements RefundRequestServicePort {
     }
 
     private UserBankAccountModel loadBankAccount(Long bankAccountId) {
+        if (bankAccountId == null) {
+            return null;
+        }
         return userBankAccountRepositoryPort.findById(bankAccountId).orElse(null);
     }
 
