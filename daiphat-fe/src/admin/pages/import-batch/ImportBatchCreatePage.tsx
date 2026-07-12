@@ -53,6 +53,9 @@ import type { ImportBatch, ImportBatchEligibleStation } from '../../api/importBa
 import { useImportBatchCreateDraft } from './hooks/useImportBatchCreateDraft';
 import { readLocalImportBatchCreateDraft } from './utils/importBatchCreateDraft';
 import { transferCreateFormToEditDraft } from './utils/importBatchEditDraft';
+import {
+    purgeExpiredImportWorkflowDrafts,
+} from './utils/importBatchDraftCleanup';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -139,6 +142,10 @@ export const ImportBatchCreatePage = () => {
         getValues,
         formSnapshot,
     });
+
+    useEffect(() => {
+        purgeExpiredImportWorkflowDrafts();
+    }, []);
 
     useEffect(() => {
         if (isLoadingSuppliers || formInitializedRef.current) {
@@ -447,6 +454,7 @@ export const ImportBatchCreatePage = () => {
             });
 
             if (res.success) {
+                // Stop autosave and remove create draft immediately after BE confirm.
                 clearDraft();
                 toast.success(res.message || 'Tạo phiếu nhập lô thành công.');
                 setConfirmOpen(false);
@@ -473,6 +481,7 @@ export const ImportBatchCreatePage = () => {
     };
 
     const handleCancel = () => {
+        // User abandoned create flow — remove local create draft so it is not restored later.
         clearDraft();
         navigate(ROUTES.ADMIN.IMPORT_BATCH.LIST);
     };

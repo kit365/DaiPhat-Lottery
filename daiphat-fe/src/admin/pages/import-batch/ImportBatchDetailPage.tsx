@@ -47,9 +47,14 @@ import {
     isImportBatchEditable,
 } from '../ticket/utils/importBatchProgress';
 import { hasUnsavedImportBatchEditDraft } from './utils/importBatchEditDraft';
+import {
+    clearImportBatchWorkflowDrafts,
+    purgeExpiredImportWorkflowDrafts,
+} from './utils/importBatchDraftCleanup';
 import { ImportBatchProgressBar } from './components/ImportBatchProgressBar';
 import { ImagePreview } from '../../components/ui/ImagePreview';
 import dayjs from 'dayjs';
+import { useEffect } from 'react';
 
 export const ImportBatchDetailPage = () => {
     const { id } = useParams<{ id: string }>();
@@ -57,6 +62,19 @@ export const ImportBatchDetailPage = () => {
     const { data: batch, isLoading } = useImportBatchDetail(id);
     const { data: providersRes } = useProviders({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
+
+    useEffect(() => {
+        purgeExpiredImportWorkflowDrafts();
+    }, []);
+
+    useEffect(() => {
+        if (!batch || !id) {
+            return;
+        }
+        if (batch.status === 'CANCELLED' || batch.status === 'IMPORTED') {
+            clearImportBatchWorkflowDrafts(id);
+        }
+    }, [batch, id]);
 
     const resolveStationName = (stationId: number) =>
         providers.find((p: any) => String(p.id || p._id) === String(stationId))?.name ||

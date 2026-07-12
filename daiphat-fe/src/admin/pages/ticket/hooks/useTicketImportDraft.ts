@@ -1,54 +1,73 @@
 import { useCallback, useEffect, useRef } from 'react';
-import type { UseFormGetValues } from 'react-hook-form';
-import type { CreateImportBatchFormValues } from '../schemas/importBatch.schema';
 import {
-    clearLocalImportBatchCreateDraft,
-    writeLocalImportBatchCreateDraft,
-} from '../utils/importBatchCreateDraft';
+    clearLocalTicketImportDraft,
+    writeLocalTicketImportDraft,
+    type TicketImportLineDraft,
+} from '../utils/ticketImportDraft';
 
-const AUTOSAVE_DEBOUNCE_MS = 500;
+const AUTOSAVE_DEBOUNCE_MS = 400;
 
-type UseImportBatchCreateDraftOptions = {
+type UseTicketImportDraftOptions = {
     enabled?: boolean;
-    getValues: UseFormGetValues<CreateImportBatchFormValues>;
-    formSnapshot: CreateImportBatchFormValues;
+    selectedBatchId: string;
+    activeLineId: string;
+    lineFormDrafts: Record<string, TicketImportLineDraft>;
+    /** Watched form snapshot so edits to dãy số / sê-ri trigger autosave. */
+    formSnapshot: unknown;
+    getActiveLineSections: () => TicketImportLineDraft['ticketSections'];
 };
 
-export const useImportBatchCreateDraft = ({
+export const useTicketImportDraft = ({
     enabled = true,
-    getValues,
+    selectedBatchId,
+    activeLineId,
+    lineFormDrafts,
     formSnapshot,
-}: UseImportBatchCreateDraftOptions) => {
+    getActiveLineSections,
+}: UseTicketImportDraftOptions) => {
     const debounceRef = useRef<ReturnType<typeof setTimeout>>();
     const lastPayloadRef = useRef('');
     const closedRef = useRef(false);
-    const getValuesRef = useRef(getValues);
-    getValuesRef.current = getValues;
+    const getActiveLineSectionsRef = useRef(getActiveLineSections);
+    getActiveLineSectionsRef.current = getActiveLineSections;
+
+    const buildDraftPayload = useCallback(() => {
+        const drafts = { ...lineFormDrafts };
+        if (activeLineId) {
+            drafts[activeLineId] = {
+                ticketSections: getActiveLineSectionsRef.current(),
+            };
+        }
+        return {
+            selectedBatchId,
+            activeLineId,
+            lineFormDrafts: drafts,
+        };
+    }, [activeLineId, lineFormDrafts, selectedBatchId]);
 
     const persistDraft = useCallback(
         (options?: { immediate?: boolean }) => {
             if (!enabled || closedRef.current) {
                 return;
             }
-            const values = getValuesRef.current();
-            const payloadKey = JSON.stringify(values);
+            const payload = buildDraftPayload();
+            const payloadKey = JSON.stringify(payload);
             if (!options?.immediate && payloadKey === lastPayloadRef.current) {
                 return;
             }
-            writeLocalImportBatchCreateDraft(values);
+            writeLocalTicketImportDraft(payload);
             lastPayloadRef.current = payloadKey;
         },
-        [enabled]
+        [buildDraftPayload, enabled]
     );
 
     const clearDraft = useCallback(() => {
         closedRef.current = true;
         clearTimeout(debounceRef.current);
-        clearLocalImportBatchCreateDraft();
+        clearLocalTicketImportDraft();
         lastPayloadRef.current = '';
     }, []);
 
-    /** Re-enable autosave after an intentional clear (e.g. starting a new form). */
     const reopenDraft = useCallback(() => {
         closedRef.current = false;
         lastPayloadRef.current = '';
@@ -63,7 +82,7 @@ export const useImportBatchCreateDraft = ({
             persistDraft();
         }, AUTOSAVE_DEBOUNCE_MS);
         return () => clearTimeout(debounceRef.current);
-    }, [enabled, formSnapshot, persistDraft]);
+    }, [enabled, selectedBatchId, activeLineId, lineFormDrafts, formSnapshot, persistDraft]);
 
     useEffect(() => {
         const handleBeforeUnload = () => {

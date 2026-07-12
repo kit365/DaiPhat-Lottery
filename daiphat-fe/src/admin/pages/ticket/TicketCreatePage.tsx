@@ -62,10 +62,22 @@ import {
 } from './utils/ticketNumberValidation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { QUERY_KEYS } from '../../../constants/queryKeys';
+import { useTicketImportDraft } from './hooks/useTicketImportDraft';
+import {
+    clearLineFromTicketImportDraft,
+    readLocalTicketImportDraft,
+    serializeTicketSections,
+    type TicketImportDraft,
+    type TicketImportLineDraft,
+} from './utils/ticketImportDraft';
+import {
+    clearImportBatchWorkflowDrafts,
+    purgeExpiredImportWorkflowDrafts,
+} from '../import-batch/utils/importBatchDraftCleanup';
 
-type LineFormDraft = {
-    ticketSections: CreateTicketFormValues['ticketSections'];
-};
+type LineFormDraft = TicketImportLineDraft;
 
 const emptySerial = () => ({ serialNumber: '', ticketImg: undefined as string | undefined });
 
@@ -80,13 +92,24 @@ const defaultLineDraft = (): LineFormDraft => ({
 
 export const TicketCreatePage = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
     const importBatchIdParam = searchParams.get('importBatchId');
     const importBatchLineIdParam = searchParams.get('importBatchLineId');
     const isBatchPreSelected = !!importBatchIdParam;
 
+    const restoredDraftRef = useRef<TicketImportDraft | null>(null);
+    const draftHydratedRef = useRef(false);
+    if (restoredDraftRef.current === null && !draftHydratedRef.current) {
+        restoredDraftRef.current = readLocalTicketImportDraft();
+        draftHydratedRef.current = true;
+    }
+    const restoredDraft = restoredDraftRef.current;
+
     const { data: draftBatches = [], isLoading: isLoadingDrafts } = useDraftImportBatches(true);
-    const [selectedBatchId, setSelectedBatchId] = useStateFromParam(importBatchIdParam);
+    const [selectedBatchId, setSelectedBatchId] = useStateFromParam(
+        importBatchIdParam || restoredDraft?.selectedBatchId || null
+    );
     const {
         data: importBatchDetail,
         isLoading: isLoadingBatch,
@@ -110,7 +133,11 @@ export const TicketCreatePage = () => {
 
     const initialLineAppliedRef = useRef(false);
     const lastInitializedBatchIdRef = useRef<string | null>(null);
-    const [lineFormDrafts, setLineFormDrafts] = useState<Record<string, LineFormDraft>>({});
+    const draftRestoreToastShownRef = useRef(false);
+    const [lineFormDrafts, setLineFormDrafts] = useState<Record<string, LineFormDraft>>(
+        () => restoredDraft?.lineFormDrafts ?? {}
+    );
+    const [draftReady, setDraftReady] = useState(false);
 
     const { data: providersRes } = useProviders({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
@@ -175,6 +202,30 @@ export const TicketCreatePage = () => {
 
     const watchedLineId = watch('importBatchLineId');
     const watchedStationId = watch('stationId');
+    const watchedTicketSections = watch('ticketSections');
+
+    const { clearDraft: clearPersistedDraft, persistDraft } = useTicketImportDraft({
+        enabled: draftReady && !!selectedBatchId,
+        selectedBatchId,
+        activeLineId: watchedLineId || '',
+        lineFormDrafts,
+        formSnapshot: watchedTicketSections,
+        getActiveLineSections: () => serializeTicketSections(getValues('ticketSections')),
+    });
+
+    useEffect(() => {
+        purgeExpiredImportWorkflowDrafts();
+    }, []);
+
+    useEffect(() => {
+        if (!resolvedBatch || !selectedBatchId) {
+            return;
+        }
+        if (resolvedBatch.status === 'CANCELLED' || resolvedBatch.status === 'IMPORTED') {
+            clearPersistedDraft();
+            clearImportBatchWorkflowDrafts(selectedBatchId);
+        }
+    }, [clearPersistedDraft, resolvedBatch, selectedBatchId]);
 
     const selectedLine = useMemo(() => {
         if (!watchedLineId) {
@@ -243,6 +294,35 @@ export const TicketCreatePage = () => {
         [setSearchParams]
     );
 
+    useEffect(() => {
+        if (importBatchIdParam || !restoredDraft?.selectedBatchId) {
+            return;
+        }
+        if (!selectedBatchId) {
+            setSelectedBatchId(restoredDraft.selectedBatchId);
+        }
+        syncBatchToUrl(restoredDraft.selectedBatchId, restoredDraft.activeLineId || undefined);
+    }, [
+        importBatchIdParam,
+        restoredDraft?.selectedBatchId,
+        restoredDraft?.activeLineId,
+        selectedBatchId,
+        syncBatchToUrl,
+    ]);
+
+    useEffect(() => {
+        if (
+            restoredDraft &&
+            restoredDraft.selectedBatchId &&
+            !draftRestoreToastShownRef.current &&
+            selectedBatchId &&
+            String(selectedBatchId) === String(restoredDraft.selectedBatchId)
+        ) {
+            draftRestoreToastShownRef.current = true;
+            toast.info('Đã khôi phục bản nháp nhập vé chưa lưu.');
+        }
+    }, [restoredDraft, selectedBatchId]);
+
     const applyLineToForm = useCallback(
         (lineId: string, drafts: Record<string, LineFormDraft>) => {
             if (!resolvedBatch) {
@@ -278,18 +358,32 @@ export const TicketCreatePage = () => {
         const paramLine = importBatchLineIdParam
             ? batchLines.find((item) => String(item.id) === importBatchLineIdParam)
             : undefined;
+        const draftLineId =
+            restoredDraft?.selectedBatchId === batchId ? restoredDraft.activeLineId : '';
+        const draftLine = draftLineId
+            ? batchLines.find((item) => String(item.id) === draftLineId)
+            : undefined;
+
         const line =
             paramLine && !isLineCancelled(paramLine)
                 ? paramLine
-                : findFirstIncompleteLine(resolvedBatch);
+                : draftLine && !isLineCancelled(draftLine)
+                  ? draftLine
+                  : findFirstIncompleteLine(resolvedBatch);
         const lineId = line ? String(line.id) : '';
+
+        const draftsForBatch =
+            restoredDraft?.selectedBatchId === batchId
+                ? { ...lineFormDrafts, ...restoredDraft.lineFormDrafts }
+                : lineFormDrafts;
 
         lastInitializedBatchIdRef.current = batchId;
         initialLineAppliedRef.current = true;
-        setLineFormDrafts({});
+        setLineFormDrafts(draftsForBatch);
+        setDraftReady(true);
 
         if (lineId) {
-            applyLineToForm(lineId, {});
+            applyLineToForm(lineId, draftsForBatch);
             syncBatchToUrl(batchId, lineId);
         }
     }, [
@@ -298,6 +392,7 @@ export const TicketCreatePage = () => {
         importBatchLineIdParam,
         applyLineToForm,
         syncBatchToUrl,
+        restoredDraft,
     ]);
 
     const handleTabChange = (lineId: string) => {
@@ -307,7 +402,7 @@ export const TicketCreatePage = () => {
             nextDrafts = {
                 ...lineFormDrafts,
                 [currentLineId]: {
-                    ticketSections: watch('ticketSections'),
+                    ticketSections: serializeTicketSections(watch('ticketSections')),
                 },
             };
             setLineFormDrafts(nextDrafts);
@@ -316,14 +411,19 @@ export const TicketCreatePage = () => {
         if (selectedBatchId) {
             syncBatchToUrl(selectedBatchId, lineId);
         }
+        queueMicrotask(() => persistDraft({ immediate: true }));
     };
 
     const handleBatchChange = (batch: ImportBatch | null) => {
+        persistDraft({ immediate: true });
         initialLineAppliedRef.current = false;
         lastInitializedBatchIdRef.current = null;
-        setLineFormDrafts({});
+        restoredDraftRef.current = null;
+        setDraftReady(false);
 
         if (!batch) {
+            setLineFormDrafts({});
+            clearPersistedDraft();
             setSelectedBatchId('');
             syncBatchToUrl('');
             reset({
@@ -339,6 +439,31 @@ export const TicketCreatePage = () => {
         const batchId = String(batch.id);
         setSelectedBatchId(batchId);
         syncBatchToUrl(batchId);
+    };
+
+    const handleDiscardDraft = () => {
+        clearPersistedDraft();
+        restoredDraftRef.current = null;
+        setLineFormDrafts({});
+        if (selectedLine && resolvedBatch) {
+            const cleared = defaultLineDraft();
+            reset({
+                importBatchId: String(resolvedBatch.id),
+                importBatchLineId: String(selectedLine.id),
+                stationId: String(selectedLine.lotteryStationId),
+                ticketSections: cleared.ticketSections,
+                drawDate: resolvedBatch.drawDate,
+            });
+        } else {
+            reset({
+                importBatchId: selectedBatchId || '',
+                importBatchLineId: '',
+                stationId: '',
+                ticketSections: [defaultSection()],
+                drawDate: '',
+            });
+        }
+        toast.info('Đã xóa bản nháp nhập vé.');
     };
 
     const refreshDuplicateFieldState = useCallback(() => {
@@ -525,10 +650,12 @@ export const TicketCreatePage = () => {
                 toast.success('Nhập vé số thành công!');
                 const lineId = String(selectedLine.id);
                 const clearedDraft = defaultLineDraft();
-                setLineFormDrafts((prev) => ({
-                    ...prev,
-                    [lineId]: clearedDraft,
-                }));
+                setLineFormDrafts((prev) => {
+                    const next = { ...prev };
+                    delete next[lineId];
+                    return next;
+                });
+                clearLineFromTicketImportDraft(lineId);
                 reset({
                     importBatchId: String(resolvedBatch.id),
                     importBatchLineId: lineId,
@@ -536,6 +663,15 @@ export const TicketCreatePage = () => {
                     ticketSections: clearedDraft.ticketSections,
                     drawDate: resolvedBatch.drawDate,
                 });
+                await Promise.all([
+                    queryClient.invalidateQueries({
+                        queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL, String(resolvedBatch.id)],
+                    }),
+                    queryClient.invalidateQueries({
+                        queryKey: [QUERY_KEYS.IMPORT_BATCH_REDUCTION_TICKETS, String(resolvedBatch.id)],
+                    }),
+                    queryClient.invalidateQueries({ queryKey: ['tickets'] }),
+                ]);
             } else {
                 toast.error(res.message || 'Nhập vé số thất bại');
             }
@@ -700,6 +836,7 @@ export const TicketCreatePage = () => {
                         <ImportBatchLineImportTabs
                             lines={batchLines}
                             activeLineId={watchedLineId}
+                            batchId={resolvedBatch.id}
                             batchStatus={resolvedBatch.status}
                             drawDate={resolvedBatch.drawDate}
                             resolveStationName={resolveStationName}
@@ -733,12 +870,25 @@ export const TicketCreatePage = () => {
                         </Alert>
                     )}
 
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
+                        {selectedBatchId && (
+                            <LoadingButton
+                                type="button"
+                                variant="outlined"
+                                color="inherit"
+                                label="Xóa bản nháp"
+                                onClick={handleDiscardDraft}
+                                sx={{ minHeight: '2.75rem' }}
+                            />
+                        )}
                         <LoadingButton
                             type="button"
                             variant="outlined"
                             label="Quay lại"
-                            onClick={() => navigate(ROUTES.ADMIN.TICKETS.LIST)}
+                            onClick={() => {
+                                persistDraft({ immediate: true });
+                                navigate(ROUTES.ADMIN.TICKETS.LIST);
+                            }}
                             sx={{ minHeight: '2.75rem' }}
                         />
                     </Box>

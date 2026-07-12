@@ -26,7 +26,7 @@ import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumb
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Title } from '../../components/ui/Title';
 import { LoadingButton } from '../../components/ui/LoadingButton';
@@ -35,6 +35,7 @@ import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../constants/routes';
 import type { ImportBatch } from '../../api/importBatch.api';
 import { useImportBatchList } from './hooks/useImportBatch';
+import { purgeExpiredImportWorkflowDrafts, clearImportBatchWorkflowDrafts } from './utils/importBatchDraftCleanup';
 import { getImportBatchStatusChipColor, getImportBatchStatusLabel, getImportModeChipColor, getImportModeChipLabel, getImportModeLabel, importBatchStatusChipSx } from './utils/batchTypeLabels';
 import {
     displayImportBatchHeaderCodeRaw,
@@ -54,6 +55,18 @@ export const ImportBatchListPage = () => {
     const { batches, pagination, isLoading, filters, setPage, setLimit } = useImportBatchList();
     const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
     const [menuBatch, setMenuBatch] = useState<ImportBatch | null>(null);
+
+    useEffect(() => {
+        purgeExpiredImportWorkflowDrafts();
+    }, []);
+
+    useEffect(() => {
+        batches.forEach((batch) => {
+            if (batch.status === 'CANCELLED' || batch.status === 'IMPORTED') {
+                clearImportBatchWorkflowDrafts(batch.id);
+            }
+        });
+    }, [batches]);
 
     const page = (filters.page ?? 1) - 1;
     const rowsPerPage = filters.size ?? 10;

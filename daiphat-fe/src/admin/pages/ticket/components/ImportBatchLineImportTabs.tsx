@@ -30,11 +30,13 @@ import {
 import { TicketImportProgressTrack } from '../../import-batch/components/TicketImportProgressTrack';
 import { CreateTicketFormValues } from '../../../schemas/ticket.schema';
 import { TicketNumberSectionBlock } from './TicketNumberSectionBlock';
+import { ImportedTicketsPanel } from './ImportedTicketsPanel';
 import { TicketNumberLengthRules } from '../utils/ticketNumberValidation';
 
 type ImportBatchLineImportTabsProps = {
     lines: ImportBatchLine[];
     activeLineId: string;
+    batchId?: string | number;
     batchStatus: ImportBatchStatus;
     drawDate?: string;
     resolveStationName: (stationId?: number | string) => string;
@@ -56,6 +58,7 @@ type ImportBatchLineImportTabsProps = {
 export const ImportBatchLineImportTabs = ({
     lines,
     activeLineId,
+    batchId,
     batchStatus,
     drawDate,
     resolveStationName,
@@ -258,6 +261,8 @@ export const ImportBatchLineImportTabs = ({
                             InputProps={{ readOnly: true }}
                         />
                     </Box>
+
+                    <ImportedTicketsPanel batchId={batchId} lineId={activeLineId} />
 
                     <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
                         Danh sách dãy số

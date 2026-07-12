@@ -4,6 +4,11 @@ import type {
     UpdateImportBatchLineFormValues,
 } from '../schemas/importBatch.schema';
 import type { ImportBatch, ImportBatchLine } from '../../../api/importBatch.api';
+import {
+    clearImportBatchEditDraftStorage,
+    importBatchEditDraftStorageKey,
+    isDraftExpired,
+} from './importBatchDraftCleanup';
 
 export type ImportBatchEditDraft = {
     batchId: number;
@@ -11,8 +16,7 @@ export type ImportBatchEditDraft = {
     values: UpdateImportBatchFormValues;
 };
 
-export const importBatchEditDraftStorageKey = (batchId: string | number) =>
-    `import-batch-edit-draft:${batchId}`;
+export { importBatchEditDraftStorageKey } from './importBatchDraftCleanup';
 
 export const readLocalImportBatchEditDraft = (
     batchId: string | number
@@ -24,6 +28,10 @@ export const readLocalImportBatchEditDraft = (
         }
         const parsed = JSON.parse(raw) as ImportBatchEditDraft;
         if (!parsed || Number(parsed.batchId) !== Number(batchId) || !parsed.values) {
+            return null;
+        }
+        if (isDraftExpired(parsed.savedAt)) {
+            clearImportBatchEditDraftStorage(batchId);
             return null;
         }
         return parsed;
@@ -49,11 +57,7 @@ export const writeLocalImportBatchEditDraft = (
 };
 
 export const clearLocalImportBatchEditDraft = (batchId: string | number) => {
-    try {
-        localStorage.removeItem(importBatchEditDraftStorageKey(batchId));
-    } catch {
-        // ignore
-    }
+    clearImportBatchEditDraftStorage(batchId);
 };
 
 const emptyLine = (): UpdateImportBatchLineFormValues => ({

@@ -85,6 +85,10 @@ import {
     readLocalImportBatchEditDraft,
 } from './utils/importBatchEditDraft';
 import {
+    clearImportBatchWorkflowDrafts,
+    purgeExpiredImportWorkflowDrafts,
+} from './utils/importBatchDraftCleanup';
+import {
     buildImportBatchEditBaseline,
     computeImportBatchEditChanges,
     type ImportBatchEditChangeSummary,
@@ -297,6 +301,20 @@ export const ImportBatchEditPage = () => {
         getValues,
         formSnapshot,
     });
+
+    useEffect(() => {
+        purgeExpiredImportWorkflowDrafts();
+    }, []);
+
+    useEffect(() => {
+        if (!batch || !id) {
+            return;
+        }
+        if (batch.status === 'CANCELLED' || batch.status === 'IMPORTED') {
+            clearDraft();
+            clearImportBatchWorkflowDrafts(id);
+        }
+    }, [batch, clearDraft, id]);
 
     const { isAtRowLimit, canAddRow } = useMemo(
         () => computeImportBatchRowLimit(eligibleStations, lines),

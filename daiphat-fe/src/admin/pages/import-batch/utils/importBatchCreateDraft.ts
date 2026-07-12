@@ -1,6 +1,11 @@
 import type { CreateImportBatchFormValues } from '../schemas/importBatch.schema';
+import {
+    IMPORT_BATCH_CREATE_DRAFT_KEY,
+    clearImportBatchCreateDraftStorage,
+    isDraftExpired,
+} from './importBatchDraftCleanup';
 
-export const IMPORT_BATCH_CREATE_DRAFT_KEY = 'import-batch-create-draft';
+export { IMPORT_BATCH_CREATE_DRAFT_KEY } from './importBatchDraftCleanup';
 
 export type ImportBatchCreateDraft = {
     savedAt: string;
@@ -36,6 +41,10 @@ export const readLocalImportBatchCreateDraft = (): ImportBatchCreateDraft | null
         if (!parsed?.values) {
             return null;
         }
+        if (isDraftExpired(parsed.savedAt)) {
+            clearImportBatchCreateDraftStorage();
+            return null;
+        }
         return {
             ...parsed,
             values: normalizeCreateDraftValues(parsed.values),
@@ -58,9 +67,5 @@ export const writeLocalImportBatchCreateDraft = (values: CreateImportBatchFormVa
 };
 
 export const clearLocalImportBatchCreateDraft = () => {
-    try {
-        localStorage.removeItem(IMPORT_BATCH_CREATE_DRAFT_KEY);
-    } catch {
-        // ignore
-    }
+    clearImportBatchCreateDraftStorage();
 };

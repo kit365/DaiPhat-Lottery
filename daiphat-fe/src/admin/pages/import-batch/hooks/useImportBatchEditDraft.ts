@@ -23,12 +23,13 @@ export const useImportBatchEditDraft = ({
 }: UseImportBatchEditDraftOptions) => {
     const debounceRef = useRef<ReturnType<typeof setTimeout>>();
     const lastPayloadRef = useRef('');
+    const closedRef = useRef(false);
     const getValuesRef = useRef(getValues);
     getValuesRef.current = getValues;
 
     const persistDraft = useCallback(
         (options?: { immediate?: boolean }) => {
-            if (!enabled || !batchId) {
+            if (!enabled || !batchId || closedRef.current) {
                 return;
             }
             const values = getValuesRef.current();
@@ -43,15 +44,21 @@ export const useImportBatchEditDraft = ({
     );
 
     const clearDraft = useCallback(() => {
-        if (!batchId) {
-            return;
+        closedRef.current = true;
+        clearTimeout(debounceRef.current);
+        if (batchId) {
+            clearLocalImportBatchEditDraft(batchId);
         }
-        clearLocalImportBatchEditDraft(batchId);
         lastPayloadRef.current = '';
     }, [batchId]);
 
+    const reopenDraft = useCallback(() => {
+        closedRef.current = false;
+        lastPayloadRef.current = '';
+    }, []);
+
     useEffect(() => {
-        if (!enabled || !batchId) {
+        if (!enabled || !batchId || closedRef.current) {
             return;
         }
         clearTimeout(debounceRef.current);
@@ -69,5 +76,5 @@ export const useImportBatchEditDraft = ({
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [persistDraft]);
 
-    return { clearDraft, persistDraft };
+    return { clearDraft, persistDraft, reopenDraft };
 };
