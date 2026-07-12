@@ -67,13 +67,13 @@ public class BlogPostRepositoryAdapter implements BlogPostRepositoryPort {
     public Page<BlogPostModel> findAll(
             Pageable pageable,
             String search,
-            Long tagId,
-            Long categoryId,
-            String type,
+            List<Long> tagIds,
+            List<Long> categoryIds,
+            List<String> types,
             String status,
             boolean includeDeleted
     ) {
-        var spec = BlogPostSpecification.filter(search, tagId, categoryId, type, status, includeDeleted);
+        var spec = BlogPostSpecification.filter(search, tagIds, categoryIds, types, status, includeDeleted);
         return blogPostRepository.findAll(spec, pageable)
                 .map(blogPostPersistenceMapper::toDomain);
     }

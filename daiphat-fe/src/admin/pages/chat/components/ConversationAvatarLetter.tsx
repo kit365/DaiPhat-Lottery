@@ -1,6 +1,6 @@
 import React from 'react';
 import { Conversation } from '../../../../types/chat.type';
-import { useAccountDetail } from '../../account-admin/hooks/useAccountAdmin';
+import { useAccountDetail } from '../../../features/users/hooks/useUsers';
 
 interface Props {
     conversation: Conversation | null | undefined;

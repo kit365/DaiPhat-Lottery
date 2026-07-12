@@ -9,7 +9,7 @@ import { AppToast } from "../../utils/toast.util";
 import { STORAGE_KEYS } from "../../constants/storage.constants";
 import Cookies from "js-cookie";
 import { RegisterRequest } from "../../admin/pages/authen/types/auth.type";
-import { updateUser } from "../../admin/api/account-user.api";
+import { updateUser } from "../../admin/features/users/services/userService";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { loginSchema, LoginFormValues, registerSchema, RegisterFormValues } from "../types/auth.schema";

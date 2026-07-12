@@ -49,8 +49,8 @@ public class PrizeStructureController {
             @Valid @RequestBody SyncPrizeStructuresRequest request) {
         log.info("REST request to sync prize structures for region={} from source={}", request.region(), request.source());
         return ApiResponse.success(
-                "Đồng bộ cấu trúc giải theo miền thành công.",
-                prizeStructureServicePort.syncByRegion(request)
+                "Đã cào dữ liệu cơ cấu giải. Vui lòng xem trước và xác nhận trước khi lưu.",
+                prizeStructureServicePort.previewSyncByRegion(request)
         );
     }
 

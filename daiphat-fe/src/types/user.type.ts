@@ -1,4 +1,4 @@
-import { Role } from "./role.type.ts";
+import { RoleResponse as Role } from "./role.type";
 
 export enum UserStatus {
     ACTIVE = "ACTIVE",
@@ -38,3 +38,29 @@ export interface User {
     createdAt?: string;
     updatedAt?: string;
 }
+
+
+export const STATUS_LABELS: Record<string, string> = {
+    'ACTIVE': 'Hoạt động',
+    'PENDING': 'Chờ xử lý',
+    'BANNED': 'Bị cấm',
+    'LOCKED': 'Bị khóa',
+    'DELETED': 'Đã xóa'
+};
+
+export const STATUS_OPTIONS = [
+    { value: '', label: 'Tất cả' },
+    { value: 'ACTIVE', label: 'Hoạt động' },
+    { value: 'PENDING', label: 'Chờ xử lý' },
+    { value: 'BANNED', label: 'Bị cấm' },
+    { value: 'LOCKED', label: 'Bị khóa' },
+];
+
+
+export const STATUS_COLORS: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
+    'ACTIVE': 'success',
+    'PENDING': 'warning',
+    'BANNED': 'error',
+    'LOCKED': 'default',
+    'DELETED': 'default'
+};

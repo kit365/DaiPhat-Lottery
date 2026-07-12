@@ -99,5 +99,185 @@ input:-webkit-autofill:active {
 
 /* Fix SweetAlert2 Backdrop (Override MUI Sidebar z-index 1200) */
 .swal2-container {
+    z-index: 2000 !important;
+}
+
+/* Global Admin Styles */
+.btn-primary-admin {
+    background-color: var(--palette-text-primary) !important;
+    color: var(--palette-common-white) !important;
+    min-height: 2.25rem !important;
+    min-width: 4rem !important;
+    font-weight: 700 !important;
+    font-size: 0.875rem !important;
+    padding: 6px 12px !important;
+    border-radius: var(--shape-borderRadius) !important;
+    text-transform: none !important;
+    box-shadow: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms, box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms !important;
+}
+
+.btn-primary-admin:hover {
+    background-color: var(--palette-grey-700) !important;
+    box-shadow: var(--customShadows-z8) !important;
+}
+
+.admin-datagrid-card {
+    background: var(--palette-background-paper) !important;
+    color: var(--palette-text-primary) !important;
+    border-radius: 16px !important;
+    height: 640px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-shadow: var(--shadow-sm) !important;
+    border: 1px solid var(--palette-divider) !important;
+}
+
+.swal2-container {
     z-index: 9999 !important;
+}
+
+.admin-tab-badge {
+    height: 24px !important;
+    min-width: 24px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-left: 8px !important;
+    padding: 0px 6px !important;
+    border-radius: 6px !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    transition: all 0.2s !important;
+}
+
+.admin-tab {
+    text-transform: none !important;
+    min-width: 0 !important;
+    min-height: 48px !important;
+    padding: 0 !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: var(--palette-text-secondary) !important;
+    flex-direction: row !important;
+}
+
+.admin-tab.Mui-selected {
+    color: var(--palette-text-primary) !important;
+    font-weight: 600 !important;
+}
+
+.admin-tabs {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    min-height: 48px !important;
+    border-bottom: 1px solid var(--palette-background-neutral) !important;
+}
+
+.admin-tabs .MuiTabs-flexContainer {
+    gap: calc(5 * var(--spacing)) !important;
+}
+
+.admin-tabs .MuiTabs-indicator {
+    background-color: var(--palette-text-primary) !important;
+    height: 2px !important;
+}
+
+/* Shared list layout — aligned with the Order list reference. */
+.admin-list-page {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 16px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.admin-list-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.admin-list-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.admin-list-card {
+    overflow: visible !important;
+    border-radius: var(--shape-borderRadius-lg) !important;
+    background: var(--palette-background-paper) !important;
+    box-shadow: var(--customShadows-card) !important;
+}
+
+.admin-list-card--table {
+    min-height: 640px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--palette-divider);
+}
+
+.admin-list-card--spaced {
+    margin-bottom: 32px;
+}
+
+.admin-list-toolbar {
+    min-height: auto !important;
+    padding: 20px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px dashed var(--palette-background-neutral);
+}
+
+.admin-list-toolbar__search {
+    flex: 1 1 auto;
+    min-width: 200px;
+}
+
+.admin-list-toolbar__actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.admin-list-action-button {
+    min-width: 64px !important;
+    min-height: 30px !important;
+    padding: 4px !important;
+    gap: 6px !important;
+    border-radius: 8px !important;
+    font-size: 0.8125rem !important;
+    font-weight: 700 !important;
+    color: #1C252E !important;
+    text-transform: none !important;
+}
+
+
+
+.admin-list-action-button .MuiButton-startIcon {
+    margin: 0 !important;
+}
+
+.admin-list-action-button:hover {
+    background-color: var(--palette-action-hover, #919eab14) !important;
+}
+
+@media (max-width: 900px) {
+    .admin-list-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-list-toolbar__actions {
+        flex-wrap: wrap;
+    }
 }

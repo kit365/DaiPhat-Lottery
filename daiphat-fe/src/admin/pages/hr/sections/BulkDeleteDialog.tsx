@@ -24,7 +24,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { useForm, Controller } from 'react-hook-form';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
-import { useAccounts } from '../../account-admin/hooks/useAccountAdmin';
+import { useAccounts } from '../../../features/users/hooks/useUsers';
 
 interface BulkDeleteDialogProps {
     open: boolean;
@@ -287,4 +287,3 @@ export const BulkDeleteDialog: React.FC<BulkDeleteDialogProps> = ({
         </Dialog>
     );
 };
-

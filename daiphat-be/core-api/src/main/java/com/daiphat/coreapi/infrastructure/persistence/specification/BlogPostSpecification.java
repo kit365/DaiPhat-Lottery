@@ -20,9 +20,9 @@ public class BlogPostSpecification {
 
     public static Specification<BlogPostEntity> filter(
             String search,
-            Long tagId,
-            Long categoryId,
-            String type,
+            List<Long> tagIds,
+            List<Long> categoryIds,
+            List<String> types,
             String status,
             boolean includeDeleted
     ) {
@@ -36,24 +36,28 @@ public class BlogPostSpecification {
             }
 
             // 2. Lọc theo tag – join Many-to-Many
-            if (tagId != null) {
+            if (tagIds != null && !tagIds.isEmpty()) {
                 var tagJoin = root.join(BlogPostEntity_.tags);
-                predicates.add(cb.equal(tagJoin.get(BlogTagEntity_.id), tagId));
+                predicates.add(tagJoin.get(BlogTagEntity_.id).in(tagIds));
                 if (query != null) {
                     query.distinct(true);
                 }
             }
 
-            if (categoryId != null) {
-                predicates.add(cb.equal(
-                        root.get(BlogPostEntity_.category).get(BlogCategoryEntity_.id),
-                        categoryId
-                ));
+            if (categoryIds != null && !categoryIds.isEmpty()) {
+                predicates.add(root.get(BlogPostEntity_.category)
+                        .get(BlogCategoryEntity_.id)
+                        .in(categoryIds));
             }
 
-            if (type != null && !type.isBlank()) {
-                PostType postType = PostType.fromCode(type);
-                predicates.add(cb.equal(root.get(BlogPostEntity_.type), postType));
+            if (types != null && !types.isEmpty()) {
+                List<PostType> postTypes = types.stream()
+                        .filter(type -> type != null && !type.isBlank())
+                        .map(PostType::fromCode)
+                        .toList();
+                if (!postTypes.isEmpty()) {
+                    predicates.add(root.get(BlogPostEntity_.type).in(postTypes));
+                }
             }
 
             // 5. Lọc theo trạng thái
