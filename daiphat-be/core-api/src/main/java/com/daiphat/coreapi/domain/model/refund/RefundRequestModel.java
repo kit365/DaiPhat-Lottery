@@ -35,7 +35,7 @@ public class RefundRequestModel {
     private RefundRequestRole requestRole;
 
     @Builder.Default
-    private RefundRequestStatus status = RefundRequestStatus.PENDING;
+    private RefundRequestStatus status = RefundRequestStatus.READY_TO_PAY;
 
     private BigDecimal refundAmount;
     private String refundReason;
@@ -57,10 +57,9 @@ public class RefundRequestModel {
     private String createdBy;
     private String lastModifiedBy;
 
+    /** Customer refund submit: immediately ready for payout (no approval step). */
     public void initializeForCreate() {
-        if (this.status == null) {
-            this.status = RefundRequestStatus.PENDING;
-        }
+        this.status = RefundRequestStatus.READY_TO_PAY;
         if (this.fundSource == null) {
             this.fundSource = RefundFundSource.COMPANY_FUND;
         }
@@ -99,13 +98,6 @@ public class RefundRequestModel {
         this.status = RefundRequestStatus.READY_TO_PAY;
     }
 
-    public void approve(UUID reviewerId) {
-        ensureStatus(RefundRequestStatus.PENDING);
-        this.status = RefundRequestStatus.APPROVED;
-        this.reviewedBy = reviewerId;
-        this.reviewedAt = LocalDateTime.now();
-    }
-
     /** Marks refund as paid. Payout evidence is stored on the related Transaction. */
     public void markPaid() {
         if (this.status != RefundRequestStatus.APPROVED && this.status != RefundRequestStatus.READY_TO_PAY) {
@@ -114,14 +106,8 @@ public class RefundRequestModel {
         this.status = RefundRequestStatus.PAID;
     }
 
-    public void cancel() {
-        ensureStatus(RefundRequestStatus.PENDING);
-        this.status = RefundRequestStatus.CANCELLED;
-    }
-
     public void expire() {
-        if (this.status != RefundRequestStatus.PENDING
-                && this.status != RefundRequestStatus.WAITING_FOR_INFO
+        if (this.status != RefundRequestStatus.WAITING_FOR_INFO
                 && this.status != RefundRequestStatus.APPROVED
                 && this.status != RefundRequestStatus.READY_TO_PAY) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);

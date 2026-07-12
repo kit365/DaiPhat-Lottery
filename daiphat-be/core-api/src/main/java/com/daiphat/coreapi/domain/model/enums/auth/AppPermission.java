@@ -166,8 +166,6 @@ public enum AppPermission {
 
     REFUND_VIEW(PermissionConstants.REFUND + PermissionConstants.VIEW,
             "Đơn mua hộ & Hoàn tiền", "Xem yêu cầu hoàn tiền", "Quyền xem danh sách và chi tiết yêu cầu hoàn tiền", 530),
-    REFUND_APPROVE(PermissionConstants.REFUND + PermissionConstants.APPROVE,
-            "Đơn mua hộ & Hoàn tiền", "Duyệt yêu cầu hoàn tiền", "Quyền duyệt yêu cầu hủy đơn đang chờ", 525),
     REFUND_PROCESS(PermissionConstants.REFUND + PermissionConstants.PROCESS,
             "Đơn mua hộ & Hoàn tiền", "Xử lý chuyển khoản hoàn tiền", "Quyền xác nhận đã chuyển khoản hoàn tiền", 515),
 

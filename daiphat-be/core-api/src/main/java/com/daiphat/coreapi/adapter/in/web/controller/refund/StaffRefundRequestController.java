@@ -63,16 +63,6 @@ public class StaffRefundRequestController {
                 refundRequestStaffServicePort.getByIdForStaff(id));
     }
 
-    @PatchMapping(ID_PATH + "/approve")
-    @PreAuthorize("hasAuthority('refund:approve')")
-    public ApiResponse<RefundRequestResponse> approve(
-            @PathVariable Long id,
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        return ApiResponse.success(
-                "Duyệt yêu cầu hoàn tiền thành công.",
-                refundRequestStaffServicePort.approve(id, principal.getId()));
-    }
-
     @PatchMapping(ID_PATH + "/transfer")
     @PreAuthorize("hasAuthority('refund:process')")
     public ApiResponse<RefundRequestResponse> transfer(
