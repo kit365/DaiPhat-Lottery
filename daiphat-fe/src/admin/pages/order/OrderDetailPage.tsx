@@ -30,6 +30,9 @@ import { OrderStatus } from "../../../types/order.type";
 import { toast } from "react-toastify";
 import { prefixAdmin } from "../../constants/routes";
 import { confirmAction, confirmInputText } from "../../utils/swal";
+import { CanAccess } from "../../components/auth/CanAccess";
+import { PERMISSIONS } from "../../constants/permission.constants";
+import { useCancelOrderWithRefund } from "../refund/hooks/useRefundManagement";
 
 const STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
     [OrderStatus.PENDING_PAYMENT]: { label: "Chờ thanh toán", color: "var(--palette-warning-dark)", bg: "var(--palette-warning-lighter)" },
@@ -53,6 +56,32 @@ export const OrderDetailPage = () => {
     const { data: orderRes, isLoading, refetch } = useOrderDetail(id || "");
     const order = orderRes?.data;
     const { mutate: updateStatus } = useUpdateOrderStatus();
+    const cancelWithRefundMutation = useCancelOrderWithRefund();
+
+    const handleBaoLoiHuyDon = () => {
+        if (!order) return;
+        confirmInputText(
+            "Báo lỗi & Hủy đơn",
+            "Lý do hủy đơn (vé lỗi / sự cố)",
+            "Nhập lý do hủy đơn...",
+            (cancelReason) => {
+                cancelWithRefundMutation.mutate(
+                    { orderId: order.id, cancelReason },
+                    {
+                        onSuccess: (res) => {
+                            if (res.success && res.data?.id) {
+                                refetch();
+                                navigate(`/${prefixAdmin}/refunds/detail/${res.data.id}`);
+                            } else {
+                                refetch();
+                            }
+                        },
+                    }
+                );
+            },
+            'warning'
+        );
+    };
 
     if (isLoading) {
         return (
@@ -198,6 +227,22 @@ export const OrderDetailPage = () => {
                             Hủy đơn
                         </Button>
                     )}
+                    <CanAccess permission={PERMISSIONS.REFUND.PROCESS}>
+                        {[OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.PENDING_PICKUP].includes(
+                            order.status as OrderStatus
+                        ) && (
+                            <Button
+                                variant="contained"
+                                color="warning"
+                                startIcon={<Icon icon="solar:danger-triangle-bold-duotone" />}
+                                onClick={handleBaoLoiHuyDon}
+                                disabled={cancelWithRefundMutation.isPending}
+                                sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+                            >
+                                Báo lỗi & Hủy đơn
+                            </Button>
+                        )}
+                    </CanAccess>
                     <Button
                         variant="outlined"
                         startIcon={<Icon icon="eva:printer-fill" />}

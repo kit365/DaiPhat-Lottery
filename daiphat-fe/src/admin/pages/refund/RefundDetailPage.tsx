@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     Box,
@@ -25,18 +25,22 @@ import {
     isRefundTransferComplete,
     maskBankAccountNo,
     RefundRequestStatus,
+    UserBankAccountResponse,
 } from '../../../types/refund.type';
 import {
     useApproveRefund,
+    useAttachRefundBankAccount,
     useGetStaffRefundDetail,
     useRejectRefund,
     useTransferRefund,
 } from './hooks/useRefundManagement';
 import { RejectRefundDialog } from './components/RejectRefundDialog';
 import { TransferRefundDialog } from './components/TransferRefundDialog';
+import { AttachBankAccountDialog } from './components/AttachBankAccountDialog';
 import { TransferEvidencePreview } from './components/TransferEvidencePreview';
 import { ProcessingDeadlineCard } from './components/ProcessingDeadlineCard';
 import { RefundTicketsTable } from './components/RefundTicketsTable';
+import { refundAdminApi } from '../../api/refund.api';
 
 export const RefundDetailPage = () => {
     const { id } = useParams<{ id: string }>();
@@ -45,14 +49,29 @@ export const RefundDetailPage = () => {
 
     const [rejectOpen, setRejectOpen] = useState(false);
     const [transferOpen, setTransferOpen] = useState(false);
+    const [attachBankOpen, setAttachBankOpen] = useState(false);
+    const [customerBanks, setCustomerBanks] = useState<UserBankAccountResponse[]>([]);
 
     const { data, isLoading, isError } = useGetStaffRefundDetail(refundId);
     const approveMutation = useApproveRefund();
     const rejectMutation = useRejectRefund();
     const transferMutation = useTransferRefund();
+    const attachBankMutation = useAttachRefundBankAccount();
 
     const detail = data?.data;
     const refund = detail?.refund;
+
+    useEffect(() => {
+        const customerId = detail?.customerSummary?.id;
+        if (!customerId || refund?.status !== RefundRequestStatus.WAITING_FOR_INFO) {
+            setCustomerBanks([]);
+            return;
+        }
+        refundAdminApi
+            .getCustomerBankAccounts(customerId)
+            .then((res) => setCustomerBanks(res.data || []))
+            .catch(() => setCustomerBanks([]));
+    }, [detail?.customerSummary?.id, refund?.status]);
 
     if (isLoading) {
         return (
@@ -75,9 +94,11 @@ export const RefundDetailPage = () => {
 
     const canApprove = refund.status === RefundRequestStatus.PENDING;
     const canReject = refund.status === RefundRequestStatus.PENDING;
+    const canAttachBank = refund.status === RefundRequestStatus.WAITING_FOR_INFO;
     const canTransfer =
-        refund.status === RefundRequestStatus.APPROVED ||
-        refund.status === RefundRequestStatus.READY_TO_PAY;
+        (refund.status === RefundRequestStatus.APPROVED ||
+            refund.status === RefundRequestStatus.READY_TO_PAY) &&
+        !!refund.bankAccountId;
     const isExpired = refund.status === RefundRequestStatus.EXPIRED;
     const actionsDisabled = isExpired || !isRefundProcessingActionable(refund.status);
 
@@ -119,6 +140,13 @@ export const RefundDetailPage = () => {
                         )}
                     </CanAccess>
                     <CanAccess permission={PERMISSIONS.REFUND.PROCESS}>
+                        {canAttachBank && !actionsDisabled && (
+                            <Button variant="contained" color="warning" onClick={() => setAttachBankOpen(true)}>
+                                Gắn STK
+                            </Button>
+                        )}
+                    </CanAccess>
+                    <CanAccess permission={PERMISSIONS.REFUND.PROCESS}>
                         {canTransfer && !actionsDisabled && (
                             <Button
                                 variant="contained"
@@ -132,7 +160,11 @@ export const RefundDetailPage = () => {
             </div>
 
             <Box sx={{ mb: 3 }}>
-                <RefundStatusStepper status={refund.status} rejectReason={refund.rejectReason} />
+                <RefundStatusStepper
+                    status={refund.status}
+                    rejectReason={refund.rejectReason}
+                    requestRole={refund.requestRole}
+                />
             </Box>
 
             <ProcessingDeadlineCard
@@ -291,7 +323,7 @@ export const RefundDetailPage = () => {
                         </CardContent>
                     </Card>
 
-                    {refund.bankAccount && (
+                    {refund.bankAccount ? (
                         <Card>
                             <CardContent>
                                 <Typography variant="h6" gutterBottom>
@@ -304,7 +336,19 @@ export const RefundDetailPage = () => {
                                 <Typography variant="body2">{refund.bankAccount.bankAccountName}</Typography>
                             </CardContent>
                         </Card>
-                    )}
+                    ) : refund.status === RefundRequestStatus.WAITING_FOR_INFO ? (
+                        <Card>
+                            <CardContent>
+                                <Typography variant="h6" gutterBottom>
+                                    Tài khoản nhận hoàn
+                                </Typography>
+                                <Typography color="warning.main" variant="body2">
+                                    Đang chờ khách hàng cung cấp STK. Bạn có thể gắn STK giúp khách nếu đã
+                                    có tài khoản lưu sẵn.
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    ) : null}
 
                     {(detail.reviewerName || detail.transferrerName) && (
                         <Card sx={{ mt: 3 }}>
@@ -353,6 +397,19 @@ export const RefundDetailPage = () => {
                     transferMutation.mutate(
                         { id: refundId, data: payload },
                         { onSuccess: () => setTransferOpen(false) }
+                    )
+                }
+            />
+
+            <AttachBankAccountDialog
+                open={attachBankOpen}
+                loading={attachBankMutation.isPending}
+                accounts={customerBanks}
+                onClose={() => setAttachBankOpen(false)}
+                onConfirm={(bankAccountId) =>
+                    attachBankMutation.mutate(
+                        { id: refundId, bankAccountId },
+                        { onSuccess: () => setAttachBankOpen(false) }
                     )
                 }
             />

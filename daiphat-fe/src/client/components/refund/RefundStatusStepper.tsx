@@ -1,12 +1,17 @@
 import React from 'react';
-import { RefundRequestStatus } from '../../../types/refund.type';
+import { RefundRequestRole, RefundRequestStatus } from '../../../types/refund.type';
 
 interface RefundStatusStepperProps {
     status: RefundRequestStatus;
     rejectReason?: string;
+    requestRole?: RefundRequestRole;
 }
 
-export const RefundStatusStepper: React.FC<RefundStatusStepperProps> = ({ status, rejectReason }) => {
+export const RefundStatusStepper: React.FC<RefundStatusStepperProps> = ({
+    status,
+    rejectReason,
+    requestRole,
+}) => {
     if (status === RefundRequestStatus.CANCELLED) {
         return (
             <div className="bg-[#F4F6F8] rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
@@ -52,23 +57,43 @@ export const RefundStatusStepper: React.FC<RefundStatusStepperProps> = ({ status
         );
     }
 
-    const isAutoApprovedFlow =
-        status === RefundRequestStatus.READY_TO_PAY ||
-        status === RefundRequestStatus.PAID ||
-        status === RefundRequestStatus.TRANSFERRED;
+    const isStaffIncidentFlow =
+        status === RefundRequestStatus.WAITING_FOR_INFO ||
+        ((requestRole === RefundRequestRole.STAFF || requestRole === RefundRequestRole.ADMIN) &&
+            (status === RefundRequestStatus.READY_TO_PAY ||
+                status === RefundRequestStatus.PAID ||
+                status === RefundRequestStatus.TRANSFERRED));
 
-    const steps = isAutoApprovedFlow
+    const isAutoApprovedFlow =
+        !isStaffIncidentFlow &&
+        (status === RefundRequestStatus.READY_TO_PAY ||
+            status === RefundRequestStatus.PAID ||
+            status === RefundRequestStatus.TRANSFERRED);
+
+    const steps = isStaffIncidentFlow
         ? [
+              { key: RefundRequestStatus.WAITING_FOR_INFO, label: 'Chờ STK', icon: 'fa-solid fa-building-columns' },
               { key: RefundRequestStatus.READY_TO_PAY, label: 'Chờ chuyển khoản', icon: 'fa-solid fa-clock' },
               { key: RefundRequestStatus.PAID, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' }
           ]
-        : [
-              { key: RefundRequestStatus.PENDING, label: 'Chờ duyệt', icon: 'fa-solid fa-clock' },
-              { key: RefundRequestStatus.APPROVED, label: 'Đã duyệt', icon: 'fa-solid fa-check' },
-              { key: RefundRequestStatus.PAID, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' }
-          ];
+        : isAutoApprovedFlow
+          ? [
+                { key: RefundRequestStatus.READY_TO_PAY, label: 'Chờ chuyển khoản', icon: 'fa-solid fa-clock' },
+                { key: RefundRequestStatus.PAID, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' }
+            ]
+          : [
+                { key: RefundRequestStatus.PENDING, label: 'Chờ duyệt', icon: 'fa-solid fa-clock' },
+                { key: RefundRequestStatus.APPROVED, label: 'Đã duyệt', icon: 'fa-solid fa-check' },
+                { key: RefundRequestStatus.PAID, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' }
+            ];
 
     const getStepIndex = (s: RefundRequestStatus) => {
+        if (isStaffIncidentFlow) {
+            if (s === RefundRequestStatus.WAITING_FOR_INFO) return 0;
+            if (s === RefundRequestStatus.READY_TO_PAY) return 1;
+            if (s === RefundRequestStatus.PAID || s === RefundRequestStatus.TRANSFERRED) return 2;
+            return 0;
+        }
         if (isAutoApprovedFlow) {
             if (s === RefundRequestStatus.READY_TO_PAY) return 0;
             if (s === RefundRequestStatus.PAID || s === RefundRequestStatus.TRANSFERRED) return 1;
