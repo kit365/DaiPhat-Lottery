@@ -1,43 +1,40 @@
-import { Box, Link, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
+import { ImagePreview, ImagePreviewInfoItem } from '../../../components/ui/ImagePreview';
 
 interface TransferEvidencePreviewProps {
     imageUrl: string;
     title?: string;
+    infoItems?: ImagePreviewInfoItem[];
 }
 
 export const TransferEvidencePreview = ({
     imageUrl,
     title = 'Minh chứng chuyển khoản',
+    infoItems,
 }: TransferEvidencePreviewProps) => (
     <Box>
         <Typography variant="body2" color="text.secondary" gutterBottom>
             {title}
         </Typography>
-        <Box
-            component="img"
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+            Nhấn ảnh để phóng to / thu nhỏ
+        </Typography>
+        <ImagePreview
             src={imageUrl}
             alt={title}
-            sx={{
+            dialogTitle={title}
+            infoItems={infoItems}
+            thumbnailSx={{
                 display: 'block',
                 maxWidth: '100%',
                 maxHeight: 420,
+                width: 'auto',
                 borderRadius: 1,
                 border: '1px solid',
                 borderColor: 'divider',
-                cursor: 'pointer',
                 objectFit: 'contain',
                 bgcolor: 'background.paper',
             }}
-            onClick={() => window.open(imageUrl, '_blank', 'noopener,noreferrer')}
         />
-        <Link
-            href={imageUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            variant="body2"
-            sx={{ display: 'inline-block', mt: 1 }}
-        >
-            Mở ảnh gốc
-        </Link>
     </Box>
 );
