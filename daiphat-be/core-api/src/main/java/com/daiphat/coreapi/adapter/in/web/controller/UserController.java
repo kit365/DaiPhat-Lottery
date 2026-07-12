@@ -1,7 +1,5 @@
 package com.daiphat.coreapi.adapter.in.web.controller;
 
-import com.daiphat.coreapi.application.dto.request.AcceptInviteRequest;
-import com.daiphat.coreapi.application.dto.request.InviteStaffRequest;
 import com.daiphat.coreapi.application.dto.request.user.CreateUserRequest;
 import com.daiphat.coreapi.application.dto.request.user.ProfileSetupRequest;
 import com.daiphat.coreapi.application.dto.request.user.UpdateUserRequest;
@@ -45,9 +43,8 @@ public class UserController {
     @PostMapping
     @PreAuthorize("hasAnyAuthority('admin:create', 'member:create')")
     @JsonView(Views.Admin.class)
-    public ApiResponse<Void> create(@Valid @RequestBody CreateUserRequest request) {
-        userServicePort.create(request);
-        return ApiResponse.success("Tạo người dùng thành công.");
+    public ApiResponse<UserResponse> create(@Valid @RequestBody CreateUserRequest request) {
+        return ApiResponse.success("Tạo người dùng thành công.", userServicePort.create(request));
     }
 
     @PutMapping(ID_PATH)
@@ -168,23 +165,6 @@ public class UserController {
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<UserStatusResponse>> getStatuses() {
         return ApiResponse.success(null, userServicePort.getStatuses());
-    }
-
-    @PostMapping(ID_PATH + "/invite-staff")
-    @PreAuthorize("hasAnyAuthority('admin:create', 'admin:edit')")
-    public ApiResponse<Void> inviteStaff(
-            @PathVariable String id,
-            @Valid @RequestBody InviteStaffRequest request) {
-        userServicePort.inviteStaff(id, request);
-        return ApiResponse.success("Đã gửi lời mời nhân viên thành công.");
-    }
-
-    @PostMapping("/accept-invite")
-    @PreAuthorize("permitAll()")
-    public ApiResponse<Void> acceptInvite(
-            @Valid @RequestBody AcceptInviteRequest request) {
-        userServicePort.acceptInvite(request);
-        return ApiResponse.success("Kích hoạt tài khoản nhân sự thành công.");
     }
 
     @PostMapping(ME_PATH + "/fcm-token")

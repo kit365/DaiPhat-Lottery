@@ -44,7 +44,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 || path.equals(AUTH + "/verify-email")
                 || path.equals(AUTH + "/password-policy")
                 || path.startsWith(AUTH + "/forgot-password")
-                || path.equals("/api/v1/users/accept-invite")
                 || path.equals("/actuator/health")
                 || path.equals("/actuator/info")
                 || path.startsWith("/v3/api-docs")

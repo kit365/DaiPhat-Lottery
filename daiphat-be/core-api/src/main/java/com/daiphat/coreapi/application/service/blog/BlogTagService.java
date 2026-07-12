@@ -58,14 +58,8 @@ public class BlogTagService implements BlogTagServicePort {
     @Override
     @Transactional
     public BlogTagResponse createTag(CreateBlogTagRequest request) {
-        String slug = request.slug();
-        if (slug == null || slug.isBlank()) {
-            slug = SlugUtils.toSlug(request.name());
-        }
-
-        if (blogTagRepositoryPort.existsBySlug(slug)) {
-            throw new DomainException(ErrorCode.SLUG_EXISTED);
-        }
+        String slug = SlugUtils.generateUnique(
+                request.slug(), request.name(), 50, blogTagRepositoryPort::existsBySlug);
         
         if (blogTagRepositoryPort.existsByName(request.name())) {
             throw new DomainException(ErrorCode.TAG_NAME_EXISTED);

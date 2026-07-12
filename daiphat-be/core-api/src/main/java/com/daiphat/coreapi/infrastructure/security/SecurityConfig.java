@@ -56,7 +56,6 @@ public class SecurityConfig {
                                 AUTH + "/register",
                                 AUTH + "/register/resend-verification",
                                 AUTH + "/forgot-password/**",
-                                ApiConstants.API_V1 + "/users/accept-invite",
                                 ApiConstants.API_V1 + "/transactions/payment/webhook/*"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
