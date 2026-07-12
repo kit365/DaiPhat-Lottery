@@ -70,6 +70,7 @@ export const ProviderCreatePage = () => {
             description: "",
             status: "active",
             price: 10000,
+            commissionRate: 0.05,
             province: "",
             region: "",
             drawDays: [],
@@ -118,16 +119,12 @@ export const ProviderCreatePage = () => {
                             name: "",
                             description: "",
                             status: "active",
-                            type: "TRADITIONAL",
                             price: 10000,
+                            commissionRate: 0.05,
                             province: "",
                             region: "",
-                            numberLength: 6,
-                            minNumber: 0,
-                            maxNumber: 999999,
                             drawDays: [],
                             drawTime: "16:15",
-                            displayOrder: 0,
                             image: "",
                         });
                     }
@@ -211,6 +208,28 @@ export const ProviderCreatePage = () => {
                                                             field.onChange(Number(rawValue));
                                                         }
                                                     }}
+                                                    fullWidth
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
+                                            name="commissionRate"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => {
+                                                        const raw = e.target.value;
+                                                        field.onChange(raw === "" ? undefined : Number(raw));
+                                                    }}
+                                                    type="number"
+                                                    inputProps={{ min: 0, max: 1, step: 0.01 }}
+                                                    label="Tỷ lệ hoa hồng"
+                                                    helperText={fieldState.error?.message || "VD: 0.05 = 5% (giá trị từ 0 đến 1)"}
+                                                    error={!!fieldState.error}
                                                     fullWidth
                                                 />
                                             )}

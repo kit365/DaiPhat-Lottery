@@ -41,6 +41,20 @@ export const columnsConfig: GridColDef<any>[] = [
         }
     },
     {
+        field: "commissionRate",
+        headerName: "Hoa hồng",
+        width: 110,
+        renderCell: (params) => {
+            const rate = params.row.commissionRate;
+            const label = rate == null ? '—' : `${(Number(rate) * 100).toFixed(1)}%`;
+            return (
+                <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>
+                    {label}
+                </span>
+            );
+        },
+    },
+    {
         field: "createdAt",
         headerName: "Thời gian tạo",
         width: 160,

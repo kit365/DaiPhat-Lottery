@@ -123,7 +123,8 @@ public class LotteryStationModel {
                 .map(LotteryStationModel::toDisplayLabel)
                 .map(label -> "- " + label)
                 .collect(Collectors.joining("\n"));
-        return "This lottery station cannot be activated yet.\n\nPlease complete the following required fields:\n\n"
+        return "Nhà đài chưa đủ thông tin bắt buộc để kích hoạt.\n\n"
+                + "Vui lòng hoàn tất các trường sau:\n\n"
                 + fieldList;
     }
 

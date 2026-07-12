@@ -36,6 +36,16 @@ const normalizeDrawDaysForBackend = (drawDays?: string[]) =>
 const mapDrawSchedule = (drawDays?: string[]) =>
     normalizeDrawDaysFromBackend(drawDays).join(', ');
 
+const mapStatusFromBackend = (item: any) => {
+    if (typeof item?.isActive === 'boolean') {
+        return item.isActive ? 'active' : 'inactive';
+    }
+    if (item?.status) {
+        return String(item.status).toLowerCase();
+    }
+    return 'inactive';
+};
+
 export const getProviders = async (params?: any): Promise<ApiResponse<PageResponse<any>>> => {
     const response = await apiApp.get(BASE_URL, { params });
     const result = response.data?.data;
@@ -47,7 +57,8 @@ export const getProviders = async (params?: any): Promise<ApiResponse<PageRespon
         avatar: item.thumbnailUrl,
         drawDays: normalizeDrawDaysFromBackend(item.drawDays),
         drawSchedule: mapDrawSchedule(item.drawDays),
-        status: item.status ? item.status.toLowerCase() : 'active'
+        commissionRate: item.commissionRate ?? null,
+        status: mapStatusFromBackend(item),
     }));
 
     return {
@@ -79,7 +90,8 @@ export const getProviderById = async (id: string | number): Promise<any> => {
         item.avatar = item.thumbnailUrl;
         item.drawDays = normalizeDrawDaysFromBackend(item.drawDays);
         item.drawSchedule = mapDrawSchedule(item.drawDays);
-        item.status = item.status ? item.status.toLowerCase() : 'active';
+        item.commissionRate = item.commissionRate ?? null;
+        item.status = mapStatusFromBackend(item);
     }
     return response.data;
 };
@@ -89,12 +101,12 @@ export const createProvider = async (data: any): Promise<any> => {
         name: data.name,
         province: data.province || '',
         region: data.region || '',
-        price: data.price || 10000,
+        price: data.price != null ? data.price : 10000,
+        commissionRate: data.commissionRate ?? null,
         drawDays: normalizeDrawDaysForBackend(data.drawDays),
         drawTime: data.drawTime || '',
         image: data.image || '',
         description: data.description || '',
-        status: data.status ? data.status.toUpperCase() : 'ACTIVE',
     };
     const response = await apiApp.post(BASE_URL, payload);
     return response.data;
@@ -105,12 +117,13 @@ export const updateProvider = async (id: string | number, data: any): Promise<an
         name: data.name,
         province: data.province || '',
         region: data.region || '',
-        price: data.price || 10000,
+        price: data.price != null ? data.price : 10000,
+        commissionRate: data.commissionRate ?? null,
         drawDays: normalizeDrawDaysForBackend(data.drawDays),
         drawTime: data.drawTime || '',
         image: data.image || '',
         description: data.description || '',
-        status: data.status ? data.status.toUpperCase() : 'ACTIVE',
+        isActive: data.status === 'active' || data.status === 'ACTIVE' || data.isActive === true,
     };
     const response = await apiApp.put(`${BASE_URL}/${id}`, payload);
     return response.data;

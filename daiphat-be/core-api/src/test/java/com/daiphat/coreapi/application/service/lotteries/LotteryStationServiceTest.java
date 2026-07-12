@@ -346,6 +346,45 @@ class LotteryStationServiceTest {
     }
 
     @Test
+    @DisplayName("[DP-37] update_remainActive_throwsWhenRequiredFieldCleared")
+    void update_remainActive_throwsWhenRequiredFieldCleared() {
+        LotteryStationModel activeStation = LotteryStationModel.builder()
+                .id(1L)
+                .name("Station A")
+                .province("Province A")
+                .region(regionModel)
+                .price(BigDecimal.valueOf(10000))
+                .drawDays(List.of(DayOfWeek.MONDAY))
+                .drawTime(LocalTime.of(16, 15))
+                .commissionRate(new BigDecimal("0.0500"))
+                .isActive(true)
+                .build();
+        UpdateLotteryStationRequest req = UpdateLotteryStationRequest.builder()
+                .province("")
+                .isActive(true)
+                .build();
+
+        when(lotteryStationRepositoryPort.findById(1L)).thenReturn(Optional.of(activeStation));
+        doAnswer(invocation -> {
+            LotteryStationModel model = invocation.getArgument(0);
+            model.setProvince("");
+            return null;
+        }).when(lotteryStationApplicationMapper).updateModel(any(), any());
+
+        assertThatThrownBy(() -> lotteryStationService.update(1L, req))
+                .isInstanceOf(DomainException.class)
+                .satisfies(ex -> {
+                    DomainException domainException = (DomainException) ex;
+                    assertThat(domainException.getErrorCode()).isEqualTo(ErrorCode.LOTTERY_STATION_ACTIVATION_INCOMPLETE);
+                    assertThat(domainException.getData()).isInstanceOf(Map.class);
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> data = (Map<String, Object>) domainException.getData();
+                    assertThat((List<String>) data.get("missingFields")).contains("PROVINCE");
+                });
+        verify(lotteryStationRepositoryPort, never()).save(any());
+    }
+
+    @Test
     @DisplayName("[DP-37] activate_requiresAllFields")
     void activate_requiresAllFields() {
         LotteryStationModel minimal = LotteryStationModel.builder()

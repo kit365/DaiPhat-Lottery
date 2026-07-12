@@ -138,6 +138,24 @@ export const ProviderDetailPage = () => {
                                     <Typography variant="caption" color="text.secondary">Giờ quay thưởng</Typography>
                                     <Typography variant="body1" fontWeight={600}>{providerDetail.drawTime || 'N/A'}</Typography>
                                 </Box>
+
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Giá vé</Typography>
+                                    <Typography variant="body1" fontWeight={600}>
+                                        {providerDetail.price != null
+                                            ? new Intl.NumberFormat('vi-VN').format(Number(providerDetail.price)) + ' đ'
+                                            : 'N/A'}
+                                    </Typography>
+                                </Box>
+
+                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
+                                    <Typography variant="caption" color="text.secondary">Tỷ lệ hoa hồng</Typography>
+                                    <Typography variant="body1" fontWeight={600}>
+                                        {providerDetail.commissionRate != null
+                                            ? `${Number(providerDetail.commissionRate)} (${(Number(providerDetail.commissionRate) * 100).toFixed(2)}%)`
+                                            : 'N/A'}
+                                    </Typography>
+                                </Box>
                                 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Độ ưu tiên</Typography>

@@ -262,19 +262,22 @@ public class LotteryStationService implements LotteryStationServicePort {
             }
         }
 
+        boolean wasActive = model.isActive();
         lotteryStationApplicationMapper.updateModel(model, request);
         if (request.region() != null) {
             model.setRegion(resolveRegion(request.region()));
         }
         syncNextDrawDate(model);
 
-        if (request.isActive() != null) {
-            if (Boolean.TRUE.equals(request.isActive())) {
-                model.requireActivationReady();
-                model.setActive(true);
-            } else {
-                model.setActive(false);
-            }
+        boolean requestActivate = Boolean.TRUE.equals(request.isActive());
+        boolean requestDeactivate = Boolean.FALSE.equals(request.isActive());
+
+        if (requestActivate || (wasActive && !requestDeactivate)) {
+            // Activating, or remaining active after an edit, requires all mandatory fields.
+            model.requireActivationReady();
+            model.setActive(true);
+        } else if (requestDeactivate) {
+            model.setActive(false);
         } else {
             model.applyIsActive(null);
         }

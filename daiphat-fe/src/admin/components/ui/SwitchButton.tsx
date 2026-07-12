@@ -1,19 +1,21 @@
 import { FormControlLabel, Switch, Typography } from "@mui/material";
-import { Control, Controller, FieldValues } from "react-hook-form";
-import { Path } from "react-hook-form";
+import { Control, Controller, FieldValues, Path } from "react-hook-form";
 
 interface SwitchButtonProps<T extends FieldValues> {
     control: Control<T>;
     name: Path<T>;
     checkedValue?: any;
     uncheckedValue?: any;
+    /** Return false to prevent switching to the requested state. */
+    onBeforeChange?: (nextChecked: boolean) => boolean;
 }
 
 export const SwitchButton = <T extends FieldValues>({
     control,
     name,
     checkedValue = true,
-    uncheckedValue = false
+    uncheckedValue = false,
+    onBeforeChange,
 }: SwitchButtonProps<T>) => {
     return (
         <Controller
@@ -31,7 +33,13 @@ export const SwitchButton = <T extends FieldValues>({
                         <Switch
                             {...field}
                             checked={field.value === checkedValue}
-                            onChange={(e) => field.onChange(e.target.checked ? checkedValue : uncheckedValue)}
+                            onChange={(e) => {
+                                const nextChecked = e.target.checked;
+                                if (onBeforeChange && !onBeforeChange(nextChecked)) {
+                                    return;
+                                }
+                                field.onChange(nextChecked ? checkedValue : uncheckedValue);
+                            }}
                             sx={{
                                 '& .MuiSwitch-switchBase.Mui-checked': {
                                     color: '#00A76F',

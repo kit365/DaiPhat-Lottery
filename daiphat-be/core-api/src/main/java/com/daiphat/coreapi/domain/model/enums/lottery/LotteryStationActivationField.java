@@ -1,13 +1,13 @@
 package com.daiphat.coreapi.domain.model.enums.lottery;
 
 public enum LotteryStationActivationField {
-    NAME("Lottery Station Name"),
-    PRICE("Ticket Price"),
-    COMMISSION_RATE("Commission Rate"),
-    REGION("Region"),
-    PROVINCE("Province/City"),
-    DRAW_SCHEDULE("Draw Schedule"),
-    DRAW_TIME("Draw Time");
+    NAME("Tên nhà đài"),
+    PRICE("Giá vé"),
+    COMMISSION_RATE("Tỷ lệ hoa hồng"),
+    REGION("Vùng miền"),
+    PROVINCE("Tỉnh/Thành phố"),
+    DRAW_SCHEDULE("Lịch quay"),
+    DRAW_TIME("Giờ quay");
 
     private final String displayLabel;
 
