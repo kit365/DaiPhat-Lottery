@@ -169,6 +169,8 @@ public class OrderPersistenceMapper {
         entity.setFailureReason(model.getFailureReason());
         entity.setCodCollectedAt(model.getCodCollectedAt());
         entity.setCodCollectedBy(userRef(model.getCodCollectedBy()));
+        entity.setPaymentEvidenceUrl(model.getPaymentEvidenceUrl());
+        entity.setPaymentBy(userRef(model.getPaymentBy()));
         entity.setNote(model.getNote());
         entity.setType(model.getType());
         entity.setCreatedAt(model.getCreatedAt());
@@ -192,6 +194,8 @@ public class OrderPersistenceMapper {
                 .failureReason(entity.getFailureReason())
                 .codCollectedAt(entity.getCodCollectedAt())
                 .codCollectedBy(userId(entity.getCodCollectedBy()))
+                .paymentEvidenceUrl(entity.getPaymentEvidenceUrl())
+                .paymentBy(userId(entity.getPaymentBy()))
                 .note(entity.getNote())
                 .type(entity.getType())
                 .createdAt(entity.getCreatedAt())

@@ -72,6 +72,13 @@ public class TransactionEntity {
     @JoinColumn(name = "cod_collected_by")
     private UserEntity codCollectedBy;
 
+    @Column(name = "payment_evidence_url", length = 500)
+    private String paymentEvidenceUrl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_by")
+    private UserEntity paymentBy;
+
     @Column(columnDefinition = "TEXT")
     private String note;
 

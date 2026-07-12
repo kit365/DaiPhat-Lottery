@@ -33,6 +33,8 @@ public class TransactionModel {
     private String failureReason;
     private LocalDateTime codCollectedAt;
     private UUID codCollectedBy;
+    private String paymentEvidenceUrl;
+    private UUID paymentBy;
     private String note;
     private TransactionType type;
     private LocalDateTime createdAt;
@@ -104,6 +106,27 @@ public class TransactionModel {
     public void markRefunded() {
         ensureStatus(TransactionStatus.COMPLETED);
         this.status = TransactionStatus.REFUNDED;
+    }
+
+    /**
+     * Records a staff refund payout against the order (bank transfer evidence).
+     */
+    public void markRefundPayoutCompleted(UUID operatorId, String evidenceUrl, String note) {
+        if (this.type != TransactionType.REFUND) {
+            throw new DomainException(ErrorCode.TRANSACTION_INVALID_STATUS);
+        }
+        if (evidenceUrl == null || evidenceUrl.isBlank()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+        this.status = TransactionStatus.COMPLETED;
+        this.paidAt = LocalDateTime.now();
+        this.cancelledAt = null;
+        this.failureReason = null;
+        this.paymentBy = operatorId;
+        this.paymentEvidenceUrl = evidenceUrl.trim();
+        if (note != null && !note.isBlank()) {
+            this.note = note.trim();
+        }
     }
 
     private void ensureType(TransactionType expectedType) {

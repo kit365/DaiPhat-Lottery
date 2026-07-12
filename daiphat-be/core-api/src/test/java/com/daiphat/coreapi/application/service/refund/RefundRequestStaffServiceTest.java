@@ -2,13 +2,14 @@ package com.daiphat.coreapi.application.service.refund;
 
 import com.daiphat.coreapi.application.dto.request.refund.RejectRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
-import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
 import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
+import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
@@ -18,6 +19,7 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
@@ -56,10 +58,12 @@ class RefundRequestStaffServiceTest {
     private final UserRepositoryPort userRepositoryPort = mock(UserRepositoryPort.class);
     private final LotteryTicketServicePort lotteryTicketServicePort = mock(LotteryTicketServicePort.class);
     private final RefundApplicationMapper refundApplicationMapper = mock(RefundApplicationMapper.class);
+    private final OrderApplicationMapper orderApplicationMapper = mock(OrderApplicationMapper.class);
     private final RefundProcessingDeadlineService refundProcessingDeadlineService = mock(RefundProcessingDeadlineService.class);
     private final RefundTicketItemResolver refundTicketItemResolver = mock(RefundTicketItemResolver.class);
     private final com.daiphat.coreapi.application.port.out.file.StoragePort storagePort =
             mock(com.daiphat.coreapi.application.port.out.file.StoragePort.class);
+    private final TransactionRepositoryPort transactionRepositoryPort = mock(TransactionRepositoryPort.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
 
     private RefundRequestStaffService refundRequestStaffService;
@@ -79,9 +83,11 @@ class RefundRequestStaffServiceTest {
                 userRepositoryPort,
                 lotteryTicketServicePort,
                 refundApplicationMapper,
+                orderApplicationMapper,
                 refundProcessingDeadlineService,
                 refundTicketItemResolver,
                 storagePort,
+                transactionRepositoryPort,
                 eventPublisher);
 
         when(refundProcessingDeadlineService.evaluate(any())).thenReturn(
@@ -90,6 +96,9 @@ class RefundRequestStaffServiceTest {
                         604800L,
                         RefundProcessingUrgency.ON_TIME));
         when(refundProcessingDeadlineService.isOverdue(any())).thenReturn(false);
+        org.mockito.Mockito.lenient()
+                .when(transactionRepositoryPort.findLatestByOrderIdAndType(any(), any()))
+                .thenReturn(Optional.empty());
     }
 
     @Test
@@ -103,7 +112,7 @@ class RefundRequestStaffServiceTest {
         when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
-        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any())).thenReturn(null);
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
 
         refundRequestStaffService.approve(refundId, staffId);
 
@@ -159,7 +168,7 @@ class RefundRequestStaffServiceTest {
         when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
         when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
                 OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
-        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any())).thenReturn(null);
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
 
         refundRequestStaffService.reject(refundId, staffId, new RejectRefundRequestRequest("Không đủ điều kiện"));
 
@@ -203,7 +212,13 @@ class RefundRequestStaffServiceTest {
         when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
         when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
                 OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
-        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any())).thenReturn(null);
+        when(transactionRepositoryPort.save(any(TransactionModel.class))).thenAnswer(inv -> {
+            TransactionModel tx = inv.getArgument(0);
+            tx.setId(500L);
+            return tx;
+        });
+        when(orderApplicationMapper.toTransactionResponse(any())).thenReturn(null);
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
 
         refundRequestStaffService.markTransferred(
                 refundId,
@@ -213,7 +228,13 @@ class RefundRequestStaffServiceTest {
         ArgumentCaptor<RefundRequestModel> refundCaptor = ArgumentCaptor.forClass(RefundRequestModel.class);
         verify(refundRequestRepositoryPort).save(refundCaptor.capture());
         assertThat(refundCaptor.getValue().getStatus()).isEqualTo(RefundRequestStatus.PAID);
-        assertThat(refundCaptor.getValue().getTransferNote()).isEqualTo("Đã chuyển");
+
+        ArgumentCaptor<TransactionModel> txCaptor = ArgumentCaptor.forClass(TransactionModel.class);
+        verify(transactionRepositoryPort).save(txCaptor.capture());
+        assertThat(txCaptor.getValue().getType()).isEqualTo(TransactionType.REFUND);
+        assertThat(txCaptor.getValue().getPaymentEvidenceUrl()).isEqualTo("https://evidence.url");
+        assertThat(txCaptor.getValue().getPaymentBy()).isEqualTo(staffId);
+        assertThat(txCaptor.getValue().getNote()).isEqualTo("Đã chuyển");
         verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
     }
 
@@ -235,7 +256,9 @@ class RefundRequestStaffServiceTest {
         when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
         when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
                 OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
-        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any())).thenReturn(null);
+        when(transactionRepositoryPort.save(any(TransactionModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderApplicationMapper.toTransactionResponse(any())).thenReturn(null);
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
 
         refundRequestStaffService.markTransferred(
                 refundId,
@@ -243,6 +266,7 @@ class RefundRequestStaffServiceTest {
                 new TransferRefundRequestRequest("https://evidence.url", null));
 
         assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.PAID);
+        verify(transactionRepositoryPort).save(any(TransactionModel.class));
     }
 
     @Test

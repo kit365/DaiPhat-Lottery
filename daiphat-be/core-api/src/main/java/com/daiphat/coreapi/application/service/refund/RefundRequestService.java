@@ -3,11 +3,14 @@ package com.daiphat.coreapi.application.service.refund;
 import com.daiphat.coreapi.application.dto.request.refund.CreateRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
+import com.daiphat.coreapi.application.dto.response.order.TransactionResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
 import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
+import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
 import com.daiphat.coreapi.application.port.in.refund.RefundRequestServicePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService;
@@ -17,6 +20,7 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.refund.RefundRequestModel;
@@ -48,7 +52,9 @@ public class RefundRequestService implements RefundRequestServicePort {
     private final RefundRequestRepositoryPort refundRequestRepositoryPort;
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort;
     private final OrderRepositoryPort orderRepositoryPort;
+    private final TransactionRepositoryPort transactionRepositoryPort;
     private final RefundApplicationMapper refundApplicationMapper;
+    private final OrderApplicationMapper orderApplicationMapper;
     private final OrderRefundGraceService orderRefundGraceService;
     private final OrderRefundPolicyService orderRefundPolicyService;
     private final ApplicationEventPublisher eventPublisher;
@@ -197,13 +203,24 @@ public class RefundRequestService implements RefundRequestServicePort {
             UserBankAccountModel bankAccount,
             Map<UUID, String> orderCodesById) {
         String orderCode = resolveOrderCode(model.getOrderId(), orderCodesById);
+        TransactionResponse payout = loadPayoutTransaction(model.getOrderId());
         return refundApplicationMapper.enrichResponse(
                 model,
                 bankAccount,
                 orderCode,
                 null,
                 null,
-                null);
+                null,
+                payout);
+    }
+
+    private TransactionResponse loadPayoutTransaction(UUID orderId) {
+        if (orderId == null) {
+            return null;
+        }
+        return transactionRepositoryPort.findLatestByOrderIdAndType(orderId, TransactionType.REFUND)
+                .map(orderApplicationMapper::toTransactionResponse)
+                .orElse(null);
     }
 
     private String resolveOrderCode(UUID orderId, Map<UUID, String> cache) {
@@ -230,7 +247,6 @@ public class RefundRequestService implements RefundRequestServicePort {
                 .orderCode(orderCode)
                 .status(refund.getStatus())
                 .rejectReason(refund.getRejectReason())
-                .transferNote(refund.getTransferNote())
                 .build());
     }
 

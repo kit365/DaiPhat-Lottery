@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.repository.order;
 
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +17,7 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
             FROM transactions
             WHERE order_id = :orderId
               AND status = 'COMPLETED'
+              AND type <> 'REFUND'
             ORDER BY COALESCE(paid_at, updated_at, created_at) DESC
             LIMIT 1
             """, nativeQuery = true)
@@ -28,4 +30,6 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
     Long resetGatewayOrderCodeSequence(@Param("value") Long value);
 
     Optional<TransactionEntity> findByGatewayOrderCode(Long gatewayOrderCode);
+
+    Optional<TransactionEntity> findFirstByOrder_IdAndTypeOrderByPaidAtDescIdDesc(UUID orderId, TransactionType type);
 }

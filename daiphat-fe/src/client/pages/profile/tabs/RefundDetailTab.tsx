@@ -186,22 +186,28 @@ export const RefundDetailTab = () => {
                         </div>
                         <h3 className="text-[18px] font-bold text-[#212B36]">Đã chuyển khoản</h3>
                     </div>
-                    {refund.transferredAt && (
+                    {refund.payoutTransaction?.paidAt && (
                         <p className="text-[14px] text-[#637381]">
-                            Thời gian: {format(new Date(refund.transferredAt), 'dd/MM/yyyy HH:mm')}
+                            Thời gian: {format(new Date(refund.payoutTransaction.paidAt), 'dd/MM/yyyy HH:mm')}
                         </p>
                     )}
-                    {refund.transferEvidenceUrl && (
+                    {refund.payoutTransaction?.paymentEvidenceUrl && (
                         <div className="mt-3">
                             <p className="text-[14px] text-[#637381] mb-2">Minh chứng chuyển khoản</p>
                             <img
-                                src={refund.transferEvidenceUrl}
+                                src={refund.payoutTransaction.paymentEvidenceUrl}
                                 alt="Minh chứng chuyển khoản"
                                 className="max-w-full max-h-[360px] rounded-lg border border-[#919EAB3D] cursor-pointer object-contain"
-                                onClick={() => window.open(refund.transferEvidenceUrl, '_blank', 'noopener,noreferrer')}
+                                onClick={() =>
+                                    window.open(
+                                        refund.payoutTransaction!.paymentEvidenceUrl,
+                                        '_blank',
+                                        'noopener,noreferrer'
+                                    )
+                                }
                             />
                             <a
-                                href={refund.transferEvidenceUrl}
+                                href={refund.payoutTransaction.paymentEvidenceUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 text-[#2065D1] font-bold text-[14px] hover:underline w-max mt-2"

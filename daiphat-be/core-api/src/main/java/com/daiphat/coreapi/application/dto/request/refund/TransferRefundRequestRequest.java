@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record TransferRefundRequestRequest(
-        @NotBlank @Size(max = 500) String transferEvidenceUrl,
-        @Size(max = 500) String transferNote
+        @NotBlank @Size(max = 500) String paymentEvidenceUrl,
+        @Size(max = 500) String note
 ) {
 }

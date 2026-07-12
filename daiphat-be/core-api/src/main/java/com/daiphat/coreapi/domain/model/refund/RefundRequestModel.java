@@ -53,10 +53,6 @@ public class RefundRequestModel {
     private String rejectReason;
     private UUID reviewedBy;
     private LocalDateTime reviewedAt;
-    private String transferEvidenceUrl;
-    private LocalDateTime transferredAt;
-    private UUID transferredBy;
-    private String transferNote;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
@@ -103,28 +99,12 @@ public class RefundRequestModel {
         this.rejectReason = reason.trim();
     }
 
-    public void markTransferred(UUID transferrerId, String evidenceUrl, String transferNote) {
-        markPaid(transferrerId, evidenceUrl, transferNote);
-    }
-
-    public void markPaid(UUID transferrerId, String evidenceUrl) {
-        markPaid(transferrerId, evidenceUrl, null);
-    }
-
-    public void markPaid(UUID transferrerId, String evidenceUrl, String transferNote) {
+    /** Marks refund as paid. Payout evidence is stored on the related Transaction. */
+    public void markPaid() {
         if (this.status != RefundRequestStatus.APPROVED && this.status != RefundRequestStatus.READY_TO_PAY) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
         }
-        if (evidenceUrl == null || evidenceUrl.isBlank()) {
-            throw new DomainException(ErrorCode.INVALID_INPUT);
-        }
         this.status = RefundRequestStatus.PAID;
-        this.transferredBy = transferrerId;
-        this.transferredAt = LocalDateTime.now();
-        this.transferEvidenceUrl = evidenceUrl.trim();
-        if (transferNote != null && !transferNote.isBlank()) {
-            this.transferNote = transferNote.trim();
-        }
     }
 
     public void cancel() {

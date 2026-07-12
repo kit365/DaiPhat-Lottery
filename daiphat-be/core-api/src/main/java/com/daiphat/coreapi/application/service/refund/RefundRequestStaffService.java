@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.refund;
 import com.daiphat.coreapi.application.dto.request.refund.RejectRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.order.TransactionResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundProcessingHistoryItem;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestAdminDetailResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
@@ -10,12 +11,14 @@ import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
+import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.refund.RefundRequestStaffServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
@@ -26,8 +29,10 @@ import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
+import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.model.refund.RefundRequestModel;
 import com.daiphat.coreapi.domain.model.refund.UserBankAccountModel;
 import com.daiphat.coreapi.shared.util.PageableUtils;
@@ -75,9 +80,11 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private final UserRepositoryPort userRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final RefundApplicationMapper refundApplicationMapper;
+    private final OrderApplicationMapper orderApplicationMapper;
     private final RefundProcessingDeadlineService refundProcessingDeadlineService;
     private final RefundTicketItemResolver refundTicketItemResolver;
     private final StoragePort storagePort;
+    private final TransactionRepositoryPort transactionRepositoryPort;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -118,9 +125,12 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         UserModel customer = userRepositoryPort.findById(request.getRequestedBy()).orElse(null);
         String reviewerName = resolveUserName(request.getReviewedBy());
-        String transferrerName = resolveUserName(request.getTransferredBy());
+        TransactionResponse payoutTransaction = loadPayoutTransaction(request.getOrderId());
+        String transferrerName = payoutTransaction != null
+                ? resolveUserName(payoutTransaction.paymentBy())
+                : null;
 
-        RefundRequestResponse refund = toEnrichedResponse(request, bankAccount, order.getOrderCode());
+        RefundRequestResponse refund = toEnrichedResponse(request, bankAccount, order.getOrderCode(), payoutTransaction);
 
         RefundRequestAdminDetailResponse.RefundOrderSummary orderSummary =
                 new RefundRequestAdminDetailResponse.RefundOrderSummary(
@@ -144,7 +154,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 customerSummary,
                 reviewerName,
                 transferrerName,
-                buildProcessingHistory(request, reviewerName, transferrerName),
+                buildProcessingHistory(request, reviewerName, transferrerName, payoutTransaction),
                 refundTicketItemResolver.resolveFromOrder(order));
     }
 
@@ -208,16 +218,31 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         if (refund.getStatus() == RefundRequestStatus.EXPIRED) {
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS, "Yêu cầu hoàn tiền đã hết hạn xử lý.");
         }
-        StorageUtils.validateImageEvidenceUrl(request.transferEvidenceUrl());
-        refund.markPaid(staffId, request.transferEvidenceUrl(), request.transferNote());
+        StorageUtils.validateImageEvidenceUrl(request.paymentEvidenceUrl());
 
+        UUID orderId = requireOrderId(refund);
+        refund.markPaid();
         RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
+
+        TransactionModel payout = TransactionModel.builder()
+                .orderId(orderId)
+                .amount(saved.getRefundAmount())
+                .type(TransactionType.REFUND)
+                .build();
+        payout.initializeForCreate();
+        payout.markRefundPayoutCompleted(staffId, request.paymentEvidenceUrl(), request.note());
+        TransactionModel savedPayout = transactionRepositoryPort.save(payout);
+
         publishRefundStatusChanged(saved);
 
-        String orderCode = orderRepositoryPort.findById(requireOrderId(saved))
+        String orderCode = orderRepositoryPort.findById(orderId)
                 .map(OrderModel::getOrderCode)
                 .orElse(null);
-        return toEnrichedResponse(saved, loadBankAccount(saved.getBankAccountId()), orderCode);
+        return toEnrichedResponse(
+                saved,
+                loadBankAccount(saved.getBankAccountId()),
+                orderCode,
+                orderApplicationMapper.toTransactionResponse(savedPayout));
     }
 
     @Override
@@ -303,6 +328,15 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             UserBankAccountModel bankAccount,
             String orderCode
     ) {
+        return toEnrichedResponse(model, bankAccount, orderCode, loadPayoutTransaction(model.getOrderId()));
+    }
+
+    private RefundRequestResponse toEnrichedResponse(
+            RefundRequestModel model,
+            UserBankAccountModel bankAccount,
+            String orderCode,
+            TransactionResponse payoutTransaction
+    ) {
         ProcessingEvaluation evaluation = refundProcessingDeadlineService.evaluate(model);
         return refundApplicationMapper.enrichResponse(
                 model,
@@ -310,7 +344,17 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 orderCode,
                 evaluation.processingDeadlineAt(),
                 evaluation.remainingProcessingSeconds(),
-                evaluation.processingUrgency());
+                evaluation.processingUrgency(),
+                payoutTransaction);
+    }
+
+    private TransactionResponse loadPayoutTransaction(UUID orderId) {
+        if (orderId == null) {
+            return null;
+        }
+        return transactionRepositoryPort.findLatestByOrderIdAndType(orderId, TransactionType.REFUND)
+                .map(orderApplicationMapper::toTransactionResponse)
+                .orElse(null);
     }
 
     private String resolveOrderCode(UUID orderId, Map<UUID, String> cache) {
@@ -381,7 +425,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 .orderCode(orderCode)
                 .status(refund.getStatus())
                 .rejectReason(refund.getRejectReason())
-                .transferNote(refund.getTransferNote())
                 .build());
     }
 
@@ -410,7 +453,8 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private List<RefundProcessingHistoryItem> buildProcessingHistory(
             RefundRequestModel request,
             String reviewerName,
-            String transferrerName
+            String transferrerName,
+            TransactionResponse payoutTransaction
     ) {
         List<RefundProcessingHistoryItem> history = new ArrayList<>();
 
@@ -449,15 +493,15 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             }
         }
 
-        if (request.getTransferredAt() != null) {
-            String detail = request.getTransferNote();
+        if (payoutTransaction != null && payoutTransaction.paidAt() != null) {
+            String detail = payoutTransaction.note();
             if (transferrerName != null && !transferrerName.isBlank()) {
                 detail = (detail != null ? detail + " — " : "") + "Bởi: " + transferrerName;
             }
             history.add(new RefundProcessingHistoryItem(
                     "Đã chuyển khoản",
                     detail,
-                    request.getTransferredAt()));
+                    payoutTransaction.paidAt()));
         }
 
         if (request.getStatus() == RefundRequestStatus.EXPIRED) {
