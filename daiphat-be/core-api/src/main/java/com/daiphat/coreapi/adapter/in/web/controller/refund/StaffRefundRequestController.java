@@ -4,7 +4,6 @@ import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
-import com.daiphat.coreapi.application.dto.request.refund.RejectRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestAdminDetailResponse;
@@ -72,17 +71,6 @@ public class StaffRefundRequestController {
         return ApiResponse.success(
                 "Duyệt yêu cầu hoàn tiền thành công.",
                 refundRequestStaffServicePort.approve(id, principal.getId()));
-    }
-
-    @PatchMapping(ID_PATH + "/reject")
-    @PreAuthorize("hasAuthority('refund:reject')")
-    public ApiResponse<RefundRequestResponse> reject(
-            @PathVariable Long id,
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
-            @Valid @RequestBody RejectRefundRequestRequest request) {
-        return ApiResponse.success(
-                "Đã từ chối yêu cầu hủy.",
-                refundRequestStaffServicePort.reject(id, principal.getId(), request));
     }
 
     @PatchMapping(ID_PATH + "/transfer")
