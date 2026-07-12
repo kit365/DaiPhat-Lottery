@@ -34,9 +34,7 @@ import {
 import {
     useApproveRefund,
     useGetStaffRefunds,
-    useRejectRefund,
 } from '../hooks/useRefundManagement';
-import { RejectRefundDialog } from '../components/RejectRefundDialog';
 import { RefundProcessingStatusBadge } from '../components/RefundProcessingStatusBadge';
 
 const STATUS_TABS: { value: string; label: string }[] = [
@@ -44,10 +42,9 @@ const STATUS_TABS: { value: string; label: string }[] = [
     { value: 'PENDING', label: 'Chờ duyệt' },
     { value: 'WAITING_FOR_INFO', label: 'Chờ STK' },
     { value: 'READY_TO_PAY', label: 'Chờ chuyển khoản' },
-    { value: 'REJECTED', label: 'Từ chối' },
     { value: 'PAID', label: 'Đã chuyển khoản' },
     { value: 'EXPIRED', label: 'Hết hạn' },
-    { value: 'PENDING,WAITING_FOR_INFO,APPROVED,READY_TO_PAY,REJECTED,PAID,CANCELLED,EXPIRED', label: 'Tất cả' },
+    { value: 'PENDING,WAITING_FOR_INFO,APPROVED,READY_TO_PAY,PAID,CANCELLED,EXPIRED', label: 'Tất cả' },
 ];
 
 export const RefundList = () => {
@@ -56,11 +53,7 @@ export const RefundList = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [search, setSearch] = useState('');
     const [statusTab, setStatusTab] = useState(STATUS_TABS[0].value);
-    const [rejectTargetId, setRejectTargetId] = useState<number | null>(null);
-
     const approveMutation = useApproveRefund();
-    const rejectMutation = useRejectRefund();
-
     const { data, isLoading } = useGetStaffRefunds({
         page: page + 1,
         limit: rowsPerPage,
@@ -88,14 +81,6 @@ export const RefundList = () => {
     const handleApprove = (id: number, e: React.MouseEvent) => {
         e.stopPropagation();
         approveMutation.mutate(id);
-    };
-
-    const handleRejectConfirm = (reason: string) => {
-        if (!rejectTargetId) return;
-        rejectMutation.mutate(
-            { id: rejectTargetId, data: { rejectReason: reason } },
-            { onSuccess: () => setRejectTargetId(null) }
-        );
     };
 
     return (
@@ -234,17 +219,6 @@ export const RefundList = () => {
                                                                 </IconButton>
                                                             </Tooltip>
                                                         </CanAccess>
-                                                        <CanAccess permission={PERMISSIONS.REFUND.REJECT}>
-                                                            <Tooltip title="Từ chối">
-                                                                <IconButton
-                                                                    size="small"
-                                                                    color="error"
-                                                                    onClick={() => setRejectTargetId(refund.id)}
-                                                                >
-                                                                    <Icon icon="mdi:close" />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                        </CanAccess>
                                                     </Box>
                                                 )}
                                             </TableCell>
@@ -271,12 +245,6 @@ export const RefundList = () => {
                 </>
             )}
 
-            <RejectRefundDialog
-                open={rejectTargetId !== null}
-                loading={rejectMutation.isPending}
-                onClose={() => setRejectTargetId(null)}
-                onConfirm={handleRejectConfirm}
-            />
         </Card>
     );
 };

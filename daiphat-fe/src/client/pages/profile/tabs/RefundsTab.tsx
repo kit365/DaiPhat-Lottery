@@ -34,11 +34,13 @@ export const RefundsTab = () => {
 
     const refundTabs: { value: RefundRequestStatus | 'ALL'; label: string; count?: number }[] = [
         { value: 'ALL', label: 'Tất cả', count: statusCounts.all },
-        ...statusOptions.map((s) => ({
-            value: s.value as RefundRequestStatus,
-            label: s.label,
-            count: statusCounts[s.value]
-        }))
+        ...statusOptions
+            .filter((s) => Object.values(RefundRequestStatus).includes(s.value as RefundRequestStatus))
+            .map((s) => ({
+                value: s.value as RefundRequestStatus,
+                label: s.label,
+                count: statusCounts[s.value]
+            }))
     ];
 
     return (
@@ -114,7 +116,13 @@ export const RefundsTab = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                refundData?.data?.recordList?.map((refund) => (
+                                refundData?.data?.recordList?.map((refund) => {
+                                    const orderLabel = refund.orderCode?.trim()
+                                        || (refund.orderId
+                                            ? `${refund.orderId.slice(0, 8).toUpperCase()}...`
+                                            : null);
+
+                                    return (
                                     <tr
                                         key={refund.id}
                                         className="border-b border-[#F4F6F8] hover:bg-[#FAFBFC] transition-colors cursor-pointer"
@@ -129,17 +137,23 @@ export const RefundsTab = () => {
                                             </span>
                                         </td>
                                         <td className="py-4 px-5 align-top">
-                                            <Link
-                                                to={`/profile/orders/${refund.orderId}`}
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="text-[14px] text-[#2065D1] hover:underline font-medium"
-                                            >
-                                                {refund.orderId.slice(0, 8).toUpperCase()}...
-                                            </Link>
+                                            {refund.orderId ? (
+                                                <Link
+                                                    to={`/profile/orders/${refund.orderId}`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="text-[14px] text-[#2065D1] hover:underline font-medium"
+                                                >
+                                                    {orderLabel}
+                                                </Link>
+                                            ) : (
+                                                <span className="text-[14px] text-[#919EAB] font-medium">
+                                                    {orderLabel || '—'}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="py-4 px-5 align-top">
                                             <span className="text-[14px] font-bold text-[#212B36]">
-                                                {refund.refundAmount.toLocaleString('vi-VN')}đ
+                                                {(refund.refundAmount ?? 0).toLocaleString('vi-VN')}đ
                                             </span>
                                         </td>
                                         <td className="py-4 px-5 align-top">
@@ -163,7 +177,8 @@ export const RefundsTab = () => {
                                             </button>
                                         </td>
                                     </tr>
-                                ))
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
