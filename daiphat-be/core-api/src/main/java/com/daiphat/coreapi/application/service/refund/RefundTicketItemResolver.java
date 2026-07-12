@@ -71,7 +71,13 @@ public class RefundTicketItemResolver {
         if (lotteryTicketId == null) {
             return null;
         }
-        return ticketsById.computeIfAbsent(lotteryTicketId, lotteryTicketServicePort::getById);
+        return ticketsById.computeIfAbsent(lotteryTicketId, id -> {
+            try {
+                return lotteryTicketServicePort.getById(id);
+            } catch (RuntimeException ex) {
+                return null;
+            }
+        });
     }
 
     private LotteryTicketSerialModel resolveSerial(
@@ -81,6 +87,12 @@ public class RefundTicketItemResolver {
         if (lotteryTicketSerialId == null) {
             return null;
         }
-        return serialsById.computeIfAbsent(lotteryTicketSerialId, lotteryTicketSerialServicePort::getByIdOrThrow);
+        return serialsById.computeIfAbsent(lotteryTicketSerialId, id -> {
+            try {
+                return lotteryTicketSerialServicePort.getByIdOrThrow(id);
+            } catch (RuntimeException ex) {
+                return null;
+            }
+        });
     }
 }

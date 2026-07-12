@@ -78,7 +78,11 @@ public class RefundRequestRepositoryAdapter implements RefundRequestRepositoryPo
     @Override
     public boolean existsPendingByBankAccountId(Long bankAccountId) {
         return refundRequestRepository.existsByBankAccount_IdAndStatus(
-                bankAccountId, RefundRequestStatus.PENDING);
+                bankAccountId, RefundRequestStatus.READY_TO_PAY)
+                || refundRequestRepository.existsByBankAccount_IdAndStatus(
+                bankAccountId, RefundRequestStatus.WAITING_FOR_INFO)
+                || refundRequestRepository.existsByBankAccount_IdAndStatus(
+                bankAccountId, RefundRequestStatus.APPROVED);
     }
 
     @Override

@@ -63,6 +63,8 @@ class CustomerOrderRefundWorkflowTest {
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort = mock(UserBankAccountRepositoryPort.class);
     private final LotteryTicketServicePort lotteryTicketServicePort = mock(LotteryTicketServicePort.class);
     private final LotteryTicketSerialServicePort lotteryTicketSerialServicePort = mock(LotteryTicketSerialServicePort.class);
+    private final com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort orderDetailSerialRepositoryPort =
+            mock(com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort.class);
     private final RefundApplicationMapper refundApplicationMapper = mock(RefundApplicationMapper.class);
     private final SystemConfigRepositoryPort systemConfigRepositoryPort = mock(SystemConfigRepositoryPort.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
@@ -88,6 +90,7 @@ class CustomerOrderRefundWorkflowTest {
                 userBankAccountRepositoryPort,
                 lotteryTicketServicePort,
                 lotteryTicketSerialServicePort,
+                orderDetailSerialRepositoryPort,
                 refundApplicationMapper,
                 graceService,
                 policyService,
@@ -138,7 +141,7 @@ class CustomerOrderRefundWorkflowTest {
         verify(eventPublisher).publishEvent(eventCaptor.capture());
         RefundRequestStatusChangedEvent event = eventCaptor.getValue();
         assertThat(event.refundRequestId()).isEqualTo(100L);
-        assertThat(event.status()).isEqualTo(RefundRequestStatus.PENDING);
+        assertThat(event.status()).isEqualTo(RefundRequestStatus.READY_TO_PAY);
         assertThat(event.orderCode()).isEqualTo("ORD-WF-001");
 
         // AFTER_COMMIT listener path (invoked explicitly in unit workflow)

@@ -24,6 +24,7 @@ public class OrderDetailModel {
     private Long lotteryTicketSerialId;
     private Long replacedByTicketId;
     private Long replacedByTicketSerialId;
+    private Long refundRequestId;
 
     @Builder.Default
     private Integer quantity = 1;

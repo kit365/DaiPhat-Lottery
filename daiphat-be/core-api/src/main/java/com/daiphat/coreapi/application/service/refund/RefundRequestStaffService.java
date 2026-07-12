@@ -68,7 +68,6 @@ import java.util.UUID;
 public class RefundRequestStaffService implements RefundRequestStaffServicePort {
 
     private static final EnumSet<RefundRequestStatus> EXPIRABLE_STATUSES = EnumSet.of(
-            RefundRequestStatus.PENDING,
             RefundRequestStatus.WAITING_FOR_INFO,
             RefundRequestStatus.APPROVED,
             RefundRequestStatus.READY_TO_PAY);
@@ -125,20 +124,24 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         expireSilentlyIfOverdue(request);
 
         UserBankAccountModel bankAccount = loadBankAccount(request.getBankAccountId());
-        OrderModel order = orderRepositoryPort.findById(requireOrderId(request))
-                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
+        UUID orderId = resolveOrderId(request);
+        OrderModel order = orderId != null
+                ? orderRepositoryPort.findById(orderId).orElse(null)
+                : null;
 
         UserModel customer = userRepositoryPort.findById(request.getRequestedBy()).orElse(null);
         String reviewerName = resolveUserName(request.getReviewedBy());
-        TransactionResponse payoutTransaction = loadPayoutTransaction(request.getOrderId());
+        TransactionResponse payoutTransaction = loadPayoutTransaction(orderId);
         String transferrerName = payoutTransaction != null
                 ? resolveUserName(payoutTransaction.paymentBy())
                 : null;
 
-        RefundRequestResponse refund = toEnrichedResponse(request, bankAccount, order.getOrderCode(), payoutTransaction);
+        String orderCode = order != null ? order.getOrderCode() : null;
+        RefundRequestResponse refund = toEnrichedResponse(request, bankAccount, orderCode, payoutTransaction);
 
-        RefundRequestAdminDetailResponse.RefundOrderSummary orderSummary =
-                new RefundRequestAdminDetailResponse.RefundOrderSummary(
+        RefundRequestAdminDetailResponse.RefundOrderSummary orderSummary = order == null
+                ? null
+                : new RefundRequestAdminDetailResponse.RefundOrderSummary(
                         order.getId(),
                         order.getOrderCode(),
                         order.getStatus(),
@@ -160,40 +163,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 reviewerName,
                 transferrerName,
                 buildProcessingHistory(request, reviewerName, transferrerName, payoutTransaction),
-                refundTicketItemResolver.resolveFromOrder(order));
-    }
-
-    @Override
-    @Transactional
-    public RefundRequestResponse approve(Long id, UUID staffId) {
-        log.info("Staff {} approving refund request {}", staffId, id);
-
-        RefundRequestModel refund = getRequestOrThrow(id);
-        ensureProcessable(refund);
-
-        UUID orderId = requireOrderId(refund);
-        OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
-                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
-
-        if (!STAFF_APPROVABLE_ORDER_STATUSES.contains(order.getStatus())) {
-            throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
-        }
-
-        String cancelReason = refund.getRefundReason();
-        refund.approve(staffId);
-        if (order.isFullyPaid()) {
-            refund.setStatus(RefundRequestStatus.READY_TO_PAY);
-        }
-        cancelOrderForStaffApproval(order, cancelReason);
-        releaseSoldTickets(order);
-
-        orderRepositoryPort.save(order);
-        RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
-
-        publishRefundStatusChanged(saved);
-        publishOrderCancelled(order);
-
-        return toEnrichedResponse(saved, loadBankAccount(saved.getBankAccountId()), order.getOrderCode());
+                order != null ? refundTicketItemResolver.resolveFromOrder(order) : List.of());
     }
 
     @Override
@@ -216,13 +186,14 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         refund.markPaid();
         RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
 
+        String payoutNote = buildRefundPayoutNote(staffId);
         TransactionModel payout = TransactionModel.builder()
                 .orderId(orderId)
                 .amount(saved.getRefundAmount())
                 .type(TransactionType.REFUND)
                 .build();
         payout.initializeForCreate();
-        payout.markRefundPayoutCompleted(staffId, request.paymentEvidenceUrl(), request.note());
+        payout.markRefundPayoutCompleted(staffId, request.paymentEvidenceUrl(), payoutNote);
         TransactionModel savedPayout = transactionRepositoryPort.save(payout);
 
         publishRefundStatusChanged(saved);
@@ -343,13 +314,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         return expiredCount;
     }
 
-    private void ensureProcessable(RefundRequestModel refund) {
-        expireIfOverdue(refund);
-        if (refund.getStatus() != RefundRequestStatus.PENDING) {
-            throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
-        }
-    }
-
     private void expireIfOverdue(RefundRequestModel refund) {
         if (!expireSilentlyIfOverdue(refund)) {
             return;
@@ -378,13 +342,18 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     }
 
     private UUID requireOrderId(RefundRequestModel refund) {
+        UUID orderId = resolveOrderId(refund);
+        if (orderId == null) {
+            throw new DomainException(ErrorCode.ORDER_NOT_FOUND);
+        }
+        return orderId;
+    }
+
+    private UUID resolveOrderId(RefundRequestModel refund) {
         UUID orderId = refund.getOrderId();
         if (orderId == null && refund.getId() != null) {
             orderId = refundRequestRepositoryPort.findOrderIdByRefundRequestId(refund.getId()).orElse(null);
             refund.setOrderId(orderId);
-        }
-        if (orderId == null) {
-            throw new DomainException(ErrorCode.ORDER_NOT_FOUND);
         }
         return orderId;
     }
@@ -566,7 +535,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                     || request.getStatus() == RefundRequestStatus.PAID
                     || request.getStatus() == RefundRequestStatus.READY_TO_PAY) {
                 history.add(new RefundProcessingHistoryItem(
-                        "Duyệt yêu cầu",
+                        "Tiếp nhận xử lý",
                         reviewerName != null ? "Bởi: " + reviewerName : null,
                         request.getReviewedAt()));
             }
@@ -603,6 +572,14 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         return userRepositoryPort.findById(userId)
                 .map(UserModel::getFullName)
                 .orElse(null);
+    }
+
+    private String buildRefundPayoutNote(UUID staffId) {
+        String employeeName = resolveUserName(staffId);
+        if (employeeName == null || employeeName.isBlank()) {
+            employeeName = "Staff";
+        }
+        return "Refund request processed by " + employeeName.trim() + ".";
     }
 
     private UserBankAccountModel loadBankAccount(Long bankAccountId) {
