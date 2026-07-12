@@ -21,8 +21,6 @@ import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { Search } from '../../../components/ui/Search';
-import { CanAccess } from '../../../components/auth/CanAccess';
-import { PERMISSIONS } from '../../../constants/permission.constants';
 import { prefixAdmin } from '../../../constants/routes';
 import { RefundStatusBadge } from '../../../../client/components/refund/RefundStatusBadge';
 import {
@@ -32,19 +30,17 @@ import {
     RefundRequestStatus,
 } from '../../../../types/refund.type';
 import {
-    useApproveRefund,
     useGetStaffRefunds,
 } from '../hooks/useRefundManagement';
 import { RefundProcessingStatusBadge } from '../components/RefundProcessingStatusBadge';
 
 const STATUS_TABS: { value: string; label: string }[] = [
-    { value: 'PENDING,WAITING_FOR_INFO,APPROVED,READY_TO_PAY', label: 'Cần xử lý' },
-    { value: 'PENDING', label: 'Chờ duyệt' },
+    { value: 'WAITING_FOR_INFO,APPROVED,READY_TO_PAY', label: 'Cần xử lý' },
     { value: 'WAITING_FOR_INFO', label: 'Chờ STK' },
     { value: 'READY_TO_PAY', label: 'Chờ chuyển khoản' },
     { value: 'PAID', label: 'Đã chuyển khoản' },
     { value: 'EXPIRED', label: 'Hết hạn' },
-    { value: 'PENDING,WAITING_FOR_INFO,APPROVED,READY_TO_PAY,PAID,CANCELLED,EXPIRED', label: 'Tất cả' },
+    { value: 'WAITING_FOR_INFO,APPROVED,READY_TO_PAY,PAID,CANCELLED,EXPIRED', label: 'Tất cả' },
 ];
 
 export const RefundList = () => {
@@ -53,7 +49,6 @@ export const RefundList = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [search, setSearch] = useState('');
     const [statusTab, setStatusTab] = useState(STATUS_TABS[0].value);
-    const approveMutation = useApproveRefund();
     const { data, isLoading } = useGetStaffRefunds({
         page: page + 1,
         limit: rowsPerPage,
@@ -76,11 +71,6 @@ export const RefundList = () => {
                 .reduce((sum, key) => sum + (Number(statusCounts[key.trim()]) || 0), 0);
         }
         return Number(statusCounts[tabValue]) || 0;
-    };
-
-    const handleApprove = (id: number, e: React.MouseEvent) => {
-        e.stopPropagation();
-        approveMutation.mutate(id);
     };
 
     return (
@@ -138,8 +128,8 @@ export const RefundList = () => {
                                 {refunds.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={8} align="center">
-                                            {statusTab === 'PENDING'
-                                                ? 'Không có yêu cầu chờ duyệt. Kiểm tra tab Cần xử lý hoặc Chờ chuyển khoản.'
+                                            {statusTab.includes('READY_TO_PAY') && !statusTab.includes(',')
+                                                ? 'Không có yêu cầu chờ chuyển khoản'
                                                 : 'Không có yêu cầu hoàn tiền'}
                                         </TableCell>
                                     </TableRow>
@@ -149,7 +139,6 @@ export const RefundList = () => {
                                             refund.processingUrgency === RefundProcessingUrgency.OVERDUE &&
                                             (refund.status === RefundRequestStatus.READY_TO_PAY ||
                                                 refund.status === RefundRequestStatus.WAITING_FOR_INFO ||
-                                                refund.status === RefundRequestStatus.PENDING ||
                                                 refund.status === RefundRequestStatus.APPROVED);
                                         return (
                                         <TableRow
@@ -205,22 +194,20 @@ export const RefundList = () => {
                                                     : '—'}
                                             </TableCell>
                                             <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                                                {refund.status === RefundRequestStatus.PENDING && (
-                                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-                                                        <CanAccess permission={PERMISSIONS.REFUND.APPROVE}>
-                                                            <Tooltip title="Duyệt">
-                                                                <IconButton
-                                                                    size="small"
-                                                                    color="success"
-                                                                    onClick={(e) => handleApprove(refund.id, e)}
-                                                                    disabled={approveMutation.isPending}
-                                                                >
-                                                                    <Icon icon="mdi:check" />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                        </CanAccess>
-                                                    </Box>
-                                                )}
+                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                                    <Tooltip title="Xem chi tiết">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() =>
+                                                                navigate(
+                                                                    `/${prefixAdmin}/refunds/detail/${refund.id}`
+                                                                )
+                                                            }
+                                                        >
+                                                            <Icon icon="mdi:eye-outline" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Box>
                                             </TableCell>
                                         </TableRow>
                                         );

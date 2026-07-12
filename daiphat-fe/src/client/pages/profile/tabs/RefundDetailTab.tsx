@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useAttachRefundBankAccount, useCancelRefund, useGetRefundDetail } from '../../../hooks/useRefund';
+import { useAttachRefundBankAccount, useGetRefundDetail } from '../../../hooks/useRefund';
 import { useGetBankAccounts } from '../../../hooks/useBankAccount';
 import { RefundRequestStatus, RefundType, isRefundTransferComplete, maskBankAccountNo } from '../../../../types/refund.type';
 import { RefundStatusBadge } from '../../../components/refund/RefundStatusBadge';
 import { RefundStatusStepper } from '../../../components/refund/RefundStatusStepper';
-import { CancelRefundConfirmDialog } from '../../../components/refund/CancelRefundConfirmDialog';
 import {
     UnavailableReferenceState,
     UNAVAILABLE_REFERENCE_MESSAGE,
@@ -23,24 +22,12 @@ export const RefundDetailTab = () => {
     const refundId = Number(id);
 
     const { data, isLoading, isError } = useGetRefundDetail(refundId);
-    const cancelMutation = useCancelRefund();
     const attachBankMutation = useAttachRefundBankAccount();
-    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const [selectedBankId, setSelectedBankId] = useState<number | ''>('');
 
     const refund = data?.data;
     const { data: banksRes } = useGetBankAccounts(refund?.status === RefundRequestStatus.WAITING_FOR_INFO);
     const myBanks = banksRes?.data || [];
-
-    const handleConfirmCancel = () => {
-        cancelMutation.mutate(refundId, {
-            onSuccess: (response) => {
-                if (response.success) {
-                    setShowCancelConfirm(false);
-                }
-            },
-        });
-    };
 
     const handleAttachBank = () => {
         if (selectedBankId === '') return;
@@ -69,7 +56,6 @@ export const RefundDetailTab = () => {
     }
 
     const bankAccount = refund.bankAccount;
-    const isCancelling = cancelMutation.isPending;
 
     return (
         <div className="flex flex-col gap-6">
@@ -89,24 +75,6 @@ export const RefundDetailTab = () => {
                         Tạo lúc {format(new Date(refund.createdAt), 'dd/MM/yyyy HH:mm')}
                     </p>
                 </div>
-
-                {refund.status === RefundRequestStatus.PENDING && (
-                    <button
-                        type="button"
-                        onClick={() => setShowCancelConfirm(true)}
-                        disabled={isCancelling}
-                        className="inline-flex items-center justify-center gap-2 self-start sm:self-center shrink-0 px-4 py-2.5 rounded-xl border border-[#FECACA] bg-[#FFF5F5] text-[#C62828] text-[13px] font-bold tracking-wide hover:bg-[#FFEBEE] hover:border-[#ef9a9a] hover:text-[#B71C1C] active:bg-[#FFCDD2] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#FFF5F5] disabled:active:scale-100"
-                    >
-                        {isCancelling ? (
-                            <i className="fa-solid fa-spinner fa-spin text-[12px]" aria-hidden />
-                        ) : (
-                            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#FFEBEE] text-[#C62828]">
-                                <i className="fa-solid fa-xmark text-[12px]" aria-hidden />
-                            </span>
-                        )}
-                        Hủy yêu cầu hoàn tiền
-                    </button>
-                )}
             </div>
 
             <RefundStatusStepper
@@ -286,19 +254,11 @@ export const RefundDetailTab = () => {
                 </div>
             )}
 
-            {refund.reviewedAt && refund.status !== RefundRequestStatus.PENDING && (
+            {refund.reviewedAt && (
                 <div className="text-center text-[13px] text-[#919EAB]">
                     Cập nhật lần cuối: {format(new Date(refund.updatedAt), 'dd/MM/yyyy HH:mm')}
                 </div>
             )}
-
-            <CancelRefundConfirmDialog
-                isOpen={showCancelConfirm}
-                isPending={isCancelling}
-                orderCode={refund.orderCode}
-                onKeep={() => setShowCancelConfirm(false)}
-                onConfirmCancel={handleConfirmCancel}
-            />
         </div>
     );
 };

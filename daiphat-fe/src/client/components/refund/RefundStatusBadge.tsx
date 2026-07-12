@@ -2,7 +2,6 @@ import React from 'react';
 import { RefundRequestStatus } from '../../../types/refund.type';
 
 export const REFUND_STATUS_MAP: Record<RefundRequestStatus, { label: string; bg: string; text: string }> = {
-    [RefundRequestStatus.PENDING]: { label: 'Chờ duyệt', bg: 'bg-[#FFF9F3]', text: 'text-[#FFB020]' },
     [RefundRequestStatus.WAITING_FOR_INFO]: { label: 'Chờ thông tin STK', bg: 'bg-[#FFF9F3]', text: 'text-[#B76E00]' },
     [RefundRequestStatus.APPROVED]: { label: 'Đã duyệt', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
     [RefundRequestStatus.READY_TO_PAY]: { label: 'Chờ chuyển khoản', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
