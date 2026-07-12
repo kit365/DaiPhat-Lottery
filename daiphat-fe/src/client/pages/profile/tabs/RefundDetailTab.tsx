@@ -6,6 +6,7 @@ import { useGetBankAccounts } from '../../../hooks/useBankAccount';
 import { RefundRequestStatus, RefundType, isRefundTransferComplete, maskBankAccountNo } from '../../../../types/refund.type';
 import { RefundStatusBadge } from '../../../components/refund/RefundStatusBadge';
 import { RefundStatusStepper } from '../../../components/refund/RefundStatusStepper';
+import { TransferEvidencePreview } from '../../../../admin/pages/refund/components/TransferEvidencePreview';
 import {
     UnavailableReferenceState,
     UNAVAILABLE_REFERENCE_MESSAGE,
@@ -226,30 +227,38 @@ export const RefundDetailTab = () => {
                             Thời gian: {format(new Date(refund.payoutTransaction.paidAt), 'dd/MM/yyyy HH:mm')}
                         </p>
                     )}
-                    {refund.payoutTransaction?.paymentEvidenceUrl && (
-                        <div className="mt-3">
-                            <p className="text-[14px] text-[#637381] mb-2">Minh chứng chuyển khoản</p>
-                            <img
-                                src={refund.payoutTransaction.paymentEvidenceUrl}
-                                alt="Minh chứng chuyển khoản"
-                                className="max-w-full max-h-[360px] rounded-lg border border-[#919EAB3D] cursor-pointer object-contain"
-                                onClick={() =>
-                                    window.open(
-                                        refund.payoutTransaction!.paymentEvidenceUrl,
-                                        '_blank',
-                                        'noopener,noreferrer'
-                                    )
-                                }
+                    {refund.payoutTransaction?.note && (
+                        <p className="text-[14px] text-[#637381]">
+                            Ghi chú: {refund.payoutTransaction.note}
+                        </p>
+                    )}
+                    {refund.payoutTransaction?.paymentEvidenceUrl ? (
+                        <div className="mt-1 bg-white rounded-2xl p-4 border border-[#E5E8EB]">
+                            <TransferEvidencePreview
+                                imageUrl={refund.payoutTransaction.paymentEvidenceUrl}
+                                infoItems={[
+                                    {
+                                        label: 'Mã yêu cầu',
+                                        value: `#${refund.id}`,
+                                    },
+                                    {
+                                        label: 'Số tiền hoàn',
+                                        value: `${Number(refund.refundAmount || 0).toLocaleString('vi-VN')}đ`,
+                                    },
+                                    {
+                                        label: 'Thời gian',
+                                        value: refund.payoutTransaction.paidAt
+                                            ? format(
+                                                  new Date(refund.payoutTransaction.paidAt),
+                                                  'dd/MM/yyyy HH:mm'
+                                              )
+                                            : '—',
+                                    },
+                                ]}
                             />
-                            <a
-                                href={refund.payoutTransaction.paymentEvidenceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-[#2065D1] font-bold text-[14px] hover:underline w-max mt-2"
-                            >
-                                <i className="fa-solid fa-up-right-from-square"></i> Mở ảnh gốc
-                            </a>
                         </div>
+                    ) : (
+                        <p className="text-[14px] text-[#637381]">Chưa có ảnh biên lai chuyển khoản.</p>
                     )}
                 </div>
             )}
