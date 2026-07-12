@@ -18,7 +18,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 import { useShifts } from '../hooks/useShifts';
-import { useAccounts } from '../../account-admin/hooks/useAccountAdmin';
+import { useAccounts } from '../../../features/users/hooks/useUsers';
 import { useSchedules } from '../hooks/useSchedules';
 import CloseIcon from '@mui/icons-material/Close';
 import { dialogStyles } from '../configs/styles.config';

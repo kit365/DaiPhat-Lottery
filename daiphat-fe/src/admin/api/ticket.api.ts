@@ -1,7 +1,6 @@
 import { apiApp } from '../../api';
 import Cookies from 'js-cookie';
 import { ApiResponse } from '../config/type';
-import { prefixAdmin } from '../constants/routes';
 import { STORAGE_KEYS } from '../../constants/storage.constants';
 
 const BASE_URL = `/lottery-tickets`;
@@ -17,9 +16,6 @@ const withAuth = () => {
     };
 };
 
-import { mockTickets } from '../data/tickets';
-import { mockCategories } from '../data/categories';
-import { mockProviders } from '../data/providers';
 
 export const getTickets = async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiApp.get(BASE_URL, { 
@@ -67,20 +63,6 @@ export const getTickets = async (params?: any): Promise<ApiResponse<any>> => {
                 active: recordList.filter((b: any) => b.status === 'active').length,
                 inactive: recordList.filter((b: any) => b.status === 'inactive').length,
             }
-        }
-    } as any;
-};
-
-export const getCreateTicketData = async (): Promise<ApiResponse<any>> => {
-    return {
-        success: true,
-        data: {
-            categoryTree: mockCategories.map(c => ({ id: c._id, label: c.name, value: c._id })),
-            attributes: [
-                { _id: "A1", name: "Kỳ mở thưởng" },
-                { _id: "A2", name: "Loại vé" }
-            ],
-            providers: mockProviders
         }
     } as any;
 };

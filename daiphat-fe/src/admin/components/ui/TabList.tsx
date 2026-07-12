@@ -1,20 +1,5 @@
-import { Tabs, Tab, styled } from '@mui/material';
+import { Tabs, Tab } from '@mui/material';
 import { getTabBadgeStyles } from '../../utils/badge';
-
-// Styled component cho con số (Badge nhãn)
-const TabBadge = styled('span')(() => ({
-    height: "24px",
-    minWidth: "24px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: '8px',
-    padding: '0px 6px',
-    borderRadius: '6px',
-    fontSize: '0.75rem',
-    fontWeight: 700,
-    transition: 'all 0.2s',
-}));
 
 interface TabListProps {
     value: number;
@@ -53,73 +38,61 @@ export const TabList = ({ value, onChange, counts = { all: 0, published: 0, draf
                 disableRipple
                 label="Tất cả"
                 icon={
-                    <TabBadge sx={getTabBadgeStyles('all', value === 0)}>
+                    <span className="admin-tab-badge" style={getTabBadgeStyles('all', value === 0)}>
                         {counts.all}
-                    </TabBadge>
+                    </span>
                 }
                 iconPosition="end"
-                sx={tabStyle}
+                className="admin-tab"
             />
 
             <Tab
                 disableRipple
                 label="Xuất bản"
                 icon={
-                    <TabBadge
-                        className="badge-status"
-                        sx={getTabBadgeStyles('info', value === 1)}
-                    >
+                    <span className="admin-tab-badge badge-status" style={getTabBadgeStyles('info', value === 1)}>
                         {counts.published}
-                    </TabBadge>
+                    </span>
                 }
                 iconPosition="end"
-                sx={tabStyle}
+                className="admin-tab"
             />
 
             <Tab
                 disableRipple
                 label="Bản nháp"
                 icon={
-                    <TabBadge
-                        className="badge-status"
-                        sx={getTabBadgeStyles('neutral', value === 2)}
-                    >
+                    <span className="admin-tab-badge badge-status" style={getTabBadgeStyles('neutral', value === 2)}>
                         {counts.draft}
-                    </TabBadge>
+                    </span>
                 }
                 iconPosition="end"
-                sx={tabStyle}
+                className="admin-tab"
             />
 
             <Tab
                 disableRipple
                 label="Đã lưu trữ"
                 icon={
-                    <TabBadge
-                        className="badge-status"
-                        sx={getTabBadgeStyles('error', value === 3)}
-                    >
+                    <span className="admin-tab-badge badge-status" style={getTabBadgeStyles('error', value === 3)}>
                         {counts.archived}
-                    </TabBadge>
+                    </span>
                 }
                 iconPosition="end"
-                sx={tabStyle}
+                className="admin-tab"
+            />
+
+            <Tab
+                disableRipple
+                label="Đã xoá"
+                icon={
+                    <span className="admin-tab-badge badge-status" style={getTabBadgeStyles('error', value === 4)}>
+                        {counts.deleted}
+                    </span>
+                }
+                iconPosition="end"
+                className="admin-tab"
             />
         </Tabs>
     );
-};
-
-const tabStyle = {
-    textTransform: 'none',
-    minWidth: 0,
-    minHeight: 48,
-    padding: '9px 0',
-    fontSize: '0.875rem',
-    fontWeight: "500",
-    color: '#637381',
-    flexDirection: 'row',
-    '&.Mui-selected': {
-        color: '#1C252E',
-        fontWeight: 600,
-    },
 };

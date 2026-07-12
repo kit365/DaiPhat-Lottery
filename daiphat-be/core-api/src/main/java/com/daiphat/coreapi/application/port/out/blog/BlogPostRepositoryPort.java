@@ -19,9 +19,9 @@ public interface BlogPostRepositoryPort {
     Page<BlogPostModel> findAll(
             Pageable pageable,
             String search,
-            Long tagId,
-            Long categoryId,
-            String type,
+            List<Long> tagIds,
+            List<Long> categoryIds,
+            List<String> types,
             String status,
             boolean includeDeleted
     );

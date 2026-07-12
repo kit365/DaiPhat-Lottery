@@ -19,5 +19,4 @@ export const USER_ENDPOINTS = {
     currentUser: `${USER_ROOT}/me`,
     currentUserAvatar: `${USER_ROOT}/me/avatar`,
     setupProfile: `${USER_ROOT}/setup-profile`,
-    acceptInvite: `${USER_ROOT}/accept-invite`,
 };

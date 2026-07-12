@@ -17,7 +17,7 @@ import { prefixAdmin } from "../../constants/routes";
 import { useTicketServices } from "../ticket-service/hooks/useTicketService";
 import { useUsers } from "../account-user/hooks/useAccountUser";
 import { useUserTickets } from "../account-user/hooks/useUserTicket";
-import { useStaffByTicketService } from "../account-admin/hooks/useAccountAdmin";
+import { useStaffByTicketService } from "../../features/users/hooks/useUsers";
 import { useCreateTicketServiceOrder, useTicketServiceOrders, useSuggestAssignment } from "./hooks/useTicketServiceOrderManagement";
 import { useSchedules } from "../hr/hooks/useSchedules";
 import { Icon } from "@iconify/react";

@@ -19,7 +19,7 @@ public record CreateBlogPostRequest(
     @NotBlank(message = "Tiêu đề không được để trống")
     String title,
     
-    @NotBlank(message = "Slug không được để trống")
+    /** Optional; generated from title when omitted. */
     String slug,
     
     @Size(max = 500, message = "Mô tả ngắn không được vượt quá 500 ký tự")
