@@ -12,6 +12,12 @@ import { useGetBankAccounts } from '../../hooks/useBankAccount';
 import { useCreateOrderRefund, useGetOrderRefundEligibility } from '../../hooks/useRefund';
 import { useRefundCountdown } from '../../hooks/useRefundCountdown';
 import { BankAccountFormModal } from './BankAccountFormModal';
+import {
+    REFUND_REASON_SUGGESTIONS,
+    applyRefundReasonSuggestion,
+    isRefundSubmitBlocked,
+    validateRefundSubmitFields,
+} from './refundRequestForm.logic';
 import { AppToast } from '../../../utils/toast.util';
 
 interface RefundRequestModalProps {
@@ -28,16 +34,6 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
     COMPLETED: 'Đã hoàn thành',
     CANCELLED: 'Đã hủy'
 };
-
-const REFUND_REASON_SUGGESTIONS = [
-    'Đặt nhầm đơn',
-    'Tôi không còn nhu cầu mua vé',
-    'Thông tin đơn hàng không chính xác',
-    'Đơn hàng bị trùng',
-    'Sự cố thanh toán',
-    'Muốn đổi vé số khác',
-    'Khác'
-] as const;
 
 export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, onClose, order }) => {
     const navigate = useNavigate();
@@ -71,11 +67,12 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
         enabled: isOpen && !isLoadingEligibility && !!eligibility
     });
 
-    const isRefundBlocked =
-        isExpired ||
-        eligibility?.eligible === false ||
-        isEligibilityError ||
-        isLoadingEligibility;
+    const isRefundBlocked = isRefundSubmitBlocked({
+        isExpired,
+        isLoadingEligibility,
+        isEligibilityError,
+        eligibility,
+    });
 
     useEffect(() => {
         if (!isOpen) return;
@@ -94,13 +91,9 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
         e.preventDefault();
         if (isSubmitting || isRefundBlocked) return;
 
-        if (!refundReason.trim()) {
-            AppToast.error('Vui lòng nhập lý do hủy đơn');
-            return;
-        }
-
-        if (!bankAccountId) {
-            AppToast.error('Vui lòng chọn tài khoản ngân hàng nhận hoàn');
+        const validation = validateRefundSubmitFields({ refundReason, bankAccountId });
+        if (!validation.ok) {
+            AppToast.error(validation.message);
             return;
         }
 
@@ -134,8 +127,9 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
 
     const handleSuggestionClick = (suggestion: string) => {
         if (isSubmitting || isRefundBlocked) return;
-        setSelectedSuggestion(suggestion);
-        setRefundReason(suggestion.slice(0, 500));
+        const applied = applyRefundReasonSuggestion(suggestion);
+        setSelectedSuggestion(applied.selectedSuggestion);
+        setRefundReason(applied.refundReason.slice(0, 500));
     };
 
     const handleReasonChange = (value: string) => {
