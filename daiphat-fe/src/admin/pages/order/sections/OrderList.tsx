@@ -33,7 +33,7 @@ import { confirmAction } from "../../../utils/swal";
 import { Search } from "../../../components/ui/Search";
 import { prefixAdmin } from "../../../constants/routes";
 import { useAdminOrderList, useUpdateOrderStatus } from "../hooks/useOrderManagement";
-import { OrderStatus, OrderType } from "../../../types/order.type";
+import { OrderStatus, OrderType } from "../../../../types/order.type";
 import { STATUS_LABEL_MAP } from '../hooks/useOrderColumns';
 
 import { OrderToolbar } from './OrderToolbar';

@@ -12,8 +12,8 @@ const withAuth = () => {
     };
 };
 
-import { OrderFilterParams, OrderResponse } from '../../../types/order.type';
-import { ApiResponse, PageResponse } from '../../../types/api.type';
+import { OrderFilterParams, OrderResponse } from '../../types/order.type';
+import { ApiResponse, PageResponse } from '../../types/api.type';
 
 const normalizeOrderFilterParams = (params?: OrderFilterParams) => {
     if (!params) return undefined;
