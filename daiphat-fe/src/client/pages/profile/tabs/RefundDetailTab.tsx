@@ -111,7 +111,6 @@ export const RefundDetailTab = () => {
 
             <RefundStatusStepper
                 status={refund.status}
-                rejectReason={refund.rejectReason}
                 requestRole={refund.requestRole}
             />
 
@@ -133,12 +132,18 @@ export const RefundDetailTab = () => {
                         </div>
                         <div className="flex flex-col gap-1">
                             <span className="text-[13px] text-[#637381]">Đơn hàng liên quan</span>
-                            <Link
-                                to={`/profile/orders/${refund.orderId}`}
-                                className="text-[15px] font-semibold text-[#2065D1] hover:underline w-max"
-                            >
-                                Xem đơn hàng
-                            </Link>
+                            {refund.orderId ? (
+                                <Link
+                                    to={`/profile/orders/${refund.orderId}`}
+                                    className="text-[15px] font-semibold text-[#2065D1] hover:underline w-max"
+                                >
+                                    {refund.orderCode?.trim() || 'Xem đơn hàng'}
+                                </Link>
+                            ) : (
+                                <span className="text-[15px] font-semibold text-[#919EAB]">
+                                    {refund.orderCode?.trim() || '—'}
+                                </span>
+                            )}
                         </div>
                         {(refund.orderDetailIds?.length ?? 0) > 0 && (
                             <div className="flex flex-col gap-1">

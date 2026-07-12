@@ -4,7 +4,6 @@ import { refundAdminApi } from '../../../api/refund.api';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 import {
     GetStaffRefundsParams,
-    RejectRefundRequestRequest,
     TransferRefundRequestRequest,
 } from '../../../../types/refund.type';
 
@@ -42,29 +41,6 @@ export const useApproveRefund = () => {
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUND_DETAIL, id] });
             } else {
                 toast.error(response.message || 'Không thể duyệt yêu cầu');
-            }
-        },
-        onError: (error: any) => {
-            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
-        },
-    });
-};
-
-export const useRejectRefund = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: ({ id, data }: { id: number; data: RejectRefundRequestRequest }) =>
-            refundAdminApi.rejectRefund(id, data),
-        onSuccess: (response, variables) => {
-            if (response.success) {
-                toast.success(response.message || 'Đã từ chối yêu cầu hủy');
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
-                queryClient.invalidateQueries({
-                    queryKey: [QUERY_KEYS.ADMIN_REFUND_DETAIL, variables.id],
-                });
-            } else {
-                toast.error(response.message || 'Không thể từ chối yêu cầu');
             }
         },
         onError: (error: any) => {

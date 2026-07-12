@@ -3,13 +3,11 @@ import { RefundRequestRole, RefundRequestStatus } from '../../../types/refund.ty
 
 interface RefundStatusStepperProps {
     status: RefundRequestStatus;
-    rejectReason?: string;
     requestRole?: RefundRequestRole;
 }
 
 export const RefundStatusStepper: React.FC<RefundStatusStepperProps> = ({
     status,
-    rejectReason,
     requestRole,
 }) => {
     if (status === RefundRequestStatus.CANCELLED) {
@@ -21,24 +19,6 @@ export const RefundStatusStepper: React.FC<RefundStatusStepperProps> = ({
                 <div>
                     <h3 className="text-[#637381] font-bold text-[18px]">Yêu cầu đã bị hủy</h3>
                     <p className="text-[#637381] text-[14px] mt-1.5 font-medium">Bạn đã hủy yêu cầu hoàn tiền này.</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (status === RefundRequestStatus.REJECTED) {
-        return (
-            <div className="bg-[#FFF4F4] rounded-[20px] p-6 lg:p-8 border border-[#FFEBEE] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-                <div className="w-14 h-14 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
-                    <i className="fa-solid fa-xmark"></i>
-                </div>
-                <div>
-                    <h3 className="text-[#ee1314] font-bold text-[18px]">Yêu cầu bị từ chối</h3>
-                    {rejectReason && (
-                        <p className="text-[#637381] text-[14px] mt-1.5 font-medium">
-                            Lý do: <span className="text-[#212B36]">{rejectReason}</span>
-                        </p>
-                    )}
                 </div>
             </div>
         );
