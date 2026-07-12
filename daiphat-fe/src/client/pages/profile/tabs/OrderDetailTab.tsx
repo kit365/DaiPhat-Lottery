@@ -126,9 +126,9 @@ export const OrderDetailTab = () => {
             orderRefunds.find(
                 (r) =>
                     r.refundType === RefundType.FULL_ORDER &&
-                    (r.status === RefundRequestStatus.PENDING ||
-                        r.status === RefundRequestStatus.READY_TO_PAY ||
-                        r.status === RefundRequestStatus.APPROVED)
+                    (r.status === RefundRequestStatus.READY_TO_PAY ||
+                        r.status === RefundRequestStatus.APPROVED ||
+                        r.status === RefundRequestStatus.WAITING_FOR_INFO)
             ),
         [orderRefunds]
     );
@@ -138,7 +138,9 @@ export const OrderDetailTab = () => {
             (r) =>
                 (r.refundType === RefundType.ORDER_DETAIL || r.refundType === RefundType.FULL_ORDER) &&
                 (r.orderDetailIds?.includes(detailId) || r.orderDetailId === detailId) &&
-                r.status === RefundRequestStatus.PENDING
+                (r.status === RefundRequestStatus.READY_TO_PAY ||
+                    r.status === RefundRequestStatus.APPROVED ||
+                    r.status === RefundRequestStatus.WAITING_FOR_INFO)
         );
 
     const getRefundForDetail = (detailId: number) =>

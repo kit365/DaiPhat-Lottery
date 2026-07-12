@@ -2,8 +2,8 @@ import { OrderStatus } from './order.type';
 import type { TransactionResponse } from './transaction.type';
 
 export enum RefundRequestStatus {
-    PENDING = 'PENDING',
     WAITING_FOR_INFO = 'WAITING_FOR_INFO',
+    /** @deprecated Prefer READY_TO_PAY */
     APPROVED = 'APPROVED',
     READY_TO_PAY = 'READY_TO_PAY',
     /** @deprecated Use PAID */
@@ -281,7 +281,7 @@ export interface RefundCustomerSummary {
 
 export interface RefundRequestAdminDetailResponse {
     refund: RefundRequestResponse;
-    orderSummary: RefundOrderSummary;
+    orderSummary?: RefundOrderSummary | null;
     customerSummary: RefundCustomerSummary;
     reviewerName?: string;
     transferrerName?: string;
@@ -290,7 +290,6 @@ export interface RefundRequestAdminDetailResponse {
 }
 
 export const REFUND_STATUS_LABELS: Record<RefundRequestStatus, string> = {
-    [RefundRequestStatus.PENDING]: 'Chờ duyệt',
     [RefundRequestStatus.WAITING_FOR_INFO]: 'Chờ thông tin STK',
     [RefundRequestStatus.APPROVED]: 'Đã duyệt',
     [RefundRequestStatus.READY_TO_PAY]: 'Chờ chuyển khoản',
@@ -391,8 +390,7 @@ export function computeProcessingSecondsLeft(
 }
 
 export function isRefundProcessingActionable(status: RefundRequestStatus): boolean {
-    return status === RefundRequestStatus.PENDING
-        || status === RefundRequestStatus.WAITING_FOR_INFO
+    return status === RefundRequestStatus.WAITING_FOR_INFO
         || status === RefundRequestStatus.APPROVED
         || status === RefundRequestStatus.READY_TO_PAY;
 }

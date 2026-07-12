@@ -44,48 +44,27 @@ export const RefundStatusStepper: React.FC<RefundStatusStepperProps> = ({
                 status === RefundRequestStatus.PAID ||
                 status === RefundRequestStatus.TRANSFERRED));
 
-    const isAutoApprovedFlow =
-        !isStaffIncidentFlow &&
-        (status === RefundRequestStatus.READY_TO_PAY ||
-            status === RefundRequestStatus.PAID ||
-            status === RefundRequestStatus.TRANSFERRED);
-
     const steps = isStaffIncidentFlow
         ? [
               { key: RefundRequestStatus.WAITING_FOR_INFO, label: 'Chờ STK', icon: 'fa-solid fa-building-columns' },
               { key: RefundRequestStatus.READY_TO_PAY, label: 'Chờ chuyển khoản', icon: 'fa-solid fa-clock' },
               { key: RefundRequestStatus.PAID, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' }
           ]
-        : isAutoApprovedFlow
-          ? [
-                { key: RefundRequestStatus.READY_TO_PAY, label: 'Chờ chuyển khoản', icon: 'fa-solid fa-clock' },
-                { key: RefundRequestStatus.PAID, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' }
-            ]
-          : [
-                { key: RefundRequestStatus.PENDING, label: 'Chờ duyệt', icon: 'fa-solid fa-clock' },
-                { key: RefundRequestStatus.APPROVED, label: 'Đã duyệt', icon: 'fa-solid fa-check' },
-                { key: RefundRequestStatus.PAID, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' }
-            ];
+        : [
+              { key: RefundRequestStatus.READY_TO_PAY, label: 'Chờ chuyển khoản', icon: 'fa-solid fa-clock' },
+              { key: RefundRequestStatus.PAID, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' }
+          ];
 
     const getStepIndex = (s: RefundRequestStatus) => {
         if (isStaffIncidentFlow) {
             if (s === RefundRequestStatus.WAITING_FOR_INFO) return 0;
-            if (s === RefundRequestStatus.READY_TO_PAY) return 1;
+            if (s === RefundRequestStatus.READY_TO_PAY || s === RefundRequestStatus.APPROVED) return 1;
             if (s === RefundRequestStatus.PAID || s === RefundRequestStatus.TRANSFERRED) return 2;
             return 0;
         }
-        if (isAutoApprovedFlow) {
-            if (s === RefundRequestStatus.READY_TO_PAY) return 0;
-            if (s === RefundRequestStatus.PAID || s === RefundRequestStatus.TRANSFERRED) return 1;
-            return 0;
-        }
-        switch (s) {
-            case RefundRequestStatus.PENDING: return 0;
-            case RefundRequestStatus.APPROVED: return 1;
-            case RefundRequestStatus.PAID:
-            case RefundRequestStatus.TRANSFERRED: return 2;
-            default: return 0;
-        }
+        if (s === RefundRequestStatus.READY_TO_PAY || s === RefundRequestStatus.APPROVED) return 0;
+        if (s === RefundRequestStatus.PAID || s === RefundRequestStatus.TRANSFERRED) return 1;
+        return 0;
     };
 
     const currentIndex = getStepIndex(status);
