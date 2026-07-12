@@ -28,7 +28,6 @@ import {
     UserBankAccountResponse,
 } from '../../../types/refund.type';
 import {
-    useApproveRefund,
     useAttachRefundBankAccount,
     useGetStaffRefundDetail,
     useTransferRefund,
@@ -50,7 +49,6 @@ export const RefundDetailPage = () => {
     const [customerBanks, setCustomerBanks] = useState<UserBankAccountResponse[]>([]);
 
     const { data, isLoading, isError } = useGetStaffRefundDetail(refundId);
-    const approveMutation = useApproveRefund();
     const transferMutation = useTransferRefund();
     const attachBankMutation = useAttachRefundBankAccount();
 
@@ -88,7 +86,6 @@ export const RefundDetailPage = () => {
         );
     }
 
-    const canApprove = refund.status === RefundRequestStatus.PENDING;
     const canAttachBank = refund.status === RefundRequestStatus.WAITING_FOR_INFO;
     const canTransfer =
         (refund.status === RefundRequestStatus.APPROVED ||
@@ -111,18 +108,6 @@ export const RefundDetailPage = () => {
                     />
                 </div>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    <CanAccess permission={PERMISSIONS.REFUND.APPROVE}>
-                        {canApprove && !actionsDisabled && (
-                            <Button
-                                variant="contained"
-                                color="success"
-                                onClick={() => approveMutation.mutate(refundId)}
-                                disabled={approveMutation.isPending}
-                            >
-                                Duyệt
-                            </Button>
-                        )}
-                    </CanAccess>
                     <CanAccess permission={PERMISSIONS.REFUND.PROCESS}>
                         {canAttachBank && !actionsDisabled && (
                             <Button variant="contained" color="warning" onClick={() => setAttachBankOpen(true)}>
@@ -254,33 +239,47 @@ export const RefundDetailPage = () => {
                             <Typography variant="h6" gutterBottom>
                                 Đơn hàng
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Mã đơn
-                            </Typography>
-                            <Link
-                                component="button"
-                                variant="body1"
-                                onClick={() =>
-                                    navigate(`/${prefixAdmin}/order/detail/${detail.orderSummary.id}`)
-                                }
-                                sx={{ mb: 1, display: 'block' }}
-                            >
-                                {detail.orderSummary.orderCode}
-                            </Link>
-                            <Chip label={detail.orderSummary.status} size="small" sx={{ mb: 1 }} />
-                            <Typography variant="body2" color="text.secondary">
-                                Tổng tiền
-                            </Typography>
-                            <Typography sx={{ mb: 1 }}>
-                                {detail.orderSummary.totalAmount?.toLocaleString('vi-VN')}đ
-                            </Typography>
-                            {detail.orderSummary.cancelReason && (
+                            {detail.orderSummary ? (
                                 <>
                                     <Typography variant="body2" color="text.secondary">
-                                        Lý do hủy
+                                        Mã đơn
                                     </Typography>
-                                    <Typography>{detail.orderSummary.cancelReason}</Typography>
+                                    <Link
+                                        component="button"
+                                        variant="body1"
+                                        onClick={() =>
+                                            navigate(
+                                                `/${prefixAdmin}/order/detail/${detail.orderSummary.id}`
+                                            )
+                                        }
+                                        sx={{ mb: 1, display: 'block' }}
+                                    >
+                                        {detail.orderSummary.orderCode}
+                                    </Link>
+                                    <Chip
+                                        label={detail.orderSummary.status}
+                                        size="small"
+                                        sx={{ mb: 1 }}
+                                    />
+                                    <Typography variant="body2" color="text.secondary">
+                                        Tổng tiền
+                                    </Typography>
+                                    <Typography sx={{ mb: 1 }}>
+                                        {detail.orderSummary.totalAmount?.toLocaleString('vi-VN')}đ
+                                    </Typography>
+                                    {detail.orderSummary.cancelReason && (
+                                        <>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Lý do hủy
+                                            </Typography>
+                                            <Typography>{detail.orderSummary.cancelReason}</Typography>
+                                        </>
+                                    )}
                                 </>
+                            ) : (
+                                <Typography color="text.secondary" variant="body2">
+                                    Không tìm thấy đơn hàng liên kết với yêu cầu hoàn tiền này.
+                                </Typography>
                             )}
                         </CardContent>
                     </Card>
@@ -333,7 +332,7 @@ export const RefundDetailPage = () => {
                                 </Typography>
                                 {detail.reviewerName && (
                                     <Typography variant="body2">
-                                        Duyệt: <strong>{detail.reviewerName}</strong>
+                                        Xử lý: <strong>{detail.reviewerName}</strong>
                                     </Typography>
                                 )}
                                 {detail.transferrerName && (

@@ -77,7 +77,7 @@ export const OrdersTab = () => {
     const pendingRefunds = useMemo(
         () =>
             allRefundsData?.data?.recordList?.filter((r: any) =>
-                ['PENDING', 'READY_TO_PAY', 'APPROVED'].includes(r.status)
+                ['READY_TO_PAY', 'APPROVED', 'WAITING_FOR_INFO'].includes(r.status)
             ) || [],
         [allRefundsData]
     );

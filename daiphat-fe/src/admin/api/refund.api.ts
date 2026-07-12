@@ -33,11 +33,6 @@ export const refundAdminApi = {
         return response.data;
     },
 
-    approveRefund: async (id: number): Promise<ApiResponse<RefundRequestResponse>> => {
-        const response = await apiApp.patch(`${STAFF_BASE}/${id}/approve`, {}, withAuth());
-        return response.data;
-    },
-
     transferRefund: async (
         id: number,
         data: TransferRefundRequestRequest

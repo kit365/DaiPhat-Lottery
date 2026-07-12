@@ -29,26 +29,6 @@ export const useGetStaffRefundDetail = (id: number) => {
     });
 };
 
-export const useApproveRefund = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: (id: number) => refundAdminApi.approveRefund(id),
-        onSuccess: (response, id) => {
-            if (response.success) {
-                toast.success(response.message || 'Duyệt yêu cầu hoàn tiền thành công');
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUND_DETAIL, id] });
-            } else {
-                toast.error(response.message || 'Không thể duyệt yêu cầu');
-            }
-        },
-        onError: (error: any) => {
-            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
-        },
-    });
-};
-
 export const useTransferRefund = () => {
     const queryClient = useQueryClient();
 
