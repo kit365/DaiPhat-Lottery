@@ -65,7 +65,6 @@ public final class RefundRequestSpecification {
                 var requestedByJoin = root.join("requestedBy", JoinType.LEFT);
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("refundReason")), likePattern),
-                        cb.like(cb.lower(root.get("rejectReason")), likePattern),
                         cb.like(cb.lower(orderJoin.get("orderCode")), likePattern),
                         cb.like(cb.lower(requestedByJoin.get("fullName")), likePattern),
                         cb.like(cb.lower(requestedByJoin.get("email")), likePattern),

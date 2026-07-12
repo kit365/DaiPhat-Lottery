@@ -28,7 +28,6 @@ public record RefundRequestResponse(
         RefundFundSource fundSource,
         ReimburseStatus reimburseStatus,
         int attemptNumber,
-        String rejectReason,
         UUID reviewedBy,
         LocalDateTime reviewedAt,
         /** Refund payout transaction holding paymentEvidenceUrl / paymentBy / note / paidAt. */

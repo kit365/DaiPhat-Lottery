@@ -1,7 +1,6 @@
 package com.daiphat.coreapi.application.service.refund;
 
 import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
-import com.daiphat.coreapi.application.dto.request.refund.RejectRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -195,24 +194,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         publishOrderCancelled(order);
 
         return toEnrichedResponse(saved, loadBankAccount(saved.getBankAccountId()), order.getOrderCode());
-    }
-
-    @Override
-    @Transactional
-    public RefundRequestResponse reject(Long id, UUID staffId, RejectRefundRequestRequest request) {
-        log.info("Staff {} rejecting refund request {}", staffId, id);
-
-        RefundRequestModel refund = getRequestOrThrow(id);
-        ensureProcessable(refund);
-        refund.reject(staffId, request.rejectReason());
-
-        RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
-        publishRefundStatusChanged(saved);
-
-        String orderCode = orderRepositoryPort.findById(requireOrderId(saved))
-                .map(OrderModel::getOrderCode)
-                .orElse(null);
-        return toEnrichedResponse(saved, loadBankAccount(saved.getBankAccountId()), orderCode);
     }
 
     @Override
@@ -509,7 +490,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 .orderId(orderId)
                 .orderCode(orderCode)
                 .status(refund.getStatus())
-                .rejectReason(refund.getRejectReason())
                 .build());
     }
 
@@ -582,16 +562,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         }
 
         if (request.getReviewedAt() != null) {
-            if (request.getStatus() == RefundRequestStatus.REJECTED) {
-                String detail = request.getRejectReason();
-                if (reviewerName != null && !reviewerName.isBlank()) {
-                    detail = (detail != null ? detail + " — " : "") + "Bởi: " + reviewerName;
-                }
-                history.add(new RefundProcessingHistoryItem(
-                        "Từ chối yêu cầu",
-                        detail,
-                        request.getReviewedAt()));
-            } else if (request.getStatus() == RefundRequestStatus.APPROVED
+            if (request.getStatus() == RefundRequestStatus.APPROVED
                     || request.getStatus() == RefundRequestStatus.PAID
                     || request.getStatus() == RefundRequestStatus.READY_TO_PAY) {
                 history.add(new RefundProcessingHistoryItem(
