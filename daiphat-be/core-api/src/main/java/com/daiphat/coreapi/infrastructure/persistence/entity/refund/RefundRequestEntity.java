@@ -58,7 +58,7 @@ public class RefundRequestEntity {
     private String refundReason;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "bank_account_id", nullable = false)
+    @JoinColumn(name = "bank_account_id")
     private UserBankAccountEntity bankAccount;
 
     @Enumerated(EnumType.STRING)

@@ -3,6 +3,7 @@ package com.daiphat.coreapi.adapter.in.web.controller.refund;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
+import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
 import com.daiphat.coreapi.application.dto.request.refund.CreateRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
@@ -103,5 +104,16 @@ public class RefundRequestController {
         return ApiResponse.success(
                 "Hủy yêu cầu hoàn tiền thành công.",
                 refundRequestServicePort.cancel(id, principal.getId()));
+    }
+
+    @PatchMapping(ID_PATH + "/bank-account")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<RefundRequestResponse> attachBankAccount(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody AttachRefundBankAccountRequest request) {
+        return ApiResponse.success(
+                "Đã cập nhật tài khoản nhận hoàn tiền. Yêu cầu đang chờ chuyển khoản.",
+                refundRequestServicePort.attachBankAccount(id, principal.getId(), request));
     }
 }

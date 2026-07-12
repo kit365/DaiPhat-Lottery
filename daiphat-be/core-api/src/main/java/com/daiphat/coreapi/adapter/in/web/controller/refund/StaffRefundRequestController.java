@@ -3,6 +3,7 @@ package com.daiphat.coreapi.adapter.in.web.controller.refund;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
+import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
 import com.daiphat.coreapi.application.dto.request.refund.RejectRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -93,6 +94,17 @@ public class StaffRefundRequestController {
         return ApiResponse.success(
                 "Xác nhận chuyển khoản hoàn tiền thành công.",
                 refundRequestStaffServicePort.markTransferred(id, principal.getId(), request));
+    }
+
+    @PatchMapping(ID_PATH + "/bank-account")
+    @PreAuthorize("hasAuthority('refund:process')")
+    public ApiResponse<RefundRequestResponse> attachBankAccount(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody AttachRefundBankAccountRequest request) {
+        return ApiResponse.success(
+                "Đã gắn tài khoản ngân hàng. Yêu cầu chuyển sang chờ chuyển khoản.",
+                refundRequestStaffServicePort.attachBankAccount(id, principal.getId(), request));
     }
 
     @PostMapping(value = "/transfer-evidence/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
