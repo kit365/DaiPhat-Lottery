@@ -28,6 +28,7 @@ import { RefundStatusBadge } from '../../../../client/components/refund/RefundSt
 import {
     computeProcessingSecondsLeft,
     formatProcessingCountdown,
+    RefundProcessingUrgency,
     RefundRequestStatus,
 } from '../../../../types/refund.type';
 import {
@@ -39,13 +40,14 @@ import { RejectRefundDialog } from '../components/RejectRefundDialog';
 import { RefundProcessingStatusBadge } from '../components/RefundProcessingStatusBadge';
 
 const STATUS_TABS: { value: string; label: string }[] = [
-    { value: 'PENDING,APPROVED,READY_TO_PAY', label: 'Cần xử lý' },
+    { value: 'PENDING,WAITING_FOR_INFO,APPROVED,READY_TO_PAY', label: 'Cần xử lý' },
     { value: 'PENDING', label: 'Chờ duyệt' },
-    { value: 'APPROVED,READY_TO_PAY', label: 'Chờ chuyển khoản' },
+    { value: 'WAITING_FOR_INFO', label: 'Chờ STK' },
+    { value: 'READY_TO_PAY', label: 'Chờ chuyển khoản' },
     { value: 'REJECTED', label: 'Từ chối' },
     { value: 'PAID', label: 'Đã chuyển khoản' },
     { value: 'EXPIRED', label: 'Hết hạn' },
-    { value: 'PENDING,APPROVED,READY_TO_PAY,REJECTED,PAID,CANCELLED,EXPIRED', label: 'Tất cả' },
+    { value: 'PENDING,WAITING_FOR_INFO,APPROVED,READY_TO_PAY,REJECTED,PAID,CANCELLED,EXPIRED', label: 'Tất cả' },
 ];
 
 export const RefundList = () => {
@@ -157,11 +159,26 @@ export const RefundList = () => {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    refunds.map((refund) => (
+                                    refunds.map((refund) => {
+                                        const isOverdue =
+                                            refund.processingUrgency === RefundProcessingUrgency.OVERDUE &&
+                                            (refund.status === RefundRequestStatus.READY_TO_PAY ||
+                                                refund.status === RefundRequestStatus.WAITING_FOR_INFO ||
+                                                refund.status === RefundRequestStatus.PENDING ||
+                                                refund.status === RefundRequestStatus.APPROVED);
+                                        return (
                                         <TableRow
                                             key={refund.id}
                                             hover
-                                            sx={{ cursor: 'pointer' }}
+                                            sx={{
+                                                cursor: 'pointer',
+                                                ...(isOverdue
+                                                    ? {
+                                                          bgcolor: 'error.lighter',
+                                                          '&:hover': { bgcolor: 'error.lighter' },
+                                                      }
+                                                    : {}),
+                                            }}
                                             onClick={() =>
                                                 navigate(`/${prefixAdmin}/refunds/detail/${refund.id}`)
                                             }
@@ -232,7 +249,8 @@ export const RefundList = () => {
                                                 )}
                                             </TableCell>
                                         </TableRow>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </TableBody>
                         </Table>

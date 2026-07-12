@@ -3,6 +3,7 @@ import type { TransactionResponse } from './transaction.type';
 
 export enum RefundRequestStatus {
     PENDING = 'PENDING',
+    WAITING_FOR_INFO = 'WAITING_FOR_INFO',
     APPROVED = 'APPROVED',
     REJECTED = 'REJECTED',
     READY_TO_PAY = 'READY_TO_PAY',
@@ -32,7 +33,8 @@ export enum ReimburseStatus {
 
 export enum RefundRequestRole {
     CUSTOMER = 'CUSTOMER',
-    STAFF = 'STAFF'
+    STAFF = 'STAFF',
+    ADMIN = 'ADMIN'
 }
 
 export enum RefundProcessingUrgency {
@@ -295,6 +297,7 @@ export interface RefundRequestAdminDetailResponse {
 
 export const REFUND_STATUS_LABELS: Record<RefundRequestStatus, string> = {
     [RefundRequestStatus.PENDING]: 'Chờ duyệt',
+    [RefundRequestStatus.WAITING_FOR_INFO]: 'Chờ thông tin STK',
     [RefundRequestStatus.APPROVED]: 'Đã duyệt',
     [RefundRequestStatus.REJECTED]: 'Từ chối',
     [RefundRequestStatus.READY_TO_PAY]: 'Chờ chuyển khoản',
@@ -303,6 +306,14 @@ export const REFUND_STATUS_LABELS: Record<RefundRequestStatus, string> = {
     [RefundRequestStatus.EXPIRED]: 'Hết hạn',
     [RefundRequestStatus.CANCELLED]: 'Đã hủy'
 };
+
+export interface AttachRefundBankAccountRequest {
+    bankAccountId: number;
+}
+
+export interface StaffCancelOrderWithRefundRequest {
+    cancelReason: string;
+}
 
 /** Mask bank account number for display (e.g. 1234567890 → ****7890) */
 export function maskBankAccountNo(accountNo: string): string {
@@ -388,6 +399,7 @@ export function computeProcessingSecondsLeft(
 
 export function isRefundProcessingActionable(status: RefundRequestStatus): boolean {
     return status === RefundRequestStatus.PENDING
+        || status === RefundRequestStatus.WAITING_FOR_INFO
         || status === RefundRequestStatus.APPROVED
         || status === RefundRequestStatus.READY_TO_PAY;
 }

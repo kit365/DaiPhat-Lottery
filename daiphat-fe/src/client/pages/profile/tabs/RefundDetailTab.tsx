@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useCancelRefund, useGetRefundDetail } from '../../../hooks/useRefund';
+import { useAttachRefundBankAccount, useCancelRefund, useGetRefundDetail } from '../../../hooks/useRefund';
+import { useGetBankAccounts } from '../../../hooks/useBankAccount';
 import { RefundRequestStatus, RefundType, isRefundTransferComplete, maskBankAccountNo } from '../../../../types/refund.type';
 import { RefundStatusBadge } from '../../../components/refund/RefundStatusBadge';
 import { RefundStatusStepper } from '../../../components/refund/RefundStatusStepper';
@@ -23,9 +24,13 @@ export const RefundDetailTab = () => {
 
     const { data, isLoading, isError } = useGetRefundDetail(refundId);
     const cancelMutation = useCancelRefund();
+    const attachBankMutation = useAttachRefundBankAccount();
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+    const [selectedBankId, setSelectedBankId] = useState<number | ''>('');
 
     const refund = data?.data;
+    const { data: banksRes } = useGetBankAccounts(refund?.status === RefundRequestStatus.WAITING_FOR_INFO);
+    const myBanks = banksRes?.data || [];
 
     const handleConfirmCancel = () => {
         cancelMutation.mutate(refundId, {
@@ -35,6 +40,11 @@ export const RefundDetailTab = () => {
                 }
             },
         });
+    };
+
+    const handleAttachBank = () => {
+        if (selectedBankId === '') return;
+        attachBankMutation.mutate({ id: refundId, bankAccountId: selectedBankId });
     };
 
     if (isLoading) {
@@ -99,7 +109,11 @@ export const RefundDetailTab = () => {
                 )}
             </div>
 
-            <RefundStatusStepper status={refund.status} rejectReason={refund.rejectReason} />
+            <RefundStatusStepper
+                status={refund.status}
+                rejectReason={refund.rejectReason}
+                requestRole={refund.requestRole}
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col gap-5">
@@ -171,6 +185,54 @@ export const RefundDetailTab = () => {
                                 </p>
                                 <p className="text-[13px] text-[#919EAB] mt-0.5">{bankAccount.bankAccountName}</p>
                             </div>
+                        </div>
+                    ) : refund.status === RefundRequestStatus.WAITING_FOR_INFO ? (
+                        <div className="border-t border-[#F4F6F8] pt-5 flex flex-col gap-4">
+                            <p className="text-[14px] text-[#B76E00]">
+                                Đơn đã được hủy do sự cố. Vui lòng chọn tài khoản ngân hàng để nhận hoàn tiền.
+                            </p>
+                            {myBanks.length === 0 ? (
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-[14px] text-[#637381]">Bạn chưa có tài khoản ngân hàng đã lưu.</p>
+                                    <Link
+                                        to="/profile/bank-accounts"
+                                        className="text-[14px] font-bold text-[#2065D1] hover:underline w-max"
+                                    >
+                                        Thêm tài khoản ngân hàng
+                                    </Link>
+                                </div>
+                            ) : (
+                                <>
+                                    <select
+                                        className="w-full rounded-xl border border-[#E5E8EB] px-4 py-3 text-[14px] text-[#212B36] bg-white"
+                                        value={selectedBankId}
+                                        onChange={(e) =>
+                                            setSelectedBankId(e.target.value ? Number(e.target.value) : '')
+                                        }
+                                    >
+                                        <option value="">Chọn tài khoản nhận hoàn</option>
+                                        {myBanks.map((account) => (
+                                            <option key={account.id} value={account.id}>
+                                                {account.bankName} — {maskBankAccountNo(account.bankAccountNo)} (
+                                                {account.bankAccountName})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={handleAttachBank}
+                                        disabled={selectedBankId === '' || attachBankMutation.isPending}
+                                        className="inline-flex items-center justify-center gap-2 self-start px-4 py-2.5 rounded-xl bg-[#ee1314] text-white text-[13px] font-bold hover:bg-[#c62828] disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {attachBankMutation.isPending ? (
+                                            <i className="fa-solid fa-spinner fa-spin" />
+                                        ) : (
+                                            <i className="fa-solid fa-check" />
+                                        )}
+                                        Xác nhận tài khoản
+                                    </button>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <p className="text-[14px] text-[#637381] border-t border-[#F4F6F8] pt-5">Không có thông tin tài khoản</p>
