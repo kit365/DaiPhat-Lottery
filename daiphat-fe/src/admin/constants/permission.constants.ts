@@ -79,7 +79,6 @@ export const PERMISSIONS = {
     REFUND: {
         VIEW: "refund:view",
         APPROVE: "refund:approve",
-        REJECT: "refund:reject",
         PROCESS: "refund:process",
     },
     REGION: {

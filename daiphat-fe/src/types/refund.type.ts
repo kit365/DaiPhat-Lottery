@@ -5,7 +5,6 @@ export enum RefundRequestStatus {
     PENDING = 'PENDING',
     WAITING_FOR_INFO = 'WAITING_FOR_INFO',
     APPROVED = 'APPROVED',
-    REJECTED = 'REJECTED',
     READY_TO_PAY = 'READY_TO_PAY',
     /** @deprecated Use PAID */
     TRANSFERRED = 'TRANSFERRED',
@@ -211,7 +210,7 @@ export function canShowRefundRequest(
 export interface RefundRequestResponse {
     id: number;
     refundType: RefundType;
-    orderId: string;
+    orderId?: string | null;
     orderDetailIds?: number[];
     /** @deprecated Prefer orderDetailIds */
     orderDetailId?: number;
@@ -220,12 +219,11 @@ export interface RefundRequestResponse {
     status: RefundRequestStatus;
     refundAmount: number;
     refundReason: string;
-    bankAccountId: number;
+    bankAccountId?: number | null;
     bankAccount?: UserBankAccountResponse;
     fundSource?: RefundFundSource;
     reimburseStatus?: ReimburseStatus;
     attemptNumber?: number;
-    rejectReason?: string;
     reviewedBy?: string;
     reviewedAt?: string;
     /** Refund payout transaction (paymentEvidenceUrl, paymentBy, note, paidAt). */
@@ -252,10 +250,6 @@ export interface GetStaffRefundsParams {
     status?: string;
     orderId?: string;
     search?: string;
-}
-
-export interface RejectRefundRequestRequest {
-    rejectReason: string;
 }
 
 export interface TransferRefundRequestRequest {
@@ -299,7 +293,6 @@ export const REFUND_STATUS_LABELS: Record<RefundRequestStatus, string> = {
     [RefundRequestStatus.PENDING]: 'Chờ duyệt',
     [RefundRequestStatus.WAITING_FOR_INFO]: 'Chờ thông tin STK',
     [RefundRequestStatus.APPROVED]: 'Đã duyệt',
-    [RefundRequestStatus.REJECTED]: 'Từ chối',
     [RefundRequestStatus.READY_TO_PAY]: 'Chờ chuyển khoản',
     [RefundRequestStatus.TRANSFERRED]: 'Đã chuyển khoản',
     [RefundRequestStatus.PAID]: 'Đã chuyển khoản',

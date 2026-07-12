@@ -4,7 +4,6 @@ import { STORAGE_KEYS } from '../../constants/storage.constants';
 import { ApiResponse, PageResponse } from '../../types/api.type';
 import {
     GetStaffRefundsParams,
-    RejectRefundRequestRequest,
     RefundRequestAdminDetailResponse,
     RefundRequestResponse,
     TransferRefundRequestRequest,
@@ -36,14 +35,6 @@ export const refundAdminApi = {
 
     approveRefund: async (id: number): Promise<ApiResponse<RefundRequestResponse>> => {
         const response = await apiApp.patch(`${STAFF_BASE}/${id}/approve`, {}, withAuth());
-        return response.data;
-    },
-
-    rejectRefund: async (
-        id: number,
-        data: RejectRefundRequestRequest
-    ): Promise<ApiResponse<RefundRequestResponse>> => {
-        const response = await apiApp.patch(`${STAFF_BASE}/${id}/reject`, data, withAuth());
         return response.data;
     },
 

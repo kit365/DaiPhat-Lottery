@@ -31,10 +31,8 @@ import {
     useApproveRefund,
     useAttachRefundBankAccount,
     useGetStaffRefundDetail,
-    useRejectRefund,
     useTransferRefund,
 } from './hooks/useRefundManagement';
-import { RejectRefundDialog } from './components/RejectRefundDialog';
 import { TransferRefundDialog } from './components/TransferRefundDialog';
 import { AttachBankAccountDialog } from './components/AttachBankAccountDialog';
 import { TransferEvidencePreview } from './components/TransferEvidencePreview';
@@ -47,14 +45,12 @@ export const RefundDetailPage = () => {
     const navigate = useNavigate();
     const refundId = Number(id);
 
-    const [rejectOpen, setRejectOpen] = useState(false);
     const [transferOpen, setTransferOpen] = useState(false);
     const [attachBankOpen, setAttachBankOpen] = useState(false);
     const [customerBanks, setCustomerBanks] = useState<UserBankAccountResponse[]>([]);
 
     const { data, isLoading, isError } = useGetStaffRefundDetail(refundId);
     const approveMutation = useApproveRefund();
-    const rejectMutation = useRejectRefund();
     const transferMutation = useTransferRefund();
     const attachBankMutation = useAttachRefundBankAccount();
 
@@ -93,7 +89,6 @@ export const RefundDetailPage = () => {
     }
 
     const canApprove = refund.status === RefundRequestStatus.PENDING;
-    const canReject = refund.status === RefundRequestStatus.PENDING;
     const canAttachBank = refund.status === RefundRequestStatus.WAITING_FOR_INFO;
     const canTransfer =
         (refund.status === RefundRequestStatus.APPROVED ||
@@ -128,17 +123,6 @@ export const RefundDetailPage = () => {
                             </Button>
                         )}
                     </CanAccess>
-                    <CanAccess permission={PERMISSIONS.REFUND.REJECT}>
-                        {canReject && !actionsDisabled && (
-                            <Button
-                                variant="outlined"
-                                color="error"
-                                onClick={() => setRejectOpen(true)}
-                            >
-                                Từ chối
-                            </Button>
-                        )}
-                    </CanAccess>
                     <CanAccess permission={PERMISSIONS.REFUND.PROCESS}>
                         {canAttachBank && !actionsDisabled && (
                             <Button variant="contained" color="warning" onClick={() => setAttachBankOpen(true)}>
@@ -162,7 +146,6 @@ export const RefundDetailPage = () => {
             <Box sx={{ mb: 3 }}>
                 <RefundStatusStepper
                     status={refund.status}
-                    rejectReason={refund.rejectReason}
                     requestRole={refund.requestRole}
                 />
             </Box>
@@ -204,14 +187,6 @@ export const RefundDetailPage = () => {
                                     </Typography>
                                     <Typography>{refund.refundReason}</Typography>
                                 </Grid>
-                                {refund.rejectReason && (
-                                    <Grid item xs={12}>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Lý do từ chối
-                                        </Typography>
-                                        <Typography color="error.main">{refund.rejectReason}</Typography>
-                                    </Grid>
-                                )}
                                 {refund.payoutTransaction?.paymentEvidenceUrl && (
                                     <Grid item xs={12}>
                                         <TransferEvidencePreview imageUrl={refund.payoutTransaction.paymentEvidenceUrl} />
@@ -358,7 +333,7 @@ export const RefundDetailPage = () => {
                                 </Typography>
                                 {detail.reviewerName && (
                                     <Typography variant="body2">
-                                        Duyệt/Từ chối: <strong>{detail.reviewerName}</strong>
+                                        Duyệt: <strong>{detail.reviewerName}</strong>
                                     </Typography>
                                 )}
                                 {detail.transferrerName && (
@@ -376,18 +351,6 @@ export const RefundDetailPage = () => {
                     )}
                 </Grid>
             </Grid>
-
-            <RejectRefundDialog
-                open={rejectOpen}
-                loading={rejectMutation.isPending}
-                onClose={() => setRejectOpen(false)}
-                onConfirm={(reason) =>
-                    rejectMutation.mutate(
-                        { id: refundId, data: { rejectReason: reason } },
-                        { onSuccess: () => setRejectOpen(false) }
-                    )
-                }
-            />
 
             <TransferRefundDialog
                 open={transferOpen}
