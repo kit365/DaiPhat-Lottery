@@ -18,14 +18,12 @@ public interface RefundRequestPersistenceMapper {
     @Mapping(target = "requestedBy", source = "requestedBy.id")
     @Mapping(target = "bankAccountId", source = "bankAccount.id")
     @Mapping(target = "reviewedBy", source = "reviewedBy.id")
-    @Mapping(target = "transferredBy", source = "transferredBy.id")
     RefundRequestModel toDomain(RefundRequestEntity entity);
 
     @Mapping(target = "orderDetails", ignore = true)
     @Mapping(target = "requestedBy", source = "requestedBy")
     @Mapping(target = "bankAccount", source = "bankAccountId")
     @Mapping(target = "reviewedBy", source = "reviewedBy")
-    @Mapping(target = "transferredBy", source = "transferredBy")
     RefundRequestEntity toEntity(RefundRequestModel domain);
 
     default UserEntity mapUserId(UUID userId) {

@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.mapper.refund;
 
+import com.daiphat.coreapi.application.dto.response.order.TransactionResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
 import com.daiphat.coreapi.application.dto.response.refund.UserBankAccountResponse;
 import com.daiphat.coreapi.application.dto.response.refund.VietQrBankResponse;
@@ -24,11 +25,19 @@ public interface RefundApplicationMapper {
     List<VietQrBankResponse> toBankResponses(List<VietQrBankModel> models);
 
     @Mapping(target = "bankAccount", ignore = true)
+    @Mapping(target = "payoutTransaction", ignore = true)
     RefundRequestResponse toRefundResponse(RefundRequestModel model);
 
     default RefundRequestResponse toRefundResponse(
             RefundRequestModel model,
             UserBankAccountModel bankAccount) {
+        return toRefundResponse(model, bankAccount, null);
+    }
+
+    default RefundRequestResponse toRefundResponse(
+            RefundRequestModel model,
+            UserBankAccountModel bankAccount,
+            TransactionResponse payoutTransaction) {
         RefundRequestResponse base = toRefundResponse(model);
         if (base == null) {
             return null;
@@ -51,10 +60,7 @@ public interface RefundApplicationMapper {
                 base.rejectReason(),
                 base.reviewedBy(),
                 base.reviewedAt(),
-                base.transferEvidenceUrl(),
-                base.transferredAt(),
-                base.transferredBy(),
-                base.transferNote(),
+                payoutTransaction,
                 base.createdAt(),
                 base.updatedAt(),
                 null,
@@ -72,7 +78,20 @@ public interface RefundApplicationMapper {
             Long remainingProcessingSeconds,
             com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency processingUrgency
     ) {
-        RefundRequestResponse base = toRefundResponse(model, bankAccount);
+        return enrichResponse(
+                model, bankAccount, orderCode, processingDeadlineAt, remainingProcessingSeconds, processingUrgency, null);
+    }
+
+    default RefundRequestResponse enrichResponse(
+            RefundRequestModel model,
+            UserBankAccountModel bankAccount,
+            String orderCode,
+            java.time.LocalDateTime processingDeadlineAt,
+            Long remainingProcessingSeconds,
+            com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency processingUrgency,
+            TransactionResponse payoutTransaction
+    ) {
+        RefundRequestResponse base = toRefundResponse(model, bankAccount, payoutTransaction);
         if (base == null) {
             return null;
         }
@@ -94,10 +113,7 @@ public interface RefundApplicationMapper {
                 base.rejectReason(),
                 base.reviewedBy(),
                 base.reviewedAt(),
-                base.transferEvidenceUrl(),
-                base.transferredAt(),
-                base.transferredBy(),
-                base.transferNote(),
+                base.payoutTransaction(),
                 base.createdAt(),
                 base.updatedAt(),
                 orderCode,

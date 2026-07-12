@@ -180,17 +180,17 @@ export const RefundDetailPage = () => {
                                         <Typography color="error.main">{refund.rejectReason}</Typography>
                                     </Grid>
                                 )}
-                                {refund.transferEvidenceUrl && (
+                                {refund.payoutTransaction?.paymentEvidenceUrl && (
                                     <Grid item xs={12}>
-                                        <TransferEvidencePreview imageUrl={refund.transferEvidenceUrl} />
+                                        <TransferEvidencePreview imageUrl={refund.payoutTransaction.paymentEvidenceUrl} />
                                     </Grid>
                                 )}
-                                {refund.transferNote && (
+                                {refund.payoutTransaction?.note && (
                                     <Grid item xs={12}>
                                         <Typography variant="body2" color="text.secondary">
                                             Ghi chú chuyển khoản
                                         </Typography>
-                                        <Typography>{refund.transferNote}</Typography>
+                                        <Typography>{refund.payoutTransaction.note}</Typography>
                                     </Grid>
                                 )}
                             </Grid>
@@ -322,9 +322,9 @@ export const RefundDetailPage = () => {
                                         Chuyển khoản: <strong>{detail.transferrerName}</strong>
                                     </Typography>
                                 )}
-                                {isRefundTransferComplete(refund.status) && refund.transferredAt && (
+                                {isRefundTransferComplete(refund.status) && refund.payoutTransaction?.paidAt && (
                                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                                        Hoàn tất: {dayjs(refund.transferredAt).format('DD/MM/YYYY HH:mm')}
+                                        Hoàn tất: {dayjs(refund.payoutTransaction.paidAt).format('DD/MM/YYYY HH:mm')}
                                     </Typography>
                                 )}
                             </CardContent>

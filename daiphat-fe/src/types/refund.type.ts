@@ -1,4 +1,5 @@
 import { OrderStatus } from './order.type';
+import type { TransactionResponse } from './transaction.type';
 
 export enum RefundRequestStatus {
     PENDING = 'PENDING',
@@ -225,10 +226,8 @@ export interface RefundRequestResponse {
     rejectReason?: string;
     reviewedBy?: string;
     reviewedAt?: string;
-    transferEvidenceUrl?: string;
-    transferredAt?: string;
-    transferredBy?: string;
-    transferNote?: string;
+    /** Refund payout transaction (paymentEvidenceUrl, paymentBy, note, paidAt). */
+    payoutTransaction?: TransactionResponse;
     createdAt: string;
     updatedAt: string;
     orderCode?: string;
@@ -258,8 +257,8 @@ export interface RejectRefundRequestRequest {
 }
 
 export interface TransferRefundRequestRequest {
-    transferEvidenceUrl: string;
-    transferNote?: string;
+    paymentEvidenceUrl: string;
+    note?: string;
 }
 
 export interface RefundProcessingHistoryItem {

@@ -23,6 +23,8 @@ public record TransactionResponse(
         String failureReason,
         LocalDateTime codCollectedAt,
         UUID codCollectedBy,
+        String paymentEvidenceUrl,
+        UUID paymentBy,
         String note,
         TransactionType type
 ) {

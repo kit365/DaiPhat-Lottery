@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.dto.response.refund;
 
+import com.daiphat.coreapi.application.dto.response.order.TransactionResponse;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundFundSource;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
@@ -30,10 +31,8 @@ public record RefundRequestResponse(
         String rejectReason,
         UUID reviewedBy,
         LocalDateTime reviewedAt,
-        String transferEvidenceUrl,
-        LocalDateTime transferredAt,
-        UUID transferredBy,
-        String transferNote,
+        /** Refund payout transaction holding paymentEvidenceUrl / paymentBy / note / paidAt. */
+        TransactionResponse payoutTransaction,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         String orderCode,

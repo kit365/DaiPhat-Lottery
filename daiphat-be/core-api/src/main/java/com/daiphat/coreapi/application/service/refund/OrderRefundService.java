@@ -222,7 +222,6 @@ public class OrderRefundService implements OrderRefundServicePort {
                 .orderCode(orderCode)
                 .status(refund.getStatus())
                 .rejectReason(refund.getRejectReason())
-                .transferNote(refund.getTransferNote())
                 .build());
     }
 }

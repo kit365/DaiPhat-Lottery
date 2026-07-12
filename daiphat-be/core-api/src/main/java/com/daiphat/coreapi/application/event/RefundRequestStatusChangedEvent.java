@@ -12,7 +12,6 @@ public record RefundRequestStatusChangedEvent(
         UUID orderId,
         String orderCode,
         RefundRequestStatus status,
-        String rejectReason,
-        String transferNote
+        String rejectReason
 ) {
 }
