@@ -475,6 +475,7 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 DropdownButtonFormField<int>(
+                  isExpanded: true,
                   initialValue: _selectedBankAccountId,
                   decoration: InputDecoration(
                     filled: true,
@@ -494,6 +495,19 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
                           value: account.id,
                           child: Text(
                             '${account.bankName} - ${_maskAccountNo(account.bankAccountNo)}${account.isDefault ? ' (Mặc định)' : ''}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  selectedItemBuilder: (context) => _bankAccounts
+                      .map(
+                        (account) => Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _bankAccountLabel(account),
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -738,6 +752,10 @@ class _RefundRequestSheetState extends State<RefundRequestSheet> {
     return '${'*' * (digits.length - 4)}${digits.substring(digits.length - 4)}';
   }
 
+  String _bankAccountLabel(UserBankAccountResponse account) {
+    return '${account.bankName} - ${_maskAccountNo(account.bankAccountNo)}${account.isDefault ? ' (Mặc định)' : ''}';
+  }
+
   String _statusLabel(String status) {
     switch (status) {
       case 'PAID':
@@ -779,6 +797,8 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
   String? _error;
   List<VietQrBankResponse> _banks = const [];
   VietQrBankResponse? _selectedBank;
+
+  String _bankLabel(VietQrBankResponse bank) => '${bank.shortName} - ${bank.name}';
 
   @override
   void initState() {
@@ -862,9 +882,16 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final availableHeight =
+        mediaQuery.size.height - mediaQuery.viewInsets.bottom - 96;
+
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 520),
-      child: Padding(
+      constraints: BoxConstraints(
+        maxWidth: 520,
+        maxHeight: availableHeight > 320 ? availableHeight : 320,
+      ),
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: _isLoadingBanks
             ? const SizedBox(
@@ -909,6 +936,7 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
                   ],
                   const SizedBox(height: 12),
                   DropdownButtonFormField<VietQrBankResponse>(
+                    isExpanded: true,
                     initialValue: _selectedBank,
                     decoration: InputDecoration(
                       labelText: 'Ngân hàng',
@@ -920,7 +948,23 @@ class _BankAccountFormDialogState extends State<BankAccountFormDialog> {
                         .map(
                           (bank) => DropdownMenuItem<VietQrBankResponse>(
                             value: bank,
-                            child: Text('${bank.shortName} - ${bank.name}'),
+                            child: Text(
+                              _bankLabel(bank),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    selectedItemBuilder: (context) => _banks
+                        .map(
+                          (bank) => Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              _bankLabel(bank),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         )
                         .toList(),
