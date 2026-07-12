@@ -5,11 +5,13 @@ import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketRespo
 import com.daiphat.coreapi.application.dto.response.refund.OrderRefundEligibilityResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundEligibleTicketItemResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
+import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.refund.OrderRefundServicePort;
+import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
@@ -17,9 +19,10 @@ import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.Re
 import com.daiphat.coreapi.application.service.refund.OrderRefundPolicyService.PolicyEvaluation;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
+import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
-import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
@@ -48,6 +51,7 @@ public class OrderRefundService implements OrderRefundServicePort {
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final LotteryTicketSerialServicePort lotteryTicketSerialServicePort;
+    private final OrderDetailSerialRepositoryPort orderDetailSerialRepositoryPort;
     private final RefundApplicationMapper refundApplicationMapper;
     private final OrderRefundGraceService orderRefundGraceService;
     private final OrderRefundPolicyService orderRefundPolicyService;
@@ -83,13 +87,21 @@ public class OrderRefundService implements OrderRefundServicePort {
         refundRequest.initializeForCreate();
 
         RefundRequestModel savedRefund = refundRequestRepositoryPort.save(refundRequest);
+
+        cancelOrderForCustomerRefund(order, reason);
+        releaseSoldTickets(order);
+        // Save order first: cascading order_details would overwrite refund_request_id if linked earlier.
+        orderRepositoryPort.save(order);
+
         int linked = refundRequestRepositoryPort.linkOrderDetailsByOrderId(orderId, savedRefund.getId());
         if (linked <= 0 && order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
             throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
         }
+
         savedRefund.setOrderId(orderId);
         savedRefund.setOrderDetailIds(refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(savedRefund.getId()));
         publishRefundStatusChanged(savedRefund, order.getOrderCode());
+        publishOrderCancelled(order);
         return refundApplicationMapper.toRefundResponse(savedRefund, bankAccount);
     }
 
@@ -212,6 +224,57 @@ public class OrderRefundService implements OrderRefundServicePort {
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_AMOUNT);
         }
         return order.getTotalAmount();
+    }
+
+    private void cancelOrderForCustomerRefund(OrderModel order, String cancelReason) {
+        if (order.getOrderType() == OrderType.DIRECT) {
+            order.cancelDirectOrder(cancelReason);
+            return;
+        }
+        if (order.getStatus() == OrderStatus.PAID) {
+            order.cancelByCustomerRefund(cancelReason);
+            return;
+        }
+        order.cancelAfterPayment(cancelReason);
+    }
+
+    private void releaseSoldTickets(OrderModel order) {
+        if (order.getOrderDetails() == null) {
+            return;
+        }
+        for (OrderDetailModel detail : order.getOrderDetails()) {
+            for (Long serialId : resolveAllocatedSerialIds(detail)) {
+                lotteryTicketServicePort.returnSoldTicketForOrder(serialId);
+            }
+        }
+    }
+
+    private List<Long> resolveAllocatedSerialIds(OrderDetailModel detail) {
+        if (detail.getAllocatedSerialIds() != null && !detail.getAllocatedSerialIds().isEmpty()) {
+            return detail.getAllocatedSerialIds();
+        }
+        if (detail.getId() != null) {
+            List<Long> persistedSerialIds = orderDetailSerialRepositoryPort.findSerialIdsByOrderDetailId(detail.getId());
+            if (!persistedSerialIds.isEmpty()) {
+                return persistedSerialIds;
+            }
+        }
+        if (detail.getLotteryTicketSerialId() != null) {
+            return List.of(detail.getLotteryTicketSerialId());
+        }
+        return List.of();
+    }
+
+    private void publishOrderCancelled(OrderModel order) {
+        if (order.getId() == null || order.getUserId() == null || order.getStatus() == null) {
+            return;
+        }
+        eventPublisher.publishEvent(OrderStatusChangedEvent.builder()
+                .orderId(order.getId())
+                .customerId(order.getUserId())
+                .orderCode(order.getOrderCode())
+                .status(order.getStatus())
+                .build());
     }
 
     private void publishRefundStatusChanged(RefundRequestModel refund, String orderCode) {

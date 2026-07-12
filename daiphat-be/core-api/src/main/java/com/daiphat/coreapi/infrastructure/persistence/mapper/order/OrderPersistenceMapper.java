@@ -9,6 +9,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEn
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import org.springframework.stereotype.Component;
 
@@ -106,6 +107,7 @@ public class OrderPersistenceMapper {
         entity.setLotteryTicket(lotteryTicketRef(model.getLotteryTicketId()));
         entity.setLotteryTicketSerial(lotteryTicketSerialRef(model.getLotteryTicketSerialId()));
         entity.setReplacedByTicketSerial(lotteryTicketSerialRef(model.getReplacedByTicketSerialId()));
+        entity.setRefundRequest(refundRequestRef(model.getRefundRequestId()));
         entity.setQuantity(model.getQuantity() != null ? model.getQuantity() : 1);
         entity.setPrice(model.getPrice());
         entity.setStatus(model.getStatus());
@@ -144,6 +146,7 @@ public class OrderPersistenceMapper {
                                 : null
                 )
                 .replacedByTicketSerialId(entity.getReplacedByTicketSerial() != null ? entity.getReplacedByTicketSerial().getId() : null)
+                .refundRequestId(entity.getRefundRequest() != null ? entity.getRefundRequest().getId() : null)
                 .quantity(entity.getQuantity() != null ? entity.getQuantity() : 1)
                 .allocatedSerialIds(resolveAllocatedSerialIds(entity))
                 .price(entity.getPrice())
@@ -233,6 +236,15 @@ public class OrderPersistenceMapper {
         }
         LotteryTicketEntity entity = new LotteryTicketEntity();
         entity.setId(ticketId);
+        return entity;
+    }
+
+    private RefundRequestEntity refundRequestRef(Long refundRequestId) {
+        if (refundRequestId == null) {
+            return null;
+        }
+        RefundRequestEntity entity = new RefundRequestEntity();
+        entity.setId(refundRequestId);
         return entity;
     }
 

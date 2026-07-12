@@ -7,8 +7,9 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum RefundRequestStatus implements LabeledEnum {
-    PENDING("Chờ duyệt"),
     WAITING_FOR_INFO("Chờ thông tin STK"),
+    /** @deprecated Prefer READY_TO_PAY; kept for legacy rows during rollout. */
+    @Deprecated
     APPROVED("Đã duyệt"),
     READY_TO_PAY("Chờ chuyển khoản"),
     @Deprecated

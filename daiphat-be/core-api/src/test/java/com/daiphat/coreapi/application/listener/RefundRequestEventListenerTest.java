@@ -44,14 +44,14 @@ class RefundRequestEventListenerTest {
     }
 
     @Test
-    @DisplayName("PENDING: creates IN_APP notification with REFUND_REQUEST referenceType and refundRequestId")
-    void handlePending_createsNotificationWithRefundReference() {
+    @DisplayName("READY_TO_PAY: creates IN_APP notification with REFUND_REQUEST referenceType and refundRequestId")
+    void handleReadyToPay_createsNotificationWithRefundReference() {
         RefundRequestStatusChangedEvent event = RefundRequestStatusChangedEvent.builder()
                 .refundRequestId(42L)
                 .customerId(customerId)
                 .orderId(orderId)
                 .orderCode("ORD-REF-001")
-                .status(RefundRequestStatus.PENDING)
+                .status(RefundRequestStatus.READY_TO_PAY)
                 .build();
 
         listener.handleRefundRequestStatusChanged(event);
@@ -64,7 +64,7 @@ class RefundRequestEventListenerTest {
         assertThat(notification.getChannel()).isEqualTo(NotificationChannel.IN_APP);
         assertThat(notification.getReferenceType()).isEqualTo(NotificationReferenceType.REFUND_REQUEST);
         assertThat(notification.getReferenceId()).isEqualTo("42");
-        assertThat(notification.getTitle()).isEqualTo("Yêu cầu hoàn tiền đã được gửi");
+        assertThat(notification.getTitle()).isEqualTo("Yêu cầu hoàn tiền chờ chuyển khoản");
         assertThat(notification.getContent()).contains("ORD-REF-001");
         assertThat(notification.getStatus().name()).isEqualTo("SENT");
     }
@@ -75,7 +75,7 @@ class RefundRequestEventListenerTest {
         RefundRequestStatusChangedEvent event = RefundRequestStatusChangedEvent.builder()
                 .refundRequestId(1L)
                 .customerId(null)
-                .status(RefundRequestStatus.PENDING)
+                .status(RefundRequestStatus.READY_TO_PAY)
                 .build();
 
         listener.handleRefundRequestStatusChanged(event);

@@ -22,8 +22,6 @@ public interface RefundRequestStaffServicePort {
 
     RefundRequestAdminDetailResponse getByIdForStaff(Long id);
 
-    RefundRequestResponse approve(Long id, UUID staffId);
-
     RefundRequestResponse markTransferred(Long id, UUID staffId, TransferRefundRequestRequest request);
 
     RefundRequestResponse cancelOrderWithRefund(UUID orderId, UUID staffId, StaffCancelOrderWithRefundRequest request);

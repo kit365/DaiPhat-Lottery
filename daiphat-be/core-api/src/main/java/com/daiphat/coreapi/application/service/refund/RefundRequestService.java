@@ -6,18 +6,21 @@ import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.order.TransactionResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
+import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
+import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.refund.RefundRequestServicePort;
+import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
-import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
+import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
@@ -53,7 +56,9 @@ public class RefundRequestService implements RefundRequestServicePort {
     private final RefundRequestRepositoryPort refundRequestRepositoryPort;
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort;
     private final OrderRepositoryPort orderRepositoryPort;
+    private final OrderDetailSerialRepositoryPort orderDetailSerialRepositoryPort;
     private final TransactionRepositoryPort transactionRepositoryPort;
+    private final LotteryTicketServicePort lotteryTicketServicePort;
     private final RefundApplicationMapper refundApplicationMapper;
     private final OrderApplicationMapper orderApplicationMapper;
     private final OrderRefundGraceService orderRefundGraceService;
@@ -68,7 +73,7 @@ public class RefundRequestService implements RefundRequestServicePort {
         validateAmount(request.refundAmount());
         validateRefundType(request);
 
-        OrderModel order = orderRepositoryPort.findById(request.orderId())
+        OrderModel order = orderRepositoryPort.findByIdWithLock(request.orderId())
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
 
         if (!userId.equals(order.getUserId())) {
@@ -99,13 +104,21 @@ public class RefundRequestService implements RefundRequestServicePort {
         refundRequest.initializeForCreate();
 
         RefundRequestModel saved = refundRequestRepositoryPort.save(refundRequest);
+
+        cancelOrderForCustomerRefund(order, request.refundReason().trim());
+        releaseSoldTickets(order);
+        // Save order first: cascading order_details would overwrite refund_request_id if linked earlier.
+        orderRepositoryPort.save(order);
+
         int linked = refundRequestRepositoryPort.linkOrderDetailsByOrderId(request.orderId(), saved.getId());
         if (linked <= 0 && order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
             throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
         }
+
         saved.setOrderId(request.orderId());
         saved.setOrderDetailIds(refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(saved.getId()));
         publishRefundStatusChanged(saved, order.getOrderCode());
+        publishOrderCancelled(order);
         return toResponse(saved, bankAccount);
     }
 
@@ -126,13 +139,9 @@ public class RefundRequestService implements RefundRequestServicePort {
     @Override
     @Transactional
     public RefundRequestResponse cancel(Long id, UUID userId) {
-        RefundRequestModel request = getOwnedRequestOrThrow(id, userId);
-        if (request.getStatus() != RefundRequestStatus.PENDING) {
-            throw new DomainException(ErrorCode.REFUND_REQUEST_CANNOT_CANCEL);
-        }
-        request.cancel();
-        RefundRequestModel saved = refundRequestRepositoryPort.save(request);
-        return toResponse(saved, loadBankAccount(saved.getBankAccountId()));
+        getOwnedRequestOrThrow(id, userId);
+        // Customer refunds are auto READY_TO_PAY with order cancelled / stock released — not cancellable.
+        throw new DomainException(ErrorCode.REFUND_REQUEST_CANNOT_CANCEL);
     }
 
     @Override
@@ -263,6 +272,57 @@ public class RefundRequestService implements RefundRequestServicePort {
                 .orderCode(orderCode)
                 .status(refund.getStatus())
                 .build());
+    }
+
+    private void publishOrderCancelled(OrderModel order) {
+        if (order.getId() == null || order.getUserId() == null || order.getStatus() == null) {
+            return;
+        }
+        eventPublisher.publishEvent(OrderStatusChangedEvent.builder()
+                .orderId(order.getId())
+                .customerId(order.getUserId())
+                .orderCode(order.getOrderCode())
+                .status(order.getStatus())
+                .build());
+    }
+
+    private void cancelOrderForCustomerRefund(OrderModel order, String cancelReason) {
+        if (order.getOrderType() == OrderType.DIRECT) {
+            order.cancelDirectOrder(cancelReason);
+            return;
+        }
+        if (order.getStatus() == OrderStatus.PAID) {
+            order.cancelByCustomerRefund(cancelReason);
+            return;
+        }
+        order.cancelAfterPayment(cancelReason);
+    }
+
+    private void releaseSoldTickets(OrderModel order) {
+        if (order.getOrderDetails() == null) {
+            return;
+        }
+        for (OrderDetailModel detail : order.getOrderDetails()) {
+            for (Long serialId : resolveAllocatedSerialIds(detail)) {
+                lotteryTicketServicePort.returnSoldTicketForOrder(serialId);
+            }
+        }
+    }
+
+    private List<Long> resolveAllocatedSerialIds(OrderDetailModel detail) {
+        if (detail.getAllocatedSerialIds() != null && !detail.getAllocatedSerialIds().isEmpty()) {
+            return detail.getAllocatedSerialIds();
+        }
+        if (detail.getId() != null) {
+            List<Long> persistedSerialIds = orderDetailSerialRepositoryPort.findSerialIdsByOrderDetailId(detail.getId());
+            if (!persistedSerialIds.isEmpty()) {
+                return persistedSerialIds;
+            }
+        }
+        if (detail.getLotteryTicketSerialId() != null) {
+            return List.of(detail.getLotteryTicketSerialId());
+        }
+        return List.of();
     }
 
     private void validateAmount(BigDecimal amount) {
