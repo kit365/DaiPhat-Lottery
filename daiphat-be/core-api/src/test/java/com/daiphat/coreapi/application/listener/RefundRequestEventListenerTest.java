@@ -98,20 +98,19 @@ class RefundRequestEventListenerTest {
     }
 
     @Test
-    @DisplayName("REJECTED: includes reject reason in content")
-    void handleRejected_includesReason() {
+    @DisplayName("PAID: notifies customer of successful transfer")
+    void handlePaid_notifiesCustomer() {
         RefundRequestStatusChangedEvent event = RefundRequestStatusChangedEvent.builder()
                 .refundRequestId(7L)
                 .customerId(customerId)
                 .orderCode("ORD-7")
-                .status(RefundRequestStatus.REJECTED)
-                .rejectReason("Không đủ điều kiện")
+                .status(RefundRequestStatus.PAID)
                 .build();
 
         listener.handleRefundRequestStatusChanged(event);
 
         verify(notificationService).createNotification(notificationCaptor.capture());
-        assertThat(notificationCaptor.getValue().getContent()).contains("Không đủ điều kiện");
+        assertThat(notificationCaptor.getValue().getContent()).contains("chuyển khoản thành công");
         assertThat(notificationCaptor.getValue().getReferenceType())
                 .isEqualTo(NotificationReferenceType.REFUND_REQUEST);
         assertThat(notificationCaptor.getValue().getReferenceId()).isEqualTo("7");

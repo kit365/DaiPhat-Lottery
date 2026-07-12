@@ -76,9 +76,6 @@ public class RefundRequestEntity {
     @Column(name = "attempt_number", nullable = false)
     private int attemptNumber;
 
-    @Column(name = "reject_reason", length = 500)
-    private String rejectReason;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by")
     private UserEntity reviewedBy;
