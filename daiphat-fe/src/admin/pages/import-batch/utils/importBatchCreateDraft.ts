@@ -14,6 +14,7 @@ export const normalizeCreateDraftValues = (
     supplierId: Number(values.supplierId) || 0,
     drawDate: values.drawDate ?? '',
     importMode: values.importMode ?? 'IN_DAY',
+    totalDeclareQuantity: Number(values.totalDeclareQuantity) || 0,
     invoiceEvidenceUrl: values.invoiceEvidenceUrl ?? '',
     lines: (values.lines ?? []).map((line) => ({
         ...line,

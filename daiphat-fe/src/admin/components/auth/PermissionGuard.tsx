@@ -22,7 +22,7 @@ export const PermissionGuard = ({ children, permission, permissions, fallback }:
     
     // 2. Nếu đã Hydrate (có token) nhưng đang đợi fetch thông tin user mới
     // Phải chờ cả isLoading (lần đầu) và isFetching (mọi lần reload) để đảm bảo có data mới nhất
-    const isFetchingUser = isReady && !!token && (isLoading || isFetching);
+    const isFetchingUser = isReady && !!token && (isLoading || isFetching || !user);
 
     const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || "");
     const normalizedRole = roleCode.startsWith("ROLE_") ? roleCode : `ROLE_${roleCode}`;
