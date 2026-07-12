@@ -213,19 +213,210 @@ class OrderRefundServiceTest {
     }
 
     @Test
-    @DisplayName("getRefundEligibility: PREPARING within grace is eligible")
-    void getRefundEligibility_preparingEligible() {
-        OrderModel order = orderBuilder(OrderStatus.PREPARING).build();
+    @DisplayName("refundPaidOrder: links all OrderDetail rows and publishes refund notification event")
+    void refundPaidOrder_linksOrderDetailsAndPublishesEvent() {
+        OrderDetailModel detail1 = OrderDetailModel.builder()
+                .id(11L)
+                .lotteryTicketSerialId(101L)
+                .price(BigDecimal.valueOf(10000))
+                .build();
+        OrderDetailModel detail2 = OrderDetailModel.builder()
+                .id(12L)
+                .lotteryTicketSerialId(102L)
+                .price(BigDecimal.valueOf(10000))
+                .build();
+        OrderModel order = orderBuilder(OrderStatus.PAID)
+                .orderDetails(List.of(detail1, detail2))
+                .totalAmount(BigDecimal.valueOf(20000))
+                .build();
+        UserBankAccountModel bankAccount = UserBankAccountModel.builder().id(5L).userId(customerId).build();
+
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
+        when(userBankAccountRepositoryPort.findByIdAndUserId(5L, customerId)).thenReturn(Optional.of(bankAccount));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> {
+            RefundRequestModel model = inv.getArgument(0);
+            model.setId(99L);
+            return model;
+        });
+        when(refundRequestRepositoryPort.linkOrderDetailsByOrderId(orderId, 99L)).thenReturn(2);
+        when(refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(99L))
+                .thenReturn(List.of(11L, 12L));
+        when(refundApplicationMapper.toRefundResponse(any(), any())).thenReturn(null);
+
+        orderRefundService.refundPaidOrder(
+                orderId, customerId, new CreateOrderRefundRequest("Đặt nhầm đơn", 5L));
+
+        verify(refundRequestRepositoryPort).linkOrderDetailsByOrderId(orderId, 99L);
+        ArgumentCaptor<RefundRequestModel> refundCaptor = ArgumentCaptor.forClass(RefundRequestModel.class);
+        verify(refundApplicationMapper).toRefundResponse(refundCaptor.capture(), any());
+        assertThat(refundCaptor.getValue().getOrderDetailIds()).containsExactly(11L, 12L);
+        assertThat(refundCaptor.getValue().getOrderId()).isEqualTo(orderId);
+
+        ArgumentCaptor<RefundRequestStatusChangedEvent> eventCaptor =
+                ArgumentCaptor.forClass(RefundRequestStatusChangedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().refundRequestId()).isEqualTo(99L);
+        assertThat(eventCaptor.getValue().customerId()).isEqualTo(customerId);
+        assertThat(eventCaptor.getValue().orderId()).isEqualTo(orderId);
+        assertThat(eventCaptor.getValue().orderCode()).isEqualTo("ORD-001");
+        assertThat(eventCaptor.getValue().status()).isEqualTo(RefundRequestStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("refundPaidOrder: rejects second refund when OrderDetails already linked (duplicate)")
+    void refundPaidOrder_rejectsDuplicateViaLinkRace() {
+        OrderModel order = orderBuilder(OrderStatus.PAID).build();
+        UserBankAccountModel bankAccount = UserBankAccountModel.builder().id(5L).userId(customerId).build();
+
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
+        when(userBankAccountRepositoryPort.findByIdAndUserId(5L, customerId)).thenReturn(Optional.of(bankAccount));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> {
+            RefundRequestModel model = inv.getArgument(0);
+            model.setId(50L);
+            return model;
+        });
+        when(refundRequestRepositoryPort.linkOrderDetailsByOrderId(orderId, 50L)).thenReturn(0);
+
+        assertThatThrownBy(() -> orderRefundService.refundPaidOrder(
+                orderId, customerId, new CreateOrderRefundRequest("reason", 5L)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
+
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("refundPaidOrder: ACCESS_DENIED when order is not owned by customer")
+    void refundPaidOrder_accessDeniedForOtherCustomer() {
+        OrderModel order = orderBuilder(OrderStatus.PAID)
+                .userId(UUID.randomUUID())
+                .build();
+
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> orderRefundService.refundPaidOrder(
+                orderId, customerId, new CreateOrderRefundRequest("reason", 5L)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.ACCESS_DENIED);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("refundPaidOrder: rejects mismatched bank account")
+    void refundPaidOrder_rejectsBankAccountMismatch() {
+        OrderModel order = orderBuilder(OrderStatus.PAID).build();
+
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
+        when(userBankAccountRepositoryPort.findByIdAndUserId(5L, customerId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderRefundService.refundPaidOrder(
+                orderId, customerId, new CreateOrderRefundRequest("reason", 5L)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_REQUEST_BANK_ACCOUNT_MISMATCH);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("refundPaidOrder: rejects when daily refund limit exceeded")
+    void refundPaidOrder_rejectsDailyLimit() {
+        OrderModel order = orderBuilder(OrderStatus.PAID).build();
+
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.countByRequestedByAndCreatedAtFrom(any(), any())).thenReturn(3L);
+
+        assertThatThrownBy(() -> orderRefundService.refundPaidOrder(
+                orderId, customerId, new CreateOrderRefundRequest("reason", 5L)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_DAILY_LIMIT_EXCEEDED);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("refundPaidOrder: rejects when REFUND_REQUEST_ALLOWED_DAYS period expired")
+    void refundPaidOrder_rejectsPeriodExpired() {
+        OrderModel order = orderBuilder(OrderStatus.PAID)
+                .createdAt(LocalDateTime.now().minusDays(10))
+                .build();
+
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
+
+        assertThatThrownBy(() -> orderRefundService.refundPaidOrder(
+                orderId, customerId, new CreateOrderRefundRequest("reason", 5L)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_PERIOD_EXPIRED);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("refundPaidOrder: ORDER_NOT_FOUND when order missing")
+    void refundPaidOrder_orderNotFound() {
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderRefundService.refundPaidOrder(
+                orderId, customerId, new CreateOrderRefundRequest("reason", 5L)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.ORDER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("getRefundEligibility: ACCESS_DENIED for non-owner")
+    void getRefundEligibility_accessDenied() {
+        OrderModel order = orderBuilder(OrderStatus.PAID)
+                .userId(UUID.randomUUID())
+                .build();
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> orderRefundService.getRefundEligibility(orderId, customerId))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.ACCESS_DENIED);
+    }
+
+    @Test
+    @DisplayName("getRefundEligibility: surfaces dailyLimitReached from System_Config policy")
+    void getRefundEligibility_dailyLimitReached() {
+        OrderModel order = orderBuilder(OrderStatus.PAID).build();
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
+        when(refundRequestRepositoryPort.countByRequestedByAndCreatedAtFrom(any(), any())).thenReturn(3L);
+
+        var response = orderRefundService.getRefundEligibility(orderId, customerId);
+
+        assertThat(response.eligible()).isFalse();
+        assertThat(response.dailyLimitReached()).isTrue();
+        assertThat(response.maxRefundRequestsPerDay()).isEqualTo(3);
+        assertThat(response.refundRequestsSubmittedToday()).isEqualTo(3L);
+    }
+
+    @Test
+    @DisplayName("getRefundEligibility: surfaces refundPeriodExpired from System_Config")
+    void getRefundEligibility_periodExpired() {
+        OrderModel order = orderBuilder(OrderStatus.PAID)
+                .createdAt(LocalDateTime.now().minusDays(14))
+                .build();
         when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
         when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
 
         var response = orderRefundService.getRefundEligibility(orderId, customerId);
 
-        assertThat(response.eligible()).isTrue();
-        assertThat(response.graceMinutes()).isEqualTo(30);
-        assertThat(response.remainingSeconds()).isNotNull().isPositive();
-        assertThat(response.totalRefundAmount()).isEqualByComparingTo(BigDecimal.valueOf(20000));
-        assertThat(response.refundTickets()).hasSize(1);
+        assertThat(response.eligible()).isFalse();
+        assertThat(response.refundPeriodExpired()).isTrue();
+        assertThat(response.refundRequestAllowedDays()).isEqualTo(7);
     }
 
     private OrderModel.OrderModelBuilder orderBuilder(OrderStatus status) {

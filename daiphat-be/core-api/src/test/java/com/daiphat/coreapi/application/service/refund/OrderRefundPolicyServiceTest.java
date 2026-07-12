@@ -125,4 +125,44 @@ class OrderRefundPolicyServiceTest {
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.REFUND_DAILY_LIMIT_EXCEEDED);
     }
+
+    @Test
+    @DisplayName("ensureWithinPolicy: throws REFUND_PERIOD_EXPIRED")
+    void ensureWithinPolicy_throwsPeriodExpired() {
+        UUID customerId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder()
+                .id(UUID.randomUUID())
+                .createdAt(LocalDateTime.now().minusDays(30))
+                .build();
+
+        when(refundRequestRepositoryPort.countByRequestedByAndCreatedAtFrom(eq(customerId), any()))
+                .thenReturn(0L);
+
+        assertThatThrownBy(() -> policyService.ensureWithinPolicy(order, customerId))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_PERIOD_EXPIRED);
+    }
+
+    @Test
+    @DisplayName("evaluate: uses System_Config MAX_REFUND_REQUESTS_PER_DAY value")
+    void evaluate_readsConfiguredDailyLimit() {
+        when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.MAX_REFUND_REQUESTS_PER_DAY.name()))
+                .thenReturn(Optional.of(SystemConfigModel.builder().configValue("5").build()));
+
+        UUID customerId = UUID.randomUUID();
+        OrderModel order = OrderModel.builder()
+                .id(UUID.randomUUID())
+                .createdAt(LocalDateTime.now().minusDays(1))
+                .build();
+        when(refundRequestRepositoryPort.countByRequestedByAndCreatedAtFrom(eq(customerId), any()))
+                .thenReturn(4L);
+
+        var evaluation = policyService.evaluate(order, customerId);
+
+        assertThat(evaluation.eligible()).isTrue();
+        assertThat(evaluation.maxRefundRequestsPerDay()).isEqualTo(5);
+        assertThat(evaluation.refundRequestsSubmittedToday()).isEqualTo(4L);
+        assertThat(evaluation.dailyLimitReached()).isFalse();
+    }
 }
