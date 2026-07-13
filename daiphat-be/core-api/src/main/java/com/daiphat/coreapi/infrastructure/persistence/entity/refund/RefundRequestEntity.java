@@ -76,6 +76,13 @@ public class RefundRequestEntity {
     @Column(name = "attempt_number", nullable = false)
     private int attemptNumber;
 
+    @Column(name = "retry_count", nullable = false)
+    @Builder.Default
+    private int retryCount = 0;
+
+    @Column(name = "operator_note", columnDefinition = "TEXT")
+    private String operatorNote;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by")
     private UserEntity reviewedBy;

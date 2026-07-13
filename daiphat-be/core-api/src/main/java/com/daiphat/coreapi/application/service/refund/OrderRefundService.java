@@ -281,6 +281,7 @@ public class OrderRefundService implements OrderRefundServicePort {
                 .orderId(refund.getOrderId())
                 .orderCode(orderCode)
                 .status(refund.getStatus())
+                .retryCount(refund.getRetryCount())
                 .build());
     }
 }

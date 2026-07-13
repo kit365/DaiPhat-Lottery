@@ -22,6 +22,9 @@ import java.util.UUID;
 @AllArgsConstructor
 public class RefundRequestModel {
 
+    public static final String MANUAL_RESOLUTION_NOTE =
+            "Vượt quá số lần nhập lại. Vui lòng mang CCCD đến quầy hỗ trợ hoặc liên hệ với CSKH để được hỗ trợ trong thời gian sớm nhất!";
+
     private Long id;
     private RefundType refundType;
     /**
@@ -50,6 +53,11 @@ public class RefundRequestModel {
     @Builder.Default
     private int attemptNumber = 1;
 
+    @Builder.Default
+    private int retryCount = 0;
+
+    private String operatorNote;
+
     private UUID reviewedBy;
     private LocalDateTime reviewedAt;
     private LocalDateTime createdAt;
@@ -69,6 +77,9 @@ public class RefundRequestModel {
         if (this.attemptNumber <= 0) {
             this.attemptNumber = 1;
         }
+        if (this.retryCount < 0) {
+            this.retryCount = 0;
+        }
     }
 
     public void initializeForAutoApprovedCancel() {
@@ -76,6 +87,7 @@ public class RefundRequestModel {
         this.fundSource = RefundFundSource.COMPANY_FUND;
         this.reimburseStatus = ReimburseStatus.NONE;
         this.attemptNumber = 1;
+        this.retryCount = 0;
     }
 
     /** Staff incident cancel: order already cancelled; wait for customer bank account. */
@@ -86,6 +98,8 @@ public class RefundRequestModel {
         this.fundSource = RefundFundSource.COMPANY_FUND;
         this.reimburseStatus = ReimburseStatus.NONE;
         this.attemptNumber = 1;
+        this.retryCount = 0;
+        this.operatorNote = null;
     }
 
     /** Customer/staff attaches bank while waiting for STK → ready for payout. */
@@ -96,6 +110,31 @@ public class RefundRequestModel {
         }
         this.bankAccountId = bankAccountId;
         this.status = RefundRequestStatus.READY_TO_PAY;
+        this.operatorNote = null;
+    }
+
+    /**
+     * Staff requests customer to correct bank info after a failed transfer attempt.
+     * Increments {@code retryCount}; moves to WAITING_FOR_INFO or MANUAL_RESOLUTION.
+     */
+    public void requestBankInfoCorrection(String note, int maxRetry) {
+        if (this.status != RefundRequestStatus.READY_TO_PAY && this.status != RefundRequestStatus.APPROVED) {
+            throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
+        }
+        if (note == null || note.isBlank()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Vui lòng nhập ghi chú cho khách hàng.");
+        }
+        if (maxRetry <= 0) {
+            maxRetry = 3;
+        }
+        this.retryCount = this.retryCount + 1;
+        if (this.retryCount >= maxRetry) {
+            this.status = RefundRequestStatus.MANUAL_RESOLUTION;
+            this.operatorNote = MANUAL_RESOLUTION_NOTE;
+            return;
+        }
+        this.status = RefundRequestStatus.WAITING_FOR_INFO;
+        this.operatorNote = note.trim();
     }
 
     /** Marks refund as paid. Payout evidence is stored on the related Transaction. */
