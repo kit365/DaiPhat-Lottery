@@ -101,8 +101,6 @@ class CustomerOrderRefundWorkflowTest {
                 .thenReturn(Optional.of(SystemConfigModel.builder().configValue("30").build()));
         lenient().when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.MAX_REFUND_REQUESTS_PER_DAY.name()))
                 .thenReturn(Optional.of(SystemConfigModel.builder().configValue("3").build()));
-        lenient().when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.REFUND_REQUEST_ALLOWED_DAYS.name()))
-                .thenReturn(Optional.of(SystemConfigModel.builder().configValue("7").build()));
         lenient().when(refundRequestRepositoryPort.countByRequestedByAndCreatedAtFrom(any(), any())).thenReturn(0L);
     }
 
@@ -129,7 +127,6 @@ class CustomerOrderRefundWorkflowTest {
         var eligibility = orderRefundService.getRefundEligibility(orderId, customerId);
         assertThat(eligibility.eligible()).isTrue();
         assertThat(eligibility.dailyLimitReached()).isFalse();
-        assertThat(eligibility.refundPeriodExpired()).isFalse();
 
         orderRefundService.refundPaidOrder(
                 orderId, customerId, new CreateOrderRefundRequest("Đặt nhầm đơn", 9L));

@@ -36,7 +36,7 @@ export function isRefundSubmitBlocked(input: {
     isEligibilityError?: boolean;
     eligibility?: Pick<
         OrderRefundEligibilityResponse,
-        'eligible' | 'dailyLimitReached' | 'refundPeriodExpired' | 'reason'
+        'eligible' | 'dailyLimitReached' | 'reason'
     > | null;
 }): boolean {
     if (input.isExpired) return true;
@@ -51,7 +51,7 @@ export function resolveRefundBlockedMessage(input: {
     isEligibilityError?: boolean;
     eligibility?: Pick<
         OrderRefundEligibilityResponse,
-        'eligible' | 'dailyLimitReached' | 'refundPeriodExpired' | 'reason'
+        'eligible' | 'dailyLimitReached' | 'reason'
     > | null;
 }): string | null {
     if (input.isEligibilityError) {
@@ -59,9 +59,6 @@ export function resolveRefundBlockedMessage(input: {
     }
     if (input.eligibility?.dailyLimitReached) {
         return 'Bạn đã đạt giới hạn số lần gửi yêu cầu hoàn tiền trong ngày.';
-    }
-    if (input.eligibility?.refundPeriodExpired) {
-        return 'Đã quá thời hạn gửi yêu cầu hoàn tiền cho đơn hàng này.';
     }
     if (input.isExpired || input.eligibility?.eligible === false) {
         return input.eligibility?.reason

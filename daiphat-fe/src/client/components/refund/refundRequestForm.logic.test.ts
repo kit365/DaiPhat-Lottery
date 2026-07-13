@@ -64,7 +64,7 @@ describe('RefundRequestModal form logic', () => {
         });
     });
 
-    describe('disabled states — daily limit / period expired / countdown', () => {
+    describe('disabled states — daily limit / countdown', () => {
         it('blocks submit when countdown expired', () => {
             expect(
                 isRefundSubmitBlocked({
@@ -95,28 +95,6 @@ describe('RefundRequestModal form logic', () => {
                     },
                 })
             ).toContain('giới hạn');
-        });
-
-        it('blocks submit when refund period expired', () => {
-            expect(
-                isRefundSubmitBlocked({
-                    isExpired: false,
-                    eligibility: {
-                        eligible: false,
-                        refundPeriodExpired: true,
-                    },
-                })
-            ).toBe(true);
-
-            expect(
-                resolveRefundBlockedMessage({
-                    isExpired: false,
-                    eligibility: {
-                        eligible: false,
-                        refundPeriodExpired: true,
-                    },
-                })
-            ).toContain('thời hạn');
         });
 
         it('allows submit when eligibility is open and countdown active', () => {

@@ -138,10 +138,7 @@ public class OrderRefundService implements OrderRefundServicePort {
                 totalRefundAmount,
                 policy.maxRefundRequestsPerDay(),
                 policy.refundRequestsSubmittedToday(),
-                policy.refundRequestAllowedDays(),
-                policy.refundPeriodDeadlineAt(),
-                policy.dailyLimitReached(),
-                policy.refundPeriodExpired());
+                policy.dailyLimitReached());
     }
 
     private List<RefundEligibleTicketItemResponse> buildRefundTicketItems(OrderModel order) {
