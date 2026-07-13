@@ -481,6 +481,34 @@ export const RefundDetailPage = () => {
                         <CardContent>
                             {isRefundTransferComplete(refund.status) ? (
                                 <Stack spacing={2}>
+                                    {refund.payoutTransaction?.id != null && (
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary" display="block">Mã giao dịch</Typography>
+                                            <Typography variant="body2" fontWeight={700} sx={{ mt: 0.5 }}>
+                                                #{refund.payoutTransaction.id}
+                                            </Typography>
+                                        </Box>
+                                    )}
+                                    {refund.payoutTransaction?.refundRequestId != null && (
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary" display="block">Yêu cầu hoàn tiền</Typography>
+                                            <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
+                                                #{refund.payoutTransaction.refundRequestId}
+                                            </Typography>
+                                        </Box>
+                                    )}
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary" display="block">Loại giao dịch</Typography>
+                                        <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
+                                            {refund.payoutTransaction?.type === 'REFUND' ? 'Hoàn tiền (REFUND)' : (refund.payoutTransaction?.type || '—')}
+                                        </Typography>
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary" display="block">Số tiền</Typography>
+                                        <Typography variant="body2" fontWeight={700} sx={{ mt: 0.5 }}>
+                                            {(refund.payoutTransaction?.amount ?? refund.refundAmount)?.toLocaleString('vi-VN') ?? '—'}đ
+                                        </Typography>
+                                    </Box>
                                     <Box>
                                         <Typography variant="caption" color="text.secondary" display="block">Người thực hiện</Typography>
                                         <Typography variant="body2" fontWeight={700} sx={{ mt: 0.5 }}>

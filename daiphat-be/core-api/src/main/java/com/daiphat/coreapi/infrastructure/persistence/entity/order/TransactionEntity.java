@@ -3,6 +3,7 @@ package com.daiphat.coreapi.infrastructure.persistence.entity.order;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
+import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -36,8 +37,12 @@ public class TransactionEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
+    @JoinColumn(name = "order_id")
     private OrderEntity order;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "refund_request_id")
+    private RefundRequestEntity refundRequest;
 
     @Column(nullable = false, precision = 15)
     private BigDecimal amount;
