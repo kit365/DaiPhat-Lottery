@@ -34,7 +34,8 @@ public class RefundTicketItemResolver {
         return order.getOrderDetails().stream()
                 .filter(detail -> detail.getStatus() == OrderDetailStatus.ACTIVE
                         || detail.getStatus() == OrderDetailStatus.INACTIVE
-                        || detail.getStatus() == OrderDetailStatus.REFUND_PENDING)
+                        || detail.getStatus() == OrderDetailStatus.REFUND_PENDING
+                        || detail.getStatus() == OrderDetailStatus.REFUNDED)
                 .map(detail -> toRefundTicketItem(detail, ticketsById, serialsById))
                 .toList();
     }

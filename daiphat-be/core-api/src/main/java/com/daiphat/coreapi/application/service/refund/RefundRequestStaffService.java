@@ -181,6 +181,11 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         refund.markPaid();
         RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
 
+        OrderModel order = orderRepositoryPort.findById(orderId)
+                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
+        markOrderDetailsRefunded(order, saved.getId());
+        orderRepositoryPort.save(order);
+
         String payoutNote = buildRefundPayoutNote(staffId);
         TransactionModel payout = TransactionModel.builder()
                 .refundRequestId(saved.getId())
@@ -193,14 +198,23 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         publishRefundStatusChanged(saved);
 
-        String orderCode = orderRepositoryPort.findById(orderId)
-                .map(OrderModel::getOrderCode)
-                .orElse(null);
         return toEnrichedResponse(
                 saved,
                 loadBankAccount(saved.getBankAccountId()),
-                orderCode,
+                order.getOrderCode(),
                 orderApplicationMapper.toTransactionResponse(savedPayout));
+    }
+
+    private void markOrderDetailsRefunded(OrderModel order, Long refundRequestId) {
+        if (order.getOrderDetails() == null || refundRequestId == null) {
+            return;
+        }
+        for (OrderDetailModel detail : order.getOrderDetails()) {
+            if (!refundRequestId.equals(detail.getRefundRequestId())) {
+                continue;
+            }
+            detail.markRefunded();
+        }
     }
 
     @Override
@@ -388,14 +402,14 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
     private void cancelOrderForStaffApproval(OrderModel order, String cancelReason) {
         if (order.getOrderType() == OrderType.DIRECT) {
-            order.cancelDirectOrder(cancelReason);
+            order.cancelDirectOrderForRefund(cancelReason);
             return;
         }
         if (order.getStatus() == OrderStatus.PAID) {
             order.cancelByCustomerRefund(cancelReason);
             return;
         }
-        order.cancelAfterPayment(cancelReason);
+        order.cancelAfterPaymentForRefund(cancelReason);
     }
 
     private void releaseSoldTickets(OrderModel order) {
