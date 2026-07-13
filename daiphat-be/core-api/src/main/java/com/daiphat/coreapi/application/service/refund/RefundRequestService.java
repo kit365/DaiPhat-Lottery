@@ -24,7 +24,6 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
-import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.refund.RefundRequestModel;
@@ -220,7 +219,7 @@ public class RefundRequestService implements RefundRequestServicePort {
             UserBankAccountModel bankAccount,
             Map<UUID, String> orderCodesById) {
         String orderCode = resolveOrderCode(model.getOrderId(), orderCodesById);
-        TransactionResponse payout = loadPayoutTransaction(model.getOrderId());
+        TransactionResponse payout = loadPayoutTransaction(model);
         return refundApplicationMapper.enrichResponse(
                 model,
                 bankAccount,
@@ -231,11 +230,11 @@ public class RefundRequestService implements RefundRequestServicePort {
                 payout);
     }
 
-    private TransactionResponse loadPayoutTransaction(UUID orderId) {
-        if (orderId == null) {
+    private TransactionResponse loadPayoutTransaction(RefundRequestModel refund) {
+        if (refund == null || refund.getId() == null) {
             return null;
         }
-        return transactionRepositoryPort.findLatestByOrderIdAndType(orderId, TransactionType.REFUND)
+        return transactionRepositoryPort.findLatestByRefundRequestId(refund.getId())
                 .map(orderApplicationMapper::toTransactionResponse)
                 .orElse(null);
     }

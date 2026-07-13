@@ -13,6 +13,7 @@ import java.util.UUID;
 public record TransactionResponse(
         Long id,
         UUID orderId,
+        Long refundRequestId,
         BigDecimal amount,
         PaymentGateway gateway,
         Long gatewayOrderCode,

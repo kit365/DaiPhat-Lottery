@@ -18,7 +18,9 @@ export enum TransactionType {
 
 export interface TransactionResponse {
     id: number;
-    orderId: string;
+    /** Present for payment transactions; null/omitted for refund payouts (linked via refundRequestId). */
+    orderId?: string;
+    refundRequestId?: number;
     amount: number;
     gateway: PaymentGateway;
     gatewayOrderCode: number;

@@ -162,6 +162,7 @@ public class OrderPersistenceMapper {
         TransactionEntity entity = new TransactionEntity();
         entity.setId(model.getId());
         entity.setOrder(order);
+        entity.setRefundRequest(refundRequestRef(model.getRefundRequestId()));
         entity.setAmount(model.getAmount());
         entity.setGateway(model.getGateway());
         entity.setGatewayOrderCode(model.getGatewayOrderCode());
@@ -187,6 +188,7 @@ public class OrderPersistenceMapper {
         return TransactionModel.builder()
                 .id(entity.getId())
                 .orderId(entity.getOrder() != null ? entity.getOrder().getId() : null)
+                .refundRequestId(entity.getRefundRequest() != null ? entity.getRefundRequest().getId() : null)
                 .amount(entity.getAmount())
                 .gateway(entity.getGateway())
                 .gatewayOrderCode(entity.getGatewayOrderCode())

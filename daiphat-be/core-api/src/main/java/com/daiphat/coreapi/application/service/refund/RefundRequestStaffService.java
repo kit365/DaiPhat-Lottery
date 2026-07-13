@@ -131,7 +131,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         UserModel customer = userRepositoryPort.findById(request.getRequestedBy()).orElse(null);
         String reviewerName = resolveUserName(request.getReviewedBy());
-        TransactionResponse payoutTransaction = loadPayoutTransaction(orderId);
+        TransactionResponse payoutTransaction = loadPayoutTransaction(request);
         String transferrerName = payoutTransaction != null
                 ? resolveUserName(payoutTransaction.paymentBy())
                 : null;
@@ -188,7 +188,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         String payoutNote = buildRefundPayoutNote(staffId);
         TransactionModel payout = TransactionModel.builder()
-                .orderId(orderId)
+                .refundRequestId(saved.getId())
                 .amount(saved.getRefundAmount())
                 .type(TransactionType.REFUND)
                 .build();
@@ -363,7 +363,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             UserBankAccountModel bankAccount,
             String orderCode
     ) {
-        return toEnrichedResponse(model, bankAccount, orderCode, loadPayoutTransaction(model.getOrderId()));
+        return toEnrichedResponse(model, bankAccount, orderCode, loadPayoutTransaction(model));
     }
 
     private RefundRequestResponse toEnrichedResponse(
@@ -383,11 +383,11 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 payoutTransaction);
     }
 
-    private TransactionResponse loadPayoutTransaction(UUID orderId) {
-        if (orderId == null) {
+    private TransactionResponse loadPayoutTransaction(RefundRequestModel refund) {
+        if (refund == null || refund.getId() == null) {
             return null;
         }
-        return transactionRepositoryPort.findLatestByOrderIdAndType(orderId, TransactionType.REFUND)
+        return transactionRepositoryPort.findLatestByRefundRequestId(refund.getId())
                 .map(orderApplicationMapper::toTransactionResponse)
                 .orElse(null);
     }
@@ -577,9 +577,9 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private String buildRefundPayoutNote(UUID staffId) {
         String employeeName = resolveUserName(staffId);
         if (employeeName == null || employeeName.isBlank()) {
-            employeeName = "Staff";
+            employeeName = "không xác định";
         }
-        return "Refund request processed by " + employeeName.trim() + ".";
+        return "Yêu cầu hoàn tiền đã được xử lý chuyển khoản bởi nhân viên " + employeeName.trim() + ".";
     }
 
     private UserBankAccountModel loadBankAccount(Long bankAccountId) {
