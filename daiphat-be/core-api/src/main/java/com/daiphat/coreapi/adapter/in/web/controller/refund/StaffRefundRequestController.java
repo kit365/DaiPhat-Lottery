@@ -4,6 +4,7 @@ import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
+import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestAdminDetailResponse;
@@ -72,6 +73,17 @@ public class StaffRefundRequestController {
         return ApiResponse.success(
                 "Xác nhận chuyển khoản hoàn tiền thành công.",
                 refundRequestStaffServicePort.markTransferred(id, principal.getId(), request));
+    }
+
+    @PatchMapping(ID_PATH + "/request-bank-info-update")
+    @PreAuthorize("hasAuthority('refund:process')")
+    public ApiResponse<RefundRequestResponse> requestBankInfoUpdate(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody RequestBankInfoUpdateRequest request) {
+        return ApiResponse.success(
+                "Đã yêu cầu khách hàng cập nhật thông tin tài khoản ngân hàng.",
+                refundRequestStaffServicePort.requestBankInfoUpdate(id, principal.getId(), request));
     }
 
     @PatchMapping(ID_PATH + "/bank-account")

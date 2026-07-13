@@ -28,6 +28,9 @@ public record RefundRequestResponse(
         RefundFundSource fundSource,
         ReimburseStatus reimburseStatus,
         int attemptNumber,
+        int retryCount,
+        String operatorNote,
+        Integer maxRefundBankInfoRetry,
         UUID reviewedBy,
         LocalDateTime reviewedAt,
         /** Refund payout transaction holding paymentEvidenceUrl / paymentBy / note / paidAt. */

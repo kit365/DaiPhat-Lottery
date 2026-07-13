@@ -30,7 +30,7 @@ public class RefundRequestEventListener {
 
         log.info("Handling RefundRequestStatusChangedEvent for refundId: {}", event.refundRequestId());
 
-        String title = resolveTitle(event.status());
+        String title = resolveTitle(event);
         String content = resolveContent(event);
 
         NotificationModel notification = NotificationModel.builder()
@@ -46,11 +46,14 @@ public class RefundRequestEventListener {
         notificationService.createNotification(notification);
     }
 
-    private String resolveTitle(RefundRequestStatus status) {
-        return switch (status) {
-            case WAITING_FOR_INFO -> "Cần cung cấp tài khoản nhận hoàn tiền";
+    private String resolveTitle(RefundRequestStatusChangedEvent event) {
+        return switch (event.status()) {
+            case WAITING_FOR_INFO -> event.retryCount() > 0
+                    ? "Cần cập nhật tài khoản nhận hoàn tiền"
+                    : "Cần cung cấp tài khoản nhận hoàn tiền";
             case APPROVED, READY_TO_PAY -> "Yêu cầu hoàn tiền chờ chuyển khoản";
             case PAID -> "Hoàn tiền đã được chuyển";
+            case MANUAL_RESOLUTION -> "Yêu cầu hoàn tiền cần hỗ trợ tại quầy";
             case EXPIRED -> "Yêu cầu hoàn tiền đã hết hạn";
             default -> "Cập nhật yêu cầu hoàn tiền";
         };
@@ -59,12 +62,19 @@ public class RefundRequestEventListener {
     private String resolveContent(RefundRequestStatusChangedEvent event) {
         String orderLabel = resolveOrderLabel(event);
         return switch (event.status()) {
-            case WAITING_FOR_INFO -> "Đơn hàng #" + orderLabel
+            case WAITING_FOR_INFO -> event.retryCount() > 0
+                    ? "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
+                    + " chưa thể chuyển khoản do thông tin tài khoản ngân hàng không hợp lệ. "
+                    + "Vui lòng cập nhật tài khoản và gửi lại yêu cầu."
+                    : "Đơn hàng #" + orderLabel
                     + " đã được hủy do sự cố. Vui lòng cung cấp tài khoản ngân hàng để nhận hoàn tiền.";
             case APPROVED, READY_TO_PAY -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
                     + " đang chờ chuyển khoản.";
             case PAID -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
                     + " đã được chuyển khoản thành công.";
+            case MANUAL_RESOLUTION -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
+                    + " đã vượt quá số lần cập nhật tài khoản. "
+                    + "Vui lòng mang CCCD đến quầy hỗ trợ hoặc liên hệ CSKH để được hỗ trợ.";
             case EXPIRED -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
                     + " đã quá hạn xử lý. Vui lòng liên hệ bộ phận hỗ trợ nếu cần trợ giúp.";
             default -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel + " đã được cập nhật.";

@@ -17,6 +17,7 @@ import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
+import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
@@ -24,10 +25,12 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
+import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.refund.RefundRequestModel;
 import com.daiphat.coreapi.domain.model.refund.UserBankAccountModel;
+import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
@@ -62,6 +65,7 @@ public class RefundRequestService implements RefundRequestServicePort {
     private final OrderApplicationMapper orderApplicationMapper;
     private final OrderRefundGraceService orderRefundGraceService;
     private final OrderRefundPolicyService orderRefundPolicyService;
+    private final SystemConfigRepositoryPort systemConfigRepositoryPort;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -227,7 +231,22 @@ public class RefundRequestService implements RefundRequestServicePort {
                 null,
                 null,
                 null,
-                payout);
+                payout,
+                getMaxRefundBankInfoRetry());
+    }
+
+    private int getMaxRefundBankInfoRetry() {
+        String fallback = SystemConfigEnum.MAX_REFUND_BANK_INFO_RETRY.getDefaultValue();
+        String raw = systemConfigRepositoryPort
+                .findActiveByConfigKey(SystemConfigEnum.MAX_REFUND_BANK_INFO_RETRY.name())
+                .map(SystemConfigModel::getConfigValue)
+                .orElse(fallback);
+        try {
+            int value = Integer.parseInt(raw.trim());
+            return value > 0 ? value : Integer.parseInt(fallback);
+        } catch (NumberFormatException ex) {
+            return Integer.parseInt(fallback);
+        }
     }
 
     private TransactionResponse loadPayoutTransaction(RefundRequestModel refund) {
@@ -262,6 +281,7 @@ public class RefundRequestService implements RefundRequestServicePort {
                 .orderId(refund.getOrderId())
                 .orderCode(orderCode)
                 .status(refund.getStatus())
+                .retryCount(refund.getRetryCount())
                 .build());
     }
 
