@@ -100,26 +100,40 @@ public class OrderModel {
 
     public void cancelPendingPayment(String cancelReason) {
         ensureStatus(OrderStatus.PENDING_PAYMENT);
-        cancel(cancelReason);
+        cancel(cancelReason, false);
     }
 
     public void cancelAfterPayment(String cancelReason) {
         ensureOrderType(OrderType.ONLINE);
         ensurePaidFulfillmentStatus();
-        cancel(cancelReason);
+        cancel(cancelReason, false);
+    }
+
+    /** Cancels a paid/preparing online order for a refund request; details become REFUND_PENDING. */
+    public void cancelAfterPaymentForRefund(String cancelReason) {
+        ensureOrderType(OrderType.ONLINE);
+        ensurePaidFulfillmentStatus();
+        cancel(cancelReason, true);
     }
 
     public void cancelByCustomerRefund(String cancelReason) {
         if (this.status != OrderStatus.PAID) {
             throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
         }
-        cancel(cancelReason);
+        cancel(cancelReason, true);
     }
 
     public void cancelDirectOrder(String cancelReason) {
         ensureOrderType(OrderType.DIRECT);
         ensurePaidFulfillmentStatus();
-        cancel(cancelReason);
+        cancel(cancelReason, false);
+    }
+
+    /** Cancels a direct order for a refund request; details become REFUND_PENDING. */
+    public void cancelDirectOrderForRefund(String cancelReason) {
+        ensureOrderType(OrderType.DIRECT);
+        ensurePaidFulfillmentStatus();
+        cancel(cancelReason, true);
     }
 
     public boolean hasApprovedRefund() {
@@ -143,12 +157,16 @@ public class OrderModel {
         return getCompletedTransactionAmount().compareTo(this.totalAmount) == 0;
     }
 
-    private void cancel(String cancelReason) {
+    private void cancel(String cancelReason, boolean forRefund) {
         this.status = OrderStatus.CANCELLED;
         this.cancelReason = cancelReason;
         this.cancelledAt = LocalDateTime.now();
         if (this.orderDetails != null) {
-            this.orderDetails.forEach(OrderDetailModel::markInactive);
+            if (forRefund) {
+                this.orderDetails.forEach(OrderDetailModel::markRefundPending);
+            } else {
+                this.orderDetails.forEach(OrderDetailModel::markInactive);
+            }
         }
     }
 
