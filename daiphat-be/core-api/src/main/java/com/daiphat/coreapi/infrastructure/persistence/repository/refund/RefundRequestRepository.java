@@ -40,15 +40,4 @@ public interface RefundRequestRepository extends JpaRepository<RefundRequestEnti
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from RefundRequestEntity r where r.id in :ids")
     int deleteByIdIn(@Param("ids") Collection<Long> ids);
-
-    @Query("""
-            select r
-            from RefundRequestEntity r
-            where r.status in :statuses
-              and r.createdAt <= :createdBefore
-            """)
-    List<RefundRequestEntity> findByStatusInAndCreatedAtBefore(
-            @Param("statuses") Collection<RefundRequestStatus> statuses,
-            @Param("createdBefore") LocalDateTime createdBefore
-    );
 }

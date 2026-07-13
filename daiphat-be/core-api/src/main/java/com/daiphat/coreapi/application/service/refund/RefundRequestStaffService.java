@@ -56,7 +56,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -70,11 +69,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class RefundRequestStaffService implements RefundRequestStaffServicePort {
-
-    private static final EnumSet<RefundRequestStatus> EXPIRABLE_STATUSES = EnumSet.of(
-            RefundRequestStatus.WAITING_FOR_INFO,
-            RefundRequestStatus.APPROVED,
-            RefundRequestStatus.READY_TO_PAY);
 
     private static final EnumSet<OrderStatus> STAFF_APPROVABLE_ORDER_STATUSES = EnumSet.of(
             OrderStatus.PAID,
@@ -126,7 +120,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     @Transactional
     public RefundRequestAdminDetailResponse getByIdForStaff(Long id) {
         RefundRequestModel request = getRequestOrThrow(id);
-        expireSilentlyIfOverdue(request);
 
         UserBankAccountModel bankAccount = loadBankAccount(request.getBankAccountId());
         UUID orderId = resolveOrderId(request);
@@ -177,9 +170,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         log.info("Staff {} marking refund request {} as transferred", staffId, id);
 
         RefundRequestModel refund = getRequestOrThrow(id);
-        if (refund.getStatus() == RefundRequestStatus.EXPIRED) {
-            throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_STATUS, "Yêu cầu hoàn tiền đã hết hạn xử lý.");
-        }
         if (refund.getBankAccountId() == null) {
             throw new DomainException(
                     ErrorCode.REFUND_REQUEST_INVALID_STATUS,
@@ -314,50 +304,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 request.fileName(),
                 request.contentType(),
                 StorageFolderConstants.REFUND_TRANSFER_EVIDENCE_FOLDER));
-    }
-
-    @Override
-    @Transactional
-    public int expireOverdueRequests() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime createdBefore = refundProcessingDeadlineService.computeExpiryThreshold(now);
-        List<RefundRequestModel> candidates = refundRequestRepositoryPort.findExpirableByStatusesAndCreatedBefore(
-                EXPIRABLE_STATUSES,
-                createdBefore);
-
-        int expiredCount = 0;
-        for (RefundRequestModel refund : candidates) {
-            if (!refundProcessingDeadlineService.isOverdue(refund)) {
-                continue;
-            }
-            refund.expire();
-            RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
-            publishRefundStatusChanged(saved);
-            expiredCount++;
-        }
-        return expiredCount;
-    }
-
-    private void expireIfOverdue(RefundRequestModel refund) {
-        if (!expireSilentlyIfOverdue(refund)) {
-            return;
-        }
-        throw new DomainException(
-                ErrorCode.REFUND_REQUEST_INVALID_STATUS,
-                "Yêu cầu hoàn tiền đã quá hạn xử lý và được đánh dấu hết hạn.");
-    }
-
-    private boolean expireSilentlyIfOverdue(RefundRequestModel refund) {
-        if (!EXPIRABLE_STATUSES.contains(refund.getStatus())) {
-            return false;
-        }
-        if (!refundProcessingDeadlineService.isOverdue(refund)) {
-            return false;
-        }
-        refund.expire();
-        RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
-        publishRefundStatusChanged(saved);
-        return true;
     }
 
     private RefundRequestModel getRequestOrThrow(Long id) {
@@ -598,13 +544,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                     "Đã chuyển khoản",
                     detail,
                     payoutTransaction.paidAt()));
-        }
-
-        if (request.getStatus() == RefundRequestStatus.EXPIRED) {
-            history.add(new RefundProcessingHistoryItem(
-                    "Hết hạn xử lý",
-                    "Yêu cầu đã quá hạn xử lý theo cấu hình hệ thống.",
-                    request.getUpdatedAt() != null ? request.getUpdatedAt() : LocalDateTime.now()));
         }
 
         history.sort(Comparator.comparing(

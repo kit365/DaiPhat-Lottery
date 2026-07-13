@@ -32,6 +32,4 @@ public interface RefundRequestStaffServicePort {
     RefundRequestResponse attachBankAccount(Long id, UUID staffId, AttachRefundBankAccountRequest request);
 
     StorageResult uploadTransferEvidence(UploadRequest request);
-
-    int expireOverdueRequests();
 }

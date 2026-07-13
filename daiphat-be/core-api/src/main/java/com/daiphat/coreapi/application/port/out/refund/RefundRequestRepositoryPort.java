@@ -53,9 +53,4 @@ public interface RefundRequestRepositoryPort {
     Optional<UUID> findOrderIdByRefundRequestId(Long refundRequestId);
 
     long countByRequestedByAndCreatedAtFrom(UUID requestedBy, java.time.LocalDateTime createdFrom);
-
-    List<RefundRequestModel> findExpirableByStatusesAndCreatedBefore(
-            Collection<RefundRequestStatus> statuses,
-            java.time.LocalDateTime createdBefore
-    );
 }

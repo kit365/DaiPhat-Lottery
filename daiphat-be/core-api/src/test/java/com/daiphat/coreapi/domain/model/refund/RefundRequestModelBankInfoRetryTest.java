@@ -60,19 +60,6 @@ class RefundRequestModelBankInfoRetryTest {
     }
 
     @Test
-    @DisplayName("expire: rejects MANUAL_RESOLUTION")
-    void expire_rejectsManualResolution() {
-        RefundRequestModel refund = RefundRequestModel.builder()
-                .status(RefundRequestStatus.MANUAL_RESOLUTION)
-                .build();
-
-        assertThatThrownBy(refund::expire)
-                .isInstanceOf(DomainException.class)
-                .extracting(ex -> ((DomainException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
-    }
-
-    @Test
     @DisplayName("requestBankInfoCorrection: rejects blank note")
     void requestBankInfoCorrection_rejectsBlankNote() {
         RefundRequestModel refund = RefundRequestModel.builder()

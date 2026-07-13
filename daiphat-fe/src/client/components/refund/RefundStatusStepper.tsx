@@ -10,33 +10,6 @@ export const RefundStatusStepper: React.FC<RefundStatusStepperProps> = ({
     status,
     requestRole,
 }) => {
-    if (status === RefundRequestStatus.CANCELLED) {
-        return (
-            <div className="bg-[#F4F6F8] rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-                <div className="w-14 h-14 rounded-full bg-[#919EAB] text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
-                    <i className="fa-solid fa-ban"></i>
-                </div>
-                <div>
-                    <h3 className="text-[#637381] font-bold text-[18px]">Yêu cầu đã bị hủy</h3>
-                    <p className="text-[#637381] text-[14px] mt-1.5 font-medium">Bạn đã hủy yêu cầu hoàn tiền này.</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (status === RefundRequestStatus.EXPIRED) {
-        return (
-            <div className="bg-[#F4F6F8] rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-                <div className="w-14 h-14 rounded-full bg-[#919EAB] text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
-                    <i className="fa-solid fa-hourglass-end"></i>
-                </div>
-                <div>
-                    <h3 className="text-[#637381] font-bold text-[18px]">Yêu cầu đã hết hạn</h3>
-                </div>
-            </div>
-        );
-    }
-
     if (status === RefundRequestStatus.MANUAL_RESOLUTION) {
         return (
             <div className="bg-[#FFF5F5] rounded-[20px] p-6 lg:p-8 border border-[#FECACA] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">

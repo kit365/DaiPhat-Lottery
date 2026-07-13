@@ -10,8 +10,6 @@ export enum RefundRequestStatus {
     TRANSFERRED = 'TRANSFERRED',
     PAID = 'PAID',
     MANUAL_RESOLUTION = 'MANUAL_RESOLUTION',
-    EXPIRED = 'EXPIRED',
-    CANCELLED = 'CANCELLED'
 }
 
 export enum RefundType {
@@ -297,8 +295,6 @@ export const REFUND_STATUS_LABELS: Record<RefundRequestStatus, string> = {
     [RefundRequestStatus.TRANSFERRED]: 'Đã chuyển khoản',
     [RefundRequestStatus.PAID]: 'Đã chuyển khoản',
     [RefundRequestStatus.MANUAL_RESOLUTION]: 'Cần xử lý thủ công',
-    [RefundRequestStatus.EXPIRED]: 'Hết hạn',
-    [RefundRequestStatus.CANCELLED]: 'Đã hủy'
 };
 
 export interface AttachRefundBankAccountRequest {
