@@ -36,11 +36,6 @@ export const refundService = {
         return response.data;
     },
 
-    cancel: async (id: number): Promise<ApiResponse<RefundRequestResponse>> => {
-        const response = await apiApp.patch(`${BASE_URL}/${id}/cancel`);
-        return response.data;
-    },
-
     attachBankAccount: async (
         id: number,
         data: { bankAccountId: number }

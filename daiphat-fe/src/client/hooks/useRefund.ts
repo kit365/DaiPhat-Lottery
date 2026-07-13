@@ -111,26 +111,6 @@ export const useGetOrderRefundEligibility = (orderId: string, enabled = true) =>
     });
 };
 
-export const useCancelRefund = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: (id: number) => refundService.cancel(id),
-        onSuccess: (response, id) => {
-            if (response.success) {
-                toast.success(response.message || 'Hủy yêu cầu hoàn tiền thành công');
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_REFUNDS] });
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_REFUND_DETAIL, id] });
-            } else {
-                toast.error(response.message || 'Có lỗi xảy ra khi hủy yêu cầu');
-            }
-        },
-        onError: (error: any) => {
-            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
-        }
-    });
-};
-
 export const useAttachRefundBankAccount = () => {
     const queryClient = useQueryClient();
 
