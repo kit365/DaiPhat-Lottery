@@ -37,6 +37,22 @@ export const RefundStatusStepper: React.FC<RefundStatusStepperProps> = ({
         );
     }
 
+    if (status === RefundRequestStatus.MANUAL_RESOLUTION) {
+        return (
+            <div className="bg-[#FFF5F5] rounded-[20px] p-6 lg:p-8 border border-[#FECACA] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+                <div className="w-14 h-14 rounded-full bg-[#C62828] text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
+                    <i className="fa-solid fa-headset"></i>
+                </div>
+                <div>
+                    <h3 className="text-[#C62828] font-bold text-[18px]">Cần xử lý thủ công</h3>
+                    <p className="text-[#637381] text-[14px] mt-1.5 font-medium">
+                        Vui lòng mang CCCD đến quầy hỗ trợ hoặc liên hệ CSKH.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     const isStaffIncidentFlow =
         status === RefundRequestStatus.WAITING_FOR_INFO ||
         ((requestRole === RefundRequestRole.STAFF || requestRole === RefundRequestRole.ADMIN) &&
