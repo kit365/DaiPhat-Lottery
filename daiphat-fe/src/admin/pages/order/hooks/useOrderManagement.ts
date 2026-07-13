@@ -4,11 +4,14 @@ import {
     getOrderDetail,
     updateOrderStatus,
     createOrder,
-    updateOrder
+    updateOrder,
+    handleOrderTicketIncidents,
+    HandleOrderTicketIncidentRequest,
 } from "../../../api/order.api";
 import { useState } from 'react';
 import { OrderFilterParams } from '../../../../types/order.type';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
+import { toast } from 'react-toastify';
 
 export const useAdminOrderList = (initialParams?: OrderFilterParams) => {
     const [filters, setFilters] = useState<OrderFilterParams>({
@@ -157,6 +160,43 @@ export const useUpdateOrder = () => {
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDERS] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDER_DETAIL, variables.id] });
+        },
+    });
+};
+
+export const useHandleOrderTicketIncidents = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({
+            orderId,
+            data,
+        }: {
+            orderId: string;
+            data: HandleOrderTicketIncidentRequest;
+        }) => handleOrderTicketIncidents(orderId, data),
+        onSuccess: (response, variables) => {
+            const results = response?.data?.results || [];
+            results.forEach((item) => {
+                if (item.outcome === 'REPLACED') {
+                    toast.success(
+                        item.message ||
+                            `Đã tự động đổi sang vé ${item.newSerialNumber} cho bộ số ${item.numbers || ''}`
+                    );
+                } else if (item.outcome === 'NO_REPLACEMENT') {
+                    toast.info(
+                        item.message ||
+                            `Vé ${item.numbers || ''} hết thay thế. Hoàn tiền từng phần sẽ được hỗ trợ ở bước tiếp theo.`
+                    );
+                }
+            });
+            if (!results.length && response?.success) {
+                toast.success(response.message || 'Đã xử lý vé sự cố.');
+            }
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDERS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDER_DETAIL, variables.orderId] });
+        },
+        onError: (error: any) => {
+            toast.error(error?.response?.data?.message || error.message || 'Xử lý vé sự cố thất bại');
         },
     });
 };
