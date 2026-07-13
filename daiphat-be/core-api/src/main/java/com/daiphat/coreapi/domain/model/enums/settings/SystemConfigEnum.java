@@ -59,12 +59,6 @@ public enum SystemConfigEnum {
             DataType.INT,
             "3",
             "Số lượng yêu cầu hoàn tiền tối đa mỗi khách hàng được gửi trong một ngày"
-    ),
-    REFUND_REQUEST_ALLOWED_DAYS(
-            ConfigType.REFUND_SETTING,
-            DataType.INT,
-            "7",
-            "Số ngày tối đa kể từ ngày tạo đơn hàng mà khách hàng được phép gửi yêu cầu hoàn tiền"
     );
 
     private final ConfigType configType;

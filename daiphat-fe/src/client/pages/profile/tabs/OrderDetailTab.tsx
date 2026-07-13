@@ -636,8 +636,7 @@ export const OrderDetailTab = () => {
                                 <p className="text-[12px] text-[#637381] mt-1 leading-relaxed">
                                     Bạn có thể yêu cầu hoàn tiền trong{' '}
                                     {eligibility?.graceMinutes ?? order.refundGraceMinutes ?? 30} phút
-                                    kể từ khi thanh toán, và trong vòng{' '}
-                                    {eligibility?.refundRequestAllowedDays ?? 7} ngày kể từ ngày đặt đơn.
+                                    kể từ khi thanh toán.
                                 </p>
                             </div>
                         </div>
@@ -679,18 +678,12 @@ export const OrderDetailTab = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px] text-[#637381] border-t border-[#E5E8EB] pt-3">
+                    <div className="grid grid-cols-1 gap-2 text-[12px] text-[#637381] border-t border-[#E5E8EB] pt-3">
                         <p>
                             Số yêu cầu hôm nay:{' '}
                             <span className="font-semibold text-[#212B36] tabular-nums">
                                 {eligibility?.refundRequestsSubmittedToday ?? 0}/
                                 {eligibility?.maxRefundRequestsPerDay ?? '—'}
-                            </span>
-                        </p>
-                        <p>
-                            Thời hạn yêu cầu:{' '}
-                            <span className="font-semibold text-[#212B36]">
-                                Trong {eligibility?.refundRequestAllowedDays ?? 7} ngày kể từ ngày đặt đơn
                             </span>
                         </p>
                     </div>
@@ -714,13 +707,6 @@ export const OrderDetailTab = () => {
                                         <span className="font-semibold text-[#212B36] tabular-nums">
                                             {eligibility?.refundRequestsSubmittedToday ?? 0}/
                                             {eligibility?.maxRefundRequestsPerDay ?? '—'}
-                                        </span>
-                                    </p>
-                                    <p>
-                                        Thời hạn yêu cầu:{' '}
-                                        <span className="font-semibold text-[#212B36]">
-                                            Trong {eligibility?.refundRequestAllowedDays ?? 7} ngày kể từ ngày đặt
-                                            đơn
                                         </span>
                                     </p>
                                 </div>

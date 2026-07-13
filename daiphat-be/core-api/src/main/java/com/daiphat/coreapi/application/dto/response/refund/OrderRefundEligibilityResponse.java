@@ -21,9 +21,6 @@ public record OrderRefundEligibilityResponse(
         BigDecimal totalRefundAmount,
         Integer maxRefundRequestsPerDay,
         Long refundRequestsSubmittedToday,
-        Integer refundRequestAllowedDays,
-        LocalDateTime refundPeriodDeadlineAt,
-        Boolean dailyLimitReached,
-        Boolean refundPeriodExpired
+        Boolean dailyLimitReached
 ) {
 }
