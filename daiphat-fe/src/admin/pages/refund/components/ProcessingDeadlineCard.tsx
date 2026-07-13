@@ -34,8 +34,7 @@ export const ProcessingDeadlineCard = ({
 
     useEffect(() => {
         if (
-            status === RefundRequestStatus.EXPIRED
-            || processingUrgency === RefundProcessingUrgency.NOT_APPLICABLE
+            processingUrgency === RefundProcessingUrgency.NOT_APPLICABLE
             || secondsLeft <= 0
         ) {
             return;
@@ -48,15 +47,12 @@ export const ProcessingDeadlineCard = ({
         return () => window.clearInterval(timer);
     }, [status, processingDeadlineAt, processingUrgency, secondsLeft]);
 
-    if (
-        processingUrgency === RefundProcessingUrgency.NOT_APPLICABLE
-        && status !== RefundRequestStatus.EXPIRED
-    ) {
+    if (processingUrgency === RefundProcessingUrgency.NOT_APPLICABLE) {
         return null;
     }
 
-    const isExpired = status === RefundRequestStatus.EXPIRED || secondsLeft <= 0;
-    const urgency = isExpired ? RefundProcessingUrgency.OVERDUE : processingUrgency;
+    const isOverdue = secondsLeft <= 0 || processingUrgency === RefundProcessingUrgency.OVERDUE;
+    const urgency = isOverdue ? RefundProcessingUrgency.OVERDUE : processingUrgency;
 
     return (
         <Alert
@@ -80,7 +76,7 @@ export const ProcessingDeadlineCard = ({
                         </Typography>
                     )}
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
-                        {isExpired ? 'Đã quá hạn xử lý' : formatProcessingCountdown(secondsLeft)}
+                        {isOverdue ? 'Đã quá hạn xử lý' : formatProcessingCountdown(secondsLeft)}
                     </Typography>
                 </Box>
                 <RefundProcessingStatusBadge urgency={urgency} />

@@ -15,9 +15,7 @@ public enum RefundRequestStatus implements LabeledEnum {
     @Deprecated
     TRANSFERRED("Đã chuyển khoản"),
     PAID("Đã chuyển khoản"),
-    MANUAL_RESOLUTION("Cần xử lý thủ công"),
-    EXPIRED("Hết hạn"),
-    CANCELLED("Đã hủy");
+    MANUAL_RESOLUTION("Cần xử lý thủ công");
 
     private final String label;
 }

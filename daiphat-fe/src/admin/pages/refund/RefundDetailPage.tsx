@@ -188,8 +188,7 @@ export const RefundDetailPage = () => {
         (refund.status === RefundRequestStatus.APPROVED ||
             refund.status === RefundRequestStatus.READY_TO_PAY) &&
         !!refund.bankAccountId;
-    const isExpired = refund.status === RefundRequestStatus.EXPIRED;
-    const actionsDisabled = isExpired || !isRefundProcessingActionable(refund.status);
+    const actionsDisabled = !isRefundProcessingActionable(refund.status);
     const retryCount = refund.retryCount ?? 0;
     const maxRetry = refund.maxRefundBankInfoRetry ?? 3;
     const canRequestBankUpdate =

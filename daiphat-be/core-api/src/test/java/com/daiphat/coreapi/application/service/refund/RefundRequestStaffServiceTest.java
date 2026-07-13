@@ -348,7 +348,9 @@ class RefundRequestStaffServiceTest {
         when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
                 OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
-        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
+
+        refundRequestStaffService.requestBankInfoUpdate(
                 refundId,
                 staffId,
                 new RequestBankInfoUpdateRequest("STK không khớp tên"));

@@ -54,7 +54,6 @@ public class RefundRequestEventListener {
             case APPROVED, READY_TO_PAY -> "Yêu cầu hoàn tiền chờ chuyển khoản";
             case PAID -> "Hoàn tiền đã được chuyển";
             case MANUAL_RESOLUTION -> "Yêu cầu hoàn tiền cần hỗ trợ tại quầy";
-            case EXPIRED -> "Yêu cầu hoàn tiền đã hết hạn";
             default -> "Cập nhật yêu cầu hoàn tiền";
         };
     }
@@ -75,8 +74,6 @@ public class RefundRequestEventListener {
             case MANUAL_RESOLUTION -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
                     + " đã vượt quá số lần cập nhật tài khoản. "
                     + "Vui lòng mang CCCD đến quầy hỗ trợ hoặc liên hệ CSKH để được hỗ trợ.";
-            case EXPIRED -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel
-                    + " đã quá hạn xử lý. Vui lòng liên hệ bộ phận hỗ trợ nếu cần trợ giúp.";
             default -> "Yêu cầu hoàn tiền cho đơn hàng #" + orderLabel + " đã được cập nhật.";
         };
     }

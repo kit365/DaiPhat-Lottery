@@ -111,15 +111,6 @@ public class RefundRequestRepositoryAdapter implements RefundRequestRepositoryPo
         return refundRequestRepository.countByRequestedBy_IdAndCreatedAtGreaterThanEqual(requestedBy, createdFrom);
     }
 
-    @Override
-    public List<RefundRequestModel> findExpirableByStatusesAndCreatedBefore(
-            Collection<RefundRequestStatus> statuses,
-            java.time.LocalDateTime createdBefore) {
-        return refundRequestRepository.findByStatusInAndCreatedAtBefore(statuses, createdBefore).stream()
-                .map(this::toDomainWithDetails)
-                .toList();
-    }
-
     private RefundRequestModel toDomainWithDetails(
             com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity entity) {
         RefundRequestModel model = refundRequestPersistenceMapper.toDomain(entity);
