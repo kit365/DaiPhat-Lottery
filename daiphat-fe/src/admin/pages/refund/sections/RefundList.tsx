@@ -46,8 +46,7 @@ const STATUS_TABS: { value: string; label: string }[] = [
     { value: 'READY_TO_PAY', label: 'Chờ chuyển khoản' },
     { value: 'PAID', label: 'Đã chuyển khoản' },
     { value: 'MANUAL_RESOLUTION', label: 'Xử lý thủ công' },
-    { value: 'EXPIRED', label: 'Hết hạn' },
-    { value: 'WAITING_FOR_INFO,APPROVED,READY_TO_PAY,PAID,CANCELLED,EXPIRED,MANUAL_RESOLUTION', label: 'Tất cả' },
+    { value: 'WAITING_FOR_INFO,APPROVED,READY_TO_PAY,PAID,MANUAL_RESOLUTION', label: 'Tất cả' },
 ];
 
 const canConfirmTransfer = (refund: RefundRequestResponse) =>
