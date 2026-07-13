@@ -32,4 +32,6 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
     Optional<TransactionEntity> findByGatewayOrderCode(Long gatewayOrderCode);
 
     Optional<TransactionEntity> findFirstByOrder_IdAndTypeOrderByPaidAtDescIdDesc(UUID orderId, TransactionType type);
+
+    Optional<TransactionEntity> findFirstByRefundRequest_IdOrderByPaidAtDescIdDesc(Long refundRequestId);
 }

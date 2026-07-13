@@ -13,5 +13,7 @@ public interface TransactionRepositoryPort {
 
     Optional<TransactionModel> findLatestByOrderIdAndType(UUID orderId, TransactionType type);
 
+    Optional<TransactionModel> findLatestByRefundRequestId(Long refundRequestId);
+
     TransactionModel save(TransactionModel transaction);
 }

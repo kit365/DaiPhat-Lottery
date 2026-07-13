@@ -19,7 +19,10 @@ import java.util.UUID;
 public class TransactionModel {
 
     private Long id;
+    /** Null for refund payouts — those are linked only via {@link #refundRequestId}. */
     private UUID orderId;
+    /** Set for REFUND payout transactions (1 RefundRequest → N Transactions). */
+    private Long refundRequestId;
     private BigDecimal amount;
     private PaymentGateway gateway;
     private Long gatewayOrderCode;
@@ -109,15 +112,20 @@ public class TransactionModel {
     }
 
     /**
-     * Records a staff refund payout against the order (bank transfer evidence).
+     * Records a staff refund payout linked to a RefundRequest (bank transfer evidence).
+     * Refund payouts reference only {@code refundRequestId} — not an order.
      */
     public void markRefundPayoutCompleted(UUID operatorId, String evidenceUrl, String note) {
         if (this.type != TransactionType.REFUND) {
             throw new DomainException(ErrorCode.TRANSACTION_INVALID_STATUS);
         }
+        if (this.refundRequestId == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Refund payout must reference a refund request.");
+        }
         if (evidenceUrl == null || evidenceUrl.isBlank()) {
             throw new DomainException(ErrorCode.INVALID_INPUT);
         }
+        this.orderId = null;
         this.status = TransactionStatus.COMPLETED;
         this.paidAt = LocalDateTime.now();
         this.cancelledAt = null;

@@ -5,6 +5,7 @@ import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.TransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,15 @@ public class TransactionRepositoryAdapter implements TransactionRepositoryPort {
     }
 
     @Override
+    public Optional<TransactionModel> findLatestByRefundRequestId(Long refundRequestId) {
+        if (refundRequestId == null) {
+            return Optional.empty();
+        }
+        return transactionRepository.findFirstByRefundRequest_IdOrderByPaidAtDescIdDesc(refundRequestId)
+                .map(this::toDomain);
+    }
+
+    @Override
     public TransactionModel save(TransactionModel transaction) {
         TransactionEntity entity = toEntity(transaction);
         TransactionEntity saved = transactionRepository.save(entity);
@@ -51,6 +61,15 @@ public class TransactionRepositoryAdapter implements TransactionRepositoryPort {
             OrderEntity order = new OrderEntity();
             order.setId(model.getOrderId());
             entity.setOrder(order);
+        } else {
+            entity.setOrder(null);
+        }
+        if (model.getRefundRequestId() != null) {
+            RefundRequestEntity refundRequest = new RefundRequestEntity();
+            refundRequest.setId(model.getRefundRequestId());
+            entity.setRefundRequest(refundRequest);
+        } else {
+            entity.setRefundRequest(null);
         }
         entity.setAmount(model.getAmount());
         entity.setGateway(model.getGateway());
@@ -77,6 +96,7 @@ public class TransactionRepositoryAdapter implements TransactionRepositoryPort {
         return TransactionModel.builder()
                 .id(entity.getId())
                 .orderId(entity.getOrder() != null ? entity.getOrder().getId() : null)
+                .refundRequestId(entity.getRefundRequest() != null ? entity.getRefundRequest().getId() : null)
                 .amount(entity.getAmount())
                 .gateway(entity.getGateway())
                 .gatewayOrderCode(entity.getGatewayOrderCode())

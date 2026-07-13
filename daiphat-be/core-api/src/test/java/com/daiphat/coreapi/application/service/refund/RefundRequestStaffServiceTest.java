@@ -98,6 +98,9 @@ class RefundRequestStaffServiceTest {
         org.mockito.Mockito.lenient()
                 .when(transactionRepositoryPort.findLatestByOrderIdAndType(any(), any()))
                 .thenReturn(Optional.empty());
+        org.mockito.Mockito.lenient()
+                .when(transactionRepositoryPort.findLatestByRefundRequestId(any()))
+                .thenReturn(Optional.empty());
     }
 
     @Test
@@ -144,9 +147,12 @@ class RefundRequestStaffServiceTest {
         ArgumentCaptor<TransactionModel> txCaptor = ArgumentCaptor.forClass(TransactionModel.class);
         verify(transactionRepositoryPort).save(txCaptor.capture());
         assertThat(txCaptor.getValue().getType()).isEqualTo(TransactionType.REFUND);
+        assertThat(txCaptor.getValue().getRefundRequestId()).isEqualTo(refundId);
+        assertThat(txCaptor.getValue().getOrderId()).isNull();
         assertThat(txCaptor.getValue().getPaymentEvidenceUrl()).isEqualTo("https://evidence.url");
         assertThat(txCaptor.getValue().getPaymentBy()).isEqualTo(staffId);
-        assertThat(txCaptor.getValue().getNote()).isEqualTo("Refund request processed by Nguyen Van A.");
+        assertThat(txCaptor.getValue().getNote())
+                .isEqualTo("Yêu cầu hoàn tiền đã được xử lý chuyển khoản bởi nhân viên Nguyen Van A.");
         verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
     }
 
@@ -213,7 +219,10 @@ class RefundRequestStaffServiceTest {
         assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.PAID);
         ArgumentCaptor<TransactionModel> txCaptor = ArgumentCaptor.forClass(TransactionModel.class);
         verify(transactionRepositoryPort).save(txCaptor.capture());
-        assertThat(txCaptor.getValue().getNote()).isEqualTo("Refund request processed by Tran Thi B.");
+        assertThat(txCaptor.getValue().getRefundRequestId()).isEqualTo(refundId);
+        assertThat(txCaptor.getValue().getOrderId()).isNull();
+        assertThat(txCaptor.getValue().getNote())
+                .isEqualTo("Yêu cầu hoàn tiền đã được xử lý chuyển khoản bởi nhân viên Tran Thi B.");
     }
 
     @Test
