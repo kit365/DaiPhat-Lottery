@@ -138,14 +138,6 @@ public class RefundRequestService implements RefundRequestServicePort {
 
     @Override
     @Transactional
-    public RefundRequestResponse cancel(Long id, UUID userId) {
-        getOwnedRequestOrThrow(id, userId);
-        // Customer refunds are auto READY_TO_PAY with order cancelled / stock released — not cancellable.
-        throw new DomainException(ErrorCode.REFUND_REQUEST_CANNOT_CANCEL);
-    }
-
-    @Override
-    @Transactional
     public RefundRequestResponse attachBankAccount(Long id, UUID userId, AttachRefundBankAccountRequest request) {
         RefundRequestModel refund = getOwnedRequestOrThrow(id, userId);
         UserBankAccountModel bankAccount = userBankAccountRepositoryPort
