@@ -26,7 +26,7 @@ import dayjs from "dayjs";
 import { Title } from "../../components/ui/Title";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { useOrderDetail, useUpdateOrderStatus } from "./hooks/useOrderManagement";
-import { OrderStatus } from "../../../types/order.type";
+import { OrderStatus, resolveOrderDetailStatusBadge } from "../../../types/order.type";
 import { toast } from "react-toastify";
 import { prefixAdmin } from "../../constants/routes";
 import { confirmAction, confirmInputText } from "../../utils/swal";
@@ -503,7 +503,23 @@ export const OrderDetailPage = () => {
                                                             </Typography>
                                                         </TableCell>
                                                         <TableCell>
-                                                            <Chip label="Đã mua" size="small" sx={{ fontWeight: 700, height: 24, fontSize: '0.75rem', borderRadius: '6px', color: "var(--palette-success-dark)", bgcolor: "var(--palette-success-lighter)" }} />
+                                                            {(() => {
+                                                                const badge = resolveOrderDetailStatusBadge(detail.status);
+                                                                return (
+                                                                    <Chip
+                                                                        label={badge.label}
+                                                                        size="small"
+                                                                        sx={{
+                                                                            fontWeight: 700,
+                                                                            height: 24,
+                                                                            fontSize: '0.75rem',
+                                                                            borderRadius: '6px',
+                                                                            color: badge.color,
+                                                                            bgcolor: badge.bgcolor,
+                                                                        }}
+                                                                    />
+                                                                );
+                                                            })()}
                                                         </TableCell>
                                                         <TableCell align="center">
                                                             <Button variant="outlined" size="small" endIcon={<Icon icon="solar:square-top-down-linear" style={{ transform: 'rotate(-45deg)' }} />} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, color: 'var(--palette-success-main)', borderColor: 'var(--palette-success-main)', '&:hover': { bgcolor: 'var(--palette-success-lighter)', borderColor: 'var(--palette-success-main)' } }}>

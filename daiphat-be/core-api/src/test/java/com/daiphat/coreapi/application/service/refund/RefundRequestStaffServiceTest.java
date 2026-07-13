@@ -128,8 +128,20 @@ class RefundRequestStaffServiceTest {
         when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
         when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
-        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
-                OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .id(99L)
+                .orderId(orderId)
+                .refundRequestId(refundId)
+                .status(com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.REFUND_PENDING)
+                .price(BigDecimal.valueOf(20000))
+                .build();
+        OrderModel order = OrderModel.builder()
+                .id(orderId)
+                .orderCode("ORD-001")
+                .orderDetails(List.of(detail))
+                .build();
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(transactionRepositoryPort.save(any(TransactionModel.class))).thenAnswer(inv -> {
             TransactionModel tx = inv.getArgument(0);
             tx.setId(500L);
@@ -152,6 +164,12 @@ class RefundRequestStaffServiceTest {
         ArgumentCaptor<RefundRequestModel> refundCaptor = ArgumentCaptor.forClass(RefundRequestModel.class);
         verify(refundRequestRepositoryPort).save(refundCaptor.capture());
         assertThat(refundCaptor.getValue().getStatus()).isEqualTo(RefundRequestStatus.PAID);
+
+        ArgumentCaptor<OrderModel> orderCaptor = ArgumentCaptor.forClass(OrderModel.class);
+        verify(orderRepositoryPort).save(orderCaptor.capture());
+        assertThat(orderCaptor.getValue().getOrderDetails()).hasSize(1);
+        assertThat(orderCaptor.getValue().getOrderDetails().getFirst().getStatus())
+                .isEqualTo(com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.REFUNDED);
 
         ArgumentCaptor<TransactionModel> txCaptor = ArgumentCaptor.forClass(TransactionModel.class);
         verify(transactionRepositoryPort).save(txCaptor.capture());
@@ -210,6 +228,7 @@ class RefundRequestStaffServiceTest {
         when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
         when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
                 OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(transactionRepositoryPort.save(any(TransactionModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderApplicationMapper.toTransactionResponse(any())).thenReturn(null);
         when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any())).thenReturn(null);

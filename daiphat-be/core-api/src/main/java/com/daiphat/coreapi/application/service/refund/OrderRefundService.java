@@ -225,14 +225,14 @@ public class OrderRefundService implements OrderRefundServicePort {
 
     private void cancelOrderForCustomerRefund(OrderModel order, String cancelReason) {
         if (order.getOrderType() == OrderType.DIRECT) {
-            order.cancelDirectOrder(cancelReason);
+            order.cancelDirectOrderForRefund(cancelReason);
             return;
         }
         if (order.getStatus() == OrderStatus.PAID) {
             order.cancelByCustomerRefund(cancelReason);
             return;
         }
-        order.cancelAfterPayment(cancelReason);
+        order.cancelAfterPaymentForRefund(cancelReason);
     }
 
     private void releaseSoldTickets(OrderModel order) {

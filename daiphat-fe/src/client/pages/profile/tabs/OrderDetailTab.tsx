@@ -4,7 +4,7 @@ import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../hooks/useOrder';
 import { useProcessPayment } from '../../../hooks/useTransaction';
 import { useGetMyRefunds } from '../../../hooks/useRefund';
-import { OrderStatus, OrderType } from '../../../../types/order.type';
+import { OrderStatus, OrderType, resolveOrderDetailStatusBadge } from '../../../../types/order.type';
 import { RefundRequestStatus, RefundType, formatRefundCountdown, isRefundCandidateStatus } from '../../../../types/refund.type';
 import { PaymentGateway } from '../../../../types/transaction.type';
 import { AppToast } from '../../../../utils/toast.util';
@@ -471,6 +471,16 @@ export const OrderDetailTab = () => {
                                         </div>
                                         
                                         <div className="flex flex-col items-end gap-2">
+                                            {detail.status && (() => {
+                                                const badge = resolveOrderDetailStatusBadge(detail.status);
+                                                return (
+                                                    <span
+                                                        className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[12px] font-bold ${badge.bg} ${badge.text}`}
+                                                    >
+                                                        {badge.label}
+                                                    </span>
+                                                );
+                                            })()}
                                             {isPaidOrCompleted && (
                                                 <Link
                                                     to="/results"
