@@ -3,8 +3,11 @@ package com.daiphat.coreapi.adapter.in.web.controller.order;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
+import com.daiphat.coreapi.application.dto.request.order.HandleOrderTicketIncidentRequest;
 import com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest;
+import com.daiphat.coreapi.application.dto.response.order.HandleOrderTicketIncidentResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
+import com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort;
 import com.daiphat.coreapi.application.port.in.refund.RefundRequestStaffServicePort;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,7 @@ import java.util.UUID;
 public class StaffOrderCancelWithRefundController {
 
     private final RefundRequestStaffServicePort refundRequestStaffServicePort;
+    private final OrderIncidentTicketServicePort orderIncidentTicketServicePort;
 
     @PostMapping("/{orderId}/cancel-with-refund")
     @PreAuthorize("hasAuthority('refund:process')")
@@ -36,5 +40,16 @@ public class StaffOrderCancelWithRefundController {
         return ApiResponse.success(
                 "Đã hủy đơn và tạo yêu cầu hoàn tiền chờ thông tin STK.",
                 refundRequestStaffServicePort.cancelOrderWithRefund(orderId, principal.getId(), request));
+    }
+
+    @PostMapping("/{orderId}/incident-tickets")
+    @PreAuthorize("hasAuthority('order:edit')")
+    public ApiResponse<HandleOrderTicketIncidentResponse> handleIncidentTickets(
+            @PathVariable UUID orderId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody HandleOrderTicketIncidentRequest request) {
+        return ApiResponse.success(
+                "Đã xử lý vé sự cố.",
+                orderIncidentTicketServicePort.handleIncidents(orderId, principal.getId(), request));
     }
 }

@@ -14,8 +14,8 @@ public enum LotteryTicketSerialStatus implements LabeledEnum {
     PENDING_RETURN("Chờ trả nhà đài"),
     RETURNED("Đã trả nhà đài"),
     EXPIRED("Hết hạn"),
-    INTERNAL_FAULT("Nhân viên làm hỏng"),
-    ISSUER_FAULT("Lỗi in ấn từ nhà cung cấp");
+    DAMAGED("Vé hỏng / rách"),
+    LOST("Vé thất lạc");
 
     private final String displayName;
 

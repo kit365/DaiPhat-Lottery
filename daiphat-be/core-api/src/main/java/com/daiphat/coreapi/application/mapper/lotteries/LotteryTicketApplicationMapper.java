@@ -43,6 +43,8 @@ public interface LotteryTicketApplicationMapper {
 
     @Mapping(target = "status", expression = "java(model.getStatus() != null ? model.getStatus().name() : null)")
     @Mapping(target = "statusDisplayName", expression = "java(model.getStatus() != null ? model.getStatus().getDisplayName() : null)")
+    @Mapping(target = "faultedBy", expression = "java(model.getFaultedBy() != null ? model.getFaultedBy().name() : null)")
+    @Mapping(target = "faultedByDisplayName", expression = "java(model.getFaultedBy() != null ? model.getFaultedBy().getDisplayName() : null)")
     @Mapping(target = "inputSource", expression = "java(model.getInputSource() != null ? model.getInputSource().name() : null)")
     @Mapping(target = "importBatchId", source = "importBatchId")
     @Mapping(target = "importBatchLineId", source = "importBatchLineId")
@@ -71,6 +73,8 @@ public interface LotteryTicketApplicationMapper {
                 base.verifiedById(),
                 base.verifiedAt(),
                 base.returnedAt(),
+                base.faultedBy(),
+                base.faultedByDisplayName(),
                 base.damagedEvidenceUrl(),
                 base.damagedReason(),
                 base.createdAt(),
