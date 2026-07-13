@@ -9,6 +9,7 @@ export enum RefundRequestStatus {
     /** @deprecated Use PAID */
     TRANSFERRED = 'TRANSFERRED',
     PAID = 'PAID',
+    MANUAL_RESOLUTION = 'MANUAL_RESOLUTION',
     EXPIRED = 'EXPIRED',
     CANCELLED = 'CANCELLED'
 }
@@ -221,6 +222,9 @@ export interface RefundRequestResponse {
     fundSource?: RefundFundSource;
     reimburseStatus?: ReimburseStatus;
     attemptNumber?: number;
+    retryCount?: number;
+    operatorNote?: string | null;
+    maxRefundBankInfoRetry?: number;
     reviewedBy?: string;
     reviewedAt?: string;
     /** Refund payout transaction (paymentEvidenceUrl, paymentBy, note, paidAt). */
@@ -292,12 +296,17 @@ export const REFUND_STATUS_LABELS: Record<RefundRequestStatus, string> = {
     [RefundRequestStatus.READY_TO_PAY]: 'Chờ chuyển khoản',
     [RefundRequestStatus.TRANSFERRED]: 'Đã chuyển khoản',
     [RefundRequestStatus.PAID]: 'Đã chuyển khoản',
+    [RefundRequestStatus.MANUAL_RESOLUTION]: 'Cần xử lý thủ công',
     [RefundRequestStatus.EXPIRED]: 'Hết hạn',
     [RefundRequestStatus.CANCELLED]: 'Đã hủy'
 };
 
 export interface AttachRefundBankAccountRequest {
     bankAccountId: number;
+}
+
+export interface RequestBankInfoUpdateRequest {
+    operatorNote: string;
 }
 
 export interface StaffCancelOrderWithRefundRequest {

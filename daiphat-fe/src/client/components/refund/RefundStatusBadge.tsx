@@ -7,6 +7,7 @@ export const REFUND_STATUS_MAP: Record<RefundRequestStatus, { label: string; bg:
     [RefundRequestStatus.READY_TO_PAY]: { label: 'Chờ chuyển khoản', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
     [RefundRequestStatus.TRANSFERRED]: { label: 'Đã chuyển khoản', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
     [RefundRequestStatus.PAID]: { label: 'Đã chuyển khoản', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
+    [RefundRequestStatus.MANUAL_RESOLUTION]: { label: 'Cần xử lý thủ công', bg: 'bg-[#FFF5F5]', text: 'text-[#C62828]' },
     [RefundRequestStatus.EXPIRED]: { label: 'Hết hạn', bg: 'bg-[#F4F6F8]', text: 'text-[#919EAB]' },
     [RefundRequestStatus.CANCELLED]: { label: 'Đã hủy', bg: 'bg-[#F4F6F8]', text: 'text-[#919EAB]' }
 };
