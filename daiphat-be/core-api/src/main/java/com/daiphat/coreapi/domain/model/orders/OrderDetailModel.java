@@ -74,6 +74,19 @@ public class OrderDetailModel {
         this.replacedByTicketSerialId = replacementTicketSerialId;
     }
 
+    /** Swap the allocated serial to a replacement and record replacedBy*. */
+    public void applySerialReplacement(Long replacementTicketId, Long replacementTicketSerialId) {
+        if (replacementTicketSerialId == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+        this.lotteryTicketId = replacementTicketId;
+        this.lotteryTicketSerialId = replacementTicketSerialId;
+        replaceWith(replacementTicketId, replacementTicketSerialId);
+        if (this.allocatedSerialIds != null) {
+            this.allocatedSerialIds = new ArrayList<>(List.of(replacementTicketSerialId));
+        }
+    }
+
     public boolean isReplaced() {
         return this.replacedByTicketSerialId != null;
     }
