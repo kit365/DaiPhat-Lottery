@@ -121,10 +121,7 @@ export interface OrderRefundEligibilityResponse {
     totalRefundAmount?: number;
     maxRefundRequestsPerDay?: number;
     refundRequestsSubmittedToday?: number;
-    refundRequestAllowedDays?: number;
-    refundPeriodDeadlineAt?: string;
     dailyLimitReached?: boolean;
-    refundPeriodExpired?: boolean;
 }
 
 export const REFUNDABLE_ORDER_STATUSES: OrderStatus[] = [

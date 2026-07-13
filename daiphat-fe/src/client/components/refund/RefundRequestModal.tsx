@@ -273,7 +273,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                         {/* Policy info */}
                         <section
                             className={`p-4 rounded-xl border flex flex-col gap-2.5 ${
-                                eligibility?.dailyLimitReached || eligibility?.refundPeriodExpired
+                                eligibility?.dailyLimitReached
                                     ? 'bg-[#FFF5F5] border-[#FECACA]'
                                     : 'bg-[#F0F5FF] border-[#2065D1]/20'
                             }`}
@@ -281,7 +281,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                             <div className="flex items-center gap-2">
                                 <i
                                     className={`fa-solid text-[13px] ${
-                                        eligibility?.dailyLimitReached || eligibility?.refundPeriodExpired
+                                        eligibility?.dailyLimitReached
                                             ? 'fa-circle-exclamation text-[#C62828]'
                                             : 'fa-circle-info text-[#2065D1]'
                                     }`}
@@ -289,7 +289,7 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                                 />
                                 <h3
                                     className={`text-[13px] font-bold ${
-                                        eligibility?.dailyLimitReached || eligibility?.refundPeriodExpired
+                                        eligibility?.dailyLimitReached
                                             ? 'text-[#C62828]'
                                             : 'text-[#2065D1]'
                                     }`}
@@ -306,16 +306,8 @@ export const RefundRequestModal: React.FC<RefundRequestModalProps> = ({ isOpen, 
                                         {eligibility?.maxRefundRequestsPerDay ?? '—'}
                                     </span>
                                 </p>
-                                <p>
-                                    Thời hạn yêu cầu hoàn tiền:{' '}
-                                    <span className="font-bold text-[#212B36]">
-                                        Trong vòng {eligibility?.refundRequestAllowedDays ?? '—'} ngày kể từ ngày đặt
-                                        đơn
-                                    </span>
-                                </p>
                             </div>
-                            {(eligibility?.dailyLimitReached || eligibility?.refundPeriodExpired) &&
-                                eligibility?.reason && (
+                            {eligibility?.dailyLimitReached && eligibility?.reason && (
                                     <p className="text-[12px] text-[#C62828] leading-relaxed pt-1 border-t border-[#FECACA]">
                                         {eligibility.reason}
                                     </p>

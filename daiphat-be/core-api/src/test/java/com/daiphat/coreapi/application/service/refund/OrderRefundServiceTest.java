@@ -100,8 +100,6 @@ class OrderRefundServiceTest {
                 .thenReturn(Optional.of(SystemConfigModel.builder().configValue("30").build()));
         lenient().when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.MAX_REFUND_REQUESTS_PER_DAY.name()))
                 .thenReturn(Optional.of(SystemConfigModel.builder().configValue("3").build()));
-        lenient().when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.REFUND_REQUEST_ALLOWED_DAYS.name()))
-                .thenReturn(Optional.of(SystemConfigModel.builder().configValue("7").build()));
         lenient().when(refundRequestRepositoryPort.countByRequestedByAndCreatedAtFrom(any(), any())).thenReturn(0L);
         lenient().when(refundRequestRepositoryPort.linkOrderDetailsByOrderId(any(), any())).thenReturn(1);
         lenient().when(refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(any())).thenReturn(List.of(1L));
@@ -350,25 +348,6 @@ class OrderRefundServiceTest {
     }
 
     @Test
-    @DisplayName("refundPaidOrder: rejects when REFUND_REQUEST_ALLOWED_DAYS period expired")
-    void refundPaidOrder_rejectsPeriodExpired() {
-        OrderModel order = orderBuilder(OrderStatus.PAID)
-                .createdAt(LocalDateTime.now().minusDays(10))
-                .build();
-
-        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
-        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
-
-        assertThatThrownBy(() -> orderRefundService.refundPaidOrder(
-                orderId, customerId, new CreateOrderRefundRequest("reason", 5L)))
-                .isInstanceOf(DomainException.class)
-                .extracting(ex -> ((DomainException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.REFUND_PERIOD_EXPIRED);
-
-        verify(refundRequestRepositoryPort, never()).save(any());
-    }
-
-    @Test
     @DisplayName("refundPaidOrder: ORDER_NOT_FOUND when order missing")
     void refundPaidOrder_orderNotFound() {
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.empty());
@@ -408,22 +387,6 @@ class OrderRefundServiceTest {
         assertThat(response.dailyLimitReached()).isTrue();
         assertThat(response.maxRefundRequestsPerDay()).isEqualTo(3);
         assertThat(response.refundRequestsSubmittedToday()).isEqualTo(3L);
-    }
-
-    @Test
-    @DisplayName("getRefundEligibility: surfaces refundPeriodExpired from System_Config")
-    void getRefundEligibility_periodExpired() {
-        OrderModel order = orderBuilder(OrderStatus.PAID)
-                .createdAt(LocalDateTime.now().minusDays(14))
-                .build();
-        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
-        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
-
-        var response = orderRefundService.getRefundEligibility(orderId, customerId);
-
-        assertThat(response.eligible()).isFalse();
-        assertThat(response.refundPeriodExpired()).isTrue();
-        assertThat(response.refundRequestAllowedDays()).isEqualTo(7);
     }
 
     private OrderModel.OrderModelBuilder orderBuilder(OrderStatus status) {

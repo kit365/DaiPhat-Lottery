@@ -127,7 +127,6 @@ public enum ErrorCode {
     REFUND_ORDER_NOT_PAID("ORD_035", "Chỉ có thể hủy & hoàn tiền đơn hàng đã thanh toán.", HttpStatus.BAD_REQUEST),
     REFUND_ORDER_ALREADY_REQUESTED("ORD_036", "Đơn hàng đã có yêu cầu hoàn tiền.", HttpStatus.BAD_REQUEST),
     REFUND_DAILY_LIMIT_EXCEEDED("ORD_037", "Bạn đã đạt giới hạn số yêu cầu hoàn tiền trong ngày. Vui lòng thử lại vào ngày mai.", HttpStatus.BAD_REQUEST),
-    REFUND_PERIOD_EXPIRED("ORD_038", "Thời hạn yêu cầu hoàn tiền của đơn hàng này đã hết.", HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
     // Lottery Product Errors
