@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
     Box,
     Button,
@@ -42,6 +42,7 @@ import { refundAdminApi } from '../../api/refund.api';
 export const RefundDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const refundId = Number(id);
 
     const [transferOpen, setTransferOpen] = useState(false);
@@ -66,6 +67,27 @@ export const RefundDetailPage = () => {
             .then((res) => setCustomerBanks(res.data || []))
             .catch(() => setCustomerBanks([]));
     }, [detail?.customerSummary?.id, refund?.status]);
+
+    useEffect(() => {
+        const shouldOpenTransfer = Boolean(
+            (location.state as { openTransfer?: boolean } | null)?.openTransfer
+        );
+        if (!shouldOpenTransfer || !refund) {
+            return;
+        }
+
+        const canOpenTransfer =
+            (refund.status === RefundRequestStatus.APPROVED ||
+                refund.status === RefundRequestStatus.READY_TO_PAY) &&
+            !!refund.bankAccountId &&
+            isRefundProcessingActionable(refund.status);
+
+        if (canOpenTransfer) {
+            setTransferOpen(true);
+        }
+
+        navigate(location.pathname, { replace: true, state: {} });
+    }, [location.pathname, location.state, navigate, refund]);
 
     if (isLoading) {
         return (
