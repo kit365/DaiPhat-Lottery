@@ -12,7 +12,6 @@ import com.daiphat.coreapi.application.port.in.refund.RefundRequestServicePort;
 import com.daiphat.coreapi.application.dto.response.notification.NotificationReferenceAvailabilityResponse;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
-import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -94,16 +93,6 @@ public class RefundRequestController {
             }
             throw ex;
         }
-    }
-
-    @PatchMapping(ID_PATH + "/cancel")
-    @PreAuthorize("isAuthenticated()")
-    public ApiResponse<RefundRequestResponse> cancel(
-            @PathVariable Long id,
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        return ApiResponse.success(
-                "Hủy yêu cầu hoàn tiền thành công.",
-                refundRequestServicePort.cancel(id, principal.getId()));
     }
 
     @PatchMapping(ID_PATH + "/bank-account")

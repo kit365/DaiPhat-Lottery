@@ -18,8 +18,6 @@ public interface RefundRequestServicePort {
 
     RefundRequestResponse getById(Long id, UUID userId);
 
-    RefundRequestResponse cancel(Long id, UUID userId);
-
     RefundRequestResponse attachBankAccount(Long id, UUID userId, AttachRefundBankAccountRequest request);
 
     List<EnumOptionResponse> getRefundRequestStatuses();
