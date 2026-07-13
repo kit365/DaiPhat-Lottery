@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.port.in.refund;
 
 import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
+import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -23,6 +24,8 @@ public interface RefundRequestStaffServicePort {
     RefundRequestAdminDetailResponse getByIdForStaff(Long id);
 
     RefundRequestResponse markTransferred(Long id, UUID staffId, TransferRefundRequestRequest request);
+
+    RefundRequestResponse requestBankInfoUpdate(Long id, UUID staffId, RequestBankInfoUpdateRequest request);
 
     RefundRequestResponse cancelOrderWithRefund(UUID orderId, UUID staffId, StaffCancelOrderWithRefundRequest request);
 

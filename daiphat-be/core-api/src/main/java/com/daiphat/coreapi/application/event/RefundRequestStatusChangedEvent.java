@@ -11,6 +11,7 @@ public record RefundRequestStatusChangedEvent(
         UUID customerId,
         UUID orderId,
         String orderCode,
-        RefundRequestStatus status
+        RefundRequestStatus status,
+        int retryCount
 ) {
 }

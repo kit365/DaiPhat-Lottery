@@ -52,6 +52,7 @@ class RefundRequestEventListenerTest {
                 .orderId(orderId)
                 .orderCode("ORD-REF-001")
                 .status(RefundRequestStatus.READY_TO_PAY)
+                .retryCount(0)
                 .build();
 
         listener.handleRefundRequestStatusChanged(event);
@@ -76,6 +77,7 @@ class RefundRequestEventListenerTest {
                 .refundRequestId(1L)
                 .customerId(null)
                 .status(RefundRequestStatus.READY_TO_PAY)
+                .retryCount(0)
                 .build();
 
         listener.handleRefundRequestStatusChanged(event);
@@ -90,6 +92,7 @@ class RefundRequestEventListenerTest {
                 .refundRequestId(1L)
                 .customerId(customerId)
                 .status(null)
+                .retryCount(0)
                 .build();
 
         listener.handleRefundRequestStatusChanged(event);
@@ -105,6 +108,7 @@ class RefundRequestEventListenerTest {
                 .customerId(customerId)
                 .orderCode("ORD-7")
                 .status(RefundRequestStatus.PAID)
+                .retryCount(0)
                 .build();
 
         listener.handleRefundRequestStatusChanged(event);
@@ -114,5 +118,61 @@ class RefundRequestEventListenerTest {
         assertThat(notificationCaptor.getValue().getReferenceType())
                 .isEqualTo(NotificationReferenceType.REFUND_REQUEST);
         assertThat(notificationCaptor.getValue().getReferenceId()).isEqualTo("7");
+    }
+
+    @Test
+    @DisplayName("WAITING_FOR_INFO with retryCount=0: incident-cancel copy")
+    void handleWaitingForInfo_incidentCancelMessage() {
+        RefundRequestStatusChangedEvent event = RefundRequestStatusChangedEvent.builder()
+                .refundRequestId(3L)
+                .customerId(customerId)
+                .orderCode("ORD-3")
+                .status(RefundRequestStatus.WAITING_FOR_INFO)
+                .retryCount(0)
+                .build();
+
+        listener.handleRefundRequestStatusChanged(event);
+
+        verify(notificationService).createNotification(notificationCaptor.capture());
+        assertThat(notificationCaptor.getValue().getTitle()).isEqualTo("Cần cung cấp tài khoản nhận hoàn tiền");
+        assertThat(notificationCaptor.getValue().getContent()).contains("đã được hủy do sự cố");
+    }
+
+    @Test
+    @DisplayName("WAITING_FOR_INFO with retryCount>0: invalid bank retry copy")
+    void handleWaitingForInfo_retryMessage() {
+        RefundRequestStatusChangedEvent event = RefundRequestStatusChangedEvent.builder()
+                .refundRequestId(4L)
+                .customerId(customerId)
+                .orderCode("ORD-4")
+                .status(RefundRequestStatus.WAITING_FOR_INFO)
+                .retryCount(1)
+                .build();
+
+        listener.handleRefundRequestStatusChanged(event);
+
+        verify(notificationService).createNotification(notificationCaptor.capture());
+        assertThat(notificationCaptor.getValue().getTitle()).isEqualTo("Cần cập nhật tài khoản nhận hoàn tiền");
+        assertThat(notificationCaptor.getValue().getContent()).contains("không hợp lệ");
+    }
+
+    @Test
+    @DisplayName("MANUAL_RESOLUTION: notifies customer to visit counter / CSKH")
+    void handleManualResolution_notifiesCustomer() {
+        RefundRequestStatusChangedEvent event = RefundRequestStatusChangedEvent.builder()
+                .refundRequestId(5L)
+                .customerId(customerId)
+                .orderCode("ORD-5")
+                .status(RefundRequestStatus.MANUAL_RESOLUTION)
+                .retryCount(3)
+                .build();
+
+        listener.handleRefundRequestStatusChanged(event);
+
+        verify(notificationService).createNotification(notificationCaptor.capture());
+        assertThat(notificationCaptor.getValue().getTitle()).isEqualTo("Yêu cầu hoàn tiền cần hỗ trợ tại quầy");
+        assertThat(notificationCaptor.getValue().getContent()).contains("vượt quá số lần cập nhật");
+        assertThat(notificationCaptor.getValue().getReferenceType())
+                .isEqualTo(NotificationReferenceType.REFUND_REQUEST);
     }
 }

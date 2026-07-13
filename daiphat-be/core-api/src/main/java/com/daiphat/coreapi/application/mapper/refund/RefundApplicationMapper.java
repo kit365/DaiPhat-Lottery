@@ -26,18 +26,31 @@ public interface RefundApplicationMapper {
 
     @Mapping(target = "bankAccount", ignore = true)
     @Mapping(target = "payoutTransaction", ignore = true)
+    @Mapping(target = "maxRefundBankInfoRetry", ignore = true)
+    @Mapping(target = "orderCode", ignore = true)
+    @Mapping(target = "processingDeadlineAt", ignore = true)
+    @Mapping(target = "remainingProcessingSeconds", ignore = true)
+    @Mapping(target = "processingUrgency", ignore = true)
     RefundRequestResponse toRefundResponse(RefundRequestModel model);
 
     default RefundRequestResponse toRefundResponse(
             RefundRequestModel model,
             UserBankAccountModel bankAccount) {
-        return toRefundResponse(model, bankAccount, null);
+        return toRefundResponse(model, bankAccount, null, null);
     }
 
     default RefundRequestResponse toRefundResponse(
             RefundRequestModel model,
             UserBankAccountModel bankAccount,
             TransactionResponse payoutTransaction) {
+        return toRefundResponse(model, bankAccount, payoutTransaction, null);
+    }
+
+    default RefundRequestResponse toRefundResponse(
+            RefundRequestModel model,
+            UserBankAccountModel bankAccount,
+            TransactionResponse payoutTransaction,
+            Integer maxRefundBankInfoRetry) {
         RefundRequestResponse base = toRefundResponse(model);
         if (base == null) {
             return null;
@@ -57,6 +70,9 @@ public interface RefundApplicationMapper {
                 base.fundSource(),
                 base.reimburseStatus(),
                 base.attemptNumber(),
+                base.retryCount(),
+                base.operatorNote(),
+                maxRefundBankInfoRetry,
                 base.reviewedBy(),
                 base.reviewedAt(),
                 payoutTransaction,
@@ -78,7 +94,7 @@ public interface RefundApplicationMapper {
             com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency processingUrgency
     ) {
         return enrichResponse(
-                model, bankAccount, orderCode, processingDeadlineAt, remainingProcessingSeconds, processingUrgency, null);
+                model, bankAccount, orderCode, processingDeadlineAt, remainingProcessingSeconds, processingUrgency, null, null);
     }
 
     default RefundRequestResponse enrichResponse(
@@ -90,7 +106,28 @@ public interface RefundApplicationMapper {
             com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency processingUrgency,
             TransactionResponse payoutTransaction
     ) {
-        RefundRequestResponse base = toRefundResponse(model, bankAccount, payoutTransaction);
+        return enrichResponse(
+                model,
+                bankAccount,
+                orderCode,
+                processingDeadlineAt,
+                remainingProcessingSeconds,
+                processingUrgency,
+                payoutTransaction,
+                null);
+    }
+
+    default RefundRequestResponse enrichResponse(
+            RefundRequestModel model,
+            UserBankAccountModel bankAccount,
+            String orderCode,
+            java.time.LocalDateTime processingDeadlineAt,
+            Long remainingProcessingSeconds,
+            com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency processingUrgency,
+            TransactionResponse payoutTransaction,
+            Integer maxRefundBankInfoRetry
+    ) {
+        RefundRequestResponse base = toRefundResponse(model, bankAccount, payoutTransaction, maxRefundBankInfoRetry);
         if (base == null) {
             return null;
         }
@@ -109,6 +146,9 @@ public interface RefundApplicationMapper {
                 base.fundSource(),
                 base.reimburseStatus(),
                 base.attemptNumber(),
+                base.retryCount(),
+                base.operatorNote(),
+                maxRefundBankInfoRetry != null ? maxRefundBankInfoRetry : base.maxRefundBankInfoRetry(),
                 base.reviewedBy(),
                 base.reviewedAt(),
                 base.payoutTransaction(),

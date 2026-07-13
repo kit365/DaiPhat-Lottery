@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.service.refund;
 
+import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
@@ -11,6 +12,7 @@ import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
+import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -18,12 +20,14 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.model.refund.RefundRequestModel;
 import com.daiphat.coreapi.domain.model.refund.UserBankAccountModel;
+import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,6 +67,7 @@ class RefundRequestStaffServiceTest {
     private final com.daiphat.coreapi.application.port.out.file.StoragePort storagePort =
             mock(com.daiphat.coreapi.application.port.out.file.StoragePort.class);
     private final TransactionRepositoryPort transactionRepositoryPort = mock(TransactionRepositoryPort.class);
+    private final SystemConfigRepositoryPort systemConfigRepositoryPort = mock(SystemConfigRepositoryPort.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
 
     private RefundRequestStaffService refundRequestStaffService;
@@ -87,6 +92,7 @@ class RefundRequestStaffServiceTest {
                 refundTicketItemResolver,
                 storagePort,
                 transactionRepositoryPort,
+                systemConfigRepositoryPort,
                 eventPublisher);
 
         when(refundProcessingDeadlineService.evaluate(any())).thenReturn(
@@ -101,6 +107,9 @@ class RefundRequestStaffServiceTest {
         org.mockito.Mockito.lenient()
                 .when(transactionRepositoryPort.findLatestByRefundRequestId(any()))
                 .thenReturn(Optional.empty());
+        org.mockito.Mockito.lenient()
+                .when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.MAX_REFUND_BANK_INFO_RETRY.name()))
+                .thenReturn(Optional.of(SystemConfigModel.builder().configValue("3").build()));
     }
 
     @Test
@@ -327,6 +336,67 @@ class RefundRequestStaffServiceTest {
         assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.READY_TO_PAY);
         assertThat(refund.getBankAccountId()).isEqualTo(1L);
         verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
+    }
+
+    @Test
+    @DisplayName("requestBankInfoUpdate: READY_TO_PAY → WAITING_FOR_INFO and publishes event")
+    void requestBankInfoUpdate_success() {
+        RefundRequestModel refund = pendingRefund();
+        refund.setRetryCount(0);
+
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
+                OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
+                refundId,
+                staffId,
+                new RequestBankInfoUpdateRequest("STK không khớp tên"));
+
+        assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.WAITING_FOR_INFO);
+        assertThat(refund.getRetryCount()).isEqualTo(1);
+        assertThat(refund.getOperatorNote()).isEqualTo("STK không khớp tên");
+
+        ArgumentCaptor<RefundRequestStatusChangedEvent> eventCaptor =
+                ArgumentCaptor.forClass(RefundRequestStatusChangedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().status()).isEqualTo(RefundRequestStatus.WAITING_FOR_INFO);
+        assertThat(eventCaptor.getValue().retryCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("requestBankInfoUpdate: rejects invalid status")
+    void requestBankInfoUpdate_rejectsInvalidStatus() {
+        RefundRequestModel refund = pendingRefund();
+        refund.setStatus(RefundRequestStatus.PAID);
+
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
+
+        assertThatThrownBy(() -> refundRequestStaffService.requestBankInfoUpdate(
+                refundId,
+                staffId,
+                new RequestBankInfoUpdateRequest("note")))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("requestBankInfoUpdate: rejects blank note")
+    void requestBankInfoUpdate_rejectsBlankNote() {
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(pendingRefund()));
+
+        assertThatThrownBy(() -> refundRequestStaffService.requestBankInfoUpdate(
+                refundId,
+                staffId,
+                new RequestBankInfoUpdateRequest("   ")))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
     }
 
     private RefundRequestModel pendingRefund() {

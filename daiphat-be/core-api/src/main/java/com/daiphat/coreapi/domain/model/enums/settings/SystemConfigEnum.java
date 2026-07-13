@@ -59,6 +59,12 @@ public enum SystemConfigEnum {
             DataType.INT,
             "3",
             "Số lượng yêu cầu hoàn tiền tối đa mỗi khách hàng được gửi trong một ngày"
+    ),
+    MAX_REFUND_BANK_INFO_RETRY(
+            ConfigType.REFUND_SETTING,
+            DataType.INT,
+            "3",
+            "Số lần tối đa khách hàng được phép cập nhật thông tin tài khoản ngân hàng sau khi chuyển khoản hoàn tiền thất bại"
     );
 
     private final ConfigType configType;

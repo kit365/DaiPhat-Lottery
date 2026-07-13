@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.refund;
 
 import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
+import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -22,6 +23,7 @@ import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
+import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.application.service.refund.RefundProcessingDeadlineService.ProcessingEvaluation;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -32,12 +34,14 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
+import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.model.refund.RefundRequestModel;
 import com.daiphat.coreapi.domain.model.refund.UserBankAccountModel;
+import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import com.daiphat.coreapi.shared.util.PageableUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import com.daiphat.coreapi.shared.util.StatusCountKeys;
@@ -89,6 +93,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private final RefundTicketItemResolver refundTicketItemResolver;
     private final StoragePort storagePort;
     private final TransactionRepositoryPort transactionRepositoryPort;
+    private final SystemConfigRepositoryPort systemConfigRepositoryPort;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -206,6 +211,25 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 loadBankAccount(saved.getBankAccountId()),
                 orderCode,
                 orderApplicationMapper.toTransactionResponse(savedPayout));
+    }
+
+    @Override
+    @Transactional
+    public RefundRequestResponse requestBankInfoUpdate(
+            Long id, UUID staffId, RequestBankInfoUpdateRequest request) {
+        log.info("Staff {} requesting bank info update for refund {}", staffId, id);
+
+        // Bank-info correction only: no payout Transaction and no transfer evidence.
+        RefundRequestModel refund = getRequestOrThrow(id);
+        int maxRetry = getMaxRefundBankInfoRetry();
+        refund.requestBankInfoCorrection(request.operatorNote(), maxRetry);
+        RefundRequestModel saved = refundRequestRepositoryPort.save(refund);
+        publishRefundStatusChanged(saved);
+
+        return toEnrichedResponse(
+                saved,
+                loadBankAccount(saved.getBankAccountId()),
+                resolveOrderCode(resolveOrderId(saved), new LinkedHashMap<>()));
     }
 
     @Override
@@ -380,7 +404,22 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 evaluation.processingDeadlineAt(),
                 evaluation.remainingProcessingSeconds(),
                 evaluation.processingUrgency(),
-                payoutTransaction);
+                payoutTransaction,
+                getMaxRefundBankInfoRetry());
+    }
+
+    private int getMaxRefundBankInfoRetry() {
+        String fallback = SystemConfigEnum.MAX_REFUND_BANK_INFO_RETRY.getDefaultValue();
+        String raw = systemConfigRepositoryPort
+                .findActiveByConfigKey(SystemConfigEnum.MAX_REFUND_BANK_INFO_RETRY.name())
+                .map(SystemConfigModel::getConfigValue)
+                .orElse(fallback);
+        try {
+            int value = Integer.parseInt(raw.trim());
+            return value > 0 ? value : Integer.parseInt(fallback);
+        } catch (NumberFormatException ex) {
+            return Integer.parseInt(fallback);
+        }
     }
 
     private TransactionResponse loadPayoutTransaction(RefundRequestModel refund) {
@@ -459,6 +498,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 .orderId(orderId)
                 .orderCode(orderCode)
                 .status(refund.getStatus())
+                .retryCount(refund.getRetryCount())
                 .build());
     }
 
@@ -508,10 +548,18 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         }
 
         if (request.getStatus() == RefundRequestStatus.WAITING_FOR_INFO) {
+            String waitingDetail = request.getRetryCount() > 0 && request.getOperatorNote() != null
+                    ? request.getOperatorNote()
+                    : "Đang chờ khách hàng cung cấp tài khoản ngân hàng nhận hoàn tiền.";
             history.add(new RefundProcessingHistoryItem(
                     "Chờ thông tin STK",
-                    "Đang chờ khách hàng cung cấp tài khoản ngân hàng nhận hoàn tiền.",
-                    request.getCreatedAt()));
+                    waitingDetail,
+                    request.getUpdatedAt() != null ? request.getUpdatedAt() : request.getCreatedAt()));
+        } else if (request.getStatus() == RefundRequestStatus.MANUAL_RESOLUTION) {
+            history.add(new RefundProcessingHistoryItem(
+                    "Cần xử lý thủ công",
+                    request.getOperatorNote(),
+                    request.getUpdatedAt() != null ? request.getUpdatedAt() : request.getCreatedAt()));
         } else if (request.getBankAccountId() != null
                 && (request.getRequestRole() == RefundRequestRole.STAFF
                 || request.getRequestRole() == RefundRequestRole.ADMIN)
@@ -561,7 +609,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         history.sort(Comparator.comparing(
                 RefundProcessingHistoryItem::occurredAt,
-                Comparator.nullsLast(Comparator.naturalOrder())));
+                Comparator.nullsLast(Comparator.reverseOrder())));
         return history;
     }
 
