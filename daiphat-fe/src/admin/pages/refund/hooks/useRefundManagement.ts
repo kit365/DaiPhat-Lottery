@@ -52,21 +52,25 @@ export const useTransferRefund = () => {
     });
 };
 
-export const useAttachRefundBankAccount = () => {
+export const useRequestBankInfoUpdate = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ id, bankAccountId }: { id: number; bankAccountId: number }) =>
-            refundAdminApi.attachBankAccount(id, { bankAccountId }),
+        mutationFn: ({ id, operatorNote }: { id: number; operatorNote: string }) =>
+            refundAdminApi.requestBankInfoUpdate(id, { operatorNote }),
         onSuccess: (response, variables) => {
             if (response.success) {
-                toast.success(response.message || 'Đã gắn tài khoản ngân hàng');
+                toast.success(
+                    response.message || 'Đã gửi yêu cầu cập nhật tài khoản ngân hàng cho khách hàng'
+                );
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
                 queryClient.invalidateQueries({
                     queryKey: [QUERY_KEYS.ADMIN_REFUND_DETAIL, variables.id],
                 });
             } else {
-                toast.error(response.message || 'Không thể gắn tài khoản');
+                toast.error(
+                    response.message || 'Không thể gửi yêu cầu cập nhật tài khoản ngân hàng'
+                );
             }
         },
         onError: (error: any) => {

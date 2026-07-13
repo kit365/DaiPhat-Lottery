@@ -41,18 +41,15 @@ export const refundAdminApi = {
         return response.data;
     },
 
-    attachBankAccount: async (
+    requestBankInfoUpdate: async (
         id: number,
-        data: { bankAccountId: number }
+        data: { operatorNote: string }
     ): Promise<ApiResponse<RefundRequestResponse>> => {
-        const response = await apiApp.patch(`${STAFF_BASE}/${id}/bank-account`, data, withAuth());
-        return response.data;
-    },
-
-    getCustomerBankAccounts: async (
-        userId: string
-    ): Promise<ApiResponse<import('../../types/refund.type').UserBankAccountResponse[]>> => {
-        const response = await apiApp.get(`/staff/users/${userId}/bank-accounts`, withAuth());
+        const response = await apiApp.patch(
+            `${STAFF_BASE}/${id}/request-bank-info-update`,
+            data,
+            withAuth()
+        );
         return response.data;
     },
 
