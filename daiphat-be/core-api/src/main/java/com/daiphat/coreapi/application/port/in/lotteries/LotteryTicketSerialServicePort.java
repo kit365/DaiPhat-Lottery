@@ -68,5 +68,9 @@ public interface LotteryTicketSerialServicePort {
 
     void hardDeleteByImportBatchLineId(Long importBatchLineId);
 
+    java.util.List<LotteryTicketSerialModel> findAllReplacementCandidates(
+            Long stationId, String numbers, java.time.LocalDate drawDate, com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus status
+    );
+
     List<EnumOptionResponse> getStatuses();
 }

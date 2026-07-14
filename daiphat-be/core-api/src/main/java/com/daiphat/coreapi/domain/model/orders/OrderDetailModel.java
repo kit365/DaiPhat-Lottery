@@ -35,6 +35,9 @@ public class OrderDetailModel {
     private BigDecimal price;
 
     @Builder.Default
+    private boolean hasReplacement = false;
+
+    @Builder.Default
     private OrderDetailStatus status = OrderDetailStatus.ACTIVE;
 
     private LocalDateTime createdAt;

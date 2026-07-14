@@ -10,6 +10,7 @@ import com.daiphat.coreapi.application.dto.request.order.UpdateOrderStatusReques
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
+import com.daiphat.coreapi.application.dto.response.order.OrderDetailResponse;
 import com.daiphat.coreapi.application.dto.response.refund.OrderRefundEligibilityResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
@@ -47,6 +48,7 @@ public class OrderController {
     private final OrderServicePort orderServicePort;
     private final OrderApplicationMapper orderApplicationMapper;
     private final OrderRefundServicePort orderRefundServicePort;
+    private final com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort lotteryTicketServicePort;
 
     @PostMapping("/online")
     @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:create')")
@@ -76,6 +78,32 @@ public class OrderController {
                 "Lấy chi tiết đơn hàng thành công.",
                 orderServicePort.getOrderDetail(id)
         );
+    }
+
+    @GetMapping("/{orderId}/details/{detailId}/replacements")
+    @PreAuthorize("hasAuthority('order:edit')")
+    public ApiResponse<List<com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse>> getReplacementCandidates(
+            @PathVariable java.util.UUID orderId,
+            @PathVariable Long detailId) {
+        log.info("REST request to get replacement candidates for order detail: {}", detailId);
+        
+        // Find the order detail to get the criteria
+        OrderResponse order = orderServicePort.getOrderDetail(orderId);
+        OrderDetailResponse detail = order.orderDetails().stream()
+                .filter(d -> d.id().equals(detailId))
+                .findFirst()
+                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND, "Không tìm thấy chi tiết đơn hàng"));
+                
+        // Only return candidates if we have the criteria
+        if (detail.stationId() == null || detail.numbers() == null || detail.drawDate() == null) {
+            return ApiResponse.success("Lấy danh sách vé thay thế thành công.", List.of());
+        }
+        
+        // Call the service port with the criteria
+        List<com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse> replacements =
+                lotteryTicketServicePort.getReplacementCandidates(detail.stationId(), detail.numbers(), detail.drawDate());
+
+        return ApiResponse.success("Lấy danh sách vé thay thế thành công.", replacements);
     }
 
     @PatchMapping("/{id}/status")

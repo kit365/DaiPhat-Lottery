@@ -49,7 +49,23 @@ public class StaffOrderCancelWithRefundController {
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @Valid @RequestBody HandleOrderTicketIncidentRequest request) {
         return ApiResponse.success(
-                "Đã xử lý vé sự cố.",
+                "Đã xử lý vé sự cố thành công.",
                 orderIncidentTicketServicePort.handleIncidents(orderId, principal.getId(), request));
+    }
+
+    @PostMapping("/{orderId}/partial-refund")
+    @PreAuthorize("hasAuthority('order:edit')")
+    public ApiResponse<RefundRequestResponse> createPartialRefund(
+            @PathVariable UUID orderId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody com.daiphat.coreapi.application.dto.request.order.CreatePartialRefundRequest request) {
+        
+        RefundRequestResponse response = refundRequestStaffServicePort.createPartialRefund(orderId, principal.getId(), request);
+        
+        String message = response != null 
+                ? "Đã tạo yêu cầu hoàn tiền từng phần thành công."
+                : "Đã đổi vé thành công. Đơn hàng chuyển sang chờ lấy hàng.";
+                
+        return ApiResponse.success(message, response);
     }
 }

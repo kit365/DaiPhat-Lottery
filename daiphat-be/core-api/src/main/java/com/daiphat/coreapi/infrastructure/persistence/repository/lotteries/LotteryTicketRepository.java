@@ -52,4 +52,24 @@ public interface LotteryTicketRepository
             @Param("productId") Long productId,
             @Param("statuses") Collection<LotteryTicketStatus> statuses
     );
+    @Query("""
+            select new com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey(s.ticket.station.id, s.ticket.numbers, s.ticket.drawDate)
+            from LotteryTicketSerialEntity s
+            where s.status = 'IN_STOCK'
+              and s.deletedAt is null
+              and s.ticket.drawDate in :drawDates
+              and s.ticket.station.id in :stationIds
+              and s.ticket.numbers in :numbers
+            group by s.ticket.station.id, s.ticket.numbers, s.ticket.drawDate
+            """)
+    List<com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey> findAvailableReplacementsInBulk(
+            @Param("stationIds") Collection<Long> stationIds,
+            @Param("drawDates") Collection<LocalDate> drawDates,
+            @Param("numbers") Collection<String> numbers);
+
+    List<LotteryTicketEntity> findAllByStation_IdAndNumbersAndDrawDateAndStatusAndDeletedAtIsNull(
+            Long stationId,
+            String numbers,
+            LocalDate drawDate,
+            LotteryTicketStatus status);
 }

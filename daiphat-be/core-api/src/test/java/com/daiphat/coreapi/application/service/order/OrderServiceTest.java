@@ -105,6 +105,9 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
                 eventPublisher,
                 orderRefundGraceService
         );
+        when(orderRefundGraceService.evaluate(any())).thenReturn(
+                new OrderRefundGraceService.RefundGraceEvaluation(false, null, 0L, 0, null, null)
+        );
     }
 
     @Test

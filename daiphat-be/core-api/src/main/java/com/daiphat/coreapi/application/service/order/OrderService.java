@@ -391,11 +391,37 @@ public class OrderService implements OrderServicePort {
         Map<Long, LotteryTicketResponse> ticketsById = new LinkedHashMap<>();
         Map<Long, LotteryTicketSerialModel> serialsById = new LinkedHashMap<>();
 
+        details.forEach(detail -> resolveTicket(detail.getLotteryTicketId(), ticketsById));
+
+        java.util.Set<Long> stationIds = new java.util.LinkedHashSet<>();
+        java.util.Set<String> numbersList = new java.util.LinkedHashSet<>();
+        java.util.Set<LocalDate> drawDates = new java.util.LinkedHashSet<>();
+
+        for (LotteryTicketResponse t : ticketsById.values()) {
+            if (t != null) {
+                if (t.stationId() != null) stationIds.add(t.stationId());
+                if (t.numbers() != null) numbersList.add(t.numbers());
+                if (t.drawDate() != null) drawDates.add(t.drawDate());
+            }
+        }
+
+        java.util.Set<com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey> availableKeys = new java.util.LinkedHashSet<>();
+        if (!stationIds.isEmpty() && !numbersList.isEmpty() && !drawDates.isEmpty()) {
+            availableKeys.addAll(lotteryTicketServicePort.findAvailableReplacementsInBulk(stationIds, drawDates, numbersList));
+        }
+
         return details.stream()
                 .map(detail -> {
                     LotteryTicketResponse ticket = resolveTicket(detail.getLotteryTicketId(), ticketsById);
                     LotteryTicketSerialModel serial = resolveSerial(detail.getLotteryTicketSerialId(), serialsById);
                     OrderDetailResponse base = orderApplicationMapper.toDetailResponse(detail);
+
+                    boolean hasRep = false;
+                    if (ticket != null && ticket.stationId() != null && ticket.numbers() != null && ticket.drawDate() != null) {
+                        hasRep = availableKeys.contains(new com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey(
+                                ticket.stationId(), ticket.numbers(), ticket.drawDate()
+                        ));
+                    }
 
                     return OrderDetailResponse.builder()
                             .id(base.id())
@@ -414,6 +440,7 @@ public class OrderService implements OrderServicePort {
                             .price(base.price())
                             .quantity(detail.getEffectiveQuantity())
                             .status(base.status())
+                            .hasReplacement(hasRep)
                             .build();
                 })
                 .toList();
