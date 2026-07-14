@@ -33,7 +33,7 @@ import { confirmAction, confirmInputText } from "../../utils/swal";
 import { CanAccess } from "../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../constants/permission.constants";
 import { useCancelOrderWithRefund } from "../refund/hooks/useRefundManagement";
-import { IncidentTicketHandlingDialog } from "./components/IncidentTicketHandlingDialog";
+import { OrderInspectionSection } from './components/OrderInspectionSection';
 
 const STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
     [OrderStatus.PENDING_PAYMENT]: { label: "Chờ thanh toán", color: "var(--palette-warning-dark)", bg: "var(--palette-warning-lighter)" },
@@ -58,7 +58,7 @@ export const OrderDetailPage = () => {
     const order = orderRes?.data;
     const { mutate: updateStatus } = useUpdateOrderStatus();
     const cancelWithRefundMutation = useCancelOrderWithRefund();
-    const [incidentDialogOpen, setIncidentDialogOpen] = useState(false);
+    const [isInspectionStarted, setIsInspectionStarted] = useState(false);
 
     const handleBaoLoiHuyDon = () => {
         if (!order) return;
@@ -188,29 +188,7 @@ export const OrderDetailPage = () => {
                             Bắt đầu chuẩn bị
                         </Button>
                     )}
-                    {order.status === OrderStatus.PREPARING && (
-                        <>
-                            <CanAccess permission={PERMISSIONS.ORDER.EDIT}>
-                                <Button
-                                    variant="outlined"
-                                    color="warning"
-                                    startIcon={<Icon icon="solar:danger-triangle-bold-duotone" />}
-                                    onClick={() => setIncidentDialogOpen(true)}
-                                    sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
-                                >
-                                    Xử lý vé sự cố
-                                </Button>
-                            </CanAccess>
-                            <Button 
-                                variant="contained" 
-                                startIcon={<Icon icon="solar:refresh-circle-linear" />}
-                                onClick={() => handleStatusChange(OrderStatus.PENDING_PICKUP)}
-                                sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none', bgcolor: 'var(--palette-grey-800)', color: 'common.white', '&:hover': { bgcolor: 'var(--palette-grey-900)' } }}
-                            >
-                                Chuyển sang "Chờ nhận vé"
-                            </Button>
-                        </>
-                    )}
+
                     {order.status === OrderStatus.PENDING_PICKUP && (
                         <Button 
                             variant="contained" 
@@ -243,7 +221,7 @@ export const OrderDetailPage = () => {
                         </Button>
                     )}
                     <CanAccess permission={PERMISSIONS.REFUND.PROCESS}>
-                        {[OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.PENDING_PICKUP].includes(
+                        {[OrderStatus.PAID, OrderStatus.PENDING_PICKUP].includes(
                             order.status as OrderStatus
                         ) && (
                             <Button
@@ -562,113 +540,134 @@ export const OrderDetailPage = () => {
                             </Box>
                         </Card>
 
-
-
-                        {/* Danh sách vé Card */}
-                        <Card sx={{ borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
-                                    <Stack direction="row" spacing={1} alignItems="center" sx={{ pt: 3, px: 3, pb: 3 }}>
+                        {/* Danh sách vé Card / Inspection Section */}
+                        {isInspectionStarted && order.status === OrderStatus.PREPARING ? (
+                            <OrderInspectionSection
+                                orderId={order.id}
+                                orderCode={order.orderCode}
+                                orderDetails={order.orderDetails || []}
+                                onSuccess={() => refetch()}
+                                onCancel={() => setIsInspectionStarted(false)}
+                                onMoveToReadyForPickup={() => handleStatusChange(OrderStatus.PENDING_PICKUP)}
+                            />
+                        ) : (
+                            <Card sx={{ borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 3, px: 3, pb: 3 }}>
+                                    <Stack direction="row" spacing={1} alignItems="center">
                                         <Icon icon="solar:ticket-bold-duotone" width={24} style={{ color: 'var(--palette-success-main)' }} />
                                         <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>Danh sách vé</Typography>
                                         <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', ml: 1 }}>({order.orderDetails?.length || 0} vé)</Typography>
                                     </Stack>
-                                    
-                                    <TableContainer>
-                                        <Table sx={{ minWidth: 600 }}>
-                                            <TableHead>
-                                                <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
-                                                    <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Vé số</TableCell>
-                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Đài</TableCell>
-                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Ngày xổ</TableCell>
-                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Loại vé</TableCell>
-                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
-                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
-                                                    <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Thao tác</TableCell>
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {(order.orderDetails || []).map((detail: any, idx: number) => (
-                                                    <TableRow key={idx} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                                                        <TableCell align="center">
-                                                            <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-                                                                <Avatar variant="rounded" sx={{ width: 32, height: 32, bgcolor: '#ee1314', color: 'white' }}>
-                                                                    <Icon icon="solar:ticket-bold-duotone" width={20} />
-                                                                </Avatar>
-                                                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                                                    {detail.numbers || detail.serialNumber || detail.lotteryTicket?.numbers || detail.lotteryTicket?.symbol || detail.lotteryTicket?.ticketNumber || 'N/A'}
-                                                                </Typography>
-                                                            </Stack>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                                {detail.stationName || detail.lotteryTicket?.province?.name || detail.lotteryTicket?.station?.name || detail.lotteryTicket?.stationName || 'N/A'}
-                                                            </Typography>
-                                                        </TableCell>
-                                                        <TableCell>
+                                    {order.status === OrderStatus.PREPARING && (
+                                        <Button 
+                                            variant="contained" 
+                                            startIcon={<Icon icon="solar:magnifer-zoom-in-bold-duotone" />}
+                                            onClick={() => setIsInspectionStarted(true)}
+                                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none', bgcolor: 'var(--palette-grey-800)', color: 'common.white', '&:hover': { bgcolor: 'var(--palette-grey-900)' } }}
+                                        >
+                                            Bắt đầu kiểm tra
+                                        </Button>
+                                    )}
+                                </Stack>
+                                
+                                <TableContainer>
+                                    <Table sx={{ minWidth: 600 }}>
+                                        <TableHead>
+                                            <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
+                                                <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Vé số</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Đài</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Ngày xổ</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Loại vé</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
+                                                <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Thao tác</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {(order.orderDetails || []).map((detail: any, idx: number) => (
+                                                <TableRow key={idx} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                                    <TableCell align="center">
+                                                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+                                                            <Avatar variant="rounded" sx={{ width: 32, height: 32, bgcolor: '#ee1314', color: 'white' }}>
+                                                                <Icon icon="solar:ticket-bold-duotone" width={20} />
+                                                            </Avatar>
                                                             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                                                {(detail.drawDate || detail.lotteryTicket?.drawDate)
-                                                                    ? dayjs(detail.drawDate || detail.lotteryTicket?.drawDate).format("DD/MM/YYYY")
-                                                                    : 'N/A'}
+                                                                {detail.numbers || detail.serialNumber || detail.lotteryTicket?.numbers || detail.lotteryTicket?.symbol || detail.lotteryTicket?.ticketNumber || 'N/A'}
                                                             </Typography>
-                                                            <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)' }}>
-                                                                {(detail.drawDate || detail.lotteryTicket?.drawDate)
-                                                                    ? dayjs(detail.drawDate || detail.lotteryTicket?.drawDate).locale('vi').format("dddd")
-                                                                    : 'N/A'}
-                                                            </Typography>
-                                                        </TableCell>
+                                                        </Stack>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                            {detail.stationName || detail.lotteryTicket?.province?.name || detail.lotteryTicket?.station?.name || detail.lotteryTicket?.stationName || 'N/A'}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                                                            {(detail.drawDate || detail.lotteryTicket?.drawDate)
+                                                                ? dayjs(detail.drawDate || detail.lotteryTicket?.drawDate).format("DD/MM/YYYY")
+                                                                : 'N/A'}
+                                                        </Typography>
+                                                        <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)' }}>
+                                                            {(detail.drawDate || detail.lotteryTicket?.drawDate)
+                                                                ? dayjs(detail.drawDate || detail.lotteryTicket?.drawDate).locale('vi').format("dddd")
+                                                                : 'N/A'}
+                                                        </Typography>
+                                                    </TableCell>
 
-                                                        <TableCell>
-                                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                                Vé thường
-                                                            </Typography>
-                                                        </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                            Vé thường
+                                                        </Typography>
+                                                    </TableCell>
 
-                                                        <TableCell>
-                                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                                {(detail.price || 10000).toLocaleString('vi-VN')}đ
-                                                            </Typography>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {(() => {
-                                                                const badge = resolveOrderDetailStatusBadge(detail.status);
-                                                                return (
-                                                                    <Chip
-                                                                        label={badge.label}
-                                                                        size="small"
-                                                                        sx={{
-                                                                            fontWeight: 700,
-                                                                            height: 24,
-                                                                            fontSize: '0.75rem',
-                                                                            borderRadius: '6px',
-                                                                            color: badge.color,
-                                                                            bgcolor: badge.bgcolor,
-                                                                        }}
-                                                                    />
-                                                                );
-                                                            })()}
-                                                        </TableCell>
-                                                        <TableCell align="center">
-                                                            <Button variant="outlined" size="small" endIcon={<Icon icon="solar:square-top-down-linear" style={{ transform: 'rotate(-45deg)' }} />} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, color: 'var(--palette-success-main)', borderColor: 'var(--palette-success-main)', '&:hover': { bgcolor: 'var(--palette-success-lighter)', borderColor: 'var(--palette-success-main)' } }}>
-                                                                Xem kết quả
-                                                            </Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                    <Divider sx={{ borderStyle: 'dashed' }} />
-                                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 3 }}>
-                                        <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
-                                            Tổng số vé: {order.orderDetails?.length || 0}
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                            {(detail.price || 10000).toLocaleString('vi-VN')}đ
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {(() => {
+                                                            const badge = resolveOrderDetailStatusBadge(detail.status);
+                                                            return (
+                                                                <Chip
+                                                                    label={badge.label}
+                                                                    size="small"
+                                                                    sx={{
+                                                                        fontWeight: 700,
+                                                                        height: 24,
+                                                                        fontSize: '0.75rem',
+                                                                        borderRadius: '6px',
+                                                                        color: badge.color,
+                                                                        bgcolor: badge.bgcolor,
+                                                                    }}
+                                                                />
+                                                            );
+                                                        })()}
+                                                    </TableCell>
+                                                    <TableCell align="center">
+                                                        <Button variant="outlined" size="small" endIcon={<Icon icon="solar:square-top-down-linear" style={{ transform: 'rotate(-45deg)' }} />} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, color: 'var(--palette-success-main)', borderColor: 'var(--palette-success-main)', '&:hover': { bgcolor: 'var(--palette-success-lighter)', borderColor: 'var(--palette-success-main)' } }}>
+                                                            Xem kết quả
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                                <Divider sx={{ borderStyle: 'dashed' }} />
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 3 }}>
+                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
+                                        Tổng số vé: {order.orderDetails?.length || 0}
+                                    </Typography>
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>Tổng tiền:</Typography>
+                                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--palette-success-main)' }}>
+                                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}
                                         </Typography>
-                                        <Stack direction="row" alignItems="center" spacing={1}>
-                                            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>Tổng tiền:</Typography>
-                                            <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--palette-success-main)' }}>
-                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}
-                                            </Typography>
-                                        </Stack>
                                     </Stack>
-                                </Card>
+                                </Stack>
+                            </Card>
+                        )}
 
                     </Stack>
                 </Grid>
@@ -786,14 +785,7 @@ export const OrderDetailPage = () => {
                 </Grid>
             </Grid>
 
-            <IncidentTicketHandlingDialog
-                open={incidentDialogOpen}
-                onClose={() => setIncidentDialogOpen(false)}
-                orderId={order.id}
-                orderCode={order.orderCode}
-                orderDetails={order.orderDetails || []}
-                onSuccess={() => refetch()}
-            />
+
         </Box>
     );
 };

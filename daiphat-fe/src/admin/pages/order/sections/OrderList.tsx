@@ -124,6 +124,13 @@ export const OrderList = () => {
                 update,
                 'warning'
             );
+        } else if (status === 'PENDING_PICKUP') {
+            confirmAction(
+                "Chuyển sang Chờ nhận vé?",
+                "Bạn có chắc chắn muốn chuyển trạng thái thành chờ nhận vé?",
+                update,
+                'info'
+            );
         } else {
             update();
         }
