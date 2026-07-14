@@ -19,25 +19,28 @@ class LotteryTicketSerialFaultTest {
                 .status(LotteryTicketSerialStatus.SOLD)
                 .build();
 
-        serial.markDamaged(LotteryTicketSerialFaultedBy.INTERNAL_FAULT, "Vé rách");
+        serial.markDamaged(LotteryTicketSerialFaultedBy.INTERNAL_FAULT, "Vé rách", "https://example.com/evidence.jpg");
 
         assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.DAMAGED);
         assertThat(serial.getFaultedBy()).isEqualTo(LotteryTicketSerialFaultedBy.INTERNAL_FAULT);
         assertThat(serial.getDamagedReason()).isEqualTo("Vé rách");
+        assertThat(serial.getDamagedEvidenceUrl()).isEqualTo("https://example.com/evidence.jpg");
         assertThat(serial.isSoftDeletableStatus()).isTrue();
     }
 
     @Test
-    @DisplayName("markLost sets LOST + faultedBy")
+    @DisplayName("markLost sets LOST + faultedBy and clears evidence")
     void markLost_fromSold() {
         LotteryTicketSerialModel serial = LotteryTicketSerialModel.builder()
                 .status(LotteryTicketSerialStatus.SOLD)
+                .damagedEvidenceUrl("https://example.com/old.jpg")
                 .build();
 
         serial.markLost(LotteryTicketSerialFaultedBy.INTERNAL_FAULT, "Thất lạc");
 
         assertThat(serial.getStatus()).isEqualTo(LotteryTicketSerialStatus.LOST);
         assertThat(serial.getFaultedBy()).isEqualTo(LotteryTicketSerialFaultedBy.INTERNAL_FAULT);
+        assertThat(serial.getDamagedEvidenceUrl()).isNull();
     }
 
     @Test

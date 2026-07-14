@@ -9,7 +9,6 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositor
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
-import com.daiphat.coreapi.application.port.out.order.TicketReplacementHistoryRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
@@ -21,7 +20,6 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
-import com.daiphat.coreapi.domain.model.orders.TicketReplacementHistoryModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,8 +55,6 @@ class OrderIncidentTicketServiceTest {
     private final LotteryTicketServicePort lotteryTicketServicePort = mock(LotteryTicketServicePort.class);
     private final OrderDetailSerialRepositoryPort orderDetailSerialRepositoryPort =
             mock(OrderDetailSerialRepositoryPort.class);
-    private final TicketReplacementHistoryRepositoryPort ticketReplacementHistoryRepositoryPort =
-            mock(TicketReplacementHistoryRepositoryPort.class);
 
     private OrderIncidentTicketService service;
 
@@ -73,8 +69,7 @@ class OrderIncidentTicketServiceTest {
                 lotteryTicketSerialServicePort,
                 lotteryTicketRepositoryPort,
                 lotteryTicketServicePort,
-                orderDetailSerialRepositoryPort,
-                ticketReplacementHistoryRepositoryPort
+                orderDetailSerialRepositoryPort
         );
     }
 
@@ -140,7 +135,6 @@ class OrderIncidentTicketServiceTest {
                 .thenReturn(Optional.of(replacement));
         when(lotteryTicketSerialRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(lotteryTicketSerialServicePort.markSold(2L)).thenReturn(soldReplacement);
-        when(ticketReplacementHistoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(orderRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         HandleOrderTicketIncidentResponse response = service.handleIncidents(
@@ -151,15 +145,11 @@ class OrderIncidentTicketServiceTest {
         assertThat(response.results()).hasSize(1);
         assertThat(response.results().getFirst().outcome()).isEqualTo(TicketIncidentOutcome.REPLACED);
         assertThat(response.results().getFirst().newSerialNumber()).isEqualTo("NEW-002");
-        assertThat(detail.getLotteryTicketSerialId()).isEqualTo(2L);
+        assertThat(detail.getLotteryTicketSerialId()).isEqualTo(1L);
+        assertThat(detail.getReplacedByTicketSerialId()).isEqualTo(2L);
         assertThat(oldSerial.getStatus()).isEqualTo(LotteryTicketSerialStatus.DAMAGED);
 
         verify(orderDetailSerialRepositoryPort).replaceSerialAllocation(10L, 1L, 2L);
-        ArgumentCaptor<TicketReplacementHistoryModel> histCaptor =
-                ArgumentCaptor.forClass(TicketReplacementHistoryModel.class);
-        verify(ticketReplacementHistoryRepositoryPort).save(histCaptor.capture());
-        assertThat(histCaptor.getValue().getOldTicketSerialId()).isEqualTo(1L);
-        assertThat(histCaptor.getValue().getNewTicketSerialId()).isEqualTo(2L);
     }
 
     @Test
@@ -202,6 +192,6 @@ class OrderIncidentTicketServiceTest {
         assertThat(response.results()).hasSize(1);
         assertThat(response.results().getFirst().outcome()).isEqualTo(TicketIncidentOutcome.NO_REPLACEMENT);
         verify(lotteryTicketSerialServicePort, never()).markSold(any());
-        verify(ticketReplacementHistoryRepositoryPort, never()).save(any());
+        verify(lotteryTicketSerialRepositoryPort).save(any(LotteryTicketSerialModel.class));
     }
 }

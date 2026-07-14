@@ -391,7 +391,19 @@ public class OrderService implements OrderServicePort {
         Map<Long, LotteryTicketResponse> ticketsById = new LinkedHashMap<>();
         Map<Long, LotteryTicketSerialModel> serialsById = new LinkedHashMap<>();
 
-        details.forEach(detail -> resolveTicket(detail.getLotteryTicketId(), ticketsById));
+        details.forEach(detail -> {
+            Long displaySerialId = detail.isReplaced()
+                    ? detail.getReplacedByTicketSerialId()
+                    : detail.getLotteryTicketSerialId();
+            LotteryTicketSerialModel serial = resolveSerial(displaySerialId, serialsById);
+            Long targetTicketId = detail.isReplaced()
+                    ? detail.getReplacedByTicketId()
+                    : detail.getLotteryTicketId();
+            if (targetTicketId == null && serial != null) {
+                targetTicketId = serial.getTicketId();
+            }
+            resolveTicket(targetTicketId, ticketsById);
+        });
 
         java.util.Set<Long> stationIds = new java.util.LinkedHashSet<>();
         java.util.Set<String> numbersList = new java.util.LinkedHashSet<>();
@@ -412,8 +424,20 @@ public class OrderService implements OrderServicePort {
 
         return details.stream()
                 .map(detail -> {
-                    LotteryTicketResponse ticket = resolveTicket(detail.getLotteryTicketId(), ticketsById);
-                    LotteryTicketSerialModel serial = resolveSerial(detail.getLotteryTicketSerialId(), serialsById);
+                    Long displaySerialId = detail.isReplaced()
+                            ? detail.getReplacedByTicketSerialId()
+                            : detail.getLotteryTicketSerialId();
+                    LotteryTicketSerialModel serial = resolveSerial(displaySerialId, serialsById);
+
+                    Long displayTicketId = detail.isReplaced()
+                            ? detail.getReplacedByTicketId()
+                            : detail.getLotteryTicketId();
+                    // Fallback: derive ticket id from the serial that will be delivered.
+                    if (displayTicketId == null && serial != null) {
+                        displayTicketId = serial.getTicketId();
+                    }
+
+                    LotteryTicketResponse ticket = resolveTicket(displayTicketId, ticketsById);
                     OrderDetailResponse base = orderApplicationMapper.toDetailResponse(detail);
 
                     boolean hasRep = false;
@@ -425,8 +449,8 @@ public class OrderService implements OrderServicePort {
 
                     return OrderDetailResponse.builder()
                             .id(base.id())
-                            .lotteryTicketId(base.lotteryTicketId())
-                            .lotteryTicketSerialId(base.lotteryTicketSerialId())
+                            .lotteryTicketId(displayTicketId)
+                            .lotteryTicketSerialId(displaySerialId)
                             .stationId(ticket != null ? ticket.stationId() : null)
                             .stationName(ticket != null ? ticket.stationName() : null)
                             .numbers(ticket != null ? ticket.numbers() : null)
@@ -435,7 +459,9 @@ public class OrderService implements OrderServicePort {
                                     ? serial.getTicketImg()
                                     : ticket != null ? ticket.ticketImg() : null)
                             .serialNumber(serial != null ? serial.getSerialNumber() : null)
-                            .replacedByTicketId(base.replacedByTicketId())
+                            .replacedByTicketId(detail.getReplacedByTicketId() != null
+                                    ? detail.getReplacedByTicketId()
+                                    : (detail.isReplaced() && serial != null ? serial.getTicketId() : null))
                             .replacedByTicketSerialId(base.replacedByTicketSerialId())
                             .price(base.price())
                             .quantity(detail.getEffectiveQuantity())
