@@ -69,6 +69,11 @@ export const exportInvoicePdf = async (orderCode: string, phone: string) => {
 
 export type TicketIncidentReason = 'DAMAGED' | 'LOST';
 
+export const getReplacementCandidates = async (orderId: string, detailId: number) => {
+    const response = await apiApp.get(`/orders/${orderId}/details/${detailId}/replacements`, withAuth());
+    return response.data;
+};
+
 export interface HandleOrderTicketIncidentRequest {
     orderDetailIds: number[];
     reason: TicketIncidentReason;
