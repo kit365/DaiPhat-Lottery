@@ -150,6 +150,16 @@ public class OrderModel {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    public void recalculateTotalAmount() {
+        if (this.orderDetails != null) {
+            this.totalAmount = this.orderDetails.stream()
+                    .filter(d -> d.getStatus() == com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE 
+                              || d.getStatus() == com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.REFUND_PENDING)
+                    .map(OrderDetailModel::getLineSubtotal)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+    }
+
     public boolean isFullyPaid() {
         if (this.totalAmount == null) {
             return false;

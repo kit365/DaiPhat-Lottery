@@ -652,16 +652,21 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                     "Chỉ được xử lý hoàn tiền từng phần khi đơn đang ở trạng thái PREPARING.");
         }
 
-        // Handle incidents
-        com.daiphat.coreapi.application.dto.response.order.HandleOrderTicketIncidentResponse incidentResponse = 
+        // Handle incidents (replacements / no-replacement outcomes)
+        com.daiphat.coreapi.application.dto.response.order.HandleOrderTicketIncidentResponse incidentResponse =
                 orderIncidentTicketServicePort.handlePartialRefundIncidents(orderId, staffId, request.incidents(), request.refundNote());
+
+        // Reload after incident handling so we don't overwrite detail/serial changes with a stale order snapshot.
+        order = orderRepositoryPort.findByIdWithLock(orderId)
+                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
 
         boolean hasNoReplacement = incidentResponse.results().stream()
                 .anyMatch(r -> r.outcome() == com.daiphat.coreapi.domain.model.enums.order.TicketIncidentOutcome.NO_REPLACEMENT);
 
+        RefundRequestModel createdRefund = null;
         if (hasNoReplacement) {
             // Check if refund request already exists
-            List<RefundRequestModel> existingRefunds = refundRequestRepositoryPort.findAll(org.springframework.data.domain.Pageable.unpaged(), null, null, null, orderId, null).getContent();
+            List<RefundRequestModel> existingRefunds = refundRequestRepositoryPort.findAll(org.springframework.data.domain.PageRequest.of(0, 1), null, null, null, orderId, null).getContent();
             if (existingRefunds.isEmpty()) {
                 // Generate a refund request
                 BigDecimal refundAmount = BigDecimal.ZERO;
@@ -669,14 +674,13 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 RefundRequestModel refundRequest = RefundRequestModel.builder()
                         .requestedBy(order.getUserId())
                         .orderId(order.getId())
-                        .status(RefundRequestStatus.WAITING_FOR_INFO) // Staff creates it, waits for user's bank info
                         .refundType(RefundType.ORDER_DETAIL)
-                        .requestRole(RefundRequestRole.CUSTOMER) // user role because user will provide bank info
                         .refundReason("Hoàn tiền từng phần cho các vé không thể đổi")
                         .operatorNote(request.refundNote())
                         .createdBy(staffId.toString())
                         .refundAmount(BigDecimal.ZERO) // It will be recalculated or set when finalizing
                         .build();
+                refundRequest.initializeForStaffIncidentCancel();
 
                 refundRequest = refundRequestRepositoryPort.save(refundRequest);
                 
@@ -694,21 +698,22 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                     }
                 }
                 refundRequest.setRefundAmount(refundAmount);
-                refundRequestRepositoryPort.save(refundRequest);
+                createdRefund = refundRequestRepositoryPort.save(refundRequest);
+            } else {
+                createdRefund = existingRefunds.getFirst();
             }
         }
 
         // Change order status to PENDING_PICKUP
-        OrderStatus oldStatus = order.getStatus();
-        order.setStatus(OrderStatus.PENDING_PICKUP);
+        order.markPendingPickup();
         orderRepositoryPort.save(order);
         
         eventPublisher.publishEvent(new OrderStatusChangedEvent(order.getId(), order.getUserId(), order.getOrderCode(), OrderStatus.PENDING_PICKUP));
 
-        // Return the refund request or null if none created (though the API returns RefundRequestResponse, let's return it or null)
-        List<RefundRequestModel> refunds = refundRequestRepositoryPort.findAll(org.springframework.data.domain.Pageable.unpaged(), null, null, null, orderId, null).getContent();
-        if (!refunds.isEmpty()) {
-            return toEnrichedResponse(refunds.getFirst(), loadBankAccount(refunds.getFirst().getBankAccountId()), order.getOrderCode());
+        // Only return a refund when this flow actually needed one (unreplaced tickets).
+        // All-replaced inspections must not create or return a Refund Request.
+        if (createdRefund != null) {
+            return toEnrichedResponse(createdRefund, loadBankAccount(createdRefund.getBankAccountId()), order.getOrderCode());
         }
         
         return null;
