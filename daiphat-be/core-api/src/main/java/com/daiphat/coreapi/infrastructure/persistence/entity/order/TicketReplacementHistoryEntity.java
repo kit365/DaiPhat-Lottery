@@ -36,6 +36,15 @@ public class TicketReplacementHistoryEntity {
     @JoinColumn(name = "new_ticket_serial_id", nullable = false)
     private LotteryTicketSerialEntity newTicketSerial;
 
+    @Column(name = "faulted_by", length = 50)
+    private String faultedBy;
+
+    @Column(name = "damaged_reason")
+    private String damagedReason;
+
+    @Column(name = "damaged_evidence_url", length = 1024)
+    private String damagedEvidenceUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private TicketIncidentReason reason;

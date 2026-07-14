@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+
 @Component
 @RequiredArgsConstructor
 public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPort {
@@ -121,6 +122,27 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
 
     @Override
     public long sumQuantityByProductIdAndStatuses(Long stationId, Collection<LotteryTicketStatus> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            return 0L;
+        }
         return lotteryTicketRepository.sumQuantityByStationIdAndStatusInAndDeletedAtIsNull(stationId, statuses);
+    }
+
+    @Override
+    public java.util.List<com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey> findAvailableReplacementsInBulk(
+            Collection<Long> stationIds, Collection<LocalDate> drawDates, Collection<String> numbers) {
+        if (stationIds == null || stationIds.isEmpty() || drawDates == null || drawDates.isEmpty() || numbers == null || numbers.isEmpty()) {
+            return java.util.List.of();
+        }
+        return lotteryTicketRepository.findAvailableReplacementsInBulk(stationIds, drawDates, numbers);
+    }
+
+    @Override
+    public java.util.List<LotteryTicketModel> findAllReplacementCandidates(
+            Long stationId, String numbers, LocalDate drawDate, LotteryTicketStatus status) {
+        return lotteryTicketRepository.findAllByStation_IdAndNumbersAndDrawDateAndStatusAndDeletedAtIsNull(
+                stationId, numbers, drawDate, status).stream()
+                .map(lotteryTicketPersistenceMapper::toDomain)
+                .toList();
     }
 }

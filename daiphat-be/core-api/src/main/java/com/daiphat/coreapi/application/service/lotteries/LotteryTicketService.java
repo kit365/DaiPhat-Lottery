@@ -1130,4 +1130,22 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             );
         }
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey> findAvailableReplacementsInBulk(
+            Collection<Long> stationIds,
+            Collection<LocalDate> drawDates,
+            Collection<String> numbers) {
+        return lotteryTicketRepositoryPort.findAvailableReplacementsInBulk(stationIds, drawDates, numbers);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse> getReplacementCandidates(Long stationId, String numbers, LocalDate drawDate) {
+        return lotteryTicketSerialService.findAllReplacementCandidates(stationId, numbers, drawDate, com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK)
+                .stream()
+                .map(lotteryTicketApplicationMapper::toSerialResponse)
+                .toList();
+    }
 }

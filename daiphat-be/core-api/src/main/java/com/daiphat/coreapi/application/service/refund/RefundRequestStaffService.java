@@ -89,6 +89,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private final TransactionRepositoryPort transactionRepositoryPort;
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
     private final ApplicationEventPublisher eventPublisher;
+    private final com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort orderIncidentTicketServicePort;
 
     @Override
     @Transactional(readOnly = true)
@@ -631,5 +632,85 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             throw new DomainException(ErrorCode.REFUND_REQUEST_INVALID_AMOUNT);
         }
         return order.getTotalAmount();
+    }
+
+    @Override
+    @Transactional
+    public RefundRequestResponse createPartialRefund(
+            UUID orderId,
+            UUID staffId,
+            com.daiphat.coreapi.application.dto.request.order.CreatePartialRefundRequest request
+    ) {
+        log.info("Staff {} creating partial refund for order {}", staffId, orderId);
+
+        OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
+                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
+
+        if (order.getStatus() != OrderStatus.PREPARING) {
+            throw new DomainException(
+                    ErrorCode.ORDER_INVALID_STATUS,
+                    "Chỉ được xử lý hoàn tiền từng phần khi đơn đang ở trạng thái PREPARING.");
+        }
+
+        // Handle incidents
+        com.daiphat.coreapi.application.dto.response.order.HandleOrderTicketIncidentResponse incidentResponse = 
+                orderIncidentTicketServicePort.handlePartialRefundIncidents(orderId, staffId, request.incidents(), request.refundNote());
+
+        boolean hasNoReplacement = incidentResponse.results().stream()
+                .anyMatch(r -> r.outcome() == com.daiphat.coreapi.domain.model.enums.order.TicketIncidentOutcome.NO_REPLACEMENT);
+
+        if (hasNoReplacement) {
+            // Check if refund request already exists
+            List<RefundRequestModel> existingRefunds = refundRequestRepositoryPort.findAll(org.springframework.data.domain.Pageable.unpaged(), null, null, null, orderId, null).getContent();
+            if (existingRefunds.isEmpty()) {
+                // Generate a refund request
+                BigDecimal refundAmount = BigDecimal.ZERO;
+                
+                RefundRequestModel refundRequest = RefundRequestModel.builder()
+                        .requestedBy(order.getUserId())
+                        .orderId(order.getId())
+                        .status(RefundRequestStatus.WAITING_FOR_INFO) // Staff creates it, waits for user's bank info
+                        .refundType(RefundType.ORDER_DETAIL)
+                        .requestRole(RefundRequestRole.CUSTOMER) // user role because user will provide bank info
+                        .refundReason("Hoàn tiền từng phần cho các vé không thể đổi")
+                        .operatorNote(request.refundNote())
+                        .createdBy(staffId.toString())
+                        .refundAmount(BigDecimal.ZERO) // It will be recalculated or set when finalizing
+                        .build();
+
+                refundRequest = refundRequestRepositoryPort.save(refundRequest);
+                
+                // Note: The actual calculation of `refundAmount` might require iterating `incidentResponse` and looking up original ticket prices.
+                // Let's look up ticket prices to set the exact refund amount
+                for (com.daiphat.coreapi.application.dto.response.order.HandleOrderTicketIncidentResponse.TicketIncidentItemResult res : incidentResponse.results()) {
+                    if (res.outcome() == com.daiphat.coreapi.domain.model.enums.order.TicketIncidentOutcome.NO_REPLACEMENT) {
+                         // Find the order detail and get its total price
+                         OrderDetailModel detail = order.getOrderDetails().stream()
+                                .filter(d -> d.getId().equals(res.orderDetailId()))
+                                .findFirst().orElse(null);
+                         if (detail != null) {
+                             refundAmount = refundAmount.add(detail.getLineSubtotal());
+                         }
+                    }
+                }
+                refundRequest.setRefundAmount(refundAmount);
+                refundRequestRepositoryPort.save(refundRequest);
+            }
+        }
+
+        // Change order status to PENDING_PICKUP
+        OrderStatus oldStatus = order.getStatus();
+        order.setStatus(OrderStatus.PENDING_PICKUP);
+        orderRepositoryPort.save(order);
+        
+        eventPublisher.publishEvent(new OrderStatusChangedEvent(order.getId(), order.getUserId(), order.getOrderCode(), OrderStatus.PENDING_PICKUP));
+
+        // Return the refund request or null if none created (though the API returns RefundRequestResponse, let's return it or null)
+        List<RefundRequestModel> refunds = refundRequestRepositoryPort.findAll(org.springframework.data.domain.Pageable.unpaged(), null, null, null, orderId, null).getContent();
+        if (!refunds.isEmpty()) {
+            return toEnrichedResponse(refunds.getFirst(), loadBankAccount(refunds.getFirst().getBankAccountId()), order.getOrderCode());
+        }
+        
+        return null;
     }
 }

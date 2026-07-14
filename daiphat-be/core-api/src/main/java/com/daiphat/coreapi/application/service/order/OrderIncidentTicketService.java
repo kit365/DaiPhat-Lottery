@@ -83,6 +83,39 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
         return new HandleOrderTicketIncidentResponse(results);
     }
 
+    @Override
+    @Transactional
+    public HandleOrderTicketIncidentResponse handlePartialRefundIncidents(
+            UUID orderId,
+            UUID staffId,
+            java.util.List<com.daiphat.coreapi.application.dto.request.order.TicketIncidentItemRequest> incidents,
+            String note
+    ) {
+        log.info("Staff {} handling partial refund incidents for order {}", staffId, orderId);
+
+        OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
+                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
+
+        if (order.getStatus() != OrderStatus.PREPARING) {
+            throw new DomainException(
+                    ErrorCode.ORDER_INVALID_STATUS,
+                    "Chỉ được xử lý vé sự cố khi đơn đang ở trạng thái PREPARING.");
+        }
+
+        if (incidents == null || incidents.isEmpty()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Cần chọn ít nhất một vé sự cố.");
+        }
+
+        List<TicketIncidentItemResult> results = new ArrayList<>();
+        for (com.daiphat.coreapi.application.dto.request.order.TicketIncidentItemRequest incident : incidents) {
+            OrderDetailModel detail = findDetail(order, incident.orderDetailId());
+            results.add(handlePartialRefundSingleDetail(order, detail, incident, note, staffId));
+        }
+
+        orderRepositoryPort.save(order);
+        return new HandleOrderTicketIncidentResponse(results);
+    }
+
     private TicketIncidentItemResult handleSingleDetail(
             OrderModel order,
             OrderDetailModel detail,
@@ -154,6 +187,95 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
                 .orderDetailId(detail.getId())
                 .outcome(TicketIncidentOutcome.REPLACED)
                 .reason(reason)
+                .numbers(numbers)
+                .stationName(stationName)
+                .oldSerialNumber(oldSerial.getSerialNumber())
+                .newSerialNumber(soldReplacement.getSerialNumber())
+                .oldTicketSerialId(oldSerialId)
+                .newTicketSerialId(newSerialId)
+                .message(String.format(
+                        "Đã tự động đổi sang vé %s cho bộ số %s",
+                        soldReplacement.getSerialNumber(),
+                        numbers != null ? numbers : ""))
+                .build();
+    }
+
+    private TicketIncidentItemResult handlePartialRefundSingleDetail(
+            OrderModel order,
+            OrderDetailModel detail,
+            com.daiphat.coreapi.application.dto.request.order.TicketIncidentItemRequest incident,
+            String note,
+            UUID staffId
+    ) {
+        if (detail.getStatus() != OrderDetailStatus.ACTIVE) {
+            throw new DomainException(
+                    ErrorCode.ORDER_DETAIL_INVALID_STATUS,
+                    "Chỉ xử lý sự cố cho vé đang hiệu lực (ACTIVE).");
+        }
+
+        Long oldSerialId = resolvePrimarySerialId(detail);
+        if (oldSerialId == null) {
+            throw new DomainException(ErrorCode.ORDER_DETAIL_NOT_FOUND, "Chi tiết đơn thiếu mã vé serial.");
+        }
+
+        LotteryTicketSerialModel oldSerial = lotteryTicketSerialServicePort.getByIdOrThrow(oldSerialId);
+        LotteryTicketModel ticket = lotteryTicketRepositoryPort.findById(oldSerial.getTicketId())
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
+
+        String numbers = ticket.getNumbers();
+        String stationName = null;
+        try {
+            stationName = lotteryTicketServicePort.getById(ticket.getId()).stationName();
+        } catch (RuntimeException ignored) {
+            // optional enrichment
+        }
+
+        if (incident.replacementTicketId() == null) {
+            // No replacement -> this detail will be partially refunded later
+            return TicketIncidentItemResult.builder()
+                    .orderDetailId(detail.getId())
+                    .outcome(TicketIncidentOutcome.NO_REPLACEMENT)
+                    .reason(incident.reason())
+                    .numbers(numbers)
+                    .stationName(stationName)
+                    .oldSerialNumber(oldSerial.getSerialNumber())
+                    .oldTicketSerialId(oldSerialId)
+                    .message("Hết vé thay thế cùng bộ số. Hoàn tiền từng phần sẽ được hỗ trợ ở bước tiếp theo.")
+                    .build();
+        }
+
+        // Apply fault to old serial
+        applyFault(oldSerial, incident.reason(), incident.damagedReason() != null ? incident.damagedReason() : incident.reason().getLabel());
+        lotteryTicketSerialRepositoryPort.save(oldSerial);
+
+        // Find available candidate for the provided replacementTicketId
+        LotteryTicketSerialModel replacementOpt = lotteryTicketSerialRepositoryPort
+                .findFirstByTicketIdAndStatusOrderByIdAsc(incident.replacementTicketId(), LotteryTicketSerialStatus.IN_STOCK)
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND, "Vé thay thế không còn khả dụng."));
+
+        LotteryTicketSerialModel soldReplacement = lotteryTicketSerialServicePort.markSold(replacementOpt.getId());
+
+        Long newSerialId = soldReplacement.getId();
+        detail.applySerialReplacement(soldReplacement.getTicketId(), newSerialId);
+        orderDetailSerialRepositoryPort.replaceSerialAllocation(detail.getId(), oldSerialId, newSerialId);
+
+        ticketReplacementHistoryRepositoryPort.save(TicketReplacementHistoryModel.builder()
+                .orderId(order.getId())
+                .orderDetailId(detail.getId())
+                .oldTicketSerialId(oldSerialId)
+                .newTicketSerialId(newSerialId)
+                .reason(incident.reason())
+                .faultedBy("INTERNAL")
+                .damagedReason(incident.damagedReason())
+                .damagedEvidenceUrl(incident.damagedEvidenceUrl())
+                .note(note)
+                .handledBy(staffId)
+                .build());
+
+        return TicketIncidentItemResult.builder()
+                .orderDetailId(detail.getId())
+                .outcome(TicketIncidentOutcome.REPLACED)
+                .reason(incident.reason())
                 .numbers(numbers)
                 .stationName(stationName)
                 .oldSerialNumber(oldSerial.getSerialNumber())

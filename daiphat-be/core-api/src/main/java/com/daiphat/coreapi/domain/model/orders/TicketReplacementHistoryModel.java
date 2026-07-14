@@ -17,7 +17,10 @@ public class TicketReplacementHistoryModel {
     private Long orderDetailId;
     private Long oldTicketSerialId;
     private Long newTicketSerialId;
+    private String faultedBy;
     private TicketIncidentReason reason;
+    private String damagedReason;
+    private String damagedEvidenceUrl;
     private String note;
     private UUID handledBy;
     private LocalDateTime createdAt;
