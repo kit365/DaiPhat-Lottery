@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getTickets } from '../../../api/ticket.api';
-import { getReplacementCandidates } from '../../../api/order.api';
+import { getReplacementCandidates, handleOrderTicketIncidents, updateOrderStatus, createPartialRefund } from '../../../api/order.api';
 import { toast } from 'react-toastify';
 import {
     Alert,
+    Avatar,
     Box,
     Button,
     Card,
@@ -29,7 +30,11 @@ import {
     ToggleButtonGroup,
     ToggleButton,
     IconButton,
-    CircularProgress
+    CircularProgress,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import { UploadFiles } from '../../../components/ui/UploadFiles';
@@ -72,11 +77,36 @@ export function OrderInspectionSection({
     const [availableReplacements, setAvailableReplacements] = useState<Record<number, any[]>>({});
     const [replacements, setReplacements] = useState<Record<number, TicketReplacementState>>({});
     const [expandedRow, setExpandedRow] = useState<number | null>(null);
+    const [openRefundDialog, setOpenRefundDialog] = useState(false);
+    const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+    const [refundNote, setRefundNote] = useState('');
 
     const tickets = useMemo(
         () => (orderDetails || []).map(resolveOrderDetailTicketDisplay),
         [orderDetails]
     );
+
+    const incidentTickets = useMemo(() => {
+        if (!orderDetails || !replacements) return [];
+        return orderDetails
+            .filter((d: any) => replacements[d.id])
+            .map((d: any) => {
+                const ticket = d.lotteryTicket || d.ticket || {};
+                const ticketSerial = d.ticketSerial || d.lotteryTicketSerial;
+                const ticketImg = ticketSerial?.ticketImg || ticket?.ticketImg;
+                const serialNumber = d.serialNumber || ticketSerial?.serialNumber || ticket.serialNumber;
+                return {
+                    id: d.id,
+                    numbers: d.numbers || ticket.numbers || '—',
+                    serialNumber: serialNumber || '—',
+                    stationName: d.stationName || ticket.stationName || ticket.station?.name || '—',
+                    ticketImg,
+                    drawDate: d.drawDate || ticket.drawDate || '—',
+                    lineSubtotal: d.lineSubtotal || d.price || ticket.price || 10000,
+                    ...replacements[d.id],
+                };
+            });
+    }, [orderDetails, replacements]);
 
     const loadReplacements = async (ticket: IncidentTicketDisplay) => {
         if (!ticket.id) return;
@@ -148,42 +178,119 @@ export function OrderInspectionSection({
         }));
     };
 
-    const isAllReplacementsValid = Object.values(replacements).every(state => {
+    const isAllReplacementsValid = Object.entries(replacements).every(([ticketId, state]) => {
         if (!state.faultedBy) return false;
+        if (!state.damagedReason) return false;
+
+        const candidates = availableReplacements[Number(ticketId)];
+        const hasRep = candidates && candidates.length > 0;
+        // Có tồn kho thay thế → bắt buộc chọn vé thay thế (không hoàn tiền).
+        if (hasRep && !state.newTicketId) return false;
+
+        // Nếu báo lỗi là Vé rách (DAMAGED) thì bắt buộc phải có ảnh minh chứng và phải upload thành công
         if (state.faultedBy === 'DAMAGED') {
-            return !!state.damagedReason && (state.damagedEvidenceFiles && state.damagedEvidenceFiles.length > 0);
+            if (!state.damagedEvidenceFiles || state.damagedEvidenceFiles.length === 0) return false;
+            const hasUnuploadedFiles = state.damagedEvidenceFiles.some((f: any) => f instanceof File);
+            if (hasUnuploadedFiles) return false;
         }
-        if (state.faultedBy === 'LOST') {
-            return !!state.damagedReason;
-        }
+
         return true;
     });
 
     const hasAnyReplacement = Object.keys(replacements).length > 0;
+
+    /**
+     * Refund chỉ cần khi kết quả kiểm tra cuối cùng còn vé không thể fulfil
+     * (hết tồn / báo lỗi mà không chọn được vé thay thế).
+     * Chỉ mở form "Thay vé" hoặc chọn lý do khi vẫn còn tồn thay thế → KHÔNG tính là cần hoàn tiền.
+     */
+    const requiresRefund = Object.entries(replacements).some(([ticketId, state]) => {
+        if (state.newTicketId) return false;
+        const candidates = availableReplacements[Number(ticketId)];
+        if (candidates === undefined) return false; // đang tải tồn kho
+        return candidates.length === 0;
+    });
 
     const quickReasons: Record<string, string[]> = {
         DAMAGED: ["Bị rách nát", "Mờ số / không đọc được mã", "Bị ướt / phai màu"],
         LOST: ["Không tìm thấy trong kho", "Mất mát không rõ lý do"]
     };
 
-    const handlePrimaryAction = () => {
-        if (hasAnyReplacement) {
-            // Navigate to refund create passing state
-            navigate(`/${prefixAdmin}/refunds/create`, {
-                state: {
-                    orderId,
-                    orderCode,
-                    replacements,
-                    orderDetails,
-                }
+    const totalRefundAmount = incidentTickets.reduce((sum, t) => {
+        const candidates = t.id != null ? availableReplacements[t.id] : undefined;
+        const cannotReplace = !t.newTicketId && Array.isArray(candidates) && candidates.length === 0;
+        if (cannotReplace) {
+            return sum + (Number(t.lineSubtotal) || 10000);
+        }
+        return sum;
+    }, 0);
+
+    const refundOnlyTickets = useMemo(
+        () =>
+            incidentTickets.filter((t) => {
+                if (t.newTicketId) return false;
+                const candidates = t.id != null ? availableReplacements[t.id] : undefined;
+                return Array.isArray(candidates) && candidates.length === 0;
+            }),
+        [incidentTickets, availableReplacements]
+    );
+
+    const handleRefundSubmit = async () => {
+        if (!replacements) return;
+        setIsSubmittingRefund(true);
+        try {
+            const incidents = incidentTickets.map(t => ({
+                orderDetailId: t.id!,
+                reason: t.faultedBy as 'DAMAGED' | 'LOST',
+                replacementTicketId: t.newTicketId,
+                damagedReason: t.damagedReason,
+                damagedEvidenceUrl: t.damagedEvidenceUrl,
+            }));
+
+            await createPartialRefund(orderId, {
+                incidents,
+                refundNote,
             });
+
+            toast.success('Đã tạo yêu cầu hoàn tiền và cập nhật đơn hàng thành công');
+            setOpenRefundDialog(false);
             if (onSuccess) onSuccess();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Có lỗi xảy ra khi tạo yêu cầu hoàn tiền');
+        } finally {
+            setIsSubmittingRefund(false);
+        }
+    };
+
+
+    const handlePrimaryAction = async () => {
+        if (requiresRefund) {
+            // Có ít nhất một vé không thay thế được → dialog tạo yêu cầu hoàn tiền
+            setOpenRefundDialog(true);
         } else {
-            // Move to ready for pickup directly
-            if (onMoveToReadyForPickup) {
-                onMoveToReadyForPickup();
+            try {
+                if (hasAnyReplacement) {
+                    const incidents = Object.entries(replacements).map(([ticketId, state]) => ({
+                        orderDetailId: Number(ticketId),
+                        reason: state.faultedBy as 'DAMAGED' | 'LOST',
+                        replacementTicketId: state.newTicketId,
+                        damagedReason: state.damagedReason,
+                        damagedEvidenceUrl: state.damagedEvidenceUrl
+                    }));
+                    // Backend swaps serials and moves to PENDING_PICKUP; no refund when all replaced.
+                    await createPartialRefund(orderId, { incidents, refundNote: '' });
+                    toast.success('Đã đổi vé và chuyển sang chờ nhận vé thành công');
+                    if (onSuccess) onSuccess();
+                    return;
+                }
+                // No incident replacements — just move status.
+                if (onMoveToReadyForPickup) {
+                    onMoveToReadyForPickup();
+                }
+                if (onSuccess) onSuccess();
+            } catch (error: any) {
+                toast.error(error?.response?.data?.message || 'Có lỗi xảy ra khi xử lý thay vé');
             }
-            if (onSuccess) onSuccess();
         }
     };
 
@@ -196,7 +303,7 @@ export function OrderInspectionSection({
 
         return (
             <TableRow>
-                <TableCell colSpan={6} sx={{ p: 0, borderBottom: 'none' }}>
+                <TableCell colSpan={7} sx={{ p: 0, borderBottom: 'none' }}>
                     <Collapse in={expandedRow === ticketId} timeout="auto" unmountOnExit>
                         <Box sx={{ p: 2.5, bgcolor: 'var(--palette-background-neutral)', borderRadius: '0 0 12px 12px', mb: 2, border: '1px solid var(--palette-divider)', borderTop: 'none' }}>
                             <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -316,6 +423,7 @@ export function OrderInspectionSection({
                                                         Chọn vé thay thế
                                                     </Typography>
                                                     <Autocomplete
+                                                        fullWidth
                                                         options={availableReplacements[ticketId] || []}
                                                         getOptionLabel={(option) => `Bộ số: ${ticket.numbers} - SN: ${option.serialNumber}`}
                                                         value={availableReplacements[ticketId]?.find(t => t.id === state.newTicketId) || null}
@@ -346,7 +454,7 @@ export function OrderInspectionSection({
                                                                             sx={{
                                                                                 width: 50,
                                                                                 height: 35,
-                                                                                objectFit: 'cover',
+                                                                                objectFit: 'contain',
                                                                                 borderRadius: '4px',
                                                                                 boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
                                                                                 border: '1px solid var(--palette-divider)'
@@ -447,17 +555,19 @@ export function OrderInspectionSection({
                             <Table size="small">
                                 <TableHead>
                                     <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
-                                        <TableCell sx={{ fontWeight: 600 }}>Bộ số</TableCell>
-                                        <TableCell sx={{ fontWeight: 600 }}>Đài</TableCell>
-                                        <TableCell sx={{ fontWeight: 600 }}>Ngày xổ</TableCell>
-                                        <TableCell sx={{ fontWeight: 600 }}>Trạng thái</TableCell>
-                                        <TableCell sx={{ fontWeight: 600 }} align="right">Thao tác</TableCell>
+                                        <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Vé số</TableCell>
+                                        <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Đài</TableCell>
+                                        <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Ngày xổ</TableCell>
+                                        <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Loại vé</TableCell>
+                                        <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
+                                        <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
+                                        <TableCell align="right" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Thao tác</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
                                     {tickets.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                                            <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                                                 <Typography variant="body2" color="text.secondary">
                                                     Không có vé trong đơn
                                                 </Typography>
@@ -471,28 +581,71 @@ export function OrderInspectionSection({
                                         const isLoading = ticket.id != null && candidates === undefined;
                                         const hasRep = ticket.id != null && !isLoading && candidates.length > 0;
                                         const isReplacing = ticket.id != null && expandedRow === ticket.id;
+                                        const hasStartedFilling = ticket.id != null && !!replacements[ticket.id]?.faultedBy;
+                                        const hasReplaced = ticket.id != null && !!replacements[ticket.id]?.newTicketId;
 
                                         return (
                                             <React.Fragment key={ticket.id ?? ticket.numbers}>
                                                 <TableRow
                                                     hover={!disabled}
-                                                    sx={{ opacity: disabled ? 0.55 : 1 }}
+                                                    sx={{ opacity: disabled ? 0.55 : 1, '&:last-child td, &:last-child th': { border: 0 } }}
                                                 >
-                                                    <TableCell>
-                                                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                                                            {ticket.numbers}
-                                                        </Typography>
-                                                        {ticket.serialNumber && (
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                SN: {ticket.serialNumber}
-                                                            </Typography>
-                                                        )}
+                                                    <TableCell align="center">
+                                                        <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center">
+                                                            {ticket.ticketImg ? (
+                                                                <Box
+                                                                    component="img"
+                                                                    src={ticket.ticketImg}
+                                                                    alt={`Vé ${ticket.numbers}`}
+                                                                    sx={{
+                                                                        width: 32,
+                                                                        height: 32,
+                                                                        objectFit: 'contain',
+                                                                        borderRadius: '4px',
+                                                                        bgcolor: 'rgba(0,0,0,0.02)',
+                                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                                                        border: '1px solid var(--palette-divider)'
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <Avatar variant="rounded" sx={{ width: 32, height: 32, bgcolor: '#ee1314', color: 'white' }}>
+                                                                    <Icon icon="solar:ticket-bold-duotone" width={20} />
+                                                                </Avatar>
+                                                            )}
+                                                            <Box sx={{ textAlign: 'left' }}>
+                                                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                                                                    {ticket.numbers}
+                                                                </Typography>
+                                                                {ticket.serialNumber && (
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        SN: {ticket.serialNumber}
+                                                                    </Typography>
+                                                                )}
+                                                            </Box>
+                                                        </Stack>
                                                     </TableCell>
-                                                    <TableCell>{ticket.stationName}</TableCell>
                                                     <TableCell>
-                                                        {ticket.drawDate
-                                                            ? dayjs(ticket.drawDate).format('DD/MM/YYYY')
-                                                            : '—'}
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                            {ticket.stationName}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                                                            {ticket.drawDate ? dayjs(ticket.drawDate).format('DD/MM/YYYY') : 'N/A'}
+                                                        </Typography>
+                                                        <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)' }}>
+                                                            {ticket.drawDate ? dayjs(ticket.drawDate).locale('vi').format('dddd') : 'N/A'}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                            {ticket.ticketType === '—' ? 'Vé thường' : ticket.ticketType}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                            {(ticket.price || 10000).toLocaleString('vi-VN')}đ
+                                                        </Typography>
                                                     </TableCell>
                                                     <TableCell>
                                                         <Typography
@@ -518,12 +671,12 @@ export function OrderInspectionSection({
                                                             ) : hasRep ? (
                                                                 <Button
                                                                     size="small"
-                                                                    variant={isReplacing ? "contained" : "outlined"}
-                                                                    color="primary"
+                                                                    variant={isReplacing ? "contained" : (hasReplaced ? "contained" : "outlined")}
+                                                                    color={hasReplaced && !isReplacing ? "success" : "primary"}
                                                                     onClick={() => ticket.id != null && handleReplaceTicketClick(ticket)}
                                                                     sx={{ textTransform: 'none', py: 0.25, minWidth: 'auto', fontSize: '0.75rem', borderRadius: '6px', boxShadow: 'none' }}
                                                                 >
-                                                                    {isReplacing ? "Đóng" : "Thay vé"}
+                                                                    {isReplacing ? "Đóng" : (hasReplaced ? "Đã thay vé" : "Thay vé")}
                                                                 </Button>
                                                             ) : (
                                                                 <>
@@ -532,12 +685,12 @@ export function OrderInspectionSection({
                                                                     </Typography>
                                                                     <Button
                                                                         size="small"
-                                                                        variant={isReplacing ? "contained" : "outlined"}
-                                                                        color="error"
+                                                                        variant={isReplacing ? "contained" : (hasStartedFilling ? "contained" : "outlined")}
+                                                                        color={hasStartedFilling && !isReplacing ? "warning" : "error"}
                                                                         onClick={() => ticket.id != null && handleReplaceTicketClick(ticket)}
                                                                         sx={{ textTransform: 'none', py: 0.25, minWidth: 'auto', fontSize: '0.75rem', borderRadius: '6px', boxShadow: 'none' }}
                                                                     >
-                                                                        {isReplacing ? "Đóng" : "Báo lỗi"}
+                                                                        {isReplacing ? "Đóng" : (hasStartedFilling ? "Đã báo lỗi" : "Báo lỗi")}
                                                                     </Button>
                                                                 </>
                                                             )}
@@ -579,8 +732,8 @@ export function OrderInspectionSection({
                 </Button>
                 <Button
                     variant="contained"
-                    color={hasAnyReplacement ? "warning" : "primary"}
-                    startIcon={<Icon icon={hasAnyReplacement ? "solar:wallet-money-bold-duotone" : "solar:check-circle-bold-duotone"} />}
+                    color={requiresRefund ? "warning" : "primary"}
+                    startIcon={<Icon icon={requiresRefund ? "solar:wallet-money-bold-duotone" : "solar:check-circle-bold-duotone"} />}
                     onClick={handlePrimaryAction}
                     disabled={hasAnyReplacement && !isAllReplacementsValid}
                     sx={{
@@ -588,16 +741,190 @@ export function OrderInspectionSection({
                         fontWeight: 700,
                         borderRadius: '8px',
                         boxShadow: 'none',
-                        ...( !hasAnyReplacement && {
+                        ...( !requiresRefund && {
                             bgcolor: 'var(--palette-grey-800)', 
                             color: 'common.white', 
                             '&:hover': { bgcolor: 'var(--palette-grey-900)' }
                         })
                     }}
                 >
-                    {hasAnyReplacement ? 'Chuyển sang Chờ nhận vé & Tạo yêu cầu hoàn tiền' : 'Chuyển sang "Chờ nhận vé"'}
+                    {requiresRefund ? 'Chuyển sang Chờ nhận vé & Tạo yêu cầu hoàn tiền' : 'Chuyển sang "Chờ nhận vé"'}
                 </Button>
             </Box>
+
+            {/* Pop-up Tạo yêu cầu hoàn tiền */}
+            <Dialog 
+                open={openRefundDialog} 
+                onClose={() => !isSubmittingRefund && setOpenRefundDialog(false)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: '16px',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)'
+                    }
+                }}
+            >
+                <DialogTitle sx={{ p: 3, pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box>
+                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                            Tạo yêu cầu hoàn tiền
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                            Đơn hàng: {orderCode || orderId}
+                        </Typography>
+                    </Box>
+                    <IconButton onClick={() => !isSubmittingRefund && setOpenRefundDialog(false)}>
+                        <Icon icon="solar:close-circle-bold" />
+                    </IconButton>
+                </DialogTitle>
+                <Divider />
+                <DialogContent sx={{ p: 3 }}>
+                    <Stack spacing={3}>
+                        <Box>
+                            <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 700 }}>
+                                Danh sách vé sự cố
+                            </Typography>
+                            <TableContainer sx={{ border: '1px solid var(--palette-divider)', borderRadius: '8px', overflow: 'hidden' }}>
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
+                                            <TableCell sx={{ fontWeight: 600, py: 1.5 }}>Ảnh vé</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, py: 1.5 }}>Bộ số</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, py: 1.5 }}>Số serial</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, py: 1.5 }}>Đài</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, py: 1.5 }}>Ngày xổ</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, py: 1.5 }}>Mệnh giá</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, py: 1.5 }}>Lý do (Faulted By)</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, py: 1.5 }}>Chi tiết sự cố</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {refundOnlyTickets.map((t) => (
+                                            <TableRow key={t.id}>
+                                                <TableCell sx={{ py: 1 }}>
+                                                    {t.ticketImg ? (
+                                                        <Box
+                                                            component="img"
+                                                            src={t.ticketImg}
+                                                            alt={`Vé ${t.numbers}`}
+                                                            sx={{
+                                                                width: 50,
+                                                                height: 35,
+                                                                objectFit: 'contain',
+                                                                borderRadius: '4px',
+                                                                bgcolor: 'rgba(0,0,0,0.02)',
+                                                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                                                border: '1px solid var(--palette-divider)'
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <Box sx={{ 
+                                                            width: 50, height: 35, borderRadius: '4px', 
+                                                            bgcolor: 'action.disabledBackground', border: '1px solid var(--palette-divider)',
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                        }}>
+                                                            <Typography variant="caption" color="text.disabled">No img</Typography>
+                                                        </Box>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell sx={{ fontWeight: 600, py: 1.5 }}>{t.numbers}</TableCell>
+                                                <TableCell sx={{ py: 1.5, fontFamily: 'monospace' }}>{t.serialNumber}</TableCell>
+                                                <TableCell sx={{ py: 1.5 }}>{t.stationName}</TableCell>
+                                                <TableCell sx={{ py: 1.5 }}>
+                                                    {t.drawDate && t.drawDate !== '—'
+                                                        ? dayjs(t.drawDate).format('DD/MM/YYYY')
+                                                        : '—'}
+                                                </TableCell>
+                                                <TableCell sx={{ py: 1.5, fontWeight: 600, color: 'text.primary' }}>
+                                                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(t.lineSubtotal) || 10000)}
+                                                </TableCell>
+                                                <TableCell sx={{ py: 1.5 }}>
+                                                    <Typography 
+                                                        variant="caption" 
+                                                        sx={{ 
+                                                            px: 1, 
+                                                            py: 0.5, 
+                                                            borderRadius: '6px',
+                                                            bgcolor: t.faultedBy === 'LOST' ? 'error.lighter' : 'warning.lighter',
+                                                            color: t.faultedBy === 'LOST' ? 'error.dark' : 'warning.dark',
+                                                            fontWeight: 700
+                                                        }}
+                                                    >
+                                                        {t.faultedBy === 'LOST' ? 'Thất lạc' : 'Vé rách / Hư hỏng'}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell sx={{ py: 1.5 }}>
+                                                    {t.damagedReason || '—'}
+                                                    {t.damagedEvidenceUrl && (
+                                                        <Box sx={{ mt: 0.5 }}>
+                                                            <a href={t.damagedEvidenceUrl} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--palette-primary-main)' }}>
+                                                                Xem minh chứng
+                                                            </a>
+                                                        </Box>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        </Box>
+
+                        {totalRefundAmount > 0 && (
+                            <Box sx={{ mb: 3, p: 2, bgcolor: 'warning.lighter', borderRadius: '8px', border: '1px dashed', borderColor: 'warning.main' }}>
+                                <Typography variant="subtitle2" color="warning.dark" sx={{ mb: 0.5 }}>
+                                    Tổng tiền hoàn lại dự kiến
+                                </Typography>
+                                <Typography variant="h6" color="warning.dark" sx={{ fontWeight: 800 }}>
+                                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalRefundAmount)}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        <Box>
+                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
+                                Ghi chú hoàn tiền
+                            </Typography>
+                            <TextField
+                                label="Ghi chú hoàn tiền"
+                                fullWidth
+                                multiline
+                                minRows={3}
+                                value={refundNote}
+                                onChange={(e) => setRefundNote(e.target.value)}
+                                placeholder="Nhập ghi chú cho yêu cầu hoàn tiền này..."
+                            />
+                        </Box>
+                    </Stack>
+                </DialogContent>
+                <Divider />
+                <DialogActions sx={{ p: 3, gap: 1.5 }}>
+                    <Button 
+                        variant="outlined" 
+                        onClick={() => setOpenRefundDialog(false)}
+                        disabled={isSubmittingRefund}
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+                    >
+                        Hủy bỏ
+                    </Button>
+                    <Button 
+                        variant="contained" 
+                        color="warning"
+                        onClick={handleRefundSubmit}
+                        disabled={isSubmittingRefund || incidentTickets.length === 0 || !refundNote.trim()}
+                        startIcon={<Icon icon="solar:check-circle-bold-duotone" />}
+                        sx={{ 
+                            textTransform: 'none', 
+                            fontWeight: 700, 
+                            borderRadius: '8px',
+                            boxShadow: 'none' 
+                        }}
+                    >
+                        {isSubmittingRefund ? 'Đang xử lý...' : 'Xác nhận & Tạo yêu cầu'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Card>
     );
 }

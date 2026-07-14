@@ -98,7 +98,7 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
                     <Box
                         component="img"
                         src={imgSrc}
-                        sx={{ width: 1, height: 1, objectFit: 'cover', borderRadius: '10px' }}
+                        sx={{ width: 1, height: 1, objectFit: 'contain', borderRadius: '10px', bgcolor: 'rgba(0,0,0,0.02)' }}
                     />
 
                     {/* Nút xóa ảnh */}
@@ -185,29 +185,31 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
                             }}>
                             {t("admin.upload.remove_all")}
                         </Button>
-                        <Button
-                            size="small"
-                            onClick={handleUpload}
-                            startIcon={<UploadIcon />}
-                            sx={{
-                                p: "4px 8px",
-                                minHeight: "30px",
-                                minWidth: "64px",
-                                fontSize: "0.75rem",
-                                fontWeight: "700",
-                                textTransform: "none",
-                                border: "1px solid #919eab52",
-                                borderRadius: "8px",
-                                color: "#fff",
-                                bgcolor: "#1C252E",
+                        {files.some(file => file instanceof File) && (
+                            <Button
+                                size="small"
+                                onClick={handleUpload}
+                                startIcon={<UploadIcon />}
+                                sx={{
+                                    p: "4px 8px",
+                                    minHeight: "30px",
+                                    minWidth: "64px",
+                                    fontSize: "0.75rem",
+                                    fontWeight: "700",
+                                    textTransform: "none",
+                                    border: "1px solid #919eab52",
+                                    borderRadius: "8px",
+                                    color: "#fff",
+                                    bgcolor: "#1C252E",
 
-                                '&:hover': {
-                                    bgcolor: "#454F5B",
-                                    boxShadow: "0 8px 16px 0 rgba(145 158 171 / 16%)"
-                                }
-                            }}>
-                            {isUploading ? t("admin.upload.uploading") : t("admin.upload.upload")}
-                        </Button>
+                                    '&:hover': {
+                                        bgcolor: "#454F5B",
+                                        boxShadow: "0 8px 16px 0 rgba(145 158 171 / 16%)"
+                                    }
+                                }}>
+                                {isUploading ? t("admin.upload.uploading") : t("admin.upload.upload")}
+                            </Button>
+                        )}
                     </Box>
                 </>
             )}
