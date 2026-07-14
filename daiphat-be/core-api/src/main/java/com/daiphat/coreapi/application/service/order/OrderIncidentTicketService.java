@@ -10,7 +10,6 @@ import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositor
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
-import com.daiphat.coreapi.application.port.out.order.TicketReplacementHistoryRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
@@ -23,7 +22,6 @@ import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
-import com.daiphat.coreapi.domain.model.orders.TicketReplacementHistoryModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -48,7 +46,6 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final OrderDetailSerialRepositoryPort orderDetailSerialRepositoryPort;
-    private final TicketReplacementHistoryRepositoryPort ticketReplacementHistoryRepositoryPort;
 
     @Override
     @Transactional
@@ -79,6 +76,7 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
             results.add(handleSingleDetail(order, detail, request.reason(), request.note(), staffId));
         }
 
+        order.recalculateTotalAmount();
         orderRepositoryPort.save(order);
         return new HandleOrderTicketIncidentResponse(results);
     }
@@ -112,6 +110,7 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
             results.add(handlePartialRefundSingleDetail(order, detail, incident, note, staffId));
         }
 
+        order.recalculateTotalAmount();
         orderRepositoryPort.save(order);
         return new HandleOrderTicketIncidentResponse(results);
     }
@@ -151,6 +150,8 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
         }
 
         if (replacementOpt.isEmpty()) {
+            applyFault(oldSerial, reason, note != null && !note.isBlank() ? note : reason.getLabel(), null);
+            lotteryTicketSerialRepositoryPort.save(oldSerial);
             return TicketIncidentItemResult.builder()
                     .orderDetailId(detail.getId())
                     .outcome(TicketIncidentOutcome.NO_REPLACEMENT)
@@ -164,24 +165,17 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
         }
 
         LotteryTicketSerialModel replacement = replacementOpt.get();
-        applyFault(oldSerial, reason, note != null && !note.isBlank() ? note : reason.getLabel());
+        applyFault(oldSerial, reason, note != null && !note.isBlank() ? note : reason.getLabel(), null);
         lotteryTicketSerialRepositoryPort.save(oldSerial);
+
+        LotteryTicketModel replacementTicket = lotteryTicketRepositoryPort.findById(replacement.getTicketId())
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
 
         LotteryTicketSerialModel soldReplacement = lotteryTicketSerialServicePort.markSold(replacement.getId());
 
         Long newSerialId = soldReplacement.getId();
-        detail.applySerialReplacement(soldReplacement.getTicketId(), newSerialId);
+        detail.applySerialReplacement(soldReplacement.getTicketId(), newSerialId, replacementTicket.getPriceSnapshot());
         orderDetailSerialRepositoryPort.replaceSerialAllocation(detail.getId(), oldSerialId, newSerialId);
-
-        ticketReplacementHistoryRepositoryPort.save(TicketReplacementHistoryModel.builder()
-                .orderId(order.getId())
-                .orderDetailId(detail.getId())
-                .oldTicketSerialId(oldSerialId)
-                .newTicketSerialId(newSerialId)
-                .reason(reason)
-                .note(note)
-                .handledBy(staffId)
-                .build());
 
         return TicketIncidentItemResult.builder()
                 .orderDetailId(detail.getId())
@@ -231,7 +225,13 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
         }
 
         if (incident.replacementTicketId() == null) {
-            // No replacement -> this detail will be partially refunded later
+            // No replacement → mark reported serial as faulted; partial refund follows.
+            applyFault(
+                    oldSerial,
+                    incident.reason(),
+                    incident.damagedReason() != null ? incident.damagedReason() : incident.reason().getLabel(),
+                    incident.damagedEvidenceUrl());
+            lotteryTicketSerialRepositoryPort.save(oldSerial);
             return TicketIncidentItemResult.builder()
                     .orderDetailId(detail.getId())
                     .outcome(TicketIncidentOutcome.NO_REPLACEMENT)
@@ -244,33 +244,28 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
                     .build();
         }
 
-        // Apply fault to old serial
-        applyFault(oldSerial, incident.reason(), incident.damagedReason() != null ? incident.damagedReason() : incident.reason().getLabel());
+        // Apply fault to old serial (status / faultedBy / damagedReason / evidence for DAMAGED)
+        applyFault(
+                oldSerial,
+                incident.reason(),
+                incident.damagedReason() != null ? incident.damagedReason() : incident.reason().getLabel(),
+                incident.damagedEvidenceUrl());
         lotteryTicketSerialRepositoryPort.save(oldSerial);
 
-        // Find available candidate for the provided replacementTicketId
+        // Find available candidate for the provided replacementTicketId (which is actually the specific serial ID)
         LotteryTicketSerialModel replacementOpt = lotteryTicketSerialRepositoryPort
-                .findFirstByTicketIdAndStatusOrderByIdAsc(incident.replacementTicketId(), LotteryTicketSerialStatus.IN_STOCK)
+                .findById(incident.replacementTicketId())
+                .filter(r -> r.getStatus() == LotteryTicketSerialStatus.IN_STOCK)
                 .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND, "Vé thay thế không còn khả dụng."));
+
+        LotteryTicketModel replacementTicket = lotteryTicketRepositoryPort.findById(replacementOpt.getTicketId())
+                .orElseThrow(() -> new DomainException(ErrorCode.LOTTERY_TICKET_NOT_FOUND));
 
         LotteryTicketSerialModel soldReplacement = lotteryTicketSerialServicePort.markSold(replacementOpt.getId());
 
         Long newSerialId = soldReplacement.getId();
-        detail.applySerialReplacement(soldReplacement.getTicketId(), newSerialId);
+        detail.applySerialReplacement(soldReplacement.getTicketId(), newSerialId, replacementTicket.getPriceSnapshot());
         orderDetailSerialRepositoryPort.replaceSerialAllocation(detail.getId(), oldSerialId, newSerialId);
-
-        ticketReplacementHistoryRepositoryPort.save(TicketReplacementHistoryModel.builder()
-                .orderId(order.getId())
-                .orderDetailId(detail.getId())
-                .oldTicketSerialId(oldSerialId)
-                .newTicketSerialId(newSerialId)
-                .reason(incident.reason())
-                .faultedBy("INTERNAL")
-                .damagedReason(incident.damagedReason())
-                .damagedEvidenceUrl(incident.damagedEvidenceUrl())
-                .note(note)
-                .handledBy(staffId)
-                .build());
 
         return TicketIncidentItemResult.builder()
                 .orderDetailId(detail.getId())
@@ -289,12 +284,17 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
                 .build();
     }
 
-    private void applyFault(LotteryTicketSerialModel serial, TicketIncidentReason reason, String damagedReason) {
+    private void applyFault(
+            LotteryTicketSerialModel serial,
+            TicketIncidentReason reason,
+            String damagedReason,
+            String damagedEvidenceUrl
+    ) {
         LotteryTicketSerialFaultedBy faultedBy = LotteryTicketSerialFaultedBy.INTERNAL_FAULT;
         if (reason == TicketIncidentReason.LOST) {
             serial.markLost(faultedBy, damagedReason);
         } else {
-            serial.markDamaged(faultedBy, damagedReason);
+            serial.markDamaged(faultedBy, damagedReason, damagedEvidenceUrl);
         }
     }
 
@@ -310,7 +310,14 @@ public class OrderIncidentTicketService implements OrderIncidentTicketServicePor
                         "Chi tiết đơn hàng không thuộc đơn đang xử lý."));
     }
 
+    /**
+     * Current serial to deliver / report against.
+     * After a successful replacement, prefer {@code replacedByTicketSerialId}.
+     */
     private Long resolvePrimarySerialId(OrderDetailModel detail) {
+        if (detail.getReplacedByTicketSerialId() != null) {
+            return detail.getReplacedByTicketSerialId();
+        }
         if (detail.getLotteryTicketSerialId() != null) {
             return detail.getLotteryTicketSerialId();
         }

@@ -121,11 +121,18 @@ public class LotteryTicketSerialModel {
     }
 
     public void markDamaged(LotteryTicketSerialFaultedBy faultedBy, String reason) {
+        markDamaged(faultedBy, reason, null);
+    }
+
+    public void markDamaged(LotteryTicketSerialFaultedBy faultedBy, String reason, String evidenceUrl) {
         markFaulted(LotteryTicketSerialStatus.DAMAGED, faultedBy, reason);
+        this.damagedEvidenceUrl = evidenceUrl != null && !evidenceUrl.isBlank() ? evidenceUrl.trim() : null;
     }
 
     public void markLost(LotteryTicketSerialFaultedBy faultedBy, String reason) {
         markFaulted(LotteryTicketSerialStatus.LOST, faultedBy, reason);
+        // LOST incidents do not keep damage evidence.
+        this.damagedEvidenceUrl = null;
     }
 
     private void markFaulted(
