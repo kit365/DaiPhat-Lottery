@@ -21,6 +21,7 @@ public record OrderDetailResponse(
         Long replacedByTicketSerialId,
         BigDecimal price,
         Integer quantity,
-        OrderDetailStatus status
+        OrderDetailStatus status,
+        boolean hasReplacement
 ) {
 }

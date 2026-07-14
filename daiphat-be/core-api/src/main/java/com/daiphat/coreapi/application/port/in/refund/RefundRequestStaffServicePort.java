@@ -29,6 +29,12 @@ public interface RefundRequestStaffServicePort {
 
     RefundRequestResponse cancelOrderWithRefund(UUID orderId, UUID staffId, StaffCancelOrderWithRefundRequest request);
 
+    RefundRequestResponse createPartialRefund(
+            UUID orderId,
+            UUID staffId,
+            com.daiphat.coreapi.application.dto.request.order.CreatePartialRefundRequest request
+    );
+
     RefundRequestResponse attachBankAccount(Long id, UUID staffId, AttachRefundBankAccountRequest request);
 
     StorageResult uploadTransferEvidence(UploadRequest request);

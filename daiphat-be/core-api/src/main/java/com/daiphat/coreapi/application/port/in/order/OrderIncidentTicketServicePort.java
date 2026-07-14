@@ -12,4 +12,11 @@ public interface OrderIncidentTicketServicePort {
             UUID staffId,
             HandleOrderTicketIncidentRequest request
     );
+
+    HandleOrderTicketIncidentResponse handlePartialRefundIncidents(
+            UUID orderId,
+            UUID staffId,
+            java.util.List<com.daiphat.coreapi.application.dto.request.order.TicketIncidentItemRequest> incidents,
+            String note
+    );
 }

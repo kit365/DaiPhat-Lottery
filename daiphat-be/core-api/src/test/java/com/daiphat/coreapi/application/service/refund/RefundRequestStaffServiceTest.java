@@ -70,6 +70,8 @@ class RefundRequestStaffServiceTest {
     private final SystemConfigRepositoryPort systemConfigRepositoryPort = mock(SystemConfigRepositoryPort.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
 
+    private final com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort orderIncidentTicketServicePort = mock(com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort.class);
+
     private RefundRequestStaffService refundRequestStaffService;
 
     private final UUID staffId = UUID.randomUUID();
@@ -93,7 +95,8 @@ class RefundRequestStaffServiceTest {
                 storagePort,
                 transactionRepositoryPort,
                 systemConfigRepositoryPort,
-                eventPublisher);
+                eventPublisher,
+                orderIncidentTicketServicePort);
 
         when(refundProcessingDeadlineService.evaluate(any())).thenReturn(
                 new RefundProcessingDeadlineService.ProcessingEvaluation(
