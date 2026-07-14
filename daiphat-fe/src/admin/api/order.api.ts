@@ -108,3 +108,22 @@ export const handleOrderTicketIncidents = async (
     );
     return response.data;
 };
+
+export interface CreatePartialRefundRequest {
+    incidents: {
+        orderDetailId: number;
+        reason: TicketIncidentReason;
+        replacementTicketId?: number;
+        damagedReason?: string;
+        damagedEvidenceUrl?: string;
+    }[];
+    refundNote: string;
+}
+
+export const createPartialRefund = async (
+    orderId: string,
+    data: CreatePartialRefundRequest
+): Promise<ApiResponse<any>> => {
+    const response = await apiApp.post(`/staff/orders/${orderId}/partial-refund`, data, withAuth());
+    return response.data;
+};

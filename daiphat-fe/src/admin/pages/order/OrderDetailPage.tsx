@@ -591,9 +591,23 @@ export const OrderDetailPage = () => {
                                                             <Avatar variant="rounded" sx={{ width: 32, height: 32, bgcolor: '#ee1314', color: 'white' }}>
                                                                 <Icon icon="solar:ticket-bold-duotone" width={20} />
                                                             </Avatar>
-                                                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                                                {detail.numbers || detail.serialNumber || detail.lotteryTicket?.numbers || detail.lotteryTicket?.symbol || detail.lotteryTicket?.ticketNumber || 'N/A'}
-                                                            </Typography>
+                                                            <Box sx={{ textAlign: 'left' }}>
+                                                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                                                                    {detail.numbers || detail.lotteryTicket?.numbers || detail.lotteryTicket?.symbol || detail.lotteryTicket?.ticketNumber || 'N/A'}
+                                                                </Typography>
+                                                                {(detail.serialNumber
+                                                                    || detail.replacedByTicketSerial?.serialNumber
+                                                                    || detail.replaceTicketSerial?.serialNumber
+                                                                    || detail.lotteryTicketSerial?.serialNumber) && (
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        SN: {detail.serialNumber
+                                                                            || detail.replacedByTicketSerial?.serialNumber
+                                                                            || detail.replaceTicketSerial?.serialNumber
+                                                                            || detail.lotteryTicketSerial?.serialNumber}
+                                                                        {detail.replacedByTicketSerialId || detail.replacedByTicketSerial || detail.replaceTicketSerial ? ' (đã thay)' : ''}
+                                                                    </Typography>
+                                                                )}
+                                                            </Box>
                                                         </Stack>
                                                     </TableCell>
                                                     <TableCell>

@@ -17,6 +17,9 @@ export interface IncidentTicketDisplay {
     isIncidentEligible: boolean;
     hasReplacement?: boolean;
     stationId?: number | string;
+    ticketType?: string;
+    price?: number;
+    ticketImg?: string;
 }
 
 export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisplay {
@@ -24,15 +27,24 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
     const id = rawId != null && Number.isFinite(Number(rawId)) ? Number(rawId) : null;
     const status = detail?.status as string | undefined;
     const ticket = detail?.lotteryTicket || detail?.ticket || {};
+    // Prefer replacement serial when present (API may also already flatten display fields).
+    const replacementSerial =
+        detail?.replacedByTicketSerial ||
+        detail?.replaceTicketSerial ||
+        null;
+    const originalSerial = detail?.ticketSerial || detail?.lotteryTicketSerial || null;
+    const effectiveSerial = replacementSerial || originalSerial;
+
     const numbers =
         detail?.numbers ||
         ticket.numbers ||
+        effectiveSerial?.numbers ||
         detail?.serialNumber ||
-        detail?.lotteryTicketSerial?.serialNumber ||
+        effectiveSerial?.serialNumber ||
         '—';
     const serialNumber =
         detail?.serialNumber ||
-        detail?.lotteryTicketSerial?.serialNumber ||
+        effectiveSerial?.serialNumber ||
         ticket.serialNumber;
     const stationName =
         detail?.stationName ||
@@ -48,6 +60,12 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
         ticket.province?.id ||
         ticket.station?._id ||
         ticket.province?._id;
+    const ticketType = detail?.ticketType || ticket?.ticketType || detail?.type || ticket?.type || '—';
+    const price = detail?.price || detail?.lineSubtotal || ticket?.price || 10000;
+    const ticketImg =
+        detail?.ticketImg ||
+        effectiveSerial?.ticketImg ||
+        ticket?.ticketImg;
 
     return {
         id,
@@ -59,5 +77,8 @@ export function resolveOrderDetailTicketDisplay(detail: any): IncidentTicketDisp
         isIncidentEligible: status === OrderDetailStatus.ACTIVE || status === 'ACTIVE',
         stationId,
         hasReplacement: detail?.hasReplacement ?? detail?.lotteryTicket?.hasReplacement ?? false,
+        ticketType,
+        price,
+        ticketImg,
     };
 }
