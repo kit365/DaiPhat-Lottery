@@ -26,6 +26,12 @@ const normalizeOrderFilterParams = (params?: OrderFilterParams) => {
         }
     });
 
+    // BE expects `size`; keep FE `limit` alias for existing callers.
+    if (normalized.limit != null && normalized.size == null) {
+        normalized.size = normalized.limit;
+        delete normalized.limit;
+    }
+
     return normalized;
 };
 
