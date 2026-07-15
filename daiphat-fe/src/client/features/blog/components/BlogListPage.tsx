@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Header } from '../../../components/layout/header';
 import { RightSidebarBlog } from './BlogSidebar';
 import { usePublicCategories, usePublicPosts } from '../hooks/useBlog';
+import { Pagination } from '../../../components/common/Pagination';
 
 interface SortDropdownProps {
   selectedLabel: string;
@@ -198,7 +199,8 @@ export const BlogListPage = () => {
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     placeholder="Tìm kiếm bài viết..."
-                    className="client-input pl-10"
+                    className="client-input focus:outline-none focus:ring-0"
+                    style={{ paddingLeft: '42px', outline: 'none' }}
                   />
                   <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-[#919EAB]"></i>
                 </div>
@@ -256,39 +258,13 @@ export const BlogListPage = () => {
 
               {/* Pagination */}
               {!isLoading && totalPages > 1 && (
-                <div className="flex justify-center items-center gap-2 mt-10">
-                  <button 
-                    type="button"
-                    disabled={page === 1}
-                    onClick={() => handlePageChange(page - 1)}
-                    className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314] transition-colors shadow-sm disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    <i className="fa-solid fa-chevron-left text-[12px]"></i>
-                  </button>
-                  
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => {
-                    const isCurrent = pNum === page;
-                    return (
-                      <button
-                        type="button"
-                        key={pNum}
-                        onClick={() => handlePageChange(pNum)}
-                        className={`w-9 h-9 flex items-center justify-center border rounded-lg transition-colors font-medium shadow-sm ${isCurrent ? 'bg-[#ee1314] border-[#ee1314] text-white font-semibold shadow-md' : 'bg-white border-[#E5E8EB] text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314]'}`}
-                      >
-                        {pNum}
-                      </button>
-                    );
-                  })}
-
-                  <button 
-                    type="button"
-                    disabled={page === totalPages}
-                    onClick={() => handlePageChange(page + 1)}
-                    className="w-9 h-9 flex items-center justify-center bg-white border border-[#E5E8EB] rounded-lg text-[#454F5B] hover:text-[#ee1314] hover:border-[#ee1314] transition-colors shadow-sm disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    <i className="fa-solid fa-chevron-right text-[12px]"></i>
-                  </button>
-                </div>
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  totalRecords={pagination?.totalRecords || 0}
+                  limit={limit}
+                />
               )}
             </div>
 
