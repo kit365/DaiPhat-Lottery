@@ -54,7 +54,7 @@ import { useImportBatchCreateDraft } from './hooks/useImportBatchCreateDraft';
 import { readLocalImportBatchCreateDraft } from './utils/importBatchCreateDraft';
 import { transferCreateFormToEditDraft } from './utils/importBatchEditDraft';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
+import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -94,7 +94,7 @@ export const ImportBatchCreatePage = () => {
         getValues,
         formState: { errors, isSubmitted },
     } = useForm<CreateImportBatchFormValues>({
-        resolver: zodResolver(createImportBatchSchema),
+        resolver: zodResolver(createImportBatchSchema) as unknown as Resolver<CreateImportBatchFormValues>,
         mode: 'onChange',
         reValidateMode: 'onChange',
         defaultValues: buildDefaultFormValues(),

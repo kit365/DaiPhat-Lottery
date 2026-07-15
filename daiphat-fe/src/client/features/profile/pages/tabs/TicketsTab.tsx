@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Pagination } from '../../../../components/common/Pagination';
 
 export const TicketsTab = () => {
+    const [page, setPage] = useState(1);
     // Tạm fix cứng trạng thái để show UI Detail
     const [viewDetail, setViewDetail] = useState(true);
 
@@ -409,30 +411,13 @@ export const TicketsTab = () => {
                 </div>
 
                 {/* Pagination */}
-                <div className="flex items-center justify-center py-6 gap-2">
-                    <button className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#919EAB] hover:bg-[#F4F6F8] transition-colors">
-                        <i className="fa-solid fa-chevron-left text-[12px]"></i>
-                    </button>
-                    <button className="w-8 h-8 rounded-lg bg-[#ee1314] flex items-center justify-center text-white font-bold text-[13px] shadow-sm">
-                        1
-                    </button>
-                    <button className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#212B36] font-medium text-[13px] hover:bg-[#F4F6F8] transition-colors">
-                        2
-                    </button>
-                    <button className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#212B36] font-medium text-[13px] hover:bg-[#F4F6F8] transition-colors">
-                        3
-                    </button>
-                    <button className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#212B36] font-medium text-[13px] hover:bg-[#F4F6F8] transition-colors">
-                        4
-                    </button>
-                    <span className="text-[#919EAB] px-1">...</span>
-                    <button className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#212B36] font-medium text-[13px] hover:bg-[#F4F6F8] transition-colors">
-                        10
-                    </button>
-                    <button className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#212B36] hover:text-[#ee1314] hover:border-[#ee1314] hover:bg-[#FFF4F4] transition-colors">
-                        <i className="fa-solid fa-chevron-right text-[12px]"></i>
-                    </button>
-                </div>
+                <Pagination
+                    page={page}
+                    totalPages={10}
+                    onPageChange={setPage}
+                    totalRecords={100}
+                    limit={10}
+                />
             </div>
         </div>
     );

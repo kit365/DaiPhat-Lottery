@@ -183,14 +183,16 @@ export const updateImportBatchSchema = z
 
         activeLines.forEach((line) => {
             const lineIndex = data.lines.indexOf(line);
-            if (stationIds.has(line.lotteryStationId)) {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    message: 'Mỗi nhà đài chỉ được xuất hiện một lần trong phiếu.',
-                    path: ['lines', lineIndex, 'lotteryStationId'],
-                });
+            if (line.lotteryStationId != null) {
+                if (stationIds.has(line.lotteryStationId)) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: 'Mỗi nhà đài chỉ được xuất hiện một lần trong phiếu.',
+                        path: ['lines', lineIndex, 'lotteryStationId'],
+                    });
+                }
+                stationIds.add(line.lotteryStationId);
             }
-            stationIds.add(line.lotteryStationId);
 
             const type = line.resolvedBatchType as ImportBatchType | undefined;
             if (data.importMode === 'IN_DAY' && (type === 'NEW' || type === 'LATE_IMPORT')) {
