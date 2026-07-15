@@ -30,8 +30,8 @@ type ImportBatchLineFormValues = CreateImportBatchFormValues | UpdateImportBatch
 
 interface ImportBatchLineRowProps {
     index: number;
-    control: Control<ImportBatchLineFormValues>;
-    setValue: UseFormSetValue<ImportBatchLineFormValues>;
+    control: Control<any>;
+    setValue: UseFormSetValue<any>;
     drawDate: string;
     eligibleStations: ImportBatchEligibleStation[];
     declareQuantity: number;

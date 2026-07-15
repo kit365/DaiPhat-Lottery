@@ -97,7 +97,7 @@ import { isImportBatchEditable } from '../ticket/utils/importBatchProgress';
 import LoadingScreen from '../../components/ui/LoadingScreen';
 import type { ImportBatch, ImportBatchEligibleStation, UpdateImportBatchPayload } from '../../api/importBatch.api';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
+import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'react-hook-form';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -150,7 +150,7 @@ export const ImportBatchEditPage = () => {
         getValues,
         formState: { errors, isSubmitted },
     } = useForm<UpdateImportBatchFormValues>({
-        resolver: zodResolver(updateImportBatchSchema),
+        resolver: zodResolver(updateImportBatchSchema) as unknown as Resolver<UpdateImportBatchFormValues>,
         mode: 'onChange',
         reValidateMode: 'onChange',
         defaultValues: {
@@ -213,7 +213,7 @@ export const ImportBatchEditPage = () => {
     const requiresInvoice = importBatchRequiresInvoiceEvidence(
         activeLines.map((line) => ({
             batchType: line.resolvedBatchType,
-        })) as { batchType?: string }[],
+        })) as any[],
         resolvedImportMode
     );
 
@@ -362,9 +362,9 @@ export const ImportBatchEditPage = () => {
             lines.map((_, rowIndex) =>
                 lines
                     .map((line, index) =>
-                        index !== rowIndex && !line.removed ? line.lotteryStationId : 0
+                        index !== rowIndex && !line.removed ? (line.lotteryStationId ?? 0) : 0
                     )
-                    .filter((stationId) => Number(stationId) > 0)
+                    .filter((stationId) => stationId > 0)
             ),
         [lines]
     );
@@ -573,9 +573,9 @@ export const ImportBatchEditPage = () => {
     ): UpdateImportBatchPayload['lines'] =>
         data.lines.map((line) => ({
             id: line.id,
-            lotteryStationId: line.lotteryStationId,
-            declareQuantity: line.declareQuantity,
-            importCost: line.importCost,
+            lotteryStationId: line.lotteryStationId!,
+            declareQuantity: line.declareQuantity!,
+            importCost: line.importCost!,
             removed: line.removed || undefined,
         }));
 
@@ -741,7 +741,7 @@ export const ImportBatchEditPage = () => {
         const submitRequiresInvoice = importBatchRequiresInvoiceEvidence(
             submitActiveLines.map((line) => ({
                 batchType: line.resolvedBatchType,
-            })) as { batchType?: string }[],
+            })) as any[],
             submitImportMode
         );
 

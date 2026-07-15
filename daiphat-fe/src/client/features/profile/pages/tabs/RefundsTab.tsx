@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { useGetMyRefunds, useGetRefundStatuses } from '../../../../hooks/useRefund';
 import { RefundRequestStatus, RefundType } from '../../../../../types/refund.type';
 import { RefundStatusBadge } from '../../../../components/refund/RefundStatusBadge';
+import { Pagination } from '../../../../components/common/Pagination';
 
 const REFUND_TYPE_LABELS: Record<RefundType, string> = {
     [RefundType.FULL_ORDER]: 'Hoàn cả đơn',
@@ -169,39 +170,14 @@ export const RefundsTab = () => {
                 </div>
 
                 {refundData?.data?.pagination && refundData.data.pagination.totalPages > 1 && (
-                    <div className="flex items-center justify-between p-5 border-t border-[#E5E8EB]">
-                        <div className="text-[14px] text-[#637381]">
-                            Hiển thị {(page - 1) * 10 + 1} đến{' '}
-                            {Math.min(page * 10, refundData.data.pagination.totalRecords)} trong tổng số{' '}
-                            {refundData.data.pagination.totalRecords}
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <button
-                                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                disabled={refundData.data.pagination.isFirst}
-                                className={`w-8 h-8 rounded border border-[#E5E8EB] flex items-center justify-center transition-colors ${
-                                    refundData.data.pagination.isFirst
-                                        ? 'text-[#C4CDD5] cursor-not-allowed bg-[#F9FAFB]'
-                                        : 'text-[#919EAB] hover:bg-[#F4F6F8] cursor-pointer'
-                                }`}
-                            >
-                                <i className="fa-solid fa-chevron-left text-[12px]"></i>
-                            </button>
-                            <button className="w-8 h-8 rounded bg-[#ee1314] flex items-center justify-center text-white font-medium text-[13px] cursor-pointer">
-                                {page}
-                            </button>
-                            <button
-                                onClick={() => setPage((p) => Math.min(refundData?.data?.pagination?.totalPages ?? 1, p + 1))}
-                                disabled={refundData?.data?.pagination?.isLast}
-                                className={`w-8 h-8 rounded border border-[#E5E8EB] flex items-center justify-center transition-colors ${
-                                    refundData.data.pagination.isLast
-                                        ? 'text-[#C4CDD5] cursor-not-allowed bg-[#F9FAFB]'
-                                        : 'text-[#919EAB] hover:bg-[#F4F6F8] cursor-pointer'
-                                }`}
-                            >
-                                <i className="fa-solid fa-chevron-right text-[12px]"></i>
-                            </button>
-                        </div>
+                    <div className="px-5 pb-5">
+                        <Pagination
+                            page={page}
+                            totalPages={refundData.data.pagination.totalPages}
+                            onPageChange={setPage}
+                            totalRecords={refundData.data.pagination.totalRecords}
+                            limit={10}
+                        />
                     </div>
                 )}
             </div>
