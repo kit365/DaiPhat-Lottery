@@ -17,7 +17,6 @@ import {
     IconButton,
     Checkbox,
     TablePagination,
-    Collapse,
     Stack,
     Avatar,
     Chip,
@@ -30,14 +29,12 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { confirmAction } from "../../../utils/swal";
-import { Search } from "../../../components/ui/Search";
 import { prefixAdmin } from "../../../constants/routes";
 import { useAdminOrderList, useUpdateOrderStatus } from "../hooks/useOrderManagement";
-import { OrderStatus, OrderType } from "../../../types/order.type";
-import { STATUS_LABEL_MAP } from '../hooks/useOrderColumns';
-
 import { OrderToolbar } from './OrderToolbar';
 import { useSettings } from '../../ticket/hooks/useSettings';
+import { useOrderDrawCutoff } from '../../../hooks/useOrderDrawCutoff';
+import { OrderCutoffReminderBanner } from '../components/OrderCutoffReminderBanner';
 
 const TabBadge = styled('span')(() => ({
     height: "24px",
@@ -182,7 +179,22 @@ export const OrderList = () => {
         .reduce((sum, key) => sum + (Number(safeStatusCounts[key]) || 0), 0);
     safeStatusCounts['all'] = safeStatusCounts['all'] ?? totalCount;
 
+    const preparingCount = Number(safeStatusCounts.PREPARING) || 0;
+    const {
+        phase: cutoffPhase,
+        cutoffLabel,
+        shouldHighlightPreparing,
+        showReminderBanner,
+    } = useOrderDrawCutoff(preparingCount);
+
     return (
+        <>
+            <OrderCutoffReminderBanner
+                phase={cutoffPhase}
+                cutoffLabel={cutoffLabel}
+                preparingCount={preparingCount}
+                visible={showReminderBanner}
+            />
         <Card sx={{
             borderRadius: 'var(--shape-borderRadius-lg)',
             bgcolor: 'var(--palette-background-paper)',
@@ -212,7 +224,24 @@ export const OrderList = () => {
                     { value: 'PENDING_PICKUP', label: 'Chờ nhận vé', color: 'var(--palette-primary-dark)', bg: 'var(--palette-primary-lighter)', activeColor: 'var(--palette-primary-contrastText)', activeBg: 'var(--palette-primary-main)' },
                     { value: 'COMPLETED', label: 'Hoàn thành', color: 'var(--palette-success-dark)', bg: 'var(--palette-success-lighter)', activeColor: 'var(--palette-success-contrastText)', activeBg: 'var(--palette-success-main)' },
                     { value: 'CANCELLED', label: 'Đã huỷ', color: 'var(--palette-error-dark)', bg: 'var(--palette-error-lighter)', activeColor: 'var(--palette-error-contrastText)', activeBg: 'var(--palette-error-main)' },
-                ].map((tab) => (
+                ].map((tab) => {
+                    const isPreparingUrgent = tab.value === 'PREPARING' && shouldHighlightPreparing;
+                    const urgentColors = cutoffPhase === 'past'
+                        ? {
+                            color: 'var(--palette-error-dark)',
+                            bg: 'var(--palette-error-lighter)',
+                            activeColor: 'var(--palette-error-contrastText)',
+                            activeBg: 'var(--palette-error-main)',
+                        }
+                        : {
+                            color: 'var(--palette-warning-dark)',
+                            bg: 'var(--palette-warning-lighter)',
+                            activeColor: 'var(--palette-warning-contrastText)',
+                            activeBg: 'var(--palette-warning-main)',
+                        };
+                    const tabColors = isPreparingUrgent ? { ...tab, ...urgentColors } : tab;
+
+                    return (
                     <Tab
                         key={tab.value}
                         value={tab.value}
@@ -221,16 +250,25 @@ export const OrderList = () => {
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                 <Typography sx={{
                                     fontSize: '0.875rem',
-                                    fontWeight: tabStatus === tab.value ? 700 : 500,
-                                    color: tabStatus === tab.value ? 'var(--palette-text-primary)' : 'inherit'
+                                    fontWeight: tabStatus === tab.value || isPreparingUrgent ? 700 : 500,
+                                    color: tabStatus === tab.value
+                                        ? 'var(--palette-text-primary)'
+                                        : isPreparingUrgent
+                                            ? tabColors.color
+                                            : 'inherit'
                                 }}>
                                     {tab.label}
                                 </Typography>
                                 <TabBadge
                                     sx={{
-                                        bgcolor: tabStatus === tab.value ? tab.activeBg : tab.bg,
-                                        color: tabStatus === tab.value ? tab.activeColor : tab.color,
-                                        transition: 'all 0.2s ease'
+                                        bgcolor: tabStatus === tab.value ? tabColors.activeBg : tabColors.bg,
+                                        color: tabStatus === tab.value ? tabColors.activeColor : tabColors.color,
+                                        transition: 'all 0.2s ease',
+                                        ...(isPreparingUrgent && tabStatus !== tab.value && {
+                                            boxShadow: cutoffPhase === 'past'
+                                                ? '0 0 0 1px var(--palette-error-main)'
+                                                : '0 0 0 1px var(--palette-warning-main)',
+                                        }),
                                     }}
                                 >
                                     {safeStatusCounts[tab.value] || 0}
@@ -242,13 +280,14 @@ export const OrderList = () => {
                             padding: '0',
                             minHeight: '48px',
                             textTransform: 'none',
-                            color: 'var(--palette-text-secondary)',
+                            color: isPreparingUrgent ? tabColors.color : 'var(--palette-text-secondary)',
                             '&.Mui-selected': {
                                 color: 'var(--palette-text-primary)'
                             },
                         }}
                     />
-                ))}
+                    );
+                })}
             </Tabs>
 
             <Box sx={{ borderBottom: `1px dashed var(--palette-background-neutral)` }}>
@@ -305,6 +344,8 @@ export const OrderList = () => {
                             orders.map((row: any) => {
                                 const isItemSelected = selected.indexOf(row.id) !== -1;
                                 const isOpen = openRows.includes(row.id);
+                                const isPreparingUrgentRow =
+                                    shouldHighlightPreparing && row.status === 'PREPARING';
 
                                 return (
                                     <React.Fragment key={row.id}>
@@ -315,6 +356,19 @@ export const OrderList = () => {
                                                 '&:hover': { bgcolor: 'var(--palette-action-hover)' },
                                                 ...(isOpen && {
                                                     bgcolor: 'transparent'
+                                                }),
+                                                ...(isPreparingUrgentRow && {
+                                                    bgcolor: cutoffPhase === 'past'
+                                                        ? 'rgba(var(--palette-error-mainChannel) / 0.08)'
+                                                        : 'rgba(var(--palette-warning-mainChannel) / 0.10)',
+                                                    boxShadow: cutoffPhase === 'past'
+                                                        ? 'inset 3px 0 0 var(--palette-error-main)'
+                                                        : 'inset 3px 0 0 var(--palette-warning-main)',
+                                                    '&:hover': {
+                                                        bgcolor: cutoffPhase === 'past'
+                                                            ? 'rgba(var(--palette-error-mainChannel) / 0.12)'
+                                                            : 'rgba(var(--palette-warning-mainChannel) / 0.16)',
+                                                    },
                                                 }),
                                                 transition: 'background-color 0.2s'
                                             }}
@@ -542,5 +596,6 @@ export const OrderList = () => {
                 onRowsPerPageChange={handleChangeRowsPerPage}
             />
         </Card>
+        </>
     );
 };

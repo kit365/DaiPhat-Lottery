@@ -7,6 +7,7 @@ import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { hasPermission, resolveRoleCode } from "../../../utils/permission.util";
 import { useRefundPendingCount } from "../../../hooks/useRefundPendingCount";
+import { usePreparingOrderCount } from "../../../hooks/usePreparingOrderCount";
 
 
 const SubNavItem = ({ child, isSubActive, t }: any) => {
@@ -25,6 +26,30 @@ const SubNavItem = ({ child, isSubActive, t }: any) => {
     );
 };
 
+const sidebarBadgeSx = {
+    position: 'static' as const,
+    transform: 'none',
+    backgroundColor: '#FF5630',
+    color: '#fff',
+    fontWeight: 700,
+    fontSize: '0.65rem',
+    minWidth: 18,
+    height: 18,
+    borderRadius: '9px',
+    px: 0.5,
+};
+
+const sidebarIconBadgeSx = {
+    backgroundColor: '#FF5630',
+    color: '#fff',
+    fontWeight: 700,
+    fontSize: '0.6rem',
+    minWidth: 16,
+    height: 16,
+    top: 2,
+    right: 2,
+};
+
 /** Isolated so only the Refund menu item polls pending counts. */
 const RefundPendingBadgeLabel = () => {
     const { pendingCount } = useRefundPendingCount();
@@ -32,20 +57,7 @@ const RefundPendingBadgeLabel = () => {
     return (
         <Badge
             badgeContent={pendingCount > 99 ? '99+' : pendingCount}
-            sx={{
-                '& .MuiBadge-badge': {
-                    position: 'static',
-                    transform: 'none',
-                    backgroundColor: '#FF5630',
-                    color: '#fff',
-                    fontWeight: 700,
-                    fontSize: '0.65rem',
-                    minWidth: 18,
-                    height: 18,
-                    borderRadius: '9px',
-                    px: 0.5,
-                },
-            }}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
         />
     );
 };
@@ -56,18 +68,32 @@ const RefundPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
         <Badge
             badgeContent={pendingCount > 99 ? '99+' : pendingCount}
             invisible={pendingCount <= 0}
-            sx={{
-                '& .MuiBadge-badge': {
-                    backgroundColor: '#FF5630',
-                    color: '#fff',
-                    fontWeight: 700,
-                    fontSize: '0.6rem',
-                    minWidth: 16,
-                    height: 16,
-                    top: 2,
-                    right: 2,
-                },
-            }}
+            sx={{ '& .MuiBadge-badge': sidebarIconBadgeSx }}
+        >
+            {children}
+        </Badge>
+    );
+};
+
+/** Isolated so only the Orders menu item polls PREPARING counts. */
+const PreparingOrderBadgeLabel = () => {
+    const { preparingCount } = usePreparingOrderCount();
+    if (preparingCount <= 0) return null;
+    return (
+        <Badge
+            badgeContent={preparingCount > 99 ? '99+' : preparingCount}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
+        />
+    );
+};
+
+const PreparingOrderBadgeIcon = ({ children }: { children: ReactNode }) => {
+    const { preparingCount } = usePreparingOrderCount();
+    return (
+        <Badge
+            badgeContent={preparingCount > 99 ? '99+' : preparingCount}
+            invisible={preparingCount <= 0}
+            sx={{ '& .MuiBadge-badge': sidebarIconBadgeSx }}
         >
             {children}
         </Badge>
@@ -80,6 +106,7 @@ export const NavItem = memo(({ item }: { item: any }) => {
     const { isOpen } = useSidebar();
     const { user } = useAuthStore();
     const showRefundBadge = item.id === 'refunds';
+    const showPreparingBadge = item.id === 'orders';
 
     const normalizedRole = resolveRoleCode(user);
     const isStaff = normalizedRole.includes('STAFF');
@@ -166,6 +193,10 @@ export const NavItem = memo(({ item }: { item: any }) => {
                             <RefundPendingBadgeIcon>
                                 <Icon />
                             </RefundPendingBadgeIcon>
+                        ) : !isOpen && showPreparingBadge ? (
+                            <PreparingOrderBadgeIcon>
+                                <Icon />
+                            </PreparingOrderBadgeIcon>
                         ) : (
                             <Icon />
                         )}
@@ -178,6 +209,11 @@ export const NavItem = memo(({ item }: { item: any }) => {
                         {showRefundBadge && (
                             <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
                                 <RefundPendingBadgeLabel />
+                            </span>
+                        )}
+                        {showPreparingBadge && (
+                            <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
+                                <PreparingOrderBadgeLabel />
                             </span>
                         )}
                     </span>
