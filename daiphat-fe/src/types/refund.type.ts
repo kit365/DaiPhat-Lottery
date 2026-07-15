@@ -97,11 +97,20 @@ export interface CreateOrderRefundRequest {
 export interface RefundEligibleTicketItem {
     orderDetailId?: number;
     numbers?: string;
+    serialNumber?: string;
     stationName?: string;
     drawDate?: string;
+    ticketImg?: string;
     quantity: number;
     unitPrice: number;
     subtotalAmount: number;
+    serialStatus?: string | null;
+    serialStatusLabel?: string | null;
+    hasIncident?: boolean;
+    faultedBy?: string | null;
+    faultedByDisplayName?: string | null;
+    damagedReason?: string | null;
+    damagedEvidenceUrl?: string | null;
 }
 
 export interface OrderRefundEligibilityResponse {
@@ -233,6 +242,8 @@ export interface RefundRequestResponse {
     processingDeadlineAt?: string;
     remainingProcessingSeconds?: number;
     processingUrgency?: RefundProcessingUrgency;
+    /** Ticket lines included in this refund (customer/staff detail enrichment). */
+    refundTickets?: RefundEligibleTicketItem[];
 }
 
 export interface GetMyRefundsParams {

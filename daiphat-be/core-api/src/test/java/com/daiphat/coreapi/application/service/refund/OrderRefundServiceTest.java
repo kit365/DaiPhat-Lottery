@@ -3,7 +3,6 @@ package com.daiphat.coreapi.application.service.refund;
 import com.daiphat.coreapi.application.config.OrderRefundProperties;
 import com.daiphat.coreapi.application.dto.request.refund.CreateOrderRefundRequest;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
-import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
@@ -56,7 +55,7 @@ class OrderRefundServiceTest {
     private final RefundRequestRepositoryPort refundRequestRepositoryPort = mock(RefundRequestRepositoryPort.class);
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort = mock(UserBankAccountRepositoryPort.class);
     private final LotteryTicketServicePort lotteryTicketServicePort = mock(LotteryTicketServicePort.class);
-    private final LotteryTicketSerialServicePort lotteryTicketSerialServicePort = mock(LotteryTicketSerialServicePort.class);
+    private final RefundTicketItemResolver refundTicketItemResolver = mock(RefundTicketItemResolver.class);
     private final com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort orderDetailSerialRepositoryPort =
             mock(com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort.class);
     private final RefundApplicationMapper refundApplicationMapper = mock(RefundApplicationMapper.class);
@@ -89,9 +88,9 @@ class OrderRefundServiceTest {
                 refundRequestRepositoryPort,
                 userBankAccountRepositoryPort,
                 lotteryTicketServicePort,
-                lotteryTicketSerialServicePort,
                 orderDetailSerialRepositoryPort,
                 refundApplicationMapper,
+                refundTicketItemResolver,
                 orderRefundGraceService,
                 orderRefundPolicyService,
                 eventPublisher);
@@ -103,6 +102,7 @@ class OrderRefundServiceTest {
         lenient().when(refundRequestRepositoryPort.countByRequestedByAndCreatedAtFrom(any(), any())).thenReturn(0L);
         lenient().when(refundRequestRepositoryPort.linkOrderDetailsByOrderId(any(), any())).thenReturn(1);
         lenient().when(refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(any())).thenReturn(List.of(1L));
+        lenient().when(refundTicketItemResolver.resolveFromOrder(any())).thenReturn(List.of());
     }
 
     @Test

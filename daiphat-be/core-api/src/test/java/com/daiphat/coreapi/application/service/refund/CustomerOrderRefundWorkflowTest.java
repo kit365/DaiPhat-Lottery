@@ -5,7 +5,6 @@ import com.daiphat.coreapi.application.dto.request.refund.CreateOrderRefundReque
 import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
 import com.daiphat.coreapi.application.listener.RefundRequestEventListener;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
-import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketSerialServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
@@ -62,7 +61,7 @@ class CustomerOrderRefundWorkflowTest {
     private final RefundRequestRepositoryPort refundRequestRepositoryPort = mock(RefundRequestRepositoryPort.class);
     private final UserBankAccountRepositoryPort userBankAccountRepositoryPort = mock(UserBankAccountRepositoryPort.class);
     private final LotteryTicketServicePort lotteryTicketServicePort = mock(LotteryTicketServicePort.class);
-    private final LotteryTicketSerialServicePort lotteryTicketSerialServicePort = mock(LotteryTicketSerialServicePort.class);
+    private final RefundTicketItemResolver refundTicketItemResolver = mock(RefundTicketItemResolver.class);
     private final com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort orderDetailSerialRepositoryPort =
             mock(com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort.class);
     private final RefundApplicationMapper refundApplicationMapper = mock(RefundApplicationMapper.class);
@@ -93,9 +92,9 @@ class CustomerOrderRefundWorkflowTest {
                 refundRequestRepositoryPort,
                 userBankAccountRepositoryPort,
                 lotteryTicketServicePort,
-                lotteryTicketSerialServicePort,
                 orderDetailSerialRepositoryPort,
                 refundApplicationMapper,
+                refundTicketItemResolver,
                 graceService,
                 policyService,
                 eventPublisher);
@@ -114,6 +113,7 @@ class CustomerOrderRefundWorkflowTest {
         lenient().when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.MAX_REFUND_REQUESTS_PER_DAY.name()))
                 .thenReturn(Optional.of(SystemConfigModel.builder().configValue("3").build()));
         lenient().when(refundRequestRepositoryPort.countByRequestedByAndCreatedAtFrom(any(), any())).thenReturn(0L);
+        lenient().when(refundTicketItemResolver.resolveFromOrder(any())).thenReturn(List.of());
     }
 
     @Test

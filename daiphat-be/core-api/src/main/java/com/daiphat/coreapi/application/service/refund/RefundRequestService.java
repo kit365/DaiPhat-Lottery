@@ -63,6 +63,7 @@ public class RefundRequestService implements RefundRequestServicePort {
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final RefundApplicationMapper refundApplicationMapper;
     private final OrderApplicationMapper orderApplicationMapper;
+    private final RefundTicketItemResolver refundTicketItemResolver;
     private final OrderRefundGraceService orderRefundGraceService;
     private final OrderRefundPolicyService orderRefundPolicyService;
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
@@ -136,7 +137,8 @@ public class RefundRequestService implements RefundRequestServicePort {
     @Transactional(readOnly = true)
     public RefundRequestResponse getById(Long id, UUID userId) {
         RefundRequestModel request = getOwnedRequestOrThrow(id, userId);
-        return toResponse(request, loadBankAccount(request.getBankAccountId()));
+        RefundRequestResponse response = toResponse(request, loadBankAccount(request.getBankAccountId()));
+        return refundApplicationMapper.withRefundTickets(response, resolveRefundTickets(request));
     }
 
     @Override
@@ -212,6 +214,22 @@ public class RefundRequestService implements RefundRequestServicePort {
             return null;
         }
         return userBankAccountRepositoryPort.findById(bankAccountId).orElse(null);
+    }
+
+    private List<com.daiphat.coreapi.application.dto.response.refund.RefundEligibleTicketItemResponse> resolveRefundTickets(
+            RefundRequestModel refund
+    ) {
+        UUID orderId = refund.getOrderId();
+        if (orderId == null && refund.getId() != null) {
+            orderId = refundRequestRepositoryPort.findOrderIdByRefundRequestId(refund.getId()).orElse(null);
+            refund.setOrderId(orderId);
+        }
+        if (orderId == null) {
+            return List.of();
+        }
+        return orderRepositoryPort.findById(orderId)
+                .map(order -> refundTicketItemResolver.resolveFromOrder(order, refund.getOrderDetailIds()))
+                .orElse(List.of());
     }
 
     private RefundRequestResponse toResponse(RefundRequestModel model, UserBankAccountModel bankAccount) {

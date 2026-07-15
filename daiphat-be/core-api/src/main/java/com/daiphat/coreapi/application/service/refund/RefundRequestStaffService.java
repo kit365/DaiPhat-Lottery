@@ -163,7 +163,9 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 reviewerName,
                 transferrerName,
                 buildProcessingHistory(request, reviewerName, transferrerName, payoutTransaction),
-                order != null ? refundTicketItemResolver.resolveFromOrder(order) : List.of());
+                order != null
+                        ? refundTicketItemResolver.resolveFromOrder(order, request.getOrderDetailIds())
+                        : List.of());
     }
 
     @Override
