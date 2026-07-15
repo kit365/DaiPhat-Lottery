@@ -1,6 +1,5 @@
 package com.daiphat.coreapi.application.service.auth;
 
-import com.daiphat.coreapi.application.config.AuthProperties;
 import com.daiphat.coreapi.application.dto.request.permission.PermissionItem;
 import com.daiphat.coreapi.application.dto.request.permission.PermissionRegistrationRequest;
 import com.daiphat.coreapi.application.dto.response.auth.RoleResponse;
@@ -14,6 +13,7 @@ import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.auth.PermissionModel;
 import com.daiphat.coreapi.domain.model.auth.RoleModel;
 import com.daiphat.coreapi.domain.model.enums.auth.PermissionConstants;
+import com.daiphat.coreapi.domain.model.enums.auth.AppPermission;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,15 +47,13 @@ class RoleServiceTest {
     @Mock
     private RoleApplicationMapper roleApplicationMapper;
     @Mock
-    private AuthProperties authProperties;
-    @Mock
     private UserLookupServicePort userLookupServicePort;
 
     private RoleServicePort roleService;
 
     @BeforeEach
     void setUp() {
-        roleService = new RoleService(roleRepositoryPort, roleApplicationMapper, authProperties, userLookupServicePort);
+        roleService = new RoleService(roleRepositoryPort, roleApplicationMapper, userLookupServicePort);
     }
 
     @Test
@@ -174,21 +173,33 @@ class RoleServiceTest {
     }
 
     @Test
-    void syncOperatorStaffPermissions_hasExistingPermissions_doesNothing() {
+    void syncOperatorStaffPermissions_replacesExistingPermissionsWithTheDefaultPolicy() {
         RoleModel role = RoleModel.builder().permissions(Set.of(PermissionModel.builder().code("P1").build())).build();
         when(roleRepositoryPort.findByCode(RoleConstants.ROLE_STAFF_OPERATOR)).thenReturn(Optional.of(role));
         roleService.syncOperatorStaffPermissions();
+
+        verify(roleRepositoryPort).assignPermissionsToRole(
+                RoleConstants.ROLE_STAFF_OPERATOR,
+                Arrays.stream(AppPermission.values())
+                        .filter(AppPermission::isDefaultOperatorPermission)
+                        .map(AppPermission::getCode)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet())
+        );
     }
 
     @Test
     void syncOperatorStaffPermissions_emptyPermissions_syncs() {
         RoleModel role = RoleModel.builder().permissions(Set.of()).build();
         when(roleRepositoryPort.findByCode(RoleConstants.ROLE_STAFF_OPERATOR)).thenReturn(Optional.of(role));
-        when(authProperties.getDefaultOperatorPermissions()).thenReturn(Set.of("OP1"));
-
         roleService.syncOperatorStaffPermissions();
 
-        verify(roleRepositoryPort).assignPermissionsToRole(RoleConstants.ROLE_STAFF_OPERATOR, Set.of("OP1"));
+        verify(roleRepositoryPort).assignPermissionsToRole(
+                RoleConstants.ROLE_STAFF_OPERATOR,
+                Arrays.stream(AppPermission.values())
+                        .filter(AppPermission::isDefaultOperatorPermission)
+                        .map(AppPermission::getCode)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet())
+        );
     }
 
     @Test

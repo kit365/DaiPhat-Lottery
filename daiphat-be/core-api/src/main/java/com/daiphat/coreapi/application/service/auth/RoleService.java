@@ -11,15 +11,16 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.auth.PermissionModel;
 import com.daiphat.coreapi.domain.model.auth.RoleModel;
+import com.daiphat.coreapi.domain.model.enums.auth.AppPermission;
 import com.daiphat.coreapi.domain.model.enums.auth.PermissionConstants;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
-import com.daiphat.coreapi.application.config.AuthProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.Collections;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +37,6 @@ public class RoleService implements RoleServicePort {
 
     private final RoleRepositoryPort roleRepositoryPort;
     private final RoleApplicationMapper roleApplicationMapper;
-    private final AuthProperties authProperties;
     private final UserLookupServicePort userLookupServicePort;
 
     @Override
@@ -97,10 +97,11 @@ public class RoleService implements RoleServicePort {
         RoleModel role = roleRepositoryPort.findByCode(RoleConstants.ROLE_STAFF_OPERATOR)
                 .orElse(null);
         if (role != null) {
-            Set<String> permissionCodes = authProperties.getDefaultOperatorPermissions();
-            if (permissionCodes != null && !permissionCodes.isEmpty()) {
-                roleRepositoryPort.assignPermissionsToRole(RoleConstants.ROLE_STAFF_OPERATOR, permissionCodes);
-            }
+            Set<String> permissionCodes = Arrays.stream(AppPermission.values())
+                    .filter(AppPermission::isDefaultOperatorPermission)
+                    .map(AppPermission::getCode)
+                    .collect(Collectors.toUnmodifiableSet());
+            roleRepositoryPort.assignPermissionsToRole(RoleConstants.ROLE_STAFF_OPERATOR, permissionCodes);
         }
     }
 

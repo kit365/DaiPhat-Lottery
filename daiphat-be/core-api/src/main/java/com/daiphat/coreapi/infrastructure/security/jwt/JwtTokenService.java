@@ -21,6 +21,7 @@ public class JwtTokenService implements TokenProviderPort {
     private static final String TOKEN_TYPE = "token_type";
     private static final String ACCESS_TOKEN = "access";
     private static final String REFRESH_TOKEN = "refresh";
+    private static final String AUTH_VERSION = "auth_version";
 
     @Value("${daiphat.auth.jwt.secret}")
     private String secret;
@@ -60,6 +61,30 @@ public class JwtTokenService implements TokenProviderPort {
     }
 
     @Override
+    public boolean isAccessTokenValidForUser(String token, UserModel user) {
+        return isTokenValidForUser(token, ACCESS_TOKEN, user);
+    }
+
+    @Override
+    public boolean isRefreshTokenValidForUser(String token, UserModel user) {
+        return isTokenValidForUser(token, REFRESH_TOKEN, user);
+    }
+
+    private boolean isTokenValidForUser(String token, String tokenType, UserModel user) {
+        try {
+            Claims claims = parseToken(token, tokenType);
+            Object authVersionClaim = claims.get(AUTH_VERSION);
+            String userId = claims.get("user_id", String.class);
+            return authVersionClaim instanceof Number authVersion
+                    && authVersion.longValue() == user.getAuthVersion()
+                    && user.getId().toString().equals(userId)
+                    && user.getUsername().equals(claims.getSubject());
+        } catch (JwtException | IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+    @Override
     public boolean isRefreshTokenValid(String token) {
         return isTokenValid(token, REFRESH_TOKEN);
     }
@@ -88,6 +113,7 @@ public class JwtTokenService implements TokenProviderPort {
                 .claim("user_id", user.getId().toString())
                 .claim("email", user.getEmail())
                 .claim("role", user.getRole() != null ? user.getRole().getCode() : null)
+                .claim(AUTH_VERSION, user.getAuthVersion())
                 .signWith(signingKey())
                 .compact();
     }
