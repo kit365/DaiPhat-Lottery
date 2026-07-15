@@ -471,6 +471,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 .status(refund.getStatus())
                 .retryCount(refund.getRetryCount())
                 .refundType(refund.getRefundType())
+                .requestRole(refund.getRequestRole())
                 .build());
     }
 
@@ -705,12 +706,18 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                             "Không có vé sự cố nào cần hoàn tiền từng phần.");
                 }
 
+                String refundReason = request.resolveRefundReason();
+                if (refundReason == null) {
+                    throw new DomainException(
+                            ErrorCode.INVALID_INPUT,
+                            "Vui lòng nhập lý do hoàn tiền.");
+                }
+
                 RefundRequestModel refundRequest = RefundRequestModel.builder()
                         .requestedBy(order.getUserId())
                         .orderId(order.getId())
                         .refundType(RefundType.ORDER_DETAIL)
-                        .refundReason("Hoàn tiền từng phần cho các vé không thể đổi")
-                        .operatorNote(request.refundNote())
+                        .refundReason(refundReason)
                         .createdBy(staffId.toString())
                         .refundAmount(refundAmount)
                         .build();

@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.event;
 
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
 import lombok.Builder;
@@ -14,6 +15,7 @@ public record RefundRequestStatusChangedEvent(
         String orderCode,
         RefundRequestStatus status,
         int retryCount,
-        RefundType refundType
+        RefundType refundType,
+        RefundRequestRole requestRole
 ) {
 }
