@@ -97,6 +97,15 @@ public class RefundRequestRepositoryAdapter implements RefundRequestRepositoryPo
     }
 
     @Override
+    @Transactional
+    public int linkOrderDetailsByIds(List<Long> orderDetailIds, Long refundRequestId) {
+        if (orderDetailIds == null || orderDetailIds.isEmpty() || refundRequestId == null) {
+            return 0;
+        }
+        return orderDetailRepository.linkUnlinkedDetailsByIds(orderDetailIds, refundRequestId);
+    }
+
+    @Override
     public List<Long> findOrderDetailIdsByRefundRequestId(Long refundRequestId) {
         return orderDetailRepository.findIdsByRefundRequestId(refundRequestId);
     }

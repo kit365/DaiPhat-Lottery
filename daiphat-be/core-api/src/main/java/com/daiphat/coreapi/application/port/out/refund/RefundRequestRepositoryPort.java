@@ -48,6 +48,12 @@ public interface RefundRequestRepositoryPort {
     /** Links all unlinked order details of the order to the refund request. Returns linked count. */
     int linkOrderDetailsByOrderId(UUID orderId, Long refundRequestId);
 
+    /**
+     * Links specific unlinked order details to the refund request and marks them REFUND_PENDING.
+     * Used for partial (ORDER_DETAIL) refunds during order inspection.
+     */
+    int linkOrderDetailsByIds(List<Long> orderDetailIds, Long refundRequestId);
+
     List<Long> findOrderDetailIdsByRefundRequestId(Long refundRequestId);
 
     Optional<UUID> findOrderIdByRefundRequestId(Long refundRequestId);
