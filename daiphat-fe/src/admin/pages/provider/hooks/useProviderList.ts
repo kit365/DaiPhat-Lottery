@@ -25,7 +25,7 @@ export const useProviderList = () => {
         limit: 10,
     });
 
-    const { data, isLoading, error } = useQuery({
+    const { data, isLoading, isFetching, error } = useQuery({
         queryKey: [QUERY_KEYS.PROVIDERS, filters],
         queryFn: () => getProviders({
             search: filters.search,
@@ -64,19 +64,29 @@ export const useProviderList = () => {
     };
 
     const setSearchFilter = (search: string) => {
-        setFilters((prev) => ({ ...prev, search, page: 1 }));
+        setFilters((prev) => {
+            if ((prev.search || '') === (search || '')) {
+                return prev;
+            }
+            return { ...prev, search, page: 1 };
+        });
     };
 
     const setPage = (page: number) => {
-        setFilters((prev) => ({ ...prev, page }));
+        setFilters((prev) => (prev.page === page ? prev : { ...prev, page }));
     };
 
     const setLimit = (limit: number) => {
-        setFilters((prev) => ({ ...prev, limit, page: 1 }));
+        setFilters((prev) => (prev.limit === limit ? prev : { ...prev, limit, page: 1 }));
     };
 
     const setSort = (sortBy?: string, direction?: string) => {
-        setFilters((prev) => ({ ...prev, sortBy, direction, page: 1 }));
+        setFilters((prev) => {
+            if (prev.sortBy === sortBy && prev.direction === direction) {
+                return prev;
+            }
+            return { ...prev, sortBy, direction, page: 1 };
+        });
     };
 
     const clearFilters = () => {
@@ -94,6 +104,7 @@ export const useProviderList = () => {
         providers,
         pagination,
         isLoading,
+        isFetching,
         error,
         filters,
         setFilter,

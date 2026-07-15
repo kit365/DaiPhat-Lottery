@@ -26,8 +26,9 @@ export const columnsConfig: GridColDef<any>[] = [
             let formatted = 'Chưa có';
             if (drawDays && drawDays.length > 0) {
                 const dayMap: Record<string, string> = {
-                    'MONDAY': 'T2', 'TUESDAY': 'T3', 'WEDNESDAY': 'T4',
-                    'THURSDAY': 'T5', 'FRIDAY': 'T6', 'SATURDAY': 'T7', 'SUNDAY': 'CN'
+                    MONDAY: 'T2', TUESDAY: 'T3', WEDNESDAY: 'T4',
+                    THURSDAY: 'T5', FRIDAY: 'T6', SATURDAY: 'T7', SUNDAY: 'CN',
+                    T2: 'T2', T3: 'T3', T4: 'T4', T5: 'T5', T6: 'T6', T7: 'T7', CN: 'CN',
                 };
                 const days = drawDays.map((d: string) => dayMap[d] || d).join(', ');
                 formatted = `${days} (${drawTime || '--:--'})`;
@@ -66,8 +67,9 @@ export const columnsConfig: GridColDef<any>[] = [
     },
 ];
 
+// Do not seed pagination here — ProviderList uses controlled paginationModel.
 export const columnsInitialState = {
-    pagination: {
-        paginationModel: { page: 0, pageSize: 10 },
+    columns: {
+        columnVisibilityModel: {},
     },
 };

@@ -66,12 +66,16 @@ export const dataGridStyles: SxProps<Theme> = {
         }
     },
 
-    // Footer
+    // Footer — keep above scroll content so pagination remains clickable
     '& .MuiDataGrid-footerContainer': {
         borderTop: "1px dashed",
         minHeight: "auto",
         fontSize: "0.875rem",
         color: "inherit",
+        position: 'relative',
+        zIndex: 5,
+        pointerEvents: 'auto',
+        background: COLORS.background,
 
         '& .MuiTablePagination-selectLabel': {
             fontSize: "0.875rem",
@@ -187,7 +191,7 @@ export const dataGridStyles: SxProps<Theme> = {
     '&.MuiDataGrid-root': {
         '--DataGrid-t-color-interactive-focus': COLORS.success,
         '--DataGrid-t-color-border-base': COLORS.border,
-        overflow: 'auto',
+        overflow: 'hidden',
     },
 
     borderWidth: "0"

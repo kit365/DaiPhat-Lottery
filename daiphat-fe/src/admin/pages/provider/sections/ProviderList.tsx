@@ -36,6 +36,7 @@ export const ProviderList = ({
         providers,
         pagination,
         isLoading,
+        isFetching,
         error,
         filters,
         setFilter,
@@ -43,16 +44,16 @@ export const ProviderList = ({
         setSearchFilter,
         setPage,
         setLimit,
-        setSort,
     } = providerHook;
 
     const localeText = useDataGridLocale();
+    const isInitialLoading = isLoading && providers.length === 0 && !error;
 
-    if (isLoading) {
+    if (isInitialLoading) {
         return <div style={{ padding: '40px', textAlign: 'center', fontSize: '1.125rem' }}>Đang tải danh sách nhà đài...</div>;
     }
 
-    if (error) {
+    if (error && providers.length === 0) {
         return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--palette-error-main)', fontSize: '1.125rem' }}>Lỗi khi tải danh sách nhà đài. Vui lòng thử lại.</div>;
     }
 
@@ -91,7 +92,6 @@ export const ProviderList = ({
                         toolbar: {
                             settings,
                             onSettingsChange: setSettings,
-                            // Pass filter handlers to toolbar
                             filters,
                             onFilterChange: setFilter,
                             onClearFilters: clearFilters,
@@ -101,28 +101,24 @@ export const ProviderList = ({
                     localeText={localeText}
                     pagination
                     paginationMode="server"
-                    sortingMode="server"
-                    sortModel={filters.sortBy ? [{ field: filters.sortBy === 'drawTime' ? 'drawSchedule' : filters.sortBy, sort: filters.direction as any }] : []}
-                    onSortModelChange={(newModel) => {
-                        if (newModel.length > 0) {
-                            const field = newModel[0].field === 'drawSchedule' ? 'drawTime' : newModel[0].field;
-                            setSort(field, newModel[0].sort);
-                        } else {
-                            setSort(undefined, undefined);
-                        }
-                    }}
-                    loading={isLoading}
-                    rowCount={pagination?.totalRecords || 0}
+                    // Do not pass controlled sortModel={[]} — a new [] each render
+                    // fires sortModelChange and MUI resets page to 0.
+                    disableColumnSorting
+                    loading={Boolean(isFetching)}
+                    rowCount={Number(pagination?.totalRecords) || 0}
                     paginationModel={{
-                        page: filters.page - 1,
-                        pageSize: filters.limit,
+                        page: Math.max(0, (filters.page || 1) - 1),
+                        pageSize: filters.limit || 10,
                     }}
                     onPaginationModelChange={(model) => {
-                        if (model.page + 1 !== filters.page) {
-                            setPage(model.page + 1);
+                        const nextPage = model.page + 1;
+                        const nextPageSize = model.pageSize;
+                        if (nextPageSize !== filters.limit) {
+                            setLimit(nextPageSize);
+                            return;
                         }
-                        if (model.pageSize !== filters.limit) {
-                            setLimit(model.pageSize);
+                        if (nextPage !== filters.page) {
+                            setPage(nextPage);
                         }
                     }}
                     pageSizeOptions={[5, 10, 20, 50]}
