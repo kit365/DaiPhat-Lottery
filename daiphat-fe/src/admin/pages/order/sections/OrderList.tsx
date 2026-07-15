@@ -35,6 +35,8 @@ import { OrderToolbar } from './OrderToolbar';
 import { useSettings } from '../../ticket/hooks/useSettings';
 import { useOrderDrawCutoff } from '../../../hooks/useOrderDrawCutoff';
 import { OrderCutoffReminderBanner } from '../components/OrderCutoffReminderBanner';
+import { OrderHandoverConfirmDialog } from '../components/OrderHandoverConfirmDialog';
+import { OrderStatus } from '../../../../types/order.type';
 
 const TabBadge = styled('span')(() => ({
     height: "24px",
@@ -59,6 +61,7 @@ export const OrderList = () => {
     const [selected, setSelected] = useState<string[]>([]);
     const [openRows, setOpenRows] = useState<string[]>([]);
     const [anchorEl, setAnchorEl] = useState<{ [key: string]: HTMLElement | null }>({});
+    const [handoverOrderId, setHandoverOrderId] = useState<string | null>(null);
 
     const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, id: string) => {
         setAnchorEl({ ...anchorEl, [id]: event.currentTarget });
@@ -108,12 +111,7 @@ export const OrderList = () => {
         };
 
         if (status === 'COMPLETED') {
-            confirmAction(
-                "Xác nhận Hoàn thành?",
-                "Bạn có chắc chắn muốn hoàn thành đơn hàng này?",
-                update,
-                'info'
-            );
+            setHandoverOrderId(id);
         } else if (status === 'PENDING_PICKUP') {
             confirmAction(
                 "Chuyển sang Chờ nhận vé?",
@@ -579,6 +577,18 @@ export const OrderList = () => {
                 onRowsPerPageChange={handleChangeRowsPerPage}
             />
         </Card>
+
+            <OrderHandoverConfirmDialog
+                open={Boolean(handoverOrderId)}
+                onClose={() => setHandoverOrderId(null)}
+                onConfirm={() => {
+                    if (!handoverOrderId) return;
+                    updateStatus(
+                        { id: handoverOrderId, status: OrderStatus.COMPLETED },
+                        { onSuccess: () => toast.success("Cập nhật thành công") }
+                    );
+                }}
+            />
         </>
     );
 };
