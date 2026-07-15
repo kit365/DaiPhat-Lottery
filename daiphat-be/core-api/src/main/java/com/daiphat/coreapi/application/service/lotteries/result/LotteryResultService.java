@@ -270,7 +270,7 @@ public class LotteryResultService implements LotteryResultServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = DomainException.class)
     public void syncResult(Long resultId, LotteryStationSourceType sourceType) {
         String lockKey = buildLockKey(resultId, sourceType);
         ReentrantLock lock = syncLocks.computeIfAbsent(lockKey, ignored -> new ReentrantLock());
