@@ -460,6 +460,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 .orderCode(orderCode)
                 .status(refund.getStatus())
                 .retryCount(refund.getRetryCount())
+                .refundType(refund.getRefundType())
                 .build());
     }
 
@@ -707,8 +708,14 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         // Change order status to PENDING_PICKUP
         order.markPendingPickup();
         orderRepositoryPort.save(order);
-        
-        eventPublisher.publishEvent(new OrderStatusChangedEvent(order.getId(), order.getUserId(), order.getOrderCode(), OrderStatus.PENDING_PICKUP));
+
+        if (createdRefund != null) {
+            // Partial refund during inspection: notify refund flow (bank info), not normal pickup message.
+            publishRefundStatusChanged(createdRefund);
+        } else {
+            eventPublisher.publishEvent(new OrderStatusChangedEvent(
+                    order.getId(), order.getUserId(), order.getOrderCode(), OrderStatus.PENDING_PICKUP));
+        }
 
         // Only return a refund when this flow actually needed one (unreplaced tickets).
         // All-replaced inspections must not create or return a Refund Request.
