@@ -53,7 +53,7 @@ const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; b
 export const OrderDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { data: orderRes, isLoading, refetch } = useOrderDetail(id || "");
+    const { data: orderRes, isLoading } = useOrderDetail(id || "");
     const order = orderRes?.data;
     const { mutate: updateStatus } = useUpdateOrderStatus();
     const [isInspectionStarted, setIsInspectionStarted] = useState(false);
@@ -109,22 +109,6 @@ export const OrderDetailPage = () => {
                 "Bạn có chắc chắn muốn xác nhận hoàn thành đơn hàng này?",
                 update,
                 'success'
-            );
-        } else if (newStatus === OrderStatus.CANCELLED) {
-            confirmInputText(
-                "Xác nhận hủy đơn",
-                "Nhập lý do hủy đơn",
-                "Ví dụ: Khách yêu cầu huỷ",
-                (reason) => {
-                    updateStatus({ id: order.id, status: newStatus as OrderStatus, reason: reason || "Hủy bởi Admin" }, {
-                        onSuccess: () => {
-                            toast.success("Hủy đơn thành công");
-                            refetch();
-                        },
-                        onError: (err: any) => toast.error(err.response?.data?.message || "Lỗi khi hủy đơn")
-                    });
-                },
-                'warning'
             );
         } else {
             update();
@@ -185,17 +169,6 @@ export const OrderDetailPage = () => {
                             sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none', bgcolor: 'var(--palette-grey-800)', color: 'common.white', '&:hover': { bgcolor: 'var(--palette-grey-900)' } }}
                         >
                             Đã thanh toán & Hoàn thành
-                        </Button>
-                    )}
-                    {!['COMPLETED', 'CANCELLED', 'PREPARING'].includes(order.status) && (
-                        <Button 
-                            variant="outlined" 
-                            color="error"
-                            startIcon={<Icon icon="solar:close-circle-bold-duotone" />}
-                            onClick={() => handleStatusChange(OrderStatus.CANCELLED)}
-                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
-                        >
-                            Hủy đơn
                         </Button>
                     )}
                     <CanAccess permission={PERMISSIONS.REFUND.PROCESS}>
