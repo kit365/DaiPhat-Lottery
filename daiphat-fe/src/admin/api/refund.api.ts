@@ -6,6 +6,7 @@ import {
     GetStaffRefundsParams,
     RefundRequestAdminDetailResponse,
     RefundRequestResponse,
+    StaffCancelOrderWithRefundRequest,
     TransferRefundRequestRequest,
 } from '../../types/refund.type';
 
@@ -55,7 +56,7 @@ export const refundAdminApi = {
 
     cancelOrderWithRefund: async (
         orderId: string,
-        data: { cancelReason: string }
+        data: StaffCancelOrderWithRefundRequest
     ): Promise<ApiResponse<RefundRequestResponse>> => {
         const response = await apiApp.post(
             `/staff/orders/${orderId}/cancel-with-refund`,

@@ -317,8 +317,23 @@ export interface RequestBankInfoUpdateRequest {
 }
 
 export interface StaffCancelOrderWithRefundRequest {
-    cancelReason: string;
+    cancelType: 'ADMIN_FORCE_CANCEL' | 'OUT_OF_STOCK_INCIDENT';
+    cancelReason?: string;
+    incidents?: Array<{
+        orderDetailId: number;
+        reason: 'DAMAGED' | 'LOST';
+        replacementTicketId?: number;
+        damagedReason?: string;
+        damagedEvidenceUrl?: string;
+    }>;
 }
+
+/** Default cancel reasons aligned with BE OrderCancelReasonDefaults */
+export const ORDER_CANCEL_REASON_DEFAULTS = {
+    ADMIN_FORCE_CANCEL: 'Nhân viên hủy đơn theo yêu cầu hỗ trợ khách hàng',
+    OUT_OF_STOCK_INCIDENT:
+        'Hủy đơn do sự cố kho — toàn bộ vé không thể giao và không còn vé thay thế',
+} as const;
 
 /** Mask bank account number for display (e.g. 1234567890 → ****7890) */
 export function maskBankAccountNo(accountNo: string): string {

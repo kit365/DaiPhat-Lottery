@@ -20,6 +20,7 @@ import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepository
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
@@ -319,14 +320,14 @@ public class RefundRequestService implements RefundRequestServicePort {
 
     private void cancelOrderForCustomerRefund(OrderModel order, String cancelReason) {
         if (order.getOrderType() == OrderType.DIRECT) {
-            order.cancelDirectOrderForRefund(cancelReason);
+            order.cancelDirectOrderForRefund(cancelReason, OrderCancelType.CUSTOMER_REQUEST);
             return;
         }
         if (order.getStatus() == OrderStatus.PAID) {
-            order.cancelByCustomerRefund(cancelReason);
+            order.cancelByCustomerRefund(cancelReason, OrderCancelType.CUSTOMER_REQUEST);
             return;
         }
-        order.cancelAfterPaymentForRefund(cancelReason);
+        order.cancelAfterPaymentForRefund(cancelReason, OrderCancelType.CUSTOMER_REQUEST);
     }
 
     private void releaseSoldTickets(OrderModel order) {
