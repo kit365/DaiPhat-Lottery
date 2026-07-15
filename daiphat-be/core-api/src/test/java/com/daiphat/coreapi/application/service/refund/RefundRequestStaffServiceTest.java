@@ -298,7 +298,10 @@ class RefundRequestStaffServiceTest {
         refundRequestStaffService.cancelOrderWithRefund(
                 orderId,
                 staffId,
-                new com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest("Vé lỗi in"));
+                new com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest(
+                        com.daiphat.coreapi.domain.model.enums.order.OrderCancelType.ADMIN_FORCE_CANCEL,
+                        "Vé lỗi in",
+                        null));
 
         ArgumentCaptor<RefundRequestModel> refundCaptor = ArgumentCaptor.forClass(RefundRequestModel.class);
         verify(refundRequestRepositoryPort).save(refundCaptor.capture());
@@ -309,6 +312,8 @@ class RefundRequestStaffServiceTest {
         ArgumentCaptor<OrderModel> orderCaptor = ArgumentCaptor.forClass(OrderModel.class);
         verify(orderRepositoryPort).save(orderCaptor.capture());
         assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(orderCaptor.getValue().getCancelType()).isEqualTo(
+                com.daiphat.coreapi.domain.model.enums.order.OrderCancelType.ADMIN_FORCE_CANCEL);
         verify(lotteryTicketServicePort).returnSoldTicketForOrder(99L);
         verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
         verify(eventPublisher).publishEvent(any(OrderStatusChangedEvent.class));
@@ -323,7 +328,10 @@ class RefundRequestStaffServiceTest {
         assertThatThrownBy(() -> refundRequestStaffService.cancelOrderWithRefund(
                 orderId,
                 staffId,
-                new com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest("Vé lỗi")))
+                new com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest(
+                        com.daiphat.coreapi.domain.model.enums.order.OrderCancelType.ADMIN_FORCE_CANCEL,
+                        "Vé lỗi",
+                        null)))
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);

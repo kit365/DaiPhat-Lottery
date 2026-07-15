@@ -85,11 +85,11 @@ export const useCancelOrderWithRefund = () => {
     return useMutation({
         mutationFn: ({
             orderId,
-            cancelReason,
+            ...payload
         }: {
             orderId: string;
-            cancelReason: string;
-        }) => refundAdminApi.cancelOrderWithRefund(orderId, { cancelReason }),
+        } & import('../../../types/refund.type').StaffCancelOrderWithRefundRequest) =>
+            refundAdminApi.cancelOrderWithRefund(orderId, payload),
         onSuccess: (response) => {
             if (response.success) {
                 toast.success(response.message || 'Đã hủy đơn và tạo yêu cầu hoàn tiền');

@@ -322,6 +322,48 @@ export function OrderInspectionSection({
         return candidates.length === 0;
     });
 
+    /** Every eligible ticket is incident-reported and cannot be replaced → full-order cancel. */
+    const eligibleTickets = useMemo(
+        () => tickets.filter((t) => t.id != null && t.isIncidentEligible),
+        [tickets]
+    );
+
+    const isFullOrderUnfulfillable = useMemo(() => {
+        if (eligibleTickets.length === 0) return false;
+        return eligibleTickets.every((t) => {
+            const state = replacements[t.id!];
+            if (!state?.faultedBy || state.newTicketId) return false;
+            const candidates = availableReplacements[t.id!];
+            return Array.isArray(candidates) && candidates.length === 0;
+        });
+    }, [eligibleTickets, replacements, availableReplacements]);
+
+    const navigateToFullOrderCancel = () => {
+        const replacementPayload: Record<
+            number,
+            {
+                faultedBy: 'DAMAGED' | 'LOST';
+                damagedReason: string;
+                damagedEvidenceUrl: string;
+            }
+        > = {};
+        for (const t of eligibleTickets) {
+            const state = replacements[t.id!];
+            if (!state?.faultedBy) continue;
+            replacementPayload[t.id!] = {
+                faultedBy: state.faultedBy as 'DAMAGED' | 'LOST',
+                damagedReason: state.damagedReason || '',
+                damagedEvidenceUrl: state.damagedEvidenceUrl || '',
+            };
+        }
+        navigate(`/${prefixAdmin}/order/detail/${orderId}/cancel-with-refund`, {
+            state: {
+                cancelType: 'OUT_OF_STOCK_INCIDENT' as const,
+                replacements: replacementPayload,
+            },
+        });
+    };
+
     const quickReasons: Record<string, string[]> = {
         DAMAGED: ["Bị rách nát", "Mờ số / không đọc được mã", "Bị ướt / phai màu"],
         LOST: ["Không tìm thấy trong kho", "Mất mát không rõ lý do"]
@@ -391,6 +433,10 @@ export function OrderInspectionSection({
 
 
     const handlePrimaryAction = async () => {
+        if (isFullOrderUnfulfillable) {
+            navigateToFullOrderCancel();
+            return;
+        }
         if (requiresRefund) {
             // Có ít nhất một vé không thay thế được → dialog tạo yêu cầu hoàn tiền
             openRefundRequestDialog();
@@ -432,8 +478,9 @@ export function OrderInspectionSection({
             <TableRow>
                 <TableCell colSpan={7} sx={{ p: 0, borderBottom: 'none' }}>
                     <Collapse in={expandedRow === ticketId} timeout="auto" unmountOnExit>
-                        <Box sx={{ p: 2.5, bgcolor: 'var(--palette-background-neutral)', borderRadius: '0 0 12px 12px', mb: 2, border: '1px solid var(--palette-divider)', borderTop: 'none' }}>
-                            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ p: { xs: 2.5, md: 3 }, bgcolor: 'var(--palette-background-neutral)', borderRadius: '0 0 12px 12px', mb: 2, border: '1px solid var(--palette-divider)', borderTop: 'none' }}>
+                            <Stack spacing={3} sx={{ maxWidth: hasReplacementCandidates ? '100%' : 960, mx: 'auto', width: '100%' }}>
+                            <Typography variant="subtitle2" sx={{ mb: 0, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: hasReplacementCandidates ? 'flex-start' : { xs: 'flex-start', md: 'center' }, gap: 1, flexWrap: 'wrap', textAlign: hasReplacementCandidates ? 'left' : { xs: 'left', md: 'center' } }}>
                                 Xử lý sự cố cho vé: 
                                 <Box component="span" sx={{ color: 'primary.main', bgcolor: 'primary.lighter', px: 1, py: 0.25, borderRadius: 1 }}>
                                     Bộ số {ticket.numbers}
@@ -445,11 +492,12 @@ export function OrderInspectionSection({
                                 )}
                             </Typography>
                             
+                            {hasReplacementCandidates ? (
                             <Stack spacing={3}>
                                     <Stack 
                                         direction={{ xs: 'column', md: 'row' }} 
                                         spacing={4} 
-                                        divider={hasReplacementCandidates ? <Divider orientation="vertical" flexItem /> : null}
+                                        divider={<Divider orientation="vertical" flexItem />}
                                         alignItems="flex-start"
                                     >
                                         {/* Reason & Details Column */}
@@ -522,29 +570,13 @@ export function OrderInspectionSection({
                                                         )}
                                                     </Box>
                                                 )}
-
-                                                {state.faultedBy === 'DAMAGED' && (
-                                                    <Box>
-                                                        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
-                                                            Ảnh minh chứng
-                                                        </Typography>
-                                                        <UploadFiles 
-                                                            compact
-                                                            files={state.damagedEvidenceFiles || []}
-                                                            onFilesChange={(files) => {
-                                                                updateReplacement(ticketId, 'damagedEvidenceFiles', files);
-                                                                const url = files.find(f => typeof f === 'string');
-                                                                updateReplacement(ticketId, 'damagedEvidenceUrl', url || '');
-                                                            }}
-                                                        />
-                                                    </Box>
-                                                )}
                                             </Stack>
                                         </Box>
 
                                         {/* Replacement Column */}
                                         {hasReplacementCandidates && (
                                             <Box sx={{ flex: 1, width: '100%' }}>
+                                                <Stack spacing={2}>
                                                 <Box>
                                                     <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
                                                         Chọn vé thay thế
@@ -621,9 +653,173 @@ export function OrderInspectionSection({
                                                         noOptionsText="Không có vé thay thế"
                                                     />
                                                 </Box>
+                                                {state.faultedBy === 'DAMAGED' && (
+                                                    <Box>
+                                                        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                                                            Ảnh minh chứng
+                                                        </Typography>
+                                                        <UploadFiles
+                                                            compact
+                                                            files={state.damagedEvidenceFiles || []}
+                                                            onFilesChange={(files) => {
+                                                                updateReplacement(ticketId, 'damagedEvidenceFiles', files);
+                                                                const url = files.find((f) => typeof f === 'string');
+                                                                updateReplacement(ticketId, 'damagedEvidenceUrl', url || '');
+                                                            }}
+                                                        />
+                                                    </Box>
+                                                )}
+                                                </Stack>
                                             </Box>
                                         )}
                                     </Stack>
+                            </Stack>
+                            ) : (
+                                <>
+                                    <Box sx={{ width: '100%', maxWidth: 640, mx: 'auto' }}>
+                                        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                                            Lý do báo lỗi (Faulted By)
+                                        </Typography>
+                                        <ToggleButtonGroup
+                                            color="primary"
+                                            value={state.faultedBy}
+                                            exclusive
+                                            onChange={(e, value) => {
+                                                if (value !== null) {
+                                                    updateReplacement(ticketId, 'faultedBy', value);
+                                                }
+                                            }}
+                                            sx={{
+                                                width: '100%',
+                                                height: '40px',
+                                                '& .MuiToggleButton-root': {
+                                                    flex: 1,
+                                                    textTransform: 'none',
+                                                    fontWeight: 600,
+                                                    border: '1px solid var(--palette-divider)',
+                                                },
+                                            }}
+                                        >
+                                            <ToggleButton value="DAMAGED">Vé rách / Hư hỏng</ToggleButton>
+                                            <ToggleButton value="LOST">Thất lạc</ToggleButton>
+                                        </ToggleButtonGroup>
+                                    </Box>
+
+                                    {state.faultedBy && (
+                                        <Grid container spacing={3} alignItems="stretch">
+                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                <Stack spacing={2} sx={{ height: '100%' }}>
+                                                    <Box>
+                                                        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                                                            Chi tiết lý do
+                                                        </Typography>
+                                                        <TextField
+                                                            size="small"
+                                                            fullWidth
+                                                            multiline
+                                                            minRows={state.faultedBy === 'LOST' ? 4 : 3}
+                                                            value={state.damagedReason}
+                                                            onChange={(e) =>
+                                                                updateReplacement(ticketId, 'damagedReason', e.target.value)
+                                                            }
+                                                            placeholder="Nhập chi tiết sự cố..."
+                                                        />
+                                                    </Box>
+                                                    {quickReasons[state.faultedBy] && (
+                                                        <Box>
+                                                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
+                                                                Gợi ý nhanh
+                                                            </Typography>
+                                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                                                {quickReasons[state.faultedBy].map((reason) => (
+                                                                    <Typography
+                                                                        key={reason}
+                                                                        variant="caption"
+                                                                        onClick={() =>
+                                                                            updateReplacement(ticketId, 'damagedReason', reason)
+                                                                        }
+                                                                        sx={{
+                                                                            cursor: 'pointer',
+                                                                            px: 1.25,
+                                                                            py: 0.75,
+                                                                            bgcolor: 'action.hover',
+                                                                            borderRadius: 1,
+                                                                            border: '1px solid var(--palette-divider)',
+                                                                            '&:hover': { bgcolor: 'action.selected' },
+                                                                        }}
+                                                                    >
+                                                                        {reason}
+                                                                    </Typography>
+                                                                ))}
+                                                            </Box>
+                                                        </Box>
+                                                    )}
+                                                </Stack>
+                                            </Grid>
+                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                {state.faultedBy === 'DAMAGED' ? (
+                                                    <Stack spacing={1} sx={{ height: '100%' }}>
+                                                        <Typography variant="subtitle2" sx={{ mb: 0.5, color: 'text.secondary' }}>
+                                                            Ảnh minh chứng
+                                                        </Typography>
+                                                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'stretch', minHeight: 140 }}>
+                                                            <UploadFiles
+                                                                compact
+                                                                files={state.damagedEvidenceFiles || []}
+                                                                onFilesChange={(files) => {
+                                                                    updateReplacement(ticketId, 'damagedEvidenceFiles', files);
+                                                                    const url = files.find((f) => typeof f === 'string');
+                                                                    updateReplacement(ticketId, 'damagedEvidenceUrl', url || '');
+                                                                }}
+                                                            />
+                                                        </Box>
+                                                    </Stack>
+                                                ) : (
+                                                    <Box
+                                                        sx={{
+                                                            height: '100%',
+                                                            minHeight: 140,
+                                                            p: 2.5,
+                                                            borderRadius: '12px',
+                                                            border: '1px dashed var(--palette-divider)',
+                                                            bgcolor: 'var(--palette-background-paper)',
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            justifyContent: 'center',
+                                                        }}
+                                                    >
+                                                        <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                                                            <Box
+                                                                sx={{
+                                                                    width: 36,
+                                                                    height: 36,
+                                                                    borderRadius: '10px',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    bgcolor: 'var(--palette-warning-lighter)',
+                                                                    color: 'var(--palette-warning-dark)',
+                                                                    flexShrink: 0,
+                                                                }}
+                                                            >
+                                                                <Icon icon="solar:box-minimalistic-bold-duotone" width={20} />
+                                                            </Box>
+                                                            <Box>
+                                                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                                                    Không còn vé thay thế
+                                                                </Typography>
+                                                                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                                                                    Vé thất lạc sẽ được ghi nhận để xử lý hoàn tiền. Vui lòng mô tả chi tiết sự cố ở cột bên trái.
+                                                                </Typography>
+                                                            </Box>
+                                                        </Stack>
+                                                    </Box>
+                                                )}
+                                            </Grid>
+                                        </Grid>
+                                    )}
+                                </>
+                            )}
                             </Stack>
                         </Box>
                     </Collapse>
@@ -859,8 +1055,18 @@ export function OrderInspectionSection({
                 </Button>
                 <Button
                     variant="contained"
-                    color={requiresRefund ? "warning" : "primary"}
-                    startIcon={<Icon icon={requiresRefund ? "solar:wallet-money-bold-duotone" : "solar:check-circle-bold-duotone"} />}
+                    color={isFullOrderUnfulfillable || requiresRefund ? "warning" : "primary"}
+                    startIcon={
+                        <Icon
+                            icon={
+                                isFullOrderUnfulfillable
+                                    ? 'solar:danger-triangle-bold-duotone'
+                                    : requiresRefund
+                                      ? 'solar:wallet-money-bold-duotone'
+                                      : 'solar:check-circle-bold-duotone'
+                            }
+                        />
+                    }
                     onClick={handlePrimaryAction}
                     disabled={hasAnyReplacement && !isAllReplacementsValid}
                     sx={{
@@ -868,14 +1074,18 @@ export function OrderInspectionSection({
                         fontWeight: 700,
                         borderRadius: '8px',
                         boxShadow: 'none',
-                        ...( !requiresRefund && {
+                        ...( !isFullOrderUnfulfillable && !requiresRefund && {
                             bgcolor: 'var(--palette-grey-800)', 
                             color: 'common.white', 
                             '&:hover': { bgcolor: 'var(--palette-grey-900)' }
                         })
                     }}
                 >
-                    {requiresRefund ? 'Chuyển sang Chờ nhận vé & Tạo yêu cầu hoàn tiền' : 'Chuyển sang "Chờ nhận vé"'}
+                    {isFullOrderUnfulfillable
+                        ? 'Báo lỗi & Hủy đơn'
+                        : requiresRefund
+                          ? 'Chuyển sang Chờ nhận vé & Tạo yêu cầu hoàn tiền'
+                          : 'Chuyển sang "Chờ nhận vé"'}
                 </Button>
             </Box>
 
