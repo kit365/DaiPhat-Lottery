@@ -1,8 +1,12 @@
 package com.daiphat.coreapi.application.service.chat.bot;
 
-import com.daiphat.coreapi.application.dto.chat.bot.ChatFlowHandleResult;
+import com.daiphat.coreapi.application.service.chat.flow.ChatFlowOrchestrator;
+
+import com.daiphat.coreapi.application.config.ChatMessageProperties;
+
+import com.daiphat.coreapi.application.dto.chat.flow.ChatFlowHandleResult;
 import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentOutcome;
-import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponseDto;
+import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponse;
 import com.daiphat.coreapi.application.port.in.chat.ChatAiMessagePort;
 import com.daiphat.coreapi.application.port.in.chat.ChatFlowSessionPort;
 import com.daiphat.coreapi.application.port.in.chat.ChatEscalationPort;
@@ -52,18 +56,22 @@ class ChatBotServiceTest {
     private ChatEscalationPort chatEscalationPort;
     @Mock
     private ChatAiMessagePort chatAiMessagePort;
+    @Mock
+    private ChatMessageProperties chatMessageProperties;
 
     private ChatBotService chatBotService;
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(chatMessageProperties.getUnavailable()).thenReturn(ChatAiMessages.UNAVAILABLE);
         chatBotService = new ChatBotService(
                 chatFlowOrchestrator,
                 chatFlowSessionPort,
                 chatAiMessagePort,
                 chatEscalationPort,
                 messageRepositoryPort,
-                conversationRepositoryPort
+                conversationRepositoryPort,
+                chatMessageProperties
         );
     }
 
@@ -71,7 +79,7 @@ class ChatBotServiceTest {
     void processCustomerMessage_whenOrchestratorReturnsOutcome_savesBotReply() {
         ConversationModel conversation = openConversation();
         MessageModel customerMessage = customerMessage("TP.HCM");
-        ChatClassifyResponseDto classification = ChatClassifyResponseDto.builder()
+        ChatClassifyResponse classification = ChatClassifyResponse.builder()
                 .intent(ChatIntent.WEB_SCHEDULE.name())
                 .confidence(0.85)
                 .build();
@@ -93,6 +101,7 @@ class ChatBotServiceTest {
         verify(chatAiMessagePort).saveBotReply(
                 conversation,
                 botReply.content(),
+                botReply.effectiveDisplayContent(),
                 customerMessage.getId(),
                 ChatIntent.WEB_SCHEDULE.name()
         );
@@ -124,7 +133,7 @@ class ChatBotServiceTest {
         ConversationModel conversation = openConversation();
         conversation.setPendingIntent(ChatIntent.WEB_SCHEDULE.name());
         MessageModel customerMessage = customerMessage("gặp nhân viên");
-        ChatClassifyResponseDto classification = ChatClassifyResponseDto.builder()
+        ChatClassifyResponse classification = ChatClassifyResponse.builder()
                 .intent(ChatIntent.ESCALATE_REQUEST.name())
                 .confidence(0.95)
                 .build();
@@ -156,7 +165,7 @@ class ChatBotServiceTest {
     void processCustomerMessage_persistsClassificationOnCustomerMessage() {
         ConversationModel conversation = openConversation();
         MessageModel customerMessage = customerMessage("lịch quay");
-        ChatClassifyResponseDto classification = ChatClassifyResponseDto.builder()
+        ChatClassifyResponse classification = ChatClassifyResponse.builder()
                 .intent(ChatIntent.WEB_SCHEDULE.name())
                 .confidence(0.75)
                 .build();

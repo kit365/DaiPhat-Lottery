@@ -122,6 +122,32 @@ daiphat:
             - hồ chí minh
             - sai gon
             - sài gòn
+        - name: "Đồng Tháp"
+          aliases:
+            - dong thap
+            - đồng tháp
+            - sa dec
+            - sa đéc
+        - name: "Cà Mau"
+          aliases:
+            - ca mau
+            - cà mau
+        - name: "Bến Tre"
+          aliases:
+            - ben tre
+            - bến tre
+        - name: "Vũng Tàu"
+          aliases:
+            - vung tau
+            - vũng tàu
+            - ba ria
+            - bà rịa
+            - ba ria vung tau
+            - bà rịa vũng tàu
+        - name: "Bạc Liêu"
+          aliases:
+            - bac lieu
+            - bạc liêu
         - name: "Đồng Nai"
           aliases:
             - dong nai
@@ -132,19 +158,70 @@ daiphat:
           aliases:
             - can tho
             - cần thơ
-        - name: "Bình Phước"
+        - name: "Sóc Trăng"
           aliases:
-            - binh phuoc
-            - bình phước
+            - soc trang
+            - sóc trăng
+        - name: "Tây Ninh"
+          aliases:
+            - tay ninh
+            - tây ninh
         - name: "An Giang"
           aliases:
             - an giang
             - long xuyen
             - long xuyên
+        - name: "Bình Thuận"
+          aliases:
+            - binh thuan
+            - bình thuận
+            - phan thiet
+            - phan thiết
+        - name: "Vĩnh Long"
+          aliases:
+            - vinh long
+            - vĩnh long
         - name: "Bình Dương"
           aliases:
             - binh duong
             - bình dương
+        - name: "Trà Vinh"
+          aliases:
+            - tra vinh
+            - trà vinh
+        - name: "Long An"
+          aliases:
+            - long an
+            - tan an
+            - tân an
+        - name: "Bình Phước"
+          aliases:
+            - binh phuoc
+            - bình phước
+        - name: "Hậu Giang"
+          aliases:
+            - hau giang
+            - hậu giang
+        - name: "Tiền Giang"
+          aliases:
+            - tien giang
+            - tiền giang
+            - my tho
+            - mỹ tho
+        - name: "Kiên Giang"
+          aliases:
+            - kien giang
+            - kiên giang
+            - rach gia
+            - rạch giá
+            - phu quoc
+            - phú quốc
+        - name: "Đà Lạt"
+          aliases:
+            - da lat
+            - đà lạt
+            - lam dong
+            - lâm đồng
         - name: "Đà Nẵng"
           aliases:
             - da nang

@@ -138,6 +138,8 @@ public class AiServiceConfigService implements AiServiceConfigPort {
                 AiIntentConfigKey.WITH_TICKET_CONFIDENCE,
                 AiIntentConfigKey.WITHOUT_TICKET_CONFIDENCE
         ));
+        keys.put(ChatIntent.WEB_SEARCH, List.of(AiIntentConfigKey.DEFAULT_CONFIDENCE));
+        keys.put(ChatIntent.WEB_SUGGEST, List.of(AiIntentConfigKey.DEFAULT_CONFIDENCE));
         keys.put(ChatIntent.OTHER_KNOWLEDGE, List.of(AiIntentConfigKey.DEFAULT_CONFIDENCE));
         keys.put(ChatIntent.TRASH_TALK, List.of(AiIntentConfigKey.DEFAULT_CONFIDENCE));
         keys.put(ChatIntent.UNKNOWN, List.of(AiIntentConfigKey.DEFAULT_CONFIDENCE));
