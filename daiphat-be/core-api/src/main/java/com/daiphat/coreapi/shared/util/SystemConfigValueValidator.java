@@ -32,6 +32,7 @@ public final class SystemConfigValueValidator {
         return switch (dataType) {
             case INT -> parseInt(configValue);
             case TIME -> parseTime(configValue);
+            case BOOLEAN -> parseBoolean(configValue);
         };
     }
 
@@ -50,5 +51,16 @@ public final class SystemConfigValueValidator {
         } catch (DateTimeParseException ex) {
             throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
         }
+    }
+
+    private static Boolean parseBoolean(String configValue) {
+        String normalized = configValue.trim().toLowerCase();
+        if ("true".equals(normalized)) {
+            return Boolean.TRUE;
+        }
+        if ("false".equals(normalized)) {
+            return Boolean.FALSE;
+        }
+        throw new DomainException(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
     }
 }
