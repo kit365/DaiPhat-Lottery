@@ -1,0 +1,40 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div th:replace="~{emails/layout/main-layout :: layout(${title} ?: 'Thông báo hoàn tiền - DaiPhat', ~{::content}, ~{}, false)}">
+
+  <th:block th:fragment="content">
+    <tr>
+      <td align="center" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:24px;font-weight:bold;line-height:32px;text-align:center;color:#f1f5f9;"
+             th:text="${title}">
+          Thông báo hoàn tiền
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:16px;line-height:24px;text-align:left;color:#94a3b8;">
+          <p>
+            Xin chào
+            <span th:text="${customerName}" style="color:#f1f5f9;font-weight:bold;">Quý khách</span>,
+          </p>
+          <p th:text="${content}">
+            Nội dung thông báo hoàn tiền.
+          </p>
+          <p th:if="${orderCode != null}">
+            Mã đơn hàng:
+            <strong style="color:#f1f5f9;" th:text="${orderCode}">ORD-XXX</strong>
+          </p>
+          <p th:if="${isPartialInspectionRefund}">
+            Một số vé trong đơn không thể giao do sự cố khi chuẩn bị. Vui lòng đăng nhập ứng dụng DaiPhat để cung cấp tài khoản ngân hàng nhận hoàn tiền.
+          </p>
+          <p th:unless="${isPartialInspectionRefund}">
+            Vui lòng đăng nhập ứng dụng DaiPhat để cập nhật thông tin hoàn tiền (nếu cần).
+          </p>
+        </div>
+      </td>
+    </tr>
+  </th:block>
+
+</div>
+</html>
