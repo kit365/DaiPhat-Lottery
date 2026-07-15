@@ -5,12 +5,15 @@ import com.daiphat.coreapi.application.port.in.mail.EmailServicePort;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.model.UserModel;
+import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,12 +23,20 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class RefundRequestEventListener {
+
+    private static final List<String> REFUND_STAFF_ROLE_CODES = List.of(
+            RoleConstants.ADMIN,
+            RoleConstants.ROLE_STAFF_OPERATOR
+    );
 
     private final NotificationServicePort notificationService;
     private final EmailServicePort emailService;
@@ -58,6 +69,70 @@ public class RefundRequestEventListener {
         if (shouldSendEmail(event)) {
             sendRefundEmail(event, title, content);
         }
+
+        if (shouldNotifyStaff(event)) {
+            notifyStaff(event);
+        }
+    }
+
+    /**
+     * Staff need attention when a refund is ready for transfer (customer create / bank submitted).
+     */
+    private boolean shouldNotifyStaff(RefundRequestStatusChangedEvent event) {
+        return event.status() == RefundRequestStatus.READY_TO_PAY
+                || event.status() == RefundRequestStatus.APPROVED;
+    }
+
+    private void notifyStaff(RefundRequestStatusChangedEvent event) {
+        String title = resolveStaffNotificationTitle(event);
+        String content = resolveStaffNotificationContent(event);
+
+        UUID customerId = event.customerId();
+        userRepositoryPort.findAllByRoleCodes(REFUND_STAFF_ROLE_CODES).stream()
+                .filter(user -> user.getStatus() == UserStatus.ACTIVE)
+                .filter(user -> user.getId() != null && !Objects.equals(user.getId(), customerId))
+                .forEach(user -> {
+                    NotificationModel staffNotification = NotificationModel.builder()
+                            .userId(user.getId())
+                            .title(title)
+                            .content(content)
+                            .type(NotificationType.ORDER)
+                            .channel(NotificationChannel.IN_APP)
+                            .referenceId(String.valueOf(event.refundRequestId()))
+                            .referenceType(NotificationReferenceType.REFUND_REQUEST)
+                            .build();
+                    staffNotification.markAsSent();
+                    notificationService.createNotification(staffNotification);
+                });
+    }
+
+    /**
+     * Staff-created refunds wait for customer bank info; when READY_TO_PAY the wording
+     * should reflect bank submission—not a brand-new customer-initiated request.
+     * Only {@link RefundRequestRole#STAFF}; customer-initiated copy stays unchanged.
+     */
+    private boolean isStaffInitiatedRefund(RefundRequestStatusChangedEvent event) {
+        return event.requestRole() == RefundRequestRole.STAFF;
+    }
+
+    private String resolveStaffNotificationTitle(RefundRequestStatusChangedEvent event) {
+        if (isStaffInitiatedRefund(event)) {
+            return "Khách hàng đã cập nhật STK nhận hoàn tiền";
+        }
+        return "Yêu cầu hoàn tiền mới cần xử lý";
+    }
+
+    private String resolveStaffNotificationContent(RefundRequestStatusChangedEvent event) {
+        String orderLabel = resolveOrderLabel(event);
+        if (isStaffInitiatedRefund(event)) {
+            return "Yêu cầu hoàn tiền #" + event.refundRequestId()
+                    + " do nhân viên tạo cho đơn hàng #" + orderLabel
+                    + " đã được khách hàng cung cấp tài khoản ngân hàng và sẵn sàng để chuyển khoản. "
+                    + "Vui lòng kiểm tra và xử lý.";
+        }
+        return "Đơn hàng #" + orderLabel
+                + " có yêu cầu hoàn tiền #" + event.refundRequestId()
+                + " đang chờ chuyển khoản. Vui lòng kiểm tra và xử lý.";
     }
 
     private boolean shouldSendEmail(RefundRequestStatusChangedEvent event) {

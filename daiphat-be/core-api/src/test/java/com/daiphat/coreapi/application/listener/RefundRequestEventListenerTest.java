@@ -9,8 +9,10 @@ import com.daiphat.coreapi.domain.model.enums.email.EmailType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationReferenceType;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
+import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +23,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -64,6 +67,9 @@ class RefundRequestEventListenerTest {
             }
             return n;
         });
+        org.mockito.Mockito.lenient()
+                .when(userRepositoryPort.findAllByRoleCodes(any()))
+                .thenReturn(List.of());
     }
 
     private void stubCustomerEmail() {
@@ -267,5 +273,79 @@ class RefundRequestEventListenerTest {
         assertThat(inApp.getTitle()).isEqualTo("Yêu cầu hoàn tiền cần hỗ trợ tại quầy");
         assertThat(inApp.getContent()).contains("vượt quá số lần cập nhật");
         assertThat(inApp.getReferenceType()).isEqualTo(NotificationReferenceType.REFUND_REQUEST);
+    }
+
+    @Test
+    @DisplayName("READY_TO_PAY (CUSTOMER): staff notification keeps customer-initiated wording")
+    void handleReadyToPay_notifiesStaff_customerInitiatedCopy() {
+        stubCustomerEmail();
+        UUID staffId = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
+        when(userRepositoryPort.findAllByRoleCodes(any())).thenReturn(List.of(
+                UserModel.builder().id(staffId).status(UserStatus.ACTIVE).build(),
+                UserModel.builder().id(customerId).status(UserStatus.ACTIVE).build()
+        ));
+
+        RefundRequestStatusChangedEvent event = RefundRequestStatusChangedEvent.builder()
+                .refundRequestId(42L)
+                .customerId(customerId)
+                .orderId(orderId)
+                .orderCode("ORD-REF-001")
+                .status(RefundRequestStatus.READY_TO_PAY)
+                .retryCount(0)
+                .refundType(RefundType.FULL_ORDER)
+                .requestRole(RefundRequestRole.CUSTOMER)
+                .build();
+
+        listener.handleRefundRequestStatusChanged(event);
+
+        verify(notificationService, org.mockito.Mockito.atLeastOnce()).createNotification(notificationCaptor.capture());
+        List<NotificationModel> staffInApp = notificationCaptor.getAllValues().stream()
+                .filter(n -> n.getChannel() == NotificationChannel.IN_APP)
+                .filter(n -> staffId.equals(n.getUserId()))
+                .toList();
+
+        assertThat(staffInApp).hasSize(1);
+        assertThat(staffInApp.getFirst().getTitle()).isEqualTo("Yêu cầu hoàn tiền mới cần xử lý");
+        assertThat(staffInApp.getFirst().getContent()).contains("đang chờ chuyển khoản");
+        assertThat(staffInApp.getFirst().getContent()).contains("ORD-REF-001");
+        assertThat(staffInApp.getFirst().getReferenceType()).isEqualTo(NotificationReferenceType.REFUND_REQUEST);
+        assertThat(staffInApp.getFirst().getReferenceId()).isEqualTo("42");
+    }
+
+    @Test
+    @DisplayName("READY_TO_PAY (STAFF): staff notification reflects customer bank submission")
+    void handleReadyToPay_notifiesStaff_staffInitiatedCopy() {
+        stubCustomerEmail();
+        UUID staffId = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
+        when(userRepositoryPort.findAllByRoleCodes(any())).thenReturn(List.of(
+                UserModel.builder().id(staffId).status(UserStatus.ACTIVE).build()
+        ));
+
+        RefundRequestStatusChangedEvent event = RefundRequestStatusChangedEvent.builder()
+                .refundRequestId(4L)
+                .customerId(customerId)
+                .orderId(orderId)
+                .orderCode("ORD-SEED-PREPARING-005")
+                .status(RefundRequestStatus.READY_TO_PAY)
+                .retryCount(0)
+                .refundType(RefundType.ORDER_DETAIL)
+                .requestRole(RefundRequestRole.STAFF)
+                .build();
+
+        listener.handleRefundRequestStatusChanged(event);
+
+        verify(notificationService, org.mockito.Mockito.atLeastOnce()).createNotification(notificationCaptor.capture());
+        List<NotificationModel> staffInApp = notificationCaptor.getAllValues().stream()
+                .filter(n -> n.getChannel() == NotificationChannel.IN_APP)
+                .filter(n -> staffId.equals(n.getUserId()))
+                .toList();
+
+        assertThat(staffInApp).hasSize(1);
+        assertThat(staffInApp.getFirst().getTitle()).isEqualTo("Khách hàng đã cập nhật STK nhận hoàn tiền");
+        assertThat(staffInApp.getFirst().getContent()).contains("do nhân viên tạo");
+        assertThat(staffInApp.getFirst().getContent()).contains("cung cấp tài khoản ngân hàng");
+        assertThat(staffInApp.getFirst().getContent()).contains("sẵn sàng để chuyển khoản");
+        assertThat(staffInApp.getFirst().getContent()).contains("ORD-SEED-PREPARING-005");
+        assertThat(staffInApp.getFirst().getReferenceId()).isEqualTo("4");
     }
 }
