@@ -69,6 +69,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String username = tokenProviderPort.extractUsernameFromAccessToken(token);
             UserModel user = userLookupService.findByUsername(username)
                     .orElseThrow(() -> new NoSuchElementException("Token user not found"));
+            if (!tokenProviderPort.isAccessTokenValidForUser(token, user)) {
+                throw new JwtException("Token was revoked");
+            }
             UsernamePasswordAuthenticationToken authentication = userAuthenticationFactory.create(user);
             SecurityContextHolder.getContext().setAuthentication(authentication);
             filterChain.doFilter(request, response);

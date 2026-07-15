@@ -65,7 +65,6 @@ export const useAuth = () => {
             const authData = response.data;
             const accessToken = authData?.access_token ?? authData?.accessToken;
             const expiresIn = authData?.expires_in ?? authData?.expiresIn;
-            const refreshToken = authData?.refresh_token ?? authData?.refreshToken;
 
             if (isSuccess && accessToken) {
                 const cookieOptions = {
@@ -73,10 +72,6 @@ export const useAuth = () => {
                     path: '/'
                 };
                 Cookies.set(STORAGE_KEYS.TOKEN, accessToken, cookieOptions);
-                if (refreshToken) {
-                    Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken, cookieOptions);
-                }
-
                 set({
                     token: accessToken,
                     expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null
@@ -135,7 +130,7 @@ export const useAuth = () => {
             authService.exchangeGoogleToken(params.code, params.redirectUri, params.codeVerifier),
         onSuccess: async (response) => {
             if (response?.access_token) {
-                const { access_token, expires_in, refresh_token } = response;
+                const { access_token, expires_in } = response;
 
                 const cookieOptions = {
                     expires: expires_in ? expires_in / 86400 : 7,
@@ -143,10 +138,6 @@ export const useAuth = () => {
                 };
 
                 Cookies.set(STORAGE_KEYS.TOKEN, access_token, cookieOptions);
-                if (refresh_token) {
-                    Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, refresh_token, cookieOptions);
-                }
-
                 set({
                     token: access_token,
                     expiresAt: expires_in ? Date.now() + expires_in * 1000 : null

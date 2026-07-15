@@ -65,6 +65,14 @@ const isAuthEndpoint = (url?: string) => {
     return url.includes("/auth/login") || url.includes("/auth/refresh-token");
 };
 
+const revokesCurrentSession = (url?: string) => {
+    if (!url) {
+        return false;
+    }
+
+    return url.includes("/auth/change-password") || url.includes("/auth/forgot-password/reset");
+};
+
 const isAuthRequiredRequest = (url?: string) => {
     if (!url) {
         return false;
@@ -108,6 +116,9 @@ const processQueue = (error: any, token: string | null = null) => {
 // Response Interceptor: Handle Global Errors & 401
 apiApp.interceptors.response.use(
     (response) => {
+        if (revokesCurrentSession(response.config.url)) {
+            clearAuthSession();
+        }
         return response;
     },
     async (error: AxiosError) => {

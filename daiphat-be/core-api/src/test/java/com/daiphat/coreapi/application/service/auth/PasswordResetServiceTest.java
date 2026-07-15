@@ -150,6 +150,7 @@ class PasswordResetServiceTest extends AuthTestBase {
         passwordResetService.resetPassword(request);
 
         assertThat(user.getPassword()).isEqualTo("encoded-new");
+        assertThat(user.getAuthVersion()).isEqualTo(1L);
         verify(userRepositoryPort).save(user);
         verify(refreshTokenStorePort).delete(DEFAULT_USER_ID);
         verify(passwordResetCachePort).deleteResetTokenData(RESET_TOKEN);
@@ -198,6 +199,7 @@ class PasswordResetServiceTest extends AuthTestBase {
         passwordResetService.confirmPasswordReset(DEFAULT_USER_ID, DEFAULT_OTP);
 
         assertThat(user.getPassword()).isEqualTo("encoded-temporary");
+        assertThat(user.getAuthVersion()).isEqualTo(1L);
         assertThat(ReflectionTestUtils.getField(user, "hasPassword")).isEqualTo(false);
         verify(userRepositoryPort).save(user);
         verify(refreshTokenStorePort).delete(DEFAULT_USER_ID);
@@ -221,6 +223,7 @@ class PasswordResetServiceTest extends AuthTestBase {
         passwordResetService.changePassword(DEFAULT_USER_ID, request);
 
         assertThat(user.getPassword()).isEqualTo("encoded-new");
+        assertThat(user.getAuthVersion()).isEqualTo(1L);
         verify(userRepositoryPort).save(user);
         verify(refreshTokenStorePort).delete(DEFAULT_USER_ID);
         verify(eventPublisher).publishEvent(any(UserPasswordChangedEvent.class));

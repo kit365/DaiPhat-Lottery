@@ -59,6 +59,9 @@ public class AuthController {
     private static final String MSG_CHANGE_PASSWORD_SUCCESS = "Đổi mật khẩu thành công.";
     private static final String REFRESH_COOKIE_NAME = "${daiphat.auth.cookie.name}";
     private static final String FORGOT_PASSWORD = "/forgot-password";
+    private static final String LEGACY_REFRESH_COOKIE_NAME = "refreshToken";
+    private static final String ACCESS_COOKIE_NAME = "token";
+    private static final String ROOT_PATH = "/";
 
     private final AuthServicePort authServicePort;
 
@@ -80,6 +83,7 @@ public class AuthController {
             HttpServletResponse httpResponse
     ) {
         AuthResponse response = authServicePort.login(request);
+        clearLegacyAuthCookies(httpResponse);
         writeRefreshCookie(httpResponse, response);
         return ApiResponse.success(MSG_LOGIN_SUCCESS, response);
     }
@@ -90,6 +94,7 @@ public class AuthController {
             HttpServletResponse httpResponse
     ) {
         AuthResponse response = authServicePort.loginWithGoogle(request);
+        clearLegacyAuthCookies(httpResponse);
         writeRefreshCookie(httpResponse, response);
         return ApiResponse.success(MSG_GOOGLE_LOGIN_SUCCESS, response);
     }
@@ -142,8 +147,12 @@ public class AuthController {
     }
 
     @PostMapping(FORGOT_PASSWORD + "/reset")
-    public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    public ApiResponse<Void> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request,
+            HttpServletResponse httpResponse
+    ) {
         authServicePort.resetPassword(request);
+        clearAllAuthCookies(httpResponse);
         return ApiResponse.success(MSG_PW_RESET_SUCCESS);
     }
 
@@ -167,8 +176,10 @@ public class AuthController {
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<Void> changePassword(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
-            @Valid @RequestBody ChangePasswordRequest request) {
+            @Valid @RequestBody ChangePasswordRequest request,
+            HttpServletResponse httpResponse) {
         authServicePort.changePassword(principal.getId(), request);
+        clearAllAuthCookies(httpResponse);
         return ApiResponse.success(MSG_CHANGE_PASSWORD_SUCCESS);
     }
 
@@ -188,16 +199,42 @@ public class AuthController {
             HttpServletResponse httpResponse
     ) {
         authServicePort.logout(new LogoutRequest(refreshToken));
-        clearRefreshCookie(httpResponse);
+        clearAllAuthCookies(httpResponse);
         return ApiResponse.success(MSG_LOGOUT_SUCCESS);
     }
 
     private void writeRefreshCookie(HttpServletResponse httpResponse, AuthResponse response) {
+        httpResponse.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+        httpResponse.setHeader(HttpHeaders.PRAGMA, "no-cache");
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, refreshCookie(response).toString());
     }
 
     private void clearRefreshCookie(HttpServletResponse httpResponse) {
-        httpResponse.addHeader(HttpHeaders.SET_COOKIE, expiredRefreshCookie().toString());
+        addExpiredCookie(httpResponse, refreshCookieName, refreshCookiePath, true);
+    }
+
+    private void clearLegacyAuthCookies(HttpServletResponse httpResponse) {
+        addExpiredCookie(httpResponse, LEGACY_REFRESH_COOKIE_NAME, ROOT_PATH, false);
+        if (!"refresh_token".equals(refreshCookieName)) {
+            addExpiredCookie(httpResponse, "refresh_token", refreshCookiePath, true);
+        }
+    }
+
+    private void clearAllAuthCookies(HttpServletResponse httpResponse) {
+        clearRefreshCookie(httpResponse);
+        clearLegacyAuthCookies(httpResponse);
+        addExpiredCookie(httpResponse, ACCESS_COOKIE_NAME, ROOT_PATH, false);
+        httpResponse.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+        httpResponse.setHeader(HttpHeaders.PRAGMA, "no-cache");
+    }
+
+    private void addExpiredCookie(
+            HttpServletResponse httpResponse,
+            String name,
+            String path,
+            boolean httpOnly
+    ) {
+        httpResponse.addHeader(HttpHeaders.SET_COOKIE, expiredCookie(name, path, httpOnly).toString());
     }
 
     private ResponseCookie refreshCookie(AuthResponse response) {
@@ -210,11 +247,11 @@ public class AuthController {
                 .build();
     }
 
-    private ResponseCookie expiredRefreshCookie() {
-        return ResponseCookie.from(refreshCookieName, "")
-                .httpOnly(true)
+    private ResponseCookie expiredCookie(String name, String path, boolean httpOnly) {
+        return ResponseCookie.from(name, "")
+                .httpOnly(httpOnly)
                 .secure(refreshCookieSecure)
-                .path(refreshCookiePath)
+                .path(path)
                 .maxAge(0)
                 .sameSite(refreshCookieSameSite)
                 .build();
