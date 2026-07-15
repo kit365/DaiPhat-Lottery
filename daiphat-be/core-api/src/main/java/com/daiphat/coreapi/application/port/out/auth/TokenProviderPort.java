@@ -13,7 +13,11 @@ public interface TokenProviderPort {
 
     boolean isAccessTokenValid(String token);
 
+    boolean isAccessTokenValidForUser(String token, UserModel user);
+
     boolean isRefreshTokenValid(String token);
+
+    boolean isRefreshTokenValidForUser(String token, UserModel user);
 
     long getAccessTokenTtlSeconds();
 

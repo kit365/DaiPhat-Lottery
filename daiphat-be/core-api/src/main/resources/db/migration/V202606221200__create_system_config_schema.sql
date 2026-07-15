@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS system_config (
     config_type      VARCHAR(20)  NOT NULL,
     data_type        VARCHAR(20)  NOT NULL,
     description      VARCHAR(255) NOT NULL,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
 
     created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -15,3 +16,4 @@ CREATE TABLE IF NOT EXISTS system_config (
 );
 
 CREATE INDEX IF NOT EXISTS idx_system_config_config_type ON system_config(config_type);
+CREATE INDEX IF NOT EXISTS idx_system_config_is_active ON system_config(is_active);

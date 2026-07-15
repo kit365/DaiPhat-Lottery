@@ -52,7 +52,6 @@ export const useAuth = () => {
             const authData = response.data;
             const accessToken = authData?.access_token ?? authData?.accessToken;
             const expiresIn = authData?.expires_in ?? authData?.expiresIn;
-            const refreshToken = authData?.refresh_token ?? authData?.refreshToken;
 
             if (isSuccess && accessToken) {
                 const cookieOptions = {
@@ -60,10 +59,6 @@ export const useAuth = () => {
                     path: '/'
                 };
                 Cookies.set(STORAGE_KEYS.TOKEN, accessToken, cookieOptions);
-                if (refreshToken) {
-                    Cookies.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken, cookieOptions);
-                }
-
                 useAuthStore.getState().set({
                     token: accessToken,
                     expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : null
