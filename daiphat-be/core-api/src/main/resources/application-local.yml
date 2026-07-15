@@ -49,6 +49,11 @@ daiphat:
   order:
     seed:
       enabled: false
+  lottery:
+    seed:
+      southern-stations:
+        enabled: true
+      enabled: false
 
 logging:
   level:
