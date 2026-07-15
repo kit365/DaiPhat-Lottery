@@ -33,6 +33,7 @@ import { confirmAction } from "../../utils/swal";
 import { CanAccess } from "../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../constants/permission.constants";
 import { OrderInspectionSection } from './components/OrderInspectionSection';
+import { OrderHandoverConfirmDialog } from './components/OrderHandoverConfirmDialog';
 
 const STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
     [OrderStatus.PENDING_PAYMENT]: { label: "Chờ thanh toán", color: "var(--palette-warning-dark)", bg: "var(--palette-warning-lighter)" },
@@ -57,6 +58,7 @@ export const OrderDetailPage = () => {
     const order = orderRes?.data;
     const { mutate: updateStatus } = useUpdateOrderStatus();
     const [isInspectionStarted, setIsInspectionStarted] = useState(false);
+    const [handoverDialogOpen, setHandoverDialogOpen] = useState(false);
 
     const handleBaoLoiHuyDon = () => {
         if (!order) return;
@@ -104,6 +106,10 @@ export const OrderDetailPage = () => {
                 'info'
             );
         } else if (newStatus === OrderStatus.COMPLETED) {
+            if (order.status === OrderStatus.PENDING_PICKUP) {
+                setHandoverDialogOpen(true);
+                return;
+            }
             confirmAction(
                 "Hoàn thành đơn hàng?",
                 "Bạn có chắc chắn muốn xác nhận hoàn thành đơn hàng này?",
@@ -768,7 +774,16 @@ export const OrderDetailPage = () => {
                 </Grid>
             </Grid>
 
-
+            <OrderHandoverConfirmDialog
+                open={handoverDialogOpen}
+                onClose={() => setHandoverDialogOpen(false)}
+                onConfirm={() => {
+                    updateStatus(
+                        { id: order.id, status: OrderStatus.COMPLETED },
+                        { onSuccess: () => toast.success("Cập nhật trạng thái thành công") }
+                    );
+                }}
+            />
         </Box>
     );
 };
