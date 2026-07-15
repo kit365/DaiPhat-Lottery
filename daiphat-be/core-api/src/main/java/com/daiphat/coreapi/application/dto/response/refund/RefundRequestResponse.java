@@ -40,6 +40,8 @@ public record RefundRequestResponse(
         String orderCode,
         LocalDateTime processingDeadlineAt,
         Long remainingProcessingSeconds,
-        RefundProcessingUrgency processingUrgency
+        RefundProcessingUrgency processingUrgency,
+        /** Ticket lines included in this refund (enriched for customer/staff detail). */
+        List<RefundEligibleTicketItemResponse> refundTickets
 ) {
 }

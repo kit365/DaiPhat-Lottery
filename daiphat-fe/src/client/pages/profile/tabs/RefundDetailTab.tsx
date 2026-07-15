@@ -26,6 +26,15 @@ const REFUND_TYPE_LABELS: Record<RefundType, string> = {
     [RefundType.ORDER_DETAIL]: 'Hoàn từng vé'
 };
 
+const FALLBACK_TICKET_IMG =
+    'https://i.ibb.co/TBf95cjX/6b561e49-2b8d-4dc5-b4c7-cff26a273abc.png';
+
+function resolveIncidentReason(serialStatus?: string | null): string | null {
+    if (serialStatus === 'DAMAGED') return 'Vé bị rách/hư hỏng';
+    if (serialStatus === 'LOST') return 'Vé bị thất lạc';
+    return null;
+}
+
 export const RefundDetailTab = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -203,14 +212,92 @@ export const RefundDetailTab = () => {
                                 </span>
                             )}
                         </div>
-                        {(refund.orderDetailIds?.length ?? 0) > 0 && (
+                        {(refund.refundTickets?.length ?? 0) > 0 ? (
+                            <div className="flex flex-col gap-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[13px] text-[#637381]">Vé trong yêu cầu hoàn tiền</span>
+                                    <span className="text-[12px] font-bold text-[#212B36] bg-[#F4F6F8] px-2.5 py-1 rounded-lg">
+                                        {refund.refundTickets!.length} vé
+                                    </span>
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                    {refund.refundTickets!.map((ticket, index) => {
+                                        const drawDateLabel = ticket.drawDate
+                                            ? format(new Date(ticket.drawDate), 'dd/MM/yyyy')
+                                            : '—';
+                                        const incidentReason = ticket.hasIncident
+                                            ? resolveIncidentReason(ticket.serialStatus)
+                                            : null;
+                                        return (
+                                            <div
+                                                key={ticket.orderDetailId ?? index}
+                                                className="rounded-2xl border border-[#E5E8EB] bg-[#FCFCFD] p-4 flex flex-col gap-3"
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <div className="w-[72px] h-[46px] rounded-lg shrink-0 overflow-hidden border border-[#E5E8EB] bg-white">
+                                                        <img
+                                                            src={ticket.ticketImg || FALLBACK_TICKET_IMG}
+                                                            alt={`Vé ${ticket.stationName || ''}`}
+                                                            className="w-full h-full object-cover mix-blend-multiply"
+                                                        />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-[17px] font-bold text-[#212B36] tracking-tight">
+                                                            {ticket.numbers || '—'}
+                                                        </p>
+                                                        {ticket.serialNumber && (
+                                                            <p className="text-[12px] text-[#637381] font-mono mt-0.5">
+                                                                SN: {ticket.serialNumber}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3 text-[13px]">
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[#919EAB]">Đài phát hành</span>
+                                                        <span className="font-semibold text-[#212B36]">
+                                                            {ticket.stationName || '—'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[#919EAB]">Ngày quay</span>
+                                                        <span className="font-semibold text-[#212B36]">{drawDateLabel}</span>
+                                                    </div>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[#919EAB]">Số lượng</span>
+                                                        <span className="font-semibold text-[#212B36]">
+                                                            {ticket.quantity || 1}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[#919EAB]">Thành tiền</span>
+                                                        <span className="font-bold text-[#ee1314]">
+                                                            {(ticket.subtotalAmount ?? 0).toLocaleString('vi-VN')}đ
+                                                        </span>
+                                                    </div>
+                                                    {incidentReason && (
+                                                        <div className="flex flex-col gap-0.5 col-span-2">
+                                                            <span className="text-[#919EAB]">Lý do sự cố</span>
+                                                            <span className="font-semibold text-[#C62828]">
+                                                                {incidentReason}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) : (refund.orderDetailIds?.length ?? 0) > 0 ? (
                             <div className="flex flex-col gap-1">
                                 <span className="text-[13px] text-[#637381]">Số chi tiết vé trong yêu cầu</span>
                                 <span className="text-[15px] font-semibold text-[#212B36]">
                                     {refund.orderDetailIds!.length} vé
                                 </span>
                             </div>
-                        )}
+                        ) : null}
                         <div className="flex flex-col gap-1">
                             <span className="text-[13px] text-[#637381]">Số tiền hoàn</span>
                             <span className="text-[22px] font-bold text-[#ee1314]">
