@@ -40,15 +40,32 @@ export const useAdminOrderList = (initialParams?: OrderFilterParams) => {
                 case 'receiveType':
                     newFilters.receiveType = values.length > 0 ? values : undefined;
                     break;
-                case 'dateRange':
-                    if (values[0]) {
-                        newFilters.fromDate = values[0];
-                        newFilters.toDate = values[0];
-                    } else {
+                case 'dateRange': {
+                    if (!values.length) {
                         newFilters.fromDate = undefined;
                         newFilters.toDate = undefined;
+                        break;
+                    }
+
+                    // Special preset: both ends of "this month" live in one encoded value.
+                    const monthRange = values.find((v) => v.startsWith('month:'));
+                    if (monthRange) {
+                        const [, from, to] = monthRange.split(':');
+                        newFilters.fromDate = from;
+                        newFilters.toDate = to;
+                        break;
+                    }
+
+                    const sorted = [...values].filter((v) => !v.startsWith('month:')).sort();
+                    if (sorted.length === 0) {
+                        newFilters.fromDate = undefined;
+                        newFilters.toDate = undefined;
+                    } else {
+                        newFilters.fromDate = sorted[0];
+                        newFilters.toDate = sorted[sorted.length - 1];
                     }
                     break;
+                }
             }
             return newFilters;
         });
