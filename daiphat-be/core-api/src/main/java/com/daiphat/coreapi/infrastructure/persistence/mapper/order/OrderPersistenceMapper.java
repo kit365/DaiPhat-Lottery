@@ -35,6 +35,7 @@ public class OrderPersistenceMapper {
         entity.setExpectedPickupAt(model.getExpectedPickupAt());
         entity.setCancelledAt(model.getCancelledAt());
         entity.setCancelReason(model.getCancelReason());
+        entity.setCancelType(model.getCancelType());
         entity.setActualPickedUpAt(model.getActualPickedUpAt());
         entity.setPickedUpBy(userRef(model.getPickedUpBy()));
         entity.setCreatedAt(model.getCreatedAt());
@@ -91,6 +92,7 @@ public class OrderPersistenceMapper {
                 .expectedPickupAt(entity.getExpectedPickupAt())
                 .cancelledAt(entity.getCancelledAt())
                 .cancelReason(entity.getCancelReason())
+                .cancelType(entity.getCancelType())
                 .actualPickedUpAt(entity.getActualPickedUpAt())
                 .pickedUpBy(userId(entity.getPickedUpBy()))
                 .createdAt(entity.getCreatedAt())

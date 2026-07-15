@@ -139,6 +139,14 @@ export interface OrderResponse {
     receiveType: OrderReceiveType;
     expectedPickupAt?: string;
     actualPickedUpAt?: string;
+    cancelledAt?: string;
+    cancelReason?: string;
+    cancelType?:
+        | 'CUSTOMER_REQUEST'
+        | 'ADMIN_FORCE_CANCEL'
+        | 'SYSTEM_PAYMENT_TIMEOUT'
+        | 'OUT_OF_STOCK_INCIDENT'
+        | null;
     createdAt: string;
     orderDetails?: any[];
     transactions: TransactionResponse[];

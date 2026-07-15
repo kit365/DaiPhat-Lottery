@@ -17,6 +17,7 @@ import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.Re
 import com.daiphat.coreapi.application.service.refund.OrderRefundPolicyService.PolicyEvaluation;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
@@ -160,14 +161,14 @@ public class OrderRefundService implements OrderRefundServicePort {
 
     private void cancelOrderForCustomerRefund(OrderModel order, String cancelReason) {
         if (order.getOrderType() == OrderType.DIRECT) {
-            order.cancelDirectOrderForRefund(cancelReason);
+            order.cancelDirectOrderForRefund(cancelReason, OrderCancelType.CUSTOMER_REQUEST);
             return;
         }
         if (order.getStatus() == OrderStatus.PAID) {
-            order.cancelByCustomerRefund(cancelReason);
+            order.cancelByCustomerRefund(cancelReason, OrderCancelType.CUSTOMER_REQUEST);
             return;
         }
-        order.cancelAfterPaymentForRefund(cancelReason);
+        order.cancelAfterPaymentForRefund(cancelReason, OrderCancelType.CUSTOMER_REQUEST);
     }
 
     private void releaseSoldTickets(OrderModel order) {

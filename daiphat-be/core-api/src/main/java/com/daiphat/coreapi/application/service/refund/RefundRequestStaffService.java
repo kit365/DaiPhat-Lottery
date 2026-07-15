@@ -29,14 +29,17 @@ import com.daiphat.coreapi.application.service.refund.RefundProcessingDeadlineSe
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
+import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.order.TicketIncidentReason;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
+import com.daiphat.coreapi.domain.model.orders.OrderCancelReasonDefaults;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
@@ -250,9 +253,17 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             UUID orderId,
             UUID staffId,
             StaffCancelOrderWithRefundRequest request) {
-        log.info("Staff {} cancelling order {} with refund (waiting for bank info)", staffId, orderId);
+        log.info("Staff {} cancelling order {} with refund (type={})", staffId, orderId, request.cancelType());
 
-        String cancelReason = request.cancelReason().trim();
+        OrderCancelType cancelType = request.cancelType();
+        if (cancelType != OrderCancelType.ADMIN_FORCE_CANCEL
+                && cancelType != OrderCancelType.OUT_OF_STOCK_INCIDENT) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Loại hủy đơn không hợp lệ cho thao tác hủy kèm hoàn tiền của nhân viên.");
+        }
+
+        String cancelReason = OrderCancelReasonDefaults.resolve(cancelType, request.cancelReason());
         OrderModel order = orderRepositoryPort.findByIdWithLock(orderId)
                 .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
 
@@ -266,9 +277,18 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             throw new DomainException(ErrorCode.INVALID_INPUT, "Đơn hàng không có khách hàng liên kết.");
         }
 
+        if (cancelType == OrderCancelType.OUT_OF_STOCK_INCIDENT) {
+            applyOutOfStockIncidents(orderId, staffId, order, request.incidents());
+            order = orderRepositoryPort.findByIdWithLock(orderId)
+                    .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND));
+        }
+
         BigDecimal refundAmount = calculateRefundAmount(order);
-        cancelOrderForStaffApproval(order, cancelReason);
-        releaseSoldTickets(order);
+        cancelOrderForStaffApproval(order, cancelReason, cancelType);
+        if (cancelType == OrderCancelType.ADMIN_FORCE_CANCEL) {
+            // Faulted OUT_OF_STOCK tickets stay marked damaged/lost — do not return to stock.
+            releaseSoldTickets(order);
+        }
         orderRepositoryPort.save(order);
 
         RefundRequestModel refundRequest = RefundRequestModel.builder()
@@ -277,6 +297,7 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                 .requestRole(RefundRequestRole.STAFF)
                 .refundAmount(refundAmount)
                 .refundReason(cancelReason)
+                .createdBy(staffId.toString())
                 .build();
         refundRequest.initializeForStaffIncidentCancel();
 
@@ -293,6 +314,85 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         publishOrderCancelled(order);
 
         return toEnrichedResponse(savedRefund, null, order.getOrderCode());
+    }
+
+    private void applyOutOfStockIncidents(
+            UUID orderId,
+            UUID staffId,
+            OrderModel order,
+            List<com.daiphat.coreapi.application.dto.request.order.TicketIncidentItemRequest> incidents
+    ) {
+        if (order.getStatus() != OrderStatus.PREPARING) {
+            throw new DomainException(
+                    ErrorCode.ORDER_INVALID_STATUS,
+                    "Hủy do sự cố kho chỉ áp dụng khi đơn đang ở trạng thái PREPARING.");
+        }
+        if (incidents == null || incidents.isEmpty()) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Cần báo lỗi cho toàn bộ vé trong đơn trước khi hủy.");
+        }
+
+        List<OrderDetailModel> activeDetails = order.getOrderDetails() == null
+                ? List.of()
+                : order.getOrderDetails().stream()
+                        .filter(d -> d.getStatus() == OrderDetailStatus.ACTIVE)
+                        .toList();
+        if (activeDetails.isEmpty()) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Đơn hàng không còn vé hiệu lực để hủy.");
+        }
+
+        Map<Long, com.daiphat.coreapi.application.dto.request.order.TicketIncidentItemRequest> byDetailId =
+                new LinkedHashMap<>();
+        for (com.daiphat.coreapi.application.dto.request.order.TicketIncidentItemRequest incident : incidents) {
+            if (incident == null || incident.orderDetailId() == null) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "Thiếu orderDetailId trong báo lỗi vé.");
+            }
+            if (incident.replacementTicketId() != null) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Hủy do sự cố kho không được chọn vé thay thế.");
+            }
+            if (incident.reason() != TicketIncidentReason.DAMAGED
+                    && incident.reason() != TicketIncidentReason.LOST) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "Mỗi vé phải được báo DAMAGED hoặc LOST.");
+            }
+            if (byDetailId.put(incident.orderDetailId(), incident) != null) {
+                throw new DomainException(ErrorCode.INVALID_INPUT, "Trùng báo lỗi cho cùng một vé.");
+            }
+        }
+
+        for (OrderDetailModel detail : activeDetails) {
+            if (!byDetailId.containsKey(detail.getId())) {
+                throw new DomainException(
+                        ErrorCode.INVALID_INPUT,
+                        "Phải báo lỗi cho toàn bộ vé trong đơn trước khi hủy.");
+            }
+        }
+        if (byDetailId.size() != activeDetails.size()) {
+            throw new DomainException(
+                    ErrorCode.INVALID_INPUT,
+                    "Danh sách báo lỗi không khớp với vé của đơn hàng.");
+        }
+
+        orderIncidentTicketServicePort.handlePartialRefundIncidents(
+                orderId, staffId, List.copyOf(byDetailId.values()), null);
+    }
+
+    private void cancelOrderForStaffApproval(
+            OrderModel order,
+            String cancelReason,
+            OrderCancelType cancelType
+    ) {
+        if (order.getOrderType() == OrderType.DIRECT) {
+            order.cancelDirectOrderForRefund(cancelReason, cancelType);
+            return;
+        }
+        if (order.getStatus() == OrderStatus.PAID) {
+            order.cancelByCustomerRefund(cancelReason, cancelType);
+            return;
+        }
+        order.cancelAfterPaymentForRefund(cancelReason, cancelType);
     }
 
     @Override
@@ -409,18 +509,6 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
         return cache.computeIfAbsent(orderId, id -> orderRepositoryPort.findById(id)
                 .map(OrderModel::getOrderCode)
                 .orElse(null));
-    }
-
-    private void cancelOrderForStaffApproval(OrderModel order, String cancelReason) {
-        if (order.getOrderType() == OrderType.DIRECT) {
-            order.cancelDirectOrderForRefund(cancelReason);
-            return;
-        }
-        if (order.getStatus() == OrderStatus.PAID) {
-            order.cancelByCustomerRefund(cancelReason);
-            return;
-        }
-        order.cancelAfterPaymentForRefund(cancelReason);
     }
 
     private void releaseSoldTickets(OrderModel order) {
