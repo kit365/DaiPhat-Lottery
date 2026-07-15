@@ -32,8 +32,10 @@ CREATE INDEX IF NOT EXISTS idx_orders_order_type ON orders(order_type);
 CREATE TABLE IF NOT EXISTS order_details (
     id BIGSERIAL PRIMARY KEY,
     order_id UUID NOT NULL,
-    lottery_ticket_serial_id BIGINT NOT NULL,
+    lottery_ticket_id BIGINT,
+    lottery_ticket_serial_id BIGINT,
     replaced_by_ticket_serial_id BIGINT,
+    quantity INTEGER NOT NULL DEFAULT 1,
     price DECIMAL(15, 0) NOT NULL,
     status VARCHAR(20) NOT NULL,
     created_at TIMESTAMP,
@@ -43,6 +45,7 @@ CREATE TABLE IF NOT EXISTS order_details (
     CONSTRAINT uk_order_details_order_ticket_serial UNIQUE (order_id, lottery_ticket_serial_id),
     CONSTRAINT uk_order_details_replaced_by_ticket_serial UNIQUE (replaced_by_ticket_serial_id),
     CONSTRAINT fk_order_details_order FOREIGN KEY (order_id) REFERENCES orders (id),
+    CONSTRAINT fk_order_details_lottery_ticket FOREIGN KEY (lottery_ticket_id) REFERENCES lottery_tickets (id),
     CONSTRAINT fk_order_details_ticket FOREIGN KEY (lottery_ticket_serial_id) REFERENCES lottery_ticket_serials (id),
     CONSTRAINT fk_order_details_replaced_ticket FOREIGN KEY (replaced_by_ticket_serial_id) REFERENCES lottery_ticket_serials (id)
 );
@@ -50,6 +53,23 @@ CREATE TABLE IF NOT EXISTS order_details (
 CREATE INDEX IF NOT EXISTS idx_order_details_order_id ON order_details(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_details_status ON order_details(status);
 CREATE INDEX IF NOT EXISTS idx_order_details_ticket_serial_id ON order_details(lottery_ticket_serial_id);
+CREATE INDEX IF NOT EXISTS idx_order_details_lottery_ticket_id ON order_details(lottery_ticket_id);
+
+CREATE TABLE IF NOT EXISTS order_detail_serials (
+    id BIGSERIAL PRIMARY KEY,
+    order_detail_id BIGINT NOT NULL,
+    lottery_ticket_serial_id BIGINT NOT NULL,
+    created_at TIMESTAMP,
+    CONSTRAINT fk_order_detail_serials_detail
+        FOREIGN KEY (order_detail_id) REFERENCES order_details (id) ON DELETE CASCADE,
+    CONSTRAINT fk_order_detail_serials_serial
+        FOREIGN KEY (lottery_ticket_serial_id) REFERENCES lottery_ticket_serials (id),
+    CONSTRAINT uk_order_detail_serials_detail_serial UNIQUE (order_detail_id, lottery_ticket_serial_id),
+    CONSTRAINT uk_order_detail_serials_serial UNIQUE (lottery_ticket_serial_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_detail_serials_detail_id
+    ON order_detail_serials(order_detail_id);
 
 CREATE SEQUENCE IF NOT EXISTS payment_order_code_seq START WITH 5100000;
 

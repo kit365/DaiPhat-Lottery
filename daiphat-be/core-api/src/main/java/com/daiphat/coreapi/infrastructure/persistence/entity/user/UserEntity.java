@@ -88,6 +88,10 @@ public class UserEntity extends BaseEntity {
     @Column(name = "password")
     private String password;
 
+    @Column(name = "auth_version", nullable = false)
+    @Builder.Default
+    private long authVersion = 0L;
+
     // Rate Limit & Account Locking
     @Column(name = "failed_login_attempts", nullable = false)
     @Builder.Default

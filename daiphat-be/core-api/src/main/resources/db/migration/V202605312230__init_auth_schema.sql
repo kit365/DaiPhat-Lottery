@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255),
     fcm_token VARCHAR(255),
     failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+    auth_version BIGINT NOT NULL DEFAULT 0,
     locked_until TIMESTAMP,
     last_failed_login_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

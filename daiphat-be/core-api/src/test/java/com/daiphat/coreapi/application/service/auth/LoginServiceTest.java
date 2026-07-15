@@ -137,17 +137,28 @@ class LoginServiceTest extends AuthTestBase {
 
         when(tokenProviderPort.extractUsernameFromRefreshToken(REFRESH_TOKEN)).thenReturn(DEFAULT_USERNAME);
         when(userLookupService.findByUsername(DEFAULT_USERNAME)).thenReturn(Optional.of(user));
-        when(refreshTokenStorePort.find(DEFAULT_USER_ID)).thenReturn(Optional.of(REFRESH_TOKEN));
+        when(tokenProviderPort.isRefreshTokenValidForUser(REFRESH_TOKEN, user)).thenReturn(true);
         when(tokenProviderPort.generateAccessToken(user)).thenReturn(ACCESS_TOKEN);
         when(tokenProviderPort.generateRefreshToken(user)).thenReturn(NEW_REFRESH_TOKEN);
         when(tokenProviderPort.getAccessTokenTtlSeconds()).thenReturn(3600L);
         when(tokenProviderPort.getRefreshTokenTtlSeconds()).thenReturn(604800L);
         when(authApplicationMapper.toResponse(any(AuthToken.class))).thenReturn(mapped);
+        when(refreshTokenStorePort.rotate(
+                DEFAULT_USER_ID,
+                REFRESH_TOKEN,
+                NEW_REFRESH_TOKEN,
+                Duration.ofSeconds(604800)
+        )).thenReturn(true);
 
         AuthResponse response = loginService.refreshToken(new RefreshTokenRequest(REFRESH_TOKEN));
 
         assertThat(response).isSameAs(mapped);
-        verify(refreshTokenStorePort).save(DEFAULT_USER_ID, NEW_REFRESH_TOKEN, Duration.ofSeconds(604800));
+        verify(refreshTokenStorePort).rotate(
+                DEFAULT_USER_ID,
+                REFRESH_TOKEN,
+                NEW_REFRESH_TOKEN,
+                Duration.ofSeconds(604800)
+        );
     }
 
     @Test
@@ -156,7 +167,9 @@ class LoginServiceTest extends AuthTestBase {
         UserModel user = activeUser();
         when(tokenProviderPort.extractUsernameFromRefreshToken(REFRESH_TOKEN)).thenReturn(DEFAULT_USERNAME);
         when(userLookupService.findByUsername(DEFAULT_USERNAME)).thenReturn(Optional.of(user));
-        when(refreshTokenStorePort.find(DEFAULT_USER_ID)).thenReturn(Optional.of("other-token"));
+        when(tokenProviderPort.isRefreshTokenValidForUser(REFRESH_TOKEN, user)).thenReturn(true);
+        when(refreshTokenStorePort.rotate(eq(DEFAULT_USER_ID), eq(REFRESH_TOKEN), any(), any()))
+                .thenReturn(false);
 
         assertThatThrownBy(() -> loginService.refreshToken(new RefreshTokenRequest(REFRESH_TOKEN)))
                 .isInstanceOf(DomainException.class)

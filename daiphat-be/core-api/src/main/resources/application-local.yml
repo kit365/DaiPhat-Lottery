@@ -30,15 +30,19 @@ spring:
             enable: true
 daiphat:
   auth:
+    jwt:
+      access-token-ttl-seconds: 5
     frontend-url: http://localhost:5173
     cookie:
+      name: refresh_token
       secure: false
       same-site: Lax
+      path: /api/v1/auth
     cors:
       allowed-origins:
         - http://localhost:5173
         - http://127.0.0.1:5173
-        - https://teddypet.id.vn
+        - https://daiphat.id.vn
   blog:
     seed:
       enabled: true
