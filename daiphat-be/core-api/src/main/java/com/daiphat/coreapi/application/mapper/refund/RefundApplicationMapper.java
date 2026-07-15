@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.mapper.refund;
 
 import com.daiphat.coreapi.application.dto.response.order.TransactionResponse;
+import com.daiphat.coreapi.application.dto.response.refund.RefundEligibleTicketItemResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
 import com.daiphat.coreapi.application.dto.response.refund.UserBankAccountResponse;
 import com.daiphat.coreapi.application.dto.response.refund.VietQrBankResponse;
@@ -31,6 +32,7 @@ public interface RefundApplicationMapper {
     @Mapping(target = "processingDeadlineAt", ignore = true)
     @Mapping(target = "remainingProcessingSeconds", ignore = true)
     @Mapping(target = "processingUrgency", ignore = true)
+    @Mapping(target = "refundTickets", ignore = true)
     RefundRequestResponse toRefundResponse(RefundRequestModel model);
 
     default RefundRequestResponse toRefundResponse(
@@ -55,34 +57,16 @@ public interface RefundApplicationMapper {
         if (base == null) {
             return null;
         }
-        return new RefundRequestResponse(
-                base.id(),
-                base.refundType(),
-                base.orderId(),
-                base.orderDetailIds(),
-                base.requestedBy(),
-                base.requestRole(),
-                base.status(),
-                base.refundAmount(),
-                base.refundReason(),
-                base.bankAccountId(),
+        return copy(
+                base,
                 bankAccount != null ? toBankAccountResponse(bankAccount) : null,
-                base.fundSource(),
-                base.reimburseStatus(),
-                base.attemptNumber(),
-                base.retryCount(),
-                base.operatorNote(),
                 maxRefundBankInfoRetry,
-                base.reviewedBy(),
-                base.reviewedAt(),
                 payoutTransaction,
-                base.createdAt(),
-                base.updatedAt(),
                 null,
                 null,
                 null,
-                null
-        );
+                null,
+                base.refundTickets());
     }
 
     default RefundRequestResponse enrichResponse(
@@ -94,7 +78,7 @@ public interface RefundApplicationMapper {
             com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency processingUrgency
     ) {
         return enrichResponse(
-                model, bankAccount, orderCode, processingDeadlineAt, remainingProcessingSeconds, processingUrgency, null, null);
+                model, bankAccount, orderCode, processingDeadlineAt, remainingProcessingSeconds, processingUrgency, null, null, null);
     }
 
     default RefundRequestResponse enrichResponse(
@@ -114,6 +98,7 @@ public interface RefundApplicationMapper {
                 remainingProcessingSeconds,
                 processingUrgency,
                 payoutTransaction,
+                null,
                 null);
     }
 
@@ -127,10 +112,75 @@ public interface RefundApplicationMapper {
             TransactionResponse payoutTransaction,
             Integer maxRefundBankInfoRetry
     ) {
+        return enrichResponse(
+                model,
+                bankAccount,
+                orderCode,
+                processingDeadlineAt,
+                remainingProcessingSeconds,
+                processingUrgency,
+                payoutTransaction,
+                maxRefundBankInfoRetry,
+                null);
+    }
+
+    default RefundRequestResponse enrichResponse(
+            RefundRequestModel model,
+            UserBankAccountModel bankAccount,
+            String orderCode,
+            java.time.LocalDateTime processingDeadlineAt,
+            Long remainingProcessingSeconds,
+            com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency processingUrgency,
+            TransactionResponse payoutTransaction,
+            Integer maxRefundBankInfoRetry,
+            List<RefundEligibleTicketItemResponse> refundTickets
+    ) {
         RefundRequestResponse base = toRefundResponse(model, bankAccount, payoutTransaction, maxRefundBankInfoRetry);
         if (base == null) {
             return null;
         }
+        return copy(
+                base,
+                base.bankAccount(),
+                maxRefundBankInfoRetry != null ? maxRefundBankInfoRetry : base.maxRefundBankInfoRetry(),
+                base.payoutTransaction(),
+                orderCode,
+                processingDeadlineAt,
+                remainingProcessingSeconds,
+                processingUrgency,
+                refundTickets);
+    }
+
+    default RefundRequestResponse withRefundTickets(
+            RefundRequestResponse base,
+            List<RefundEligibleTicketItemResponse> refundTickets
+    ) {
+        if (base == null) {
+            return null;
+        }
+        return copy(
+                base,
+                base.bankAccount(),
+                base.maxRefundBankInfoRetry(),
+                base.payoutTransaction(),
+                base.orderCode(),
+                base.processingDeadlineAt(),
+                base.remainingProcessingSeconds(),
+                base.processingUrgency(),
+                refundTickets);
+    }
+
+    private static RefundRequestResponse copy(
+            RefundRequestResponse base,
+            UserBankAccountResponse bankAccount,
+            Integer maxRefundBankInfoRetry,
+            TransactionResponse payoutTransaction,
+            String orderCode,
+            java.time.LocalDateTime processingDeadlineAt,
+            Long remainingProcessingSeconds,
+            com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency processingUrgency,
+            List<RefundEligibleTicketItemResponse> refundTickets
+    ) {
         return new RefundRequestResponse(
                 base.id(),
                 base.refundType(),
@@ -142,22 +192,22 @@ public interface RefundApplicationMapper {
                 base.refundAmount(),
                 base.refundReason(),
                 base.bankAccountId(),
-                base.bankAccount(),
+                bankAccount,
                 base.fundSource(),
                 base.reimburseStatus(),
                 base.attemptNumber(),
                 base.retryCount(),
                 base.operatorNote(),
-                maxRefundBankInfoRetry != null ? maxRefundBankInfoRetry : base.maxRefundBankInfoRetry(),
+                maxRefundBankInfoRetry,
                 base.reviewedBy(),
                 base.reviewedAt(),
-                base.payoutTransaction(),
+                payoutTransaction,
                 base.createdAt(),
                 base.updatedAt(),
                 orderCode,
                 processingDeadlineAt,
                 remainingProcessingSeconds,
-                processingUrgency
-        );
+                processingUrgency,
+                refundTickets);
     }
 }
