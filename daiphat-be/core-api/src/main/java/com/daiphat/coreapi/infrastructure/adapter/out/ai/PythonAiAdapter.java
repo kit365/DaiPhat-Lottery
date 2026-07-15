@@ -58,7 +58,7 @@ public class PythonAiAdapter implements AiConsultPort {
     }
 
     @Override
-    public String generateFortuneReply(String message, Long conversationId) {
+    public ChatGenerateResponse generateFortune(String message, Long conversationId) {
         try {
             ResponseEntity<AiRemoteApiResponse<ChatGenerateResponse>> response = restTemplate.exchange(
                     endpointUrl(AiApiConstants.GENERATE_PATH),
@@ -67,8 +67,7 @@ public class PythonAiAdapter implements AiConsultPort {
                     new ParameterizedTypeReference<>() {
                     }
             );
-            ChatGenerateResponse data = extractData(response, endpointUrl(AiApiConstants.GENERATE_PATH));
-            return data != null ? data.getReply() : null;
+            return extractData(response, endpointUrl(AiApiConstants.GENERATE_PATH));
         } catch (Exception e) {
             log.error("Failed to generate fortune reply using AI service", e);
             return null;
