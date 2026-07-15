@@ -114,13 +114,6 @@ export const OrderList = () => {
                 update,
                 'info'
             );
-        } else if (status === 'CANCELLED') {
-            confirmAction(
-                "Xác nhận Huỷ đơn?",
-                "Bạn có chắc chắn muốn huỷ đơn hàng này?",
-                update,
-                'warning'
-            );
         } else if (status === 'PENDING_PICKUP') {
             confirmAction(
                 "Chuyển sang Chờ nhận vé?",
@@ -563,16 +556,6 @@ export const OrderList = () => {
                                                         >
                                                             <Icon icon="eva:checkmark-circle-2-fill" width={18} style={{ marginRight: 8 }} />
                                                             Hoàn thành
-                                                        </MenuItem>
-                                                    )}
-
-                                                    {['PENDING_PAYMENT', 'PAID', 'PREPARING'].includes(row.status) && (
-                                                        <MenuItem
-                                                            onClick={() => { handleCloseMenu(row.id); handleStatusUpdate(row.id, 'CANCELLED'); }}
-                                                            sx={{ color: 'var(--palette-error-main)' }}
-                                                        >
-                                                            <Icon icon="eva:close-circle-fill" width={18} style={{ marginRight: 8 }} />
-                                                            Hủy đơn
                                                         </MenuItem>
                                                     )}
                                                 </Menu>
