@@ -14,19 +14,84 @@ daiphat:
         - chưa nhận được
         - lỗi nạp tiền
         - nạp tiền
+      search-keywords:
+        - tìm vé
+        - tim ve
+        - có số
+        - co so
+        - số đuôi
+        - so duoi
+        - đuôi số
+        - duoi so
+        - đuôi là
+        - duoi la
+        - đuôi
+        - duoi
+        - số đầu
+        - so dau
+        - đầu số
+        - dau so
+        - đầu
+        - dau
+        - còn vé
+        - con ve
+        - vé còn không
+        - ve con khong
+        - có đuôi
+        - co duoi
+      suggest-keywords:
+        - gợi ý vé
+        - goi y ve
+        - gợi ý số
+        - goi y so
+        - gợi ý
+        - goi y
+        - gợi ý cho tôi
+        - goi y cho toi
+        - gợi ý vé số
+        - goi y ve so
+        - vé đẹp
+        - ve dep
+        - chọn vé
+        - chon ve
+        - con số may mắn
+        - con so may man
+        - số may mắn
+        - so may man
+        - recommend vé
+        - đề xuất vé
+        - de xuat ve
       result-keywords:
         - kết quả
         - xổ số
         - trúng không
         - dò vé
-        - vé số
         - kqxs
       fortune-keywords:
         - giấc mơ
-        - phong thủy
-        - con số may mắn
+        - giac mo
+        - nằm mơ
+        - nam mo
+        - mơ thấy
+        - mo thay
+        - chiêm bao
+        - chiem bao
+        - sổ mơ
+        - so mo
         - giải mã giấc mơ
+        - giai mã giấc mơ
+        - giải mộng
+        - giai mong
+        - phong thủy
+        - phong thuy
         - tử vi
+        - tu vi
+        - chiêm tinh
+        - chiem tinh
+        - bói mộng
+        - boi mong
+        - mơ con
+        - mo con
       trash-talk-exact:
         - hi
         - hello

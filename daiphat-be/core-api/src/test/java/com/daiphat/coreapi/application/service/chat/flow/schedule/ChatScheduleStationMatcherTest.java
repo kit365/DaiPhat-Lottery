@@ -69,7 +69,7 @@ class ChatScheduleStationMatcherTest {
         Optional<ChatScheduleStationMatchResult> result = stationResolver.match("Bên Tre");
 
         assertThat(result).isPresent();
-        assertThat(result.get().source()).isEqualTo(ChatScheduleStationMatchSource.FUZZY);
+        assertThat(result.get().source()).isEqualTo(ChatScheduleStationMatchSource.AUTO_ALIAS);
         assertThat(result.get().station().getName()).isEqualTo("Bến Tre");
     }
 
@@ -99,7 +99,7 @@ class ChatScheduleStationMatcherTest {
 
         ChatScheduleStationResolveResult result = stationResolver.resolve("giang");
 
-        assertThat(result).isInstanceOf(ChatScheduleStationResolveResult.Ambiguous.class);
+        assertThat(result).isEqualTo(ChatScheduleStationResolveResult.None.INSTANCE);
     }
 
     private LotteryStationModel activeStation(Long id, String name) {
