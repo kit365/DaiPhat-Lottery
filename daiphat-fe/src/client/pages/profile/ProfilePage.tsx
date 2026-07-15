@@ -5,6 +5,7 @@ import { Header } from "../../../client/components/layout/header";
 import { useAuth } from "../../hooks/useAuth";
 import { useAuthStore } from "../../../stores/useAuthStore";
 import { useNotifications } from "../../hooks/useNotifications";
+import { useMyRefundPendingCount } from "../../hooks/useMyRefundPendingCount";
 
 type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'complaints' | 'bankAccounts' | 'notifications' | 'settings' | 'favorites';
 
@@ -33,6 +34,7 @@ export const ProfilePage = () => {
     const { user, isUserLoading, handleUploadAvatar, uploadAvatarMutation } = useAuth();
     const { token, openLoginModal } = useAuthStore();
     const { unreadCount } = useNotifications(4);
+    const { pendingCount: pendingRefundCount } = useMyRefundPendingCount();
     const location = useLocation();
     const navigate = useNavigate();
     const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -47,11 +49,18 @@ export const ProfilePage = () => {
     if (isUserLoading || !user) return null;
 
     // Find the active tab based on the current pathname
-    const tabs = TABS.map((tab) =>
-        tab.id === "notifications"
-            ? { ...tab, badge: unreadCount > 0 ? unreadCount : undefined }
-            : tab
-    );
+    const tabs = TABS.map((tab) => {
+        if (tab.id === "notifications") {
+            return { ...tab, badge: unreadCount > 0 ? unreadCount : undefined };
+        }
+        if (tab.id === "refunds") {
+            return {
+                ...tab,
+                badge: pendingRefundCount > 0 ? pendingRefundCount : undefined,
+            };
+        }
+        return tab;
+    });
 
     const activeTabObj = tabs.find(t => location.pathname.startsWith(t.path)) || tabs[0];
     const avatarSrc = user.avatar || user.avatarUrl;
@@ -152,9 +161,9 @@ export const ProfilePage = () => {
                                                         <i className={`${tab.icon} w-5 text-center text-[16px] transition-colors ${isActive ? 'text-[#c80f11]' : 'text-[#919EAB] group-hover:text-[#454F5B]'}`}></i>
                                                         <span>{tab.label}</span>
                                                     </div>
-                                                    {tab.badge && (
-                                                        <span className="bg-[#ee1314] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center relative z-10">
-                                                            {tab.badge}
+                                                    {tab.badge != null && tab.badge > 0 && (
+                                                        <span className="bg-[#ee1314] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center relative z-10 shrink-0 ml-2">
+                                                            {tab.badge > 99 ? '99+' : tab.badge}
                                                         </span>
                                                     )}
                                                     {isActive && (
