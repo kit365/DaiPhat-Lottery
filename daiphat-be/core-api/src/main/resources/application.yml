@@ -75,6 +75,10 @@ daiphat:
         staff-response-sla-minutes: ${CHAT_STAFF_RESPONSE_SLA_MINUTES:15}
         scheduler-rate-ms: ${CHAT_TIMEOUT_SCHEDULER_RATE_MS:10000}
   lottery:
+    seed:
+      southern-stations:
+        # Upsert 21 đài Miền Nam + lịch quay (Thứ 2–CN) mỗi lần startup
+        enabled: ${LOTTERY_SEED_SOUTHERN_STATIONS_ENABLED:true}
     crawler:
       user-agent: ${LOTTERY_CRAWLER_USER_AGENT:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36}
     result-live-window-check-cron: ${LOTTERY_RESULT_LIVE_WINDOW_CHECK_CRON:0 * * * * *}
