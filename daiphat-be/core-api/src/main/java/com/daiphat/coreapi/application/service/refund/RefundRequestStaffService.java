@@ -31,6 +31,7 @@ import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
@@ -214,6 +215,10 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
             if (!refundRequestId.equals(detail.getRefundRequestId())) {
                 continue;
             }
+            // Partial-inspection refunds may still be ACTIVE if an older orphan row was repaired.
+            if (detail.getStatus() == OrderDetailStatus.ACTIVE) {
+                detail.markRefundPending();
+            }
             detail.markRefunded();
         }
     }
@@ -329,7 +334,10 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
     private UUID requireOrderId(RefundRequestModel refund) {
         UUID orderId = resolveOrderId(refund);
         if (orderId == null) {
-            throw new DomainException(ErrorCode.ORDER_NOT_FOUND);
+            throw new DomainException(
+                    ErrorCode.ORDER_NOT_FOUND,
+                    "Yêu cầu hoàn tiền chưa được gắn với đơn hàng (thiếu liên kết order_details). "
+                            + "Với hoàn tiền từng phần sau kiểm tra vé, vui lòng tạo lại yêu cầu hoặc gắn lại các vé sự cố vào yêu cầu.");
         }
         return orderId;
     }
@@ -666,12 +674,35 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
 
         RefundRequestModel createdRefund = null;
         if (hasNoReplacement) {
-            // Check if refund request already exists
-            List<RefundRequestModel> existingRefunds = refundRequestRepositoryPort.findAll(org.springframework.data.domain.PageRequest.of(0, 1), null, null, null, orderId, null).getContent();
+            // Check if refund request already exists (linked via order_details)
+            List<RefundRequestModel> existingRefunds = refundRequestRepositoryPort.findAll(
+                    org.springframework.data.domain.PageRequest.of(0, 1), null, null, null, orderId, null).getContent();
             if (existingRefunds.isEmpty()) {
-                // Generate a refund request
                 BigDecimal refundAmount = BigDecimal.ZERO;
-                
+                List<Long> noReplacementDetailIds = new ArrayList<>();
+
+                for (com.daiphat.coreapi.application.dto.response.order.HandleOrderTicketIncidentResponse.TicketIncidentItemResult res
+                        : incidentResponse.results()) {
+                    if (res.outcome() != com.daiphat.coreapi.domain.model.enums.order.TicketIncidentOutcome.NO_REPLACEMENT) {
+                        continue;
+                    }
+                    OrderDetailModel detail = order.getOrderDetails().stream()
+                            .filter(d -> d.getId().equals(res.orderDetailId()))
+                            .findFirst()
+                            .orElse(null);
+                    if (detail == null) {
+                        continue;
+                    }
+                    noReplacementDetailIds.add(detail.getId());
+                    refundAmount = refundAmount.add(detail.getLineSubtotal());
+                }
+
+                if (noReplacementDetailIds.isEmpty()) {
+                    throw new DomainException(
+                            ErrorCode.INVALID_INPUT,
+                            "Không có vé sự cố nào cần hoàn tiền từng phần.");
+                }
+
                 RefundRequestModel refundRequest = RefundRequestModel.builder()
                         .requestedBy(order.getUserId())
                         .orderId(order.getId())
@@ -679,29 +710,37 @@ public class RefundRequestStaffService implements RefundRequestStaffServicePort 
                         .refundReason("Hoàn tiền từng phần cho các vé không thể đổi")
                         .operatorNote(request.refundNote())
                         .createdBy(staffId.toString())
-                        .refundAmount(BigDecimal.ZERO) // It will be recalculated or set when finalizing
+                        .refundAmount(refundAmount)
                         .build();
                 refundRequest.initializeForStaffIncidentCancel();
-
                 refundRequest = refundRequestRepositoryPort.save(refundRequest);
-                
-                // Note: The actual calculation of `refundAmount` might require iterating `incidentResponse` and looking up original ticket prices.
-                // Let's look up ticket prices to set the exact refund amount
-                for (com.daiphat.coreapi.application.dto.response.order.HandleOrderTicketIncidentResponse.TicketIncidentItemResult res : incidentResponse.results()) {
-                    if (res.outcome() == com.daiphat.coreapi.domain.model.enums.order.TicketIncidentOutcome.NO_REPLACEMENT) {
-                         // Find the order detail and get its total price
-                         OrderDetailModel detail = order.getOrderDetails().stream()
-                                .filter(d -> d.getId().equals(res.orderDetailId()))
-                                .findFirst().orElse(null);
-                         if (detail != null) {
-                             refundAmount = refundAmount.add(detail.getLineSubtotal());
-                         }
+
+                // order_id is not persisted on refund_requests — link OrderDetails so order can be resolved later
+                // (markTransferred / getByIdForStaff rely on order_details.refund_request_id).
+                int linked = refundRequestRepositoryPort.linkOrderDetailsByIds(
+                        noReplacementDetailIds, refundRequest.getId());
+                if (linked <= 0) {
+                    throw new DomainException(
+                            ErrorCode.REFUND_ORDER_ALREADY_REQUESTED,
+                            "Không gắn được vé sự cố vào yêu cầu hoàn tiền (có thể đã được hoàn trước đó).");
+                }
+
+                // Keep in-memory order details consistent for subsequent save/status transition.
+                for (OrderDetailModel detail : order.getOrderDetails()) {
+                    if (noReplacementDetailIds.contains(detail.getId())) {
+                        detail.setRefundRequestId(refundRequest.getId());
+                        if (detail.getStatus() == OrderDetailStatus.ACTIVE) {
+                            detail.markRefundPending();
+                        }
                     }
                 }
-                refundRequest.setRefundAmount(refundAmount);
+
+                refundRequest.setOrderId(order.getId());
+                refundRequest.setOrderDetailIds(noReplacementDetailIds);
                 createdRefund = refundRequestRepositoryPort.save(refundRequest);
             } else {
                 createdRefund = existingRefunds.getFirst();
+                createdRefund.setOrderId(order.getId());
             }
         }
 
