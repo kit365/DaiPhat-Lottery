@@ -37,7 +37,23 @@ const mapDrawSchedule = (drawDays?: string[]) =>
     normalizeDrawDaysFromBackend(drawDays).join(', ');
 
 export const getProviders = async (params?: any): Promise<ApiResponse<PageResponse<any>>> => {
-    const response = await apiApp.get(BASE_URL, { params });
+    const response = await apiApp.get(BASE_URL, {
+        params: {
+            page: params?.page || 1,
+            // BE LotteryStationController expects `size`, not `limit`
+            size: params?.size ?? params?.limit ?? 10,
+            search: params?.search,
+            status: params?.status,
+            type: params?.type,
+            region: params?.region,
+            drawDay: params?.drawDay,
+            sortBy: params?.sortBy,
+            direction: params?.direction,
+        },
+        paramsSerializer: {
+            indexes: null,
+        },
+    });
     const result = response.data?.data;
     
     // Map BE response to match FE expectations
