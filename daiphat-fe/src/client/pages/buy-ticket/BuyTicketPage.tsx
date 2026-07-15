@@ -6,11 +6,36 @@ import { ChevronRight, Calendar as CalendarIcon, CheckCircle2, ShieldCheck, Refr
 import { useCartStore } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast as toast } from '../../../utils/toast.util';
-import { useStationsToday, useStationsTomorrow } from '../../../admin/pages/provider/hooks/useProvider';
+import { useStationsByDrawDate, useStationsToday, useStationsTomorrow } from '../../../admin/pages/provider/hooks/useProvider';
 import { apiApp } from '../../../api';
 import { LotteryTicketStatus } from '../../../constants/lottery.constants';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const isIsoDrawDate = (value: string) => ISO_DATE_RE.test(value);
+
+const resolveDrawDateToken = (token: string): string => {
+    if (token === 'today') {
+        return dayjs().format('YYYY-MM-DD');
+    }
+    if (token === 'tomorrow') {
+        return dayjs().add(1, 'day').format('YYYY-MM-DD');
+    }
+    return token;
+};
+
+const formatViWeekdayLabel = (isoDate: string) =>
+    dayjs(isoDate)
+        .locale('vi')
+        .format('DD/MM/YYYY (dddd)')
+        .replace(/t/g, 'T')
+        .replace('Thứ', 'Thứ')
+        .replace('chủ', 'Chủ');
+
+const sameProvinceId = (left: string | number, right: string | number) =>
+    String(left) === String(right);
 
 // Preload critical images to prevent flickering on first load
 if (typeof window !== 'undefined') {
@@ -77,6 +102,7 @@ export const BuyTicketPage = () => {
     const urlStationIds = searchParams.get('stationIds');
     const urlRegion = searchParams.get('region');
     const urlDrawDate = searchParams.get('drawDate');
+    const urlTicketId = searchParams.get('ticketId');
     const { token, openLoginModal } = useAuthStore();
 
     // State
@@ -92,7 +118,9 @@ export const BuyTicketPage = () => {
     const [rangeCheckedBoxes, setRangeCheckedBoxes] = useState<string[]>(['00 - 09', '20 - 29', '80 - 89']);
     const selectorsRef = useRef<HTMLDivElement>(null);
     const filterRef = useRef<HTMLDivElement>(null);
+    const ticketListRef = useRef<HTMLDivElement>(null);
     const appliedDeepLinkRef = useRef(false);
+    const appliedTicketIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -114,27 +142,53 @@ export const BuyTicketPage = () => {
     const { data: stationsTodayData, isLoading: isLoadingToday } = useStationsToday();
     const { data: stationsTomorrowData, isLoading: isLoadingTomorrow } = useStationsTomorrow();
 
-    const isLoadingProviders = isLoadingToday || isLoadingTomorrow;
+    const customDrawDates = useMemo(
+        () => selectedDates.filter(isIsoDrawDate),
+        [selectedDates]
+    );
+    const { data: stationsCustomData, isLoading: isLoadingCustomStations } =
+        useStationsByDrawDate(customDrawDates.length > 0 ? customDrawDates : undefined);
+
+    const isLoadingProviders = isLoadingToday || isLoadingTomorrow || isLoadingCustomStations;
+
+    const mapStationToProvince = (p: any) => ({
+        id: String(p.id || p._id),
+        name: p.name,
+        time: p.drawTime,
+        day: p.drawSchedule,
+        icon: p.image || p.thumbnailUrl,
+        schedule: p.drawSchedule,
+        region: p.region,
+    });
 
     const dynamicProvinces = useMemo(() => {
         let combined: any[] = [];
-        if (selectedDates.includes('today') && stationsTodayData) combined = [...combined, ...stationsTodayData];
-        if (selectedDates.includes('tomorrow') && stationsTomorrowData) combined = [...combined, ...stationsTomorrowData];
-        
-        const unique = Array.from(new Map(combined.map(item => [item.id || item._id, item])).values());
-        return unique.map((p: any) => ({
-            id: p.id || p._id,
-            name: p.name,
-            time: p.drawTime,
-            day: p.drawSchedule,
-            icon: p.image || p.thumbnailUrl,
-            schedule: p.drawSchedule,
-            region: p.region,
-        }));
-    }, [selectedDates, stationsTodayData, stationsTomorrowData]);
+        if (selectedDates.includes('today') && stationsTodayData) {
+            combined = [...combined, ...stationsTodayData];
+        }
+        if (selectedDates.includes('tomorrow') && stationsTomorrowData) {
+            combined = [...combined, ...stationsTomorrowData];
+        }
+        if (customDrawDates.length > 0 && stationsCustomData) {
+            combined = [...combined, ...stationsCustomData];
+        }
+
+        const unique = Array.from(new Map(combined.map(item => [String(item.id || item._id), item])).values());
+        return unique.map(mapStationToProvince);
+    }, [selectedDates, stationsTodayData, stationsTomorrowData, customDrawDates, stationsCustomData]);
+
+    // Re-apply deep link when chatbot query params change
+    useEffect(() => {
+        appliedDeepLinkRef.current = false;
+        appliedTicketIdRef.current = null;
+        if (urlTicketId || urlStationId || urlStationIds || urlDrawDate || urlRegion) {
+            setSelectedNumbers([]);
+            setTicketQuantity(1);
+        }
+    }, [urlStationId, urlStationIds, urlRegion, urlDrawDate, urlTicketId]);
 
     useEffect(() => {
-        if (!urlDrawDate) {
+        if (!urlDrawDate || !isIsoDrawDate(urlDrawDate)) {
             return;
         }
         const today = dayjs().format('YYYY-MM-DD');
@@ -143,16 +197,19 @@ export const BuyTicketPage = () => {
             setSelectedDates(['today']);
         } else if (urlDrawDate === tomorrow) {
             setSelectedDates(['tomorrow']);
+        } else {
+            // Chatbot tickets often target a later draw day beyond today/tomorrow.
+            setSelectedDates([urlDrawDate]);
         }
     }, [urlDrawDate]);
 
     // Pre-select đài từ deep link (chatbot CTA)
     useEffect(() => {
-        if (dynamicProvinces.length === 0 || appliedDeepLinkRef.current) {
+        if (appliedDeepLinkRef.current) {
             return;
         }
 
-        let targetIds: Array<string | number> = [];
+        let targetIds: string[] = [];
         if (urlStationId) {
             targetIds = [urlStationId];
         } else if (urlStationIds) {
@@ -160,34 +217,51 @@ export const BuyTicketPage = () => {
                 .split(',')
                 .map((value) => value.trim())
                 .filter(Boolean);
-        } else if (urlRegion) {
+        } else if (urlRegion && dynamicProvinces.length > 0) {
             targetIds = dynamicProvinces
                 .filter((province: { region?: string }) =>
                     province.region?.toUpperCase() === urlRegion.toUpperCase()
                 )
-                .map((province: { id: string | number }) => province.id);
+                .map((province: { id: string }) => province.id);
         }
 
-        const validIds = targetIds.filter((id) =>
-            dynamicProvinces.some((province: { id: string | number }) => String(province.id) === String(id))
-        );
+        if (targetIds.length > 0) {
+            // Prefer stations present in the loaded list; if list not ready yet, still apply URL ids
+            // so ticket fetch can start (API accepts stationIds + drawDate directly).
+            const matchedIds = dynamicProvinces.length
+                ? targetIds.filter((id) =>
+                      dynamicProvinces.some((province) => sameProvinceId(province.id, id))
+                  )
+                : targetIds;
 
-        if (validIds.length > 0) {
-            setSelectedProvinces(validIds.map(String));
-            appliedDeepLinkRef.current = true;
-            return;
+            if (matchedIds.length > 0) {
+                setSelectedProvinces(matchedIds.map(String));
+                appliedDeepLinkRef.current = true;
+                return;
+            }
+
+            if (dynamicProvinces.length === 0 && (urlStationId || urlStationIds)) {
+                setSelectedProvinces(targetIds.map(String));
+                return;
+            }
         }
 
-        if (!urlStationId && !urlStationIds && !urlRegion && selectedProvinces.length === 0) {
+        if (
+            !urlStationId &&
+            !urlStationIds &&
+            !urlRegion &&
+            selectedProvinces.length === 0 &&
+            dynamicProvinces.length > 0
+        ) {
             setSelectedProvinces([String(dynamicProvinces[0].id)]);
         }
     }, [dynamicProvinces, selectedProvinces.length, urlRegion, urlStationId, urlStationIds]);
-    
-    // Fetch tickets
-    const drawDateFilter = selectedDates.map(d => d === 'today' ? dayjs().format('YYYY-MM-DD') : dayjs().add(1, 'day').format('YYYY-MM-DD')).join(',');
+
+    // Fetch tickets — resolve today/tomorrow/ISO tokens correctly
+    const drawDateFilter = selectedDates.map(resolveDrawDateToken).join(',');
     const { data: ticketsRes, isLoading: isLoadingTickets } = useQuery({
         queryKey: ['public-buy-ticket-list', selectedProvinces, drawDateFilter],
-        enabled: selectedProvinces.length > 0,
+        enabled: selectedProvinces.length > 0 && Boolean(drawDateFilter),
         queryFn: async () => {
             const response = await apiApp.get('/lottery-tickets/public', {
                 params: {
@@ -223,6 +297,42 @@ export const BuyTicketPage = () => {
     });
     const availableTickets = ticketsRes?.data?.recordList || [];
 
+    // Preselect / highlight ticket from chatbot deep-link (?ticketId=)
+    useEffect(() => {
+        if (!urlTicketId || availableTickets.length === 0) {
+            return;
+        }
+        if (appliedTicketIdRef.current === urlTicketId) {
+            return;
+        }
+
+        const matched = availableTickets.find(
+            (ticket: any) => String(ticket.id ?? ticket._id) === String(urlTicketId)
+        );
+        if (!matched?.numbers) {
+            return;
+        }
+
+        appliedTicketIdRef.current = urlTicketId;
+        setSelectedNumbers([matched.numbers]);
+        setTicketQuantity(1);
+
+        // Ensure đài matches the ticket when list finally loaded
+        const ticketStationId = matched.stationId ?? matched.providerId;
+        if (ticketStationId != null) {
+            setSelectedProvinces((prev) =>
+                prev.some((id) => sameProvinceId(id, ticketStationId))
+                    ? prev
+                    : [String(ticketStationId)]
+            );
+        }
+
+        requestAnimationFrame(() => {
+            const node = ticketListRef.current?.querySelector(`[data-ticket-id="${urlTicketId}"]`);
+            node?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    }, [urlTicketId, availableTickets]);
+
     const toggleNumber = (num: string) => {
         setTicketQuantity(1); // Reset quantity when changing number
         if (selectedNumbers.includes(num)) {
@@ -239,7 +349,9 @@ export const BuyTicketPage = () => {
         return ticketData?.quantity || 1;
     }, [selectedNumbers, availableTickets]);
 
-    const activeProvinces = dynamicProvinces.filter((p: any) => selectedProvinces.includes(p.id));
+    const activeProvinces = dynamicProvinces.filter((p: any) =>
+        selectedProvinces.some((id) => sameProvinceId(id, p.id))
+    );
 
     const selectedTicketProvinces = useMemo(() => {
         if (selectedNumbers.length === 0) return activeProvinces;
@@ -248,7 +360,11 @@ export const BuyTicketPage = () => {
         selectedNumbers.forEach(num => {
             const ticketData = availableTickets.find((t: any) => t.numbers === num);
             if (ticketData) {
-                const prov = dynamicProvinces.find((p: any) => p.id === ticketData.providerId || p.id === ticketData.stationId);
+                const prov = dynamicProvinces.find(
+                    (p: any) =>
+                        sameProvinceId(p.id, ticketData.providerId ?? '') ||
+                        sameProvinceId(p.id, ticketData.stationId ?? '')
+                );
                 if (prov && !provs.has(prov.id)) {
                     provs.set(prov.id, prov);
                 }
@@ -289,7 +405,11 @@ export const BuyTicketPage = () => {
                 return;
             }
 
-            const activeProv = dynamicProvinces.find((p: any) => p.id === ticketData.providerId || p.id === ticketData.stationId) || activeProvinces[0];
+            const activeProv = dynamicProvinces.find(
+                (p: any) =>
+                    sameProvinceId(p.id, ticketData.providerId ?? '') ||
+                    sameProvinceId(p.id, ticketData.stationId ?? '')
+            ) || activeProvinces[0];
             const ticketDateStr = ticketData.drawDate ? dayjs(ticketData.drawDate).format('DD/MM/YYYY') : dayjs().format('DD/MM/YYYY');
             useCartStore.getState().addItem({
                 id: String(ticketData.id || ticketData._id),
@@ -352,12 +472,26 @@ export const BuyTicketPage = () => {
                                         <div className="text-[12px] text-[#637381] font-bold uppercase tracking-wider mb-1">Ngày quay</div>
                                         <div className="flex items-center justify-between">
                                             <div className="font-bold text-[14px] text-[#212B36]">
-                                                {selectedDates.length === 2 ? 'Hôm nay, Ngày mai' : (selectedDates[0] === 'today' ? 'Hôm nay' : (selectedDates[0] === 'tomorrow' ? 'Ngày mai' : 'Vui lòng chọn'))}
+                                                {selectedDates.length === 0
+                                                    ? 'Vui lòng chọn'
+                                                    : selectedDates.length > 1
+                                                      ? selectedDates.every((d) => d === 'today' || d === 'tomorrow')
+                                                          ? 'Hôm nay, Ngày mai'
+                                                          : `${selectedDates.length} ngày`
+                                                      : selectedDates[0] === 'today'
+                                                        ? 'Hôm nay'
+                                                        : selectedDates[0] === 'tomorrow'
+                                                          ? 'Ngày mai'
+                                                          : dayjs(resolveDrawDateToken(selectedDates[0])).format('DD/MM/YYYY')}
                                             </div>
                                             {isDateOpen ? <ChevronUp size={20} className="text-[#212B36]" /> : <ChevronDown size={20} className="text-[#212B36]" />}
                                         </div>
                                         <div className="text-[13px] text-[#637381] mt-0.5">
-                                            {selectedDates.length === 2 ? `${dayjs().format('DD/MM')}, ${dayjs().add(1, 'day').format('DD/MM')}` : (selectedDates[0] === 'today' ? dayjs().locale('vi').format('DD/MM/YYYY (dddd)').replace(/t/g, 'T').replace('Thứ', 'Thứ').replace('chủ', 'Chủ') : (selectedDates[0] === 'tomorrow' ? dayjs().add(1, 'day').locale('vi').format('DD/MM/YYYY (dddd)').replace(/t/g, 'T').replace('Thứ', 'Thứ').replace('chủ', 'Chủ') : '---'))}
+                                            {selectedDates.length === 0
+                                                ? '---'
+                                                : selectedDates
+                                                      .map((token) => formatViWeekdayLabel(resolveDrawDateToken(token)))
+                                                      .join(', ')}
                                         </div>
                                     </div>
                                 </div>
@@ -369,10 +503,17 @@ export const BuyTicketPage = () => {
                                             className={`p-3 rounded-lg cursor-pointer flex justify-between items-center ${selectedDates.includes('today') ? 'bg-[#FFF4F4]' : 'hover:bg-gray-50'}`}
                                             onClick={(e) => { 
                                                 e.stopPropagation(); 
+                                                if (selectedDates.includes('today') && selectedDates.length === 1) {
+                                                    return;
+                                                }
                                                 if (selectedDates.includes('today')) {
                                                     setSelectedDates(selectedDates.filter(d => d !== 'today'));
                                                 } else {
-                                                    setSelectedDates([...selectedDates, 'today']);
+                                                    // Leaving a chat deep-link custom date when picking tonight's draw
+                                                    setSelectedDates([
+                                                        ...selectedDates.filter((d) => d === 'tomorrow'),
+                                                        'today',
+                                                    ]);
                                                 }
                                             }}
                                         >
@@ -396,10 +537,16 @@ export const BuyTicketPage = () => {
                                             className={`p-3 rounded-lg cursor-pointer flex justify-between items-center ${selectedDates.includes('tomorrow') ? 'bg-[#FFF4F4]' : 'hover:bg-gray-50'}`}
                                             onClick={(e) => { 
                                                 e.stopPropagation(); 
+                                                if (selectedDates.includes('tomorrow') && selectedDates.length === 1) {
+                                                    return;
+                                                }
                                                 if (selectedDates.includes('tomorrow')) {
                                                     setSelectedDates(selectedDates.filter(d => d !== 'tomorrow'));
                                                 } else {
-                                                    setSelectedDates([...selectedDates, 'tomorrow']);
+                                                    setSelectedDates([
+                                                        ...selectedDates.filter((d) => d === 'today'),
+                                                        'tomorrow',
+                                                    ]);
                                                 }
                                             }}
                                         >
@@ -427,7 +574,7 @@ export const BuyTicketPage = () => {
                                     <div className="shrink-0">
                                         {selectedProvinces.length > 0 ? (
                                             <div className="w-[40px] h-[40px] rounded-full border border-[#E5E8EB] overflow-hidden flex items-center justify-center p-[2px] bg-white">
-                                                <img src={dynamicProvinces.find(p => p.id === selectedProvinces[0])?.icon} alt="" className="w-full h-full object-contain" />
+                                                <img src={dynamicProvinces.find(p => sameProvinceId(p.id, selectedProvinces[0]))?.icon} alt="" className="w-full h-full object-contain" />
                                             </div>
                                         ) : (
                                             <div className="w-[40px] h-[40px] rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
@@ -439,13 +586,13 @@ export const BuyTicketPage = () => {
                                         <div className="text-[12px] text-[#637381] font-bold uppercase tracking-wider mb-1">Chọn đài</div>
                                         <div className="flex items-center justify-between">
                                             <div className="font-bold text-[14px] text-[#212B36] truncate max-w-[150px] sm:max-w-[200px]">
-                                                {selectedProvinces.length > 1 ? `Đã chọn ${selectedProvinces.length} đài` : (selectedProvinces.length === 1 ? dynamicProvinces.find(p => p.id === selectedProvinces[0])?.name : 'Vui lòng chọn đài')}
+                                                {selectedProvinces.length > 1 ? `Đã chọn ${selectedProvinces.length} đài` : (selectedProvinces.length === 1 ? (dynamicProvinces.find(p => sameProvinceId(p.id, selectedProvinces[0]))?.name || 'Đang tải đài...') : 'Vui lòng chọn đài')}
                                             </div>
                                             <div className={`${isProvinceOpen ? 'border border-[#ee1314] rounded text-[#ee1314] w-6 h-6 flex items-center justify-center' : 'text-[#212B36]'}`}>
                                                 {isProvinceOpen ? <ChevronDown size={16} /> : <ChevronDown size={20} />}
                                             </div>
                                         </div>
-                                        <div className="text-[13px] text-[#212B36] font-medium mt-0.5">{selectedProvinces.length === 1 ? dynamicProvinces.find(p => p.id === selectedProvinces[0])?.time : (selectedProvinces.length > 1 ? 'Các đài miền Nam' : '---')}</div>
+                                        <div className="text-[13px] text-[#212B36] font-medium mt-0.5">{selectedProvinces.length === 1 ? (dynamicProvinces.find(p => sameProvinceId(p.id, selectedProvinces[0]))?.time || '---') : (selectedProvinces.length > 1 ? 'Các đài miền Nam' : '---')}</div>
                                     </div>
                                 </div>
 
@@ -455,17 +602,26 @@ export const BuyTicketPage = () => {
                                         {isLoadingProviders ? (
                                             <div className="p-4 text-center text-[#637381]">Đang tải...</div>
                                         ) : dynamicProvinces.map((prov: any, index: number) => {
-                                            const isProvSelected = selectedProvinces.includes(prov.id);
+                                            const isProvSelected = selectedProvinces.some((id) =>
+                                                sameProvinceId(id, prov.id)
+                                            );
                                             return (
                                                 <div key={prov.id}>
                                                     <div
                                                         className={`p-3 rounded-lg cursor-pointer flex justify-between items-center ${isProvSelected ? 'bg-[#FFF4F4]' : 'hover:bg-gray-50'}`}
                                                         onClick={(e) => { 
                                                             e.stopPropagation(); 
-                                                            if (selectedProvinces.includes(prov.id)) {
-                                                                setSelectedProvinces(selectedProvinces.filter(p => p !== prov.id));
+                                                            if (isProvSelected) {
+                                                                setSelectedProvinces(
+                                                                    selectedProvinces.filter(
+                                                                        (p) => !sameProvinceId(p, prov.id)
+                                                                    )
+                                                                );
                                                             } else {
-                                                                setSelectedProvinces([...selectedProvinces, prov.id]);
+                                                                setSelectedProvinces([
+                                                                    ...selectedProvinces,
+                                                                    String(prov.id),
+                                                                ]);
                                                             }
                                                         }}
                                                     >
@@ -706,11 +862,11 @@ export const BuyTicketPage = () => {
                             <div className="p-4 lg:p-5 flex-1 flex flex-col">
                                 {/* Title */}
                                 <h2 className="font-bold text-[14px] text-[#212B36] uppercase mb-5">
-                                    DANH SÁCH VÉ SỐ - {activeProvinces.length > 1 ? 'CÁC ĐÀI MIỀN NAM' : (activeProvinces.length === 1 ? activeProvinces[0].name?.toUpperCase() : 'CHƯA CHỌN ĐÀI')} - {activeProvinces.length > 0 ? (activeProvinces.length === 1 ? activeProvinces[0].time : '16:15') : '--:--'} - {selectedDates.length > 1 ? 'NHIỀU NGÀY' : (selectedDates[0] === 'today' ? 'HÔM NAY' : (selectedDates[0] === 'tomorrow' ? 'NGÀY MAI' : 'CHƯA CHỌN NGÀY'))}
+                                    DANH SÁCH VÉ SỐ - {activeProvinces.length > 1 ? 'CÁC ĐÀI MIỀN NAM' : (activeProvinces.length === 1 ? activeProvinces[0].name?.toUpperCase() : 'CHƯA CHỌN ĐÀI')} - {activeProvinces.length > 0 ? (activeProvinces.length === 1 ? activeProvinces[0].time : '16:15') : '--:--'} - {selectedDates.length > 1 ? 'NHIỀU NGÀY' : (selectedDates[0] === 'today' ? 'HÔM NAY' : (selectedDates[0] === 'tomorrow' ? 'NGÀY MAI' : (selectedDates[0] ? dayjs(resolveDrawDateToken(selectedDates[0])).format('DD/MM/YYYY') : 'CHƯA CHỌN NGÀY')))}
                                 </h2>
 
                                 {/* Tickets Grid (4 columns) */}
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-5 flex-1 content-start">
+                                <div ref={ticketListRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-5 flex-1 content-start">
                                     {selectedProvinces.length === 0 ? (
                                         <div className="col-span-full py-10 flex justify-center text-[#637381] font-medium">
                                             Vui lòng chọn đài mở thưởng để xem vé
@@ -722,15 +878,20 @@ export const BuyTicketPage = () => {
                                     ) : availableTickets.length > 0 ? (
                                         availableTickets.map((ticket: any, i: number) => {
                                             const num = ticket.numbers;
+                                            const ticketKey = String(ticket.id ?? ticket._id ?? i);
                                             const isSelected = selectedNumbers.includes(num);
+                                            const isDeepLinked =
+                                                !!urlTicketId && String(ticket.id ?? ticket._id) === String(urlTicketId);
                                             const ticketImage = ticket.ticketImg;
 
                                             return (
                                                 <div
-                                                    key={i}
+                                                    key={ticketKey}
+                                                    data-ticket-id={ticket.id ?? ticket._id}
                                                     onClick={() => toggleNumber(num)}
                                                     className={`relative border rounded-[20px] p-3 flex flex-col items-center cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md
-                                                        ${isSelected ? 'border-[#ee1314] bg-[#FFF4F4]/30' : 'border-[#E5E8EB] bg-white'}
+                                                        ${isSelected || isDeepLinked ? 'border-[#ee1314] bg-[#FFF4F4]/30' : 'border-[#E5E8EB] bg-white'}
+                                                        ${isDeepLinked ? 'ring-2 ring-[#ee1314]/40' : ''}
                                                     `}
                                                 >
 
@@ -791,8 +952,8 @@ export const BuyTicketPage = () => {
                                         </div>
                                         <div>
                                             <div className="font-bold text-[14px] text-[#212B36] mb-1">Vé số {selectedTicketProvinces.length === 1 ? selectedTicketProvinces[0].name : 'Các đài miền Nam'}</div>
-                                            <div className="text-[14px] text-[#637381]">Mở thưởng: {selectedTicketProvinces.length > 0 ? (selectedTicketProvinces.length === 1 ? selectedTicketProvinces[0].time : '16:15') : '--:--'} - {selectedDates.length > 1 ? 'Nhiều ngày' : (selectedDates[0] === 'today' ? 'Hôm nay' : (selectedDates[0] === 'tomorrow' ? 'Ngày mai' : ''))}</div>
-                                            <div className="text-[14px] text-[#637381] mt-0.5">Ngày: {selectedDates.length > 1 ? 'Nhiều ngày' : (selectedDates[0] === 'today' ? dayjs().format('DD/MM/YYYY') : (selectedDates[0] === 'tomorrow' ? dayjs().add(1, 'day').format('DD/MM/YYYY') : '--/--/----'))}</div>
+                                            <div className="text-[14px] text-[#637381]">Mở thưởng: {selectedTicketProvinces.length > 0 ? (selectedTicketProvinces.length === 1 ? selectedTicketProvinces[0].time : '16:15') : '--:--'} - {selectedDates.length > 1 ? 'Nhiều ngày' : (selectedDates[0] === 'today' ? 'Hôm nay' : (selectedDates[0] === 'tomorrow' ? 'Ngày mai' : (selectedDates[0] ? dayjs(resolveDrawDateToken(selectedDates[0])).format('DD/MM/YYYY') : '')))}</div>
+                                            <div className="text-[14px] text-[#637381] mt-0.5">Ngày: {selectedDates.length > 1 ? 'Nhiều ngày' : (selectedDates[0] ? dayjs(resolveDrawDateToken(selectedDates[0])).format('DD/MM/YYYY') : '--/--/----')}</div>
                                         </div>
                                     </div>
                                 )}

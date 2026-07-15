@@ -27,9 +27,11 @@ import {
 } from '../../../types/chat.type';
 import { ChatSocketMessageEvent } from '../../../types/websocket.type';
 import { ChatLotterySchedule } from './ChatLotterySchedule';
+import { ChatTicketSuggestCards } from './ChatTicketSuggestCards';
 import {
   parseConfirmStationToken,
   parseScheduleResultToken,
+  buildBuyTicketPath,
   SCHEDULE_TOKEN_ASK_DATE,
   SCHEDULE_TOKEN_ASK_DATE_MODE,
   SCHEDULE_TOKEN_ASK_LOCATION,
@@ -39,10 +41,15 @@ import {
   type ConfirmStationOption,
 } from '../../utils/scheduleToken.util';
 import {
+  parseTicketSuggestToken,
+  type ChatSuggestedTicket,
+} from '../../utils/ticketSuggestToken.util';
+import {
   type QuickReplyChip,
   resolveBuyTicketPathFromChip,
   resolveContextualQuickReplies,
   scheduleResultFollowUpChips,
+  ticketSuggestFollowUpChips,
   SCHEDULE_RESTART_DISPLAY_LABEL,
   SCHEDULE_RESTART_MESSAGE,
   shouldShowContextualQuickReplies,
@@ -53,12 +60,14 @@ interface Message {
   sender: 'bot' | 'user';
   text: string;
   timestamp: string;
-  variant?: 'bubble' | 'divider' | 'date' | 'schedule' | 'schedule-options' | 'schedule-ask-location' | 'schedule-ask-station' | 'schedule-ask-date' | 'schedule-ask-date-mode' | 'schedule-confirm-station' | 'schedule-region-choice' | 'schedule-result';
+  variant?: 'bubble' | 'divider' | 'date' | 'schedule' | 'schedule-options' | 'schedule-ask-location' | 'schedule-ask-station' | 'schedule-ask-date' | 'schedule-ask-date-mode' | 'schedule-confirm-station' | 'schedule-region-choice' | 'schedule-result' | 'ticket-suggest';
   scheduleRegion?: string;
   scheduleStationId?: number;
   scheduleStationIds?: number[];
   scheduleHighlightDate?: string;
   confirmStationOptions?: ConfirmStationOption[];
+  suggestedTickets?: ChatSuggestedTicket[];
+  ticketSuggestEmptyMatch?: boolean;
 }
 
 const SESSION_DIVIDER_PATTERNS = [
@@ -226,6 +235,8 @@ const resolveMessageVariant = (
   | 'scheduleStationIds'
   | 'scheduleHighlightDate'
   | 'confirmStationOptions'
+  | 'suggestedTickets'
+  | 'ticketSuggestEmptyMatch'
 > => {
   const text = message.content?.trim() || '';
 
@@ -296,11 +307,18 @@ const resolveMessageVariant = (
     }
   }
 
-  if (
-    message.type === 'SYSTEM' ||
-    message.senderType === 'AI_SYSTEM' ||
-    isSystemNoticeText(text)
-  ) {
+  const ticketSuggest = parseTicketSuggestToken(text);
+  if (ticketSuggest) {
+    return {
+      variant: 'ticket-suggest',
+      text: ticketSuggest.text,
+      suggestedTickets: ticketSuggest.tickets,
+      ticketSuggestEmptyMatch: ticketSuggest.isEmptyMatch,
+    };
+  }
+
+  // AI_SYSTEM replies are normal bot bubbles; only SYSTEM / notice texts are dividers.
+  if (message.type === 'SYSTEM' || isSystemNoticeText(text)) {
     return { variant: 'divider', text };
   }
   return { variant: 'bubble', text: text || '[Tin nhắn trống]' };
@@ -345,6 +363,8 @@ const toUiMessage = (message: ChatMessageResponse): Message => {
     scheduleStationIds: resolved.scheduleStationIds,
     scheduleHighlightDate: resolved.scheduleHighlightDate,
     confirmStationOptions: resolved.confirmStationOptions,
+    suggestedTickets: resolved.suggestedTickets,
+    ticketSuggestEmptyMatch: resolved.ticketSuggestEmptyMatch,
   };
 };
 
@@ -464,6 +484,11 @@ export const ChatbotPopup = () => {
   const lastMessageIdRef = useRef<string | null>(null);
   const lastReadAckKeyRef = useRef<string | null>(null);
   const initialTimelineScrollDoneRef = useRef(false);
+  /** Blocks duplicate send while Vietnamese/CJK IME finishes composition after Enter. */
+  const isSendingRef = useRef(false);
+  /** Discard IME leftover syllables that get re-inserted into a cleared input. */
+  const suppressInputAfterSendRef = useRef(false);
+  const sendLockTimeoutRef = useRef<number | null>(null);
   const handleIncomingMessageRef = useRef<(payload: ChatSocketMessageEvent) => void>(() => undefined);
   const handleConversationEventRef = useRef<(event: ChatConversationSocketEvent) => void>(() => undefined);
 
@@ -481,6 +506,14 @@ export const ChatbotPopup = () => {
 
   const displayMessages = useMemo(() => prepareDisplayMessages(messages), [messages]);
   const isAuthReady = Boolean(token && userId);
+
+  useEffect(() => {
+    return () => {
+      if (sendLockTimeoutRef.current != null) {
+        window.clearTimeout(sendLockTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const seedTimelineFromDetail = useCallback(
     (detail: ConversationDetailResponse) => {
@@ -1131,15 +1164,30 @@ export const ChatbotPopup = () => {
     subscribeToConversation,
   ]);
 
+  const releaseSendLock = useCallback(() => {
+    if (sendLockTimeoutRef.current != null) {
+      window.clearTimeout(sendLockTimeoutRef.current);
+    }
+    // Keep suppressing briefly so IME compositionend cannot re-seed the last word + re-send.
+    sendLockTimeoutRef.current = window.setTimeout(() => {
+      suppressInputAfterSendRef.current = false;
+      isSendingRef.current = false;
+      sendLockTimeoutRef.current = null;
+      setInputValue((current) => (current.trim() ? '' : current));
+    }, 400);
+  }, []);
+
   const handleSend = async (text: string) => {
     const normalizedText = text.trim();
-    if (!normalizedText) return;
+    if (!normalizedText || isSendingRef.current) return;
 
     if (!token) {
       AppToast.info('Vui lòng đăng nhập để bắt đầu cuộc trò chuyện hỗ trợ.');
       return;
     }
 
+    isSendingRef.current = true;
+    suppressInputAfterSendRef.current = true;
     setInputValue('');
     shouldStickToBottom.current = true;
     wasAtBottomRef.current = true;
@@ -1148,20 +1196,24 @@ export const ChatbotPopup = () => {
 
     // Case 1: gõ muốn gặp NV — gửi bubble + escalate.
     if (conversationStatus === 'CLOSED' || !conversationId) {
-      const detail = await initConversation({
-        title: wantsStaff ? 'Yêu cầu gặp nhân viên' : 'Yêu cầu hỗ trợ từ khách hàng',
-        content: normalizedText,
-        requestStaff: wantsStaff,
-      });
+      try {
+        const detail = await initConversation({
+          title: wantsStaff ? 'Yêu cầu gặp nhân viên' : 'Yêu cầu hỗ trợ từ khách hàng',
+          content: normalizedText,
+          requestStaff: wantsStaff,
+        });
 
-      if (!detail) {
-        return;
-      }
+        if (!detail) {
+          return;
+        }
 
-      if (wantsStaff) {
-        applyStaffRequestResult(detail, detail.conversation.id);
-      } else {
-        applyConversationDetail(detail);
+        if (wantsStaff) {
+          applyStaffRequestResult(detail, detail.conversation.id);
+        } else {
+          applyConversationDetail(detail);
+        }
+      } finally {
+        releaseSendLock();
       }
       return;
     }
@@ -1186,13 +1238,26 @@ export const ChatbotPopup = () => {
       void refreshTimelineMessages();
     } catch (error) {
       AppToast.error('Không thể gửi tin nhắn realtime lúc này.');
+    } finally {
+      releaseSendLock();
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      void handleSend(inputValue);
+    if (e.key !== 'Enter') return;
+    // Vietnamese/CJK IME: Enter often confirms composition; ignore until composition ends.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    void handleSend(inputValue);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (suppressInputAfterSendRef.current) {
+      // Drop IME leftover (often only the last word) after a successful send+clear.
+      setInputValue('');
+      return;
     }
+    setInputValue(e.target.value);
   };
 
   const showContextualQuickReplies = shouldShowContextualQuickReplies({
@@ -1217,6 +1282,18 @@ export const ChatbotPopup = () => {
     if (chip.message) {
       await handleSend(chip.message);
     }
+  };
+
+  const handleBuySuggestedTicket = (ticket: ChatSuggestedTicket) => {
+    navigate(
+      buildBuyTicketPath({
+        ticketId: ticket.id,
+        stationId: ticket.stationId,
+        highlightDate: ticket.drawDate,
+      })
+    );
+    setIsOpen(false);
+    setIsMinimized(false);
   };
 
   // primary = 1 CTA chính/lượt (màu đỏ); secondary = gợi ý phụ (xám nhạt)
@@ -1471,6 +1548,34 @@ export const ChatbotPopup = () => {
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
                   </div>
+                ) : msg.variant === 'ticket-suggest' ? (
+                  <div key={msg.id} className="flex w-full justify-start">
+                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
+                      <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
+                    </div>
+                    <div className="w-full max-w-[95%] min-w-0 items-start flex flex-col">
+                      <p className="text-[14px] text-gray-700 mb-2 px-1 whitespace-pre-wrap">{msg.text}</p>
+                      <ChatTicketSuggestCards
+                        tickets={msg.suggestedTickets ?? []}
+                        onBuy={handleBuySuggestedTicket}
+                        disabled={isEscalating || isInitializing || isLoadingOpen}
+                      />
+                      <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {ticketSuggestFollowUpChips({ isEmptyMatch: msg.ticketSuggestEmptyMatch }).map((chip) => (
+                          <button
+                            key={chip.id}
+                            type="button"
+                            onClick={() => void handleQuickReply(chip)}
+                            disabled={isEscalating || isInitializing || isLoadingOpen}
+                            className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
+                    </div>
+                  </div>
                 ) : msg.variant === 'divider' ? (
                   <p
                     key={msg.id}
@@ -1549,14 +1654,20 @@ export const ChatbotPopup = () => {
                 <input
                   type="text"
                   value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
+                  onChange={handleInputChange}
                   onFocus={() => setIsInputFocused(true)}
                   onBlur={() => setIsInputFocused(false)}
+                  onCompositionEnd={() => {
+                    if (suppressInputAfterSendRef.current) {
+                      setInputValue('');
+                    }
+                  }}
                   onKeyDown={handleKeyPress}
                   placeholder="Nhập nội dung cần hỗ trợ..."
                   className="flex-1 bg-transparent border-none focus:outline-none text-[15px] text-gray-700 placeholder-gray-400 py-2"
                 />
                 <button
+                  type="button"
                   onClick={() => void handleSend(inputValue)}
                   disabled={!inputValue.trim() || isInitializing || isLoadingOpen}
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
