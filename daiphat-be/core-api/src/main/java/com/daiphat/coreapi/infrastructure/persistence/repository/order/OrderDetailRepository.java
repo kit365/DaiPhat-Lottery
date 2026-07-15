@@ -38,4 +38,17 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetailEntity, 
             @Param("orderId") UUID orderId,
             @Param("refundRequestId") Long refundRequestId
     );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+            UPDATE order_details
+               SET refund_request_id = :refundRequestId,
+                   status = 'REFUND_PENDING'
+             WHERE id IN (:detailIds)
+               AND refund_request_id IS NULL
+            """, nativeQuery = true)
+    int linkUnlinkedDetailsByIds(
+            @Param("detailIds") List<Long> detailIds,
+            @Param("refundRequestId") Long refundRequestId
+    );
 }
