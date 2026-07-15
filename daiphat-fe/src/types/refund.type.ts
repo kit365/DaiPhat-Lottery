@@ -365,6 +365,33 @@ export function isRefundTransferComplete(status: RefundRequestStatus): boolean {
     return status === RefundRequestStatus.PAID || status === RefundRequestStatus.TRANSFERRED;
 }
 
+/** Statuses that mean refund payout is done (exclude from pending sidebar badges). */
+const COMPLETED_REFUND_STATUSES = new Set<string>([
+    RefundRequestStatus.PAID,
+    RefundRequestStatus.TRANSFERRED,
+]);
+
+/** Count refunds that still need attention: all − PAID (− legacy TRANSFERRED). */
+export function countPendingRefunds(
+    statusCounts: Record<string, number | undefined> | undefined
+): number {
+    if (!statusCounts) return 0;
+
+    const all = Number(statusCounts.all ?? statusCounts.ALL);
+    if (Number.isFinite(all) && all >= 0) {
+        const paid =
+            Number(statusCounts.PAID || 0) + Number(statusCounts.TRANSFERRED || 0);
+        return Math.max(0, all - paid);
+    }
+
+    return Object.entries(statusCounts).reduce((sum, [key, value]) => {
+        if (key === 'all' || key === 'ALL' || COMPLETED_REFUND_STATUSES.has(key)) {
+            return sum;
+        }
+        return sum + (Number(value) || 0);
+    }, 0);
+}
+
 /** Format remaining refund window as `MM phút SS giây` */
 export function formatRefundCountdown(totalSeconds: number): string {
     const seconds = Math.max(0, Math.floor(totalSeconds));

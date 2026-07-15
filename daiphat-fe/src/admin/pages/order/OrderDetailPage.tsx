@@ -546,6 +546,25 @@ export const OrderDetailPage = () => {
                                 orderId={order.id}
                                 orderCode={order.orderCode}
                                 orderDetails={order.orderDetails || []}
+                                orderInfo={{
+                                    customerName:
+                                        order.name ||
+                                        order.user?.fullName ||
+                                        'Khách vãng lai',
+                                    phone:
+                                        order.phone ||
+                                        order.user?.phone ||
+                                        order.user?.phoneNumber,
+                                    email: order.user?.email,
+                                    status: order.status,
+                                    statusLabel: currentStatus.label,
+                                    paymentStatusLabel:
+                                        PAYMENT_STATUS_OPTIONS[paymentStatus]?.label ||
+                                        'Đã thanh toán',
+                                    createdAt: order.createdAt,
+                                    totalAmount: order.totalAmount,
+                                    orderType: order.orderType,
+                                }}
                                 onSuccess={() => refetch()}
                                 onCancel={() => setIsInspectionStarted(false)}
                                 onMoveToReadyForPickup={() => handleStatusChange(OrderStatus.PENDING_PICKUP)}

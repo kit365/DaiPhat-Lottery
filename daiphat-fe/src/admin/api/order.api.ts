@@ -117,7 +117,10 @@ export interface CreatePartialRefundRequest {
         damagedReason?: string;
         damagedEvidenceUrl?: string;
     }[];
-    refundNote: string;
+    /** Manual refund reason entered by staff (required when creating a refund). */
+    refundReason?: string;
+    /** @deprecated Prefer refundReason. */
+    refundNote?: string;
 }
 
 export const createPartialRefund = async (
