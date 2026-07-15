@@ -20,6 +20,7 @@ export interface BuildBuyTicketPathOptions {
   stationId?: number;
   stationIds?: number[];
   highlightDate?: string;
+  ticketId?: number;
 }
 
 export const buildBuyTicketPath = ({
@@ -27,8 +28,12 @@ export const buildBuyTicketPath = ({
   stationId,
   stationIds,
   highlightDate,
+  ticketId,
 }: BuildBuyTicketPathOptions = {}): string => {
   const params = new URLSearchParams();
+  if (ticketId != null && !Number.isNaN(ticketId)) {
+    params.set('ticketId', String(ticketId));
+  }
   if (stationId != null && !Number.isNaN(stationId)) {
     params.set('stationId', String(stationId));
   } else if (stationIds && stationIds.length > 0) {

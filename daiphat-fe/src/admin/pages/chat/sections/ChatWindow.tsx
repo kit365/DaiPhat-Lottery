@@ -452,10 +452,14 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            void handleSend();
+        if (e.key !== 'Enter' || e.shiftKey) {
+            return;
         }
+        if (e.nativeEvent.isComposing || e.keyCode === 229) {
+            return;
+        }
+        e.preventDefault();
+        void handleSend();
     };
 
     if (!conversationId) {

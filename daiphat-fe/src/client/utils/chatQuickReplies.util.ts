@@ -41,6 +41,7 @@ const INLINE_ACTION_VARIANTS = new Set([
   'schedule-confirm-station',
   'schedule-region-choice',
   'schedule-result',
+  'ticket-suggest',
 ]);
 
 const REGION_LABELS: Record<string, string> = {
@@ -95,6 +96,30 @@ export const scheduleResultFollowUpChips = (message: ChatQuickReplyMessageContex
     label: SCHEDULE_RESTART_DISPLAY_LABEL,
     action: 'send',
     message: SCHEDULE_RESTART_MESSAGE,
+  },
+];
+
+/** Chip phụ dưới hàng card gợi ý vé. */
+export const ticketSuggestFollowUpChips = (options?: {
+  isEmptyMatch?: boolean;
+}): QuickReplyChip[] => [
+  {
+    id: 'ticket-suggest-again',
+    label: 'Gợi ý khác',
+    action: 'send',
+    message: 'gợi ý vé số cho tôi',
+    primary: true,
+  },
+  {
+    id: 'ticket-suggest-search',
+    label: options?.isEmptyMatch ? 'Đổi đuôi khác' : 'Tìm đuôi số',
+    action: 'send',
+    message: 'tìm vé đuôi số',
+  },
+  {
+    id: 'ticket-suggest-staff',
+    label: 'Gặp nhân viên',
+    action: 'staff',
   },
 ];
 
