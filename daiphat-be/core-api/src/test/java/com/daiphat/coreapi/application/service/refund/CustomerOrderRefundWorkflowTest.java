@@ -70,6 +70,10 @@ class CustomerOrderRefundWorkflowTest {
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final TransactionRepositoryPort transactionRepositoryPort = mock(TransactionRepositoryPort.class);
     private final NotificationServicePort notificationService = mock(NotificationServicePort.class);
+    private final com.daiphat.coreapi.application.port.in.mail.EmailServicePort emailService =
+            mock(com.daiphat.coreapi.application.port.in.mail.EmailServicePort.class);
+    private final com.daiphat.coreapi.application.port.out.user.UserRepositoryPort userRepositoryPort =
+            mock(com.daiphat.coreapi.application.port.out.user.UserRepositoryPort.class);
 
     private OrderRefundService orderRefundService;
     private RefundRequestEventListener refundRequestEventListener;
@@ -95,7 +99,15 @@ class CustomerOrderRefundWorkflowTest {
                 graceService,
                 policyService,
                 eventPublisher);
-        refundRequestEventListener = new RefundRequestEventListener(notificationService);
+        refundRequestEventListener = new RefundRequestEventListener(
+                notificationService, emailService, userRepositoryPort);
+        lenient().when(notificationService.createNotification(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(userRepositoryPort.findById(customerId)).thenReturn(Optional.of(
+                com.daiphat.coreapi.domain.model.UserModel.builder()
+                        .id(customerId)
+                        .email("customer@example.com")
+                        .firstName("Customer")
+                        .build()));
 
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.ORDER_CANCEL_GRACE_MIN.name()))
                 .thenReturn(Optional.of(SystemConfigModel.builder().configValue("30").build()));
@@ -145,8 +157,11 @@ class CustomerOrderRefundWorkflowTest {
         refundRequestEventListener.handleRefundRequestStatusChanged(event);
 
         ArgumentCaptor<NotificationModel> notificationCaptor = ArgumentCaptor.forClass(NotificationModel.class);
-        verify(notificationService).createNotification(notificationCaptor.capture());
-        NotificationModel notification = notificationCaptor.getValue();
+        verify(notificationService, org.mockito.Mockito.atLeastOnce()).createNotification(notificationCaptor.capture());
+        NotificationModel notification = notificationCaptor.getAllValues().stream()
+                .filter(n -> n.getChannel() == com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel.IN_APP)
+                .findFirst()
+                .orElseThrow();
         assertThat(notification.getReferenceType()).isEqualTo(NotificationReferenceType.REFUND_REQUEST);
         assertThat(notification.getReferenceId()).isEqualTo("100");
         assertThat(notification.getUserId()).isEqualTo(customerId);
