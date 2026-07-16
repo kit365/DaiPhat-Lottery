@@ -8,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum DataType implements LabeledEnum {
     INT("Số nguyên"),
-    TIME("Thời gian (HH:mm)");
+    TIME("Thời gian (HH:mm)"),
+    BOOLEAN("Boolean (true/false)");
 
     private final String label;
 }
