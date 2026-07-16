@@ -8,7 +8,7 @@ import { useTicketDetail } from "./hooks/useTicket";
 import { useParams, useNavigate } from "react-router-dom";
 import { formatImportBatchCode } from "../import-batch/utils/importBatchCode";
 import dayjs from "dayjs";
-import { useProviders } from "../provider/hooks/useProvider";
+import { useStations } from '../../features/station/hooks/useStation';
 
 const getSerialStatusChipSx = (status?: string) => {
     const normalized = (status || "").toUpperCase();
@@ -32,7 +32,7 @@ export const TicketDetailPage = () => {
     const navigate = useNavigate();
 
     const { data: ticketDetail, isLoading: isLoadingTicket } = useTicketDetail(id);
-    const { data: providersRes } = useProviders({ size: 1000 });
+    const { data: providersRes } = useStations({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
 
     const [expandedDetail, setExpandedDetail] = useState(true);

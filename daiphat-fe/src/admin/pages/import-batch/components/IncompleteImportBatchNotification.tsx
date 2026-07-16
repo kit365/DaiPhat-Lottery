@@ -17,7 +17,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ImportBatch } from '../../../api/importBatch.api';
 import { ROUTES } from '../../../constants/routes';
-import { useProviders } from '../../provider/hooks/useProvider';
+import { useStations } from '../../../features/station/hooks/useStation';
 import { useIncompleteImportBatches } from '../../import-batch/hooks/useImportBatch';
 import { formatImportBatchHeaderCode } from '../../import-batch/utils/importBatchCode';
 import {
@@ -138,7 +138,7 @@ export const IncompleteImportBatchNotification = ({
     const navigate = useNavigate();
     const [detailOpen, setDetailOpen] = useState(false);
     const { data: batches = [], isLoading } = useIncompleteImportBatches();
-    const { data: providersRes } = useProviders({ size: 1000 });
+    const { data: providersRes } = useStations({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
 
     const resolveStationName = useMemo(

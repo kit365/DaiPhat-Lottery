@@ -116,6 +116,7 @@ export const TicketList = ({
                     getRowHeight={() => 'auto'}
                     checkboxSelection
                     disableRowSelectionOnClick
+                    className="admin-datagrid"
                     sx={dataGridStyles}
                 />
             </div>
