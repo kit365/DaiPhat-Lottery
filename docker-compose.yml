@@ -1,151 +1,88 @@
-# Trigger Deployment: Transition to Monolith 2026-07-05
+name: daiphat-local
+
 services:
   postgres-db:
     image: pgvector/pgvector:pg16
-    container_name: postgres-db
+    environment:
+      POSTGRES_DB: daiphat_core_db
+      POSTGRES_USER: sa
+      POSTGRES_PASSWORD: "12345"
     ports:
-      - "${DB_PORT:-5432}:5432"
-    env_file:
-      - .env
+      - "5434:5432"
     volumes:
-      - ./daiphat-be/infra/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U sa -d daiphat_core_db" ]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U sa -d daiphat_core_db"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-    labels:
-      - "dev.dozzle.group=Infrastructure"
-    networks:
-      - daiphat-network
+      retries: 12
 
   redis:
     image: redis:alpine
-    container_name: redis
+    command: redis-server --appendonly yes
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
-    labels:
-      - "dev.dozzle.group=Infrastructure"
-    networks:
-      - daiphat-network
+      retries: 12
 
   mongo:
     image: mongo:7
-    container_name: daiphat-mongo
-    restart: always
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${CORE_MONGO_ROOT_USERNAME:-core_admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${CORE_MONGO_ROOT_PASSWORD:-core_pass_2026}
-      MONGO_INITDB_DATABASE: ${CORE_MONGO_DB:-daiphat_core_db}
+      MONGO_INITDB_ROOT_USERNAME: core_admin
+      MONGO_INITDB_ROOT_PASSWORD: core_pass_2026
+      MONGO_INITDB_DATABASE: daiphat_core_db
     ports:
-      - "${CORE_MONGO_PORT:-27018}:27017"
+      - "27018:27017"
     volumes:
       - mongo_data:/data/db
-    labels:
-      - "dev.dozzle.group=Infrastructure"
-    networks:
-      - daiphat-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--username", "core_admin", "--password", "core_pass_2026", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
-  daiphat-api:
+  core-api:
     build:
-      context: ./daiphat-be
-      dockerfile: core-api/Dockerfile
-    container_name: daiphat-api
-    ports:
-      - "${CORE_API_PORT:-8082}:8082"
+      context: ./daiphat-be/core-api
+      dockerfile: Dockerfile.local
     env_file:
-      - .env
+      - ./.env.local
     environment:
-      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
-      - CORE_POSTGRES_HOST=postgres-db
-      - CORE_DB_PORT=5432
-      - CORE_REDIS_HOST=redis
-      - CORE_REDIS_PORT=6379
-      - CORE_MONGO_HOST=mongo
-      - CORE_MONGO_PORT=27017
-    deploy:
-      resources:
-        limits:
-          memory: 1024M
+      SPRING_PROFILES_ACTIVE: local
+      CORE_API_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/daiphat_core_db?charSet=UTF-8
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: "12345"
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_MONGODB_URI: mongodb://core_admin:core_pass_2026@mongo:27017/daiphat_core_db?authSource=admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./daiphat-be/core-api:/workspace
+      - maven_cache:/root/.m2
     depends_on:
       postgres-db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    labels:
-      - "dev.dozzle.group=Backend"
-    networks:
-      - daiphat-network
-
-  daiphat-fe:
-    image: ghcr.io/kit365/daiphat-fe:latest
-    container_name: daiphat-fe
-    restart: always
-    env_file:
-      - .env
-    labels:
-      - "dev.dozzle.group=Frontend"
-    networks:
-      - daiphat-network
-
-  nginx:
-    image: nginx:alpine
-    container_name: nginx
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./daiphat-be/infra/nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template
-      - ./daiphat-be/infra/certbot/conf:/etc/letsencrypt
-      - ./daiphat-be/infra/certbot/www:/var/www/certbot
-    env_file:
-      - .env
-    depends_on:
-      - daiphat-fe
-      - daiphat-api
-    labels:
-      - "dev.dozzle.group=Frontend"
-    networks:
-      - daiphat-network
-
-  certbot:
-    image: certbot/certbot
-    container_name: certbot
-    volumes:
-      - ./daiphat-be/infra/certbot/conf:/etc/letsencrypt
-      - ./daiphat-be/infra/certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    labels:
-      - "dev.dozzle.group=Infrastructure"
-    networks:
-      - daiphat-network
-
-  dozzle:
-    image: amir20/dozzle:latest
-    container_name: dozzle
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    ports:
-      - "8881:8080"
-    environment:
-      - DOZZLE_BASE=/dozzle
-    restart: always
-    labels:
-      - "dev.dozzle.group=Infrastructure"
-    networks:
-      - daiphat-network
-
-networks:
-  daiphat-network:
-    driver: bridge
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8080"]
+      interval: 10s
+      timeout: 5s
+      # First run downloads Maven dependencies into the persistent cache volume.
+      start_period: 10m
+      retries: 30
 
 volumes:
   postgres_data:
+  redis_data:
   mongo_data:
+  maven_cache:

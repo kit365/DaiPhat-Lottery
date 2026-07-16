@@ -40,10 +40,10 @@ import java.util.UUID;
 @Slf4j
 public class TransactionService implements TransactionServicePort {
 
-    @Value("${daiphat.order.pending-payment-ttl-seconds:600}")
+    @Value("${daiphat.order.pending-payment-ttl-seconds}")
     private long pendingPaymentTtlSeconds = 600;
 
-    @Value("${daiphat.order.payment-failure-max-attempts:3}")
+    @Value("${daiphat.order.payment-failure-max-attempts}")
     private int paymentFailureMaxAttempts = 3;
 
     private static final String PAYMENT_TIMEOUT_REASON = "Quá thời gian thanh toán 10 phút.";

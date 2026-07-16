@@ -18,7 +18,7 @@ public class LotterySourceCrawlerAdapter implements LotterySourceCrawlerPort {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
-    @Value("${daiphat.lottery.crawler.user-agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36}")
+    @Value("${daiphat.lottery.crawler.user-agent}")
     private String userAgent;
 
     @Override

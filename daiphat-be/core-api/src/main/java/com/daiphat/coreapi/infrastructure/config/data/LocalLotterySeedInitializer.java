@@ -54,7 +54,7 @@ public class LocalLotterySeedInitializer implements ApplicationRunner {
     private final LotteryTicketSerialRepository lotteryTicketSerialRepository;
     private final UserRepository userRepository;
 
-    @Value("${daiphat.lottery.seed.tickets-per-station-per-date:12}")
+    @Value("${daiphat.lottery.seed.tickets-per-station-per-date}")
     private int ticketsPerStationPerDate;
 
     @Override

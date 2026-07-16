@@ -1,21 +1,20 @@
 server:
-  port: ${CORE_API_PORT:8080}
+  port: ${CORE_API_PORT}
   forward-headers-strategy: framework
 
 spring:
   application:
+
     name: daiphat
   config:
     import: optional:classpath:chat/chat-schedule.yml,optional:classpath:chat/chat-intent.yml,optional:classpath:chat/chat-messages.yml
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:local}
   threads:
     virtual:
       enabled: true
   servlet:
     multipart:
-      max-file-size: ${CORE_MULTIPART_MAX_FILE_SIZE:5MB}
-      max-request-size: ${CORE_MULTIPART_MAX_REQUEST_SIZE:5MB}
+      max-file-size: ${CORE_MULTIPART_MAX_FILE_SIZE}
+      max-request-size: ${CORE_MULTIPART_MAX_REQUEST_SIZE}
   google:
     client-id: ${GOOGLE_CLIENT_ID}
     client-secret: ${GOOGLE_CLIENT_SECRET}
@@ -40,106 +39,116 @@ daiphat:
     client-email: ${FIREBASE_CLIENT_EMAIL}
     client-id: ${FIREBASE_CLIENT_ID}
   blog:
-    schedule-publish-rate-ms: ${BLOG_SCHEDULE_PUBLISH_RATE_MS:60000}
+    schedule-publish-rate-ms: 60000
+    view-sync-rate-ms: 300000
+  import-batch:
+    draft-cancel-rate-ms: 60000
+  refund:
+    expire-rate-ms: 3600000
   payment:
     payos:
-      client-id: ${PAYOS_CLIENT_ID:}
-      api-key: ${PAYOS_API_KEY:}
-      checksum-key: ${PAYOS_CHECKSUM_KEY:}
-      return-path: ${PAYOS_RETURN_PATH:/checkout/result}
-      cancel-path: ${PAYOS_CANCEL_PATH:/checkout/result}
+      client-id: ${PAYOS_CLIENT_ID}
+      api-key: ${PAYOS_API_KEY}
+      checksum-key: ${PAYOS_CHECKSUM_KEY}
+      return-path: ${PAYOS_RETURN_PATH}
+      cancel-path: ${PAYOS_CANCEL_PATH}
   order:
-    pending-payment-ttl-seconds: ${ORDER_PENDING_PAYMENT_TTL_SECONDS:600}
-    pending-payment-expire-rate-ms: ${ORDER_PENDING_PAYMENT_EXPIRE_RATE_MS:60000}
-    payment-failure-max-attempts: ${ORDER_PAYMENT_FAILURE_MAX_ATTEMPTS:3}
+    pending-payment-ttl-seconds: 600
+    pending-payment-expire-rate-ms: 60000
+    payment-failure-max-attempts: 3
     refund:
-      closing-time: ${ORDER_REFUND_CLOSING_TIME:14:00}
-      window-minutes: ${ORDER_REFUND_WINDOW_MINUTES:30}
-      timezone: ${ORDER_REFUND_TIMEZONE:Asia/Ho_Chi_Minh}
+      closing-time: "14:00"
+      window-minutes: 30
+      timezone: Asia/Ho_Chi_Minh
   chat:
     ai:
-      confidence-threshold: ${CHAT_AI_CONFIDENCE_THRESHOLD:0.7}
-      bot-display-name: ${CHAT_AI_BOT_DISPLAY_NAME:Đại Phát AI Bot}
+      confidence-threshold: 0.7
+      bot-display-name: Đại Phát AI Bot
       service:
-        base-url: ${DAIPHAT_AI_BASE_URL:http://localhost:8000}
-        connect-timeout-ms: ${DAIPHAT_AI_CONNECT_TIMEOUT_MS:3000}
-        read-timeout-ms: ${DAIPHAT_AI_READ_TIMEOUT_MS:5000}
+        base-url: ${DAIPHAT_AI_BASE_URL}
+        connect-timeout-ms: 3000
+        read-timeout-ms: 5000
     flow:
-      slot-fill-min-confidence: ${CHAT_FLOW_SLOT_FILL_MIN_CONFIDENCE:0.3}
-      ttl-minutes: ${CHAT_FLOW_TTL_MINUTES:10}
+      switch-intent-threshold: 0.0
+      slot-fill-min-confidence: 0.3
+      ttl-minutes: 10
     conversation:
       timeout:
-        # Chờ NV nhận (không ai claim) — chỉ gửi thông báo, không auto-close
-        waiting-operator-seconds: ${CHAT_WAITING_OPERATOR_TIMEOUT_SECONDS:86400}
-        # Khách im sau staff/bot trả lời
-        customer-silence-minutes: ${CHAT_CUSTOMER_SILENCE_TIMEOUT_MINUTES:30}
-        # Nhắc trước auto-close (vd. phút 25 nếu silence = 30)
-        auto-close-warning-lead-minutes: ${CHAT_AUTO_CLOSE_WARNING_LEAD_MINUTES:5}
-        # Khách chờ staff — chỉ SLA alert, không auto-close
-        staff-response-sla-minutes: ${CHAT_STAFF_RESPONSE_SLA_MINUTES:15}
-        scheduler-rate-ms: ${CHAT_TIMEOUT_SCHEDULER_RATE_MS:10000}
+        waiting-operator-seconds: 86400
+        customer-silence-minutes: 30
+        auto-close-warning-lead-minutes: 5
+        staff-response-sla-minutes: 15
+        scheduler-rate-ms: 10000
   lottery:
     crawler:
-      user-agent: ${LOTTERY_CRAWLER_USER_AGENT:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36}
-    result-live-window-check-cron: ${LOTTERY_RESULT_LIVE_WINDOW_CHECK_CRON:0 * * * * *}
-    result-live-poll-seconds: ${LOTTERY_RESULT_LIVE_POLL_SECONDS:10}
-    result-backlog-sync-cron: ${LOTTERY_RESULT_BACKLOG_SYNC_CRON:*/10 * * * * *}
-    result-sync-backlog-batch-size: ${LOTTERY_RESULT_SYNC_BACKLOG_BATCH_SIZE:20}
-    draw-deadline-minutes: ${LOTTERY_DRAW_DEADLINE_MINUTES:30}
+      user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36
+    draw-reminder-minutes: 30
+    draw-reminder-cron: "0 * * * * *"
+    expire-cron: "0 30 18 * * *"
+    station-next-draw-recalculate-cron: "0 0 0 * * *"
+    result-poll-seconds: 60
+    historical-result-poll-seconds: 10
+    result-live-window-check-cron: "0 * * * * *"
+    result-live-poll-seconds: 10
+    result-backlog-sync-cron: "*/10 * * * * *"
+    result-sync-backlog-batch-size: 20
+    draw-deadline-minutes: 30
   storage:
     cloudinary:
       cloud-name: ${CLOUDINARY_CLOUD_NAME}
       api-key: ${CLOUDINARY_API_KEY}
       api-secret: ${CLOUDINARY_API_SECRET}
-      root-folder: ${CLOUDINARY_ROOT_FOLDER:daiphat}
+      root-folder: ${CLOUDINARY_ROOT_FOLDER}
   auth:
+    frontend-url: ${FRONTEND_URL}
     seed:
       admin:
-        username: ${AUTH_SEED_ADMIN_USERNAME:}
-        password: ${AUTH_SEED_ADMIN_PASSWORD:}
-        email: ${AUTH_SEED_ADMIN_EMAIL:}
-        first-name: ${AUTH_SEED_ADMIN_FIRST_NAME:}
-        last-name: ${AUTH_SEED_ADMIN_LAST_NAME:}
+        username: ${AUTH_SEED_ADMIN_USERNAME}
+        password: ${AUTH_SEED_ADMIN_PASSWORD}
+        email: ${AUTH_SEED_ADMIN_EMAIL}
+        first-name: ${AUTH_SEED_ADMIN_FIRST_NAME}
+        last-name: ${AUTH_SEED_ADMIN_LAST_NAME}
       member:
-        username: ${AUTH_SEED_MEMBER_USERNAME:}
-        password: ${AUTH_SEED_MEMBER_PASSWORD:}
-        email: ${AUTH_SEED_MEMBER_EMAIL:}
-        first-name: ${AUTH_SEED_MEMBER_FIRST_NAME:}
-        last-name: ${AUTH_SEED_MEMBER_LAST_NAME:}
+        username: ${AUTH_SEED_MEMBER_USERNAME}
+        password: ${AUTH_SEED_MEMBER_PASSWORD}
+        email: ${AUTH_SEED_MEMBER_EMAIL}
+        first-name: ${AUTH_SEED_MEMBER_FIRST_NAME}
+        last-name: ${AUTH_SEED_MEMBER_LAST_NAME}
       street-agent:
-        username: ${AUTH_SEED_STREET_AGENT_USERNAME:}
-        password: ${AUTH_SEED_STREET_AGENT_PASSWORD:}
-        email: ${AUTH_SEED_STREET_AGENT_EMAIL:}
-        first-name: ${AUTH_SEED_STREET_AGENT_FIRST_NAME:}
-        last-name: ${AUTH_SEED_STREET_AGENT_LAST_NAME:}
+        username: ${AUTH_SEED_STREET_AGENT_USERNAME}
+        password: ${AUTH_SEED_STREET_AGENT_PASSWORD}
+        email: ${AUTH_SEED_STREET_AGENT_EMAIL}
+        first-name: ${AUTH_SEED_STREET_AGENT_FIRST_NAME}
+        last-name: ${AUTH_SEED_STREET_AGENT_LAST_NAME}
       operator:
-        username: ${AUTH_SEED_OPERATOR_USERNAME:}
-        password: ${AUTH_SEED_OPERATOR_PASSWORD:}
-        email: ${AUTH_SEED_OPERATOR_EMAIL:}
-        first-name: ${AUTH_SEED_OPERATOR_FIRST_NAME:}
-        last-name: ${AUTH_SEED_OPERATOR_LAST_NAME:}
+        username: ${AUTH_SEED_OPERATOR_USERNAME}
+        password: ${AUTH_SEED_OPERATOR_PASSWORD}
+        email: ${AUTH_SEED_OPERATOR_EMAIL}
+        first-name: ${AUTH_SEED_OPERATOR_FIRST_NAME}
+        last-name: ${AUTH_SEED_OPERATOR_LAST_NAME}
     jwt:
-      issuer: ${AUTH_JWT_ISSUER:daiphat}
+      issuer: ${AUTH_JWT_ISSUER}
       secret: ${AUTH_JWT_SECRET}
-      access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS:900}
-      refresh-token-ttl-seconds: ${AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS:604800}
+      access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS}
+      refresh-token-ttl-seconds: ${AUTH_JWT_REFRESH_TOKEN_TTL_SECONDS}
     cookie:
-      name: ${AUTH_REFRESH_COOKIE_NAME:refresh_token}
-      secure: ${AUTH_REFRESH_COOKIE_SECURE:true}
-      same-site: ${AUTH_REFRESH_COOKIE_SAME_SITE:Lax}
-      path: ${AUTH_REFRESH_COOKIE_PATH:/api/v1/auth}
+      name: ${AUTH_REFRESH_COOKIE_NAME}
+      secure: ${AUTH_REFRESH_COOKIE_SECURE}
+      same-site: ${AUTH_REFRESH_COOKIE_SAME_SITE}
+      path: ${AUTH_REFRESH_COOKIE_PATH}
     cors:
-      allowed-methods: ${AUTH_CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,PATCH,OPTIONS}
-      allowed-headers: ${AUTH_CORS_ALLOWED_HEADERS:*}
-      allow-credentials: ${AUTH_CORS_ALLOW_CREDENTIALS:true}
-      max-age: ${AUTH_CORS_MAX_AGE:3600}
+      allowed-origins: ${AUTH_CORS_ALLOWED_ORIGINS}
+      allowed-methods: ${AUTH_CORS_ALLOWED_METHODS}
+      allowed-headers: ${AUTH_CORS_ALLOWED_HEADERS}
+      allow-credentials: ${AUTH_CORS_ALLOW_CREDENTIALS}
+      max-age: ${AUTH_CORS_MAX_AGE}
     cache:
-      verification-token-ttl-seconds: ${AUTH_VERIFICATION_TOKEN_TTL_SECONDS:86400}
-      otp-ttl-seconds: ${AUTH_OTP_TTL_SECONDS:300}
-      reset-token-ttl-seconds: ${AUTH_RESET_TOKEN_TTL_SECONDS:900}
+      verification-token-ttl-seconds: ${AUTH_VERIFICATION_TOKEN_TTL_SECONDS}
+      otp-ttl-seconds: ${AUTH_OTP_TTL_SECONDS}
+      reset-token-ttl-seconds: ${AUTH_RESET_TOKEN_TTL_SECONDS}
     password-policy:
-      min-length: ${AUTH_PASSWORD_MIN_LENGTH:6}
-      max-length: ${AUTH_PASSWORD_MAX_LENGTH:100}
+      min-length: ${AUTH_PASSWORD_MIN_LENGTH}
+      max-length: ${AUTH_PASSWORD_MAX_LENGTH}
 
 management:
   endpoints:
@@ -148,4 +157,6 @@ management:
         include: health, info, prometheus
   endpoint:
     health:
+      probes:
+        enabled: true
       show-details: always

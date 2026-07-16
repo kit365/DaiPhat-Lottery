@@ -25,7 +25,7 @@ public class PermissionRegistryRunner {
 
     private final RoleServicePort roleServicePort;
 
-    @Value("${spring.application.name:daiphat}")
+    @Value("${spring.application.name}")
     private String serviceName;
 
     @EventListener(ApplicationReadyEvent.class)

@@ -67,7 +67,7 @@ public class OrderService implements OrderServicePort {
     private static final BigDecimal ONLINE_PAYMENT_MIN_AMOUNT = BigDecimal.valueOf(10_000);
     private static final long MAX_PICKUP_LEAD_DAYS = 3;
 
-    @Value("${daiphat.order.pending-payment-ttl-seconds:600}")
+    @Value("${daiphat.order.pending-payment-ttl-seconds}")
     private long pendingPaymentTtlSeconds;
 
     private final OrderRepositoryPort orderRepositoryPort;

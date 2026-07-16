@@ -13,7 +13,7 @@ public class RefundRequestExpiryScheduler {
 
     private final RefundRequestStaffServicePort refundRequestStaffServicePort;
 
-    @Scheduled(fixedRateString = "${daiphat.refund.expire-rate-ms:3600000}")
+    @Scheduled(fixedRateString = "${daiphat.refund.expire-rate-ms}")
     public void expireOverdueRefundRequests() {
         int expiredCount = refundRequestStaffServicePort.expireOverdueRequests();
         if (expiredCount > 0) {
