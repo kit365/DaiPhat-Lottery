@@ -14,6 +14,8 @@ public final class PermissionConstants {
     public static final String ROLE = "role";
     public static final String ARTICLE = "article";
     public static final String TICKET = "ticket";
+    public static final String IMPORT_BATCH = "importBatch";
+    public static final String SUPPLIER = "supplier";
     public static final String STATION = "station";
     public static final String REGION = "region";
     public static final String PRIZE_STRUCTURE = "prizeStructure";
@@ -21,6 +23,7 @@ public final class PermissionConstants {
     public static final String PROVIDER = "provider";
     public static final String STREET_AGENT = "streetAgent";
     public static final String ORDER = "order";
+    public static final String REFUND = "refund";
     public static final String TICKET_SERVICE = "ticketService";
     public static final String TICKET_SERVICE_ORDER = "ticketServiceOrder";
     public static final String COUPON = "coupon";
@@ -38,4 +41,7 @@ public final class PermissionConstants {
     public static final String SYSTEM = ":system";
     public static final String ANALYTICS = ":analytics";
     public static final String ECOMMERCE = ":ecommerce";
+    public static final String APPROVE = ":approve";
+    public static final String REJECT = ":reject";
+    public static final String PROCESS = ":process";
 }

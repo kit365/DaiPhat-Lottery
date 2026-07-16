@@ -10,6 +10,8 @@ public record LotteryRegionResponse(
         String type,
         Integer minNumber,
         Integer maxNumber,
+        Integer minLength,
+        Integer maxLength,
         Integer numberLength,
         Integer stationCount
 ) {

@@ -4,15 +4,16 @@ import { Navigate, Outlet } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ROUTES } from "../../constants/routes";
 import { useAuth } from "../../pages/authen/hooks/useAuth";
-import { hasPermission, resolveIsAdmin } from "../../utils/permission.util";
+import { hasAnyPermission, hasPermission, resolveIsAdmin } from "../../utils/permission.util";
 
 interface Props {
     permission?: string;
+    permissions?: string[];
     children: ReactNode;
     fallback?: ReactNode;
 }
 
-export const PermissionGuard = ({ children, permission, fallback }: Props) => {
+export const PermissionGuard = ({ children, permission, permissions, fallback }: Props) => {
     const { user, logout, token, isHydrated } = useAuthStore();
     const { isUserLoading: isLoading, isFetching } = useAuth();
 
@@ -21,7 +22,7 @@ export const PermissionGuard = ({ children, permission, fallback }: Props) => {
     
     // 2. Nếu đã Hydrate (có token) nhưng đang đợi fetch thông tin user mới
     // Phải chờ cả isLoading (lần đầu) và isFetching (mọi lần reload) để đảm bảo có data mới nhất
-    const isFetchingUser = isReady && !!token && (isLoading || isFetching);
+    const isFetchingUser = isReady && !!token && (isLoading || isFetching || !user);
 
     const roleCode = typeof user?.role === 'string' ? user.role : (user?.role?.code || "");
     const normalizedRole = roleCode.startsWith("ROLE_") ? roleCode : `ROLE_${roleCode}`;
@@ -29,7 +30,9 @@ export const PermissionGuard = ({ children, permission, fallback }: Props) => {
     const isStaff = normalizedRole.includes('STAFF');
     const isOnlyMember = !isAdmin && !isStaff;
 
-    const hasAccess = hasPermission(user, permission);
+    const hasAccess = permissions?.length
+        ? hasAnyPermission(user, permissions)
+        : hasPermission(user, permission);
 
     useEffect(() => {
         // CHỈ xử lý khi hệ thống đã Hydrate xong, KHÔNG đang fetch dở, và QUAN TRỌNG: Đã có thông tin User
@@ -46,7 +49,7 @@ export const PermissionGuard = ({ children, permission, fallback }: Props) => {
                 }
             }
         }
-    }, [hasAccess, isFetchingUser, isReady, token, user, logout, isOnlyMember, permission]);
+    }, [hasAccess, isFetchingUser, isReady, token, user, logout, isOnlyMember, permission, permissions]);
 
     // Trạng thái chờ: Đang hydrate hoặc đang fetch thông tin user
     if (!isReady || isFetchingUser) {

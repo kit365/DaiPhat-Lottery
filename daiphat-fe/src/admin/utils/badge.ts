@@ -43,12 +43,17 @@ export const STATUS_TO_VARIANT_MAP: Record<string, BadgeColorVariant> = {
     completed: 'success',
     DELIVERED: 'success',
     delivered: 'success',
+    REFUNDED: 'info',
+    refunded: 'info',
     
     // Đang xử lý / Chờ duyệt
     PENDING: 'warning',
     pending: 'warning',
     WAITING: 'warning',
     waiting: 'warning',
+    REFUND_PENDING: 'warning',
+    INACTIVE: 'neutral',
+    inactive: 'neutral',
     
     // Bị hủy / Khóa / Cấm
     CANCELLED: 'error',
@@ -93,7 +98,7 @@ export const getTabBadgeStyles = (statusOrVariant: string, isSelected: boolean) 
     const state = isSelected ? colors.selected : colors.unselected;
     
     return {
-        bgcolor: state.bg,
+        backgroundColor: state.bg,
         color: state.text,
         transition: 'all 0.2s'
     };

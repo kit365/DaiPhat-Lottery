@@ -1,7 +1,7 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
@@ -125,7 +125,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
             LocalDate drawDate
     ) {
         String numbers = String.format("%06d", index * 111111 % 1_000_000);
-        String batchCode = String.format("BATCH-AVAILABLE-%03d", index);
         LocalDateTime importedAt = LocalDateTime.now().minusHours(2);
 
         LotteryTicketEntity ticket = lotteryTicketRepository.save(
@@ -134,7 +133,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
                         .ticketImg("https://picsum.photos/seed/" + serialNumber + "/800/500")
                         .numbers(numbers)
                         .drawDate(drawDate)
-                        .batchCode(batchCode)
                         .quantity(1)
                         .priceSnapshot(station.getPrice())
                         .status(LotteryTicketStatus.IN_STOCK)
@@ -151,6 +149,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                         .ticketImg(ticket.getTicketImg())
                         .serialNumber(serialNumber)
                         .status(LotteryTicketSerialStatus.IN_STOCK)
+                        .inputSource(InputSource.MANUAL)
                         .importedBy(operator)
                         .importedAt(importedAt)
                         .verified(true)
@@ -174,7 +173,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 operator,
                 "SEED-ONLINE-001",
                 "123456",
-                "BATCH-ONLINE-001",
                 LotteryTicketStatus.RESERVED
         );
 
@@ -206,7 +204,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 operator,
                 "SEED-ONLINE-002",
                 "234567",
-                "BATCH-ONLINE-002",
                 LotteryTicketStatus.SOLD
         );
 
@@ -239,7 +236,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 operator,
                 "SEED-ONLINE-003",
                 "345678",
-                "BATCH-ONLINE-003",
                 LotteryTicketStatus.SOLD
         );
 
@@ -272,7 +268,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 operator,
                 "SEED-DIRECT-001",
                 "223344",
-                "BATCH-DIRECT-001",
                 LotteryTicketStatus.SOLD
         );
 
@@ -310,7 +305,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 operator,
                 "SEED-REFUND-001",
                 "998877",
-                "BATCH-REFUND-001",
                 LotteryTicketStatus.SOLD
         );
 
@@ -355,7 +349,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 operator,
                 "SEED-REFUND-002",
                 "887766",
-                "BATCH-REFUND-002",
                 LotteryTicketStatus.SOLD
         );
 
@@ -391,7 +384,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 operator,
                 "SEED-REPLACED-001",
                 "556677",
-                "BATCH-REPLACED-001",
                 LotteryTicketStatus.SOLD
         );
         LotteryTicketSerialEntity newTicketSerial = ensureSeedTicketSerial(
@@ -399,7 +391,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 operator,
                 "SEED-REPLACED-002",
                 "556688",
-                "BATCH-REPLACED-002",
                 LotteryTicketStatus.SOLD
         );
 
@@ -450,6 +441,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                                 .province("Ho Chi Minh")
                                 .region(mienNam)
                                 .price(BigDecimal.valueOf(10_000))
+                                .commissionRate(new BigDecimal("0.0500"))
                                 .inventoryCount(100)
                                 .drawDays(List.of(DayOfWeek.MONDAY))
                                 .drawTime(LocalTime.of(16, 15))
@@ -457,7 +449,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                                         List.of(DayOfWeek.MONDAY),
                                         LocalTime.of(16, 15)
                                 ))
-                                .status(LotteryStationStatus.ACTIVE)
+                                .isActive(true)
                                 .approvedBy(operator)
                                 .approvedAt(LocalDateTime.now())
                                 .description("Station dung de seed test order.")
@@ -474,7 +466,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
             UserEntity operator,
             String serialNumber,
             String numbers,
-            String batchCode,
             LotteryTicketStatus status
     ) {
         return lotteryTicketSerialRepository.findFirstBySerialNumberAndDeletedAtIsNull(serialNumber)
@@ -486,7 +477,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
                                     .ticketImg("https://picsum.photos/seed/" + serialNumber + "/800/500")
                                     .numbers(numbers)
                                     .drawDate(LocalDate.now())
-                                    .batchCode(batchCode)
                                     .quantity(1)
                                     .priceSnapshot(station.getPrice())
                                     .status(status)
@@ -503,6 +493,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
                                     .ticketImg(ticket.getTicketImg())
                                     .serialNumber(serialNumber)
                                     .status(mapSerialStatus(status))
+                                    .inputSource(InputSource.MANUAL)
                                     .importedBy(operator)
                                     .importedAt(importedAt)
                                     .verified(true)

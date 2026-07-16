@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Arrays;
+import java.util.Set;
 
 /**
  * Danh sách các quyền (Permissions) cơ bản trong hệ thống.
@@ -75,6 +76,18 @@ public enum AppPermission {
             "Quản lý Vé số", "Chỉnh sửa vé số", "Quyền cập nhật thông tin vé số", 680),
     TICKET_DELETE(PermissionConstants.TICKET + PermissionConstants.DELETE, 
             "Quản lý Vé số", "Xóa vé số", "Quyền xóa vé số khỏi kho", 670),
+
+    IMPORT_BATCH_VIEW(PermissionConstants.IMPORT_BATCH + PermissionConstants.VIEW,
+            "Quản lý Nhập lô vé", "Xem phiếu nhập lô", "Quyền xem danh sách phiếu nhập lô vé", 695),
+    IMPORT_BATCH_CREATE(PermissionConstants.IMPORT_BATCH + PermissionConstants.CREATE,
+            "Quản lý Nhập lô vé", "Tạo phiếu nhập lô", "Quyền khai báo phiếu nhập lô vé mới", 692),
+
+    SUPPLIER_VIEW(PermissionConstants.SUPPLIER + PermissionConstants.VIEW,
+            "Quản lý Nhà cung cấp", "Xem nhà cung cấp", "Quyền xem danh sách nhà cung cấp", 698),
+    SUPPLIER_CREATE(PermissionConstants.SUPPLIER + PermissionConstants.CREATE,
+            "Quản lý Nhà cung cấp", "Tạo nhà cung cấp", "Quyền thêm nhà cung cấp mới", 697),
+    SUPPLIER_EDIT(PermissionConstants.SUPPLIER + PermissionConstants.EDIT,
+            "Quản lý Nhà cung cấp", "Sửa nhà cung cấp", "Quyền cập nhật thông tin nhà cung cấp", 696),
 
     STATION_VIEW(PermissionConstants.STATION + PermissionConstants.VIEW,
             "Quản lý Nhà đài", "Xem nhà đài", "Quyền xem danh sách nhà đài", 665),
@@ -152,6 +165,11 @@ public enum AppPermission {
     TICKET_SERVICE_ORDER_EDIT(PermissionConstants.TICKET_SERVICE_ORDER + PermissionConstants.EDIT, 
             "Đơn mua hộ & Tra vé", "Sửa đơn mua hộ tiện ích", "Quyền cập nhật trạng thái đơn mua hộ tiện ích", 540),
 
+    REFUND_VIEW(PermissionConstants.REFUND + PermissionConstants.VIEW,
+            "Đơn mua hộ & Hoàn tiền", "Xem yêu cầu hoàn tiền", "Quyền xem danh sách và chi tiết yêu cầu hoàn tiền", 530),
+    REFUND_PROCESS(PermissionConstants.REFUND + PermissionConstants.PROCESS,
+            "Đơn mua hộ & Hoàn tiền", "Xử lý chuyển khoản hoàn tiền", "Quyền xác nhận đã chuyển khoản hoàn tiền", 515),
+
     // MODULE: KHUYẾN MÃI
     COUPON_VIEW(PermissionConstants.COUPON + PermissionConstants.VIEW, 
             "Mã giảm giá & Khách hàng", "Xem mã giảm giá", "Quyền xem danh sách mã khuyến mãi", 500),
@@ -179,6 +197,47 @@ public enum AppPermission {
     private final String name;
     private final String description;
     private final Integer position;
+
+    private static final Set<String> OPERATOR_FULL_ACCESS_RESOURCES = Set.of(
+            PermissionConstants.ARTICLE,
+            PermissionConstants.USER,
+            PermissionConstants.STREET_AGENT,
+            PermissionConstants.PRIZE_STRUCTURE,
+            PermissionConstants.LOTTERY_RESULT,
+            PermissionConstants.PROVIDER,
+            PermissionConstants.SUPPLIER,
+            PermissionConstants.REFUND,
+            PermissionConstants.CHAT
+    );
+
+    /**
+     * Default operational permissions for {@code ROLE_STAFF_OPERATOR}.
+     * The policy stays beside the permission catalog so a permission cannot be
+     * accidentally referenced from configuration before it is defined.
+     */
+    public boolean isDefaultOperatorPermission() {
+        int actionStart = code.indexOf(':');
+        if (actionStart < 1) {
+            return false;
+        }
+
+        String resource = code.substring(0, actionStart);
+        if (OPERATOR_FULL_ACCESS_RESOURCES.contains(resource)) {
+            return true;
+        }
+
+        return switch (resource) {
+            case PermissionConstants.STATION -> !code.endsWith(PermissionConstants.DELETE);
+            case PermissionConstants.REGION -> code.endsWith(PermissionConstants.VIEW);
+            case PermissionConstants.TICKET, PermissionConstants.IMPORT_BATCH ->
+                    code.endsWith(PermissionConstants.VIEW) || code.endsWith(PermissionConstants.CREATE);
+            case PermissionConstants.ORDER ->
+                    code.endsWith(PermissionConstants.VIEW)
+                            || code.endsWith(PermissionConstants.CREATE)
+                            || code.endsWith(PermissionConstants.EDIT);
+            default -> false;
+        };
+    }
 
     public static AppPermission fromCode(String code) {
         return Arrays.stream(values())

@@ -41,13 +41,21 @@ export const Header = () => {
   const user = realUser;
   const { isProfileSetupModalOpen, openLoginModal, openProfileSetupModal } = useAuthStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const cartItems = useCartStore(state => state.items);
   const removeCartItem = useCartStore(state => state.removeItem);
   const { unreadCount } = useNotifications(4);
 
-  // Removed mandatory DP-32 Setup Enforcement auto-trigger
+  // Monitor window scroll to make header sticky & compact
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Lock body scroll when menu is open
   useEffect(() => {
@@ -82,16 +90,28 @@ export const Header = () => {
   return (
     <>
       <motion.nav
-        className="relative w-full z-[1000] bg-white/80 backdrop-blur-xl border-b border-white/30 shadow-sm lg:fixed lg:top-0 lg:left-0 lg:bg-white/80 transition-all duration-300"
+        className={`w-full z-[1000] fixed top-0 left-0 right-0 transition-all duration-300 ${
+          scrolled 
+            ? "bg-white/85 backdrop-blur-xl border-b border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.03)]" 
+            : "bg-white/95 lg:bg-white/70 lg:backdrop-blur-md border-b border-transparent"
+        }`}
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         aria-label="Client navigation"
       >
-        <div className="max-w-[1440px] mx-auto px-4 lg:px-6 h-auto lg:h-20 flex flex-col lg:flex-row lg:items-center lg:justify-between py-4 lg:py-0 border-b border-black/5 lg:border-none gap-4 lg:gap-8">
-          <div className="flex items-center justify-between w-full lg:w-auto shrink-0">
-            <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-2.5 no-underline transition-transform hover:scale-[1.02] font-client-display" aria-label="DaiPhat home">
-              <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Đại Phát Logo" className="w-[42px] h-[42px] object-contain" />
+        <div className={`max-w-[1440px] mx-auto px-4 lg:px-8 flex flex-col lg:flex-row lg:items-center lg:justify-between py-4 lg:py-0 transition-all duration-300 gap-4 lg:gap-8 ${
+          scrolled ? "h-auto lg:h-[68px]" : "h-auto lg:h-20"
+        }`}>
+          <div className="flex items-center justify-between w-full lg:w-auto shrink-0 group">
+            <Link to={ROUTES.PUBLIC.HOME} className="flex items-center gap-3 no-underline font-client-display" aria-label="DaiPhat home">
+              <div className="relative p-[2px] bg-gradient-to-tr from-[#ee1314] to-[#F59E0B] rounded-xl shadow-md shadow-[#ee1314]/10 transition-transform duration-300 group-hover:scale-105">
+                <img 
+                  src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" 
+                  alt="Đại Phát Logo" 
+                  className="w-[38px] h-[38px] rounded-[10px] object-cover bg-white" 
+                />
+              </div>
               <div className="flex flex-col justify-center">
                   <span className="text-[20px] tracking-tight font-client-display font-black text-[#ee1314] leading-none mb-1">ĐẠI PHÁT</span>
                   <span className="text-[8.5px] font-bold text-[#F59E0B] leading-none uppercase tracking-wider whitespace-nowrap">Tài lộc - May mắn - Thịnh vượng</span>
@@ -105,7 +125,7 @@ export const Header = () => {
           </div>
 
           {/* Desktop Navigation (Hidden on Tablet/Mobile < 1024px) */}
-          <div className="hidden lg:flex justify-center items-center gap-1 xl:gap-3 flex-1">
+          <div className="hidden lg:flex justify-center items-center gap-1 xl:gap-2 flex-1">
             {navItems.filter(item => item.to !== "/profile/tickets" || token).map((item) => {
               const Icon = item.icon;
               const isActive = item.to === ROUTES.PUBLIC.HOME ? location.pathname === ROUTES.PUBLIC.HOME : location.pathname.startsWith(item.to) && item.to !== "#";
@@ -114,14 +134,21 @@ export const Header = () => {
                 <Link
                   key={item.label}
                   to={item.to}
-                  className={`flex items-center gap-2 font-bold no-underline transition-colors px-4 py-2.5 rounded-2xl text-[15px] tracking-tight font-client-display ${
+                  className={`relative flex items-center gap-2 font-bold no-underline transition-all duration-300 px-4 py-2.5 rounded-2xl text-[14.5px] tracking-tight font-client-display select-none ${
                     isActive
-                      ? "bg-[#FFF4F4] text-[#ee1314]" 
-                      : "text-[#505050] hover:text-[#ee1314] hover:bg-slate-50"
+                      ? "text-[#ee1314]" 
+                      : "text-slate-600 hover:text-[#ee1314]"
                   }`}
                 >
-                  <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-                  <span className="whitespace-nowrap">{item.label}</span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeNavBg"
+                      className="absolute inset-0 bg-[#FFF4F4] rounded-xl -z-10 border border-[#ee1314]/5 shadow-[0_2px_8px_rgba(238,19,20,0.04)]"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <Icon size={17} strokeWidth={isActive ? 2.5 : 2} className="relative z-10" />
+                  <span className="relative z-10">{item.label}</span>
                 </Link>
               );
             })}
@@ -140,22 +167,26 @@ export const Header = () => {
               <div className="flex items-center gap-6">
                 {/* Balance removed as requested */}
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <div className="relative group">
                     <button 
                       onClick={() => navigate('/cart')}
-                      className="relative text-[#505050] hover:text-[#ee1314] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer"
+                      className="relative text-[#505050] hover:text-[#ee1314] hover:bg-[#FFF4F4]/50 transition-all p-2 rounded-full cursor-pointer"
                     >
-                      <ShoppingCart size={22} strokeWidth={2} />
+                      <ShoppingCart size={21} strokeWidth={2} />
                       {cartItems.length > 0 && (
-                        <span className="absolute top-0 right-0 w-4 h-4 bg-[#ee1314] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
+                        <motion.span 
+                          initial={{ scale: 0.6 }}
+                          animate={{ scale: 1 }}
+                          className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 bg-[#ee1314] text-white text-[9px] font-bold flex items-center justify-center rounded-full border border-white"
+                        >
                           {cartItems.length}
-                        </span>
+                        </motion.span>
                       )}
                     </button>
                     
                     {/* Cart Dropdown */}
-                    <div className="absolute top-full right-0 mt-2 w-[360px] bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-[#E5E8EB] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100]">
+                    <div className="absolute top-[calc(100%-8px)] right-0 mt-3 w-[370px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out z-[1100] overflow-hidden">
                       <div className="p-4 flex items-center justify-between border-b border-[#E5E8EB]">
                         <h4 className={HEADER_DROPDOWN_TITLE_CLASS}>Giỏ hàng <span className="text-[#ee1314]">({cartItems.length})</span></h4>
                         <span className={`${HEADER_DROPDOWN_ACTION_CLASS} cursor-pointer hover:text-[#ee1314]`} onClick={() => navigate('/cart')}>Xem giỏ hàng</span>
@@ -163,7 +194,7 @@ export const Header = () => {
                       <div className="max-h-[320px] overflow-y-auto p-2">
                         {(() => {
                           if (cartItems.length === 0) {
-                            return <div className="p-6 text-center text-[#637381] text-[14px]">Chưa có sản phẩm nào.</div>;
+                            return <div className="p-6 text-center text-[#637381] text-[13.5px]">Chưa có sản phẩm nào.</div>;
                           }
                           return cartItems.map(item => (
                             <div key={item.id} className="relative flex gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group/item border-b border-gray-100 last:border-0">
@@ -202,32 +233,32 @@ export const Header = () => {
                         })()}
                       </div>
                       {cartItems.length > 0 && (
-                        <div className="p-4 border-t border-[#E5E8EB] flex flex-col gap-3">
+                        <div className="p-4 border-t border-[#E5E8EB] flex flex-col gap-2.5">
                           <div className="flex justify-between items-center mb-1">
                               <span className="text-[14px] font-bold text-[#212B36]">Tổng tiền</span>
                               <span className="text-[16px] font-bold text-[#ee1314]">
                                   {cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0).toLocaleString('vi-VN')} đ
                               </span>
                           </div>
-                          <button onClick={() => navigate('/cart')} className="w-full py-2.5 bg-[#ee1314] text-white text-[14px] font-bold rounded-lg hover:bg-[#cc0000] transition-colors flex items-center justify-center gap-2">
+                          <button onClick={() => navigate('/cart')} className="w-full py-2.5 bg-[#ee1314] text-white text-[14px] font-bold rounded-xl hover:bg-[#cc0000] transition-colors flex items-center justify-center gap-2 cursor-pointer">
                             <ShoppingCart size={18} /> Xem giỏ hàng
                           </button>
-                          <button onClick={() => navigate('/buy-ticket')} className="w-full py-2.5 bg-white text-[#212B36] border border-[#E5E8EB] text-[14px] font-bold rounded-lg hover:border-[#ee1314] hover:text-[#ee1314] transition-colors">
+                          <button onClick={() => navigate('/buy-ticket')} className="w-full py-2.5 bg-white text-[#212B36] border border-[#E5E8EB] text-[14px] font-bold rounded-xl hover:border-[#ee1314] hover:text-[#ee1314] transition-colors cursor-pointer">
                             Tiếp tục mua
                           </button>
                         </div>
                       )}
                     </div>
                   </div>
-
+ 
                   <div className="relative group">
                     <button 
                       onClick={() => navigate('/profile/notifications')}
-                      className="relative text-[#505050] hover:text-[#ee1314] transition-colors p-2 hover:bg-slate-50 rounded-full cursor-pointer"
+                      className="relative text-[#505050] hover:text-[#ee1314] hover:bg-[#FFF4F4]/50 transition-all p-2 rounded-full cursor-pointer"
                     >
-                      <Bell size={22} strokeWidth={2} />
+                      <Bell size={21} strokeWidth={2} />
                       {unreadCount > 0 && (
-                        <span className="absolute top-0 right-0 min-w-4 h-4 px-1 bg-[#ee1314] text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
+                        <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 bg-[#ee1314] text-white text-[9px] font-bold flex items-center justify-center rounded-full border border-white">
                           {unreadCount > 99 ? "99+" : unreadCount}
                         </span>
                       )}
@@ -237,9 +268,9 @@ export const Header = () => {
                 </div>
 
                 {/* User */}
-                <div className="flex items-center gap-3 cursor-pointer group relative py-2">
+                <div className="flex items-center gap-3 cursor-pointer group relative py-2 select-none">
                   <Link to="/profile" onClick={handleProfileClick} className="relative shrink-0">
-                    <div className="w-10 h-10 rounded-full border-2 border-white group-hover:border-[#FFB020] bg-slate-100 shadow-sm overflow-hidden transition-all duration-300">
+                    <div className="w-10 h-10 rounded-full border-2 border-white group-hover:border-[#ee1314] bg-slate-100 shadow-sm overflow-hidden transition-all duration-300">
                       {user.avatar || user.avatarUrl ? (
                         <img
                           src={user.avatar || user.avatarUrl}
@@ -248,36 +279,37 @@ export const Header = () => {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-[#ee1314]/5 text-[#ee1314]">
-                          <UserIcon size={20} className="font-bold" />
+                          <UserIcon size={19} className="font-bold" />
                         </div>
                       )}
                     </div>
                   </Link>
-                  <div className="flex items-center gap-1 font-bold text-[#102937] group-hover:text-[#FFB020] transition-colors text-[14px] whitespace-nowrap">
+                  <div className="flex items-center gap-1 font-bold text-[#102937] group-hover:text-[#ee1314] transition-colors text-[14px] whitespace-nowrap">
                     {user.fullName || user.username}
-                    <ChevronDown size={16} className="text-slate-400 group-hover:text-[#FFB020] transition-colors" />
+                    <ChevronDown size={15} className="text-slate-400 group-hover:text-[#ee1314] transition-colors" />
                   </div>
 
                   {/* Profile Dropdown */}
-                  <div className="absolute top-full right-0 mt-1 w-[200px] bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] border border-[#E5E8EB] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[1100] py-2">
+                  <div className="absolute top-[calc(100%-8px)] right-0 mt-3 w-[210px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out z-[1100] py-2 overflow-hidden">
                     {/* Triangle pointer */}
-                    <div className="absolute -top-[6px] right-8 w-3 h-3 bg-white border-l border-t border-[#E5E8EB] rotate-45"></div>
+                    <div className="absolute -top-[6px] right-8 w-3 h-3 bg-white border-l border-t border-slate-100 rotate-45"></div>
                     
-                    <div className="relative z-10 bg-white rounded-xl">
-                        <Link to="/profile/overview" className="flex items-center gap-3 px-5 py-3 text-[14.5px] text-[#212B36] hover:bg-slate-50 transition-colors">
-                        <i className="fa-solid fa-layer-group text-[16px] text-[#637381] w-5 text-center"></i>
+                    <div className="relative z-10">
+                        <Link to="/profile/overview" className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
+                        <i className="fa-solid fa-layer-group text-[15px] text-[#637381] w-5 text-center"></i>
                         <span>Tổng Quan</span>
                         </Link>
-                        <Link to="/profile/info" className="flex items-center gap-3 px-5 py-3 text-[14.5px] text-[#212B36] hover:bg-slate-50 transition-colors">
-                        <i className="fa-regular fa-user text-[16px] text-[#637381] w-5 text-center"></i>
+                        <Link to="/profile/info" className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
+                        <i className="fa-regular fa-user text-[15px] text-[#637381] w-5 text-center"></i>
                         <span>Tài Khoản</span>
                         </Link>
-                        <Link to="/profile/orders" className="flex items-center gap-3 px-5 py-3 text-[14.5px] text-[#212B36] hover:bg-slate-50 transition-colors">
-                        <i className="fa-solid fa-bag-shopping text-[16px] text-[#637381] w-5 text-center"></i>
+                        <Link to="/profile/orders" className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">
+                        <i className="fa-solid fa-bag-shopping text-[15px] text-[#637381] w-5 text-center"></i>
                         <span>Đơn Hàng</span>
                         </Link>
-                        <button onClick={() => logout()} className="w-full flex items-center gap-3 px-5 py-3 text-[14.5px] text-[#212B36] hover:bg-slate-50 transition-colors cursor-pointer text-left">
-                        <i className="fa-solid fa-arrow-right-from-bracket text-[16px] text-[#637381] w-5 text-center"></i>
+                        <div className="h-px bg-slate-100 my-1 mx-2" />
+                        <button onClick={() => logout()} className="w-full flex items-center gap-3 px-5 py-3 text-[14px] font-bold text-[#ee1314] hover:bg-[#FFF4F4]/50 transition-colors cursor-pointer text-left">
+                        <i className="fa-solid fa-arrow-right-from-bracket text-[15px] text-[#ee1314] w-5 text-center"></i>
                         <span>Đăng Xuất</span>
                         </button>
                     </div>
@@ -288,7 +320,7 @@ export const Header = () => {
               <>
                 <button
                   onClick={() => navigate('/login')}
-                  className="inline-flex items-center justify-center min-h-[44px] px-8 rounded-xl bg-[#ee1314] text-white font-bold no-underline shadow-lg shadow-[#ee1314]/26 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer text-[15px] font-client-display uppercase tracking-tight"
+                  className="relative overflow-hidden inline-flex items-center justify-center min-h-[44px] px-8 rounded-xl bg-gradient-to-r from-[#ee1314] to-[#f93c3d] text-white font-bold no-underline shadow-md shadow-[#ee1314]/20 transition-all duration-300 hover:shadow-lg hover:shadow-[#ee1314]/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] cursor-pointer text-[14.5px] font-client-display uppercase tracking-wider"
                   type="button"
                 >
                   Đăng nhập

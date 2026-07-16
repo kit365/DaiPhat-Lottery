@@ -3,11 +3,11 @@ import { IGridSettings } from "../configs/types";
 
 const SETTINGS_DEFAULT: IGridSettings = {
     density: 'standard',
-    showCellBorders: true,
-    showColumnBorders: true,
+    showCellBorders: false,
+    showColumnBorders: false,
 };
 
-const SETTINGS_STORAGE_KEY = 'mui-data-grid-settings';
+const SETTINGS_STORAGE_KEY = 'mui-data-grid-settings-v2';
 
 const getInitialSettings = (): IGridSettings => {
     try {

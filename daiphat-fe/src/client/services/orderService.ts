@@ -57,7 +57,14 @@ export const orderService = {
      * Gets details of a specific order by ID
      */
     getMyOrderDetail: async (id: string): Promise<ApiResponse<OrderResponse>> => {
-        const response = await apiApp.get(`${BASE_URL}/my-orders/${id}`);
+        const response = await apiApp.get(`${BASE_URL}/my-orders/${id}`, {
+            skipGlobalErrorToast: true,
+        } as any);
+        return response.data;
+    },
+
+    getRefundEligibility: async (orderId: string) => {
+        const response = await apiApp.get(`${BASE_URL}/my-orders/${orderId}/refund-eligibility`);
         return response.data;
     }
 };

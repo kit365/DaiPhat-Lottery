@@ -35,4 +35,10 @@ public interface LotteryTicketRepositoryPort {
     boolean existsByUniqueFieldsAndIdNot(Long stationId, String numbers, LocalDate drawDate, Long id);
 
     long sumQuantityByProductIdAndStatuses(Long stationId, Collection<LotteryTicketStatus> statuses);
+
+    java.util.List<com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey> findAvailableReplacementsInBulk(
+            Collection<Long> stationIds, Collection<LocalDate> drawDates, Collection<String> numbers);
+
+    java.util.List<LotteryTicketModel> findAllReplacementCandidates(
+            Long stationId, String numbers, LocalDate drawDate, LotteryTicketStatus status);
 }

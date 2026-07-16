@@ -1,6 +1,9 @@
 import { apiApp } from "../../api";
-import { PageResponse } from "../../types/api.type";
-import { NotificationResponse } from "../../types/notifications.type";
+import { ApiResponse, PageResponse } from "../../types/api.type";
+import {
+    NotificationReferenceAvailabilityResponse,
+    NotificationResponse,
+} from "../../types/notifications.type";
 
 export const getMyNotifications = async (params: {
     page?: number;
@@ -20,4 +23,23 @@ export const markAllMyNotificationsAsRead = async (): Promise<void> => {
 
 export const deleteAllMyReadNotifications = async (): Promise<void> => {
     await apiApp.delete("/notifications/read-all");
+};
+
+export const resolveNotificationReference = async (
+    notificationId: number
+): Promise<NotificationReferenceAvailabilityResponse> => {
+    const response = await apiApp.get<ApiResponse<NotificationReferenceAvailabilityResponse>>(
+        `/notifications/${notificationId}/reference`,
+        { skipGlobalErrorToast: true } as any
+    );
+    return (
+        response.data.data ?? {
+            available: false,
+            referenceType: null,
+            referenceId: null,
+            message:
+                response.data.message ||
+                "Nội dung tham chiếu không còn khả dụng hoặc đã bị xóa. Thông báo này không còn hiệu lực.",
+        }
+    );
 };

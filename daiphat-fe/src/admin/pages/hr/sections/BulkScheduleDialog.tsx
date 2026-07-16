@@ -23,7 +23,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import { useShifts } from '../hooks/useShifts';
-import { useAccounts } from '../../account-admin/hooks/useAccountAdmin';
+import { useAccounts } from '../../../features/users/hooks/useUsers';
 import { useSchedules } from '../hooks/useSchedules';
 import { useTicketServiceOrderConfig } from '../../ticket-service-order/hooks/useTicketServiceOrderConfig';
 import { useRoles } from '../../../hooks/useRole';
@@ -487,7 +487,6 @@ export const BulkScheduleDialog = ({
         </Dialog>
     );
 };
-
 
 
 

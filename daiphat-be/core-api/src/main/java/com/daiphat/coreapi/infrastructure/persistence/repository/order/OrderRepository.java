@@ -3,6 +3,10 @@ package com.daiphat.coreapi.infrastructure.persistence.repository.order;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -17,8 +21,35 @@ import java.util.UUID;
 
 public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSpecificationExecutor<OrderEntity> {
 
+    @EntityGraph(attributePaths = {"user", "transactions"})
+    @Override
+    Optional<OrderEntity> findById(UUID id);
+
+    @EntityGraph(attributePaths = {"transactions"})
+    Page<OrderEntity> findAll(Specification<OrderEntity> spec, Pageable pageable);
+
     boolean existsByOrderCode(String orderCode);
 
+    /**
+     * Fetch only orderDetails (and nested serials). Do not include {@code transactions} here —
+     * Hibernate cannot simultaneously fetch two bags ({@code MultipleBagFetchException}).
+     */
+    @EntityGraph(attributePaths = {
+            "orderDetails",
+            "orderDetails.lotteryTicketSerial",
+            "orderDetails.replacedByTicketSerial"
+    })
+    List<OrderEntity> findByOrderCodeStartingWith(String orderCodePrefix);
+
+    @EntityGraph(attributePaths = {"orderDetails"})
+    java.util.Optional<OrderEntity> findByOrderCode(String orderCode);
+
+    /**
+     * Lock order for update. Fetch at most one bag collection to avoid
+     * {@code MultipleBagFetchException} (orderDetails + transactions).
+     * Payment time for refund grace falls back to TransactionRepository when needed.
+     */
+    @EntityGraph(attributePaths = {"user", "orderDetails"})
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<OrderEntity> findOrderEntityById(UUID id);
 
@@ -58,11 +89,20 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSp
     boolean existsOrderDetailByLotteryTicketId(@Param("lotteryTicketId") Long lotteryTicketId);
 
     @Query("""
-            select (count(od) > 0)
-            from OrderDetailEntity od
-            left join od.replacedByTicketSerial replacedSerial
-            where od.lotteryTicketSerial.id = :lotteryTicketSerialId
-               or replacedSerial.id = :lotteryTicketSerialId
+            select (
+                exists (
+                    select 1
+                    from OrderDetailEntity od
+                    left join od.replacedByTicketSerial replacedSerial
+                    where od.lotteryTicketSerial.id = :lotteryTicketSerialId
+                       or replacedSerial.id = :lotteryTicketSerialId
+                )
+                or exists (
+                    select 1
+                    from OrderDetailSerialEntity ods
+                    where ods.lotteryTicketSerial.id = :lotteryTicketSerialId
+                )
+            )
             """)
     boolean existsOrderDetailByLotteryTicketSerialId(@Param("lotteryTicketSerialId") Long lotteryTicketSerialId);
 }

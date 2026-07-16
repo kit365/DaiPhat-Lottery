@@ -1,5 +1,6 @@
 import 'package:daiphat_mobile/src/shared/network/api_client.dart';
 import '../models/order_type.dart';
+import '../models/refund_type.dart';
 import '../models/transaction_type.dart';
 
 class OrderService {
@@ -57,7 +58,20 @@ class OrderService {
     await _apiClient.post('/orders/$id/cancel');
   }
 
-  Future<void> refundOrder(String id) async {
-    await _apiClient.post('/orders/$id/refund');
+  Future<OrderRefundEligibilityResponse> getRefundEligibility(
+    String orderId,
+  ) async {
+    final response = await _apiClient.get(
+      '/orders/my-orders/$orderId/refund-eligibility',
+    );
+    final data = response['data'] as Map<String, dynamic>;
+    return OrderRefundEligibilityResponse.fromJson(data);
+  }
+
+  Future<void> requestOrderRefund(
+    String id,
+    CreateOrderRefundRequest request,
+  ) async {
+    await _apiClient.post('/orders/$id/refund', data: request.toJson());
   }
 }

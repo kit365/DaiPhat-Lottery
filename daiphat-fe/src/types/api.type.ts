@@ -26,3 +26,14 @@ export interface PageResponse<T> {
     pagination: PaginationMetadata;
     statusCounts?: Record<string, number>;
 }
+
+export interface BaseQueryParams {
+    page?: number;
+    limit?: number;
+    size?: number;
+    q?: string;
+    sortBy?: string;
+    direction?: string;
+    status?: string;
+    roleIds?: string[];
+}

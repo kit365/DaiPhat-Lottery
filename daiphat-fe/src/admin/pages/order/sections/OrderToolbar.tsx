@@ -148,6 +148,7 @@ export const OrderToolbar = ({
         const today = dayjs().format('YYYY-MM-DD');
         const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
         const firstDayOfMonth = dayjs().startOf('month').format('YYYY-MM-DD');
+        const thisMonthValue = `month:${firstDayOfMonth}:${today}`;
 
         return [
             {
@@ -167,12 +168,15 @@ export const OrderToolbar = ({
             },
             {
                 id: 'dateRange',
-                label: "Ngày tạo",
+                label: "Ngày / Thời gian tạo",
                 type: 'date' as const,
                 options: [
                     { value: today, label: `Hôm nay (${dayjs(today).format('DD/MM/YYYY')})` },
                     { value: yesterday, label: `Hôm qua (${dayjs(yesterday).format('DD/MM/YYYY')})` },
-                    { value: firstDayOfMonth, label: `Tháng này (Từ ${dayjs(firstDayOfMonth).format('DD/MM/YYYY')})` }
+                    {
+                        value: thisMonthValue,
+                        label: `Tháng này (${dayjs(firstDayOfMonth).format('DD/MM')} – ${dayjs(today).format('DD/MM/YYYY')})`,
+                    },
                 ]
             }
         ];
@@ -201,7 +205,22 @@ export const OrderToolbar = ({
                     selectedFilters={{
                         orderType: Array.isArray(filters.orderType) ? filters.orderType : (filters.orderType ? [filters.orderType] : []),
                         receiveType: Array.isArray(filters.receiveType) ? filters.receiveType : (filters.receiveType ? [filters.receiveType] : []),
-                        dateRange: filters.fromDate ? [filters.fromDate] : []
+                        dateRange: (() => {
+                            if (!filters.fromDate) return [];
+                            const firstDayOfMonth = dayjs().startOf('month').format('YYYY-MM-DD');
+                            const today = dayjs().format('YYYY-MM-DD');
+                            if (
+                                filters.fromDate === firstDayOfMonth &&
+                                filters.toDate === today &&
+                                filters.fromDate !== filters.toDate
+                            ) {
+                                return [`month:${firstDayOfMonth}:${today}`];
+                            }
+                            if (filters.toDate && filters.toDate !== filters.fromDate) {
+                                return [filters.fromDate, filters.toDate];
+                            }
+                            return [filters.fromDate];
+                        })(),
                     }}
                     onFilterChange={onFilterChange}
                     onClearAll={onClearFilters}

@@ -1,7 +1,6 @@
 import { apiApp } from '../../api';
 import Cookies from 'js-cookie';
 import { ApiResponse } from '../config/type';
-import { prefixAdmin } from '../constants/routes';
 import { STORAGE_KEYS } from '../../constants/storage.constants';
 
 const BASE_URL = `/lottery-tickets`;
@@ -17,9 +16,6 @@ const withAuth = () => {
     };
 };
 
-import { mockTickets } from '../data/tickets';
-import { mockCategories } from '../data/categories';
-import { mockProviders } from '../data/providers';
 
 export const getTickets = async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiApp.get(BASE_URL, { 
@@ -71,23 +67,35 @@ export const getTickets = async (params?: any): Promise<ApiResponse<any>> => {
     } as any;
 };
 
-export const getCreateTicketData = async (): Promise<ApiResponse<any>> => {
-    return {
-        success: true,
-        data: {
-            categoryTree: mockCategories.map(c => ({ id: c._id, label: c.name, value: c._id })),
-            attributes: [
-                { _id: "A1", name: "Kỳ mở thưởng" },
-                { _id: "A2", name: "Loại vé" }
-            ],
-            providers: mockProviders
-        }
-    } as any;
+/** Tạo vé mới (một dãy số) */
+export const createTicket = async (
+    data: any,
+    options?: { skipGlobalErrorToast?: boolean }
+): Promise<ApiResponse<any>> => {
+    const response = await apiApp.post(BASE_URL, data, {
+        ...withAuth(),
+        skipGlobalErrorToast: options?.skipGlobalErrorToast,
+    } as any);
+    return response.data;
 };
 
-/** Tạo vé mới */
-export const createTicket = async (data: any): Promise<ApiResponse<any>> => {
-    const response = await apiApp.post(BASE_URL, data, withAuth());
+/** Nhập nhiều dãy số trong cùng một dòng phiếu nhập lô */
+export const bulkCreateTickets = async (
+    data: {
+        importBatchLineId: number;
+        stationId: number | string;
+        drawDate?: string;
+        tickets: Array<{
+            numbers: string;
+            serials: Array<{ serialNumber: string; ticketImg?: string }>;
+        }>;
+    },
+    options?: { skipGlobalErrorToast?: boolean }
+): Promise<ApiResponse<any>> => {
+    const response = await apiApp.post(`${BASE_URL}/bulk-import`, data, {
+        ...withAuth(),
+        skipGlobalErrorToast: options?.skipGlobalErrorToast,
+    } as any);
     return response.data;
 };
 

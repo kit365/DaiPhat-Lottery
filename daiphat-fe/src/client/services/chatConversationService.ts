@@ -17,12 +17,18 @@ export const chatConversationService = {
     },
 
     getOpen: async (): Promise<ApiResponse<ConversationDetailResponse | null>> => {
-        const response = await apiApp.get<ApiResponse<ConversationDetailResponse | null>>(`${BASE_URL}/my/open`);
+        const response = await apiApp.get<ApiResponse<ConversationDetailResponse | null>>(
+            `${BASE_URL}/my/open`,
+            { skipGlobalErrorToast: true } as any
+        );
         return response.data;
     },
 
-    getDetail: async (conversationId: number): Promise<ApiResponse<ConversationDetailResponse>> => {
-        const response = await apiApp.get<ApiResponse<ConversationDetailResponse>>(`${BASE_URL}/my/${conversationId}`);
+    getDetail: async (conversationId: number): Promise<ApiResponse<ConversationDetailResponse | null>> => {
+        const response = await apiApp.get<ApiResponse<ConversationDetailResponse | null>>(
+            `${BASE_URL}/my/${conversationId}`,
+            { skipGlobalErrorToast: true } as any
+        );
         return response.data;
     },
 

@@ -12,6 +12,8 @@ type Props = {
     subheader?: string;
     expanded: boolean;
     onToggle: () => void;
+    /** When false, the card is always expanded and the toggle is hidden. */
+    collapsible?: boolean;
     children: React.ReactNode;
 };
 
@@ -20,14 +22,17 @@ export const CollapsibleCard = ({
     subheader,
     expanded,
     onToggle,
+    collapsible = true,
     children,
 }: Props) => {
+    const isExpanded = collapsible ? expanded : true;
+
     return (
         <Card>
             <CardHeader
                 title={title}
                 subheader={subheader}
-                onClick={onToggle}
+                onClick={collapsible ? onToggle : undefined}
                 slotProps={{
                     title: { sx: { fontWeight: 600, fontSize: "1.125rem" } },
                     subheader: {
@@ -35,20 +40,26 @@ export const CollapsibleCard = ({
                     },
                 }}
                 action={
-                    <IconButton
-                        sx={{
-                            transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
-                            transition: "transform 0.3s",
-                        }}
-                    >
-                        <ArrowIcon />
-                    </IconButton>
+                    collapsible ? (
+                        <IconButton
+                            sx={{
+                                transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)",
+                                transition: "transform 0.3s",
+                            }}
+                        >
+                            <ArrowIcon />
+                        </IconButton>
+                    ) : undefined
                 }
-                sx={{ padding: "24px 24px 0", mb: expanded ? "24px" : 0, cursor: "pointer" }}
+                sx={{
+                    padding: "24px 24px 0",
+                    mb: isExpanded ? "24px" : 0,
+                    cursor: collapsible ? "pointer" : "default",
+                }}
             />
 
-            <Collapse in={expanded} timeout="auto" unmountOnExit>
-                <Divider sx={{ borderColor: "#919eab33" }} />
+            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                {collapsible ? <Divider sx={{ borderColor: "#919eab33" }} /> : null}
                 {children}
             </Collapse>
         </Card>

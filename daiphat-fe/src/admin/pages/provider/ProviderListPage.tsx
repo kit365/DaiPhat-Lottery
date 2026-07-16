@@ -10,6 +10,7 @@ import { LoadingButton } from "../../components/ui/LoadingButton";
 import { useProviderList } from "./hooks/useProviderList";
 import { toast } from 'react-toastify';
 import { SyncProviderModal } from './sections/SyncProviderModal';
+import { SyncProviderPreviewModal, SyncPreviewParams } from './sections/SyncProviderPreviewModal';
 import { useState } from 'react';
 import { CanAccess } from "../../components/auth/CanAccess";
 import { PERMISSIONS } from "../../constants/permission.constants";
@@ -18,6 +19,10 @@ export const ProviderListPage = () => {
     const navigate = useNavigate();
     const providerHook = useProviderList();
     const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+    const [previewState, setPreviewState] = useState<{
+        preview: any;
+        params: SyncPreviewParams;
+    } | null>(null);
 
     return (
         <>
@@ -66,9 +71,19 @@ export const ProviderListPage = () => {
                 </div>
             </div>
             <ProviderList providerHook={providerHook} />
-            <SyncProviderModal 
-                open={isSyncModalOpen} 
-                onClose={() => setIsSyncModalOpen(false)} 
+            <SyncProviderModal
+                open={isSyncModalOpen}
+                onClose={() => setIsSyncModalOpen(false)}
+                onPreviewSuccess={(preview, params) => {
+                    setIsSyncModalOpen(false);
+                    setPreviewState({ preview, params });
+                }}
+            />
+            <SyncProviderPreviewModal
+                open={!!previewState}
+                onClose={() => setPreviewState(null)}
+                previewData={previewState?.preview}
+                syncParams={previewState?.params ?? null}
             />
         </>
     )

@@ -31,5 +31,7 @@ public interface PrizeStructureServicePort {
 
     PrizeStructureSyncResponse syncByRegion(SyncPrizeStructuresRequest request);
 
+    PrizeStructureSyncResponse previewSyncByRegion(SyncPrizeStructuresRequest request);
+
     void delete(String region, Long id);
 }

@@ -14,6 +14,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import RateReviewIcon from "@mui/icons-material/RateReview";
 import ChatIcon from "@mui/icons-material/Chat";
+import PaymentsIcon from "@mui/icons-material/Payments";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import FactCheckIcon from "@mui/icons-material/FactCheck";
 
@@ -79,6 +80,8 @@ export const menuManagementData = [
         permission: PERMISSIONS.TICKET.VIEW,
         children: [
             { id: "list", label: "Kho vé số", tKey: "admin.sidebar.list", path: ROUTES.ADMIN.TICKETS.LIST, permission: PERMISSIONS.TICKET.VIEW },
+            { id: "import-batch", label: "Nhập lô vé", path: ROUTES.ADMIN.IMPORT_BATCH.LIST, permission: PERMISSIONS.IMPORT_BATCH.VIEW },
+            { id: "supplier", label: "Nhà cung cấp", path: ROUTES.ADMIN.SUPPLIER.LIST, permission: PERMISSIONS.SUPPLIER.VIEW },
             { id: "provider", label: "Nhà đài", tKey: "admin.sidebar.provider", path: ROUTES.ADMIN.TICKETS.PROVIDER, permission: PERMISSIONS.PROVIDER.VIEW },
             { id: "region", label: "Vùng miền", path: ROUTES.ADMIN.TICKETS.REGION, permission: PERMISSIONS.REGION.VIEW },
         ]
@@ -92,6 +95,13 @@ export const menuManagementData = [
             { id: "list", label: "Danh sách đơn", path: ROUTES.ADMIN.ORDERS.LIST, permission: PERMISSIONS.ORDER.VIEW },
             { id: "create-counter", label: "Đơn tại quầy", path: ROUTES.ADMIN.ORDERS.CREATE_COUNTER, permission: PERMISSIONS.ORDER.CREATE },
         ]
+    },
+    {
+        id: "refunds",
+        label: "Hoàn tiền",
+        Icon: PaymentsIcon,
+        path: ROUTES.ADMIN.REFUNDS.LIST,
+        permission: PERMISSIONS.REFUND.VIEW,
     },
     {
         id: "chat",

@@ -103,10 +103,5 @@ export const authService = {
             params: { token }
         });
         return normalizeAuthResponse(response.data);
-    },
-
-    acceptInvite: async (token: string): Promise<ApiResponse<any>> => {
-        const response = await apiApp.post<ApiResponse<any>>(USER_ENDPOINTS.acceptInvite, { token });
-        return normalizeAuthResponse(response.data);
     }
 };

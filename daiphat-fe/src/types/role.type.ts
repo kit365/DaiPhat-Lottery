@@ -27,3 +27,11 @@ export interface CreateRoleRequest {
 }
 
 export interface UpdateRoleRequest extends Partial<CreateRoleRequest> {}
+
+
+export enum RoleEnum {
+    ADMIN = 'ROLE_ADMIN',
+    MEMBER = 'ROLE_MEMBER',
+    STREET_AGENT = 'ROLE_STREET_AGENT',
+    STAFF_OPERATOR = 'ROLE_STAFF_OPERATOR'
+}

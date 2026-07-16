@@ -8,7 +8,78 @@
     --client-gold: #FFD700;
     --client-navy: #102937;
     --client-radius-xl: 24px;
+    --client-text-primary: #212B36;
+    --client-text-secondary: #637381;
+    --client-text-muted: #919EAB;
+    --client-border: #E5E8EB;
+    --client-surface: #FFFFFF;
+    --client-surface-subtle: #F8F9FA;
+    --client-font-size-body: 0.875rem;
+    --client-font-size-caption: 0.8125rem;
     font-family: var(--client-font-main);
+}
+
+.client-theme .client-page {
+    background: var(--client-surface-subtle);
+    color: var(--client-text-primary);
+    font-family: var(--client-font-main);
+}
+
+.client-heading {
+    font-family: var(--client-font-display);
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--client-text-primary);
+}
+
+.client-section-heading {
+    font-family: var(--client-font-main);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.client-label {
+    font-family: var(--client-font-main);
+    font-size: var(--client-font-size-caption);
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.client-body {
+    font-size: var(--client-font-size-body);
+    line-height: 1.7;
+    color: var(--client-text-secondary);
+}
+
+.client-button {
+    cursor: pointer;
+    font-family: var(--client-font-main);
+    font-weight: 600;
+    font-size: var(--client-font-size-body);
+}
+
+.client-button:disabled {
+    cursor: not-allowed;
+}
+
+.client-input {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    border: 1px solid var(--client-border);
+    border-radius: 0.5rem;
+    background: var(--client-surface);
+    color: var(--client-text-primary);
+    font: inherit;
+    font-size: var(--client-font-size-body);
+    line-height: 1.5;
+}
+
+.client-input:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--client-primary) 25%, transparent);
+    outline-offset: 1px;
+    border-color: var(--client-primary);
 }
 
 /* Scoped utilities for non-refactored pages */
@@ -425,5 +496,3 @@
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
 }
-
-

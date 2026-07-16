@@ -49,6 +49,15 @@ export const PERMISSIONS = {
         EDIT: "ticket:edit",
         DELETE: "ticket:delete",
     },
+    IMPORT_BATCH: {
+        VIEW: "importBatch:view",
+        CREATE: "importBatch:create",
+    },
+    SUPPLIER: {
+        VIEW: "supplier:view",
+        CREATE: "supplier:create",
+        EDIT: "supplier:edit",
+    },
     PROVIDER: {
         VIEW: "provider:view",
         CREATE: "provider:create",
@@ -66,6 +75,10 @@ export const PERMISSIONS = {
         CREATE: "order:create",
         EDIT: "order:edit",
         DELETE: "order:delete",
+    },
+    REFUND: {
+        VIEW: "refund:view",
+        PROCESS: "refund:process",
     },
     REGION: {
         VIEW: "region:view",

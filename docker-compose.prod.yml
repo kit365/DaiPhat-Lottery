@@ -1,0 +1,151 @@
+# Trigger Deployment: Transition to Monolith 2026-07-05
+services:
+  postgres-db:
+    image: pgvector/pgvector:pg16
+    container_name: postgres-db
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    env_file:
+      - .env
+    volumes:
+      - ./daiphat-be/infra/postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U sa -d daiphat_core_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "dev.dozzle.group=Infrastructure"
+    networks:
+      - daiphat-network
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "dev.dozzle.group=Infrastructure"
+    networks:
+      - daiphat-network
+
+  mongo:
+    image: mongo:7
+    container_name: daiphat-mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${CORE_MONGO_ROOT_USERNAME:-core_admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${CORE_MONGO_ROOT_PASSWORD:-core_pass_2026}
+      MONGO_INITDB_DATABASE: ${CORE_MONGO_DB:-daiphat_core_db}
+    ports:
+      - "${CORE_MONGO_PORT:-27018}:27017"
+    volumes:
+      - mongo_data:/data/db
+    labels:
+      - "dev.dozzle.group=Infrastructure"
+    networks:
+      - daiphat-network
+
+  daiphat-api:
+    build:
+      context: ./daiphat-be
+      dockerfile: core-api/Dockerfile
+    container_name: daiphat-api
+    ports:
+      - "${CORE_API_PORT:-8082}:8082"
+    env_file:
+      - .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - CORE_POSTGRES_HOST=postgres-db
+      - CORE_DB_PORT=5432
+      - CORE_REDIS_HOST=redis
+      - CORE_REDIS_PORT=6379
+      - CORE_MONGO_HOST=mongo
+      - CORE_MONGO_PORT=27017
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "dev.dozzle.group=Backend"
+    networks:
+      - daiphat-network
+
+  daiphat-fe:
+    image: ghcr.io/kit365/daiphat-fe:latest
+    container_name: daiphat-fe
+    restart: always
+    env_file:
+      - .env
+    labels:
+      - "dev.dozzle.group=Frontend"
+    networks:
+      - daiphat-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./daiphat-be/infra/nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template
+      - ./daiphat-be/infra/certbot/conf:/etc/letsencrypt
+      - ./daiphat-be/infra/certbot/www:/var/www/certbot
+    env_file:
+      - .env
+    depends_on:
+      - daiphat-fe
+      - daiphat-api
+    labels:
+      - "dev.dozzle.group=Frontend"
+    networks:
+      - daiphat-network
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./daiphat-be/infra/certbot/conf:/etc/letsencrypt
+      - ./daiphat-be/infra/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    labels:
+      - "dev.dozzle.group=Infrastructure"
+    networks:
+      - daiphat-network
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8881:8080"
+    environment:
+      - DOZZLE_BASE=/dozzle
+    restart: always
+    labels:
+      - "dev.dozzle.group=Infrastructure"
+    networks:
+      - daiphat-network
+
+networks:
+  daiphat-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mongo_data:

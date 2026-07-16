@@ -273,7 +273,7 @@ class LotteryResultDetailServiceTest {
     @Test
     @DisplayName("[DP-571] checkWinning_resultNotFound")
     void checkWinning_resultNotFound() {
-        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).build());
+        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).region(com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel.builder().minNumber(1000).maxNumber(999999).build()).build());
         when(resultRepositoryPort.findByStationIdAndDrawDate(anyLong(), any())).thenReturn(Optional.empty());
         when(mapper.toWinningCheckResponse(any(), any(), any(), any(), anyBoolean(), anyBoolean(), anyBoolean(), any(), anyList())).thenReturn(LotteryWinningCheckResponse.builder().resultAvailable(false).winning(false).build());
         
@@ -285,7 +285,7 @@ class LotteryResultDetailServiceTest {
     @Test
     @DisplayName("[DP-571] checkWinning_resultFoundButNoDetails")
     void checkWinning_resultFoundButNoDetails() {
-        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).build());
+        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).region(com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel.builder().minNumber(1000).maxNumber(999999).build()).build());
         when(resultRepositoryPort.findByStationIdAndDrawDate(anyLong(), any())).thenReturn(Optional.of(resultModel));
         when(detailRepositoryPort.findByLotteryResultId(1L)).thenReturn(List.of());
         when(mapper.toWinningCheckResponse(any(), any(), any(), any(), anyBoolean(), anyBoolean(), anyBoolean(), any(), anyList())).thenReturn(LotteryWinningCheckResponse.builder().resultAvailable(true).winning(false).build());
@@ -298,7 +298,7 @@ class LotteryResultDetailServiceTest {
     @Test
     @DisplayName("[DP-571] checkWinning_notWinning")
     void checkWinning_notWinning() {
-        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).build());
+        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).region(com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel.builder().minNumber(1000).maxNumber(999999).build()).build());
         when(resultRepositoryPort.findByStationIdAndDrawDate(anyLong(), any())).thenReturn(Optional.of(resultModel));
         when(detailRepositoryPort.findByLotteryResultId(1L)).thenReturn(List.of(detailModel));
         when(prizeStructureServicePort.getModelsByRegion("MIEN_NAM")).thenReturn(List.of(prizeModel));
@@ -313,7 +313,7 @@ class LotteryResultDetailServiceTest {
     @Test
     @DisplayName("[DP-571] checkWinning_winningNormal")
     void checkWinning_winningNormal() {
-        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).build());
+        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).region(com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel.builder().minNumber(1000).maxNumber(999999).build()).build());
         when(resultRepositoryPort.findByStationIdAndDrawDate(anyLong(), any())).thenReturn(Optional.of(resultModel));
         when(detailRepositoryPort.findByLotteryResultId(1L)).thenReturn(List.of(detailModel));
         when(prizeStructureServicePort.getModelsByRegion("MIEN_NAM")).thenReturn(List.of(prizeModel));
@@ -333,7 +333,7 @@ class LotteryResultDetailServiceTest {
         PrizeStructureModel specialPrize = PrizeStructureModel.builder().id(101L).regionCode("MIEN_NAM").prizeCode("DB").prizeLevel(PrizeLevel.SPECIAL).build();
         PrizeStructureModel subSpecialPrize = PrizeStructureModel.builder().id(102L).regionCode("MIEN_NAM").prizeCode("PHU_DB").prizeLevel(PrizeLevel.SUB_SPECIAL).build();
         
-        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).build());
+        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).region(com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel.builder().minNumber(1000).maxNumber(999999).build()).build());
         when(resultRepositoryPort.findByStationIdAndDrawDate(anyLong(), any())).thenReturn(Optional.of(resultModel));
         when(detailRepositoryPort.findByLotteryResultId(1L)).thenReturn(List.of(specialDetail));
         when(prizeStructureServicePort.getModelsByRegion("MIEN_NAM")).thenReturn(List.of(specialPrize, subSpecialPrize));
@@ -354,7 +354,7 @@ class LotteryResultDetailServiceTest {
         PrizeStructureModel specialPrize = PrizeStructureModel.builder().id(101L).regionCode("MIEN_NAM").prizeCode("DB").prizeLevel(PrizeLevel.SPECIAL).build();
         PrizeStructureModel consolationPrize = PrizeStructureModel.builder().id(103L).regionCode("MIEN_NAM").prizeCode("KK").prizeLevel(PrizeLevel.CONSOLATION).build();
         
-        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).build());
+        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).region(com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel.builder().minNumber(1000).maxNumber(999999).build()).build());
         when(resultRepositoryPort.findByStationIdAndDrawDate(anyLong(), any())).thenReturn(Optional.of(resultModel));
         when(detailRepositoryPort.findByLotteryResultId(1L)).thenReturn(List.of(specialDetail));
         when(prizeStructureServicePort.getModelsByRegion("MIEN_NAM")).thenReturn(List.of(specialPrize, consolationPrize));
@@ -375,14 +375,14 @@ class LotteryResultDetailServiceTest {
         PrizeStructureModel specialPrize = PrizeStructureModel.builder().id(101L).regionCode("MIEN_NAM").prizeCode("DB").prizeLevel(PrizeLevel.SPECIAL).build();
         PrizeStructureModel subSpecialPrize = PrizeStructureModel.builder().id(102L).regionCode("MIEN_NAM").prizeCode("PHU_DB").prizeLevel(PrizeLevel.SUB_SPECIAL).build();
         
-        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).build());
+        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).region(com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel.builder().minNumber(1000).maxNumber(999999).build()).build());
         when(resultRepositoryPort.findByStationIdAndDrawDate(anyLong(), any())).thenReturn(Optional.of(resultModel));
         when(detailRepositoryPort.findByLotteryResultId(1L)).thenReturn(List.of(specialDetail));
         when(prizeStructureServicePort.getModelsByRegion("MIEN_NAM")).thenReturn(List.of(specialPrize, subSpecialPrize));
         when(mapper.toWinningCheckResponse(any(), any(), any(), any(), anyBoolean(), anyBoolean(), anyBoolean(), any(), anyList())).thenReturn(LotteryWinningCheckResponse.builder().resultAvailable(true).winning(false).matchedPrizes(List.of()).build());
 
         // Test length mismatch
-        var res1 = service.checkWinning(10L, java.time.LocalDate.now(), "123");
+        var res1 = service.checkWinning(10L, java.time.LocalDate.now(), "1234");
         assertThat(res1.winning()).isFalse();
 
         // Test null special winning number (we mock the DB to return a detail with null/blank winning number)
@@ -399,7 +399,7 @@ class LotteryResultDetailServiceTest {
         PrizeStructureModel specialPrize = PrizeStructureModel.builder().id(101L).regionCode("MIEN_NAM").prizeCode("DB").prizeLevel(PrizeLevel.SPECIAL).build();
         PrizeStructureModel consolationPrize = PrizeStructureModel.builder().id(103L).regionCode("MIEN_NAM").prizeCode("KK").prizeLevel(PrizeLevel.CONSOLATION).build();
         
-        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).build());
+        when(lotteryStationServicePort.getModelById(10L)).thenReturn(LotteryStationModel.builder().id(10L).region(com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel.builder().minNumber(1000).maxNumber(999999).build()).build());
         when(resultRepositoryPort.findByStationIdAndDrawDate(anyLong(), any())).thenReturn(Optional.of(resultModel));
         when(detailRepositoryPort.findByLotteryResultId(1L)).thenReturn(List.of(specialDetail));
         when(prizeStructureServicePort.getModelsByRegion("MIEN_NAM")).thenReturn(List.of(specialPrize, consolationPrize));

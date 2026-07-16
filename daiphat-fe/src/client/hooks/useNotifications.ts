@@ -7,9 +7,10 @@ import {
     markAllMyNotificationsAsRead,
     markMyNotificationAsRead
 } from "../services/notificationService";
+import { normalizePagination } from "../utils/pagination.util";
 
 const DEFAULT_LIMIT = 4;
-const CLIENT_NOTIFICATION_REFETCH_INTERVAL_MS = 30_000;
+const CLIENT_NOTIFICATION_REFETCH_INTERVAL_MS = 10_000;
 
 export const useNotifications = (limit: number = DEFAULT_LIMIT) => {
     const token = useAuthStore((state) => state.token);
@@ -19,17 +20,18 @@ export const useNotifications = (limit: number = DEFAULT_LIMIT) => {
         queryFn: ({ pageParam = 1 }) => getMyNotifications({ page: pageParam, limit }),
         initialPageParam: 1,
         enabled: !!token,
-        staleTime: 15_000,
+        staleTime: 5_000,
         gcTime: 1000 * 60 * 5,
         retry: false,
         refetchInterval: CLIENT_NOTIFICATION_REFETCH_INTERVAL_MS,
         refetchIntervalInBackground: false,
-        refetchOnWindowFocus: false,
+        refetchOnWindowFocus: true,
         getNextPageParam: (lastPage) => {
-            if (lastPage.pagination.isLast) {
+            const pagination = normalizePagination(lastPage.pagination);
+            if (pagination.isLast || pagination.currentPage >= pagination.totalPages) {
                 return undefined;
             }
-            return lastPage.pagination.currentPage + 1;
+            return pagination.currentPage + 1;
         },
     });
 

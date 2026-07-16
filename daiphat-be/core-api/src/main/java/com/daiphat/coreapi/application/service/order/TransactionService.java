@@ -16,11 +16,13 @@ import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategy;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategyFactory;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
+import com.daiphat.coreapi.domain.model.orders.OrderCancelReasonDefaults;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.shared.util.EnumOptionUtils;
@@ -40,13 +42,13 @@ import java.util.UUID;
 @Slf4j
 public class TransactionService implements TransactionServicePort {
 
-    @Value("${daiphat.order.pending-payment-ttl-seconds:600}")
+    @Value("${daiphat.order.pending-payment-ttl-seconds}")
     private long pendingPaymentTtlSeconds = 600;
 
-    @Value("${daiphat.order.payment-failure-max-attempts:3}")
+    @Value("${daiphat.order.payment-failure-max-attempts}")
     private int paymentFailureMaxAttempts = 3;
 
-    private static final String PAYMENT_TIMEOUT_REASON = "Quá thời gian thanh toán 10 phút.";
+    private static final String PAYMENT_TIMEOUT_REASON = OrderCancelReasonDefaults.SYSTEM_PAYMENT_TIMEOUT;
 
     private final OrderRepositoryPort orderRepositoryPort;
     private final UserLookupServicePort userLookupServicePort;
@@ -231,7 +233,7 @@ public class TransactionService implements TransactionServicePort {
 
             cancelPendingTransactions(order);
             releaseReservedTickets(order);
-            order.cancelPendingPayment(PAYMENT_TIMEOUT_REASON);
+            order.cancelPendingPayment(PAYMENT_TIMEOUT_REASON, OrderCancelType.SYSTEM_PAYMENT_TIMEOUT);
             orderRepositoryPort.save(order);
             paymentCountdownCachePort.clear(order.getId());
             expiredCount++;

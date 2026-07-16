@@ -1,4 +1,4 @@
-import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip } from "@mui/material"
+import { Box, Stack, ThemeProvider, useTheme, createTheme, Button, Typography, CircularProgress, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material"
 import { Breadcrumb } from "../../components/ui/Breadcrumb"
 import { Title } from "../../components/ui/Title"
 import { useState, useMemo } from "react"
@@ -6,8 +6,26 @@ import { CollapsibleCard } from "../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../constants/routes";
 import { useTicketDetail } from "./hooks/useTicket";
 import { useParams, useNavigate } from "react-router-dom";
+import { formatImportBatchCode } from "../import-batch/utils/importBatchCode";
 import dayjs from "dayjs";
 import { useProviders } from "../provider/hooks/useProvider";
+
+const getSerialStatusChipSx = (status?: string) => {
+    const normalized = (status || "").toUpperCase();
+    if (normalized === "IN_STOCK" || normalized === "AVAILABLE") {
+        return { color: "var(--palette-success-dark)", bgcolor: "var(--palette-success-lighter)" };
+    }
+    if (normalized === "RESERVED") {
+        return { color: "var(--palette-warning-dark)", bgcolor: "var(--palette-warning-lighter)" };
+    }
+    if (normalized === "SOLD") {
+        return { color: "var(--palette-info-dark)", bgcolor: "var(--palette-info-lighter)" };
+    }
+    if (normalized === "EXPIRED" || normalized === "DAMAGED" || normalized === "LOST" || normalized.includes("FAULT")) {
+        return { color: "var(--palette-error-dark)", bgcolor: "var(--palette-error-lighter)" };
+    }
+    return { color: "var(--palette-text-secondary)", bgcolor: "var(--palette-background-neutral)" };
+};
 
 export const TicketDetailPage = () => {
     const { id } = useParams<{ id: string }>();
@@ -103,11 +121,6 @@ export const TicketDetailPage = () => {
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Nhà đài</Typography>
                                     <Typography variant="body1" fontWeight={600}>{providerName}</Typography>
-                                </Box>
-
-                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
-                                    <Typography variant="caption" color="text.secondary">Mã lô nhập</Typography>
-                                    <Typography variant="body1" fontWeight={600}>{ticketDetail.batchCode || 'N/A'}</Typography>
                                 </Box>
 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
@@ -232,69 +245,175 @@ export const TicketDetailPage = () => {
                         expanded={expandedSerials}
                         onToggle={() => setExpandedSerials(!expandedSerials)}
                     >
-                        <Stack p="calc(3 * var(--spacing))" gap="calc(2 * var(--spacing))">
+                        <Box sx={{ px: { xs: 1.5, md: 2 }, pb: 2, pt: 0.5 }}>
                             {(ticketDetail.serials || []).length === 0 ? (
-                                <Typography variant="body2" color="text.secondary">Không có sê-ri.</Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ px: 1, py: 2 }}>
+                                    Không có sê-ri.
+                                </Typography>
                             ) : (
-                                (ticketDetail.serials || []).map((serial: any, index: number) => (
-                                    <Box
-                                        key={serial.id || index}
-                                        sx={{
-                                            p: 2.5,
-                                            border: "1px solid var(--palette-divider)",
-                                            borderRadius: 2,
-                                        }}
-                                    >
-                                        <Stack gap={2}>
-                                            <Typography variant="subtitle2" fontWeight={700}>
-                                                Sê-ri #{index + 1}
-                                            </Typography>
-                                            <Box
+                                <TableContainer>
+                                    <Table size="small" sx={{ minWidth: 720 }}>
+                                        <TableHead>
+                                            <TableRow
                                                 sx={{
-                                                    display: "grid",
-                                                    gridTemplateColumns: "repeat(12, 1fr)",
-                                                    gap: "calc(2 * var(--spacing))",
+                                                    bgcolor: "var(--palette-background-neutral)",
+                                                    "& .MuiTableCell-head": {
+                                                        borderBottom: "none",
+                                                        color: "var(--palette-text-secondary)",
+                                                        fontWeight: 600,
+                                                        fontSize: "0.75rem",
+                                                        py: 1,
+                                                        whiteSpace: "nowrap",
+                                                    },
                                                 }}
                                             >
-                                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
-                                                    <Typography variant="caption" color="text.secondary">Số sê-ri</Typography>
-                                                    <Typography variant="body2" fontWeight={600}>{serial.serialNumber || "N/A"}</Typography>
-                                                </Box>
-                                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
-                                                    <Typography variant="caption" color="text.secondary">Trạng thái</Typography>
-                                                    <Typography variant="body2" fontWeight={600}>{serial.statusDisplayName || serial.status || "N/A"}</Typography>
-                                                </Box>
-                                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
-                                                    <Typography variant="caption" color="text.secondary">Ngày tạo</Typography>
-                                                    <Typography variant="body2" fontWeight={600}>
-                                                        {serial.createdAt ? dayjs(serial.createdAt).format("DD/MM/YYYY HH:mm") : "N/A"}
-                                                    </Typography>
-                                                </Box>
-                                                <Box sx={{ gridColumn: { xs: "span 12", md: "span 3" } }}>
-                                                    <Typography variant="caption" color="text.secondary">Người tạo</Typography>
-                                                    <Typography variant="body2" fontWeight={600}>{serial.createdBy || "N/A"}</Typography>
-                                                </Box>
-                                            </Box>
-
-                                            {serial.ticketImg ? (
-                                                <Box
-                                                    component="img"
-                                                    src={serial.ticketImg}
-                                                    sx={{
-                                                        width: 160,
-                                                        maxWidth: "100%",
-                                                        height: 160,
-                                                        objectFit: "cover",
-                                                        borderRadius: 1.5,
-                                                        border: "1px solid #DFE1E6",
-                                                    }}
-                                                />
-                                            ) : null}
-                                        </Stack>
-                                    </Box>
-                                ))
+                                                <TableCell width={48} align="center">#</TableCell>
+                                                <TableCell width={56}>Ảnh</TableCell>
+                                                <TableCell>Số sê-ri</TableCell>
+                                                <TableCell>Mã lô nhập</TableCell>
+                                                <TableCell>Trạng thái</TableCell>
+                                                <TableCell>Ngày tạo</TableCell>
+                                                <TableCell>Người tạo</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {(ticketDetail.serials || []).map((serial: any, index: number) => {
+                                                const statusSx = getSerialStatusChipSx(serial.status);
+                                                return (
+                                                    <TableRow
+                                                        key={serial.id || index}
+                                                        hover
+                                                        sx={{
+                                                            "&:hover": { bgcolor: "var(--palette-action-hover)" },
+                                                            "& .MuiTableCell-root": {
+                                                                borderBottom: "1px dashed var(--palette-divider)",
+                                                                py: 1,
+                                                                verticalAlign: "middle",
+                                                            },
+                                                        }}
+                                                    >
+                                                        <TableCell align="center">
+                                                            <Typography
+                                                                variant="caption"
+                                                                sx={{ fontWeight: 700, color: "var(--palette-text-secondary)" }}
+                                                            >
+                                                                {index + 1}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {serial.ticketImg ? (
+                                                                <Box
+                                                                    component="img"
+                                                                    src={serial.ticketImg}
+                                                                    alt={`Sê-ri ${serial.serialNumber || index + 1}`}
+                                                                    sx={{
+                                                                        width: 44,
+                                                                        height: 32,
+                                                                        objectFit: "cover",
+                                                                        borderRadius: "6px",
+                                                                        border: "1px solid var(--palette-divider)",
+                                                                        display: "block",
+                                                                        bgcolor: "var(--palette-background-neutral)",
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <Box
+                                                                    sx={{
+                                                                        width: 44,
+                                                                        height: 32,
+                                                                        borderRadius: "6px",
+                                                                        border: "1px dashed var(--palette-divider)",
+                                                                        bgcolor: "var(--palette-background-neutral)",
+                                                                        display: "flex",
+                                                                        alignItems: "center",
+                                                                        justifyContent: "center",
+                                                                    }}
+                                                                >
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        sx={{ fontSize: "0.625rem", color: "text.disabled", lineHeight: 1 }}
+                                                                    >
+                                                                        N/A
+                                                                    </Typography>
+                                                                </Box>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Typography
+                                                                variant="body2"
+                                                                sx={{
+                                                                    fontWeight: 700,
+                                                                    fontFamily: "monospace",
+                                                                    fontSize: "0.8125rem",
+                                                                    color: "var(--palette-text-primary)",
+                                                                }}
+                                                            >
+                                                                {serial.serialNumber || "N/A"}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Typography
+                                                                variant="body2"
+                                                                sx={{
+                                                                    fontWeight: 600,
+                                                                    fontSize: "0.8125rem",
+                                                                    color: "var(--palette-text-primary)",
+                                                                }}
+                                                            >
+                                                                {formatImportBatchCode(serial.batchCode)}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Chip
+                                                                label={serial.statusDisplayName || serial.status || "N/A"}
+                                                                size="small"
+                                                                sx={{
+                                                                    height: 22,
+                                                                    borderRadius: "var(--shape-borderRadius-sm)",
+                                                                    fontWeight: 700,
+                                                                    fontSize: "0.6875rem",
+                                                                    ...statusSx,
+                                                                }}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Typography
+                                                                variant="body2"
+                                                                sx={{ fontSize: "0.8125rem", color: "var(--palette-text-primary)" }}
+                                                            >
+                                                                {serial.createdAt
+                                                                    ? dayjs(serial.createdAt).format("DD/MM/YYYY")
+                                                                    : "N/A"}
+                                                            </Typography>
+                                                            {serial.createdAt && (
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    sx={{ color: "text.secondary", display: "block", lineHeight: 1.2 }}
+                                                                >
+                                                                    {dayjs(serial.createdAt).format("HH:mm")}
+                                                                </Typography>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Typography
+                                                                variant="body2"
+                                                                sx={{
+                                                                    fontSize: "0.8125rem",
+                                                                    fontWeight: 500,
+                                                                    color: "var(--palette-text-primary)",
+                                                                }}
+                                                            >
+                                                                {serial.createdBy || "N/A"}
+                                                            </Typography>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
                             )}
-                        </Stack>
+                        </Box>
                     </CollapsibleCard>
 
                     <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>

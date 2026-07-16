@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.dto.response.order;
 
+import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
@@ -25,11 +26,16 @@ public record OrderResponse(
         LocalDateTime expectedPickupAt,
         LocalDateTime cancelledAt,
         String cancelReason,
+        OrderCancelType cancelType,
         LocalDateTime actualPickedUpAt,
         UUID pickedUpBy,
         List<OrderDetailResponse> orderDetails,
         List<TransactionResponse> transactions,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Boolean refundEligible,
+        Long refundRemainingSeconds,
+        Integer refundGraceMinutes,
+        LocalDateTime refundPaymentSuccessAt
 ) {
 }
