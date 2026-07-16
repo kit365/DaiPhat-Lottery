@@ -43,8 +43,8 @@ export const useChatConversation = () => {
                 return null;
             }
             return response.data ?? null;
-        } catch (error: any) {
-            toast.error(getErrorMessage(error, 'Không thể tải cuộc trò chuyện.'));
+        } catch {
+            // No open conversation / transient failure — empty chat state is fine.
             return null;
         } finally {
             setIsLoadingOpen(false);
@@ -134,6 +134,11 @@ export const useChatConversation = () => {
             }
             return response.data;
         } catch (error: any) {
+            const status = error?.response?.status;
+            // Missing/stale conversation is an empty state, not a user-facing error.
+            if (status === 404) {
+                return null;
+            }
             toast.error(getErrorMessage(error, 'Không thể tải cuộc trò chuyện.'));
             return null;
         }

@@ -119,14 +119,14 @@ public enum ErrorCode {
     REFUND_REQUEST_INVALID_AMOUNT("ORD_026", "Số tiền hoàn phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
     REFUND_REQUEST_ORDER_DETAIL_REQUIRED("ORD_027", "Cần chỉ định chi tiết đơn hàng cho loại hoàn từng vé.", HttpStatus.BAD_REQUEST),
     VIETQR_BANK_LIST_UNAVAILABLE("ORD_028", "Không thể lấy danh sách ngân hàng từ VietQR.", HttpStatus.BAD_GATEWAY),
-    REFUND_REQUEST_CANNOT_CANCEL("ORD_029", "Chỉ có thể hủy yêu cầu hoàn tiền đang chờ duyệt.", HttpStatus.BAD_REQUEST),
     REFUND_REQUEST_PARTIAL_NOT_ALLOWED("ORD_030", "Khách hàng chỉ được yêu cầu hoàn tiền toàn bộ đơn hàng.", HttpStatus.BAD_REQUEST),
     USER_BANK_ACCOUNT_TERMS_NOT_ACCEPTED("ORD_031", "Bạn cần xác nhận cam kết thông tin tài khoản ngân hàng.", HttpStatus.BAD_REQUEST),
     REFUND_REQUEST_USE_ORDER_REFUND_API("ORD_032", "Vui lòng sử dụng chức năng hủy đơn & hoàn tiền trên chi tiết đơn hàng đã thanh toán.", HttpStatus.BAD_REQUEST),
     REFUND_WINDOW_CLOSED("ORD_033", "Đã quá giờ chốt hủy đơn trong ngày (14:00).", HttpStatus.BAD_REQUEST),
     REFUND_WINDOW_EXPIRED("ORD_034", "Đã quá thời gian ân hạn hủy đơn, không thể yêu cầu hoàn tiền.", HttpStatus.BAD_REQUEST),
     REFUND_ORDER_NOT_PAID("ORD_035", "Chỉ có thể hủy & hoàn tiền đơn hàng đã thanh toán.", HttpStatus.BAD_REQUEST),
-    REFUND_ORDER_ALREADY_REQUESTED("ORD_036", "Đơn hàng đã có yêu cầu hoàn tiền đang xử lý.", HttpStatus.BAD_REQUEST),
+    REFUND_ORDER_ALREADY_REQUESTED("ORD_036", "Đơn hàng đã có yêu cầu hoàn tiền.", HttpStatus.BAD_REQUEST),
+    REFUND_DAILY_LIMIT_EXCEEDED("ORD_037", "Bạn đã đạt giới hạn số yêu cầu hoàn tiền trong ngày. Vui lòng thử lại vào ngày mai.", HttpStatus.BAD_REQUEST),
 
     // Lottery Errors
     // Lottery Product Errors

@@ -4,6 +4,7 @@ import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.notification.NotificationReferenceAvailabilityResponse;
 import com.daiphat.coreapi.application.dto.response.notification.NotificationResponse;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,22 @@ public class NotificationController {
         return ApiResponse.success(
                 null,
                 notificationServicePort.getMyNotifications(principal.getId(), page, limit)
+        );
+    }
+
+    @GetMapping("/{id}/reference")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<NotificationReferenceAvailabilityResponse> resolveMyNotificationReference(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @PathVariable Long id
+    ) {
+        NotificationReferenceAvailabilityResponse data =
+                notificationServicePort.resolveMyNotificationReference(principal.getId(), id);
+        return ApiResponse.success(
+                data.available()
+                        ? "Tham chiếu thông báo còn hiệu lực."
+                        : data.message(),
+                data
         );
     }
 

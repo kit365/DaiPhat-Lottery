@@ -4,7 +4,6 @@ import { refundAdminApi } from '../../../api/refund.api';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
 import {
     GetStaffRefundsParams,
-    RejectRefundRequestRequest,
     TransferRefundRequestRequest,
 } from '../../../../types/refund.type';
 
@@ -30,49 +29,6 @@ export const useGetStaffRefundDetail = (id: number) => {
     });
 };
 
-export const useApproveRefund = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: (id: number) => refundAdminApi.approveRefund(id),
-        onSuccess: (response, id) => {
-            if (response.success) {
-                toast.success(response.message || 'Duyệt yêu cầu hoàn tiền thành công');
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUND_DETAIL, id] });
-            } else {
-                toast.error(response.message || 'Không thể duyệt yêu cầu');
-            }
-        },
-        onError: (error: any) => {
-            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
-        },
-    });
-};
-
-export const useRejectRefund = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: ({ id, data }: { id: number; data: RejectRefundRequestRequest }) =>
-            refundAdminApi.rejectRefund(id, data),
-        onSuccess: (response, variables) => {
-            if (response.success) {
-                toast.success(response.message || 'Đã từ chối yêu cầu hủy');
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
-                queryClient.invalidateQueries({
-                    queryKey: [QUERY_KEYS.ADMIN_REFUND_DETAIL, variables.id],
-                });
-            } else {
-                toast.error(response.message || 'Không thể từ chối yêu cầu');
-            }
-        },
-        onError: (error: any) => {
-            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
-        },
-    });
-};
-
 export const useTransferRefund = () => {
     const queryClient = useQueryClient();
 
@@ -88,6 +44,60 @@ export const useTransferRefund = () => {
                 });
             } else {
                 toast.error(response.message || 'Không thể xác nhận chuyển khoản');
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        },
+    });
+};
+
+export const useRequestBankInfoUpdate = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, operatorNote }: { id: number; operatorNote: string }) =>
+            refundAdminApi.requestBankInfoUpdate(id, { operatorNote }),
+        onSuccess: (response, variables) => {
+            if (response.success) {
+                toast.success(
+                    response.message || 'Đã gửi yêu cầu cập nhật tài khoản ngân hàng cho khách hàng'
+                );
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.ADMIN_REFUND_DETAIL, variables.id],
+                });
+            } else {
+                toast.error(
+                    response.message || 'Không thể gửi yêu cầu cập nhật tài khoản ngân hàng'
+                );
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        },
+    });
+};
+
+export const useCancelOrderWithRefund = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({
+            orderId,
+            ...payload
+        }: {
+            orderId: string;
+        } & import('../../../types/refund.type').StaffCancelOrderWithRefundRequest) =>
+            refundAdminApi.cancelOrderWithRefund(orderId, payload),
+        onSuccess: (response) => {
+            if (response.success) {
+                toast.success(response.message || 'Đã hủy đơn và tạo yêu cầu hoàn tiền');
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_REFUNDS] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDERS] });
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDER_DETAIL] });
+            } else {
+                toast.error(response.message || 'Không thể hủy đơn với hoàn tiền');
             }
         },
         onError: (error: any) => {

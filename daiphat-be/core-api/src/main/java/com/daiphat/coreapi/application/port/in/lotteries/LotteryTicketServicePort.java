@@ -61,4 +61,10 @@ public interface LotteryTicketServicePort {
     void returnSoldTicketForOrder(Long ticketSerialId);
 
     int expireDueTickets();
+    java.util.List<com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey> findAvailableReplacementsInBulk(
+            java.util.Collection<Long> stationIds,
+            java.util.Collection<java.time.LocalDate> drawDates,
+            java.util.Collection<String> numbers);
+
+    java.util.List<com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse> getReplacementCandidates(Long stationId, String numbers, java.time.LocalDate drawDate);
 }

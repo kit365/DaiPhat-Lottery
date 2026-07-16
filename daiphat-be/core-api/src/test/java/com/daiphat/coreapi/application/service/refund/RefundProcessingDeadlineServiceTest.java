@@ -43,7 +43,7 @@ class RefundProcessingDeadlineServiceTest {
     @DisplayName("evaluate returns ON_TIME when plenty of time remains")
     void evaluate_onTime() {
         RefundRequestModel refund = RefundRequestModel.builder()
-                .status(RefundRequestStatus.PENDING)
+                .status(RefundRequestStatus.READY_TO_PAY)
                 .createdAt(LocalDateTime.now().minusDays(1))
                 .build();
 
@@ -55,7 +55,7 @@ class RefundProcessingDeadlineServiceTest {
     @Test
     @DisplayName("evaluate: deadline equals refundRequest.createdAt plus configured days")
     void evaluate_deadlineFromRefundCreatedAt() {
-        LocalDateTime createdAt = LocalDateTime.of(2026, 6, 26, 15, 6);
+        LocalDateTime createdAt = LocalDateTime.now().minusDays(1);
         RefundRequestModel refund = RefundRequestModel.builder()
                 .status(RefundRequestStatus.READY_TO_PAY)
                 .createdAt(createdAt)

@@ -4,9 +4,9 @@ import { STORAGE_KEYS } from '../../constants/storage.constants';
 import { ApiResponse, PageResponse } from '../../types/api.type';
 import {
     GetStaffRefundsParams,
-    RejectRefundRequestRequest,
     RefundRequestAdminDetailResponse,
     RefundRequestResponse,
+    StaffCancelOrderWithRefundRequest,
     TransferRefundRequestRequest,
 } from '../../types/refund.type';
 
@@ -34,24 +34,35 @@ export const refundAdminApi = {
         return response.data;
     },
 
-    approveRefund: async (id: number): Promise<ApiResponse<RefundRequestResponse>> => {
-        const response = await apiApp.patch(`${STAFF_BASE}/${id}/approve`, {}, withAuth());
-        return response.data;
-    },
-
-    rejectRefund: async (
-        id: number,
-        data: RejectRefundRequestRequest
-    ): Promise<ApiResponse<RefundRequestResponse>> => {
-        const response = await apiApp.patch(`${STAFF_BASE}/${id}/reject`, data, withAuth());
-        return response.data;
-    },
-
     transferRefund: async (
         id: number,
         data: TransferRefundRequestRequest
     ): Promise<ApiResponse<RefundRequestResponse>> => {
         const response = await apiApp.patch(`${STAFF_BASE}/${id}/transfer`, data, withAuth());
+        return response.data;
+    },
+
+    requestBankInfoUpdate: async (
+        id: number,
+        data: { operatorNote: string }
+    ): Promise<ApiResponse<RefundRequestResponse>> => {
+        const response = await apiApp.patch(
+            `${STAFF_BASE}/${id}/request-bank-info-update`,
+            data,
+            withAuth()
+        );
+        return response.data;
+    },
+
+    cancelOrderWithRefund: async (
+        orderId: string,
+        data: StaffCancelOrderWithRefundRequest
+    ): Promise<ApiResponse<RefundRequestResponse>> => {
+        const response = await apiApp.post(
+            `/staff/orders/${orderId}/cancel-with-refund`,
+            data,
+            withAuth()
+        );
         return response.data;
     },
 

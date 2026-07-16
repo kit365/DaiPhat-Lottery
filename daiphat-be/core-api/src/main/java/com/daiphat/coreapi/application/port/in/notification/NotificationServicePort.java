@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.port.in.notification;
 
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.notification.NotificationReferenceAvailabilityResponse;
 import com.daiphat.coreapi.application.dto.response.notification.NotificationResponse;
 import com.daiphat.coreapi.domain.model.notifications.NotificationModel;
 
@@ -26,4 +27,6 @@ public interface NotificationServicePort {
     PageResponse<NotificationResponse> getMyNotifications(UUID userId, int page, int limit);
 
     PageResponse<NotificationResponse> getMyAdminNotifications(UUID userId, int page, int limit);
+
+    NotificationReferenceAvailabilityResponse resolveMyNotificationReference(UUID userId, Long notificationId);
 }

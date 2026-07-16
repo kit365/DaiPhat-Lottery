@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { useGetMyRefunds, useGetRefundStatuses } from '../../../hooks/useRefund';
 import { RefundRequestStatus, RefundType } from '../../../../types/refund.type';
 import { RefundStatusBadge } from '../../../components/refund/RefundStatusBadge';
+import { ProfileTablePagination } from '../components/ProfileTablePagination';
 
 const REFUND_TYPE_LABELS: Record<RefundType, string> = {
     [RefundType.FULL_ORDER]: 'Hoàn cả đơn',
@@ -33,11 +34,13 @@ export const RefundsTab = () => {
 
     const refundTabs: { value: RefundRequestStatus | 'ALL'; label: string; count?: number }[] = [
         { value: 'ALL', label: 'Tất cả', count: statusCounts.all },
-        ...statusOptions.map((s) => ({
-            value: s.value as RefundRequestStatus,
-            label: s.label,
-            count: statusCounts[s.value]
-        }))
+        ...statusOptions
+            .filter((s) => Object.values(RefundRequestStatus).includes(s.value as RefundRequestStatus))
+            .map((s) => ({
+                value: s.value as RefundRequestStatus,
+                label: s.label,
+                count: statusCounts[s.value]
+            }))
     ];
 
     return (
@@ -113,7 +116,13 @@ export const RefundsTab = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                refundData?.data?.recordList?.map((refund) => (
+                                refundData?.data?.recordList?.map((refund) => {
+                                    const orderLabel = refund.orderCode?.trim()
+                                        || (refund.orderId
+                                            ? `${refund.orderId.slice(0, 8).toUpperCase()}...`
+                                            : null);
+
+                                    return (
                                     <tr
                                         key={refund.id}
                                         className="border-b border-[#F4F6F8] hover:bg-[#FAFBFC] transition-colors cursor-pointer"
@@ -128,17 +137,23 @@ export const RefundsTab = () => {
                                             </span>
                                         </td>
                                         <td className="py-4 px-5 align-top">
-                                            <Link
-                                                to={`/profile/orders/${refund.orderId}`}
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="text-[14px] text-[#2065D1] hover:underline font-medium"
-                                            >
-                                                {refund.orderId.slice(0, 8).toUpperCase()}...
-                                            </Link>
+                                            {refund.orderId ? (
+                                                <Link
+                                                    to={`/profile/orders/${refund.orderId}`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="text-[14px] text-[#2065D1] hover:underline font-medium"
+                                                >
+                                                    {orderLabel}
+                                                </Link>
+                                            ) : (
+                                                <span className="text-[14px] text-[#919EAB] font-medium">
+                                                    {orderLabel || '—'}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="py-4 px-5 align-top">
                                             <span className="text-[14px] font-bold text-[#212B36]">
-                                                {refund.refundAmount.toLocaleString('vi-VN')}đ
+                                                {(refund.refundAmount ?? 0).toLocaleString('vi-VN')}đ
                                             </span>
                                         </td>
                                         <td className="py-4 px-5 align-top">
@@ -162,48 +177,19 @@ export const RefundsTab = () => {
                                             </button>
                                         </td>
                                     </tr>
-                                ))
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
                 </div>
 
-                {refundData?.data?.pagination && refundData.data.pagination.totalPages > 1 && (
-                    <div className="flex items-center justify-between p-5 border-t border-[#E5E8EB]">
-                        <div className="text-[14px] text-[#637381]">
-                            Hiển thị {(page - 1) * 10 + 1} đến{' '}
-                            {Math.min(page * 10, refundData.data.pagination.totalRecords)} trong tổng số{' '}
-                            {refundData.data.pagination.totalRecords}
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <button
-                                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                disabled={refundData.data.pagination.isFirst}
-                                className={`w-8 h-8 rounded border border-[#E5E8EB] flex items-center justify-center transition-colors ${
-                                    refundData.data.pagination.isFirst
-                                        ? 'text-[#C4CDD5] cursor-not-allowed bg-[#F9FAFB]'
-                                        : 'text-[#919EAB] hover:bg-[#F4F6F8] cursor-pointer'
-                                }`}
-                            >
-                                <i className="fa-solid fa-chevron-left text-[12px]"></i>
-                            </button>
-                            <button className="w-8 h-8 rounded bg-[#ee1314] flex items-center justify-center text-white font-medium text-[13px] cursor-pointer">
-                                {page}
-                            </button>
-                            <button
-                                onClick={() => setPage((p) => Math.min(refundData?.data?.pagination?.totalPages ?? 1, p + 1))}
-                                disabled={refundData?.data?.pagination?.isLast}
-                                className={`w-8 h-8 rounded border border-[#E5E8EB] flex items-center justify-center transition-colors ${
-                                    refundData.data.pagination.isLast
-                                        ? 'text-[#C4CDD5] cursor-not-allowed bg-[#F9FAFB]'
-                                        : 'text-[#919EAB] hover:bg-[#F4F6F8] cursor-pointer'
-                                }`}
-                            >
-                                <i className="fa-solid fa-chevron-right text-[12px]"></i>
-                            </button>
-                        </div>
-                    </div>
-                )}
+                <ProfileTablePagination
+                    page={page}
+                    pageSize={10}
+                    pagination={refundData?.data?.pagination}
+                    onPageChange={setPage}
+                />
             </div>
         </div>
     );

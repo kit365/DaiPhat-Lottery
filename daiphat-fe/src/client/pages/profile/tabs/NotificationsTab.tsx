@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Newspaper, ShieldCheck, Check, Trash2 } from "lucide-react";
 import {
@@ -8,7 +8,8 @@ import {
     useNotifications
 } from "../../../hooks/useNotifications";
 import { NotificationResponse, NOTIFICATION_TYPE } from "../../../../types/notifications.type";
-import { getNotificationPath } from "../../../utils/notification.util";
+import { resolveNotificationNavigation } from "../../../utils/notification.util";
+import { UnavailableReferenceState } from "../../../components/notification/UnavailableReferenceState";
 
 const formatDateTime = (value?: string) => {
     if (!value) return "";
@@ -71,7 +72,9 @@ const getTypeMeta = (type: NotificationResponse["type"]) => {
 
 export const NotificationsTab = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
+    const [unavailableMessage, setUnavailableMessage] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const loadMoreRef = useRef<HTMLDivElement | null>(null);
     const {
@@ -92,6 +95,14 @@ export const NotificationsTab = () => {
             : allNotifications,
         [activeTab, allNotifications]
     );
+
+    useEffect(() => {
+        const state = location.state as { unavailableMessage?: string } | null;
+        if (state?.unavailableMessage) {
+            setUnavailableMessage(state.unavailableMessage);
+            navigate(location.pathname, { replace: true, state: null });
+        }
+    }, [location.state, location.pathname, navigate]);
 
     useEffect(() => {
         if (activeTab !== 'all') {
@@ -149,6 +160,22 @@ export const NotificationsTab = () => {
                 </div>
             </div>
 
+            {unavailableMessage && (
+                <div className="mb-6">
+                    <UnavailableReferenceState
+                        message={unavailableMessage}
+                        primaryLabel="Đã hiểu"
+                        onPrimaryClick={() => setUnavailableMessage(null)}
+                        secondaryTo="/profile/orders"
+                        secondaryLabel="Xem đơn hàng"
+                        onSecondaryClick={() => {
+                            setUnavailableMessage(null);
+                            navigate('/profile/orders');
+                        }}
+                    />
+                </div>
+            )}
+
             {/* Tabs */}
             <div className="flex gap-6 border-b border-[#E5E8EB] mb-6">
                 <button
@@ -195,17 +222,21 @@ export const NotificationsTab = () => {
                         {notifications.map((notification) => {
                             const meta = getTypeMeta(notification.type);
                             const IconComp = meta.icon;
-                            const path = getNotificationPath(notification);
 
                             return (
                                 <div
                                     key={notification.notificationId}
-                                    onClick={() => {
+                                    onClick={async () => {
                                         if (!notification.isRead) {
                                             markMyNotificationAsRead(notification.notificationId);
                                         }
-                                        if (path) {
-                                            navigate(path);
+                                        const result = await resolveNotificationNavigation(notification);
+                                        if (result.kind === "navigate") {
+                                            navigate(result.path);
+                                            return;
+                                        }
+                                        if (result.kind === "unavailable") {
+                                            setUnavailableMessage(result.message);
                                         }
                                     }}
                                     className={`rounded-2xl border p-4 transition-colors ${

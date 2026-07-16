@@ -1,11 +1,13 @@
 import { useTranslation } from "react-i18next";
-import { useState, useEffect, memo } from "react";
-import { ListItemIcon, Collapse, ButtonBase, Popover, Paper } from '@mui/material';
+import { useState, useEffect, memo, type ReactNode } from "react";
+import { ListItemIcon, Collapse, ButtonBase, Popover, Paper, Badge } from '@mui/material';
 import { Link, useLocation } from "react-router-dom";
 import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { hasPermission, resolveRoleCode } from "../../../utils/permission.util";
+import { useRefundPendingCount } from "../../../hooks/useRefundPendingCount";
+import { usePreparingOrderCount } from "../../../hooks/usePreparingOrderCount";
 
 
 const SubNavItem = ({ child, isSubActive, t }: any) => {
@@ -24,11 +26,87 @@ const SubNavItem = ({ child, isSubActive, t }: any) => {
     );
 };
 
+const sidebarBadgeSx = {
+    position: 'static' as const,
+    transform: 'none',
+    backgroundColor: '#FF5630',
+    color: '#fff',
+    fontWeight: 700,
+    fontSize: '0.65rem',
+    minWidth: 18,
+    height: 18,
+    borderRadius: '9px',
+    px: 0.5,
+};
+
+const sidebarIconBadgeSx = {
+    backgroundColor: '#FF5630',
+    color: '#fff',
+    fontWeight: 700,
+    fontSize: '0.6rem',
+    minWidth: 16,
+    height: 16,
+    top: 2,
+    right: 2,
+};
+
+/** Isolated so only the Refund menu item polls pending counts. */
+const RefundPendingBadgeLabel = () => {
+    const { pendingCount } = useRefundPendingCount();
+    if (pendingCount <= 0) return null;
+    return (
+        <Badge
+            badgeContent={pendingCount > 99 ? '99+' : pendingCount}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
+        />
+    );
+};
+
+const RefundPendingBadgeIcon = ({ children }: { children: ReactNode }) => {
+    const { pendingCount } = useRefundPendingCount();
+    return (
+        <Badge
+            badgeContent={pendingCount > 99 ? '99+' : pendingCount}
+            invisible={pendingCount <= 0}
+            sx={{ '& .MuiBadge-badge': sidebarIconBadgeSx }}
+        >
+            {children}
+        </Badge>
+    );
+};
+
+/** Isolated so only the Orders menu item polls PREPARING counts. */
+const PreparingOrderBadgeLabel = () => {
+    const { preparingCount } = usePreparingOrderCount();
+    if (preparingCount <= 0) return null;
+    return (
+        <Badge
+            badgeContent={preparingCount > 99 ? '99+' : preparingCount}
+            sx={{ '& .MuiBadge-badge': sidebarBadgeSx }}
+        />
+    );
+};
+
+const PreparingOrderBadgeIcon = ({ children }: { children: ReactNode }) => {
+    const { preparingCount } = usePreparingOrderCount();
+    return (
+        <Badge
+            badgeContent={preparingCount > 99 ? '99+' : preparingCount}
+            invisible={preparingCount <= 0}
+            sx={{ '& .MuiBadge-badge': sidebarIconBadgeSx }}
+        >
+            {children}
+        </Badge>
+    );
+};
+
 export const NavItem = memo(({ item }: { item: any }) => {
     const { t } = useTranslation();
     const { pathname } = useLocation();
     const { isOpen } = useSidebar();
     const { user } = useAuthStore();
+    const showRefundBadge = item.id === 'refunds';
+    const showPreparingBadge = item.id === 'orders';
 
     const normalizedRole = resolveRoleCode(user);
     const isStaff = normalizedRole.includes('STAFF');
@@ -108,13 +186,38 @@ export const NavItem = memo(({ item }: { item: any }) => {
                         color: 'inherit',
                         mr: isOpen ? "12px" : "0",
                         minWidth: "24px",
+                        position: 'relative',
                         '& svg': { width: 22, height: 22 }
                     }}>
-                        <Icon />
+                        {!isOpen && showRefundBadge ? (
+                            <RefundPendingBadgeIcon>
+                                <Icon />
+                            </RefundPendingBadgeIcon>
+                        ) : !isOpen && showPreparingBadge ? (
+                            <PreparingOrderBadgeIcon>
+                                <Icon />
+                            </PreparingOrderBadgeIcon>
+                        ) : (
+                            <Icon />
+                        )}
                     </ListItemIcon>
                 )}
 
-                {isOpen && <span className="flex-1 text-[0.875rem] text-left">{t(item.tKey || item.label)}</span>}
+                {isOpen && (
+                    <span className="flex-1 text-[0.875rem] text-left flex items-center min-w-0 self-stretch">
+                        <span className="truncate min-w-0">{t(item.tKey || item.label)}</span>
+                        {showRefundBadge && (
+                            <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
+                                <RefundPendingBadgeLabel />
+                            </span>
+                        )}
+                        {showPreparingBadge && (
+                            <span className="ml-auto pl-2 shrink-0 inline-flex items-center">
+                                <PreparingOrderBadgeLabel />
+                            </span>
+                        )}
+                    </span>
+                )}
                 {!isOpen && <span className="text-[0.625rem] font-[600] text-center" style={{ wordBreak: 'break-word', maxWidth: '60px', lineHeight: '1.2' }}>{t(item.tKey || item.label)}</span>}
 
                 {hasChildren && isOpen && (

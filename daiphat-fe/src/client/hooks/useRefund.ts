@@ -25,7 +25,8 @@ export const useGetRefundDetail = (id: number) => {
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_REFUND_DETAIL, id],
         queryFn: () => refundService.getById(id),
-        enabled: !!id
+        enabled: Number.isFinite(id) && id > 0,
+        retry: false,
     });
 };
 
@@ -52,6 +53,11 @@ export const useCreateRefund = () => {
             if (response.success) {
                 toast.success(response.message || 'Tạo yêu cầu hoàn tiền thành công');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_REFUNDS] });
+                // Notification is created AFTER_COMMIT asynchronously — refresh now and shortly after.
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS] });
+                window.setTimeout(() => {
+                    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS] });
+                }, 1000);
             } else {
                 toast.error(response.message || 'Có lỗi xảy ra khi tạo yêu cầu hoàn tiền');
             }
@@ -77,6 +83,11 @@ export const useCreateOrderRefund = () => {
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_REFUNDS] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDERS] });
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDER_DETAIL] });
+                // Notification is created AFTER_COMMIT asynchronously — refresh now and shortly after.
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS] });
+                window.setTimeout(() => {
+                    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_NOTIFICATIONS] });
+                }, 1000);
             } else {
                 toast.error(response.message || 'Có lỗi xảy ra khi hủy đơn');
             }
@@ -100,18 +111,21 @@ export const useGetOrderRefundEligibility = (orderId: string, enabled = true) =>
     });
 };
 
-export const useCancelRefund = () => {
+export const useAttachRefundBankAccount = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (id: number) => refundService.cancel(id),
-        onSuccess: (response, id) => {
+        mutationFn: ({ id, bankAccountId }: { id: number; bankAccountId: number }) =>
+            refundService.attachBankAccount(id, { bankAccountId }),
+        onSuccess: (response, variables) => {
             if (response.success) {
-                toast.success(response.message || 'Hủy yêu cầu hoàn tiền thành công');
+                toast.success(response.message || 'Đã cập nhật tài khoản nhận hoàn tiền');
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_REFUNDS] });
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_REFUND_DETAIL, id] });
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.CLIENT_REFUND_DETAIL, variables.id],
+                });
             } else {
-                toast.error(response.message || 'Có lỗi xảy ra khi hủy yêu cầu');
+                toast.error(response.message || 'Không thể cập nhật tài khoản');
             }
         },
         onError: (error: any) => {

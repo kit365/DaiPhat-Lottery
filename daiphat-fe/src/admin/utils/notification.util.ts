@@ -18,7 +18,14 @@ export const getAdminNotificationPath = (notification: AdminNotificationItem): s
         case "BLOG_POST":
             return `${ROUTES.ADMIN.BLOGS.DETAIL}${referenceId}`;
         case "ORDER":
+            // Legacy refund notifs used ORDER + numeric refund id
+            if (/^\d+$/.test(referenceId)) {
+                return `${ROUTES.ADMIN.REFUNDS.DETAIL}${referenceId}`;
+            }
             return `${ROUTES.ADMIN.ORDERS.DETAIL}${referenceId}`;
+        case "REFUND":
+        case "REFUND_REQUEST":
+            return `${ROUTES.ADMIN.REFUNDS.DETAIL}${referenceId}`;
         default:
             return null;
     }

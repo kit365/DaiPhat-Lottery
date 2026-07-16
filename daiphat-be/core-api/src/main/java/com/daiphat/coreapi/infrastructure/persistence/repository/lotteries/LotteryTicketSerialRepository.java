@@ -65,4 +65,19 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
     void deleteByTicket_IdAndImportBatchLine_Id(Long ticketId, Long importBatchLineId);
 
     void deleteByImportBatchLine_Id(Long importBatchLineId);
+
+    @Query("""
+            SELECT s FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL
+              AND s.status = :status
+              AND s.ticket.station.id = :stationId
+              AND s.ticket.numbers = :numbers
+              AND s.ticket.drawDate = :drawDate
+            """)
+    List<LotteryTicketSerialEntity> findAllReplacementCandidates(
+            @Param("stationId") Long stationId,
+            @Param("numbers") String numbers,
+            @Param("drawDate") java.time.LocalDate drawDate,
+            @Param("status") LotteryTicketSerialStatus status
+    );
 }

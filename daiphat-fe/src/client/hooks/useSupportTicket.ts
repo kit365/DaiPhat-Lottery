@@ -31,7 +31,8 @@ export const useGetComplaintDetail = (id: number) => {
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_COMPLAINT_DETAIL, id],
         queryFn: () => supportTicketService.getById(id),
-        enabled: !!id,
+        enabled: Number.isFinite(id) && id > 0,
+        retry: false,
     });
 };
 

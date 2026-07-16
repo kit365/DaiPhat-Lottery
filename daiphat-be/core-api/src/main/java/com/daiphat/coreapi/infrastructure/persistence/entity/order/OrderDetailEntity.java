@@ -3,6 +3,7 @@ package com.daiphat.coreapi.infrastructure.persistence.entity.order;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -69,8 +70,9 @@ public class OrderDetailEntity {
     @Column(nullable = false, length = 20)
     private OrderDetailStatus status;
 
-    @OneToMany(mappedBy = "orderDetail", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<OrderRefundEntity> refunds;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "refund_request_id")
+    private RefundRequestEntity refundRequest;
 
     @OneToMany(mappedBy = "orderDetail", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderDetailSerialEntity> allocatedSerials;

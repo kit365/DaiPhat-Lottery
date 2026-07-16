@@ -113,4 +113,12 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     public void hardDeleteByImportBatchLineId(Long importBatchLineId) {
         lotteryTicketSerialRepository.deleteByImportBatchLine_Id(importBatchLineId);
     }
+
+    @Override
+    public java.util.List<com.daiphat.coreapi.domain.model.lotteries.LotteryTicketSerialModel> findAllReplacementCandidates(
+            Long stationId, String numbers, java.time.LocalDate drawDate, com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus status) {
+        return lotteryTicketSerialRepository.findAllReplacementCandidates(stationId, numbers, drawDate, status).stream()
+                .map(lotteryTicketSerialPersistenceMapper::toDomain)
+                .toList();
+    }
 }

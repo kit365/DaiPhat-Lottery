@@ -9,10 +9,20 @@ import java.time.LocalDate;
 public record RefundEligibleTicketItemResponse(
         Long orderDetailId,
         String numbers,
+        String serialNumber,
         String stationName,
         LocalDate drawDate,
+        String ticketImg,
         Integer quantity,
         BigDecimal unitPrice,
-        BigDecimal subtotalAmount
+        BigDecimal subtotalAmount,
+        /** Serial status when incident applies (LOST / DAMAGED); null otherwise. */
+        String serialStatus,
+        String serialStatusLabel,
+        boolean hasIncident,
+        String faultedBy,
+        String faultedByDisplayName,
+        String damagedReason,
+        String damagedEvidenceUrl
 ) {
 }
