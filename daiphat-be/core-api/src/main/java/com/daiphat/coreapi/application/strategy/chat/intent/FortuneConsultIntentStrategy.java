@@ -55,6 +55,11 @@ public class FortuneConsultIntentStrategy implements ChatIntentHandlerStrategy {
     }
 
     private String resolveReply(ChatGenerateResponse ai, DreamFortuneInterpreter.Interpretation local) {
+        // Prefer local dream-book copy whenever numbers were resolved (catalog or any subject).
+        if (local.luckyNumbers() != null && !local.luckyNumbers().isEmpty()
+                && local.reply() != null && !local.reply().isBlank()) {
+            return local.reply().trim();
+        }
         if (ai != null && ai.getReply() != null && !ai.getReply().isBlank()) {
             return ai.getReply().trim();
         }
@@ -68,13 +73,16 @@ public class FortuneConsultIntentStrategy implements ChatIntentHandlerStrategy {
             ChatGenerateResponse ai,
             DreamFortuneInterpreter.Interpretation local
     ) {
+        if (local.luckyNumbers() != null && !local.luckyNumbers().isEmpty()) {
+            return local.luckyNumbers();
+        }
         if (ai != null && ai.getLuckyNumbers() != null && !ai.getLuckyNumbers().isEmpty()) {
             return ai.getLuckyNumbers().stream()
                     .filter(n -> n != null && !n.isBlank())
                     .map(String::trim)
                     .toList();
         }
-        return local.luckyNumbers() != null ? local.luckyNumbers() : List.of();
+        return List.of();
     }
 
     private ChatTicketInventoryService.TicketInventoryReply findTicketsForLuckyNumbers(
@@ -88,7 +96,11 @@ public class FortuneConsultIntentStrategy implements ChatIntentHandlerStrategy {
         List<LotteryTicketResponse> matched = collectMatchingTickets(luckyNumbers);
         String primarySearch = luckyNumbers.getFirst();
         String numbersText = String.join(", ", luckyNumbers);
-        String lead = fortuneReply + "\n\nĐang tìm vé khớp đuôi số: " + numbersText + ".";
+        String ticketIntro = matched.isEmpty()
+                ? "Hiện Đại Phát chưa có vé đang bán khớp các đuôi số " + numbersText
+                + ". Quý khách có thể thử đuôi khác, xem gợi ý hôm nay, hoặc quay lại sau nhé."
+                : "Dưới đây là vài vé đang bán khớp đuôi số " + numbersText + " dành cho quý khách:";
+        String lead = fortuneReply + "\n\n" + ticketIntro;
 
         ChatTicketInventoryService.TicketInventoryReply inventory =
                 chatTicketInventoryService.formatReply(matched, primarySearch, true);
