@@ -143,6 +143,10 @@ public class JavaKeywordIntentClassifier {
         if (containsAny(normalized, intentProperties.getResultKeywords())) {
             return false;
         }
+        // Bare digits after ask-đuôi (e.g. "72", "168") must map to WEB_SEARCH, not UNKNOWN.
+        if (normalized.matches("\\d{2,6}")) {
+            return true;
+        }
         return TICKET_FRAGMENT_PATTERN.matcher(normalized).find()
                 && containsAny(normalized, List.of("co ", "co so", "duoi", "dau", "tim ", "ve "));
     }
