@@ -26,6 +26,7 @@ public record LotteryTicketNumber(String value) {
     }
 
     /** @deprecated use {@link #from(String, Integer, Integer)} */
+    @Deprecated
     public static LotteryTicketNumber from(String rawValue, Integer requiredLength) {
         return from(rawValue, requiredLength, requiredLength);
     }
