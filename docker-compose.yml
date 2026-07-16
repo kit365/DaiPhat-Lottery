@@ -3,6 +3,7 @@ name: daiphat-local
 services:
   postgres-db:
     image: pgvector/pgvector:pg16
+    restart: unless-stopped
     environment:
       POSTGRES_DB: daiphat_core_db
       POSTGRES_USER: sa
@@ -19,6 +20,7 @@ services:
 
   redis:
     image: redis:alpine
+    restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
       - "6380:6379"
@@ -32,6 +34,7 @@ services:
 
   mongo:
     image: mongo:7
+    restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: core_admin
       MONGO_INITDB_ROOT_PASSWORD: core_pass_2026
