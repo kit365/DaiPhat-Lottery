@@ -27,7 +27,7 @@ public class ChatAiMessageService implements ChatAiMessagePort {
             ConversationRepositoryPort conversationRepositoryPort,
             ChatMessagePublisherPort chatMessagePublisherPort,
             ChatApplicationMapper chatApplicationMapper,
-            @Value("${daiphat.chat.ai.bot-display-name:Đại Phát AI Bot}") String botDisplayName
+            @Value("${daiphat.chat.ai.bot-display-name}") String botDisplayName
     ) {
         this.messageRepositoryPort = messageRepositoryPort;
         this.conversationRepositoryPort = conversationRepositoryPort;

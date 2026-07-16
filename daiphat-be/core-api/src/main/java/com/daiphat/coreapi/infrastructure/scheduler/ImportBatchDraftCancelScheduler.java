@@ -13,7 +13,7 @@ public class ImportBatchDraftCancelScheduler {
 
     private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
 
-    @Scheduled(fixedRateString = "${daiphat.import-batch.draft-cancel-rate-ms:60000}")
+    @Scheduled(fixedRateString = "${daiphat.import-batch.draft-cancel-rate-ms}")
     public void cancelOverdueDraftBatches() {
         int cancelledCount = importBatchDraftExpiryService.cancelOverdueDrafts();
         if (cancelledCount > 0) {

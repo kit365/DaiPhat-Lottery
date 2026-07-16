@@ -21,10 +21,10 @@ spring:
     mongodb:
       uri: mongodb://${CORE_MONGO_ROOT_USERNAME}:${CORE_MONGO_ROOT_PASSWORD}@${CORE_MONGO_HOST}:${CORE_MONGO_PORT}/${CORE_MONGO_DB}?authSource=admin
   mail:
-    host: ${AUTH_PROD_MAIL_HOST}
-    port: ${AUTH_PROD_MAIL_PORT}
-    username: ${AUTH_PROD_MAIL_USERNAME}
-    password: ${AUTH_PROD_MAIL_PASSWORD}
+    host: ${AUTH_STAGING_MAIL_HOST}
+    port: ${AUTH_STAGING_MAIL_PORT}
+    username: ${AUTH_STAGING_MAIL_USERNAME}
+    password: ${AUTH_STAGING_MAIL_PASSWORD}
     properties:
       mail:
         smtp:

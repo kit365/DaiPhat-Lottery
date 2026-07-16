@@ -30,13 +30,13 @@ public class LotteryResultSyncScheduler {
     private final LotteryResultServicePort lotteryResultServicePort;
     private final ThreadPoolTaskScheduler livePollingTaskScheduler;
 
-    @Value("${daiphat.lottery.result-sync-backlog-batch-size:20}")
+    @Value("${daiphat.lottery.result-sync-backlog-batch-size}")
     private int backlogBatchSize;
 
-    @Value("${daiphat.lottery.draw-deadline-minutes:30}")
+    @Value("${daiphat.lottery.draw-deadline-minutes}")
     private long drawDeadlineMinutes;
 
-    @Value("${daiphat.lottery.result-live-poll-seconds:10}")
+    @Value("${daiphat.lottery.result-live-poll-seconds}")
     private long livePollSeconds;
 
     private final AtomicBoolean livePollingRunning = new AtomicBoolean(false);
@@ -58,7 +58,7 @@ public class LotteryResultSyncScheduler {
         refreshLivePollingTask();
     }
 
-    @Scheduled(cron = "${daiphat.lottery.result-live-window-check-cron:0 * * * * *}")
+    @Scheduled(cron = "${daiphat.lottery.result-live-window-check-cron}")
     public void refreshLivePollingTask() {
         if (hasAnyActiveLiveWindow(LocalDateTime.now())) {
             startLivePollingIfNeeded();
@@ -67,7 +67,7 @@ public class LotteryResultSyncScheduler {
         stopLivePollingIfRunning();
     }
 
-    @Scheduled(cron = "${daiphat.lottery.result-backlog-sync-cron:*/10 * * * * *}")
+    @Scheduled(cron = "${daiphat.lottery.result-backlog-sync-cron}")
     public void syncHistoricalBacklog() {
         int backlogSynced = lotteryResultServicePort.syncHistoricalBacklog(backlogBatchSize);
 
