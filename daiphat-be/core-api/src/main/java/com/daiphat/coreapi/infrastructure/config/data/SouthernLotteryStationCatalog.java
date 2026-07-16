@@ -13,6 +13,7 @@ public final class SouthernLotteryStationCatalog {
     public static final String REGION = "MIEN_NAM";
     public static final LocalTime DRAW_TIME = LocalTime.of(16, 15);
     public static final java.math.BigDecimal DEFAULT_PRICE = java.math.BigDecimal.valueOf(10_000);
+    public static final java.math.BigDecimal DEFAULT_COMMISSION_RATE = new java.math.BigDecimal("0.0500");
 
     private SouthernLotteryStationCatalog() {
     }

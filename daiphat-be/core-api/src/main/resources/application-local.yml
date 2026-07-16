@@ -76,13 +76,10 @@ daiphat:
     seed:
       enabled: false
       tickets-per-station-per-date: 12
-  order:
-    seed:
-      enabled: false
-  lottery:
-    seed:
       southern-stations:
         enabled: true
+  order:
+    seed:
       enabled: false
 
 logging:

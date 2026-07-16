@@ -2,24 +2,26 @@ package com.daiphat.coreapi.infrastructure.config.data;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryStationRequest;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryStationResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryRegionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.PrizeStructureRepositoryPort;
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
+import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.model.enums.lottery.MatchFrom;
 import com.daiphat.coreapi.domain.model.enums.lottery.PrizeLevel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.domain.model.lotteries.PrizeStructureModel;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -32,7 +34,8 @@ import java.util.stream.Collectors;
 
 /**
  * Upserts the 21 Miền Nam stations + weekday schedule on startup.
- * Safe to re-run: creates missing stations and refreshes draw_days / draw_time / next_draw_date.
+ * Creates missing stations, refreshes schedule, and backfills activation fields
+ * (price, commission) for legacy rows. Each station write uses REQUIRES_NEW.
  */
 @Component
 @Order(50)
@@ -41,7 +44,6 @@ import java.util.stream.Collectors;
         havingValue = "true",
         matchIfMissing = true
 )
-@RequiredArgsConstructor
 @Slf4j
 public class SouthernLotteryStationSeedInitializer implements ApplicationRunner {
 
@@ -49,74 +51,132 @@ public class SouthernLotteryStationSeedInitializer implements ApplicationRunner 
     private final LotteryStationServicePort lotteryStationServicePort;
     private final LotteryRegionRepositoryPort lotteryRegionRepositoryPort;
     private final PrizeStructureRepositoryPort prizeStructureRepositoryPort;
+    private final TransactionTemplate readTx;
+    private final TransactionTemplate writeTx;
+
+    public SouthernLotteryStationSeedInitializer(
+            LotteryStationRepositoryPort lotteryStationRepositoryPort,
+            LotteryStationServicePort lotteryStationServicePort,
+            LotteryRegionRepositoryPort lotteryRegionRepositoryPort,
+            PrizeStructureRepositoryPort prizeStructureRepositoryPort,
+            PlatformTransactionManager transactionManager
+    ) {
+        this.lotteryStationRepositoryPort = lotteryStationRepositoryPort;
+        this.lotteryStationServicePort = lotteryStationServicePort;
+        this.lotteryRegionRepositoryPort = lotteryRegionRepositoryPort;
+        this.prizeStructureRepositoryPort = prizeStructureRepositoryPort;
+        this.readTx = new TransactionTemplate(transactionManager);
+        this.writeTx = new TransactionTemplate(transactionManager);
+        this.writeTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
 
     @Override
-    @Transactional
     public void run(ApplicationArguments args) {
-        LotteryRegionModel region = lotteryRegionRepositoryPort
-                .findByCode(SouthernLotteryStationCatalog.REGION)
-                .orElse(null);
+        LotteryRegionModel region = readTx.execute(status ->
+                lotteryRegionRepositoryPort.findByCode(SouthernLotteryStationCatalog.REGION).orElse(null)
+        );
         if (region == null) {
             log.warn("Skip southern station seed: region {} not found.", SouthernLotteryStationCatalog.REGION);
             return;
         }
 
-        ensureSouthernPrizeStructures(region);
+        try {
+            writeTx.executeWithoutResult(status -> ensureSouthernPrizeStructures(region));
+        } catch (RuntimeException ex) {
+            log.warn("Skip southern prize-structure seed: {}", ex.getMessage());
+        }
 
-        Map<String, LotteryStationModel> byName = lotteryStationRepositoryPort.findAll().stream()
-                .filter(station -> station.getName() != null && !station.isDeleted())
-                .collect(Collectors.toMap(
-                        station -> station.getName().trim().toLowerCase(),
-                        Function.identity(),
-                        (left, right) -> left
-                ));
+        Map<String, LotteryStationModel> byName = readTx.execute(status ->
+                lotteryStationRepositoryPort.findAll().stream()
+                        .filter(station -> station.getName() != null && !station.isDeleted())
+                        .collect(Collectors.toMap(
+                                station -> station.getName().trim().toLowerCase(),
+                                Function.identity(),
+                                (left, right) -> left
+                        ))
+        );
+        if (byName == null) {
+            byName = Map.of();
+        }
 
         int created = 0;
         int updated = 0;
+        int skipped = 0;
 
         for (SouthernLotteryStationCatalog.StationSeed seed : SouthernLotteryStationCatalog.stations()) {
             LotteryStationModel existing = byName.get(seed.name().toLowerCase());
-            if (existing == null) {
-                lotteryStationServicePort.create(CreateLotteryStationRequest.builder()
-                        .name(seed.name())
-                        .province(seed.province())
-                        .region(SouthernLotteryStationCatalog.REGION)
-                        .price(SouthernLotteryStationCatalog.DEFAULT_PRICE)
-                        .drawDays(seed.drawDays())
-                        .drawTime(SouthernLotteryStationCatalog.DRAW_TIME)
-                        .status(LotteryStationStatus.ACTIVE.name())
-                        .description("Seed lịch quay Xổ số Kiến thiết Miền Nam.")
-                        .build());
-                created++;
-                continue;
-            }
-
-            if (needsScheduleRefresh(existing, seed)) {
-                lotteryStationServicePort.update(
-                        existing.getId(),
-                        UpdateLotteryStationRequest.builder()
-                                .name(seed.name())
-                                .province(seed.province())
-                                .region(SouthernLotteryStationCatalog.REGION)
-                                .drawDays(seed.drawDays())
-                                .drawTime(SouthernLotteryStationCatalog.DRAW_TIME)
-                                .status(LotteryStationStatus.ACTIVE.name())
-                                .build()
+            try {
+                if (existing == null) {
+                    Long createdId = writeTx.execute(status -> createStation(seed));
+                    writeTx.executeWithoutResult(status -> activateStation(createdId, seed));
+                    created++;
+                    continue;
+                }
+                if (needsRefresh(existing, seed)) {
+                    writeTx.executeWithoutResult(status -> activateStation(existing.getId(), seed));
+                    updated++;
+                }
+            } catch (DomainException ex) {
+                skipped++;
+                log.warn(
+                        "Skip southern station seed for '{}': {} (data={})",
+                        seed.name(),
+                        ex.getMessage(),
+                        ex.getData()
                 );
-                updated++;
+            } catch (RuntimeException ex) {
+                skipped++;
+                log.warn("Skip southern station seed for '{}': {}", seed.name(), ex.getMessage());
             }
         }
 
         log.info(
-                "Southern lottery station seed finished: {} created, {} schedule-refreshed (catalog size={}).",
+                "Southern lottery station seed finished: {} created, {} refreshed, {} skipped (catalog size={}).",
                 created,
                 updated,
+                skipped,
                 SouthernLotteryStationCatalog.stations().size()
         );
     }
 
-    private boolean needsScheduleRefresh(LotteryStationModel existing, SouthernLotteryStationCatalog.StationSeed seed) {
-        if (existing.getStatus() != LotteryStationStatus.ACTIVE) {
+    private Long createStation(SouthernLotteryStationCatalog.StationSeed seed) {
+        LotteryStationResponse createdStation = lotteryStationServicePort.create(
+                CreateLotteryStationRequest.builder()
+                        .name(seed.name())
+                        .province(seed.province())
+                        .region(SouthernLotteryStationCatalog.REGION)
+                        .price(SouthernLotteryStationCatalog.DEFAULT_PRICE)
+                        .commissionRate(SouthernLotteryStationCatalog.DEFAULT_COMMISSION_RATE)
+                        .drawDays(seed.drawDays())
+                        .drawTime(SouthernLotteryStationCatalog.DRAW_TIME)
+                        .description("Seed lịch quay Xổ số Kiến thiết Miền Nam.")
+                        .build()
+        );
+        return createdStation.id();
+    }
+
+    private void activateStation(Long stationId, SouthernLotteryStationCatalog.StationSeed seed) {
+        lotteryStationServicePort.update(stationId, activationUpdate(seed));
+    }
+
+    private static UpdateLotteryStationRequest activationUpdate(SouthernLotteryStationCatalog.StationSeed seed) {
+        return UpdateLotteryStationRequest.builder()
+                .name(seed.name())
+                .province(seed.province())
+                .region(SouthernLotteryStationCatalog.REGION)
+                .price(SouthernLotteryStationCatalog.DEFAULT_PRICE)
+                .commissionRate(SouthernLotteryStationCatalog.DEFAULT_COMMISSION_RATE)
+                .drawDays(seed.drawDays())
+                .drawTime(SouthernLotteryStationCatalog.DRAW_TIME)
+                .isActive(true)
+                .build();
+    }
+
+    private boolean needsRefresh(LotteryStationModel existing, SouthernLotteryStationCatalog.StationSeed seed) {
+        if (!existing.isActive()) {
+            return true;
+        }
+        if (!existing.isActivationReady()) {
             return true;
         }
         if (!Objects.equals(existing.getProvince(), seed.province())) {
