@@ -8,7 +8,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -26,8 +29,14 @@ public class ChatTicketInventoryService {
     public static final int FALLBACK_LIMIT = 3;
     public static final String TOKEN_PREFIX = "TICKET_SUGGEST:";
 
+    public static final String MATCH_SUFFIX = "suffix";
+    public static final String MATCH_PREFIX = "prefix";
+    public static final String MATCH_EXACT = "exact";
+
     private static final String SORT_BY_NUMBERS = "numbers";
     private static final String SORT_DIRECTION_ASC = "asc";
+    private static final int MATCH_PAGE_SIZE = 40;
+    private static final int MATCH_MAX_PAGES = 5;
 
     private final LotteryTicketServicePort lotteryTicketServicePort;
 
@@ -44,7 +53,7 @@ public class ChatTicketInventoryService {
             int limit
     ) {
         int size = Math.max(1, Math.min(limit, 20));
-        String resolvedDrawDate = (drawDate == null || drawDate.isBlank()) ? DRAW_DATE_TODAY : drawDate.trim();
+        String resolvedDrawDate = resolveDrawDateFilter(drawDate);
         String resolvedSearch = (search == null || search.isBlank()) ? null : search.trim();
 
         try {
@@ -69,8 +78,71 @@ public class ChatTicketInventoryService {
     }
 
     /**
+     * Public search uses SQL {@code LIKE %fragment%}. This method pages through results and keeps only
+     * tickets that truly match suffix/prefix/exact until {@code limit} is reached.
+     */
+    public List<LotteryTicketResponse> findAvailableMatching(
+            String search,
+            Long stationId,
+            String drawDate,
+            int limit,
+            String matchMode
+    ) {
+        int target = Math.max(1, Math.min(limit, 20));
+        if (search == null || search.isBlank()) {
+            return findAvailable(null, stationId, drawDate, target);
+        }
+
+        String fragment = search.trim();
+        String mode = normalizeMatchMode(matchMode, fragment);
+        String resolvedDrawDate = resolveDrawDateFilter(drawDate);
+        Map<Long, LotteryTicketResponse> matched = new LinkedHashMap<>();
+
+        try {
+            for (int page = 1; page <= MATCH_MAX_PAGES && matched.size() < target; page++) {
+                PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
+                        page,
+                        MATCH_PAGE_SIZE,
+                        stationId,
+                        null,
+                        resolvedDrawDate,
+                        fragment,
+                        SORT_BY_NUMBERS,
+                        SORT_DIRECTION_ASC
+                );
+                List<LotteryTicketResponse> records = response != null ? response.getRecordList() : null;
+                if (records == null || records.isEmpty()) {
+                    break;
+                }
+                for (LotteryTicketResponse ticket : records) {
+                    if (ticket == null || ticket.numbers() == null || !matchesFragment(ticket.numbers(), fragment, mode)) {
+                        continue;
+                    }
+                    Long id = ticket.id();
+                    if (id != null) {
+                        matched.putIfAbsent(id, ticket);
+                    } else {
+                        matched.put((long) matched.size(), ticket);
+                    }
+                    if (matched.size() >= target) {
+                        break;
+                    }
+                }
+                if (response.getPagination() != null && response.getPagination().isLast()) {
+                    break;
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to query matching tickets for chat inventory search={}", fragment, ex);
+            return List.of();
+        }
+
+        return matched.values().stream().limit(target).toList();
+    }
+
+    /**
      * Build a token + short display reply listing only DB tickets.
-     * When {@code primary} is empty and {@code search} was used, falls back to a few tickets for today.
+     * Empty đuôi/đầu search must not show unrelated fallback tickets — that misleads the customer.
      */
     public TicketInventoryReply formatReply(List<LotteryTicketResponse> primary, String search, boolean isSearch) {
         if (primary != null && !primary.isEmpty()) {
@@ -78,20 +150,21 @@ public class ChatTicketInventoryService {
             return new TicketInventoryReply(withLeadingDisplay(display, toToken(primary)), display);
         }
 
-        String emptyLead;
         if (isSearch && search != null && !search.isBlank()) {
-            emptyLead = "Kho chưa có số bạn tìm (\"" + search.trim() + "\").";
-        } else {
-            emptyLead = "Hiện kho chưa có vé phù hợp để gợi ý.";
-        }
-
-        List<LotteryTicketResponse> fallback = findAvailable(null, null, DRAW_DATE_TODAY, FALLBACK_LIMIT);
-        if (fallback.isEmpty()) {
-            String display = emptyLead + " Bạn thử hỏi lại với đuôi số khác hoặc xem mục Mua vé trên website nhé.";
+            String display = "Hiện Đại Phát chưa có vé khớp đuôi số " + search.trim()
+                    + ". Quý khách có thể thử đuôi số khác, xem mục Mua vé, hoặc quay lại sau nhé.";
             return new TicketInventoryReply(display, display);
         }
 
-        String display = emptyLead + " Đây là vài vé đang bán hôm nay:";
+        String emptyLead = "Hiện Đại Phát chưa có vé phù hợp để gợi ý.";
+        List<LotteryTicketResponse> fallback = findAvailable(null, null, DRAW_DATE_TODAY, FALLBACK_LIMIT);
+        if (fallback.isEmpty()) {
+            String display = emptyLead
+                    + " Quý khách có thể thử đuôi số khác, xem mục Mua vé, hoặc quay lại sau nhé.";
+            return new TicketInventoryReply(display, display);
+        }
+
+        String display = emptyLead + " Trong lúc đó, dưới đây là vài vé đang bán hôm nay dành cho quý khách:";
         return new TicketInventoryReply(withLeadingDisplay(display, toToken(fallback)), display);
     }
 
@@ -104,13 +177,15 @@ public class ChatTicketInventoryService {
 
         String lead = leadingReply != null && !leadingReply.isBlank() ? leadingReply.trim() : "";
         String display = lead.isBlank()
-                ? "Các vé đang bán trong kho hôm nay:"
-                : lead + "\n\nCác vé đang bán trong kho hôm nay:";
+                ? "Dưới đây là vài vé đang bán hôm nay dành cho quý khách:"
+                : lead + "\n\nDưới đây là vài vé đang bán hôm nay dành cho quý khách:";
         return new TicketInventoryReply(withLeadingDisplay(display, toToken(tickets)), display);
     }
 
     /**
      * Prepend fortune/advisory text to an inventory reply while keeping the FE ticket token intact.
+     * When leading text is present, it becomes the only human display line — inventory captions
+     * like "Gợi ý N vé..." are omitted so the UI shows reply bubble then ticket cards only.
      */
     public TicketInventoryReply prependLeadingText(String leadingText, TicketInventoryReply inventory) {
         String lead = leadingText != null ? leadingText.trim() : "";
@@ -118,7 +193,7 @@ public class ChatTicketInventoryService {
             return new TicketInventoryReply(lead, lead);
         }
         String bodyDisplay = inventory.displayContent() != null ? inventory.displayContent().trim() : "";
-        String display = lead.isBlank() ? bodyDisplay : (bodyDisplay.isBlank() ? lead : lead + "\n\n" + bodyDisplay);
+        String display = lead.isBlank() ? bodyDisplay : lead;
 
         String bodyContent = inventory.content() != null ? inventory.content() : "";
         int tokenIndex = bodyContent.indexOf(TOKEN_PREFIX);
@@ -127,6 +202,34 @@ public class ChatTicketInventoryService {
             return new TicketInventoryReply(withLeadingDisplay(display, token), display);
         }
         return new TicketInventoryReply(display, display);
+    }
+
+    static String resolveDrawDateFilter(String drawDate) {
+        if (drawDate == null || drawDate.isBlank() || DRAW_DATE_TODAY.equalsIgnoreCase(drawDate.trim())) {
+            return LocalDate.now().toString();
+        }
+        return drawDate.trim();
+    }
+
+    public static boolean matchesFragment(String numbers, String fragment, String mode) {
+        if (numbers == null || fragment == null) {
+            return false;
+        }
+        return switch (normalizeMatchMode(mode, fragment)) {
+            case MATCH_PREFIX -> numbers.startsWith(fragment);
+            case MATCH_EXACT -> numbers.equals(fragment);
+            default -> numbers.endsWith(fragment);
+        };
+    }
+
+    public static String normalizeMatchMode(String matchMode, String fragment) {
+        if (matchMode != null && !matchMode.isBlank()) {
+            return matchMode.trim().toLowerCase(Locale.ROOT);
+        }
+        if (fragment != null && fragment.trim().length() >= 6) {
+            return MATCH_EXACT;
+        }
+        return MATCH_SUFFIX;
     }
 
     static String toToken(List<LotteryTicketResponse> tickets) {
@@ -157,9 +260,10 @@ public class ChatTicketInventoryService {
 
     private static String buildPrimaryDisplay(int count, String search, boolean isSearch) {
         if (isSearch && search != null && !search.isBlank()) {
-            return "Đại Phát tìm thấy " + count + " vé đang bán khớp \"" + search.trim() + "\":";
+            return "Dưới đây là " + count + " vé đang bán khớp đuôi số " + search.trim()
+                    + " dành cho quý khách:";
         }
-        return "Đại Phát gợi ý " + count + " vé đang bán hôm nay.";
+        return "Dưới đây là " + count + " vé đang bán hôm nay dành cho quý khách:";
     }
 
     private static String formatIsoDate(LocalDate drawDate) {

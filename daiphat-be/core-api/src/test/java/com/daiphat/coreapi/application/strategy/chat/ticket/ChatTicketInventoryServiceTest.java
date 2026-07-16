@@ -1,8 +1,9 @@
-package com.daiphat.coreapi.application.service.chat.ticket;
+package com.daiphat.coreapi.application.strategy.chat.ticket;
 
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
+import com.daiphat.coreapi.application.service.chat.ticket.ChatTicketInventoryService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +20,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,9 +35,10 @@ class ChatTicketInventoryServiceTest {
     private ChatTicketInventoryService service;
 
     @Test
-    void findAvailable_delegatesToPublicTicketsWithTodayAndSearch() {
+    void findAvailable_resolvesTodayToIsoDate() {
+        String today = LocalDate.now().toString();
         when(lotteryTicketServicePort.getPublicTickets(
-                eq(1), eq(5), isNull(), isNull(), eq("today"), eq("68"), eq("numbers"), eq("asc")
+                eq(1), eq(5), isNull(), isNull(), eq(today), eq("68"), eq("numbers"), eq("asc")
         )).thenReturn(pageOf(List.of(ticket("126800", 1L, "Đài TP"))));
 
         List<LotteryTicketResponse> result = service.findAvailable("68", null, "today", 5);
@@ -43,7 +46,42 @@ class ChatTicketInventoryServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).numbers()).isEqualTo("126800");
         verify(lotteryTicketServicePort).getPublicTickets(
-                1, 5, null, null, "today", "68", "numbers", "asc"
+                1, 5, null, null, today, "68", "numbers", "asc"
+        );
+    }
+
+    @Test
+    void findAvailableMatching_pagesUntilEnoughTrueSuffixMatches() {
+        String today = LocalDate.now().toString();
+        when(lotteryTicketServicePort.getPublicTickets(
+                eq(1), eq(40), isNull(), isNull(), eq(today), eq("68"), eq("numbers"), eq("asc")
+        )).thenReturn(pageOf(
+                List.of(
+                        ticket("126868", 1L, "A"),
+                        ticket("681234", 2L, "B"),
+                        ticket("336868", 3L, "C")
+                ),
+                false
+        ));
+        when(lotteryTicketServicePort.getPublicTickets(
+                eq(2), eq(40), isNull(), isNull(), eq(today), eq("68"), eq("numbers"), eq("asc")
+        )).thenReturn(pageOf(
+                List.of(
+                        ticket("446868", 4L, "D"),
+                        ticket("556868", 5L, "E"),
+                        ticket("666868", 6L, "F")
+                ),
+                true
+        ));
+
+        List<LotteryTicketResponse> result = service.findAvailableMatching(
+                "68", null, "today", 5, "suffix"
+        );
+
+        assertThat(result).extracting(LotteryTicketResponse::numbers)
+                .containsExactly("126868", "336868", "446868", "556868", "666868");
+        verify(lotteryTicketServicePort, times(2)).getPublicTickets(
+                anyInt(), eq(40), isNull(), isNull(), eq(today), eq("68"), eq("numbers"), eq("asc")
         );
     }
 
@@ -59,24 +97,21 @@ class ChatTicketInventoryServiceTest {
         assertThat(reply.content()).contains(ChatTicketInventoryService.TOKEN_PREFIX);
         assertThat(reply.content()).contains("\"numbers\":\"126800\"").contains("\"numbers\":\"336800\"");
         assertThat(reply.content()).doesNotContain("/buy-ticket");
-        assertThat(reply.displayContent()).contains("khớp \"68\"");
+        assertThat(reply.displayContent()).contains("khớp đuôi số 68");
+        assertThat(reply.displayContent()).contains("quý khách");
         assertThat(reply.displayContent()).doesNotContain("/buy-ticket");
         assertThat(reply.displayContent()).doesNotContain("777777");
     }
 
     @Test
-    void formatReply_whenEmptySearch_fallsBackToTodaySuggestionsToken() {
-        when(lotteryTicketServicePort.getPublicTickets(
-                eq(1), eq(3), isNull(), isNull(), eq("today"), isNull(), eq("numbers"), eq("asc")
-        )).thenReturn(pageOf(List.of(ticket("111222", 9L, "Đài Bến Tre"))));
+    void formatReply_whenEmptySearch_doesNotShowUnrelatedTickets() {
+        ChatTicketInventoryService.TicketInventoryReply reply = service.formatReply(List.of(), "39", true);
 
-        ChatTicketInventoryService.TicketInventoryReply reply = service.formatReply(List.of(), "99", true);
-
-        assertThat(reply.displayContent()).contains("chưa có số bạn tìm");
-        assertThat(reply.content()).contains(ChatTicketInventoryService.TOKEN_PREFIX);
-        assertThat(reply.content()).contains("\"numbers\":\"111222\"");
-        assertThat(reply.content()).contains("chưa có số bạn tìm");
-        assertThat(reply.content()).doesNotContain("/buy-ticket");
+        assertThat(reply.displayContent()).contains("chưa có vé khớp đuôi số 39");
+        assertThat(reply.displayContent()).contains("thử đuôi số khác");
+        assertThat(reply.displayContent()).doesNotContain("đang bán hôm nay dành cho quý khách");
+        assertThat(reply.content()).doesNotContain(ChatTicketInventoryService.TOKEN_PREFIX);
+        assertThat(reply.content()).isEqualTo(reply.displayContent());
     }
 
     @Test
@@ -93,9 +128,28 @@ class ChatTicketInventoryServiceTest {
     }
 
     @Test
+    void prependLeadingText_keepsFortuneDisplayWithoutInventoryCaption() {
+        ChatTicketInventoryService.TicketInventoryReply inventory = service.formatReply(
+                List.of(ticket("191919", 1L, "An Giang")),
+                "09",
+                true
+        );
+
+        ChatTicketInventoryService.TicketInventoryReply reply =
+                service.prependLeadingText("Theo sổ mơ dân gian, giấc mơ về \"bò\".", inventory);
+
+        assertThat(reply.displayContent()).isEqualTo("Theo sổ mơ dân gian, giấc mơ về \"bò\".");
+        assertThat(reply.displayContent()).doesNotContain("Gợi ý");
+        assertThat(reply.displayContent()).doesNotContain("tìm thấy");
+        assertThat(reply.content()).contains(ChatTicketInventoryService.TOKEN_PREFIX);
+        assertThat(reply.content()).contains("191919");
+    }
+
+    @Test
     void appendInventoryBlock_appendsTokenAfterFortuneText() {
+        String today = LocalDate.now().toString();
         when(lotteryTicketServicePort.getPublicTickets(
-                eq(1), eq(5), isNull(), isNull(), eq("today"), isNull(), eq("numbers"), eq("asc")
+                eq(1), eq(5), isNull(), isNull(), eq(today), isNull(), eq("numbers"), eq("asc")
         )).thenReturn(pageOf(List.of(ticket("555666", 3L, "Đài Cần Thơ"))));
 
         ChatTicketInventoryService.TicketInventoryReply reply =
@@ -109,15 +163,22 @@ class ChatTicketInventoryServiceTest {
     }
 
     private static PageResponse<LotteryTicketResponse> pageOf(List<LotteryTicketResponse> tickets) {
+        return pageOf(tickets, true);
+    }
+
+    private static PageResponse<LotteryTicketResponse> pageOf(
+            List<LotteryTicketResponse> tickets,
+            boolean last
+    ) {
         return PageResponse.<LotteryTicketResponse>builder()
                 .recordList(tickets)
                 .pagination(PageResponse.PaginationMetadata.builder()
                         .totalRecords(tickets.size())
-                        .totalPages(1)
+                        .totalPages(last ? 1 : 2)
                         .currentPage(1)
                         .limit(Math.max(tickets.size(), 1))
                         .isFirst(true)
-                        .isLast(true)
+                        .isLast(last)
                         .build())
                 .build();
     }

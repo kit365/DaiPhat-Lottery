@@ -151,6 +151,16 @@ class ChatIntentClassifierTest {
     }
 
     @Test
+    void classify_bareDigits_mapsToWebSearch() {
+        ChatClassifyResponse result = classifier.classify("72", 16L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SEARCH.name());
+        assertThat(result.getEntities()).containsEntry("ticket_fragment", "72");
+        assertThat(result.getEntities()).containsEntry("ticket_match_mode", "suffix");
+        verify(chatAiPort, never()).classifyMessage(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void classify_coSoDuoiLa_mapsToWebSearchNotSchedule() {
         // Regression: "đuôi là" was fuzzy-matched to "Đà Lạt" → WEB_SCHEDULE + wrong đài card.
         ChatClassifyResponse result = classifier.classify("có số đuôi là 55 không", 13L);
