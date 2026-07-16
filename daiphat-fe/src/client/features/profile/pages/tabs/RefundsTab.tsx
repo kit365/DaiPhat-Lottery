@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { useGetMyRefunds, useGetRefundStatuses } from '../../../hooks/useRefund';
-import { RefundRequestStatus, RefundType } from '../../../../types/refund.type';
-import { RefundStatusBadge } from '../../../components/refund/RefundStatusBadge';
+import { useGetMyRefunds, useGetRefundStatuses } from '../../../../hooks/useRefund';
+import { RefundRequestStatus, RefundType } from '../../../../../types/refund.type';
+import { RefundStatusBadge } from '../../../../components/refund/RefundStatusBadge';
 import { ProfileTablePagination } from '../components/ProfileTablePagination';
 
 const REFUND_TYPE_LABELS: Record<RefundType, string> = {

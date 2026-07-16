@@ -29,7 +29,6 @@ import {
     Badge
 } from "@mui/material";
 import { Icon } from "@iconify/react";
-import { ChatIcon } from './icons/ChatIcon';
 import { adminChatDetailKey, ADMIN_CHAT_CONVERSATIONS_KEY } from '../../../hooks/useChat';
 import { MessageSenderRole, ConversationStatusEnum } from '../../../../types/chat.type';
 import { SortOrderEnum } from '../../../../constants/common.constants';

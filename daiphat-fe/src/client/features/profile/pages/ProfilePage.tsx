@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from "react";
 import { useLocation, useNavigate, Link, Outlet } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Header } from "../../../client/components/layout/header";
-import { useAuth } from "../../hooks/useAuth";
-import { useAuthStore } from "../../../stores/useAuthStore";
-import { useNotifications } from "../../hooks/useNotifications";
-import { useMyRefundPendingCount } from "../../hooks/useMyRefundPendingCount";
+import { Header } from "../../../components/layout/header";
+import { useAuth } from "../../../hooks/useAuth";
+import { useAuthStore } from "../../../../stores/useAuthStore";
+import { useNotifications } from "../../../hooks/useNotifications";
+import { useMyRefundPendingCount } from "../../../hooks/useMyRefundPendingCount";
 
 type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'complaints' | 'bankAccounts' | 'notifications' | 'settings' | 'favorites';
 

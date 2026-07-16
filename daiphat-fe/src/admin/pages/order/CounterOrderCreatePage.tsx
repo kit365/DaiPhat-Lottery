@@ -47,7 +47,7 @@ import dayjs from 'dayjs';
 import { useCreateOrder } from './hooks/useOrderManagement';
 import { CreateDirectOrderRequest, OrderReceiveType, DirectOrderTransactionRequest } from '../../../types/order.type';
 import { toast } from 'react-toastify';
-import { useUsers } from '../account-user/hooks/useAccountUser';
+import { useUsers } from '../../features/users/hooks/useUsers';
 
 const PHONE_REGEX = /^(0|84)(3|5|7|8|9)[0-9]{8}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

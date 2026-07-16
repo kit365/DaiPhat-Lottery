@@ -1,22 +1,19 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ComplaintFormModal } from '../../../components/support/ComplaintFormModal';
-import { ComplaintStatusBadge } from '../../../components/support/ComplaintStatusBadge';
-import { ComplaintStatusStepper } from '../../../components/support/ComplaintStatusStepper';
-import { ComplaintTimelineChat } from '../../../components/support/ComplaintTimelineChat';
-import { AttachmentUpdateSection } from '../../../components/support/AttachmentUpdateSection';
+import { ComplaintFormModal } from '../../../../components/support/ComplaintFormModal';
+import { ComplaintStatusBadge } from '../../../../components/support/ComplaintStatusBadge';
+import { ComplaintStatusStepper } from '../../../../components/support/ComplaintStatusStepper';
+import { ComplaintTimelineChat } from '../../../../components/support/ComplaintTimelineChat';
+import { AttachmentUpdateSection } from '../../../../components/support/AttachmentUpdateSection';
 import {
     useCloseComplaint,
     useGetComplaintDetail,
     useGetTicketCategories,
-} from '../../../hooks/useSupportTicket';
-import { TicketRefType, TicketStatus, TICKET_REF_TYPE_LABELS } from '../../../../types/support.type';
-import { AppToast } from '../../../../utils/toast.util';
-import {
-    UnavailableReferenceState,
-    UNAVAILABLE_REFERENCE_MESSAGE,
-} from '../../../components/notification/UnavailableReferenceState';
+} from '../../../../hooks/useSupportTicket';
+import { TicketRefType, TicketStatus, TICKET_REF_TYPE_LABELS } from '../../../../../types/support.type';
+import { AppToast } from '../../../../../utils/toast.util';
+import { UnavailableReferenceState, UNAVAILABLE_REFERENCE_MESSAGE } from '../../../../components/notification/UnavailableReferenceState';
 
 export const ComplaintDetailTab = () => {
     const { id } = useParams<{ id: string }>();

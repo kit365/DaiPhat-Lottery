@@ -7,7 +7,7 @@ import { dataGridContainerStyles, dataGridStyles } from '../configs/styles.confi
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../assets/icons';
 import { Search } from '../../../components/ui/Search';
 import { ExportImport } from '../../../components/ui/ExportImport';
-import { DATA_GRID_LOCALE_VN } from '../../account-admin/configs/localeText.config';
+import { DATA_GRID_LOCALE_VN } from '../../role/configs/localeText.config';
 
 const STATUS_OPTIONS = [
     { value: 'all', label: 'Tất cả' },

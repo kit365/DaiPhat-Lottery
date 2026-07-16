@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ComplaintStatusBadge } from '../../../components/support/ComplaintStatusBadge';
-import { ComplaintFormModal } from '../../../components/support/ComplaintFormModal';
-import { useGetMyTickets, useGetTicketCategories } from '../../../hooks/useSupportTicket';
-import { TicketStatus, TICKET_STATUS_LABELS } from '../../../../types/support.type';
+import { ComplaintStatusBadge } from '../../../../components/support/ComplaintStatusBadge';
+import { ComplaintFormModal } from '../../../../components/support/ComplaintFormModal';
+import { useGetMyTickets, useGetTicketCategories } from '../../../../hooks/useSupportTicket';
+import { TicketStatus, TICKET_STATUS_LABELS } from '../../../../../types/support.type';
 import { ProfileTablePagination } from '../components/ProfileTablePagination';
 
 const STATUS_TABS: { value: TicketStatus | 'ALL'; label: string }[] = [

@@ -1,4 +1,4 @@
-import type { PaginationMetadata } from '../types/api.type';
+import type { PaginationMetadata } from '../../types/api.type';
 
 type LoosePagination = Partial<PaginationMetadata> & {
     first?: boolean;

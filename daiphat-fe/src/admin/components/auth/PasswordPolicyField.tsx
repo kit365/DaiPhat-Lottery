@@ -2,8 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Check, X, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../../admin/pages/authen/hooks/useAuth';
-import { calculatePasswordStrength } from '../../../utils/password-strength.util';
-import { cn } from '../../../utils/cn'; // Assuming this utility exists, otherwise standard string concat
+import { calculatePasswordStrength } from '../../../utils/password-evaluator.util';
+import { cn } from '../../../utils/cn';
 
 interface PremiumPasswordInputProps {
     value: string;
