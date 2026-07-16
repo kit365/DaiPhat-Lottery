@@ -3,7 +3,8 @@ package com.daiphat.coreapi.adapter.in.web.controller.refund;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
-import com.daiphat.coreapi.application.dto.request.refund.RejectRefundRequestRequest;
+import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
+import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestAdminDetailResponse;
@@ -63,27 +64,6 @@ public class StaffRefundRequestController {
                 refundRequestStaffServicePort.getByIdForStaff(id));
     }
 
-    @PatchMapping(ID_PATH + "/approve")
-    @PreAuthorize("hasAuthority('refund:approve')")
-    public ApiResponse<RefundRequestResponse> approve(
-            @PathVariable Long id,
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        return ApiResponse.success(
-                "Duyệt yêu cầu hoàn tiền thành công.",
-                refundRequestStaffServicePort.approve(id, principal.getId()));
-    }
-
-    @PatchMapping(ID_PATH + "/reject")
-    @PreAuthorize("hasAuthority('refund:reject')")
-    public ApiResponse<RefundRequestResponse> reject(
-            @PathVariable Long id,
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
-            @Valid @RequestBody RejectRefundRequestRequest request) {
-        return ApiResponse.success(
-                "Đã từ chối yêu cầu hủy.",
-                refundRequestStaffServicePort.reject(id, principal.getId(), request));
-    }
-
     @PatchMapping(ID_PATH + "/transfer")
     @PreAuthorize("hasAuthority('refund:process')")
     public ApiResponse<RefundRequestResponse> transfer(
@@ -93,6 +73,28 @@ public class StaffRefundRequestController {
         return ApiResponse.success(
                 "Xác nhận chuyển khoản hoàn tiền thành công.",
                 refundRequestStaffServicePort.markTransferred(id, principal.getId(), request));
+    }
+
+    @PatchMapping(ID_PATH + "/request-bank-info-update")
+    @PreAuthorize("hasAuthority('refund:process')")
+    public ApiResponse<RefundRequestResponse> requestBankInfoUpdate(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody RequestBankInfoUpdateRequest request) {
+        return ApiResponse.success(
+                "Đã yêu cầu khách hàng cập nhật thông tin tài khoản ngân hàng.",
+                refundRequestStaffServicePort.requestBankInfoUpdate(id, principal.getId(), request));
+    }
+
+    @PatchMapping(ID_PATH + "/bank-account")
+    @PreAuthorize("hasAuthority('refund:process')")
+    public ApiResponse<RefundRequestResponse> attachBankAccount(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody AttachRefundBankAccountRequest request) {
+        return ApiResponse.success(
+                "Đã gắn tài khoản ngân hàng. Yêu cầu chuyển sang chờ chuyển khoản.",
+                refundRequestStaffServicePort.attachBankAccount(id, principal.getId(), request));
     }
 
     @PostMapping(value = "/transfer-evidence/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

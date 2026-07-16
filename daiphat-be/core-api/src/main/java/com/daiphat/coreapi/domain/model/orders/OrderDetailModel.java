@@ -24,6 +24,7 @@ public class OrderDetailModel {
     private Long lotteryTicketSerialId;
     private Long replacedByTicketId;
     private Long replacedByTicketSerialId;
+    private Long refundRequestId;
 
     @Builder.Default
     private Integer quantity = 1;
@@ -34,10 +35,10 @@ public class OrderDetailModel {
     private BigDecimal price;
 
     @Builder.Default
-    private OrderDetailStatus status = OrderDetailStatus.ACTIVE;
+    private boolean hasReplacement = false;
 
     @Builder.Default
-    private List<OrderRefundModel> refunds = new ArrayList<>();
+    private OrderDetailStatus status = OrderDetailStatus.ACTIVE;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -47,9 +48,6 @@ public class OrderDetailModel {
     public void initializeForCreate() {
         if (this.status == null) {
             this.status = OrderDetailStatus.ACTIVE;
-        }
-        if (this.refunds == null) {
-            this.refunds = new ArrayList<>();
         }
     }
 
@@ -77,6 +75,20 @@ public class OrderDetailModel {
     public void replaceWith(Long replacementTicketId, Long replacementTicketSerialId) {
         this.replacedByTicketId = replacementTicketId;
         this.replacedByTicketSerialId = replacementTicketSerialId;
+    }
+
+    /** Swap the allocated serial to a replacement and record replacedBy*, while keeping the old ticket info and updating price. */
+    public void applySerialReplacement(Long replacementTicketId, Long replacementTicketSerialId, BigDecimal newPrice) {
+        if (replacementTicketSerialId == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+        if (newPrice != null) {
+            this.price = newPrice;
+        }
+        replaceWith(replacementTicketId, replacementTicketSerialId);
+        if (this.allocatedSerialIds != null) {
+            this.allocatedSerialIds = new ArrayList<>(List.of(replacementTicketSerialId));
+        }
     }
 
     public boolean isReplaced() {

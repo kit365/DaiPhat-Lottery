@@ -26,7 +26,6 @@ import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
-import com.daiphat.coreapi.domain.model.enums.order.refund.OrderRefundStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
@@ -318,11 +317,6 @@ public class OrderService implements OrderServicePort {
         return EnumOptionUtils.toEnumOptions(OrderDetailStatus.values());
     }
 
-    @Override
-    public List<EnumOptionResponse> getOrderRefundStatuses() {
-        return EnumOptionUtils.toEnumOptions(OrderRefundStatus.values());
-    }
-
     private OrderDetailModel buildOrderDetail(OrderTicketSnapshot ticketSnapshot) {
         OrderDetailModel detail = orderApplicationMapper.toOrderDetailModel(ticketSnapshot);
         detail.initializeForCreate();
@@ -346,6 +340,7 @@ public class OrderService implements OrderServicePort {
                 .expectedPickupAt(base.expectedPickupAt())
                 .cancelledAt(base.cancelledAt())
                 .cancelReason(base.cancelReason())
+                .cancelType(base.cancelType())
                 .actualPickedUpAt(base.actualPickedUpAt())
                 .pickedUpBy(base.pickedUpBy())
                 .orderDetails(enrichOrderDetails(order.getOrderDetails()))
@@ -376,6 +371,7 @@ public class OrderService implements OrderServicePort {
                 .expectedPickupAt(base.expectedPickupAt())
                 .cancelledAt(base.cancelledAt())
                 .cancelReason(base.cancelReason())
+                .cancelType(base.cancelType())
                 .actualPickedUpAt(base.actualPickedUpAt())
                 .pickedUpBy(base.pickedUpBy())
                 .orderDetails(base.orderDetails())
@@ -397,16 +393,66 @@ public class OrderService implements OrderServicePort {
         Map<Long, LotteryTicketResponse> ticketsById = new LinkedHashMap<>();
         Map<Long, LotteryTicketSerialModel> serialsById = new LinkedHashMap<>();
 
+        details.forEach(detail -> {
+            Long displaySerialId = detail.isReplaced()
+                    ? detail.getReplacedByTicketSerialId()
+                    : detail.getLotteryTicketSerialId();
+            LotteryTicketSerialModel serial = resolveSerial(displaySerialId, serialsById);
+            Long targetTicketId = detail.isReplaced()
+                    ? detail.getReplacedByTicketId()
+                    : detail.getLotteryTicketId();
+            if (targetTicketId == null && serial != null) {
+                targetTicketId = serial.getTicketId();
+            }
+            resolveTicket(targetTicketId, ticketsById);
+        });
+
+        java.util.Set<Long> stationIds = new java.util.LinkedHashSet<>();
+        java.util.Set<String> numbersList = new java.util.LinkedHashSet<>();
+        java.util.Set<LocalDate> drawDates = new java.util.LinkedHashSet<>();
+
+        for (LotteryTicketResponse t : ticketsById.values()) {
+            if (t != null) {
+                if (t.stationId() != null) stationIds.add(t.stationId());
+                if (t.numbers() != null) numbersList.add(t.numbers());
+                if (t.drawDate() != null) drawDates.add(t.drawDate());
+            }
+        }
+
+        java.util.Set<com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey> availableKeys = new java.util.LinkedHashSet<>();
+        if (!stationIds.isEmpty() && !numbersList.isEmpty() && !drawDates.isEmpty()) {
+            availableKeys.addAll(lotteryTicketServicePort.findAvailableReplacementsInBulk(stationIds, drawDates, numbersList));
+        }
+
         return details.stream()
                 .map(detail -> {
-                    LotteryTicketResponse ticket = resolveTicket(detail.getLotteryTicketId(), ticketsById);
-                    LotteryTicketSerialModel serial = resolveSerial(detail.getLotteryTicketSerialId(), serialsById);
+                    Long displaySerialId = detail.isReplaced()
+                            ? detail.getReplacedByTicketSerialId()
+                            : detail.getLotteryTicketSerialId();
+                    LotteryTicketSerialModel serial = resolveSerial(displaySerialId, serialsById);
+
+                    Long displayTicketId = detail.isReplaced()
+                            ? detail.getReplacedByTicketId()
+                            : detail.getLotteryTicketId();
+                    // Fallback: derive ticket id from the serial that will be delivered.
+                    if (displayTicketId == null && serial != null) {
+                        displayTicketId = serial.getTicketId();
+                    }
+
+                    LotteryTicketResponse ticket = resolveTicket(displayTicketId, ticketsById);
                     OrderDetailResponse base = orderApplicationMapper.toDetailResponse(detail);
+
+                    boolean hasRep = false;
+                    if (ticket != null && ticket.stationId() != null && ticket.numbers() != null && ticket.drawDate() != null) {
+                        hasRep = availableKeys.contains(new com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey(
+                                ticket.stationId(), ticket.numbers(), ticket.drawDate()
+                        ));
+                    }
 
                     return OrderDetailResponse.builder()
                             .id(base.id())
-                            .lotteryTicketId(base.lotteryTicketId())
-                            .lotteryTicketSerialId(base.lotteryTicketSerialId())
+                            .lotteryTicketId(displayTicketId)
+                            .lotteryTicketSerialId(displaySerialId)
                             .stationId(ticket != null ? ticket.stationId() : null)
                             .stationName(ticket != null ? ticket.stationName() : null)
                             .numbers(ticket != null ? ticket.numbers() : null)
@@ -415,12 +461,14 @@ public class OrderService implements OrderServicePort {
                                     ? serial.getTicketImg()
                                     : ticket != null ? ticket.ticketImg() : null)
                             .serialNumber(serial != null ? serial.getSerialNumber() : null)
-                            .replacedByTicketId(base.replacedByTicketId())
+                            .replacedByTicketId(detail.getReplacedByTicketId() != null
+                                    ? detail.getReplacedByTicketId()
+                                    : (detail.isReplaced() && serial != null ? serial.getTicketId() : null))
                             .replacedByTicketSerialId(base.replacedByTicketSerialId())
                             .price(base.price())
                             .quantity(detail.getEffectiveQuantity())
                             .status(base.status())
-                            .refunds(base.refunds())
+                            .hasReplacement(hasRep)
                             .build();
                 })
                 .toList();

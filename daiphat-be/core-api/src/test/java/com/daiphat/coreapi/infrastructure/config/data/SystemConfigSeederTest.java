@@ -52,7 +52,9 @@ class SystemConfigSeederTest {
                         "LATE_IMPORT_TIME",
                         "IMPORT_BATCH_CUTOFF_TIME",
                         "STAFF_INCIDENT_CUTOFF",
-                        "INVALID_INFO_EXPIRED_DAYS"
+                        "INVALID_INFO_EXPIRED_DAYS",
+                        "MAX_REFUND_REQUESTS_PER_DAY",
+                        "MAX_REFUND_BANK_INFO_RETRY"
                 );
         assertThat(captor.getAllValues()).allMatch(entity -> Boolean.TRUE.equals(entity.getIsActive()));
     }

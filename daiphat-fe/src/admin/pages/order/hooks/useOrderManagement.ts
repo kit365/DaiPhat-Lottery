@@ -4,11 +4,14 @@ import {
     getOrderDetail,
     updateOrderStatus,
     createOrder,
-    updateOrder
+    updateOrder,
+    handleOrderTicketIncidents,
+    HandleOrderTicketIncidentRequest,
 } from "../../../api/order.api";
 import { useState } from 'react';
 import { OrderFilterParams } from '../../../../types/order.type';
 import { QUERY_KEYS } from '../../../../constants/queryKeys';
+import { toast } from 'react-toastify';
 
 export const useAdminOrderList = (initialParams?: OrderFilterParams) => {
     const [filters, setFilters] = useState<OrderFilterParams>({
@@ -37,15 +40,32 @@ export const useAdminOrderList = (initialParams?: OrderFilterParams) => {
                 case 'receiveType':
                     newFilters.receiveType = values.length > 0 ? values : undefined;
                     break;
-                case 'dateRange':
-                    if (values[0]) {
-                        newFilters.fromDate = values[0];
-                        newFilters.toDate = values[0];
-                    } else {
+                case 'dateRange': {
+                    if (!values.length) {
                         newFilters.fromDate = undefined;
                         newFilters.toDate = undefined;
+                        break;
+                    }
+
+                    // Special preset: both ends of "this month" live in one encoded value.
+                    const monthRange = values.find((v) => v.startsWith('month:'));
+                    if (monthRange) {
+                        const [, from, to] = monthRange.split(':');
+                        newFilters.fromDate = from;
+                        newFilters.toDate = to;
+                        break;
+                    }
+
+                    const sorted = [...values].filter((v) => !v.startsWith('month:')).sort();
+                    if (sorted.length === 0) {
+                        newFilters.fromDate = undefined;
+                        newFilters.toDate = undefined;
+                    } else {
+                        newFilters.fromDate = sorted[0];
+                        newFilters.toDate = sorted[sorted.length - 1];
                     }
                     break;
+                }
             }
             return newFilters;
         });
@@ -157,6 +177,43 @@ export const useUpdateOrder = () => {
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDERS] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDER_DETAIL, variables.id] });
+        },
+    });
+};
+
+export const useHandleOrderTicketIncidents = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({
+            orderId,
+            data,
+        }: {
+            orderId: string;
+            data: HandleOrderTicketIncidentRequest;
+        }) => handleOrderTicketIncidents(orderId, data),
+        onSuccess: (response, variables) => {
+            const results = response?.data?.results || [];
+            results.forEach((item) => {
+                if (item.outcome === 'REPLACED') {
+                    toast.success(
+                        item.message ||
+                            `Đã tự động đổi sang vé ${item.newSerialNumber} cho bộ số ${item.numbers || ''}`
+                    );
+                } else if (item.outcome === 'NO_REPLACEMENT') {
+                    toast.info(
+                        item.message ||
+                            `Vé ${item.numbers || ''} hết thay thế. Hoàn tiền từng phần sẽ được hỗ trợ ở bước tiếp theo.`
+                    );
+                }
+            });
+            if (!results.length && response?.success) {
+                toast.success(response.message || 'Đã xử lý vé sự cố.');
+            }
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDERS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_ORDER_DETAIL, variables.orderId] });
+        },
+        onError: (error: any) => {
+            toast.error(error?.response?.data?.message || error.message || 'Xử lý vé sự cố thất bại');
         },
     });
 };

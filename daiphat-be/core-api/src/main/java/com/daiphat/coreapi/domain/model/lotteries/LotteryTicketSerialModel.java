@@ -3,6 +3,7 @@ package com.daiphat.coreapi.domain.model.lotteries;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.lottery.InputSource;
+import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialFaultedBy;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import lombok.*;
 
@@ -41,6 +42,7 @@ public class LotteryTicketSerialModel {
     private UUID verifiedById;
     private LocalDateTime verifiedAt;
     private LocalDateTime returnedAt;
+    private LotteryTicketSerialFaultedBy faultedBy;
     private String damagedEvidenceUrl;
     private String damagedReason;
     private LocalDateTime deletedAt;
@@ -60,6 +62,7 @@ public class LotteryTicketSerialModel {
         this.reservedAt = null;
         this.reservationExpiresAt = null;
         this.reservedByOrderId = null;
+        this.faultedBy = null;
         this.damagedEvidenceUrl = null;
         this.damagedReason = null;
     }
@@ -117,6 +120,42 @@ public class LotteryTicketSerialModel {
         this.reservedByOrderId = null;
     }
 
+    public void markDamaged(LotteryTicketSerialFaultedBy faultedBy, String reason) {
+        markDamaged(faultedBy, reason, null);
+    }
+
+    public void markDamaged(LotteryTicketSerialFaultedBy faultedBy, String reason, String evidenceUrl) {
+        markFaulted(LotteryTicketSerialStatus.DAMAGED, faultedBy, reason);
+        this.damagedEvidenceUrl = evidenceUrl != null && !evidenceUrl.isBlank() ? evidenceUrl.trim() : null;
+    }
+
+    public void markLost(LotteryTicketSerialFaultedBy faultedBy, String reason) {
+        markFaulted(LotteryTicketSerialStatus.LOST, faultedBy, reason);
+        // LOST incidents do not keep damage evidence.
+        this.damagedEvidenceUrl = null;
+    }
+
+    private void markFaulted(
+            LotteryTicketSerialStatus faultStatus,
+            LotteryTicketSerialFaultedBy faultedBy,
+            String reason
+    ) {
+        if (faultedBy == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT, "Cần chỉ định nguồn gây lỗi (faultedBy).");
+        }
+        if (this.status != LotteryTicketSerialStatus.SOLD
+                && this.status != LotteryTicketSerialStatus.RESERVED
+                && this.status != LotteryTicketSerialStatus.IN_STOCK) {
+            throw new DomainException(ErrorCode.LOTTERY_TICKET_INVALID_STATUS);
+        }
+        this.status = faultStatus;
+        this.faultedBy = faultedBy;
+        this.damagedReason = reason != null && !reason.isBlank() ? reason.trim() : null;
+        this.reservedAt = null;
+        this.reservationExpiresAt = null;
+        this.reservedByOrderId = null;
+    }
+
     public boolean isEditableStatus() {
         return this.status == LotteryTicketSerialStatus.IN_STOCK;
     }
@@ -124,7 +163,8 @@ public class LotteryTicketSerialModel {
     public boolean isSoftDeletableStatus() {
         return this.status == LotteryTicketSerialStatus.IN_STOCK
                 || this.status == LotteryTicketSerialStatus.EXPIRED
-                || this.status == LotteryTicketSerialStatus.INTERNAL_FAULT;
+                || this.status == LotteryTicketSerialStatus.DAMAGED
+                || this.status == LotteryTicketSerialStatus.LOST;
     }
 
     public void softDelete() {

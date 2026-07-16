@@ -25,10 +25,59 @@ export enum OrderDetailStatus {
     REFUNDED = 'REFUNDED'
 }
 
-export enum OrderRefundStatus {
-    PENDING = 'PENDING',
-    APPROVED = 'APPROVED',
-    REJECTED = 'REJECTED'
+export const ORDER_DETAIL_STATUS_LABELS: Record<OrderDetailStatus, string> = {
+    [OrderDetailStatus.ACTIVE]: 'Đang hiệu lực',
+    [OrderDetailStatus.INACTIVE]: 'Không còn hiệu lực',
+    [OrderDetailStatus.REFUND_PENDING]: 'Chờ hoàn tiền',
+    [OrderDetailStatus.REFUNDED]: 'Đã hoàn tiền',
+};
+
+export const ORDER_DETAIL_STATUS_BADGE: Record<
+    OrderDetailStatus,
+    { label: string; bg: string; text: string; color?: string; bgcolor?: string }
+> = {
+    [OrderDetailStatus.ACTIVE]: {
+        label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.ACTIVE],
+        bg: 'bg-[#E4F8ED]',
+        text: 'text-[#1CD162]',
+        color: 'var(--palette-success-dark)',
+        bgcolor: 'var(--palette-success-lighter)',
+    },
+    [OrderDetailStatus.INACTIVE]: {
+        label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.INACTIVE],
+        bg: 'bg-[#F4F6F8]',
+        text: 'text-[#637381]',
+        color: 'var(--palette-text-secondary)',
+        bgcolor: 'var(--palette-background-neutral)',
+    },
+    [OrderDetailStatus.REFUND_PENDING]: {
+        label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.REFUND_PENDING],
+        bg: 'bg-[#FFF9F3]',
+        text: 'text-[#B76E00]',
+        color: 'var(--palette-warning-dark)',
+        bgcolor: 'var(--palette-warning-lighter)',
+    },
+    [OrderDetailStatus.REFUNDED]: {
+        label: ORDER_DETAIL_STATUS_LABELS[OrderDetailStatus.REFUNDED],
+        bg: 'bg-[#F0F5FF]',
+        text: 'text-[#2065D1]',
+        color: 'var(--palette-info-dark)',
+        bgcolor: 'var(--palette-info-lighter)',
+    },
+};
+
+export function resolveOrderDetailStatusBadge(status?: string | null) {
+    if (!status) {
+        return ORDER_DETAIL_STATUS_BADGE[OrderDetailStatus.ACTIVE];
+    }
+    const key = status as OrderDetailStatus;
+    return ORDER_DETAIL_STATUS_BADGE[key] ?? {
+        label: status,
+        bg: 'bg-[#F4F6F8]',
+        text: 'text-[#637381]',
+        color: 'var(--palette-text-secondary)',
+        bgcolor: 'var(--palette-background-neutral)',
+    };
 }
 
 export interface OrderTicketItemRequest {
@@ -90,6 +139,14 @@ export interface OrderResponse {
     receiveType: OrderReceiveType;
     expectedPickupAt?: string;
     actualPickedUpAt?: string;
+    cancelledAt?: string;
+    cancelReason?: string;
+    cancelType?:
+        | 'CUSTOMER_REQUEST'
+        | 'ADMIN_FORCE_CANCEL'
+        | 'SYSTEM_PAYMENT_TIMEOUT'
+        | 'OUT_OF_STOCK_INCIDENT'
+        | null;
     createdAt: string;
     orderDetails?: any[];
     transactions: TransactionResponse[];

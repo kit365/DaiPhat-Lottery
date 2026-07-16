@@ -3,12 +3,15 @@ package com.daiphat.coreapi.adapter.in.web.controller.refund;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
+import com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest;
 import com.daiphat.coreapi.application.dto.request.refund.CreateRefundRequestRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
 import com.daiphat.coreapi.application.port.in.refund.RefundRequestServicePort;
-import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
+import com.daiphat.coreapi.application.dto.response.notification.NotificationReferenceAvailabilityResponse;
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -77,18 +80,29 @@ public class RefundRequestController {
     public ApiResponse<RefundRequestResponse> getById(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        return ApiResponse.success(
-                "Lấy chi tiết yêu cầu hoàn tiền thành công.",
-                refundRequestServicePort.getById(id, principal.getId()));
+        try {
+            return ApiResponse.success(
+                    "Lấy chi tiết yêu cầu hoàn tiền thành công.",
+                    refundRequestServicePort.getById(id, principal.getId()));
+        } catch (DomainException ex) {
+            if (ex.getErrorCode() == ErrorCode.REFUND_REQUEST_NOT_FOUND) {
+                return ApiResponse.success(
+                        NotificationReferenceAvailabilityResponse.UNAVAILABLE_MESSAGE,
+                        null
+                );
+            }
+            throw ex;
+        }
     }
 
-    @PatchMapping(ID_PATH + "/cancel")
+    @PatchMapping(ID_PATH + "/bank-account")
     @PreAuthorize("isAuthenticated()")
-    public ApiResponse<RefundRequestResponse> cancel(
+    public ApiResponse<RefundRequestResponse> attachBankAccount(
             @PathVariable Long id,
-            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody AttachRefundBankAccountRequest request) {
         return ApiResponse.success(
-                "Hủy yêu cầu hoàn tiền thành công.",
-                refundRequestServicePort.cancel(id, principal.getId()));
+                "Đã cập nhật tài khoản nhận hoàn tiền. Yêu cầu đang chờ chuyển khoản.",
+                refundRequestServicePort.attachBankAccount(id, principal.getId(), request));
     }
 }

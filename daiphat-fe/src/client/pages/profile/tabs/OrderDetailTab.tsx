@@ -4,10 +4,14 @@ import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../hooks/useOrder';
 import { useProcessPayment } from '../../../hooks/useTransaction';
 import { useGetMyRefunds } from '../../../hooks/useRefund';
-import { OrderStatus, OrderType } from '../../../../types/order.type';
+import { OrderStatus, OrderType, resolveOrderDetailStatusBadge } from '../../../../types/order.type';
 import { RefundRequestStatus, RefundType, formatRefundCountdown, isRefundCandidateStatus } from '../../../../types/refund.type';
 import { PaymentGateway } from '../../../../types/transaction.type';
 import { AppToast } from '../../../../utils/toast.util';
+import {
+    UnavailableReferenceState,
+    UNAVAILABLE_REFERENCE_MESSAGE,
+} from '../../../components/notification/UnavailableReferenceState';
 import { RefundRequestModal } from '../../../components/refund/RefundRequestModal';
 import { useGetOrderRefundEligibility } from '../../../hooks/useRefund';
 import { useRefundCountdown } from '../../../hooks/useRefundCountdown';
@@ -122,9 +126,9 @@ export const OrderDetailTab = () => {
             orderRefunds.find(
                 (r) =>
                     r.refundType === RefundType.FULL_ORDER &&
-                    (r.status === RefundRequestStatus.PENDING ||
-                        r.status === RefundRequestStatus.READY_TO_PAY ||
-                        r.status === RefundRequestStatus.APPROVED)
+                    (r.status === RefundRequestStatus.READY_TO_PAY ||
+                        r.status === RefundRequestStatus.APPROVED ||
+                        r.status === RefundRequestStatus.WAITING_FOR_INFO)
             ),
         [orderRefunds]
     );
@@ -132,14 +136,18 @@ export const OrderDetailTab = () => {
     const getPendingRefundForDetail = (detailId: number) =>
         orderRefunds.find(
             (r) =>
-                r.refundType === RefundType.ORDER_DETAIL &&
-                r.orderDetailId === detailId &&
-                r.status === RefundRequestStatus.PENDING
+                (r.refundType === RefundType.ORDER_DETAIL || r.refundType === RefundType.FULL_ORDER) &&
+                (r.orderDetailIds?.includes(detailId) || r.orderDetailId === detailId) &&
+                (r.status === RefundRequestStatus.READY_TO_PAY ||
+                    r.status === RefundRequestStatus.APPROVED ||
+                    r.status === RefundRequestStatus.WAITING_FOR_INFO)
         );
 
     const getRefundForDetail = (detailId: number) =>
         orderRefunds.find(
-            (r) => r.refundType === RefundType.ORDER_DETAIL && r.orderDetailId === detailId
+            (r) =>
+                (r.refundType === RefundType.ORDER_DETAIL || r.refundType === RefundType.FULL_ORDER) &&
+                (r.orderDetailIds?.includes(detailId) || r.orderDetailId === detailId)
         );
 
     const isRefundCandidate =
@@ -148,21 +156,27 @@ export const OrderDetailTab = () => {
         order?.id || '',
         isRefundCandidate
     );
-    const refundEligible = eligibilityData?.data?.eligible === true;
-    const refundIneligibleReason = eligibilityData?.data?.reason;
+    const eligibility = eligibilityData?.data;
+    const refundEligible = eligibility?.eligible === true;
+    const refundIneligibleReason = eligibility?.reason;
     const refundRemainingSeconds =
-        eligibilityData?.data?.remainingSeconds ?? order?.refundRemainingSeconds ?? 0;
+        eligibility?.remainingSeconds ?? order?.refundRemainingSeconds ?? 0;
     const { secondsLeft: refundSecondsLeft, isLowTime: isRefundLowTime, isExpired: isRefundExpired } =
         useRefundCountdown({
-            refundDeadlineAt: eligibilityData?.data?.refundDeadlineAt,
+            refundDeadlineAt: eligibility?.refundDeadlineAt,
             paymentSuccessAt:
-                eligibilityData?.data?.paymentSuccessAt ?? order?.refundPaymentSuccessAt,
-            graceMinutes: eligibilityData?.data?.graceMinutes ?? order?.refundGraceMinutes,
+                eligibility?.paymentSuccessAt ?? order?.refundPaymentSuccessAt,
+            graceMinutes: eligibility?.graceMinutes ?? order?.refundGraceMinutes,
             remainingSeconds: refundRemainingSeconds,
             enabled: isRefundCandidate && !isLoadingEligibility
         });
     const showRefundAction =
         isRefundCandidate && !isLoadingEligibility && refundEligible && !isRefundExpired;
+    const showRefundUnavailable =
+        isRefundCandidate &&
+        !isLoadingEligibility &&
+        (!refundEligible || isRefundExpired) &&
+        !pendingFullOrderRefund;
 
     const openRefundModal = () => {
         setShowRefundModal(true);
@@ -224,18 +238,14 @@ export const OrderDetailTab = () => {
 
     if (isError || !order) {
         return (
-            <div className="flex justify-center items-center h-[60vh]">
-                <div className="flex flex-col items-center gap-4">
-                    <i className="fa-solid fa-circle-exclamation text-4xl text-[#919EAB]"></i>
-                    <p className="text-[#212B36] font-medium text-[15px]">Không tìm thấy đơn hàng</p>
-                    <button
-                        onClick={() => navigate('/profile/orders')}
-                        className="bg-[#ee1314] text-white px-5 py-2.5 rounded-xl font-bold text-[14px] hover:bg-[#c80f11] transition-colors cursor-pointer"
-                    >
-                        Quay lại danh sách
-                    </button>
-                </div>
-            </div>
+            <UnavailableReferenceState
+                title="Thông báo không còn hiệu lực"
+                message={orderData?.message || UNAVAILABLE_REFERENCE_MESSAGE}
+                primaryTo="/profile/notifications"
+                primaryLabel="Về danh sách thông báo"
+                secondaryTo="/profile/orders"
+                secondaryLabel="Xem đơn hàng của tôi"
+            />
         );
     }
 
@@ -390,89 +400,6 @@ export const OrderDetailTab = () => {
                 </div>
             </div>
 
-            {/* Refund Alert Boxes */}
-            {isRefundCandidate && isLoadingEligibility && (
-                <div className="bg-[#F4F6F8] rounded-[20px] p-5 border border-[#E5E8EB] flex items-center gap-3 mt-6">
-                    <i className="fa-solid fa-spinner fa-spin text-[#637381]"></i>
-                    <p className="text-[14px] text-[#637381]">Đang kiểm tra điều kiện hủy đơn...</p>
-                </div>
-            )}
-
-            {showRefundAction && (
-                <div className="bg-[#F0F5FF] rounded-[20px] p-6 lg:p-8 border border-[#2065D1]/20 shadow-[0_2px_12px_rgb(0,0,0,0.03)] flex flex-col gap-5 mt-6">
-                    <div
-                        className={`p-4 rounded-xl border text-center ${
-                            isRefundLowTime
-                                ? 'bg-[#FFF9F3] border-[#FFB020]/50'
-                                : 'bg-white border-[#2065D1]/20'
-                        }`}
-                    >
-                        <p
-                            className={`text-[13px] font-medium ${
-                                isRefundLowTime ? 'text-[#B76E00]' : 'text-[#637381]'
-                            }`}
-                        >
-                            {isRefundLowTime ? 'Sắp hết thời gian yêu cầu hoàn tiền' : 'Thời gian còn lại để yêu cầu hoàn tiền'}
-                        </p>
-                        <p
-                            className={`text-[24px] font-bold mt-1 tabular-nums ${
-                                isRefundLowTime ? 'text-[#B76E00]' : 'text-[#2065D1]'
-                            }`}
-                        >
-                            {formatRefundCountdown(refundSecondsLeft)}
-                        </p>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-full bg-[#2065D1] text-white flex items-center justify-center text-xl shrink-0">
-                                <i className="fa-solid fa-rotate-left"></i>
-                            </div>
-                            <div>
-                                <h3 className="text-[18px] font-bold text-[#212B36]">Hủy đơn & Hoàn tiền</h3>
-                                <p className="text-[14px] text-[#637381] mt-1">
-                                    Bạn có thể yêu cầu hoàn tiền trong vòng{' '}
-                                    {eligibilityData?.data?.graceMinutes ?? order.refundGraceMinutes ?? 30} phút kể từ khi thanh toán.
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => openRefundModal()}
-                            className="w-full sm:w-auto px-6 py-3 bg-[#ee1314] text-white rounded-xl font-bold text-[14px] hover:bg-[#c80f11] transition-colors shadow-md shadow-[#ee1314]/20 cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap"
-                        >
-                            <i className="fa-solid fa-rotate-left"></i>
-                            Hủy đơn & Hoàn tiền
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {isRefundCandidate && !isLoadingEligibility && !refundEligible && refundIneligibleReason && (
-                <div className="bg-[#F4F6F8] rounded-[20px] p-5 border border-[#E5E8EB] flex items-center gap-3 mt-6">
-                    <i className="fa-solid fa-circle-info text-[#919EAB] text-lg"></i>
-                    <p className="text-[14px] text-[#637381]">{refundIneligibleReason}</p>
-                </div>
-            )}
-
-            {pendingFullOrderRefund && (
-                <div className="bg-[#FFF9F3] rounded-[20px] p-5 border border-[#FFB020]/30 flex items-center justify-between gap-4 mt-6">
-                    <div className="flex items-center gap-3">
-                        <i className="fa-solid fa-clock text-[#FFB020] text-xl"></i>
-                        <span className="text-[14px] font-medium text-[#637381]">
-                            {pendingFullOrderRefund.status === RefundRequestStatus.READY_TO_PAY
-                                ? 'Yêu cầu hoàn tiền đang chờ chuyển khoản'
-                                : 'Yêu cầu hủy đơn đang chờ duyệt'}
-                        </span>
-                    </div>
-                    <Link
-                        to={`/profile/refunds/${pendingFullOrderRefund.id}`}
-                        className="px-4 py-2 bg-white border border-[#FFB020]/30 text-[#FFB020] rounded-xl text-[13px] font-bold hover:bg-[#FFF4F4] transition-colors whitespace-nowrap"
-                    >
-                        Xem chi tiết
-                    </Link>
-                </div>
-            )}
-
             {/* Stepper trạng thái đơn hàng */}
             {order.orderType !== 'DIRECT' && (
                 <div className="mt-6">
@@ -544,6 +471,16 @@ export const OrderDetailTab = () => {
                                         </div>
                                         
                                         <div className="flex flex-col items-end gap-2">
+                                            {detail.status && (() => {
+                                                const badge = resolveOrderDetailStatusBadge(detail.status);
+                                                return (
+                                                    <span
+                                                        className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[12px] font-bold ${badge.bg} ${badge.text}`}
+                                                    >
+                                                        {badge.label}
+                                                    </span>
+                                                );
+                                            })()}
                                             {isPaidOrCompleted && (
                                                 <Link
                                                     to="/results"
@@ -674,6 +611,163 @@ export const OrderDetailTab = () => {
                     </div>
                 )}
             </div>
+
+            {/* Secondary: Cancel order & refund (below payment info) */}
+            {isRefundCandidate && isLoadingEligibility && (
+                <div className="rounded-2xl px-5 py-4 border border-[#E5E8EB] bg-[#F9FAFB] flex items-center gap-3 mb-6">
+                    <i className="fa-solid fa-spinner fa-spin text-[#919EAB] text-[13px]"></i>
+                    <p className="text-[13px] text-[#637381]">Đang kiểm tra điều kiện hủy đơn...</p>
+                </div>
+            )}
+
+            {showRefundAction && (
+                <div
+                    className={`rounded-2xl px-5 py-4 border mb-6 flex flex-col gap-4 ${
+                        isRefundLowTime
+                            ? 'bg-[#FFF9F3] border-[#FFB020]/25'
+                            : 'bg-[#F8FAFC] border-[#E5E8EB]'
+                    }`}
+                >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3 min-w-0">
+                            <div
+                                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                    isRefundLowTime
+                                        ? 'bg-[#FFF4E5] text-[#B76E00]'
+                                        : 'bg-white border border-[#E5E8EB] text-[#919EAB]'
+                                }`}
+                            >
+                                <i className="fa-solid fa-rotate-left text-[13px]"></i>
+                            </div>
+                            <div className="min-w-0 pt-0.5">
+                                <p className="text-[14px] font-semibold text-[#212B36] leading-tight">
+                                    Hủy đơn & hoàn tiền
+                                </p>
+                                <p className="text-[12px] text-[#637381] mt-1 leading-relaxed">
+                                    Bạn có thể yêu cầu hoàn tiền trong{' '}
+                                    {eligibility?.graceMinutes ?? order.refundGraceMinutes ?? 30} phút
+                                    kể từ khi thanh toán.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 shrink-0 self-stretch sm:self-center pl-0 sm:pl-2">
+                            <button
+                                onClick={() => openRefundModal()}
+                                className="h-9 px-4 rounded-xl bg-[#ee1314] text-white text-[13px] font-semibold hover:bg-[#c80f11] transition-colors cursor-pointer flex items-center justify-center gap-2 whitespace-nowrap shadow-sm shadow-[#ee1314]/15"
+                            >
+                                <i className="fa-solid fa-rotate-left text-[11px]"></i>
+                                Yêu cầu hoàn tiền
+                            </button>
+                            <div
+                                className={`h-9 px-3 rounded-xl border flex flex-col items-center justify-center tabular-nums min-w-[7.25rem] ${
+                                    isRefundLowTime
+                                        ? 'bg-[#FFF9F3] border-[#FFB020]/40'
+                                        : 'bg-[#F0F5FF] border-[#2065D1]/20'
+                                }`}
+                                title={
+                                    isRefundLowTime
+                                        ? 'Sắp hết thời gian yêu cầu hoàn tiền'
+                                        : 'Thời gian còn lại để yêu cầu hoàn tiền'
+                                }
+                            >
+                                <p
+                                    className={`text-[9px] font-medium leading-none tracking-wide uppercase ${
+                                        isRefundLowTime ? 'text-[#B76E00]' : 'text-[#637381]'
+                                    }`}
+                                >
+                                    {isRefundLowTime ? 'Sắp hết hạn' : 'Còn lại'}
+                                </p>
+                                <p
+                                    className={`text-[12px] font-bold leading-none mt-1 ${
+                                        isRefundLowTime ? 'text-[#B76E00]' : 'text-[#2065D1]'
+                                    }`}
+                                >
+                                    {formatRefundCountdown(refundSecondsLeft)}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 text-[12px] text-[#637381] border-t border-[#E5E8EB] pt-3">
+                        <p>
+                            Số yêu cầu hôm nay:{' '}
+                            <span className="font-semibold text-[#212B36] tabular-nums">
+                                {eligibility?.refundRequestsSubmittedToday ?? 0}/
+                                {eligibility?.maxRefundRequestsPerDay ?? '—'}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {showRefundUnavailable && (
+                <div className="rounded-2xl px-5 py-4 border border-[#E5E8EB] bg-[#F9FAFB] flex flex-col gap-3 mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-white border border-[#E5E8EB] text-[#919EAB] flex items-center justify-center shrink-0">
+                                <i className="fa-solid fa-circle-info text-[13px]"></i>
+                            </div>
+                            <div className="min-w-0 pt-0.5">
+                                <p className="text-[14px] font-semibold text-[#212B36] leading-tight">
+                                    Hủy đơn & hoàn tiền
+                                </p>
+                                <div className="mt-1.5 flex flex-col gap-1 text-[12px] text-[#637381]">
+                                    <p>
+                                        Số yêu cầu hôm nay:{' '}
+                                        <span className="font-semibold text-[#212B36] tabular-nums">
+                                            {eligibility?.refundRequestsSubmittedToday ?? 0}/
+                                            {eligibility?.maxRefundRequestsPerDay ?? '—'}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            disabled
+                            className="h-9 px-4 rounded-xl bg-[#C4CDD5] text-white text-[13px] font-semibold cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap self-start sm:self-center opacity-80"
+                        >
+                            <i className="fa-solid fa-rotate-left text-[11px]"></i>
+                            Yêu cầu hoàn tiền
+                        </button>
+                    </div>
+                    {(refundIneligibleReason || isRefundExpired) && (
+                        <p className="text-[13px] text-[#637381] leading-relaxed border-t border-[#E5E8EB] pt-3">
+                            {isRefundExpired && refundEligible
+                                ? 'Đã hết thời gian yêu cầu hoàn tiền cho đơn hàng này.'
+                                : refundIneligibleReason}
+                        </p>
+                    )}
+                </div>
+            )}
+
+            {pendingFullOrderRefund && (
+                <div className="rounded-2xl px-5 py-4 border border-[#FFB020]/25 bg-[#FFF9F3] flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-start gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-[#FFF4E5] text-[#B76E00] flex items-center justify-center shrink-0">
+                            <i className="fa-solid fa-clock text-[13px]"></i>
+                        </div>
+                        <div className="min-w-0 pt-0.5">
+                            <p className="text-[14px] font-semibold text-[#212B36] leading-tight">
+                                {pendingFullOrderRefund.status === RefundRequestStatus.READY_TO_PAY
+                                    ? 'Đang chờ chuyển khoản'
+                                    : 'Yêu cầu đang chờ duyệt'}
+                            </p>
+                            <p className="text-[12px] text-[#637381] mt-1 leading-relaxed">
+                                {pendingFullOrderRefund.status === RefundRequestStatus.READY_TO_PAY
+                                    ? 'Yêu cầu hoàn tiền đã được duyệt và đang chờ chuyển khoản.'
+                                    : 'Yêu cầu hủy đơn & hoàn tiền của bạn đang được xử lý.'}
+                            </p>
+                        </div>
+                    </div>
+                    <Link
+                        to={`/profile/refunds/${pendingFullOrderRefund.id}`}
+                        className="h-9 px-4 rounded-xl border border-[#DFE3E8] bg-white text-[#454F5B] text-[13px] font-semibold hover:border-[#C4CDD5] hover:bg-[#F4F6F8] hover:text-[#212B36] transition-colors whitespace-nowrap self-start sm:self-center flex items-center justify-center shadow-[0_1px_2px_rgb(0,0,0,0.04)]"
+                    >
+                        Xem chi tiết
+                    </Link>
+                </div>
+            )}
             
             {/* Mobile Sticky Bottom Bar */}
             {isPendingPayment && (
