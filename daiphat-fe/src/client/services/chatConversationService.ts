@@ -43,6 +43,13 @@ export const chatConversationService = {
         return response.data;
     },
 
+    cancelStaffRequest: async (conversationId: number): Promise<ApiResponse<ConversationDetailResponse>> => {
+        const response = await apiApp.post<ApiResponse<ConversationDetailResponse>>(
+            `${BASE_URL}/my/${conversationId}/cancel-staff-request`
+        );
+        return response.data;
+    },
+
     markAsRead: async (conversationId: number): Promise<ApiResponse<ConversationDetailResponse>> => {
         const response = await apiApp.post<ApiResponse<ConversationDetailResponse>>(
             `${BASE_URL}/my/${conversationId}/read`

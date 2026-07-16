@@ -156,6 +156,20 @@ public class ConversationController {
         );
     }
 
+    @PostMapping("/my/{conversationId}/cancel-staff-request")
+    @PreAuthorize("hasAnyAuthority('"
+            + RoleConstants.ROLE_MEMBER + "', '"
+            + RoleConstants.ROLE_STREET_AGENT + "', '"
+            + RoleConstants.ADMIN + "')")
+    public ApiResponse<ConversationDetailResponse> cancelMyStaffRequest(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @PathVariable Long conversationId) {
+        return ApiResponse.success(
+                "Đã huỷ yêu cầu gặp nhân viên.",
+                conversationServicePort.cancelStaffRequest(principal.getId(), conversationId)
+        );
+    }
+
     @GetMapping("/management")
     @PreAuthorize("hasAnyAuthority('"
             + RoleConstants.ROLE_STAFF_OPERATOR + "', '"

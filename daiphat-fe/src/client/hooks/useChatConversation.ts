@@ -68,6 +68,22 @@ export const useChatConversation = () => {
         }
     };
 
+    const cancelStaffRequest = async (
+        conversationId: number
+    ): Promise<ConversationDetailResponse | null> => {
+        try {
+            const response = await chatConversationService.cancelStaffRequest(conversationId);
+            if (!response.success || !response.data) {
+                toast.error(response.message || 'Không thể huỷ yêu cầu gặp nhân viên.');
+                return null;
+            }
+            return response.data;
+        } catch (error: any) {
+            toast.error(getErrorMessage(error, 'Không thể huỷ yêu cầu gặp nhân viên.'));
+            return null;
+        }
+    };
+
     const sendRealtimeMessage = async (conversationId: number, content: string): Promise<void> => {
         await connect();
         await socketService.sendChatMessage({
@@ -149,6 +165,7 @@ export const useChatConversation = () => {
         loadOpenConversation,
         loadConversationDetail,
         escalateConversation,
+        cancelStaffRequest,
         markConversationAsRead,
         sendRealtimeMessage,
         subscribeToConversation,
