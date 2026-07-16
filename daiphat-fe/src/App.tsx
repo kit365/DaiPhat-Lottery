@@ -2,36 +2,33 @@ import { Suspense } from 'react';
 import './App.css';
 import { BrowserRouter, Navigate, Route, Routes, Outlet } from 'react-router-dom';
 import { LayoutAdmin } from './admin/layouts/LayoutAdmin';
-import { HomePage } from './client/pages/home';
-import { SchedulePage } from './client/pages/schedule';
-import { AdminRoutes, AdminAuthRoutes, CommonRoutes, ProfileSetupPage, OAuthCallbackPage, AcceptInvitePage } from './admin/routes/index';
-import { PrivateRoute } from './client/pages/private.route';
-import { ProfilePage as ClientProfilePage } from './client/pages/profile/ProfilePage';
-import { ProfileDashboardPage } from './client/pages/profile/ProfileDashboardPage';
-import { OverviewTab } from './client/pages/profile/tabs/OverviewTab';
-import { ProfileInfoTab } from './client/pages/profile/tabs/ProfileInfoTab';
-import { TicketsTab } from './client/pages/profile/tabs/TicketsTab';
-import { OrdersTab } from './client/pages/profile/tabs/OrdersTab';
-import { OrderDetailTab } from './client/pages/profile/tabs/OrderDetailTab';
-import { FavoritesTab } from './client/pages/profile/tabs/FavoritesTab';
-import { NotificationsTab } from './client/pages/profile/tabs/NotificationsTab';
-import { SecurityTab } from './client/pages/profile/tabs/SecurityTab';
-import { RefundsTab } from './client/pages/profile/tabs/RefundsTab';
-import { RefundDetailTab } from './client/pages/profile/tabs/RefundDetailTab';
-import { BankAccountsTab } from './client/pages/profile/tabs/BankAccountsTab';
-import { ComplaintsTab } from './client/pages/profile/tabs/ComplaintsTab';
-import { ComplaintDetailTab } from './client/pages/profile/tabs/ComplaintDetailTab';
+import { HomePage } from './client/features/home/HomePage';
+import { SchedulePage } from './client/features/schedule';
+import { AdminRoutes, AdminAuthRoutes, CommonRoutes, ProfileSetupPage, OAuthCallbackPage } from './admin/routes/index';
+import { PrivateRoute } from './client/features/auth/PrivateRoute';
+import { ProfilePage as ClientProfilePage } from './client/features/profile/pages/ProfilePage';
+import { ProfileDashboardPage } from './client/features/profile/pages/ProfileDashboardPage';
+import { OverviewTab } from './client/features/profile/pages/tabs/OverviewTab';
+import { ProfileInfoTab } from './client/features/profile/pages/tabs/ProfileInfoTab';
+import { TicketsTab } from './client/features/profile/pages/tabs/TicketsTab';
+import { OrdersTab } from './client/features/profile/pages/tabs/OrdersTab';
+import { OrderDetailTab } from './client/features/profile/pages/tabs/OrderDetailTab';
+import { FavoritesTab } from './client/features/profile/pages/tabs/FavoritesTab';
+import { NotificationsTab } from './client/features/profile/pages/tabs/NotificationsTab';
+import { SecurityTab } from './client/features/profile/pages/tabs/SecurityTab';
+import { RefundsTab } from './client/features/profile/pages/tabs/RefundsTab';
+import { RefundDetailTab } from './client/features/profile/pages/tabs/RefundDetailTab';
+import { BankAccountsTab } from './client/features/profile/pages/tabs/BankAccountsTab';
+import { ComplaintsTab } from './client/features/profile/pages/tabs/ComplaintsTab';
+import { ComplaintDetailTab } from './client/features/profile/pages/tabs/ComplaintDetailTab';
 
-import { BlogListPage } from './client/pages/BlogListPage';
-import { BlogDetailPage } from './client/pages/BlogDetailPage';
-import { CartPage } from './client/pages/cart/CartPage';
-import { CheckoutPage } from './client/pages/cart/CheckoutPage';
-import { BuyTicketPage } from './client/pages/buy-ticket/BuyTicketPage';
-import { CheckoutResultPage } from './client/pages/cart/CheckoutResultPage';
-import { LoginPage } from './client/pages/auth/LoginPage';
-import { RegisterPage } from './client/pages/auth/RegisterPage';
-import { ForgotPasswordPage as ClientForgotPasswordPage } from './client/pages/auth/ForgotPasswordPage';
-import { NotFoundPage } from './client/pages/NotFoundPage';
+import { BlogListPage, BlogDetailPage } from './client/features/blog';
+import { CartPage, CheckoutPage, CheckoutResultPage } from './client/features/cart';
+import { BuyTicketPage } from './client/features/buy-ticket/BuyTicketPage';
+import { LoginPage } from './client/features/auth/pages/LoginPage';
+import { RegisterPage } from './client/features/auth/pages/RegisterPage';
+import { ForgotPasswordPage as ClientForgotPasswordPage } from './client/features/auth/pages/ForgotPasswordPage';
+import { NotFoundPage } from './client/features/not-found/NotFoundPage';
 
 import { ROUTES } from './admin/constants/routes';
 import { LoadingSpinner } from './client/components/ui/LoadingSpinner';
@@ -98,7 +95,6 @@ function App() {
 
             {/* Common Routes inside Admin Context */}
             <Route path="auth/callback" element={<OAuthCallbackPage />} />
-            <Route path="accept-invite" element={<AcceptInvitePage />} />
 
             <Route element={<AuthGuard />}>
               <Route path="setup-profile" element={<ProfileSetupPage />} />

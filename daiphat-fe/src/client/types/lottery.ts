@@ -85,15 +85,6 @@ export interface LotteryStationDrawApiResponse {
   image?: string | null;
 }
 
-export interface LotteryStationSchedulePublicResponse {
-  stationId: number;
-  stationName: string;
-  region: string;
-  drawDays: string[];
-  drawDaysDisplay: string[];
-  drawTime: string;
-}
-
 export interface LotteryStationDraw {
   id: number;
   province: string;
@@ -292,23 +283,6 @@ export const mergeResultWithLiveDetails = (
     stationId: result.stationId ?? detailed.stationId,
   };
 };
-
-export interface PrizeStructureResponse {
-  id: number;
-  regionId: number;
-  regionCode: string;
-  prizeLevel: string;
-  prizeDisplayName: string;
-  prizeCode: string;
-  description?: string | null;
-  prizeValue: number;
-  quantity: number;
-  matchDigits?: number | null;
-  matchFrom: string;
-  matchFromDisplayName: string;
-  displayOrder: number;
-  isActive: boolean;
-}
 
 export interface TicketMatchedPrize {
   prizeLevel: string;

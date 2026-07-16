@@ -57,6 +57,9 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             String username = tokenProviderPort.extractUsernameFromAccessToken(token);
             UserModel user = userLookupServicePort.findByUsername(username)
                     .orElseThrow(() -> new NoSuchElementException("Token user not found"));
+            if (!tokenProviderPort.isAccessTokenValidForUser(token, user)) {
+                throw new JwtException("Token was revoked");
+            }
             return userAuthenticationFactory.create(user);
         } catch (JwtException | IllegalArgumentException | NoSuchElementException ex) {
             throw new IllegalArgumentException("Invalid or expired WebSocket token.", ex);

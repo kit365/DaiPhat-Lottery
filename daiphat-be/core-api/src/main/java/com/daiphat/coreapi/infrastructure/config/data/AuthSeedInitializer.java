@@ -23,64 +23,64 @@ public class AuthSeedInitializer implements ApplicationRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${daiphat.auth.seed.admin.username:}")
+    @Value("${daiphat.auth.seed.admin.username}")
     private String adminUsername;
 
-    @Value("${daiphat.auth.seed.admin.password:}")
+    @Value("${daiphat.auth.seed.admin.password}")
     private String adminPassword;
 
-    @Value("${daiphat.auth.seed.admin.email:}")
+    @Value("${daiphat.auth.seed.admin.email}")
     private String adminEmail;
 
-    @Value("${daiphat.auth.seed.admin.first-name:}")
+    @Value("${daiphat.auth.seed.admin.first-name}")
     private String adminFirstName;
 
-    @Value("${daiphat.auth.seed.admin.last-name:}")
+    @Value("${daiphat.auth.seed.admin.last-name}")
     private String adminLastName;
 
-    @Value("${daiphat.auth.seed.member.username:}")
+    @Value("${daiphat.auth.seed.member.username}")
     private String memberUsername;
 
-    @Value("${daiphat.auth.seed.member.password:}")
+    @Value("${daiphat.auth.seed.member.password}")
     private String memberPassword;
 
-    @Value("${daiphat.auth.seed.member.email:}")
+    @Value("${daiphat.auth.seed.member.email}")
     private String memberEmail;
 
-    @Value("${daiphat.auth.seed.member.first-name:}")
+    @Value("${daiphat.auth.seed.member.first-name}")
     private String memberFirstName;
 
-    @Value("${daiphat.auth.seed.member.last-name:}")
+    @Value("${daiphat.auth.seed.member.last-name}")
     private String memberLastName;
 
-    @Value("${daiphat.auth.seed.street-agent.username:}")
+    @Value("${daiphat.auth.seed.street-agent.username}")
     private String streetAgentUsername;
 
-    @Value("${daiphat.auth.seed.street-agent.password:}")
+    @Value("${daiphat.auth.seed.street-agent.password}")
     private String streetAgentPassword;
 
-    @Value("${daiphat.auth.seed.street-agent.email:}")
+    @Value("${daiphat.auth.seed.street-agent.email}")
     private String streetAgentEmail;
 
-    @Value("${daiphat.auth.seed.street-agent.first-name:}")
+    @Value("${daiphat.auth.seed.street-agent.first-name}")
     private String streetAgentFirstName;
 
-    @Value("${daiphat.auth.seed.street-agent.last-name:}")
+    @Value("${daiphat.auth.seed.street-agent.last-name}")
     private String streetAgentLastName;
 
-    @Value("${daiphat.auth.seed.operator.username:}")
+    @Value("${daiphat.auth.seed.operator.username}")
     private String operatorUsername;
 
-    @Value("${daiphat.auth.seed.operator.password:}")
+    @Value("${daiphat.auth.seed.operator.password}")
     private String operatorPassword;
 
-    @Value("${daiphat.auth.seed.operator.email:}")
+    @Value("${daiphat.auth.seed.operator.email}")
     private String operatorEmail;
 
-    @Value("${daiphat.auth.seed.operator.first-name:}")
+    @Value("${daiphat.auth.seed.operator.first-name}")
     private String operatorFirstName;
 
-    @Value("${daiphat.auth.seed.operator.last-name:}")
+    @Value("${daiphat.auth.seed.operator.last-name}")
     private String operatorLastName;
 
     @Override

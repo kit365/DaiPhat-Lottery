@@ -1,7 +1,5 @@
 package com.daiphat.coreapi.application.service.user;
 
-import com.daiphat.coreapi.application.dto.request.AcceptInviteRequest;
-import com.daiphat.coreapi.application.dto.request.InviteStaffRequest;
 import com.daiphat.coreapi.application.dto.request.user.CreateUserRequest;
 import com.daiphat.coreapi.application.dto.request.user.ProfileSetupRequest;
 import com.daiphat.coreapi.application.dto.request.user.UpdateUserRequest;
@@ -10,7 +8,6 @@ import com.daiphat.coreapi.application.dto.response.user.UserResponse;
 import com.daiphat.coreapi.application.dto.response.user.UserStatusResponse;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
-import com.daiphat.coreapi.application.event.StaffInviteEvent;
 import com.daiphat.coreapi.application.event.UserCreatedEvent;
 import com.daiphat.coreapi.application.mapper.UserApplicationMapper;
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
@@ -18,14 +15,12 @@ import com.daiphat.coreapi.application.port.in.user.UserServicePort;
 import com.daiphat.coreapi.application.port.in.user.UserValidationServicePort;
 import com.daiphat.coreapi.application.port.out.auth.PasswordHashPort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
-import com.daiphat.coreapi.application.port.out.auth.InviteCachePort;
 import com.daiphat.coreapi.application.port.out.auth.RoleRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.auth.RoleModel;
 import com.daiphat.coreapi.domain.model.UserModel;
-import com.daiphat.coreapi.domain.model.auth.InviteData;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import com.daiphat.coreapi.shared.util.AuthUtils;
@@ -37,16 +32,12 @@ import com.daiphat.coreapi.shared.util.StorageUtils;
 import com.daiphat.coreapi.shared.util.StorageFolderConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -65,16 +56,13 @@ public class UserService implements UserServicePort {
     private final PasswordHashPort passwordHashPort;
     private final StoragePort storagePort;
     private final ApplicationEventPublisher eventPublisher;
-    private final InviteCachePort inviteCachePort;
     private final UserLookupServicePort userLookupService;
     private final UserValidationServicePort userValidationService;
 
-    @Value("${daiphat.auth.cache.invite-ttl-seconds}")
-    private long inviteTtlSeconds;
 
     @Override
     @Transactional
-    public void create(CreateUserRequest request) {
+    public UserResponse create(CreateUserRequest request) {
         log.info("Admin creating new user with email: {}", request.email());
 
         userValidationService.ensureEmailAvailable(request.email(), null);
@@ -92,13 +80,15 @@ public class UserService implements UserServicePort {
         String roleToAssign = resolveRoleCode(request.roleCode(), request.roles(), RoleConstants.ROLE_MEMBER);
         assignRoleToUser(user, roleToAssign);
 
-        userRepositoryPort.save(user);
+        UserModel savedUser = userRepositoryPort.save(user);
 
         eventPublisher.publishEvent(UserCreatedEvent.builder()
                 .email(request.email())
                 .fullName(user.getFullName())
                 .password(generatedPassword)
                 .build());
+
+        return userApplicationMapper.mapToUserResponse(savedUser);
     }
 
     @Override
@@ -347,90 +337,6 @@ public class UserService implements UserServicePort {
 
         user.clearAvatar();
         return userApplicationMapper.mapToUserResponse(userRepositoryPort.save(user));
-    }
-
-    @Override
-    @Transactional
-    public void inviteStaff(String id, InviteStaffRequest request) {
-        log.info("Inviting staff member with email/id: {} for role: {}", id, request.getRoleCode());
-        
-        UserModel user;
-        try {
-            UUID uuid = UUID.fromString(id);
-            user = userLookupService.findByIdOrThrow(uuid);
-        } catch (IllegalArgumentException e) {
-            user = userLookupService.findByUsernameOrEmailOrThrow(id);
-        }
-
-        roleRepositoryPort.findByCode(request.getRoleCode())
-                .orElseThrow(() -> new DomainException(ErrorCode.ROLE_NOT_FOUND));
-
-        // Generate a token and save to cache (24 hours expiry)
-        String inviteToken = UUID.randomUUID().toString();
-        inviteCachePort.saveInvite(inviteToken, user.getId(), request.getRoleCode(), Duration.ofSeconds(inviteTtlSeconds));
-        
-        UUID currentUserId = null;
-        try {
-            var auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.getName() != null && !auth.getName().isBlank()) {
-                currentUserId = userLookupService.findByUsername(auth.getName())
-                        .map(UserModel::getId)
-                        .orElse(null);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to get current user ID: {}", e.getMessage());
-        }
-
-        String oldInviteToken = userRepositoryPort.findStaffInviteTokenByEmail(user.getEmail()).orElse(null);
-        if (oldInviteToken != null) {
-            log.info("Invalidating old active invite token: {}", oldInviteToken);
-            try {
-                inviteCachePort.deleteInvite(oldInviteToken);
-            } catch (Exception e) {
-                log.warn("Failed to delete old invite token from cache: {}", e.getMessage());
-            }
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        userRepositoryPort.savePendingStaffInvite(
-                user.getEmail(),
-                request.getRoleCode(),
-                inviteToken,
-                currentUserId,
-                now,
-                now.plusSeconds(inviteTtlSeconds)
-        );
-        log.info("Successfully saved staff invite record to DB for email: {}", user.getEmail());
-
-        eventPublisher.publishEvent(StaffInviteEvent.builder()
-                .email(user.getEmail())
-                .fullName(user.getFullName())
-                .token(inviteToken)
-                .roleName(request.getRoleCode())
-                .build());
-    }
-
-    @Override
-    @Transactional
-    public void acceptInvite(AcceptInviteRequest request) {
-        log.info("Accepting staff invitation with token: {}", request.getToken());
-        
-        InviteData inviteData = inviteCachePort.getInvite(request.getToken())
-                .orElseThrow(() -> new DomainException(ErrorCode.INVITATION_INVALID));
-
-        UserModel user = userLookupService.findByIdOrThrow(inviteData.userId());
-
-        user.activate();
-
-        assignRoleToUser(user, inviteData.role());
-
-        userRepositoryPort.save(user);
-
-        userRepositoryPort.approveStaffInviteByToken(request.getToken());
-
-        inviteCachePort.deleteInvite(request.getToken());
-        
-        log.info("User {} successfully accepted invite and assigned role {}", user.getEmail(), inviteData.role());
     }
 
     @Override

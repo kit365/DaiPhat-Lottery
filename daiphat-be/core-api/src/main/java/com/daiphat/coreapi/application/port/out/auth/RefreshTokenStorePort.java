@@ -10,5 +10,7 @@ public interface RefreshTokenStorePort {
 
     Optional<String> find(UUID userId);
 
+    boolean rotate(UUID userId, String currentRefreshToken, String newRefreshToken, Duration ttl);
+
     void delete(UUID userId);
 }

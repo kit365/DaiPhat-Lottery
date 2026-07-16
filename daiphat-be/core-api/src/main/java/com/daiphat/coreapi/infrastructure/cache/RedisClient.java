@@ -3,9 +3,13 @@ package com.daiphat.coreapi.infrastructure.cache;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -39,6 +43,27 @@ public class RedisClient {
 
     public void delete(String key) {
         redisTemplate.delete(key);
+    }
+
+    public boolean compareAndSet(String key, Object expectedValue, Object newValue, Duration duration) {
+        Boolean updated = redisTemplate.execute(new SessionCallback<>() {
+            @Override
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            public Boolean execute(RedisOperations operations) {
+                operations.watch(key);
+                Object currentValue = operations.opsForValue().get(key);
+                if (!Objects.equals(currentValue, expectedValue)) {
+                    operations.unwatch();
+                    return false;
+                }
+
+                operations.multi();
+                operations.opsForValue().set(key, newValue, duration);
+                List<Object> results = operations.exec();
+                return results != null;
+            }
+        });
+        return Boolean.TRUE.equals(updated);
     }
 
     public Optional<Long> getTimeToLiveSeconds(String key) {

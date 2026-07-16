@@ -72,7 +72,7 @@ public class LotteryStationService implements LotteryStationServicePort {
     private static final List<LotteryTicketStatus> REALIGNABLE_TICKET_STATUSES =
             List.of(LotteryTicketStatus.IN_STOCK);
 
-    @Value("${daiphat.lottery.draw-reminder-minutes:30}")
+    @Value("${daiphat.lottery.draw-reminder-minutes}")
     private long drawReminderMinutes;
 
     @Override

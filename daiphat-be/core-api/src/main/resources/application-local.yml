@@ -1,3 +1,6 @@
+server:
+  port: 8080
+
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5434/daiphat_core_db?charSet=UTF-8
@@ -11,6 +14,10 @@ spring:
   flyway:
     enabled: true
     out-of-order: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
   data:
     redis:
       host: localhost
@@ -18,34 +25,57 @@ spring:
     mongodb:
       uri: mongodb://core_admin:core_pass_2026@localhost:27018/daiphat_core_db?authSource=admin
   mail:
-    host: ${AUTH_LOCAL_MAIL_HOST:smtp.gmail.com}
-    port: ${AUTH_LOCAL_MAIL_PORT:587}
-    username: ${AUTH_LOCAL_MAIL_USERNAME:}
-    password: ${AUTH_LOCAL_MAIL_PASSWORD:}
+    host: ${AUTH_LOCAL_MAIL_HOST}
+    port: ${AUTH_LOCAL_MAIL_PORT}
+    username: ${AUTH_LOCAL_MAIL_USERNAME}
+
+    password: ${AUTH_LOCAL_MAIL_PASSWORD}
     properties:
       mail:
         smtp:
           auth: true
           starttls:
             enable: true
+
 daiphat:
   auth:
     frontend-url: http://localhost:5173
+    jwt:
+      access-token-ttl-seconds: ${AUTH_JWT_ACCESS_TOKEN_TTL_SECONDS}
     cookie:
+      name: refresh_token
       secure: false
       same-site: Lax
+      path: /api/v1/auth
     cors:
       allowed-origins:
         - http://localhost:5173
         - http://127.0.0.1:5173
-        - https://teddypet.id.vn
+      allowed-methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - PATCH
+        - OPTIONS
+      allowed-headers:
+        - "*"
+      allow-credentials: true
+      max-age: 3600
+    cache:
+      verification-token-ttl-seconds: 86400
+      otp-ttl-seconds: 300
+      reset-token-ttl-seconds: 900
+    password-policy:
+      min-length: 6
+      max-length: 100
   blog:
     seed:
       enabled: true
-  payment:
-    payos:
-      return-path: ${PAYOS_RETURN_PATH:/checkout/result}
-      cancel-path: ${PAYOS_CANCEL_PATH:/checkout/result}
+  lottery:
+    seed:
+      enabled: false
+      tickets-per-station-per-date: 12
   order:
     seed:
       enabled: false
