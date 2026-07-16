@@ -6,10 +6,10 @@ import {
     useMarkAllMyNotificationsAsRead,
     useMarkMyNotificationAsRead,
     useNotifications
-} from "../../../hooks/useNotifications";
-import { NotificationResponse, NOTIFICATION_TYPE } from "../../../../types/notifications.type";
-import { resolveNotificationNavigation } from "../../../utils/notification.util";
-import { UnavailableReferenceState } from "../../../components/notification/UnavailableReferenceState";
+} from "../../../../hooks/useNotifications";
+import { NotificationResponse, NOTIFICATION_TYPE } from "../../../../../types/notifications.type";
+import { resolveNotificationNavigation } from "../../../../utils/notification.util";
+import { UnavailableReferenceState } from "../../../../components/notification/UnavailableReferenceState";
 
 const formatDateTime = (value?: string) => {
     if (!value) return "";
