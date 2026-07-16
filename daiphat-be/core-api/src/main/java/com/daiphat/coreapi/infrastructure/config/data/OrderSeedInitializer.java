@@ -6,9 +6,13 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
-import com.daiphat.coreapi.domain.model.enums.order.refund.OrderRefundStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundFundSource;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestRole;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.order.refund.RefundType;
+import com.daiphat.coreapi.domain.model.enums.order.refund.ReimburseStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryRegionEntity;
@@ -17,8 +21,8 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTi
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderDetailEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderEntity;
-import com.daiphat.coreapi.infrastructure.persistence.entity.order.OrderRefundEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
+import com.daiphat.coreapi.infrastructure.persistence.entity.refund.RefundRequestEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
 import com.daiphat.coreapi.infrastructure.persistence.repository.UserRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryRegionRepository;
@@ -26,6 +30,7 @@ import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.Lotte
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.lotteries.LotteryTicketSerialRepository;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderRepository;
+import com.daiphat.coreapi.infrastructure.persistence.repository.refund.RefundRequestRepository;
 import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +67,7 @@ public class OrderSeedInitializer implements ApplicationRunner {
     private static final int AVAILABLE_TICKET_BATCH_SIZE = 5;
 
     private final OrderRepository orderRepository;
+    private final RefundRequestRepository refundRequestRepository;
     private final UserRepository userRepository;
     private final LotteryRegionRepository lotteryRegionRepository;
     private final LotteryStationRepository lotteryStationRepository;
@@ -325,16 +331,19 @@ public class OrderSeedInitializer implements ApplicationRunner {
         );
         transaction.setPaidAt(now.minusHours(1));
 
-        OrderRefundEntity refund = buildRefund(detail, OrderRefundStatus.APPROVED, station.getPrice(), "Seed approved refund", now);
-        refund.setBankBin("970436");
-        refund.setBankName("Vietcombank");
-        refund.setBankAccountNo("123456789");
-        refund.setBankAccountName("NGUYEN VAN A");
-        refund.setRefundAt(now);
-        refund.setRefundApprovedBy(operator);
+        RefundRequestEntity refund = refundRequestRepository.save(buildRefundRequest(
+                member,
+                RefundRequestStatus.PAID,
+                station.getPrice(),
+                "Seed approved refund",
+                now
+        ));
+        refund.setReviewedBy(operator);
+        refund.setReviewedAt(now);
+        refund = refundRequestRepository.save(refund);
 
+        detail.setRefundRequest(refund);
         attachAggregate(order, detail, transaction);
-        detail.setRefunds(new ArrayList<>(List.of(refund)));
         orderRepository.save(order);
         log.info("Seeded approved refund order [{}].", SEED_ONLINE_REFUND_APPROVED_CODE);
     }
@@ -366,10 +375,20 @@ public class OrderSeedInitializer implements ApplicationRunner {
         );
         transaction.setPaidAt(now.minusMinutes(20));
 
-        OrderRefundEntity refund = buildRefund(detail, OrderRefundStatus.REJECTED, station.getPrice(), "Tu choi hoan tien do ve van hop le.", now);
+        RefundRequestEntity refund = refundRequestRepository.save(buildRefundRequest(
+                member,
+                RefundRequestStatus.MANUAL_RESOLUTION,
+                station.getPrice(),
+                "Tu choi hoan tien do ve van hop le.",
+                now
+        ));
+        refund.setOperatorNote("Seed manual-resolution refund (legacy rejected case).");
+        refund.setReviewedBy(operator);
+        refund.setReviewedAt(now);
+        refund = refundRequestRepository.save(refund);
 
+        detail.setRefundRequest(refund);
         attachAggregate(order, detail, transaction);
-        detail.setRefunds(new ArrayList<>(List.of(refund)));
         orderRepository.save(order);
         log.info("Seeded rejected refund order [{}].", SEED_ONLINE_REFUND_REJECTED_CODE);
     }
@@ -582,18 +601,24 @@ public class OrderSeedInitializer implements ApplicationRunner {
                 .build();
     }
 
-    private OrderRefundEntity buildRefund(
-            OrderDetailEntity detail,
-            OrderRefundStatus status,
+    private RefundRequestEntity buildRefundRequest(
+            UserEntity requestedBy,
+            RefundRequestStatus status,
             BigDecimal amount,
             String reason,
             LocalDateTime timestamp
     ) {
-        return OrderRefundEntity.builder()
-                .orderDetail(detail)
-                .status(status)
+        return RefundRequestEntity.builder()
+                .refundType(RefundType.ORDER_DETAIL)
+                .requestedBy(requestedBy)
+                .requestRole(RefundRequestRole.CUSTOMER)
                 .refundAmount(amount)
                 .refundReason(reason)
+                .status(status)
+                .fundSource(RefundFundSource.COMPANY_FUND)
+                .reimburseStatus(ReimburseStatus.NONE)
+                .attemptNumber(1)
+                .retryCount(0)
                 .createdAt(timestamp)
                 .updatedAt(timestamp)
                 .createdBy(SYSTEM_ACTOR)
@@ -602,7 +627,6 @@ public class OrderSeedInitializer implements ApplicationRunner {
     }
 
     private void attachAggregate(OrderEntity order, OrderDetailEntity detail, TransactionEntity transaction) {
-        detail.setRefunds(new ArrayList<>());
         order.setOrderDetails(new ArrayList<>(List.of(detail)));
         order.setTransactions(new ArrayList<>(List.of(transaction)));
     }

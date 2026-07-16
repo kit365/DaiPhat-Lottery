@@ -5,6 +5,7 @@ public enum NotificationReferenceType {
     BLOG_POST,
     ORDER,
     /** @deprecated Prefer {@link #REFUND_REQUEST}; kept for legacy notification rows. */
+    @Deprecated
     REFUND,
     REFUND_REQUEST,
     LOTTERY_STATION,
