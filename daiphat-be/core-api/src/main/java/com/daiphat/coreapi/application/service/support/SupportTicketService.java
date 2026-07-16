@@ -63,6 +63,7 @@ public class SupportTicketService implements SupportTicketServicePort {
     private final StoragePort storagePort;
     private final SupportApplicationMapper supportApplicationMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final RefundComplaintEligibilityService refundComplaintEligibilityService;
 
     @Override
     @Transactional
@@ -356,6 +357,8 @@ public class SupportTicketService implements SupportTicketServicePort {
         }
         if (required == TicketRefType.ORDER) {
             validateOrderRef(refId, customerId);
+        } else if (required == TicketRefType.REFUND_REQUEST) {
+            refundComplaintEligibilityService.validate(category, refId, customerId);
         }
     }
 

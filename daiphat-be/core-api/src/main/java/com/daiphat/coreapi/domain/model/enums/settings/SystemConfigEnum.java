@@ -65,6 +65,18 @@ public enum SystemConfigEnum {
             DataType.INT,
             "3",
             "Số lần tối đa khách hàng được phép cập nhật thông tin tài khoản ngân hàng sau khi chuyển khoản hoàn tiền thất bại"
+    ),
+    REFUND_COMPLAINT_PROCESSING_WAIT_HOURS(
+            ConfigType.REFUND_SETTING,
+            DataType.INT,
+            "48",
+            "Số giờ tối thiểu yêu cầu hoàn tiền phải ở WAITING_FOR_INFO/READY_TO_PAY trước khi khiếu nại xử lý chậm"
+    ),
+    REFUND_COMPLAINT_GRACE_DAYS(
+            ConfigType.REFUND_SETTING,
+            DataType.INT,
+            "7",
+            "Số ngày khiếu nại còn hiệu lực sau khi yêu cầu hoàn tiền ở trạng thái cuối (PAID/MANUAL_RESOLUTION), tối đa 15"
     );
 
     private final ConfigType configType;

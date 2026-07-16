@@ -362,6 +362,22 @@ public enum ErrorCode {
     TICKET_CANNOT_RESOLVE("TKT_015", "Không thể giải quyết yêu cầu hỗ trợ ở trạng thái hiện tại.", HttpStatus.BAD_REQUEST),
     TICKET_RESOLUTION_INVALID("TKT_016", "Nội dung phương án giải quyết không được để trống.", HttpStatus.BAD_REQUEST),
     TICKET_OPERATOR_MUST_ASSIGN_FIRST("TKT_017", "Vui lòng tiếp nhận ticket trước khi trả lời khách hàng.", HttpStatus.BAD_REQUEST),
+    TICKET_REF_REFUND_MISMATCH(
+            "TKT_018",
+            "Yêu cầu hoàn tiền không tồn tại hoặc không thuộc tài khoản của bạn.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_REFUND_COMPLAINT_TOO_EARLY(
+            "TKT_019",
+            "Yêu cầu hoàn tiền vẫn trong thời gian cam kết xử lý (%d giờ). Vui lòng chờ trong khi chúng tôi xử lý yêu cầu của bạn.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_REFUND_COMPLAINT_STATUS_INVALID(
+            "TKT_020",
+            "Trạng thái yêu cầu hoàn tiền không hợp lệ cho loại khiếu nại này.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_REFUND_COMPLAINT_WINDOW_EXPIRED(
+            "TKT_021",
+            "Yêu cầu hoàn tiền này đã hết thời hạn khiếu nại (hết hạn sau %d ngày).",
+            HttpStatus.BAD_REQUEST),
 
     // Chat Errors
     CONVERSATION_NOT_FOUND("CHT_001", "Không tìm thấy cuộc trò chuyện.", HttpStatus.NOT_FOUND),
