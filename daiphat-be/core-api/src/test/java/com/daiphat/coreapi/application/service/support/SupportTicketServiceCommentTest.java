@@ -59,6 +59,8 @@ class SupportTicketServiceCommentTest {
     private SupportApplicationMapper supportApplicationMapper;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private RefundComplaintEligibilityService refundComplaintEligibilityService;
 
     private SupportTicketService supportTicketService;
 
@@ -72,7 +74,8 @@ class SupportTicketServiceCommentTest {
                 userRepositoryPort,
                 storagePort,
                 supportApplicationMapper,
-                eventPublisher);
+                eventPublisher,
+                refundComplaintEligibilityService);
     }
 
     @Test
