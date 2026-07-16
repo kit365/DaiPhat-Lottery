@@ -79,13 +79,13 @@ public class LotteryResultService implements LotteryResultServicePort {
     private final LotteryResultApplicationMapper lotteryResultApplicationMapper;
     private final ConcurrentMap<String, ReentrantLock> syncLocks = new ConcurrentHashMap<>();
 
-    @Value("${daiphat.lottery.result-poll-seconds:60}")
+    @Value("${daiphat.lottery.result-poll-seconds}")
     private Integer resultPollSeconds;
 
-    @Value("${daiphat.lottery.historical-result-poll-seconds:10}")
+    @Value("${daiphat.lottery.historical-result-poll-seconds}")
     private Integer historicalResultPollSeconds;
 
-    @Value("${daiphat.lottery.draw-deadline-minutes:30}")
+    @Value("${daiphat.lottery.draw-deadline-minutes}")
     private long drawDeadlineMinutes;
 
     @Override

@@ -13,7 +13,7 @@ public class LotteryTicketExpireScheduler {
 
     private final LotteryTicketServicePort lotteryTicketServicePort;
 
-    @Scheduled(cron = "${daiphat.lottery.expire-cron:0 30 18 * * *}")
+    @Scheduled(cron = "${daiphat.lottery.expire-cron}")
     public void expireDueTickets() {
         int expiredCount = lotteryTicketServicePort.expireDueTickets();
         if (expiredCount > 0) {

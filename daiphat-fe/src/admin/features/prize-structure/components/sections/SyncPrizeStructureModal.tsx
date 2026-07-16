@@ -185,9 +185,12 @@ export const SyncPrizeStructureModal: React.FC<SyncPrizeStructureModalProps> = (
                                                 <TableCell>
                                                     <TextField
                                                         size="small"
-                                                        type="number"
-                                                        value={item.prizeValue}
-                                                        onChange={(e) => updateDraftItem(index, 'prizeValue', Number(e.target.value))}
+                                                        type="text"
+                                                        value={item.prizeValue != null ? item.prizeValue.toLocaleString('vi-VN') : ''}
+                                                        onChange={(e) => {
+                                                            const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                                                            updateDraftItem(index, 'prizeValue', rawValue ? Number(rawValue) : 0);
+                                                        }}
                                                         sx={{ width: 140 }}
                                                     />
                                                 </TableCell>
