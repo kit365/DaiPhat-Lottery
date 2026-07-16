@@ -1,92 +1,87 @@
+name: daiphat-be-local
+
 services:
-  # --- Infrastructure Layer (For Local Development) ---
   postgres-db:
     image: pgvector/pgvector:pg16
-    container_name: daiphat-postgres
-    restart: always
-    env_file:
-      - ../.env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-daiphat}
-      LANG: en_US.utf8
-      LC_ALL: en_US.utf8
-    volumes:
-      - ./infra/postgres:/docker-entrypoint-initdb.d
-      - postgres_data:/var/lib/postgresql/data
+      POSTGRES_DB: daiphat_core_db
+      POSTGRES_USER: sa
+      POSTGRES_PASSWORD: "12345"
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U sa -d daiphat_core_db"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-    networks:
-      - daiphat-network
+      retries: 12
 
   redis:
     image: redis:alpine
-    container_name: daiphat-redis
-    restart: always
+    command: redis-server --appendonly yes
     ports:
-      - "${REDIS_PORT:-6379}:6379"
-    networks:
-      - daiphat-network
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: daiphat-rabbitmq
-    restart: always
+  mongo:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: core_admin
+      MONGO_INITDB_ROOT_PASSWORD: core_pass_2026
+      MONGO_INITDB_DATABASE: daiphat_core_db
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--username", "core_admin", "--password", "core_pass_2026", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  core-api:
+    build:
+      context: ./core-api
+      dockerfile: Dockerfile.local
     env_file:
-      - ../.env
+      - ./core-api/.env
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+      SPRING_PROFILES_ACTIVE: local
+      CORE_API_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/daiphat_core_db?charSet=UTF-8
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: "12345"
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_MONGODB_URI: mongodb://core_admin:core_pass_2026@mongo:27017/daiphat_core_db?authSource=admin
     ports:
-      - "${RABBITMQ_PORT:-5672}:5672"
-      - "15672:15672"
-    networks:
-      - daiphat-network
-
-  # --- Code Quality Layer ---
-  sonarqube:
-    image: sonarqube:community
-    container_name: daiphat-sonarqube
-    ports:
-      - "9000:9000"
-    environment:
-      - SONAR_JDBC_URL=jdbc:postgresql://sonarqube-db:5432/sonar
-      - SONAR_JDBC_USERNAME=sonar
-      - SONAR_JDBC_PASSWORD=sonar
+      - "8080:8080"
     volumes:
-      - sonarqube_data:/opt/sonarqube/data
-      - sonarqube_extensions:/opt/sonarqube/extensions
-      - sonarqube_logs:/opt/sonarqube/logs
+      - ./core-api:/workspace
+      - maven_cache:/root/.m2
     depends_on:
-      - sonarqube-db
-    networks:
-      - daiphat-network
-
-  sonarqube-db:
-    image: postgres:15
-    container_name: daiphat-sonarqube-db
-    environment:
-      - POSTGRES_USER=sonar
-      - POSTGRES_PASSWORD=sonar
-      - POSTGRES_DB=sonar
-    volumes:
-      - sonarqube_db_data:/var/lib/postgresql/data
-    networks:
-      - daiphat-network
-
-networks:
-  daiphat-network:
-    driver: bridge
+      postgres-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8080"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10m
+      retries: 30
 
 volumes:
   postgres_data:
-  sonarqube_data:
-  sonarqube_extensions:
-  sonarqube_logs:
-  sonarqube_db_data:
+  redis_data:
+  mongo_data:
+  maven_cache:

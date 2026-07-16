@@ -13,7 +13,7 @@ public class BlogPublishScheduler {
 
     private final BlogPostServicePort blogPostServicePort;
 
-    @Scheduled(fixedRateString = "${daiphat.blog.schedule-publish-rate-ms:30000}")
+    @Scheduled(fixedRateString = "${daiphat.blog.schedule-publish-rate-ms}")
     public void publishScheduledPosts() {
         int publishedCount = blogPostServicePort.publishDueScheduledPosts();
         if (publishedCount > 0) {
