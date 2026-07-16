@@ -2,6 +2,7 @@ package com.daiphat.coreapi.domain.model.orders;
 
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
+import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
@@ -43,6 +44,7 @@ public class OrderModel {
     private LocalDateTime expectedPickupAt;
     private LocalDateTime cancelledAt;
     private String cancelReason;
+    private OrderCancelType cancelType;
     private LocalDateTime actualPickedUpAt;
     private UUID pickedUpBy;
     private LocalDateTime createdAt;
@@ -70,6 +72,7 @@ public class OrderModel {
         this.status = OrderStatus.PAID;
         this.cancelledAt = null;
         this.cancelReason = null;
+        this.cancelType = null;
     }
 
     public void markPreparing() {
@@ -99,27 +102,65 @@ public class OrderModel {
     }
 
     public void cancelPendingPayment(String cancelReason) {
+        cancelPendingPayment(cancelReason, null);
+    }
+
+    public void cancelPendingPayment(String cancelReason, OrderCancelType cancelType) {
         ensureStatus(OrderStatus.PENDING_PAYMENT);
-        cancel(cancelReason);
+        cancel(cancelReason, false, cancelType);
     }
 
     public void cancelAfterPayment(String cancelReason) {
+        cancelAfterPayment(cancelReason, null);
+    }
+
+    public void cancelAfterPayment(String cancelReason, OrderCancelType cancelType) {
         ensureOrderType(OrderType.ONLINE);
         ensurePaidFulfillmentStatus();
-        cancel(cancelReason);
+        cancel(cancelReason, false, cancelType);
+    }
+
+    /** Cancels a paid/preparing online order for a refund request; details become REFUND_PENDING. */
+    public void cancelAfterPaymentForRefund(String cancelReason) {
+        cancelAfterPaymentForRefund(cancelReason, null);
+    }
+
+    public void cancelAfterPaymentForRefund(String cancelReason, OrderCancelType cancelType) {
+        ensureOrderType(OrderType.ONLINE);
+        ensurePaidFulfillmentStatus();
+        cancel(cancelReason, true, cancelType);
     }
 
     public void cancelByCustomerRefund(String cancelReason) {
+        cancelByCustomerRefund(cancelReason, OrderCancelType.CUSTOMER_REQUEST);
+    }
+
+    public void cancelByCustomerRefund(String cancelReason, OrderCancelType cancelType) {
         if (this.status != OrderStatus.PAID) {
             throw new DomainException(ErrorCode.ORDER_INVALID_STATUS);
         }
-        cancel(cancelReason);
+        cancel(cancelReason, true, cancelType);
     }
 
     public void cancelDirectOrder(String cancelReason) {
+        cancelDirectOrder(cancelReason, null);
+    }
+
+    public void cancelDirectOrder(String cancelReason, OrderCancelType cancelType) {
         ensureOrderType(OrderType.DIRECT);
         ensurePaidFulfillmentStatus();
-        cancel(cancelReason);
+        cancel(cancelReason, false, cancelType);
+    }
+
+    /** Cancels a direct order for a refund request; details become REFUND_PENDING. */
+    public void cancelDirectOrderForRefund(String cancelReason) {
+        cancelDirectOrderForRefund(cancelReason, null);
+    }
+
+    public void cancelDirectOrderForRefund(String cancelReason, OrderCancelType cancelType) {
+        ensureOrderType(OrderType.DIRECT);
+        ensurePaidFulfillmentStatus();
+        cancel(cancelReason, true, cancelType);
     }
 
     public boolean hasApprovedRefund() {
@@ -136,6 +177,16 @@ public class OrderModel {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    public void recalculateTotalAmount() {
+        if (this.orderDetails != null) {
+            this.totalAmount = this.orderDetails.stream()
+                    .filter(d -> d.getStatus() == com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.ACTIVE
+                              || d.getStatus() == com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.REFUND_PENDING)
+                    .map(OrderDetailModel::getLineSubtotal)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+    }
+
     public boolean isFullyPaid() {
         if (this.totalAmount == null) {
             return false;
@@ -143,12 +194,17 @@ public class OrderModel {
         return getCompletedTransactionAmount().compareTo(this.totalAmount) == 0;
     }
 
-    private void cancel(String cancelReason) {
+    private void cancel(String cancelReason, boolean forRefund, OrderCancelType cancelType) {
         this.status = OrderStatus.CANCELLED;
         this.cancelReason = cancelReason;
+        this.cancelType = cancelType;
         this.cancelledAt = LocalDateTime.now();
         if (this.orderDetails != null) {
-            this.orderDetails.forEach(OrderDetailModel::markInactive);
+            if (forRefund) {
+                this.orderDetails.forEach(OrderDetailModel::markRefundPending);
+            } else {
+                this.orderDetails.forEach(OrderDetailModel::markInactive);
+            }
         }
     }
 

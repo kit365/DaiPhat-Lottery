@@ -13,6 +13,10 @@ import {
 } from '../../../hooks/useSupportTicket';
 import { TicketRefType, TicketStatus, TICKET_REF_TYPE_LABELS } from '../../../../types/support.type';
 import { AppToast } from '../../../../utils/toast.util';
+import {
+    UnavailableReferenceState,
+    UNAVAILABLE_REFERENCE_MESSAGE,
+} from '../../../components/notification/UnavailableReferenceState';
 
 export const ComplaintDetailTab = () => {
     const { id } = useParams<{ id: string }>();
@@ -54,12 +58,14 @@ export const ComplaintDetailTab = () => {
 
     if (isError || !ticket) {
         return (
-            <div className="py-16 text-center flex flex-col items-center gap-4">
-                <p className="text-[14px] text-[#637381]">Không tìm thấy yêu cầu hỗ trợ</p>
-                <Link to="/profile/complaints" className="text-[#ee1314] font-bold text-[14px] hover:underline">
-                    Quay lại danh sách
-                </Link>
-            </div>
+            <UnavailableReferenceState
+                title="Thông báo không còn hiệu lực"
+                message={data?.message || UNAVAILABLE_REFERENCE_MESSAGE}
+                primaryTo="/profile/notifications"
+                primaryLabel="Về danh sách thông báo"
+                secondaryTo="/profile/complaints"
+                secondaryLabel="Xem khiếu nại / hỗ trợ"
+            />
         );
     }
 

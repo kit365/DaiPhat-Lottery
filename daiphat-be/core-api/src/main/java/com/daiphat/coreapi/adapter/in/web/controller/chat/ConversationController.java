@@ -10,6 +10,8 @@ import com.daiphat.coreapi.application.dto.response.chat.ConversationDetailRespo
 import com.daiphat.coreapi.application.dto.response.chat.ConversationResponse;
 import com.daiphat.coreapi.application.dto.response.chat.CustomerChatTimelineResponse;
 import com.daiphat.coreapi.application.port.in.chat.ConversationServicePort;
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.enums.chat.EscalationReason;
 import lombok.RequiredArgsConstructor;
@@ -105,10 +107,21 @@ public class ConversationController {
     public ApiResponse<ConversationDetailResponse> getMyConversationDetail(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
             @PathVariable Long conversationId) {
-        return ApiResponse.success(
-                "Lấy chi tiết cuộc trò chuyện thành công.",
-                conversationServicePort.getMyConversationDetail(principal.getId(), conversationId)
-        );
+        try {
+            return ApiResponse.success(
+                    "Lấy chi tiết cuộc trò chuyện thành công.",
+                    conversationServicePort.getMyConversationDetail(principal.getId(), conversationId)
+            );
+        } catch (DomainException ex) {
+            // Stale client-side conversation ids (e.g. after DB reseed) should not surface as 404 errors.
+            if (ex.getErrorCode() == ErrorCode.CONVERSATION_NOT_FOUND) {
+                return ApiResponse.success(
+                        "Cuộc trò chuyện không còn tồn tại.",
+                        null
+                );
+            }
+            throw ex;
+        }
     }
 
     @PostMapping("/my/{conversationId}/read")

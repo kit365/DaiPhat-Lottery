@@ -1,15 +1,15 @@
 import { OrderStatus } from './order.type';
+import type { TransactionResponse } from './transaction.type';
 
 export enum RefundRequestStatus {
-    PENDING = 'PENDING',
+    WAITING_FOR_INFO = 'WAITING_FOR_INFO',
+    /** @deprecated Prefer READY_TO_PAY */
     APPROVED = 'APPROVED',
-    REJECTED = 'REJECTED',
     READY_TO_PAY = 'READY_TO_PAY',
     /** @deprecated Use PAID */
     TRANSFERRED = 'TRANSFERRED',
     PAID = 'PAID',
-    EXPIRED = 'EXPIRED',
-    CANCELLED = 'CANCELLED'
+    MANUAL_RESOLUTION = 'MANUAL_RESOLUTION',
 }
 
 export enum RefundType {
@@ -31,7 +31,8 @@ export enum ReimburseStatus {
 
 export enum RefundRequestRole {
     CUSTOMER = 'CUSTOMER',
-    STAFF = 'STAFF'
+    STAFF = 'STAFF',
+    ADMIN = 'ADMIN'
 }
 
 export enum RefundProcessingUrgency {
@@ -81,6 +82,7 @@ export interface VietQrBankResponse {
 export interface CreateRefundRequestRequest {
     refundType: RefundType;
     orderId: string;
+    /** @deprecated Partial refunds are not supported; full order refund links all order details. */
     orderDetailId?: number;
     refundAmount: number;
     refundReason: string;
@@ -95,11 +97,20 @@ export interface CreateOrderRefundRequest {
 export interface RefundEligibleTicketItem {
     orderDetailId?: number;
     numbers?: string;
+    serialNumber?: string;
     stationName?: string;
     drawDate?: string;
+    ticketImg?: string;
     quantity: number;
     unitPrice: number;
     subtotalAmount: number;
+    serialStatus?: string | null;
+    serialStatusLabel?: string | null;
+    hasIncident?: boolean;
+    faultedBy?: string | null;
+    faultedByDisplayName?: string | null;
+    damagedReason?: string | null;
+    damagedEvidenceUrl?: string | null;
 }
 
 export interface OrderRefundEligibilityResponse {
@@ -116,6 +127,9 @@ export interface OrderRefundEligibilityResponse {
     orderCreatedAt?: string;
     refundTickets?: RefundEligibleTicketItem[];
     totalRefundAmount?: number;
+    maxRefundRequestsPerDay?: number;
+    refundRequestsSubmittedToday?: number;
+    dailyLimitReached?: boolean;
 }
 
 export const REFUNDABLE_ORDER_STATUSES: OrderStatus[] = [
@@ -201,31 +215,35 @@ export function canShowRefundRequest(
 export interface RefundRequestResponse {
     id: number;
     refundType: RefundType;
-    orderId: string;
+    orderId?: string | null;
+    orderDetailIds?: number[];
+    /** @deprecated Prefer orderDetailIds */
     orderDetailId?: number;
     requestedBy: string;
     requestRole: RefundRequestRole;
     status: RefundRequestStatus;
     refundAmount: number;
     refundReason: string;
-    bankAccountId: number;
+    bankAccountId?: number | null;
     bankAccount?: UserBankAccountResponse;
     fundSource?: RefundFundSource;
     reimburseStatus?: ReimburseStatus;
     attemptNumber?: number;
-    rejectReason?: string;
+    retryCount?: number;
+    operatorNote?: string | null;
+    maxRefundBankInfoRetry?: number;
     reviewedBy?: string;
     reviewedAt?: string;
-    transferEvidenceUrl?: string;
-    transferredAt?: string;
-    transferredBy?: string;
-    transferNote?: string;
+    /** Refund payout transaction (paymentEvidenceUrl, paymentBy, note, paidAt). */
+    payoutTransaction?: TransactionResponse;
     createdAt: string;
     updatedAt: string;
     orderCode?: string;
     processingDeadlineAt?: string;
     remainingProcessingSeconds?: number;
     processingUrgency?: RefundProcessingUrgency;
+    /** Ticket lines included in this refund (customer/staff detail enrichment). */
+    refundTickets?: RefundEligibleTicketItem[];
 }
 
 export interface GetMyRefundsParams {
@@ -244,13 +262,9 @@ export interface GetStaffRefundsParams {
     search?: string;
 }
 
-export interface RejectRefundRequestRequest {
-    rejectReason: string;
-}
-
 export interface TransferRefundRequestRequest {
-    transferEvidenceUrl: string;
-    transferNote?: string;
+    paymentEvidenceUrl: string;
+    note?: string;
 }
 
 export interface RefundProcessingHistoryItem {
@@ -277,7 +291,7 @@ export interface RefundCustomerSummary {
 
 export interface RefundRequestAdminDetailResponse {
     refund: RefundRequestResponse;
-    orderSummary: RefundOrderSummary;
+    orderSummary?: RefundOrderSummary | null;
     customerSummary: RefundCustomerSummary;
     reviewerName?: string;
     transferrerName?: string;
@@ -286,15 +300,40 @@ export interface RefundRequestAdminDetailResponse {
 }
 
 export const REFUND_STATUS_LABELS: Record<RefundRequestStatus, string> = {
-    [RefundRequestStatus.PENDING]: 'Chờ duyệt',
+    [RefundRequestStatus.WAITING_FOR_INFO]: 'Chờ thông tin STK',
     [RefundRequestStatus.APPROVED]: 'Đã duyệt',
-    [RefundRequestStatus.REJECTED]: 'Từ chối',
     [RefundRequestStatus.READY_TO_PAY]: 'Chờ chuyển khoản',
     [RefundRequestStatus.TRANSFERRED]: 'Đã chuyển khoản',
     [RefundRequestStatus.PAID]: 'Đã chuyển khoản',
-    [RefundRequestStatus.EXPIRED]: 'Hết hạn',
-    [RefundRequestStatus.CANCELLED]: 'Đã hủy'
+    [RefundRequestStatus.MANUAL_RESOLUTION]: 'Cần xử lý thủ công',
 };
+
+export interface AttachRefundBankAccountRequest {
+    bankAccountId: number;
+}
+
+export interface RequestBankInfoUpdateRequest {
+    operatorNote: string;
+}
+
+export interface StaffCancelOrderWithRefundRequest {
+    cancelType: 'ADMIN_FORCE_CANCEL' | 'OUT_OF_STOCK_INCIDENT';
+    cancelReason?: string;
+    incidents?: Array<{
+        orderDetailId: number;
+        reason: 'DAMAGED' | 'LOST';
+        replacementTicketId?: number;
+        damagedReason?: string;
+        damagedEvidenceUrl?: string;
+    }>;
+}
+
+/** Default cancel reasons aligned with BE OrderCancelReasonDefaults */
+export const ORDER_CANCEL_REASON_DEFAULTS = {
+    ADMIN_FORCE_CANCEL: 'Nhân viên hủy đơn theo yêu cầu hỗ trợ khách hàng',
+    OUT_OF_STOCK_INCIDENT:
+        'Hủy đơn do sự cố kho — toàn bộ vé không thể giao và không còn vé thay thế',
+} as const;
 
 /** Mask bank account number for display (e.g. 1234567890 → ****7890) */
 export function maskBankAccountNo(accountNo: string): string {
@@ -341,6 +380,33 @@ export function isRefundTransferComplete(status: RefundRequestStatus): boolean {
     return status === RefundRequestStatus.PAID || status === RefundRequestStatus.TRANSFERRED;
 }
 
+/** Statuses that mean refund payout is done (exclude from pending sidebar badges). */
+const COMPLETED_REFUND_STATUSES = new Set<string>([
+    RefundRequestStatus.PAID,
+    RefundRequestStatus.TRANSFERRED,
+]);
+
+/** Count refunds that still need attention: all − PAID (− legacy TRANSFERRED). */
+export function countPendingRefunds(
+    statusCounts: Record<string, number | undefined> | undefined
+): number {
+    if (!statusCounts) return 0;
+
+    const all = Number(statusCounts.all ?? statusCounts.ALL);
+    if (Number.isFinite(all) && all >= 0) {
+        const paid =
+            Number(statusCounts.PAID || 0) + Number(statusCounts.TRANSFERRED || 0);
+        return Math.max(0, all - paid);
+    }
+
+    return Object.entries(statusCounts).reduce((sum, [key, value]) => {
+        if (key === 'all' || key === 'ALL' || COMPLETED_REFUND_STATUSES.has(key)) {
+            return sum;
+        }
+        return sum + (Number(value) || 0);
+    }, 0);
+}
+
 /** Format remaining refund window as `MM phút SS giây` */
 export function formatRefundCountdown(totalSeconds: number): string {
     const seconds = Math.max(0, Math.floor(totalSeconds));
@@ -379,7 +445,7 @@ export function computeProcessingSecondsLeft(
 }
 
 export function isRefundProcessingActionable(status: RefundRequestStatus): boolean {
-    return status === RefundRequestStatus.PENDING
+    return status === RefundRequestStatus.WAITING_FOR_INFO
         || status === RefundRequestStatus.APPROVED
         || status === RefundRequestStatus.READY_TO_PAY;
 }

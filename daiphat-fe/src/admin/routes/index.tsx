@@ -100,6 +100,8 @@ const SupplierCreatePage = lazy(() => import("../pages/supplier/SupplierCreatePa
 const SupplierEditPage = lazy(() => import("../pages/supplier/SupplierEditPage").then(m => ({ default: m.SupplierEditPage })));
 const RefundListPage = lazy(() => import("../pages/refund/RefundListPage").then(m => ({ default: m.RefundListPage })));
 const RefundDetailPage = lazy(() => import("../pages/refund/RefundDetailPage").then(m => ({ default: m.RefundDetailPage })));
+const RefundCreatePage = lazy(() => import("../pages/refund/RefundCreatePage").then(m => ({ default: m.RefundCreatePage })));
+const OrderCancelWithRefundPage = lazy(() => import("../pages/refund/OrderCancelWithRefundPage").then(m => ({ default: m.OrderCancelWithRefundPage })));
 
 export const AdminRoutes = [
     { index: true, element: <Navigate to="/admin/dashboard" replace /> },
@@ -179,10 +181,12 @@ export const AdminRoutes = [
     { path: "order/list", element: <PermissionGuard permission={PERMISSIONS.ORDER.VIEW}><OrderListPage /></PermissionGuard> },
     { path: "order/create-counter", element: <PermissionGuard permission={PERMISSIONS.ORDER.CREATE}><CounterOrderCreatePage /></PermissionGuard> },
     { path: "order/detail/:id", element: <PermissionGuard permission={PERMISSIONS.ORDER.VIEW}><OrderDetailPage /></PermissionGuard> },
+    { path: "order/detail/:id/cancel-with-refund", element: <PermissionGuard permission={PERMISSIONS.REFUND.PROCESS}><OrderCancelWithRefundPage /></PermissionGuard> },
     { path: "support-tickets/list", element: <PermissionGuard permission={PERMISSIONS.SUPPORT_TICKET.VIEW}><SupportTicketListPage /></PermissionGuard> },
     { path: "support-tickets/detail/:id", element: <PermissionGuard permission={PERMISSIONS.SUPPORT_TICKET.VIEW}><SupportTicketDetailPage /></PermissionGuard> },
     { path: "refunds/list", element: <PermissionGuard permission={PERMISSIONS.REFUND.VIEW}><RefundListPage /></PermissionGuard> },
     { path: "refunds/detail/:id", element: <PermissionGuard permission={PERMISSIONS.REFUND.VIEW}><RefundDetailPage /></PermissionGuard> },
+    { path: "refunds/create", element: <PermissionGuard permission={PERMISSIONS.REFUND.PROCESS}><RefundCreatePage /></PermissionGuard> },
     { path: "calendar", element: <PermissionGuard permission={PERMISSIONS.CALENDAR.VIEW}><CalendarPage /></PermissionGuard> },
     { path: "dashboard/settings/*", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><SettingsPage /></PermissionGuard> },
     { path: "settings/ticket-subtype/list", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><TicketSubtypeListPage /></PermissionGuard> },

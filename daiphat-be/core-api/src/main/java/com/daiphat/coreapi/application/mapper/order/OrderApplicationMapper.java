@@ -4,7 +4,6 @@ import com.daiphat.coreapi.application.dto.order.OrderTicketSnapshot;
 import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
 import com.daiphat.coreapi.application.dto.response.order.OrderDetailResponse;
-import com.daiphat.coreapi.application.dto.response.order.OrderRefundResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
 import com.daiphat.coreapi.application.dto.response.order.TransactionResponse;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
@@ -13,7 +12,6 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
-import com.daiphat.coreapi.domain.model.orders.OrderRefundModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -42,6 +40,7 @@ public interface OrderApplicationMapper {
     @Mapping(target = "expectedPickupAt", source = "expectedPickupAt")
     @Mapping(target = "cancelledAt", ignore = true)
     @Mapping(target = "cancelReason", ignore = true)
+    @Mapping(target = "cancelType", ignore = true)
     @Mapping(target = "actualPickedUpAt", ignore = true)
     @Mapping(target = "pickedUpBy", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
@@ -63,6 +62,7 @@ public interface OrderApplicationMapper {
     @Mapping(target = "expectedPickupAt", ignore = true)
     @Mapping(target = "cancelledAt", ignore = true)
     @Mapping(target = "cancelReason", ignore = true)
+    @Mapping(target = "cancelType", ignore = true)
     @Mapping(target = "actualPickedUpAt", ignore = true)
     @Mapping(target = "pickedUpBy", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
@@ -79,7 +79,6 @@ public interface OrderApplicationMapper {
     @Mapping(target = "replacedByTicketSerialId", ignore = true)
     @Mapping(target = "price", source = "price")
     @Mapping(target = "status", expression = "java(OrderDetailStatus.ACTIVE)")
-    @Mapping(target = "refunds", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
@@ -90,13 +89,9 @@ public interface OrderApplicationMapper {
 
     OrderDetailResponse toDetailResponse(OrderDetailModel model);
 
-    OrderRefundResponse toRefundResponse(OrderRefundModel model);
-
     TransactionResponse toTransactionResponse(TransactionModel model);
 
     List<OrderDetailResponse> toDetailResponses(List<OrderDetailModel> models);
-
-    List<OrderRefundResponse> toRefundResponses(List<OrderRefundModel> models);
 
     List<TransactionResponse> toTransactionResponses(List<TransactionModel> models);
 

@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -250,8 +251,16 @@ public class LotteryTicketSerialService implements LotteryTicketSerialServicePor
     }
 
     @Override
+    @Transactional
     public void hardDeleteByImportBatchLineId(Long importBatchLineId) {
         lotteryTicketSerialRepositoryPort.hardDeleteByImportBatchLineId(importBatchLineId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<LotteryTicketSerialModel> findAllReplacementCandidates(
+            Long stationId, String numbers, LocalDate drawDate, LotteryTicketSerialStatus status) {
+        return lotteryTicketSerialRepositoryPort.findAllReplacementCandidates(stationId, numbers, drawDate, status);
     }
 
     @Override

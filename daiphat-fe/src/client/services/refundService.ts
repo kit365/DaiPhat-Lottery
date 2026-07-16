@@ -30,12 +30,17 @@ export const refundService = {
     },
 
     getById: async (id: number): Promise<ApiResponse<RefundRequestResponse>> => {
-        const response = await apiApp.get(`${BASE_URL}/${id}`);
+        const response = await apiApp.get(`${BASE_URL}/${id}`, {
+            skipGlobalErrorToast: true,
+        } as any);
         return response.data;
     },
 
-    cancel: async (id: number): Promise<ApiResponse<RefundRequestResponse>> => {
-        const response = await apiApp.patch(`${BASE_URL}/${id}/cancel`);
+    attachBankAccount: async (
+        id: number,
+        data: { bankAccountId: number }
+    ): Promise<ApiResponse<RefundRequestResponse>> => {
+        const response = await apiApp.patch(`${BASE_URL}/${id}/bank-account`, data);
         return response.data;
     },
 

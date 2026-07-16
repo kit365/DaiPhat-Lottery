@@ -24,6 +24,8 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class OrderRefundGraceService {
 
+    private static final String ALREADY_REQUESTED_REASON = "Đơn hàng đã có yêu cầu hoàn tiền.";
+
     private static final EnumSet<OrderStatus> REFUNDABLE_STATUSES = EnumSet.of(
             OrderStatus.PAID,
             OrderStatus.PREPARING,
@@ -49,8 +51,8 @@ public class OrderRefundGraceService {
             return ineligible("Trạng thái đơn hàng không cho phép yêu cầu hoàn tiền.", graceMinutes, null, null);
         }
 
-        if (order.getId() != null && refundRequestRepositoryPort.existsActiveByOrderId(order.getId())) {
-            return ineligible("Đơn hàng đã có yêu cầu hoàn tiền đang xử lý.", graceMinutes, null, null);
+        if (order.getId() != null && refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(order.getId())) {
+            return ineligible(ALREADY_REQUESTED_REASON, graceMinutes, null, null);
         }
 
         LocalDateTime paymentSuccessAt = resolvePaymentSuccessTime(order);
@@ -74,6 +76,9 @@ public class OrderRefundGraceService {
     public void ensureEligible(OrderModel order) {
         RefundGraceEvaluation evaluation = evaluate(order);
         if (!evaluation.eligible()) {
+            if (ALREADY_REQUESTED_REASON.equals(evaluation.reason())) {
+                throw new DomainException(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
+            }
             throw new DomainException(ErrorCode.REFUND_WINDOW_EXPIRED, evaluation.reason());
         }
     }

@@ -13,9 +13,10 @@ interface CustomFile extends File {
 interface UploadFilesProps {
     files: CustomFile[];
     onFilesChange: (files: CustomFile[]) => void;
+    compact?: boolean;
 }
 
-export const UploadFiles = memo(({ files, onFilesChange }: UploadFilesProps) => {
+export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesProps) => {
     const { t } = useTranslation();
     const [isUploading, setIsUploading] = useState(false);
     const [isTouched, setIsTouched] = useState(false);
@@ -97,7 +98,7 @@ export const UploadFiles = memo(({ files, onFilesChange }: UploadFilesProps) => 
                     <Box
                         component="img"
                         src={imgSrc}
-                        sx={{ width: 1, height: 1, objectFit: 'cover', borderRadius: '10px' }}
+                        sx={{ width: 1, height: 1, objectFit: 'contain', borderRadius: '10px', bgcolor: 'rgba(0,0,0,0.02)' }}
                     />
 
                     {/* Nút xóa ảnh */}
@@ -132,40 +133,30 @@ export const UploadFiles = memo(({ files, onFilesChange }: UploadFilesProps) => 
         );
     }), [files, handleRemoveFile]);
 
-    // Validate logic
-    const errorMessage = useMemo(() => {
-        if (!isTouched) return null;
-        if (files.length === 0) return t("admin.upload.validation_min_1");
-        return null;
-    }, [isTouched, files.length, t]);
-
-    const hasError = Boolean(errorMessage);
+    const hasError = false;
 
     return (
         <Stack>
-            <Typography variant="h6" sx={{ fontSize: "0.875rem", fontWeight: "600", mb: "12px" }}>{t("admin.upload.title")}</Typography>
+            {!compact && <Typography variant="h6" sx={{ fontSize: "0.875rem", fontWeight: "600", mb: "12px" }}>{t("admin.upload.title")}</Typography>}
             <div
                 {...getRootProps()}
                 className=
-                {`min-h-[280px] border border-[#919eab33] bg-[#919eab14] flex items-center justify-center cursor-pointer relative outline-none overflow-hidden p-[24px] rounded-[8px] hover:opacity-[0.72] transition-opacity duration-300 ease-linear ${hasError && "text-[#FF5630] bg-[#ff563014] border-[#FF5630]"} ${isDragActive && "opacity-[0.72]"}`}
+                {`${compact ? 'min-h-[140px]' : 'min-h-[280px]'} border border-[#919eab33] bg-[#919eab14] flex items-center justify-center cursor-pointer relative outline-none overflow-hidden p-[24px] rounded-[8px] hover:opacity-[0.72] transition-opacity duration-300 ease-linear ${isDragActive && "opacity-[0.72]"}`}
             >
                 <input {...getInputProps()} />
 
                 <div className="w-full flex items-center justify-center flex-col">
                     <UploadFileIcon />
-                    <div className="flex flex-col gap-[8px] text-center">
+                    <div className="flex flex-col gap-[8px] text-center mt-2">
                         <div className="text-[1.125rem] font-[600]">{t("admin.upload.drag_drop")}</div>
-                        <div className="text-[0.875rem] text-[#637381]">
-                            {t("admin.upload.drag_text")} <span className="underline text-[#00A76F]">{t("admin.upload.select_file")}</span> {t("admin.upload.browse_computer")}
-                        </div>
+                        {!compact && (
+                            <div className="text-[0.875rem] text-[#637381]">
+                                {t("admin.upload.drag_text")} <span className="underline text-[#00A76F]">{t("admin.upload.select_file")}</span> {t("admin.upload.browse_computer")}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
-            {hasError && (
-                <FormHelperText error>
-                    {errorMessage}
-                </FormHelperText>
-            )}
             {files.length > 0 && (
                 <>
                     <Box sx={{ my: 3 }}>
@@ -194,29 +185,31 @@ export const UploadFiles = memo(({ files, onFilesChange }: UploadFilesProps) => 
                             }}>
                             {t("admin.upload.remove_all")}
                         </Button>
-                        <Button
-                            size="small"
-                            onClick={handleUpload}
-                            startIcon={<UploadIcon />}
-                            sx={{
-                                p: "4px 8px",
-                                minHeight: "30px",
-                                minWidth: "64px",
-                                fontSize: "0.75rem",
-                                fontWeight: "700",
-                                textTransform: "none",
-                                border: "1px solid #919eab52",
-                                borderRadius: "8px",
-                                color: "#fff",
-                                bgcolor: "#1C252E",
+                        {files.some(file => file instanceof File) && (
+                            <Button
+                                size="small"
+                                onClick={handleUpload}
+                                startIcon={<UploadIcon />}
+                                sx={{
+                                    p: "4px 8px",
+                                    minHeight: "30px",
+                                    minWidth: "64px",
+                                    fontSize: "0.75rem",
+                                    fontWeight: "700",
+                                    textTransform: "none",
+                                    border: "1px solid #919eab52",
+                                    borderRadius: "8px",
+                                    color: "#fff",
+                                    bgcolor: "#1C252E",
 
-                                '&:hover': {
-                                    bgcolor: "#454F5B",
-                                    boxShadow: "0 8px 16px 0 rgba(145 158 171 / 16%)"
-                                }
-                            }}>
-                            {isUploading ? t("admin.upload.uploading") : t("admin.upload.upload")}
-                        </Button>
+                                    '&:hover': {
+                                        bgcolor: "#454F5B",
+                                        boxShadow: "0 8px 16px 0 rgba(145 158 171 / 16%)"
+                                    }
+                                }}>
+                                {isUploading ? t("admin.upload.uploading") : t("admin.upload.upload")}
+                            </Button>
+                        )}
                     </Box>
                 </>
             )}

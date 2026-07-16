@@ -12,12 +12,15 @@ export enum TransactionStatus {
 
 export enum TransactionType {
     OFFLINE = 'OFFLINE',
-    ONLINE = 'ONLINE'
+    ONLINE = 'ONLINE',
+    REFUND = 'REFUND'
 }
 
 export interface TransactionResponse {
     id: number;
-    orderId: string;
+    /** Present for payment transactions; null/omitted for refund payouts (linked via refundRequestId). */
+    orderId?: string;
+    refundRequestId?: number;
     amount: number;
     gateway: PaymentGateway;
     gatewayOrderCode: number;
@@ -27,6 +30,8 @@ export interface TransactionResponse {
     paidAt?: string;
     cancelledAt?: string;
     failureReason?: string;
+    paymentEvidenceUrl?: string;
+    paymentBy?: string;
     note?: string;
 }
 

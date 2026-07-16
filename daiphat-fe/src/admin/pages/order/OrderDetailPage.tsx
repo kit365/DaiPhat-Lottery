@@ -26,10 +26,14 @@ import dayjs from "dayjs";
 import { Title } from "../../components/ui/Title";
 import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { useOrderDetail, useUpdateOrderStatus } from "./hooks/useOrderManagement";
-import { OrderStatus } from "../../../types/order.type";
+import { OrderStatus, resolveOrderDetailStatusBadge } from "../../../types/order.type";
 import { toast } from "react-toastify";
 import { prefixAdmin } from "../../constants/routes";
-import { confirmAction, confirmInputText } from "../../utils/swal";
+import { confirmAction } from "../../utils/swal";
+import { CanAccess } from "../../components/auth/CanAccess";
+import { PERMISSIONS } from "../../constants/permission.constants";
+import { OrderInspectionSection } from './components/OrderInspectionSection';
+import { OrderHandoverConfirmDialog } from './components/OrderHandoverConfirmDialog';
 
 const STATUS_OPTIONS: { [key: string]: { label: string; color: string; bg: string } } = {
     [OrderStatus.PENDING_PAYMENT]: { label: "Chờ thanh toán", color: "var(--palette-warning-dark)", bg: "var(--palette-warning-lighter)" },
@@ -50,9 +54,16 @@ const PAYMENT_STATUS_OPTIONS: { [key: string]: { label: string; color: string; b
 export const OrderDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { data: orderRes, isLoading, refetch } = useOrderDetail(id || "");
+    const { data: orderRes, isLoading } = useOrderDetail(id || "");
     const order = orderRes?.data;
     const { mutate: updateStatus } = useUpdateOrderStatus();
+    const [isInspectionStarted, setIsInspectionStarted] = useState(false);
+    const [handoverDialogOpen, setHandoverDialogOpen] = useState(false);
+
+    const handleBaoLoiHuyDon = () => {
+        if (!order) return;
+        navigate(`/${prefixAdmin}/order/detail/${order.id}/cancel-with-refund`);
+    };
 
     if (isLoading) {
         return (
@@ -95,27 +106,15 @@ export const OrderDetailPage = () => {
                 'info'
             );
         } else if (newStatus === OrderStatus.COMPLETED) {
+            if (order.status === OrderStatus.PENDING_PICKUP) {
+                setHandoverDialogOpen(true);
+                return;
+            }
             confirmAction(
                 "Hoàn thành đơn hàng?",
                 "Bạn có chắc chắn muốn xác nhận hoàn thành đơn hàng này?",
                 update,
                 'success'
-            );
-        } else if (newStatus === OrderStatus.CANCELLED) {
-            confirmInputText(
-                "Xác nhận hủy đơn",
-                "Nhập lý do hủy đơn",
-                "Ví dụ: Khách yêu cầu huỷ",
-                (reason) => {
-                    updateStatus({ id: order.id, status: newStatus as OrderStatus, reason: reason || "Hủy bởi Admin" }, {
-                        onSuccess: () => {
-                            toast.success("Hủy đơn thành công");
-                            refetch();
-                        },
-                        onError: (err: any) => toast.error(err.response?.data?.message || "Lỗi khi hủy đơn")
-                    });
-                },
-                'warning'
             );
         } else {
             update();
@@ -157,16 +156,7 @@ export const OrderDetailPage = () => {
                             Bắt đầu chuẩn bị
                         </Button>
                     )}
-                    {order.status === OrderStatus.PREPARING && (
-                        <Button 
-                            variant="contained" 
-                            startIcon={<Icon icon="solar:refresh-circle-linear" />}
-                            onClick={() => handleStatusChange(OrderStatus.PENDING_PICKUP)}
-                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none', bgcolor: 'var(--palette-grey-800)', color: 'common.white', '&:hover': { bgcolor: 'var(--palette-grey-900)' } }}
-                        >
-                            Chuyển sang "Chờ nhận vé"
-                        </Button>
-                    )}
+
                     {order.status === OrderStatus.PENDING_PICKUP && (
                         <Button 
                             variant="contained" 
@@ -187,17 +177,21 @@ export const OrderDetailPage = () => {
                             Đã thanh toán & Hoàn thành
                         </Button>
                     )}
-                    {!['COMPLETED', 'CANCELLED'].includes(order.status) && (
-                        <Button 
-                            variant="outlined" 
-                            color="error"
-                            startIcon={<Icon icon="solar:close-circle-bold-duotone" />}
-                            onClick={() => handleStatusChange(OrderStatus.CANCELLED)}
-                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
-                        >
-                            Hủy đơn
-                        </Button>
-                    )}
+                    <CanAccess permission={PERMISSIONS.REFUND.PROCESS}>
+                        {[OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.PENDING_PICKUP].includes(
+                            order.status as OrderStatus
+                        ) && (
+                            <Button
+                                variant="contained"
+                                color="warning"
+                                startIcon={<Icon icon="solar:danger-triangle-bold-duotone" />}
+                                onClick={handleBaoLoiHuyDon}
+                                sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none' }}
+                            >
+                                Báo lỗi & Hủy đơn
+                            </Button>
+                        )}
+                    </CanAccess>
                     <Button
                         variant="outlined"
                         startIcon={<Icon icon="eva:printer-fill" />}
@@ -248,7 +242,110 @@ export const OrderDetailPage = () => {
             </Box>
 
             {/* Stepper Card (Full Width) */}
-            {order.orderType !== 'DIRECT' && (
+            {order.orderType !== 'DIRECT' && (() => {
+                const isCancelled = order.status === OrderStatus.CANCELLED;
+                const paymentTxn = (order.transactions || []).find(
+                    (tx: any) => tx?.status === 'COMPLETED' || tx?.status === 'REFUNDED'
+                );
+                const hasCompletedPayment = Boolean(paymentTxn);
+                const paidStatuses = ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'];
+                const wasPaid = isCancelled
+                    ? hasCompletedPayment
+                    : paidStatuses.includes(order.status);
+                const paymentDateSource = paymentTxn?.paidAt || order.updatedAt;
+                const paymentDate = wasPaid
+                    ? dayjs(paymentDateSource).format('DD/MM/YYYY - HH:mm')
+                    : '';
+
+                type MilestoneStep = {
+                    label: string;
+                    date: string;
+                    completed: boolean;
+                    variant: 'success' | 'error';
+                };
+
+                const cancelDate = order.cancelledAt
+                    ? dayjs(order.cancelledAt).format('DD/MM/YYYY - HH:mm')
+                    : dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm');
+
+                let steps: MilestoneStep[];
+                if (isCancelled && !wasPaid) {
+                    steps = [
+                        {
+                            label: 'Đã đặt đơn',
+                            date: dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm'),
+                            completed: true,
+                            variant: 'success',
+                        },
+                        {
+                            label: 'Đã hủy',
+                            date: cancelDate,
+                            completed: true,
+                            variant: 'error',
+                        },
+                    ];
+                } else if (isCancelled && wasPaid) {
+                    steps = [
+                        {
+                            label: 'Đã đặt đơn',
+                            date: dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm'),
+                            completed: true,
+                            variant: 'success',
+                        },
+                        {
+                            label: 'Đã thanh toán',
+                            date: paymentDate,
+                            completed: true,
+                            variant: 'success',
+                        },
+                        {
+                            label: 'Đã hủy',
+                            date: cancelDate,
+                            completed: true,
+                            variant: 'error',
+                        },
+                    ];
+                } else {
+                    steps = [
+                        {
+                            label: 'Đã đặt đơn',
+                            date: dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm'),
+                            completed: true,
+                            variant: 'success',
+                        },
+                        {
+                            label: 'Đã thanh toán',
+                            date: paymentDate,
+                            completed: wasPaid,
+                            variant: 'success',
+                        },
+                        {
+                            label: 'Đang chuẩn bị',
+                            date: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status)
+                                ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm')
+                                : '',
+                            completed: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status),
+                            variant: 'success',
+                        },
+                        {
+                            label: 'Chờ nhận vé',
+                            date: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status)
+                                ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm')
+                                : '',
+                            completed: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status),
+                            variant: 'success',
+                        },
+                    ];
+                }
+
+                const completedCount = steps.filter((s) => s.completed).length;
+                const trackProgress =
+                    steps.length <= 1
+                        ? 0
+                        : ((Math.max(completedCount - 1, 0)) / (steps.length - 1)) * 76;
+                const stepWidth = `${100 / steps.length}%`;
+
+                return (
                 <Card sx={{ p: 4, mb: 3, borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
                     <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'space-between', mt: 1 }}>
                         {/* Track Background */}
@@ -267,45 +364,48 @@ export const OrderDetailPage = () => {
                             position: 'absolute', 
                             top: 15, 
                             left: '12%', 
-                            width: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? 
-                                   (['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? 
-                                   (['PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? '76%' : '50%') : '25%') : '0%', 
+                            width: `${trackProgress}%`,
                             height: 2, 
-                            bgcolor: 'var(--palette-success-main)',
+                            bgcolor: isCancelled ? 'var(--palette-error-main)' : 'var(--palette-success-main)',
                             zIndex: 0,
                             transition: 'width 0.3s ease'
                         }} />
 
-                        {[
-                            { label: 'Đã đặt đơn', date: dayjs(order.createdAt).format('DD/MM/YYYY - HH:mm'), completed: true },
-                            { label: 'Đã thanh toán', date: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm') : '', completed: ['PAID', 'PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) },
-                            { label: 'Đang chuẩn bị', date: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm') : '', completed: ['PREPARING', 'PENDING_PICKUP', 'COMPLETED'].includes(order.status) },
-                            { label: 'Chờ nhận vé', date: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status) ? dayjs(order.updatedAt).format('DD/MM/YYYY - HH:mm') : '', completed: ['PENDING_PICKUP', 'COMPLETED'].includes(order.status) },
-                        ].map((step, index) => (
-                            <Box key={index} sx={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '25%' }}>
+                        {steps.map((step, index) => {
+                            const accent = step.variant === 'error'
+                                ? 'var(--palette-error-main)'
+                                : 'var(--palette-success-main)';
+                            return (
+                            <Box key={index} sx={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: stepWidth }}>
                                 <Box sx={{ 
                                     width: 32, 
                                     height: 32, 
                                     borderRadius: '50%', 
                                     bgcolor: 'white',
-                                    border: step.completed ? '2px solid var(--palette-success-main)' : '2px solid #DFE3E8',
+                                    border: step.completed ? `2px solid ${accent}` : '2px solid #DFE3E8',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     mb: 1.5
                                 }}>
                                     {step.completed ? 
-                                        <Icon icon="solar:check-read-linear" color="var(--palette-success-main)" width={20} /> :
+                                        <Icon
+                                            icon={step.variant === 'error' ? 'solar:close-circle-bold' : 'solar:check-read-linear'}
+                                            color={accent}
+                                            width={20}
+                                        /> :
                                         <Icon icon="solar:lock-password-linear" color="#919EAB" width={16} />
                                     }
                                 </Box>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)', mb: 0.5, fontSize: '0.8125rem' }}>{step.label}</Typography>
                                 {step.date && <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>{step.date}</Typography>}
                             </Box>
-                        ))}
+                            );
+                        })}
                     </Box>
                 </Card>
-            )}
+                );
+            })()}
 
             <Grid container spacing={3}>
                 {/* Left Column */}
@@ -396,93 +496,167 @@ export const OrderDetailPage = () => {
                             </Box>
                         </Card>
 
-
-
-                        {/* Danh sách vé Card */}
-                        <Card sx={{ borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
-                                    <Stack direction="row" spacing={1} alignItems="center" sx={{ pt: 3, px: 3, pb: 3 }}>
+                        {/* Danh sách vé Card / Inspection Section */}
+                        {isInspectionStarted && order.status === OrderStatus.PREPARING ? (
+                            <OrderInspectionSection
+                                orderId={order.id}
+                                orderCode={order.orderCode}
+                                orderDetails={order.orderDetails || []}
+                                orderInfo={{
+                                    customerName:
+                                        order.name ||
+                                        order.user?.fullName ||
+                                        'Khách vãng lai',
+                                    phone:
+                                        order.phone ||
+                                        order.user?.phone ||
+                                        order.user?.phoneNumber,
+                                    email: order.user?.email,
+                                    status: order.status,
+                                    statusLabel: currentStatus.label,
+                                    paymentStatusLabel:
+                                        PAYMENT_STATUS_OPTIONS[paymentStatus]?.label ||
+                                        'Đã thanh toán',
+                                    createdAt: order.createdAt,
+                                    totalAmount: order.totalAmount,
+                                    orderType: order.orderType,
+                                }}
+                                onSuccess={() => refetch()}
+                                onCancel={() => setIsInspectionStarted(false)}
+                                onMoveToReadyForPickup={() => handleStatusChange(OrderStatus.PENDING_PICKUP)}
+                            />
+                        ) : (
+                            <Card sx={{ borderRadius: 'var(--shape-borderRadius-lg)', boxShadow: 'var(--customShadows-card)' }}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 3, px: 3, pb: 3 }}>
+                                    <Stack direction="row" spacing={1} alignItems="center">
                                         <Icon icon="solar:ticket-bold-duotone" width={24} style={{ color: 'var(--palette-success-main)' }} />
                                         <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--palette-text-primary)' }}>Danh sách vé</Typography>
                                         <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', ml: 1 }}>({order.orderDetails?.length || 0} vé)</Typography>
                                     </Stack>
-                                    
-                                    <TableContainer>
-                                        <Table sx={{ minWidth: 600 }}>
-                                            <TableHead>
-                                                <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
-                                                    <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Vé số</TableCell>
-                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Đài</TableCell>
-                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Ngày xổ</TableCell>
-                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Loại vé</TableCell>
-                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
-                                                    <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
-                                                    <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Thao tác</TableCell>
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {(order.orderDetails || []).map((detail: any, idx: number) => (
-                                                    <TableRow key={idx} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                                                        <TableCell align="center">
-                                                            <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-                                                                <Avatar variant="rounded" sx={{ width: 32, height: 32, bgcolor: '#ee1314', color: 'white' }}>
-                                                                    <Icon icon="solar:ticket-bold-duotone" width={20} />
-                                                                </Avatar>
+                                    {order.status === OrderStatus.PREPARING && (
+                                        <Button 
+                                            variant="contained" 
+                                            startIcon={<Icon icon="solar:magnifer-zoom-in-bold-duotone" />}
+                                            onClick={() => setIsInspectionStarted(true)}
+                                            sx={{ height: 36, px: 2, borderRadius: '8px', fontWeight: 700, textTransform: 'none', boxShadow: 'none', bgcolor: 'var(--palette-grey-800)', color: 'common.white', '&:hover': { bgcolor: 'var(--palette-grey-900)' } }}
+                                        >
+                                            Bắt đầu kiểm tra
+                                        </Button>
+                                    )}
+                                </Stack>
+                                
+                                <TableContainer>
+                                    <Table sx={{ minWidth: 600 }}>
+                                        <TableHead>
+                                            <TableRow sx={{ bgcolor: 'var(--palette-background-neutral)' }}>
+                                                <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Vé số</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Đài</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Ngày xổ</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Loại vé</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Giá</TableCell>
+                                                <TableCell sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Trạng thái</TableCell>
+                                                <TableCell align="center" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 600, borderBottom: 'none' }}>Thao tác</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {(order.orderDetails || []).map((detail: any, idx: number) => (
+                                                <TableRow key={idx} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                                    <TableCell align="center">
+                                                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+                                                            <Avatar variant="rounded" sx={{ width: 32, height: 32, bgcolor: '#ee1314', color: 'white' }}>
+                                                                <Icon icon="solar:ticket-bold-duotone" width={20} />
+                                                            </Avatar>
+                                                            <Box sx={{ textAlign: 'left' }}>
                                                                 <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                                                    {detail.lotteryTicket?.symbol || detail.lotteryTicket?.ticketNumber || 'N/A'}
+                                                                    {detail.numbers || detail.lotteryTicket?.numbers || detail.lotteryTicket?.symbol || detail.lotteryTicket?.ticketNumber || 'N/A'}
                                                                 </Typography>
-                                                            </Stack>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                                {detail.lotteryTicket?.province?.name || detail.lotteryTicket?.station?.name || detail.lotteryTicket?.stationName || 'N/A'}
-                                                            </Typography>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
-                                                                {detail.lotteryTicket?.drawDate ? dayjs(detail.lotteryTicket.drawDate).format("DD/MM/YYYY") : 'N/A'}
-                                                            </Typography>
-                                                            <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)' }}>
-                                                                ({detail.lotteryTicket?.drawDate ? dayjs(detail.lotteryTicket.drawDate).locale('vi').format("dddd") : 'N/A'})
-                                                            </Typography>
-                                                        </TableCell>
+                                                                {(detail.serialNumber
+                                                                    || detail.replacedByTicketSerial?.serialNumber
+                                                                    || detail.replaceTicketSerial?.serialNumber
+                                                                    || detail.lotteryTicketSerial?.serialNumber) && (
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        SN: {detail.serialNumber
+                                                                            || detail.replacedByTicketSerial?.serialNumber
+                                                                            || detail.replaceTicketSerial?.serialNumber
+                                                                            || detail.lotteryTicketSerial?.serialNumber}
+                                                                        {detail.replacedByTicketSerialId || detail.replacedByTicketSerial || detail.replaceTicketSerial ? ' (đã thay)' : ''}
+                                                                    </Typography>
+                                                                )}
+                                                            </Box>
+                                                        </Stack>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                            {detail.stationName || detail.lotteryTicket?.province?.name || detail.lotteryTicket?.station?.name || detail.lotteryTicket?.stationName || 'N/A'}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--palette-text-primary)' }}>
+                                                            {(detail.drawDate || detail.lotteryTicket?.drawDate)
+                                                                ? dayjs(detail.drawDate || detail.lotteryTicket?.drawDate).format("DD/MM/YYYY")
+                                                                : 'N/A'}
+                                                        </Typography>
+                                                        <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)' }}>
+                                                            {(detail.drawDate || detail.lotteryTicket?.drawDate)
+                                                                ? dayjs(detail.drawDate || detail.lotteryTicket?.drawDate).locale('vi').format("dddd")
+                                                                : 'N/A'}
+                                                        </Typography>
+                                                    </TableCell>
 
-                                                        <TableCell>
-                                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                                Vé thường
-                                                            </Typography>
-                                                        </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                            Vé thường
+                                                        </Typography>
+                                                    </TableCell>
 
-                                                        <TableCell>
-                                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                                {(detail.price || 10000).toLocaleString('vi-VN')}đ
-                                                            </Typography>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Chip label="Đã mua" size="small" sx={{ fontWeight: 700, height: 24, fontSize: '0.75rem', borderRadius: '6px', color: "var(--palette-success-dark)", bgcolor: "var(--palette-success-lighter)" }} />
-                                                        </TableCell>
-                                                        <TableCell align="center">
-                                                            <Button variant="outlined" size="small" endIcon={<Icon icon="solar:square-top-down-linear" style={{ transform: 'rotate(-45deg)' }} />} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, color: 'var(--palette-success-main)', borderColor: 'var(--palette-success-main)', '&:hover': { bgcolor: 'var(--palette-success-lighter)', borderColor: 'var(--palette-success-main)' } }}>
-                                                                Xem kết quả
-                                                            </Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                    <Divider sx={{ borderStyle: 'dashed' }} />
-                                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 3 }}>
-                                        <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
-                                            Tổng số vé: {order.orderDetails?.length || 0}
+                                                    <TableCell>
+                                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>
+                                                            {(detail.price || 10000).toLocaleString('vi-VN')}đ
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {(() => {
+                                                            const badge = resolveOrderDetailStatusBadge(detail.status);
+                                                            return (
+                                                                <Chip
+                                                                    label={badge.label}
+                                                                    size="small"
+                                                                    sx={{
+                                                                        fontWeight: 700,
+                                                                        height: 24,
+                                                                        fontSize: '0.75rem',
+                                                                        borderRadius: '6px',
+                                                                        color: badge.color,
+                                                                        bgcolor: badge.bgcolor,
+                                                                    }}
+                                                                />
+                                                            );
+                                                        })()}
+                                                    </TableCell>
+                                                    <TableCell align="center">
+                                                        <Button variant="outlined" size="small" endIcon={<Icon icon="solar:square-top-down-linear" style={{ transform: 'rotate(-45deg)' }} />} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, color: 'var(--palette-success-main)', borderColor: 'var(--palette-success-main)', '&:hover': { bgcolor: 'var(--palette-success-lighter)', borderColor: 'var(--palette-success-main)' } }}>
+                                                            Xem kết quả
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                                <Divider sx={{ borderStyle: 'dashed' }} />
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 3 }}>
+                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontWeight: 500 }}>
+                                        Tổng số vé: {order.orderDetails?.length || 0}
+                                    </Typography>
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>Tổng tiền:</Typography>
+                                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--palette-success-main)' }}>
+                                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}
                                         </Typography>
-                                        <Stack direction="row" alignItems="center" spacing={1}>
-                                            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'var(--palette-text-primary)' }}>Tổng tiền:</Typography>
-                                            <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--palette-success-main)' }}>
-                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}
-                                            </Typography>
-                                        </Stack>
                                     </Stack>
-                                </Card>
+                                </Stack>
+                            </Card>
+                        )}
 
                     </Stack>
                 </Grid>
@@ -599,6 +773,17 @@ export const OrderDetailPage = () => {
                     </Stack>
                 </Grid>
             </Grid>
+
+            <OrderHandoverConfirmDialog
+                open={handoverDialogOpen}
+                onClose={() => setHandoverDialogOpen(false)}
+                onConfirm={() => {
+                    updateStatus(
+                        { id: order.id, status: OrderStatus.COMPLETED },
+                        { onSuccess: () => toast.success("Cập nhật trạng thái thành công") }
+                    );
+                }}
+            />
         </Box>
     );
 };

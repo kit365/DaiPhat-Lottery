@@ -1,5 +1,7 @@
 package com.daiphat.coreapi.application.dto.response.base;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonView;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,15 +37,20 @@ public class PageResponse<T> {
             int size,
             Map<String, Long> statusCounts
     ) {
+        int safePage = Math.max(page, 1);
+        int safeSize = Math.max(size, 1);
+        long totalRecords = pageResult.getTotalElements();
+        int totalPages = pageResult.getTotalPages();
         return PageResponse.<T>builder()
                 .recordList(pageResult.getContent())
                 .pagination(PaginationMetadata.builder()
-                        .totalRecords(pageResult.getTotalElements())
-                        .totalPages(pageResult.getTotalPages())
-                        .currentPage(page)
-                        .limit(size)
-                        .isFirst(pageResult.isFirst())
-                        .isLast(pageResult.isLast())
+                        .totalRecords(totalRecords)
+                        .totalPages(totalPages)
+                        .currentPage(safePage)
+                        .limit(safeSize)
+                        // Derive from 1-based request page so flags stay consistent with FE.
+                        .isFirst(safePage <= 1)
+                        .isLast(totalPages == 0 || safePage >= totalPages)
                         .build())
                 .statusCounts(statusCounts)
                 .build();
@@ -55,16 +62,18 @@ public class PageResponse<T> {
             int page,
             int size
     ) {
-        int totalPages = size <= 0 ? 0 : (int) Math.ceil((double) totalRecords / size);
+        int safePage = Math.max(page, 1);
+        int safeSize = Math.max(size, 1);
+        int totalPages = (int) Math.ceil((double) totalRecords / safeSize);
         return PageResponse.<T>builder()
                 .recordList(records)
                 .pagination(PaginationMetadata.builder()
                         .totalRecords(totalRecords)
                         .totalPages(totalPages)
-                        .currentPage(page)
-                        .limit(size)
-                        .isFirst(page <= 1)
-                        .isLast(totalPages == 0 || page >= totalPages)
+                        .currentPage(safePage)
+                        .limit(safeSize)
+                        .isFirst(safePage <= 1)
+                        .isLast(totalPages == 0 || safePage >= totalPages)
                         .build())
                 .build();
     }
@@ -86,10 +95,18 @@ public class PageResponse<T> {
         @JsonView(Views.Public.class)
         private int limit;
 
+        /**
+         * Explicit JSON names: Lombok boolean getters named {@code isFirst}/{@code isLast}
+         * would otherwise serialize as {@code first}/{@code last}, breaking the FE.
+         */
         @JsonView(Views.Public.class)
+        @JsonProperty("isFirst")
+        @JsonAlias("first")
         private boolean isFirst;
 
         @JsonView(Views.Public.class)
+        @JsonProperty("isLast")
+        @JsonAlias("last")
         private boolean isLast;
     }
 }

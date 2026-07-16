@@ -1,10 +1,15 @@
 package com.daiphat.coreapi.application.service.notification;
 
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.notification.NotificationReferenceAvailabilityResponse;
 import com.daiphat.coreapi.application.dto.response.notification.NotificationResponse;
 import com.daiphat.coreapi.application.mapper.notification.NotificationApplicationMapper;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
+import com.daiphat.coreapi.application.port.out.blog.BlogPostRepositoryPort;
 import com.daiphat.coreapi.application.port.out.notification.NotificationRepositoryPort;
+import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
+import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
@@ -34,6 +39,10 @@ public class NotificationService implements NotificationServicePort {
 
     private final NotificationRepositoryPort notificationRepositoryPort;
     private final NotificationApplicationMapper notificationApplicationMapper;
+    private final OrderRepositoryPort orderRepositoryPort;
+    private final RefundRequestRepositoryPort refundRequestRepositoryPort;
+    private final SupportTicketRepositoryPort supportTicketRepositoryPort;
+    private final BlogPostRepositoryPort blogPostRepositoryPort;
 
     @Override
     @Transactional
@@ -136,6 +145,87 @@ public class NotificationService implements NotificationServicePort {
     @Transactional(readOnly = true)
     public PageResponse<NotificationResponse> getMyAdminNotifications(UUID userId, int page, int limit) {
         return getNotificationsForUser(userId, page, limit);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public NotificationReferenceAvailabilityResponse resolveMyNotificationReference(
+            UUID userId,
+            Long notificationId
+    ) {
+        NotificationModel notification = findNotificationOrThrow(notificationId);
+        if (!userId.equals(notification.getUserId())) {
+            throw new DomainException(ErrorCode.ACCESS_DENIED);
+        }
+
+        NotificationReferenceType referenceType = notification.getReferenceType();
+        String referenceId = notification.getReferenceId();
+
+        if (referenceType == null) {
+            return NotificationReferenceAvailabilityResponse.unavailable(null, referenceId);
+        }
+
+        if (referenceType == NotificationReferenceType.AUTH
+                || referenceType == NotificationReferenceType.SYSTEM
+                || referenceType == NotificationReferenceType.LOTTERY_STATION) {
+            return NotificationReferenceAvailabilityResponse.available(referenceType, referenceId);
+        }
+
+        if (referenceId == null || referenceId.isBlank()) {
+            return NotificationReferenceAvailabilityResponse.unavailable(referenceType, referenceId);
+        }
+
+        boolean exists = switch (referenceType) {
+            case ORDER -> isOrderReferenceAvailable(referenceId);
+            case REFUND, REFUND_REQUEST -> isRefundReferenceAvailable(referenceId);
+            case SUPPORT_TICKET -> isSupportTicketReferenceAvailable(referenceId);
+            case BLOG_POST -> isBlogPostReferenceAvailable(referenceId);
+            default -> true;
+        };
+
+        return exists
+                ? NotificationReferenceAvailabilityResponse.available(referenceType, referenceId)
+                : NotificationReferenceAvailabilityResponse.unavailable(referenceType, referenceId);
+    }
+
+    private boolean isOrderReferenceAvailable(String referenceId) {
+        // Legacy refund notifications incorrectly used ORDER + numeric refund id.
+        if (referenceId.chars().allMatch(Character::isDigit)) {
+            return isRefundReferenceAvailable(referenceId);
+        }
+        try {
+            UUID orderId = UUID.fromString(referenceId.trim());
+            return orderRepositoryPort.findById(orderId).isPresent();
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+    private boolean isRefundReferenceAvailable(String referenceId) {
+        try {
+            Long refundId = Long.valueOf(referenceId.trim());
+            return refundRequestRepositoryPort.findById(refundId).isPresent();
+        } catch (NumberFormatException ex) {
+            return false;
+        }
+    }
+
+    private boolean isSupportTicketReferenceAvailable(String referenceId) {
+        try {
+            Long ticketId = Long.valueOf(referenceId.trim());
+            return supportTicketRepositoryPort.findById(ticketId).isPresent();
+        } catch (NumberFormatException ex) {
+            return false;
+        }
+    }
+
+    private boolean isBlogPostReferenceAvailable(String referenceId) {
+        try {
+            Long postId = Long.valueOf(referenceId.trim());
+            return blogPostRepositoryPort.existsById(postId);
+        } catch (NumberFormatException ex) {
+            return false;
+        }
     }
 
     private PageResponse<NotificationResponse> getNotificationsForUser(UUID userId, int page, int limit) {

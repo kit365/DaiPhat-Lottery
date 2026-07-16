@@ -27,11 +27,23 @@ const getCloudinaryUploadUrl = (file: File) => {
 export const uploadMediaToCloudinary = async (files: File[]): Promise<UploadedCloudinaryMedia[]> => {
     try {
         const uploadPromises = files.map(async (file) => {
+            const uploadUrl = getCloudinaryUploadUrl(file);
+            
+            // Fallback for local testing without Cloudinary setup
+            if (!uploadUrl) {
+                console.warn("VITE_CLOUDINARY_URL is missing, mocking image upload with local object URL.");
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return {
+                    url: URL.createObjectURL(file),
+                    kind: file.type.startsWith("video/") ? "video" as const : "image" as const,
+                };
+            }
+
             const formData = new FormData();
             formData.append("file", file);
             formData.append("upload_preset", UPLOAD_PRESET);
 
-            const response = await axios.post(getCloudinaryUploadUrl(file), formData);
+            const response = await axios.post(uploadUrl, formData);
             return {
                 url: response.data.secure_url,
                 kind: file.type.startsWith("video/") ? "video" as const : "image" as const,
@@ -40,7 +52,7 @@ export const uploadMediaToCloudinary = async (files: File[]): Promise<UploadedCl
 
         return await Promise.all(uploadPromises);
     } catch (error: any) {
-        console.error(error.response?.data);
+        console.error(error.response?.data || error);
         throw new Error("Lỗi khi tải ảnh/video lên.");
     }
 };

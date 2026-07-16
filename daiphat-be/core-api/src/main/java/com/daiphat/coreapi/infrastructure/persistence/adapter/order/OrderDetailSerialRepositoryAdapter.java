@@ -20,4 +20,12 @@ public class OrderDetailSerialRepositoryAdapter implements OrderDetailSerialRepo
         }
         return orderDetailSerialRepository.findSerialIdsByOrderDetailId(orderDetailId);
     }
+
+    @Override
+    public void replaceSerialAllocation(Long orderDetailId, Long oldSerialId, Long newSerialId) {
+        if (orderDetailId == null || oldSerialId == null || newSerialId == null) {
+            return;
+        }
+        orderDetailSerialRepository.replaceSerialAllocation(orderDetailId, oldSerialId, newSerialId);
+    }
 }

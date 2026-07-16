@@ -1,16 +1,18 @@
 package com.daiphat.coreapi.application.service.refund;
 
-import com.daiphat.coreapi.application.dto.request.refund.RejectRefundRequestRequest;
+import com.daiphat.coreapi.application.dto.request.refund.RequestBankInfoUpdateRequest;
 import com.daiphat.coreapi.application.dto.request.refund.TransferRefundRequestRequest;
-import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
 import com.daiphat.coreapi.application.event.OrderStatusChangedEvent;
 import com.daiphat.coreapi.application.event.RefundRequestStatusChangedEvent;
+import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.mapper.refund.RefundApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.order.TransactionRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
+import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -18,11 +20,14 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundProcessingUrgency;
 import com.daiphat.coreapi.domain.model.enums.order.refund.RefundRequestStatus;
+import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
+import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.domain.model.orders.OrderDetailModel;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.domain.model.refund.RefundRequestModel;
 import com.daiphat.coreapi.domain.model.refund.UserBankAccountModel;
+import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -56,11 +61,16 @@ class RefundRequestStaffServiceTest {
     private final UserRepositoryPort userRepositoryPort = mock(UserRepositoryPort.class);
     private final LotteryTicketServicePort lotteryTicketServicePort = mock(LotteryTicketServicePort.class);
     private final RefundApplicationMapper refundApplicationMapper = mock(RefundApplicationMapper.class);
+    private final OrderApplicationMapper orderApplicationMapper = mock(OrderApplicationMapper.class);
     private final RefundProcessingDeadlineService refundProcessingDeadlineService = mock(RefundProcessingDeadlineService.class);
     private final RefundTicketItemResolver refundTicketItemResolver = mock(RefundTicketItemResolver.class);
     private final com.daiphat.coreapi.application.port.out.file.StoragePort storagePort =
             mock(com.daiphat.coreapi.application.port.out.file.StoragePort.class);
+    private final TransactionRepositoryPort transactionRepositoryPort = mock(TransactionRepositoryPort.class);
+    private final SystemConfigRepositoryPort systemConfigRepositoryPort = mock(SystemConfigRepositoryPort.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+
+    private final com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort orderIncidentTicketServicePort = mock(com.daiphat.coreapi.application.port.in.order.OrderIncidentTicketServicePort.class);
 
     private RefundRequestStaffService refundRequestStaffService;
 
@@ -79,10 +89,14 @@ class RefundRequestStaffServiceTest {
                 userRepositoryPort,
                 lotteryTicketServicePort,
                 refundApplicationMapper,
+                orderApplicationMapper,
                 refundProcessingDeadlineService,
                 refundTicketItemResolver,
                 storagePort,
-                eventPublisher);
+                transactionRepositoryPort,
+                systemConfigRepositoryPort,
+                eventPublisher,
+                orderIncidentTicketServicePort);
 
         when(refundProcessingDeadlineService.evaluate(any())).thenReturn(
                 new RefundProcessingDeadlineService.ProcessingEvaluation(
@@ -90,99 +104,15 @@ class RefundRequestStaffServiceTest {
                         604800L,
                         RefundProcessingUrgency.ON_TIME));
         when(refundProcessingDeadlineService.isOverdue(any())).thenReturn(false);
-    }
-
-    @Test
-    @DisplayName("approve: PENDING → APPROVED, cancels order and releases stock")
-    void approve_success() {
-        RefundRequestModel refund = pendingRefund();
-        OrderModel order = preparingOrder();
-
-        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
-        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
-        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
-        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any())).thenReturn(null);
-
-        refundRequestStaffService.approve(refundId, staffId);
-
-        ArgumentCaptor<RefundRequestModel> refundCaptor = ArgumentCaptor.forClass(RefundRequestModel.class);
-        verify(refundRequestRepositoryPort).save(refundCaptor.capture());
-        assertThat(refundCaptor.getValue().getStatus()).isEqualTo(RefundRequestStatus.READY_TO_PAY);
-        assertThat(refundCaptor.getValue().getReviewedBy()).isEqualTo(staffId);
-
-        ArgumentCaptor<OrderModel> orderCaptor = ArgumentCaptor.forClass(OrderModel.class);
-        verify(orderRepositoryPort).save(orderCaptor.capture());
-        assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.CANCELLED);
-
-        verify(lotteryTicketServicePort).returnSoldTicketForOrder(99L);
-        verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
-        verify(eventPublisher).publishEvent(any(OrderStatusChangedEvent.class));
-    }
-
-    @Test
-    @DisplayName("approve: rejects when order is not refundable")
-    void approve_rejectsInvalidOrderStatus() {
-        RefundRequestModel refund = pendingRefund();
-        OrderModel order = OrderModel.builder()
-                .id(orderId)
-                .userId(customerId)
-                .orderCode("ORD-001")
-                .orderType(OrderType.ONLINE)
-                .status(OrderStatus.CANCELLED)
-                .orderDetails(List.of(OrderDetailModel.builder()
-                        .lotteryTicketSerialId(99L)
-                        .price(BigDecimal.valueOf(20000))
-                        .build()))
-                .build();
-
-        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
-        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
-
-        assertThatThrownBy(() -> refundRequestStaffService.approve(refundId, staffId))
-                .isInstanceOf(DomainException.class)
-                .extracting(ex -> ((DomainException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.ORDER_INVALID_STATUS);
-
-        verify(refundRequestRepositoryPort, never()).save(any());
-        verify(lotteryTicketServicePort, never()).returnSoldTicketForOrder(any());
-    }
-
-    @Test
-    @DisplayName("reject: PENDING → REJECTED without changing order")
-    void reject_success() {
-        RefundRequestModel refund = pendingRefund();
-
-        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
-        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
-        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
-                OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
-        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any())).thenReturn(null);
-
-        refundRequestStaffService.reject(refundId, staffId, new RejectRefundRequestRequest("Không đủ điều kiện"));
-
-        ArgumentCaptor<RefundRequestModel> refundCaptor = ArgumentCaptor.forClass(RefundRequestModel.class);
-        verify(refundRequestRepositoryPort).save(refundCaptor.capture());
-        assertThat(refundCaptor.getValue().getStatus()).isEqualTo(RefundRequestStatus.REJECTED);
-        assertThat(refundCaptor.getValue().getRejectReason()).isEqualTo("Không đủ điều kiện");
-
-        verify(orderRepositoryPort, never()).save(any());
-        verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
-    }
-
-    @Test
-    @DisplayName("reject: blank reason fails validation")
-    void reject_blankReasonFails() {
-        RefundRequestModel refund = pendingRefund();
-        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
-
-        assertThatThrownBy(() -> refundRequestStaffService.reject(
-                refundId, staffId, new RejectRefundRequestRequest("   ")))
-                .isInstanceOf(DomainException.class)
-                .extracting(ex -> ((DomainException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.INVALID_INPUT);
+        org.mockito.Mockito.lenient()
+                .when(transactionRepositoryPort.findLatestByOrderIdAndType(any(), any()))
+                .thenReturn(Optional.empty());
+        org.mockito.Mockito.lenient()
+                .when(transactionRepositoryPort.findLatestByRefundRequestId(any()))
+                .thenReturn(Optional.empty());
+        org.mockito.Mockito.lenient()
+                .when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.MAX_REFUND_BANK_INFO_RETRY.name()))
+                .thenReturn(Optional.of(SystemConfigModel.builder().configValue("3").build()));
     }
 
     @Test
@@ -201,9 +131,33 @@ class RefundRequestStaffServiceTest {
         when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
         when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
-        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
-                OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
-        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any())).thenReturn(null);
+        OrderDetailModel detail = OrderDetailModel.builder()
+                .id(99L)
+                .orderId(orderId)
+                .refundRequestId(refundId)
+                .status(com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.REFUND_PENDING)
+                .price(BigDecimal.valueOf(20000))
+                .build();
+        OrderModel order = OrderModel.builder()
+                .id(orderId)
+                .orderCode("ORD-001")
+                .orderDetails(List.of(detail))
+                .build();
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(transactionRepositoryPort.save(any(TransactionModel.class))).thenAnswer(inv -> {
+            TransactionModel tx = inv.getArgument(0);
+            tx.setId(500L);
+            return tx;
+        });
+        when(orderApplicationMapper.toTransactionResponse(any())).thenReturn(null);
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
+        when(userRepositoryPort.findById(staffId)).thenReturn(Optional.of(
+                com.daiphat.coreapi.domain.model.UserModel.builder()
+                        .id(staffId)
+                        .lastName("Nguyen")
+                        .firstName("Van A")
+                        .build()));
 
         refundRequestStaffService.markTransferred(
                 refundId,
@@ -213,8 +167,50 @@ class RefundRequestStaffServiceTest {
         ArgumentCaptor<RefundRequestModel> refundCaptor = ArgumentCaptor.forClass(RefundRequestModel.class);
         verify(refundRequestRepositoryPort).save(refundCaptor.capture());
         assertThat(refundCaptor.getValue().getStatus()).isEqualTo(RefundRequestStatus.PAID);
-        assertThat(refundCaptor.getValue().getTransferNote()).isEqualTo("Đã chuyển");
+
+        ArgumentCaptor<OrderModel> orderCaptor = ArgumentCaptor.forClass(OrderModel.class);
+        verify(orderRepositoryPort).save(orderCaptor.capture());
+        assertThat(orderCaptor.getValue().getOrderDetails()).hasSize(1);
+        assertThat(orderCaptor.getValue().getOrderDetails().getFirst().getStatus())
+                .isEqualTo(com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus.REFUNDED);
+
+        ArgumentCaptor<TransactionModel> txCaptor = ArgumentCaptor.forClass(TransactionModel.class);
+        verify(transactionRepositoryPort).save(txCaptor.capture());
+        assertThat(txCaptor.getValue().getType()).isEqualTo(TransactionType.REFUND);
+        assertThat(txCaptor.getValue().getRefundRequestId()).isEqualTo(refundId);
+        assertThat(txCaptor.getValue().getOrderId()).isNull();
+        assertThat(txCaptor.getValue().getPaymentEvidenceUrl()).isEqualTo("https://evidence.url");
+        assertThat(txCaptor.getValue().getPaymentBy()).isEqualTo(staffId);
+        assertThat(txCaptor.getValue().getNote())
+                .isEqualTo("Yêu cầu hoàn tiền đã được xử lý chuyển khoản bởi nhân viên Nguyen Van A.");
         verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
+    }
+
+    @Test
+    @DisplayName("markTransferred: rejects blank payment evidence URL")
+    void markTransferred_rejectsBlankEvidenceUrl() {
+        RefundRequestModel refund = RefundRequestModel.builder()
+                .id(refundId)
+                .orderId(orderId)
+                .requestedBy(customerId)
+                .status(RefundRequestStatus.READY_TO_PAY)
+                .refundReason("Đổi ý")
+                .bankAccountId(1L)
+                .refundAmount(BigDecimal.valueOf(20000))
+                .build();
+
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
+
+        assertThatThrownBy(() -> refundRequestStaffService.markTransferred(
+                refundId,
+                staffId,
+                new TransferRefundRequestRequest("   ", null)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        verify(transactionRepositoryPort, never()).save(any());
+        verify(refundRequestRepositoryPort, never()).save(any());
     }
 
     @Test
@@ -235,7 +231,16 @@ class RefundRequestStaffServiceTest {
         when(userBankAccountRepositoryPort.findById(1L)).thenReturn(Optional.of(bankAccount()));
         when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
                 OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
-        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any())).thenReturn(null);
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(transactionRepositoryPort.save(any(TransactionModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderApplicationMapper.toTransactionResponse(any())).thenReturn(null);
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
+        when(userRepositoryPort.findById(staffId)).thenReturn(Optional.of(
+                com.daiphat.coreapi.domain.model.UserModel.builder()
+                        .id(staffId)
+                        .lastName("Tran")
+                        .firstName("Thi B")
+                        .build()));
 
         refundRequestStaffService.markTransferred(
                 refundId,
@@ -243,12 +248,26 @@ class RefundRequestStaffServiceTest {
                 new TransferRefundRequestRequest("https://evidence.url", null));
 
         assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.PAID);
+        ArgumentCaptor<TransactionModel> txCaptor = ArgumentCaptor.forClass(TransactionModel.class);
+        verify(transactionRepositoryPort).save(txCaptor.capture());
+        assertThat(txCaptor.getValue().getRefundRequestId()).isEqualTo(refundId);
+        assertThat(txCaptor.getValue().getOrderId()).isNull();
+        assertThat(txCaptor.getValue().getNote())
+                .isEqualTo("Yêu cầu hoàn tiền đã được xử lý chuyển khoản bởi nhân viên Tran Thi B.");
     }
 
     @Test
-    @DisplayName("markTransferred: rejects wrong status")
-    void markTransferred_rejectsPending() {
-        RefundRequestModel refund = pendingRefund();
+    @DisplayName("markTransferred: rejects WAITING_FOR_INFO without bank account")
+    void markTransferred_rejectsWaitingWithoutBank() {
+        RefundRequestModel refund = RefundRequestModel.builder()
+                .id(refundId)
+                .orderId(orderId)
+                .requestedBy(customerId)
+                .status(RefundRequestStatus.WAITING_FOR_INFO)
+                .refundReason("Sự cố")
+                .bankAccountId(null)
+                .refundAmount(BigDecimal.valueOf(20000))
+                .build();
         when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
 
         assertThatThrownBy(() -> refundRequestStaffService.markTransferred(
@@ -260,12 +279,164 @@ class RefundRequestStaffServiceTest {
                 .isEqualTo(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
     }
 
+    @Test
+    @DisplayName("cancelOrderWithRefund: creates WAITING_FOR_INFO, cancels order, releases stock")
+    void cancelOrderWithRefund_success() {
+        OrderModel order = preparingOrder();
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(false);
+        when(orderRepositoryPort.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> {
+            RefundRequestModel model = inv.getArgument(0);
+            model.setId(refundId);
+            return model;
+        });
+        when(refundRequestRepositoryPort.linkOrderDetailsByOrderId(orderId, refundId)).thenReturn(1);
+        when(refundRequestRepositoryPort.findOrderDetailIdsByRefundRequestId(refundId)).thenReturn(List.of(1L));
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
+
+        refundRequestStaffService.cancelOrderWithRefund(
+                orderId,
+                staffId,
+                new com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest(
+                        com.daiphat.coreapi.domain.model.enums.order.OrderCancelType.ADMIN_FORCE_CANCEL,
+                        "Vé lỗi in",
+                        null));
+
+        ArgumentCaptor<RefundRequestModel> refundCaptor = ArgumentCaptor.forClass(RefundRequestModel.class);
+        verify(refundRequestRepositoryPort).save(refundCaptor.capture());
+        assertThat(refundCaptor.getValue().getStatus()).isEqualTo(RefundRequestStatus.WAITING_FOR_INFO);
+        assertThat(refundCaptor.getValue().getBankAccountId()).isNull();
+        assertThat(refundCaptor.getValue().getRefundReason()).isEqualTo("Vé lỗi in");
+
+        ArgumentCaptor<OrderModel> orderCaptor = ArgumentCaptor.forClass(OrderModel.class);
+        verify(orderRepositoryPort).save(orderCaptor.capture());
+        assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(orderCaptor.getValue().getCancelType()).isEqualTo(
+                com.daiphat.coreapi.domain.model.enums.order.OrderCancelType.ADMIN_FORCE_CANCEL);
+        verify(lotteryTicketServicePort).returnSoldTicketForOrder(99L);
+        verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
+        verify(eventPublisher).publishEvent(any(OrderStatusChangedEvent.class));
+    }
+
+    @Test
+    @DisplayName("cancelOrderWithRefund: rejects when refund already exists")
+    void cancelOrderWithRefund_duplicateRejected() {
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(preparingOrder()));
+        when(refundRequestRepositoryPort.existsLinkedOrderDetailByOrderId(orderId)).thenReturn(true);
+
+        assertThatThrownBy(() -> refundRequestStaffService.cancelOrderWithRefund(
+                orderId,
+                staffId,
+                new com.daiphat.coreapi.application.dto.request.refund.StaffCancelOrderWithRefundRequest(
+                        com.daiphat.coreapi.domain.model.enums.order.OrderCancelType.ADMIN_FORCE_CANCEL,
+                        "Vé lỗi",
+                        null)))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_ORDER_ALREADY_REQUESTED);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("attachBankAccount: WAITING_FOR_INFO → READY_TO_PAY")
+    void attachBankAccount_success() {
+        RefundRequestModel refund = RefundRequestModel.builder()
+                .id(refundId)
+                .orderId(orderId)
+                .requestedBy(customerId)
+                .status(RefundRequestStatus.WAITING_FOR_INFO)
+                .refundReason("Vé lỗi")
+                .refundAmount(BigDecimal.valueOf(20000))
+                .build();
+
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
+        when(userBankAccountRepositoryPort.findByIdAndUserId(1L, customerId)).thenReturn(Optional.of(bankAccount()));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
+                OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
+
+        refundRequestStaffService.attachBankAccount(
+                refundId,
+                staffId,
+                new com.daiphat.coreapi.application.dto.request.refund.AttachRefundBankAccountRequest(1L));
+
+        assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.READY_TO_PAY);
+        assertThat(refund.getBankAccountId()).isEqualTo(1L);
+        verify(eventPublisher).publishEvent(any(RefundRequestStatusChangedEvent.class));
+    }
+
+    @Test
+    @DisplayName("requestBankInfoUpdate: READY_TO_PAY → WAITING_FOR_INFO and publishes event")
+    void requestBankInfoUpdate_success() {
+        RefundRequestModel refund = pendingRefund();
+        refund.setRetryCount(0);
+
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
+        when(refundRequestRepositoryPort.save(any(RefundRequestModel.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderRepositoryPort.findById(orderId)).thenReturn(Optional.of(
+                OrderModel.builder().id(orderId).orderCode("ORD-001").build()));
+        when(refundApplicationMapper.enrichResponse(any(), any(), any(), any(), any(), any(), any())).thenReturn(null);
+
+        refundRequestStaffService.requestBankInfoUpdate(
+                refundId,
+                staffId,
+                new RequestBankInfoUpdateRequest("STK không khớp tên"));
+
+        assertThat(refund.getStatus()).isEqualTo(RefundRequestStatus.WAITING_FOR_INFO);
+        assertThat(refund.getRetryCount()).isEqualTo(1);
+        assertThat(refund.getOperatorNote()).isEqualTo("STK không khớp tên");
+
+        ArgumentCaptor<RefundRequestStatusChangedEvent> eventCaptor =
+                ArgumentCaptor.forClass(RefundRequestStatusChangedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().status()).isEqualTo(RefundRequestStatus.WAITING_FOR_INFO);
+        assertThat(eventCaptor.getValue().retryCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("requestBankInfoUpdate: rejects invalid status")
+    void requestBankInfoUpdate_rejectsInvalidStatus() {
+        RefundRequestModel refund = pendingRefund();
+        refund.setStatus(RefundRequestStatus.PAID);
+
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(refund));
+
+        assertThatThrownBy(() -> refundRequestStaffService.requestBankInfoUpdate(
+                refundId,
+                staffId,
+                new RequestBankInfoUpdateRequest("note")))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.REFUND_REQUEST_INVALID_STATUS);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("requestBankInfoUpdate: rejects blank note")
+    void requestBankInfoUpdate_rejectsBlankNote() {
+        when(refundRequestRepositoryPort.findById(refundId)).thenReturn(Optional.of(pendingRefund()));
+
+        assertThatThrownBy(() -> refundRequestStaffService.requestBankInfoUpdate(
+                refundId,
+                staffId,
+                new RequestBankInfoUpdateRequest("   ")))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT);
+
+        verify(refundRequestRepositoryPort, never()).save(any());
+    }
+
     private RefundRequestModel pendingRefund() {
         return RefundRequestModel.builder()
                 .id(refundId)
                 .orderId(orderId)
                 .requestedBy(customerId)
-                .status(RefundRequestStatus.PENDING)
+                .status(RefundRequestStatus.READY_TO_PAY)
                 .refundReason("Đổi ý")
                 .bankAccountId(1L)
                 .refundAmount(BigDecimal.valueOf(20000))
