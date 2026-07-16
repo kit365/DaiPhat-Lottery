@@ -1,5 +1,5 @@
-import { buildPageItems, normalizePagination } from '../../../utils/pagination.util';
-import type { PaginationMetadata } from '../../../../types/api.type';
+import { buildPageItems, normalizePagination } from '../../../../utils/pagination.util';
+import type { PaginationMetadata } from '../../../../../types/api.type';
 
 type ProfileTablePaginationProps = {
     page: number;
