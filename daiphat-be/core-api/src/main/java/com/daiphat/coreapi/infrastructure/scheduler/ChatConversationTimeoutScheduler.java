@@ -13,7 +13,7 @@ public class ChatConversationTimeoutScheduler {
 
     private final ConversationServicePort conversationServicePort;
 
-    @Scheduled(fixedRateString = "${daiphat.chat.conversation.timeout.scheduler-rate-ms:300000}")
+    @Scheduled(fixedRateString = "${daiphat.chat.conversation.timeout.scheduler-rate-ms}")
     public void expireTimedOutConversations() {
         int expiredCount = conversationServicePort.expireTimedOutConversations();
         if (expiredCount > 0) {

@@ -4,7 +4,6 @@ import {
   LotteryBoardData,
   LotteryResultLiveDetailsApiResponse,
   LotteryResultLiveSummaryApiResponse,
-  PrizeStructureResponse,
   TicketCheckResult,
   formatApiDateToDisplay,
   formatDisplayDateToApi,

@@ -43,7 +43,55 @@ graph TD
 
 ---
 
-## 🚀 3. Backend Microservices Setup
+## 🚀 3. Chạy local bằng Docker Compose
+
+Yêu cầu duy nhất là Docker Desktop/Docker Engine có hỗ trợ Compose. Từ thư mục gốc repository:
+
+```bash
+docker compose up -d --build
+```
+
+Sau khi các service healthy:
+
+- Backend/Swagger: http://localhost:8080/swagger-ui/index.html
+- PostgreSQL: `localhost:5434`
+- Redis: `localhost:6380`
+- MongoDB: `localhost:27018`
+
+Backend chạy dev mode trong container và tự khởi động lại khi source thay đổi. Access token của local được giữ ở 5 giây để test refresh token và WebSocket.
+
+Frontend chạy riêng ngoài Docker:
+
+```bash
+cd daiphat-fe
+npm install
+npm run dev
+```
+
+Dừng hệ thống nhưng giữ dữ liệu local:
+
+```bash
+docker compose down
+```
+
+Chỉ dùng lệnh sau khi thật sự muốn xóa toàn bộ database/volume local:
+
+```bash
+docker compose down -v
+```
+
+Compose local của backend nằm tại `daiphat-be/`; chạy lệnh Docker trong thư mục đó. Cấu hình triển khai production giữ tại `docker-compose.prod.yml` ở root.
+
+### Profiles cấu hình backend
+
+- `application.yml`: cấu hình dùng chung; không chọn profile và không có `${VAR:fallback}`.
+- `application-local.yml`: hạ tầng và policy dành riêng cho local; được phép hardcode.
+- `application-staging.yml`: staging gần production, mọi credential/runtime value phải đến từ environment.
+- `application-prod.yml`: production, đọc environment do root `.env` hoặc CI/CD cung cấp.
+
+Các file `.env*` runtime đều bị Git ignore. Local backend dùng `daiphat-be/core-api/.env`; production nhận biến môi trường từ root `.env` hoặc CI/CD. Các biến dùng prefix (`CORE_`, `AUTH_`, `VITE_`) để nhìn ra phạm vi sử dụng.
+
+## Backend setup thủ công (tùy chọn)
 
 Phân hệ BE của DaiPhat được xây dựng trên nền tảng **Spring Boot (JDK 21)** và **Spring Cloud**, quản lý theo mô hình **Monorepo** với Parent POM tập trung.
 

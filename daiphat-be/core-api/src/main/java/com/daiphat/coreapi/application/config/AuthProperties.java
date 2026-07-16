@@ -11,7 +11,6 @@ import java.util.Set;
 @ConfigurationProperties(prefix = "daiphat.auth")
 public class AuthProperties {
     private String frontendUrl = "http://localhost:5173";
-    private Set<String> defaultOperatorPermissions = new java.util.HashSet<>();
     private VerificationPaths verificationPaths = new VerificationPaths();
     private Lockout lockout = new Lockout();
     private Cache cache = new Cache();

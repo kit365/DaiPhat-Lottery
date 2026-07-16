@@ -98,7 +98,7 @@ export const getTabBadgeStyles = (statusOrVariant: string, isSelected: boolean) 
     const state = isSelected ? colors.selected : colors.unselected;
     
     return {
-        bgcolor: state.bg,
+        backgroundColor: state.bg,
         color: state.text,
         transition: 'all 0.2s'
     };

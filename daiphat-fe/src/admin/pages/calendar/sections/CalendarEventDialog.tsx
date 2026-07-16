@@ -18,7 +18,7 @@ import { CloseIcon, CalendarIcon } from '../../../assets/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/vi';
 import { useTicketServices } from '../../ticket-service/hooks/useTicketService';
-import { useAccounts } from '../../account-admin/hooks/useAccountAdmin';
+import { useAccounts } from '../../../features/users/hooks/useUsers';
 import { SelectSingle } from '../../../components/ui/SelectSingle';
 import { StaffAvailabilityTimeline } from '../../ticket-service-order/sections/StaffAvailabilityTimeline';
 import { Icon } from '@iconify/react';

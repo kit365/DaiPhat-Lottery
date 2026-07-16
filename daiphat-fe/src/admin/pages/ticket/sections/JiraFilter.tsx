@@ -48,7 +48,8 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
     const open = Boolean(anchorEl);
     const id = open ? 'jira-filter-popover' : undefined;
 
-    const activeField = fields.find(f => f.id === activeTabId) || fields[0];
+    const activeField = fields.find(f => f.id === activeTabId);
+    const isDate = activeField?.type === 'date';
     const activeSelected = selectedFilters[activeTabId] || [];
 
     const filteredOptions = useMemo(() => {
@@ -160,6 +161,11 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                     {/* Left Sidebar */}
                     <Box sx={{ width: 160, borderRight: '1px solid #DFE1E6', bgcolor: '#FAFBFC', display: 'flex', flexDirection: 'column' }}>
                         <List disablePadding sx={{ pt: 1 }}>
+                            {fields.length === 0 && (
+                                <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontStyle: 'italic', p: 1.5, textAlign: 'center' }}>
+                                    Không có bộ lọc
+                                </Typography>
+                            )}
                             {fields.map((field) => {
                                 const fieldCount = (selectedFilters[field.id] || []).length;
                                 return (
@@ -205,6 +211,7 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
 
                     {/* Right Content */}
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1.5 }}>
+                        {activeField && (
                         <TextField
                             fullWidth
                             size="small"
@@ -234,6 +241,7 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                                 }
                             }}
                         />
+                        )}
 
                         <List sx={{ mt: 1, overflowY: 'auto', flex: 1 }}>
                             {filteredOptions.map((option) => (
@@ -283,7 +291,7 @@ export const JiraFilter: React.FC<JiraFilterProps> = ({ fields, selectedFilters,
                             ))}
                         </List>
 
-                        {activeField.type === 'date' && (
+                        {activeField && activeField.type === 'date' && (
                             <Box sx={{ mt: 1, borderTop: '1px solid #DFE1E6', pt: 1.5 }}>
                                 <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
                                     <DatePicker

@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Arrays;
+import java.util.Set;
 
 /**
  * Danh sách các quyền (Permissions) cơ bản trong hệ thống.
@@ -196,6 +197,47 @@ public enum AppPermission {
     private final String name;
     private final String description;
     private final Integer position;
+
+    private static final Set<String> OPERATOR_FULL_ACCESS_RESOURCES = Set.of(
+            PermissionConstants.ARTICLE,
+            PermissionConstants.USER,
+            PermissionConstants.STREET_AGENT,
+            PermissionConstants.PRIZE_STRUCTURE,
+            PermissionConstants.LOTTERY_RESULT,
+            PermissionConstants.PROVIDER,
+            PermissionConstants.SUPPLIER,
+            PermissionConstants.REFUND,
+            PermissionConstants.CHAT
+    );
+
+    /**
+     * Default operational permissions for {@code ROLE_STAFF_OPERATOR}.
+     * The policy stays beside the permission catalog so a permission cannot be
+     * accidentally referenced from configuration before it is defined.
+     */
+    public boolean isDefaultOperatorPermission() {
+        int actionStart = code.indexOf(':');
+        if (actionStart < 1) {
+            return false;
+        }
+
+        String resource = code.substring(0, actionStart);
+        if (OPERATOR_FULL_ACCESS_RESOURCES.contains(resource)) {
+            return true;
+        }
+
+        return switch (resource) {
+            case PermissionConstants.STATION -> !code.endsWith(PermissionConstants.DELETE);
+            case PermissionConstants.REGION -> code.endsWith(PermissionConstants.VIEW);
+            case PermissionConstants.TICKET, PermissionConstants.IMPORT_BATCH ->
+                    code.endsWith(PermissionConstants.VIEW) || code.endsWith(PermissionConstants.CREATE);
+            case PermissionConstants.ORDER ->
+                    code.endsWith(PermissionConstants.VIEW)
+                            || code.endsWith(PermissionConstants.CREATE)
+                            || code.endsWith(PermissionConstants.EDIT);
+            default -> false;
+        };
+    }
 
     public static AppPermission fromCode(String code) {
         return Arrays.stream(values())

@@ -6,34 +6,17 @@ export const QUERY_KEYS = {
     ADMIN_NOTIFICATIONS: 'admin-notifications',
 
     // Admin / Staff
-    ACCOUNTS_ADMIN: 'accounts-admin',
-    ACCOUNT_ADMIN_DETAIL: 'account-admin',
-    STAFF_BY_TICKET_SERVICE: 'staff-by-ticketService',
     ADMIN_ORDERS: 'admin-orders',
     ADMIN_ORDER_DETAIL: 'admin-order',
 
     // User / Customer
     ACCOUNTS_USER: 'accounts-user',
     ACCOUNT_USER_DETAIL: 'account-user',
-    USER_STATUSES: 'user-statuses',
     STREET_AGENT_PROFILES: 'street-agent-profiles',
     STREET_AGENT_PROFILE_DETAIL: 'street-agent-profile',
 
     // Role
-    ROLES: 'roles',
     ROLE_DETAIL: 'role',
-
-    // Blog
-    BLOGS: 'blogs',
-    BLOG_DETAIL: 'blog',
-    BLOG_CATEGORIES: 'blog-categories',
-    BLOG_CATEGORY_DETAIL: 'blog-category',
-    BLOG_TAGS: 'blogTags',
-    BLOG_TAGS_PAGED: 'blogTagsPaged',
-    BLOG_TYPES: 'blogTypes',
-    BLOG_STATUSES: 'blogStatuses',
-    PUBLIC_BLOG_CATEGORIES: 'public-blog-categories',
-    PUBLIC_BLOG_POSTS: 'public-posts',
 
     // Station/Provider
     PROVIDERS: 'providers',
@@ -90,8 +73,7 @@ export const QUERY_KEYS = {
     ADMIN_REFUNDS: 'admin-refunds',
     ADMIN_REFUND_DETAIL: 'admin-refund-detail',
 
-    // Lottery Results
-    LOTTERY_RESULTS: 'lottery-results',
-    LOTTERY_RESULTS_LIVE: 'lottery-results-live',
-    LOTTERY_RESULT_DETAILS: 'lottery-result-details',
+    // Blogs (Shared / Client-facing)
+    PUBLIC_BLOG_CATEGORIES: 'public-blog-categories',
+    PUBLIC_BLOG_POSTS: 'public-posts',
 } as const;

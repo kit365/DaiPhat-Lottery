@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useRef } from 'react';
-import { useLotterySchedule } from '../../hooks/useLotterySchedule';
+import { useLotterySchedule } from '../../features/schedule';
 
 const REGION_LABELS: Record<string, { label: string; bg: string; text: string }> = {
   MIEN_NAM: { label: 'Miền Nam', bg: 'bg-[#ee1314]', text: 'text-[#ee1314]' },

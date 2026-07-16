@@ -17,7 +17,7 @@ public class BlogViewSyncScheduler {
     private final BlogViewCachePort blogViewCachePort;
     private final BlogPostRepositoryPort blogPostRepositoryPort;
 
-    @Scheduled(fixedRateString = "${daiphat.blog.view-sync-rate-ms:300000}")
+    @Scheduled(fixedRateString = "${daiphat.blog.view-sync-rate-ms}")
     public void syncBlogViews() {
         log.info("Starting blog view count synchronization scheduler");
         Map<Long, Integer> viewsToSync = blogViewCachePort.getAndClearViewsToSync();

@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.service.lotteries.result;
 
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryResultRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.ResyncLotteryResultRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.SyncLotteryResultsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryResultRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ManagementLotteryResultBoardResponse;
@@ -11,6 +12,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultBoard
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultFullBoardResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultLiveItemResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultSyncBatchResponse;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryResultSourcePreviewResult;
 import com.daiphat.coreapi.application.event.LotteryResultSyncRequestedEvent;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryResultApplicationMapper;
@@ -77,13 +79,13 @@ public class LotteryResultService implements LotteryResultServicePort {
     private final LotteryResultApplicationMapper lotteryResultApplicationMapper;
     private final ConcurrentMap<String, ReentrantLock> syncLocks = new ConcurrentHashMap<>();
 
-    @Value("${daiphat.lottery.result-poll-seconds:60}")
+    @Value("${daiphat.lottery.result-poll-seconds}")
     private Integer resultPollSeconds;
 
-    @Value("${daiphat.lottery.historical-result-poll-seconds:10}")
+    @Value("${daiphat.lottery.historical-result-poll-seconds}")
     private Integer historicalResultPollSeconds;
 
-    @Value("${daiphat.lottery.draw-deadline-minutes:30}")
+    @Value("${daiphat.lottery.draw-deadline-minutes}")
     private long drawDeadlineMinutes;
 
     @Override
@@ -262,6 +264,29 @@ public class LotteryResultService implements LotteryResultServicePort {
         return lotteryResultApplicationMapper.toResponse(
                 lotteryResultRepositoryPort.findById(id).orElse(existing)
         );
+    }
+
+    @Override
+    @Transactional
+    public LotteryResultSyncBatchResponse requestBoardSync(SyncLotteryResultsRequest request) {
+        validateAdminLiveRequest(request.region(), request.fromDate(), request.toDate());
+        LotteryStationSourceType sourceType = request.source() != null
+                ? request.source()
+                : LotteryStationSourceType.DEFAULT;
+
+        int queuedCount = 0;
+        LocalDate currentDate = request.fromDate();
+        while (!currentDate.isAfter(request.toDate())) {
+            List<LotteryStationModel> stations = getStationsForRegionAndDate(request.region(), currentDate);
+            for (LotteryStationModel station : stations) {
+                LotteryResultModel result = ensureResultForBoardInternal(station, currentDate);
+                requestManualResync(result.getId(), sourceType);
+                queuedCount++;
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+
+        return new LotteryResultSyncBatchResponse(queuedCount);
     }
 
     @Override

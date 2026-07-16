@@ -88,7 +88,7 @@ export const useCancelOrderWithRefund = () => {
             ...payload
         }: {
             orderId: string;
-        } & import('../../../types/refund.type').StaffCancelOrderWithRefundRequest) =>
+        } & import('../../../../types/refund.type').StaffCancelOrderWithRefundRequest) =>
             refundAdminApi.cancelOrderWithRefund(orderId, payload),
         onSuccess: (response) => {
             if (response.success) {
