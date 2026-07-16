@@ -21,7 +21,9 @@ public interface LotteryTicketSerialServicePort {
     LotteryTicketSerialModel upsertSerialForTicket(
             LotteryTicketModel ticket,
             CreateLotteryTicketSerialRequest request,
-            UUID importedById
+            UUID importedById,
+            Long importBatchId,
+            Long importBatchLineId
     );
 
     void syncSerialsForTicket(
@@ -38,6 +40,8 @@ public interface LotteryTicketSerialServicePort {
 
     LotteryTicketSerialModel releaseReservation(Long ticketSerialId, boolean expireAfterRelease);
 
+    LotteryTicketSerialModel returnSoldToStock(Long ticketSerialId);
+
     LotteryTicketSerialModel getByIdOrThrow(Long ticketSerialId);
 
     Optional<LotteryTicketSerialModel> findFirstByTicketId(Long ticketId);
@@ -53,6 +57,20 @@ public interface LotteryTicketSerialServicePort {
     LotteryTicketSerialModel uploadImage(Long ticketSerialId, UploadRequest request);
 
     List<LotteryTicketSerialModel> findAllByTicketId(Long ticketId);
+
+    long countByImportBatchLineId(Long importBatchLineId);
+
+    List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId);
+
+    long countByTicketIdAndImportBatchLineId(Long ticketId, Long importBatchLineId);
+
+    void hardDeleteByTicketIdAndImportBatchLineId(Long ticketId, Long importBatchLineId);
+
+    void hardDeleteByImportBatchLineId(Long importBatchLineId);
+
+    java.util.List<LotteryTicketSerialModel> findAllReplacementCandidates(
+            Long stationId, String numbers, java.time.LocalDate drawDate, com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus status
+    );
 
     List<EnumOptionResponse> getStatuses();
 }

@@ -148,6 +148,7 @@ public class PasswordResetService implements PasswordResetServicePort {
                 .orElseThrow(() -> new DomainException(ErrorCode.EMAIL_NOT_FOUND));
         user.setLocalPassword(passwordHashPort.encode(request.getNewPassword()));
         user.unlockAccount();
+        user.revokeAllSessions();
         userRepositoryPort.save(user);
         refreshTokenStorePort.delete(user.getId());
         passwordResetCachePort.deleteResetTokenData(request.getResetToken());
@@ -197,6 +198,7 @@ public class PasswordResetService implements PasswordResetServicePort {
         user.setLocalPassword(passwordHashPort.encode(temporaryPassword));
         user.unlockAccount();
         user.forcePasswordChange();
+        user.revokeAllSessions();
         userRepositoryPort.save(user);
         refreshTokenStorePort.delete(user.getId());
 
@@ -232,6 +234,7 @@ public class PasswordResetService implements PasswordResetServicePort {
 
         user.setLocalPassword(passwordHashPort.encode(request.getNewPassword()));
         user.unlockAccount();
+        user.revokeAllSessions();
         userRepositoryPort.save(user);
         refreshTokenStorePort.delete(user.getId());
         eventPublisher.publishEvent(UserPasswordChangedEvent.builder()

@@ -3,14 +3,22 @@ package com.daiphat.coreapi.adapter.in.web.controller.order;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
+import com.daiphat.coreapi.application.dto.request.refund.CreateOrderRefundRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateDirectOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.CreateOnlineOrderRequest;
 import com.daiphat.coreapi.application.dto.request.order.UpdateOrderStatusRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.order.EnumOptionResponse;
 import com.daiphat.coreapi.application.dto.response.order.OrderResponse;
+import com.daiphat.coreapi.application.dto.response.order.OrderDetailResponse;
+import com.daiphat.coreapi.application.dto.response.refund.OrderRefundEligibilityResponse;
+import com.daiphat.coreapi.application.dto.response.refund.RefundRequestResponse;
 import com.daiphat.coreapi.application.mapper.order.OrderApplicationMapper;
 import com.daiphat.coreapi.application.port.in.order.OrderServicePort;
+import com.daiphat.coreapi.application.port.in.refund.OrderRefundServicePort;
+import com.daiphat.coreapi.application.dto.response.notification.NotificationReferenceAvailabilityResponse;
+import com.daiphat.coreapi.domain.exception.DomainException;
+import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.shared.util.SearchConstants;
@@ -39,6 +47,8 @@ public class OrderController {
 
     private final OrderServicePort orderServicePort;
     private final OrderApplicationMapper orderApplicationMapper;
+    private final OrderRefundServicePort orderRefundServicePort;
+    private final com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort lotteryTicketServicePort;
 
     @PostMapping("/online")
     @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:create')")
@@ -68,6 +78,32 @@ public class OrderController {
                 "Lấy chi tiết đơn hàng thành công.",
                 orderServicePort.getOrderDetail(id)
         );
+    }
+
+    @GetMapping("/{orderId}/details/{detailId}/replacements")
+    @PreAuthorize("hasAuthority('order:edit')")
+    public ApiResponse<List<com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse>> getReplacementCandidates(
+            @PathVariable java.util.UUID orderId,
+            @PathVariable Long detailId) {
+        log.info("REST request to get replacement candidates for order detail: {}", detailId);
+        
+        // Find the order detail to get the criteria
+        OrderResponse order = orderServicePort.getOrderDetail(orderId);
+        OrderDetailResponse detail = order.orderDetails().stream()
+                .filter(d -> d.id().equals(detailId))
+                .findFirst()
+                .orElseThrow(() -> new DomainException(ErrorCode.ORDER_NOT_FOUND, "Không tìm thấy chi tiết đơn hàng"));
+                
+        // Only return candidates if we have the criteria
+        if (detail.stationId() == null || detail.numbers() == null || detail.drawDate() == null) {
+            return ApiResponse.success("Lấy danh sách vé thay thế thành công.", List.of());
+        }
+        
+        // Call the service port with the criteria
+        List<com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse> replacements =
+                lotteryTicketServicePort.getReplacementCandidates(detail.stationId(), detail.numbers(), detail.drawDate());
+
+        return ApiResponse.success("Lấy danh sách vé thay thế thành công.", replacements);
     }
 
     @PatchMapping("/{id}/status")
@@ -151,10 +187,41 @@ public class OrderController {
             @PathVariable java.util.UUID id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to get my order detail: {} by user: {}", id, principal.getId());
+        try {
+            return ApiResponse.success(
+                    "Lấy chi tiết đơn hàng của tôi thành công.",
+                    orderServicePort.getMyOrderDetail(id, principal.getId())
+            );
+        } catch (DomainException ex) {
+            if (ex.getErrorCode() == ErrorCode.ORDER_NOT_FOUND) {
+                return ApiResponse.success(
+                        NotificationReferenceAvailabilityResponse.UNAVAILABLE_MESSAGE,
+                        null
+                );
+            }
+            throw ex;
+        }
+    }
+
+    @GetMapping("/my-orders/{id}/refund-eligibility")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<OrderRefundEligibilityResponse> getRefundEligibility(
+            @PathVariable java.util.UUID id,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return ApiResponse.success(
-                "Lấy chi tiết đơn hàng của tôi thành công.",
-                orderServicePort.getMyOrderDetail(id, principal.getId())
-        );
+                "Kiểm tra điều kiện hủy đơn & hoàn tiền thành công.",
+                orderRefundServicePort.getRefundEligibility(id, principal.getId()));
+    }
+
+    @PostMapping("/{orderId}/refund")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<RefundRequestResponse> refundPaidOrder(
+            @PathVariable java.util.UUID orderId,
+            @Valid @RequestBody CreateOrderRefundRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                "Yêu cầu hoàn tiền đã được gửi và đang chờ duyệt.",
+                orderRefundServicePort.refundPaidOrder(orderId, principal.getId(), request));
     }
 
     @GetMapping("/types")
@@ -179,11 +246,5 @@ public class OrderController {
     @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:view')")
     public ApiResponse<List<EnumOptionResponse>> getOrderDetailStatuses() {
         return ApiResponse.success("Lấy danh sách trạng thái chi tiết đơn hàng thành công.", orderServicePort.getOrderDetailStatuses());
-    }
-
-    @GetMapping("/refund-statuses")
-    @PreAuthorize("hasAnyAuthority('" + RoleConstants.ROLE_MEMBER + "', 'order:view')")
-    public ApiResponse<List<EnumOptionResponse>> getOrderRefundStatuses() {
-        return ApiResponse.success("Lấy danh sách trạng thái hoàn tiền thành công.", orderServicePort.getOrderRefundStatuses());
     }
 }

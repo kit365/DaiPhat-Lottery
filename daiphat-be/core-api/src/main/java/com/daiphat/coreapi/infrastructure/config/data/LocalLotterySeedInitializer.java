@@ -1,11 +1,16 @@
 package com.daiphat.coreapi.infrastructure.config.data;
 
+import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchLineRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.CreateImportBatchRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryStationRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketSerialRequest;
+import com.daiphat.coreapi.application.port.in.lotteries.ImportBatchServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryStationServicePort;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotterySupplierRepositoryPort;
+import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchImportMode;
 import com.daiphat.coreapi.domain.model.enums.auth.RoleConstants;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import com.daiphat.coreapi.infrastructure.persistence.entity.user.UserEntity;
@@ -18,6 +23,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,11 +48,13 @@ public class LocalLotterySeedInitializer implements ApplicationRunner {
 
     private final LotteryStationRepositoryPort lotteryStationRepositoryPort;
     private final LotteryStationServicePort lotteryStationServicePort;
+    private final LotterySupplierRepositoryPort lotterySupplierRepositoryPort;
+    private final ImportBatchServicePort importBatchServicePort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final LotteryTicketSerialRepository lotteryTicketSerialRepository;
     private final UserRepository userRepository;
 
-    @Value("${daiphat.lottery.seed.tickets-per-station-per-date:12}")
+    @Value("${daiphat.lottery.seed.tickets-per-station-per-date}")
     private int ticketsPerStationPerDate;
 
     @Override
@@ -91,6 +99,14 @@ public class LocalLotterySeedInitializer implements ApplicationRunner {
     }
 
     private void seedTicketsForStation(LotteryStationModel station, UUID operatorId, LocalDate drawDate) {
+        Long importBatchLineId = resolveImportBatchLineId(station, operatorId, drawDate);
+        if (importBatchLineId == null) {
+            log.warn(
+                    "Skip ticket seed for station [{}]: no active supplier configured. Create a supplier first.",
+                    station.getName()
+            );
+            return;
+        }
         String dailyPrefix = SERIAL_PREFIX + station.getId() + "-" + drawDate.format(DATE_SUFFIX) + "-";
         long existingCount = lotteryTicketSerialRepository
                 .findBySerialNumberStartingWithAndDeletedAtIsNull(dailyPrefix)
@@ -101,14 +117,13 @@ public class LocalLotterySeedInitializer implements ApplicationRunner {
             String serialNumber = dailyPrefix + String.format("%03d", nextIndex);
             if (lotteryTicketSerialRepository.findFirstBySerialNumberAndDeletedAtIsNull(serialNumber).isEmpty()) {
                 String numbers = String.format("%06d", (station.getId() * 10_000 + nextIndex * 1_357L) % 1_000_000);
-                String batchCode = "LOCAL-BATCH-" + station.getId() + "-" + drawDate.format(DATE_SUFFIX);
 
                 var created = lotteryTicketServicePort.create(
                         CreateLotteryTicketRequest.builder()
                                 .stationId(station.getId())
                                 .numbers(numbers)
                                 .drawDate(drawDate)
-                                .batchCode(batchCode)
+                                .importBatchLineId(importBatchLineId)
                                 .serials(List.of(
                                         new CreateLotteryTicketSerialRequest(
                                                 "https://picsum.photos/seed/" + serialNumber + "/800/500",
@@ -131,6 +146,42 @@ public class LocalLotterySeedInitializer implements ApplicationRunner {
                 station.getName(),
                 drawDate
         );
+    }
+
+    private Long resolveImportBatchLineId(LotteryStationModel station, UUID operatorId, LocalDate drawDate) {
+        return importBatchServicePort.getActiveDraft(operatorId)
+                .flatMap(batch -> batch.lines().stream()
+                        .filter(line -> station.getId().equals(line.lotteryStationId()))
+                        .findFirst()
+                        .map(line -> line.id()))
+                .orElseGet(() -> {
+                    Long supplierId = lotterySupplierRepositoryPort
+                            .findAll(PageRequest.of(0, 1), null, true)
+                            .stream()
+                            .findFirst()
+                            .map(supplier -> supplier.getId())
+                            .orElse(null);
+                    if (supplierId == null) {
+                        return null;
+                    }
+                    var created = importBatchServicePort.create(
+                            CreateImportBatchRequest.builder()
+                                    .drawDate(drawDate)
+                                    .supplierId(supplierId)
+                                    .importMode(ImportBatchImportMode.IN_DAY)
+                                    .invoiceEvidenceUrl("https://seed.local/import-batch-invoice.png")
+                                    .lines(List.of(
+                                            CreateImportBatchLineRequest.builder()
+                                                    .lotteryStationId(station.getId())
+                                                    .declareQuantity(Math.max(ticketsPerStationPerDate, 1))
+                                                    .importCost(BigDecimal.ONE)
+                                                    .build()
+                                    ))
+                                    .build(),
+                            operatorId
+                    );
+                    return created.lines().getFirst().id();
+                });
     }
 
     private UUID findSeedOperatorId() {

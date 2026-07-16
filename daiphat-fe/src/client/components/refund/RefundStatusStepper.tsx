@@ -1,57 +1,59 @@
 import React from 'react';
-import { RefundRequestStatus } from '../../../types/refund.type';
+import { RefundRequestRole, RefundRequestStatus } from '../../../types/refund.type';
 
 interface RefundStatusStepperProps {
     status: RefundRequestStatus;
-    rejectReason?: string;
+    requestRole?: RefundRequestRole;
 }
 
-export const RefundStatusStepper: React.FC<RefundStatusStepperProps> = ({ status, rejectReason }) => {
-    if (status === RefundRequestStatus.CANCELLED) {
+export const RefundStatusStepper: React.FC<RefundStatusStepperProps> = ({
+    status,
+    requestRole,
+}) => {
+    if (status === RefundRequestStatus.MANUAL_RESOLUTION) {
         return (
-            <div className="bg-[#F4F6F8] rounded-[20px] p-6 lg:p-8 border border-[#E5E8EB] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-                <div className="w-14 h-14 rounded-full bg-[#919EAB] text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
-                    <i className="fa-solid fa-ban"></i>
+            <div className="bg-[#FFF5F5] rounded-[20px] p-6 lg:p-8 border border-[#FECACA] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+                <div className="w-14 h-14 rounded-full bg-[#C62828] text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
+                    <i className="fa-solid fa-headset"></i>
                 </div>
                 <div>
-                    <h3 className="text-[#637381] font-bold text-[18px]">Yêu cầu đã bị hủy</h3>
-                    <p className="text-[#637381] text-[14px] mt-1.5 font-medium">Bạn đã hủy yêu cầu hoàn tiền này.</p>
+                    <h3 className="text-[#C62828] font-bold text-[18px]">Cần xử lý thủ công</h3>
+                    <p className="text-[#637381] text-[14px] mt-1.5 font-medium">
+                        Vui lòng mang CCCD đến quầy hỗ trợ hoặc liên hệ CSKH.
+                    </p>
                 </div>
             </div>
         );
     }
 
-    if (status === RefundRequestStatus.REJECTED) {
-        return (
-            <div className="bg-[#FFF4F4] rounded-[20px] p-6 lg:p-8 border border-[#FFEBEE] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-                <div className="w-14 h-14 rounded-full bg-[#ee1314] text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
-                    <i className="fa-solid fa-xmark"></i>
-                </div>
-                <div>
-                    <h3 className="text-[#ee1314] font-bold text-[18px]">Yêu cầu bị từ chối</h3>
-                    {rejectReason && (
-                        <p className="text-[#637381] text-[14px] mt-1.5 font-medium">
-                            Lý do: <span className="text-[#212B36]">{rejectReason}</span>
-                        </p>
-                    )}
-                </div>
-            </div>
-        );
-    }
+    const isStaffIncidentFlow =
+        status === RefundRequestStatus.WAITING_FOR_INFO ||
+        ((requestRole === RefundRequestRole.STAFF || requestRole === RefundRequestRole.ADMIN) &&
+            (status === RefundRequestStatus.READY_TO_PAY ||
+                status === RefundRequestStatus.PAID ||
+                status === RefundRequestStatus.TRANSFERRED));
 
-    const steps = [
-        { key: RefundRequestStatus.PENDING, label: 'Chờ duyệt', icon: 'fa-solid fa-clock' },
-        { key: RefundRequestStatus.APPROVED, label: 'Đã duyệt', icon: 'fa-solid fa-check' },
-        { key: RefundRequestStatus.TRANSFERRED, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' }
-    ];
+    const steps = isStaffIncidentFlow
+        ? [
+              { key: RefundRequestStatus.WAITING_FOR_INFO, label: 'Chờ STK', icon: 'fa-solid fa-building-columns' },
+              { key: RefundRequestStatus.READY_TO_PAY, label: 'Chờ chuyển khoản', icon: 'fa-solid fa-clock' },
+              { key: RefundRequestStatus.PAID, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' }
+          ]
+        : [
+              { key: RefundRequestStatus.READY_TO_PAY, label: 'Chờ chuyển khoản', icon: 'fa-solid fa-clock' },
+              { key: RefundRequestStatus.PAID, label: 'Đã chuyển khoản', icon: 'fa-solid fa-money-bill-transfer' }
+          ];
 
     const getStepIndex = (s: RefundRequestStatus) => {
-        switch (s) {
-            case RefundRequestStatus.PENDING: return 0;
-            case RefundRequestStatus.APPROVED: return 1;
-            case RefundRequestStatus.TRANSFERRED: return 2;
-            default: return 0;
+        if (isStaffIncidentFlow) {
+            if (s === RefundRequestStatus.WAITING_FOR_INFO) return 0;
+            if (s === RefundRequestStatus.READY_TO_PAY || s === RefundRequestStatus.APPROVED) return 1;
+            if (s === RefundRequestStatus.PAID || s === RefundRequestStatus.TRANSFERRED) return 2;
+            return 0;
         }
+        if (s === RefundRequestStatus.READY_TO_PAY || s === RefundRequestStatus.APPROVED) return 0;
+        if (s === RefundRequestStatus.PAID || s === RefundRequestStatus.TRANSFERRED) return 1;
+        return 0;
     };
 
     const currentIndex = getStepIndex(status);
@@ -62,7 +64,7 @@ export const RefundStatusStepper: React.FC<RefundStatusStepperProps> = ({ status
                 <div className="absolute top-6 left-0 w-full h-[3px] bg-[#F4F6F8] -translate-y-1/2 z-0 rounded-full"></div>
                 <div
                     className="absolute top-6 left-0 h-[3px] bg-[#00A76F] -translate-y-1/2 z-0 transition-all duration-700 ease-in-out rounded-full"
-                    style={{ width: `${(currentIndex / (steps.length - 1)) * 100}%` }}
+                    style={{ width: steps.length > 1 ? `${(currentIndex / (steps.length - 1)) * 100}%` : '100%' }}
                 ></div>
 
                 {steps.map((step, index) => {

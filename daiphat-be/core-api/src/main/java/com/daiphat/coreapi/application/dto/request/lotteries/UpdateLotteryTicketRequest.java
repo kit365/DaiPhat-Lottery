@@ -11,7 +11,6 @@ public record UpdateLotteryTicketRequest(
         String ticketImg,
         String numbers,
         LocalDate drawDate,
-        String batchCode,
         LotteryTicketStatus status,
 
         @Valid

@@ -110,16 +110,21 @@ public class LoginService implements LoginServicePort {
         UserModel user = userLookupService.findByUsername(username)
                 .orElseThrow(() -> new DomainException(ErrorCode.INVALID_CREDENTIALS));
 
-        String storedRefreshToken = refreshTokenStorePort.find(user.getId())
-                .orElseThrow(() -> new DomainException(ErrorCode.REFRESH_TOKEN_EXPIRED));
-
-        if (!storedRefreshToken.equals(request.refreshToken())) {
+        if (!tokenProviderPort.isRefreshTokenValidForUser(request.refreshToken(), user)) {
             throw new DomainException(ErrorCode.REFRESH_TOKEN_EXPIRED);
         }
-
         user.validateLoginEligibility();
-
-        return issueTokensAndStoreRefreshToken(user);
+        AuthToken token = issueTokens(user);
+        boolean rotated = refreshTokenStorePort.rotate(
+                user.getId(),
+                request.refreshToken(),
+                token.refreshToken(),
+                Duration.ofSeconds(token.refreshExpiresIn())
+        );
+        if (!rotated) {
+            throw new DomainException(ErrorCode.REFRESH_TOKEN_EXPIRED);
+        }
+        return authApplicationMapper.toResponse(token);
     }
 
     @Override
@@ -139,15 +144,19 @@ public class LoginService implements LoginServicePort {
     }
 
     private AuthResponse issueTokensAndStoreRefreshToken(UserModel user) {
-        AuthToken token = new AuthToken(
+        AuthToken token = issueTokens(user);
+        refreshTokenStorePort.save(user.getId(), token.refreshToken(), Duration.ofSeconds(token.refreshExpiresIn()));
+        return authApplicationMapper.toResponse(token);
+    }
+
+    private AuthToken issueTokens(UserModel user) {
+        return new AuthToken(
                 tokenProviderPort.generateAccessToken(user),
                 tokenProviderPort.generateRefreshToken(user),
                 tokenProviderPort.getAccessTokenTtlSeconds(),
                 tokenProviderPort.getRefreshTokenTtlSeconds(),
                 "Bearer"
         );
-        refreshTokenStorePort.save(user.getId(), token.refreshToken(), Duration.ofSeconds(token.refreshExpiresIn()));
-        return authApplicationMapper.toResponse(token);
     }
 
     private GoogleLoginResult provisionGoogleUser(OAuthUserInfo googleUser) {

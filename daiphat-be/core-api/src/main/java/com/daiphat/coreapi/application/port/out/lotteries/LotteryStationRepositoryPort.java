@@ -1,6 +1,5 @@
 package com.daiphat.coreapi.application.port.out.lotteries;
 
-import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationStatus;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -8,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+
 public interface LotteryStationRepositoryPort {
 
     LotteryStationModel save(LotteryStationModel model);
@@ -17,10 +17,10 @@ public interface LotteryStationRepositoryPort {
     Page<LotteryStationModel> findAll(
             Pageable pageable,
             String search,
-            LotteryStationStatus status,
             String type,
             String region,
-            List<String> drawDay
+            String drawDay,
+            Boolean isActive
     );
 
     List<LotteryStationModel> findAll();

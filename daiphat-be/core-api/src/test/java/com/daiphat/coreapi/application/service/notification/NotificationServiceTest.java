@@ -3,7 +3,11 @@ package com.daiphat.coreapi.application.service.notification;
 import com.daiphat.coreapi.application.dto.response.notification.NotificationResponse;
 import com.daiphat.coreapi.application.mapper.notification.NotificationApplicationMapper;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
+import com.daiphat.coreapi.application.port.out.blog.BlogPostRepositoryPort;
 import com.daiphat.coreapi.application.port.out.notification.NotificationRepositoryPort;
+import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.refund.RefundRequestRepositoryPort;
+import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
@@ -54,9 +58,28 @@ class NotificationServiceTest {
     @Mock
     private NotificationApplicationMapper notificationApplicationMapper;
 
+    @Mock
+    private OrderRepositoryPort orderRepositoryPort;
+
+    @Mock
+    private RefundRequestRepositoryPort refundRequestRepositoryPort;
+
+    @Mock
+    private SupportTicketRepositoryPort supportTicketRepositoryPort;
+
+    @Mock
+    private BlogPostRepositoryPort blogPostRepositoryPort;
+
     @BeforeEach
     void setUp() {
-        notificationService = new NotificationService(notificationRepositoryPort, notificationApplicationMapper);
+        notificationService = new NotificationService(
+                notificationRepositoryPort,
+                notificationApplicationMapper,
+                orderRepositoryPort,
+                refundRequestRepositoryPort,
+                supportTicketRepositoryPort,
+                blogPostRepositoryPort
+        );
     }
 
     @Test

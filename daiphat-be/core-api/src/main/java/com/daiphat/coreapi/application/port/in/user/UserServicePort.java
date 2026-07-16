@@ -1,7 +1,5 @@
 package com.daiphat.coreapi.application.port.in.user;
 
-import com.daiphat.coreapi.application.dto.request.AcceptInviteRequest;
-import com.daiphat.coreapi.application.dto.request.InviteStaffRequest;
 import com.daiphat.coreapi.application.dto.request.user.CreateUserRequest;
 import com.daiphat.coreapi.application.dto.request.user.ProfileSetupRequest;
 import com.daiphat.coreapi.application.dto.request.user.UpdateUserRequest;
@@ -14,7 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface UserServicePort {
-    void create(CreateUserRequest request);
+    UserResponse create(CreateUserRequest request);
     void update(UUID id, UpdateUserRequest request);
     UserResponse getById(UUID id);
     UserResponse getByUsername(String username);
@@ -27,7 +25,5 @@ public interface UserServicePort {
     void setupFirstTimeProfile(String username, ProfileSetupRequest request);
     UserResponse uploadAvatar(UUID id, UploadRequest request);
     UserResponse deleteAvatar(UUID id);
-    void inviteStaff(String id, InviteStaffRequest request);
-    void acceptInvite(AcceptInviteRequest request);
     void updateFcmToken(UUID userId, String fcmToken);
 }

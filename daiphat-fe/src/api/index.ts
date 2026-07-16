@@ -21,6 +21,11 @@ const apiApp = axios.create({
     }
 })
 
+type ApiRequestConfig = InternalAxiosRequestConfig & {
+    _retry?: boolean;
+    skipGlobalErrorToast?: boolean;
+};
+
 // Request Interceptor: Attach Token
 apiApp.interceptors.request.use((config) => {
     const token = useAuthStore.getState().token;
@@ -58,6 +63,14 @@ const isAuthEndpoint = (url?: string) => {
     }
 
     return url.includes("/auth/login") || url.includes("/auth/refresh-token");
+};
+
+const revokesCurrentSession = (url?: string) => {
+    if (!url) {
+        return false;
+    }
+
+    return url.includes("/auth/change-password") || url.includes("/auth/forgot-password/reset");
 };
 
 const isAuthRequiredRequest = (url?: string) => {
@@ -103,11 +116,18 @@ const processQueue = (error: any, token: string | null = null) => {
 // Response Interceptor: Handle Global Errors & 401
 apiApp.interceptors.response.use(
     (response) => {
+        if (revokesCurrentSession(response.config.url)) {
+            clearAuthSession();
+        }
         return response;
     },
     async (error: AxiosError) => {
         const { response } = error;
-        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        const originalRequest = error.config as ApiRequestConfig | undefined;
+
+        if (originalRequest?.skipGlobalErrorToast) {
+            return Promise.reject(error);
+        }
 
         if (response) {
             const status = response.status;

@@ -24,13 +24,21 @@ public class OrderDetailModel {
     private Long lotteryTicketSerialId;
     private Long replacedByTicketId;
     private Long replacedByTicketSerialId;
+    private Long refundRequestId;
+
+    @Builder.Default
+    private Integer quantity = 1;
+
+    @Builder.Default
+    private List<Long> allocatedSerialIds = new ArrayList<>();
+
     private BigDecimal price;
 
     @Builder.Default
-    private OrderDetailStatus status = OrderDetailStatus.ACTIVE;
+    private boolean hasReplacement = false;
 
     @Builder.Default
-    private List<OrderRefundModel> refunds = new ArrayList<>();
+    private OrderDetailStatus status = OrderDetailStatus.ACTIVE;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -40,9 +48,6 @@ public class OrderDetailModel {
     public void initializeForCreate() {
         if (this.status == null) {
             this.status = OrderDetailStatus.ACTIVE;
-        }
-        if (this.refunds == null) {
-            this.refunds = new ArrayList<>();
         }
     }
 
@@ -72,12 +77,35 @@ public class OrderDetailModel {
         this.replacedByTicketSerialId = replacementTicketSerialId;
     }
 
+    /** Swap the allocated serial to a replacement and record replacedBy*, while keeping the old ticket info and updating price. */
+    public void applySerialReplacement(Long replacementTicketId, Long replacementTicketSerialId, BigDecimal newPrice) {
+        if (replacementTicketSerialId == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+        if (newPrice != null) {
+            this.price = newPrice;
+        }
+        replaceWith(replacementTicketId, replacementTicketSerialId);
+        if (this.allocatedSerialIds != null) {
+            this.allocatedSerialIds = new ArrayList<>(List.of(replacementTicketSerialId));
+        }
+    }
+
     public boolean isReplaced() {
         return this.replacedByTicketSerialId != null;
     }
 
     public boolean isRefunded() {
         return this.status == OrderDetailStatus.REFUNDED;
+    }
+
+    public int getEffectiveQuantity() {
+        return quantity != null && quantity > 0 ? quantity : 1;
+    }
+
+    public BigDecimal getLineSubtotal() {
+        BigDecimal unitPrice = price != null ? price : BigDecimal.ZERO;
+        return unitPrice.multiply(BigDecimal.valueOf(getEffectiveQuantity()));
     }
 
     private void ensureStatus(OrderDetailStatus expectedStatus) {

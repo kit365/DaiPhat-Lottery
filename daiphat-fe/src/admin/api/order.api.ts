@@ -12,8 +12,8 @@ const withAuth = () => {
     };
 };
 
-import { OrderFilterParams, OrderResponse } from '../../../types/order.type';
-import { ApiResponse, PageResponse } from '../../../types/api.type';
+import { OrderFilterParams, OrderResponse } from '../../types/order.type';
+import { ApiResponse, PageResponse } from '../../types/api.type';
 
 const normalizeOrderFilterParams = (params?: OrderFilterParams) => {
     if (!params) return undefined;
@@ -25,6 +25,12 @@ const normalizeOrderFilterParams = (params?: OrderFilterParams) => {
             normalized[key] = value.length > 0 ? value.join(',') : undefined;
         }
     });
+
+    // BE expects `size`; keep FE `limit` alias for existing callers.
+    if (normalized.limit != null && normalized.size == null) {
+        normalized.size = normalized.limit;
+        delete normalized.limit;
+    }
 
     return normalized;
 };
@@ -64,5 +70,69 @@ export const exportInvoicePdf = async (orderCode: string, phone: string) => {
         params: { orderCode, phone },
         responseType: 'blob'
     });
+    return response.data;
+};
+
+export type TicketIncidentReason = 'DAMAGED' | 'LOST';
+
+export const getReplacementCandidates = async (orderId: string, detailId: number) => {
+    const response = await apiApp.get(`/orders/${orderId}/details/${detailId}/replacements`, withAuth());
+    return response.data;
+};
+
+export interface HandleOrderTicketIncidentRequest {
+    orderDetailIds: number[];
+    reason: TicketIncidentReason;
+    note?: string;
+}
+
+export interface TicketIncidentItemResult {
+    orderDetailId: number;
+    outcome: 'REPLACED' | 'NO_REPLACEMENT';
+    reason: TicketIncidentReason;
+    numbers?: string;
+    stationName?: string;
+    oldSerialNumber?: string;
+    newSerialNumber?: string;
+    oldTicketSerialId?: number;
+    newTicketSerialId?: number;
+    message?: string;
+}
+
+export interface HandleOrderTicketIncidentResponse {
+    results: TicketIncidentItemResult[];
+}
+
+export const handleOrderTicketIncidents = async (
+    orderId: string,
+    data: HandleOrderTicketIncidentRequest
+): Promise<ApiResponse<HandleOrderTicketIncidentResponse>> => {
+    const response = await apiApp.post(
+        `/staff/orders/${orderId}/incident-tickets`,
+        data,
+        withAuth()
+    );
+    return response.data;
+};
+
+export interface CreatePartialRefundRequest {
+    incidents: {
+        orderDetailId: number;
+        reason: TicketIncidentReason;
+        replacementTicketId?: number;
+        damagedReason?: string;
+        damagedEvidenceUrl?: string;
+    }[];
+    /** Manual refund reason entered by staff (required when creating a refund). */
+    refundReason?: string;
+    /** @deprecated Prefer refundReason. */
+    refundNote?: string;
+}
+
+export const createPartialRefund = async (
+    orderId: string,
+    data: CreatePartialRefundRequest
+): Promise<ApiResponse<any>> => {
+    const response = await apiApp.post(`/staff/orders/${orderId}/partial-refund`, data, withAuth());
     return response.data;
 };

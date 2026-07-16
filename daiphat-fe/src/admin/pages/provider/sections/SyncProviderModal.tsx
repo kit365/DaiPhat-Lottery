@@ -12,17 +12,23 @@ import {
     MenuItem,
     Box
 } from '@mui/material';
-import { useSyncProviders } from '../hooks/useProvider';
+import { usePreviewSyncProviders } from '../hooks/useProvider';
 import { toast } from 'react-toastify';
 import { LoadingButton } from '../../../components/ui/LoadingButton';
+import type { SyncPreviewParams } from './SyncProviderPreviewModal';
 
 interface SyncProviderModalProps {
     open: boolean;
     onClose: () => void;
+    onPreviewSuccess: (preview: any, params: SyncPreviewParams) => void;
 }
 
-export const SyncProviderModal: React.FC<SyncProviderModalProps> = ({ open, onClose }) => {
-    const { mutate: syncProviders, isPending } = useSyncProviders();
+export const SyncProviderModal: React.FC<SyncProviderModalProps> = ({
+    open,
+    onClose,
+    onPreviewSuccess,
+}) => {
+    const { mutate: previewSync, isPending } = usePreviewSyncProviders();
     const [source, setSource] = useState('MINH_NGOC');
     const [region, setRegion] = useState('MIEN_NAM');
     const [priceInput, setPriceInput] = useState('10,000');
@@ -38,18 +44,21 @@ export const SyncProviderModal: React.FC<SyncProviderModalProps> = ({ open, onCl
 
     const handleSubmit = () => {
         const defaultPrice = Number(priceInput.replace(/,/g, ''));
-        syncProviders(
-            { source, region, defaultPrice },
-            {
-                onSuccess: () => {
-                    toast.success('Đồng bộ nhà đài thành công');
-                    onClose();
-                },
-                onError: (error: any) => {
-                    toast.error(error?.response?.data?.message || 'Đồng bộ thất bại');
-                }
+        if (!defaultPrice || defaultPrice <= 0) {
+            toast.error('Vui lòng nhập giá vé bán mặc định hợp lệ.');
+            return;
+        }
+
+        const params: SyncPreviewParams = { source, region, defaultPrice };
+
+        previewSync(params, {
+            onSuccess: (response: any) => {
+                onPreviewSuccess(response, params);
+            },
+            onError: (error: any) => {
+                toast.error(error?.response?.data?.message || 'Xem trước đồng bộ thất bại');
             }
-        );
+        });
     };
 
     return (
@@ -79,16 +88,12 @@ export const SyncProviderModal: React.FC<SyncProviderModalProps> = ({ open, onCl
                             disabled={isPending}
                         >
                             <MenuItem value="MIEN_NAM">Miền Nam</MenuItem>
-                            {/*
-                            <MenuItem value="MIEN_TRUNG">Miền Trung</MenuItem>
-                            <MenuItem value="MIEN_BAC">Miền Bắc</MenuItem>
-                            */}
                         </Select>
                     </FormControl>
 
                     <TextField
                         fullWidth
-                        label="Giá vé mặc định"
+                        label="Giá vé bán mặc định"
                         type="text"
                         value={priceInput}
                         onChange={handlePriceChange}

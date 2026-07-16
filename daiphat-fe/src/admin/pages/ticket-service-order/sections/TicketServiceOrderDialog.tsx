@@ -9,8 +9,8 @@ import {
     Stack
 } from "@mui/material";
 import { useTicketServices } from "../../ticket-service/hooks/useTicketService";
-import { useUsers } from "../../account-user/hooks/useAccountUser";
-import { useUserTickets } from "../../account-user/hooks/useUserTicket";
+import { useUsers } from "../../../features/users/hooks/useUsers";
+import { useUserTickets } from "../../../features/users/hooks/useUserTicket";
 import { useAvailableSlots, useCreateTicketServiceOrder } from "../hooks/useTicketServiceOrderManagement";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";

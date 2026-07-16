@@ -18,13 +18,14 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePor
 import com.daiphat.coreapi.application.port.in.user.UserLookupServicePort;
 import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService;
+import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.RefundGraceEvaluation;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategy;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategyFactory;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.enums.order.detail.OrderDetailStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
-import com.daiphat.coreapi.domain.model.enums.order.refund.OrderRefundStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
@@ -65,7 +66,7 @@ public class OrderService implements OrderServicePort {
     private static final BigDecimal ONLINE_PAYMENT_MIN_AMOUNT = BigDecimal.valueOf(10_000);
     private static final long MAX_PICKUP_LEAD_DAYS = 3;
 
-    @Value("${daiphat.order.pending-payment-ttl-seconds:600}")
+    @Value("${daiphat.order.pending-payment-ttl-seconds}")
     private long pendingPaymentTtlSeconds;
 
     private final OrderRepositoryPort orderRepositoryPort;
@@ -76,6 +77,7 @@ public class OrderService implements OrderServicePort {
     private final PaymentCountdownCachePort paymentCountdownCachePort;
     private final PaymentGatewayStrategyFactory paymentGatewayStrategyFactory;
     private final ApplicationEventPublisher eventPublisher;
+    private final OrderRefundGraceService orderRefundGraceService;
 
     @Override
     @Transactional
@@ -290,7 +292,7 @@ public class OrderService implements OrderServicePort {
                         toDate,
                         search
                 )
-                .map(orderApplicationMapper::toResponse);
+                .map(this::toCustomerOrderResponse);
 
         return PageResponse.from(resultPage, page, size, null);
     }
@@ -315,11 +317,6 @@ public class OrderService implements OrderServicePort {
         return EnumOptionUtils.toEnumOptions(OrderDetailStatus.values());
     }
 
-    @Override
-    public List<EnumOptionResponse> getOrderRefundStatuses() {
-        return EnumOptionUtils.toEnumOptions(OrderRefundStatus.values());
-    }
-
     private OrderDetailModel buildOrderDetail(OrderTicketSnapshot ticketSnapshot) {
         OrderDetailModel detail = orderApplicationMapper.toOrderDetailModel(ticketSnapshot);
         detail.initializeForCreate();
@@ -328,6 +325,7 @@ public class OrderService implements OrderServicePort {
 
     private OrderResponse toEnrichedOrderResponse(OrderModel order) {
         OrderResponse base = orderApplicationMapper.toResponse(order);
+        RefundGraceEvaluation refundEvaluation = orderRefundGraceService.evaluate(order);
         return OrderResponse.builder()
                 .id(base.id())
                 .userId(base.userId())
@@ -342,12 +340,48 @@ public class OrderService implements OrderServicePort {
                 .expectedPickupAt(base.expectedPickupAt())
                 .cancelledAt(base.cancelledAt())
                 .cancelReason(base.cancelReason())
+                .cancelType(base.cancelType())
                 .actualPickedUpAt(base.actualPickedUpAt())
                 .pickedUpBy(base.pickedUpBy())
                 .orderDetails(enrichOrderDetails(order.getOrderDetails()))
                 .transactions(base.transactions())
                 .createdAt(base.createdAt())
                 .updatedAt(base.updatedAt())
+                .refundEligible(refundEvaluation.eligible())
+                .refundRemainingSeconds(refundEvaluation.remainingSeconds())
+                .refundGraceMinutes(refundEvaluation.graceMinutes())
+                .refundPaymentSuccessAt(refundEvaluation.paymentSuccessAt())
+                .build();
+    }
+
+    private OrderResponse toCustomerOrderResponse(OrderModel order) {
+        OrderResponse base = orderApplicationMapper.toResponse(order);
+        RefundGraceEvaluation refundEvaluation = orderRefundGraceService.evaluate(order);
+        return OrderResponse.builder()
+                .id(base.id())
+                .userId(base.userId())
+                .name(base.name())
+                .phone(base.phone())
+                .email(base.email())
+                .orderCode(base.orderCode())
+                .orderType(base.orderType())
+                .receiveType(base.receiveType())
+                .totalAmount(base.totalAmount())
+                .status(base.status())
+                .expectedPickupAt(base.expectedPickupAt())
+                .cancelledAt(base.cancelledAt())
+                .cancelReason(base.cancelReason())
+                .cancelType(base.cancelType())
+                .actualPickedUpAt(base.actualPickedUpAt())
+                .pickedUpBy(base.pickedUpBy())
+                .orderDetails(base.orderDetails())
+                .transactions(base.transactions())
+                .createdAt(base.createdAt())
+                .updatedAt(base.updatedAt())
+                .refundEligible(refundEvaluation.eligible())
+                .refundRemainingSeconds(refundEvaluation.remainingSeconds())
+                .refundGraceMinutes(refundEvaluation.graceMinutes())
+                .refundPaymentSuccessAt(refundEvaluation.paymentSuccessAt())
                 .build();
     }
 
@@ -359,16 +393,66 @@ public class OrderService implements OrderServicePort {
         Map<Long, LotteryTicketResponse> ticketsById = new LinkedHashMap<>();
         Map<Long, LotteryTicketSerialModel> serialsById = new LinkedHashMap<>();
 
+        details.forEach(detail -> {
+            Long displaySerialId = detail.isReplaced()
+                    ? detail.getReplacedByTicketSerialId()
+                    : detail.getLotteryTicketSerialId();
+            LotteryTicketSerialModel serial = resolveSerial(displaySerialId, serialsById);
+            Long targetTicketId = detail.isReplaced()
+                    ? detail.getReplacedByTicketId()
+                    : detail.getLotteryTicketId();
+            if (targetTicketId == null && serial != null) {
+                targetTicketId = serial.getTicketId();
+            }
+            resolveTicket(targetTicketId, ticketsById);
+        });
+
+        java.util.Set<Long> stationIds = new java.util.LinkedHashSet<>();
+        java.util.Set<String> numbersList = new java.util.LinkedHashSet<>();
+        java.util.Set<LocalDate> drawDates = new java.util.LinkedHashSet<>();
+
+        for (LotteryTicketResponse t : ticketsById.values()) {
+            if (t != null) {
+                if (t.stationId() != null) stationIds.add(t.stationId());
+                if (t.numbers() != null) numbersList.add(t.numbers());
+                if (t.drawDate() != null) drawDates.add(t.drawDate());
+            }
+        }
+
+        java.util.Set<com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey> availableKeys = new java.util.LinkedHashSet<>();
+        if (!stationIds.isEmpty() && !numbersList.isEmpty() && !drawDates.isEmpty()) {
+            availableKeys.addAll(lotteryTicketServicePort.findAvailableReplacementsInBulk(stationIds, drawDates, numbersList));
+        }
+
         return details.stream()
                 .map(detail -> {
-                    LotteryTicketResponse ticket = resolveTicket(detail.getLotteryTicketId(), ticketsById);
-                    LotteryTicketSerialModel serial = resolveSerial(detail.getLotteryTicketSerialId(), serialsById);
+                    Long displaySerialId = detail.isReplaced()
+                            ? detail.getReplacedByTicketSerialId()
+                            : detail.getLotteryTicketSerialId();
+                    LotteryTicketSerialModel serial = resolveSerial(displaySerialId, serialsById);
+
+                    Long displayTicketId = detail.isReplaced()
+                            ? detail.getReplacedByTicketId()
+                            : detail.getLotteryTicketId();
+                    // Fallback: derive ticket id from the serial that will be delivered.
+                    if (displayTicketId == null && serial != null) {
+                        displayTicketId = serial.getTicketId();
+                    }
+
+                    LotteryTicketResponse ticket = resolveTicket(displayTicketId, ticketsById);
                     OrderDetailResponse base = orderApplicationMapper.toDetailResponse(detail);
+
+                    boolean hasRep = false;
+                    if (ticket != null && ticket.stationId() != null && ticket.numbers() != null && ticket.drawDate() != null) {
+                        hasRep = availableKeys.contains(new com.daiphat.coreapi.application.dto.lotteries.TicketAvailabilityKey(
+                                ticket.stationId(), ticket.numbers(), ticket.drawDate()
+                        ));
+                    }
 
                     return OrderDetailResponse.builder()
                             .id(base.id())
-                            .lotteryTicketId(base.lotteryTicketId())
-                            .lotteryTicketSerialId(base.lotteryTicketSerialId())
+                            .lotteryTicketId(displayTicketId)
+                            .lotteryTicketSerialId(displaySerialId)
                             .stationId(ticket != null ? ticket.stationId() : null)
                             .stationName(ticket != null ? ticket.stationName() : null)
                             .numbers(ticket != null ? ticket.numbers() : null)
@@ -377,11 +461,14 @@ public class OrderService implements OrderServicePort {
                                     ? serial.getTicketImg()
                                     : ticket != null ? ticket.ticketImg() : null)
                             .serialNumber(serial != null ? serial.getSerialNumber() : null)
-                            .replacedByTicketId(base.replacedByTicketId())
+                            .replacedByTicketId(detail.getReplacedByTicketId() != null
+                                    ? detail.getReplacedByTicketId()
+                                    : (detail.isReplaced() && serial != null ? serial.getTicketId() : null))
                             .replacedByTicketSerialId(base.replacedByTicketSerialId())
                             .price(base.price())
+                            .quantity(detail.getEffectiveQuantity())
                             .status(base.status())
-                            .refunds(base.refunds())
+                            .hasReplacement(hasRep)
                             .build();
                 })
                 .toList();

@@ -899,6 +899,7 @@ export const ChatbotPopup = () => {
       setConversationId(null);
       setConversationStatus(null);
       setOverlayMessages([]);
+      sessionStorage.removeItem(CHAT_LAST_CONVERSATION_KEY);
       return;
     }
 
@@ -926,7 +927,12 @@ export const ChatbotPopup = () => {
       }
 
       const closedDetail = await loadConversationDetail(Number(lastConversationId));
-      if (cancelled || !closedDetail) {
+      if (cancelled) {
+        return;
+      }
+
+      if (!closedDetail) {
+        sessionStorage.removeItem(CHAT_LAST_CONVERSATION_KEY);
         return;
       }
 

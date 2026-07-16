@@ -11,12 +11,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import com.daiphat.coreapi.application.config.AuthProperties;
+import com.daiphat.coreapi.application.config.OrderRefundProperties;
 import com.daiphat.coreapi.application.config.PaymentProperties;
 
 @SpringBootApplication
 @EnableAsync
 @EnableScheduling
-@EnableConfigurationProperties({AuthProperties.class, PaymentProperties.class})
+@EnableConfigurationProperties({AuthProperties.class, PaymentProperties.class, OrderRefundProperties.class})
 public class CoreApiApplication {
 
     public static void main(String[] args) {
@@ -53,15 +54,31 @@ public class CoreApiApplication {
                     }
                     String key = line.substring(0, separator).trim();
                     String value = stripQuotes(line.substring(separator + 1).trim());
-                    if (System.getenv(key) == null && System.getProperty(key) == null) {
-                        System.setProperty(key, value);
-                    }
+                    setLocalPropertyIfAbsent(key, value);
                 }
             } catch (IOException ignored) {
                 // spring-dotenv may still load env from another working directory
             }
             return;
         }
+    }
+
+    private static void setLocalPropertyIfAbsent(String key, String value) {
+        if (System.getenv(key) != null || System.getProperty(key) != null) {
+            return;
+        }
+
+        // Active profiles are resolved during Spring's bootstrap phase. When a
+        // .env entry is exposed as a Java system property, it must use Spring's
+        // canonical property name rather than the environment-variable name.
+        if ("SPRING_PROFILES_ACTIVE".equals(key)) {
+            if (System.getProperty("spring.profiles.active") == null) {
+                System.setProperty("spring.profiles.active", value);
+            }
+            return;
+        }
+
+        System.setProperty(key, value);
     }
 
     private static String stripQuotes(String value) {

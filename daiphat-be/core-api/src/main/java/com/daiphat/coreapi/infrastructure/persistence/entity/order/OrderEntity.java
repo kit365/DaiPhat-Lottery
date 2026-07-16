@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.entity.order;
 
+import com.daiphat.coreapi.domain.model.enums.order.OrderCancelType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderReceiveType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
 import com.daiphat.coreapi.domain.model.enums.order.OrderType;
@@ -82,6 +83,10 @@ public class OrderEntity {
 
     @Column(name = "cancel_reason", length = 500)
     private String cancelReason;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cancel_type", length = 50)
+    private OrderCancelType cancelType;
 
     @Column(name = "actual_picked_up_at")
     private LocalDateTime actualPickedUpAt;

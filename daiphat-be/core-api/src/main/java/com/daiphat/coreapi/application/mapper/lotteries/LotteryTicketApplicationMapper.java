@@ -38,16 +38,57 @@ public interface LotteryTicketApplicationMapper {
     @Mapping(target = "stationName", ignore = true)
     @Mapping(target = "serialNumber", ignore = true)
     @Mapping(target = "serials", ignore = true)
+    @Mapping(target = "batchCode", ignore = true)
     LotteryTicketResponse toResponse(LotteryTicketModel model);
 
     @Mapping(target = "status", expression = "java(model.getStatus() != null ? model.getStatus().name() : null)")
     @Mapping(target = "statusDisplayName", expression = "java(model.getStatus() != null ? model.getStatus().getDisplayName() : null)")
+    @Mapping(target = "faultedBy", expression = "java(model.getFaultedBy() != null ? model.getFaultedBy().name() : null)")
+    @Mapping(target = "faultedByDisplayName", expression = "java(model.getFaultedBy() != null ? model.getFaultedBy().getDisplayName() : null)")
+    @Mapping(target = "inputSource", expression = "java(model.getInputSource() != null ? model.getInputSource().name() : null)")
+    @Mapping(target = "importBatchId", source = "importBatchId")
+    @Mapping(target = "importBatchLineId", source = "importBatchLineId")
+    @Mapping(target = "batchCode", ignore = true)
     LotteryTicketSerialResponse toSerialResponse(LotteryTicketSerialModel model);
+
+    default LotteryTicketSerialResponse toSerialResponse(LotteryTicketSerialModel model, String batchCode) {
+        LotteryTicketSerialResponse base = toSerialResponse(model);
+        return new LotteryTicketSerialResponse(
+                base.id(),
+                base.ticketId(),
+                model.getImportBatchId(),
+                model.getImportBatchLineId(),
+                batchCode,
+                base.ticketImg(),
+                base.serialNumber(),
+                base.status(),
+                base.statusDisplayName(),
+                base.inputSource(),
+                base.reservedAt(),
+                base.reservationExpiresAt(),
+                base.reservedByOrderId(),
+                base.importedById(),
+                base.importedAt(),
+                base.verified(),
+                base.verifiedById(),
+                base.verifiedAt(),
+                base.returnedAt(),
+                base.faultedBy(),
+                base.faultedByDisplayName(),
+                base.damagedEvidenceUrl(),
+                base.damagedReason(),
+                base.createdAt(),
+                base.updatedAt(),
+                base.createdBy(),
+                base.lastModifiedBy()
+        );
+    }
 
     default LotteryTicketResponse toResponse(
             LotteryTicketModel model,
             LotteryTicketSerialModel serial,
-            String stationName
+            String stationName,
+            String batchCode
     ) {
         LotteryTicketResponse base = toResponse(model);
         return new LotteryTicketResponse(
@@ -60,7 +101,7 @@ public interface LotteryTicketApplicationMapper {
                 base.drawDate(),
                 base.quantity(),
                 base.priceSnapshot(),
-                base.batchCode(),
+                batchCode,
                 base.status(),
                 base.statusDisplayName(),
                 serial != null ? serial.getImportedById() : base.importedById(),
@@ -79,13 +120,20 @@ public interface LotteryTicketApplicationMapper {
 
     default LotteryTicketResponse toResponseDetail(
             LotteryTicketModel model,
-            List<LotteryTicketSerialModel> serials,
-            String stationName
+            List<LotteryTicketSerialResponse> serialResponses,
+            String stationName,
+            String batchCode
     ) {
-        LotteryTicketResponse base = toResponse(model, serials != null && !serials.isEmpty() ? serials.get(0) : null, stationName);
-        List<LotteryTicketSerialResponse> serialResponses = serials != null ?
-                serials.stream().map(this::toSerialResponse).toList() : List.of();
-        
+        LotteryTicketSerialResponse firstSerial = serialResponses != null && !serialResponses.isEmpty()
+                ? serialResponses.getFirst()
+                : null;
+        LotteryTicketResponse base = toResponse(
+                model,
+                firstSerial != null ? toSerialModel(firstSerial) : null,
+                stationName,
+                batchCode
+        );
+
         return new LotteryTicketResponse(
                 base.id(),
                 base.stationId(),
@@ -96,7 +144,7 @@ public interface LotteryTicketApplicationMapper {
                 base.drawDate(),
                 base.quantity(),
                 base.priceSnapshot(),
-                base.batchCode(),
+                batchCode,
                 base.status(),
                 base.statusDisplayName(),
                 base.importedById(),
@@ -111,6 +159,26 @@ public interface LotteryTicketApplicationMapper {
                 base.lastModifiedBy(),
                 serialResponses
         );
+    }
+
+    default LotteryTicketSerialModel toSerialModel(LotteryTicketSerialResponse response) {
+        if (response == null) {
+            return null;
+        }
+        return LotteryTicketSerialModel.builder()
+                .id(response.id())
+                .ticketId(response.ticketId())
+                .importBatchId(response.importBatchId())
+                .importBatchLineId(response.importBatchLineId())
+                .ticketImg(response.ticketImg())
+                .serialNumber(response.serialNumber())
+                .importedById(response.importedById())
+                .importedAt(response.importedAt())
+                .verified(response.verified())
+                .verifiedById(response.verifiedById())
+                .verifiedAt(response.verifiedAt())
+                .returnedAt(response.returnedAt())
+                .build();
     }
 
     List<LotteryTicketResponse> toResponseList(List<LotteryTicketModel> models);

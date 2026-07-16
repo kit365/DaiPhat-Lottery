@@ -56,6 +56,9 @@ public class SystemConfigSeeder {
                 dbConfig.setIsActive(true);
                 configRepository.save(dbConfig);
                 reactivated++;
+            } else if (dbConfig.getConfigType() != enumConfig.getConfigType()) {
+                dbConfig.setConfigType(enumConfig.getConfigType());
+                configRepository.save(dbConfig);
             }
         }
 
