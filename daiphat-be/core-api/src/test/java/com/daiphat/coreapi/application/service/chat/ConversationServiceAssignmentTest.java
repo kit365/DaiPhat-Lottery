@@ -267,6 +267,59 @@ class ConversationServiceAssignmentTest {
     }
 
     @Test
+    void cancelStaffRequest_fromWaiting_returnsToOpenAndNotifies() {
+        ConversationModel conversation = conversation(ConversationStatus.WAITING_FOR_OPERATOR, null);
+        when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(user("Customer"));
+        when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
+        when(chatApplicationMapper.toConversationResponse(any()))
+                .thenReturn(mockConversationResponse(ConversationStatus.OPEN, null));
+        when(chatApplicationMapper.toMessageResponses(any())).thenReturn(List.of());
+
+        conversationService.cancelStaffRequest(CUSTOMER_ID, CONVERSATION_ID);
+
+        assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.OPEN);
+        ArgumentCaptor<ChatConversationSocketEvent> eventCaptor = ArgumentCaptor.forClass(ChatConversationSocketEvent.class);
+        verify(chatConversationEventPublisherPort).publishToOperators(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().eventType())
+                .isEqualTo(ConversationSocketEventType.CONVERSATION_STAFF_REQUEST_CANCELLED);
+        verify(messageRepositoryPort).save(argThat((MessageModel message) ->
+                message.getContent() != null
+                        && message.getContent().contains("huỷ yêu cầu gặp nhân viên")));
+    }
+
+    @Test
+    void cancelStaffRequest_whenAlreadyOpen_isIdempotent() {
+        ConversationModel conversation = conversation(ConversationStatus.OPEN, null);
+        when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(user("Customer"));
+        when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
+        when(chatApplicationMapper.toConversationResponse(any()))
+                .thenReturn(mockConversationResponse(ConversationStatus.OPEN, null));
+        when(chatApplicationMapper.toMessageResponses(any())).thenReturn(List.of());
+
+        conversationService.cancelStaffRequest(CUSTOMER_ID, CONVERSATION_ID);
+
+        verify(conversationRepositoryPort, never()).save(any());
+        verify(chatConversationEventPublisherPort, never()).publishToOperators(any());
+    }
+
+    @Test
+    void cancelStaffRequest_whenAssigned_throws() {
+        ConversationModel conversation = conversation(ConversationStatus.ACTIVE, OPERATOR_A);
+        when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(user("Customer"));
+        when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+
+        assertThatThrownBy(() -> conversationService.cancelStaffRequest(CUSTOMER_ID, CONVERSATION_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.CONVERSATION_CANNOT_CANCEL_STAFF_REQUEST);
+    }
+
+    @Test
     void assignConversationToMe_fromOpen_assignsAtomically() {
         ConversationModel conversation = conversation(ConversationStatus.WAITING_FOR_OPERATOR, null);
         when(userLookupServicePort.findActiveByIdOrThrow(OPERATOR_A)).thenReturn(user("Operator A"));

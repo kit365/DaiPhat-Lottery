@@ -395,6 +395,31 @@ public class ConversationService implements ConversationServicePort {
 
     @Override
     @Transactional
+    public ConversationDetailResponse cancelStaffRequest(UUID customerId, Long conversationId) {
+        userLookupServicePort.findActiveByIdOrThrow(customerId);
+        ConversationModel conversation = conversationRepositoryPort.findByIdForUpdate(conversationId)
+                .orElseThrow(() -> new DomainException(ErrorCode.CONVERSATION_NOT_FOUND));
+
+        assertCustomerAccess(conversation, customerId);
+
+        if (conversation.getStatus() == ConversationStatus.OPEN
+                && conversation.getAssignedOperatorId() == null) {
+            return toConversationDetailResponse(conversation);
+        }
+
+        conversation.cancelStaffRequest();
+        ConversationModel savedConversation = conversationRepositoryPort.save(conversation);
+        saveSystemDividerMessage(savedConversation.getId(), ConversationModel.cancelStaffRequestCopy());
+        publishConversationEvent(
+                ConversationSocketEventType.CONVERSATION_STAFF_REQUEST_CANCELLED,
+                savedConversation,
+                null
+        );
+        return toConversationDetailResponse(getConversationOrThrow(savedConversation.getId()));
+    }
+
+    @Override
+    @Transactional
     public ConversationDetailResponse assignConversationToMe(UUID operatorId, Long conversationId) {
         ConversationModel conversation = conversationRepositoryPort.findByIdForUpdate(conversationId)
                 .orElseThrow(() -> new DomainException(ErrorCode.CONVERSATION_NOT_FOUND));

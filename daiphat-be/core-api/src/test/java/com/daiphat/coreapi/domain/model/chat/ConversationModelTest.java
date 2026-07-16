@@ -54,6 +54,41 @@ class ConversationModelTest {
     }
 
     @Test
+    void cancelStaffRequest_returnsToOpenWhenWaiting() {
+        ConversationModel conversation = ConversationModel.builder()
+                .status(ConversationStatus.WAITING_FOR_OPERATOR)
+                .build();
+
+        conversation.cancelStaffRequest();
+
+        assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.OPEN);
+        assertThat(conversation.getAssignedOperatorId()).isNull();
+    }
+
+    @Test
+    void cancelStaffRequest_rejectsWhenAlreadyAssigned() {
+        ConversationModel conversation = ConversationModel.builder()
+                .status(ConversationStatus.ACTIVE)
+                .assignedOperatorId(OPERATOR_ID)
+                .build();
+
+        assertThatThrownBy(conversation::cancelStaffRequest)
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("Không thể huỷ yêu cầu gặp nhân viên");
+    }
+
+    @Test
+    void cancelStaffRequest_rejectsWhenNotWaiting() {
+        ConversationModel conversation = ConversationModel.builder()
+                .status(ConversationStatus.OPEN)
+                .build();
+
+        assertThatThrownBy(conversation::cancelStaffRequest)
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("Không thể huỷ yêu cầu gặp nhân viên");
+    }
+
+    @Test
     void operatorAcceptanceCopy_usesOperatorNameWhenPresent() {
         assertThat(ConversationModel.operatorAcceptanceCopy("Kiệt Ngô"))
                 .isEqualTo("Kiệt Ngô đã tiếp nhận và sẽ hỗ trợ bạn ngay.");
