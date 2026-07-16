@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import type { ChatSuggestedTicket } from '../../utils/ticketSuggestToken.util';
 import { formatTicketDrawDate, formatTicketPrice } from '../../utils/ticketSuggestToken.util';
 
@@ -19,9 +20,12 @@ export const ChatTicketSuggestCards = ({
 
   return (
     <div className="flex gap-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {tickets.map((ticket) => (
-        <article
+      {tickets.map((ticket, index) => (
+        <motion.article
           key={ticket.id}
+          initial={{ opacity: 0, y: 8, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.26, ease: 'easeOut', delay: Math.min(index * 0.05, 0.2) }}
           className="shrink-0 w-[148px] bg-white rounded-2xl border border-slate-200 shadow-sm px-3 py-3 flex flex-col gap-2"
         >
           <div className="font-mono font-bold text-[22px] leading-none tracking-wider text-[#212B36] tabular-nums">
@@ -40,7 +44,7 @@ export const ChatTicketSuggestCards = ({
           >
             Mua ngay
           </button>
-        </article>
+        </motion.article>
       ))}
     </div>
   );
