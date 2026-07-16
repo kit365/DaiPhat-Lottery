@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getOrders } from '../api/order.api';
+import { getOrders } from '../features/orders/services/orderService';
 import { QUERY_KEYS } from '../../constants/queryKeys';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { hasPermission } from '../utils/permission.util';

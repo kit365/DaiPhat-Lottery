@@ -20,8 +20,8 @@ import {
     normalizeTicketStatus,
 } from "./configs/ticket-status.config";
 import { LoadingButton } from "../../components/ui/LoadingButton";
-import { useProviders } from "../provider/hooks/useProvider";
-import { useRegions } from "../region/hooks/useRegion";
+import { useStations } from '../../features/station/hooks/useStation';
+import { useRegions } from "../../features/region/hooks/useRegion";
 import {
     getVisibleFieldErrorMessage,
     shouldShowFieldError,
@@ -64,7 +64,7 @@ export const TicketEditPage = () => {
 
     const { data: ticketDetail, isLoading: isLoadingTicket } = useTicketDetail(id);
 
-    const { data: providersRes } = useProviders({ size: 1000 });
+    const { data: providersRes } = useStations({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
     const { data: regionsRes } = useRegions();
     const regions = regionsRes?.data || [];

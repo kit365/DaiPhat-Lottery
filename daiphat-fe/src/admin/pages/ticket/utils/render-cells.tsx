@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { confirmDelete } from "../../../utils/swal";
 import { ReloadIcon } from "../../../assets/icons/index";
-import { useProviders } from "../../provider/hooks/useProvider";
+import { useStations } from '../../../features/station/hooks/useStation';
 import { formatImportBatchCode } from "../../import-batch/utils/importBatchCode";
 
 // Vé số
@@ -122,7 +122,7 @@ const DrawDateCell = (params: GridRenderCellParams) => {
     const date = params.value;
     if (!date) return null;
 
-    const { data: providersData } = useProviders({ size: 1000 });
+    const { data: providersData } = useStations({ size: 1000 });
     const providers = providersData?.data?.recordList || [];
     const stationId = params.row.stationId || params.row.providerId;
     const provider = providers.find((p: any) => (p.id || p._id)?.toString() === stationId?.toString());

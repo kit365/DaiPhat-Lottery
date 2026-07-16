@@ -150,7 +150,8 @@ export const ExpiredTicketListPage = () => {
                         getRowHeight={() => 'auto'}
                         checkboxSelection
                         disableRowSelectionOnClick
-                        sx={dataGridStyles}
+                        className="admin-datagrid"
+                    sx={dataGridStyles}
                     />
                 </div>
             </Card>

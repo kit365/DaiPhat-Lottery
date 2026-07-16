@@ -70,6 +70,7 @@ export const SupplierList = ({
         <Card elevation={0} sx={dataGridCardStyles}>
             <div style={dataGridContainerStyles}>
                 <DataGrid
+                    className="admin-datagrid"
                     rows={suppliers}
                     getRowId={(row) => row.id}
                     columns={columnsConfig}
@@ -140,14 +141,7 @@ export const SupplierList = ({
                     initialState={columnsInitialState}
                     getRowHeight={() => 'auto'}
                     disableRowSelectionOnClick
-                    sx={{
-                        ...dataGridStyles,
-                        '& .MuiDataGrid-cell:hover': {
-                            '& .supplier-title': {
-                                color: 'var(--palette-success-main) !important',
-                            },
-                        },
-                    }}
+                    sx={dataGridStyles}
                 />
             </div>
         </Card>

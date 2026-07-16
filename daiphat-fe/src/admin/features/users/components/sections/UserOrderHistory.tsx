@@ -1,6 +1,6 @@
 import { Box, Typography, CircularProgress, Chip, TablePagination } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { getOrders } from '../../../../api/order.api';
+import { getOrders } from '../../../orders/services/orderService';
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 import { prefixAdmin } from '../../../../constants/routes';

@@ -19,8 +19,8 @@ import { toast } from 'react-toastify';
 import { useForm, useFieldArray, FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { buildCreateTicketSchema, CreateTicketFormValues } from '../../schemas/ticket.schema';
-import { useProviders } from '../provider/hooks/useProvider';
-import { useRegions } from '../region/hooks/useRegion';
+import { useStations } from '../../features/station/hooks/useStation';
+import { useRegions } from '../../features/region/hooks/useRegion';
 import { useDraftImportBatches, useImportBatchDetail } from '../import-batch/hooks/useImportBatch';
 import { getImportBatchCancelledAlertMessage, getImportBatchLineCancelledAlertMessage } from '../import-batch/utils/batchTypeLabels';
 import {
@@ -112,7 +112,7 @@ export const TicketCreatePage = () => {
     const lastInitializedBatchIdRef = useRef<string | null>(null);
     const [lineFormDrafts, setLineFormDrafts] = useState<Record<string, LineFormDraft>>({});
 
-    const { data: providersRes } = useProviders({ size: 1000 });
+    const { data: providersRes } = useStations({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
     const { data: regionsRes } = useRegions();
     const regions = regionsRes?.data || [];

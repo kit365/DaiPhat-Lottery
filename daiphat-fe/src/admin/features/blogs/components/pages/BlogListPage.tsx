@@ -114,7 +114,14 @@ export const BlogListPage = () => {
                 </div>
             </div>
 
-            <Card elevation={0} className="admin-list-card admin-list-card--spaced">
+            <Card elevation={0} sx={{
+                borderRadius: 'var(--shape-borderRadius-lg)',
+                bgcolor: 'var(--palette-background-paper)',
+                boxShadow: 'var(--customShadows-card)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+            }}>
                 <Tabs
                     value={tabStatus}
                     onChange={(_, newVal) => { setTabStatus(newVal); setPage(1); }}
@@ -200,16 +207,16 @@ export const BlogListPage = () => {
                     viewMode={viewMode}
                     onViewModeChange={setViewMode}
                 />
-            </Card>
 
-            <BlogList
-                blogs={blogs}
-                isLoading={isLoading}
-                page={page}
-                onPageChange={setPage}
-                pagination={pagination}
-                viewMode={viewMode}
-            />
+                <BlogList
+                    blogs={blogs}
+                    isLoading={isLoading}
+                    page={page}
+                    onPageChange={setPage}
+                    pagination={pagination}
+                    viewMode={viewMode}
+                />
+            </Card>
         </>
     );
 };

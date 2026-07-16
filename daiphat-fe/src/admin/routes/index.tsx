@@ -12,11 +12,11 @@ const ExpiredTicketListPage = lazy(() => import("../pages/ticket/ExpiredTicketLi
 const PrizeStructureListPage = lazy(() => import("../features/prize-structure").then(m => ({ default: m.PrizeStructureListPage })));
 const DrawResultPage = lazy(() => import("../features/draw-result").then(m => ({ default: m.DrawResultPage })));
 
-const ProviderListPage = lazy(() => import("../pages/provider/ProviderListPage").then(m => ({ default: m.ProviderListPage })));
-const ProviderCreatePage = lazy(() => import("../pages/provider/ProviderCreatePage").then(m => ({ default: m.ProviderCreatePage })));
-const ProviderEditPage = lazy(() => import("../pages/provider/ProviderEditPage").then(m => ({ default: m.ProviderEditPage })));
-const ProviderDetailPage = lazy(() => import("../pages/provider/ProviderDetailPage").then(m => ({ default: m.ProviderDetailPage })));
-const RegionListPage = lazy(() => import("../pages/region/RegionListPage").then(m => ({ default: m.RegionListPage })));
+const StationListPage = lazy(() => import("../features/station").then(m => ({ default: m.StationListPage })));
+const StationCreatePage = lazy(() => import("../features/station").then(m => ({ default: m.StationCreatePage })));
+const StationEditPage = lazy(() => import("../features/station").then(m => ({ default: m.StationEditPage })));
+const StationDetailPage = lazy(() => import("../features/station").then(m => ({ default: m.StationDetailPage })));
+const RegionListPage = lazy(() => import("../features/region").then(m => ({ default: m.RegionListPage })));
 const BlogListPage = lazy(() => import("../features/blogs").then(m => ({ default: m.BlogListPage })));
 const BlogCategoryListPage = lazy(() => import("../features/blogs").then(m => ({ default: m.BlogCategoryListPage })));
 const BlogCategoryCreatePage = lazy(() => import("../features/blogs").then(m => ({ default: m.BlogCategoryCreatePage })));
@@ -51,7 +51,7 @@ const TicketServiceCategoryListPage = lazy(() => import("../pages/ticket-service
 const TicketServiceCategoryCreatePage = lazy(() => import("../pages/ticket-service-category/TicketServiceCategoryCreatePage").then(m => ({ default: m.TicketServiceCategoryCreatePage })));
 const TicketServiceCategoryEditPage = lazy(() => import("../pages/ticket-service-category/TicketServiceCategoryEditPage").then(m => ({ default: m.TicketServiceCategoryEditPage })));
 const TicketServiceCategoryDetailPage = lazy(() => import("../pages/ticket-service-category/TicketServiceCategoryDetailPage").then(m => ({ default: m.TicketServiceCategoryDetailPage })));
-const RoleListPage = lazy(() => import("../pages/role/RoleListPage").then(m => ({ default: m.RoleListPage })));
+const RoleListPage = lazy(() => import("../features/role").then(m => ({ default: m.RoleListPage })));
 const AdminListPage = lazy(() => import("../features/users").then(m => ({ default: m.AdminListPage })));
 const AdminCreatePage = lazy(() => import("../features/users").then(m => ({ default: m.AdminCreatePage })));
 const AdminEditPage = lazy(() => import("../features/users").then(m => ({ default: m.AdminEditPage })));
@@ -63,9 +63,9 @@ const ClientCreatePage = lazy(() => import("../features/users").then(m => ({ def
 const ClientEditPage = lazy(() => import("../features/users").then(m => ({ default: m.ClientEditPage })));
 const ClientDetailPage = lazy(() => import("../features/users").then(m => ({ default: m.ClientDetailPage })));
 const ClientChangePasswordPage = lazy(() => import("../features/users").then(m => ({ default: m.ClientChangePasswordPage })));
-const StreetAgentListPage = lazy(() => import("../pages/street-agent/StreetAgentListPage").then(m => ({ default: m.StreetAgentListPage })));
-const StreetAgentCreatePage = lazy(() => import("../pages/street-agent/StreetAgentCreatePage").then(m => ({ default: m.StreetAgentCreatePage })));
-const StreetAgentEditPage = lazy(() => import("../pages/street-agent/StreetAgentEditPage").then(m => ({ default: m.StreetAgentEditPage })));
+const StreetAgentListPage = lazy(() => import("../features/street-agent").then(m => ({ default: m.StreetAgentListPage })));
+const StreetAgentCreatePage = lazy(() => import("../features/street-agent").then(m => ({ default: m.StreetAgentCreatePage })));
+const StreetAgentEditPage = lazy(() => import("../features/street-agent").then(m => ({ default: m.StreetAgentEditPage })));
 const TicketServiceOrderListPage = lazy(() => import("../pages/ticket-service-order/TicketServiceOrderListPage").then(m => ({ default: m.TicketServiceOrderListPage })));
 const TicketServiceOrderCreatePage = lazy(() => import("../pages/ticket-service-order/TicketServiceOrderCreatePage").then(m => ({ default: m.TicketServiceOrderCreatePage })));
 const TicketServiceOrderEditPage = lazy(() => import("../pages/ticket-service-order/TicketServiceOrderEditPage").then(m => ({ default: m.TicketServiceOrderEditPage })));
@@ -82,12 +82,12 @@ const StaffStatisticsPage = lazy(() => import("../pages/dashboard/statistics/Sta
 const ScheduleCalendarPage = lazy(() => import("../pages/hr/ScheduleCalendarPage").then(m => ({ default: m.ScheduleCalendarPage })));
 const ShiftListPage = lazy(() => import("../pages/hr/ShiftListPage").then(m => ({ default: m.ShiftListPage })));
 const DepartmentListPage = lazy(() => import("../pages/hr/DepartmentListPage").then(m => ({ default: m.DepartmentListPage })));
-const OrderListPage = lazy(() => import("../pages/order/OrderListPage").then(m => ({ default: m.OrderListPage })));
-const OrderDetailPage = lazy(() => import("../pages/order/OrderDetailPage").then(m => ({ default: m.OrderDetailPage })));
-const CounterOrderCreatePage = lazy(() => import("../pages/order/CounterOrderCreatePage").then(m => ({ default: m.CounterOrderCreatePage })));
+const OrderListPage = lazy(() => import("../features/orders").then(m => ({ default: m.OrderListPage })));
+const OrderDetailPage = lazy(() => import("../features/orders").then(m => ({ default: m.OrderDetailPage })));
+const CounterOrderCreatePage = lazy(() => import("../features/orders").then(m => ({ default: m.CounterOrderCreatePage })));
 const ChatPage = lazy(() => import("../pages/chat/ChatPage").then(m => ({ default: m.ChatPage })));
 const ReviewListPage = lazy(() => import("../pages/review/ReviewListPage").then(m => ({ default: m.ReviewListPage })));
-const NotificationListPage = lazy(() => import("../pages/notification/NotificationListPage").then(m => ({ default: m.NotificationListPage })));
+const NotificationListPage = lazy(() => import("../features/notifications").then(m => ({ default: m.NotificationListPage })));
 const SupportTicketListPage = lazy(() => import("../pages/support-ticket/SupportTicketListPage").then(m => ({ default: m.SupportTicketListPage })));
 const SupportTicketDetailPage = lazy(() => import("../pages/support-ticket/SupportTicketDetailPage").then(m => ({ default: m.SupportTicketDetailPage })));
 const ImportBatchListPage = lazy(() => import("../pages/import-batch/ImportBatchListPage").then(m => ({ default: m.ImportBatchListPage })));
@@ -127,10 +127,10 @@ export const AdminRoutes = [
     { path: "ticket/expired", element: <PermissionGuard permission={PERMISSIONS.TICKET.VIEW}><ExpiredTicketListPage /></PermissionGuard> },
     { path: "draw-results", element: <PermissionGuard permission={PERMISSIONS.LOTTERY_RESULT.VIEW}><DrawResultPage /></PermissionGuard> },
     { path: "prize-structures/list", element: <PermissionGuard permission={PERMISSIONS.PRIZE_STRUCTURE.VIEW}><PrizeStructureListPage /></PermissionGuard> },
-    { path: "provider/list", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><ProviderListPage /></PermissionGuard> },
-    { path: "provider/create", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.CREATE}><ProviderCreatePage /></PermissionGuard> },
-    { path: "provider/edit/:id", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.EDIT}><ProviderEditPage /></PermissionGuard> },
-    { path: "provider/detail/:id", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><ProviderDetailPage /></PermissionGuard> },
+    { path: "provider/list", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><StationListPage /></PermissionGuard> },
+    { path: "provider/create", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.CREATE}><StationCreatePage /></PermissionGuard> },
+    { path: "provider/edit/:id", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.EDIT}><StationEditPage /></PermissionGuard> },
+    { path: "provider/detail/:id", element: <PermissionGuard permission={PERMISSIONS.PROVIDER.VIEW}><StationDetailPage /></PermissionGuard> },
     { path: "region/list", element: <PermissionGuard permission={PERMISSIONS.REGION.VIEW}><RegionListPage /></PermissionGuard> },
     { path: "ticketService/list", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE.VIEW}><TicketServiceListPage /></PermissionGuard> },
     { path: "ticketService/create", element: <PermissionGuard permission={PERMISSIONS.TICKET_SERVICE.CREATE}><TicketServiceCreatePage /></PermissionGuard> },

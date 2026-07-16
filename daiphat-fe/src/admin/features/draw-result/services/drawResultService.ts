@@ -1,5 +1,5 @@
 import { apiApp } from '../../../../api';
-import { ApiResponse } from '../../../config/type';
+import { ApiResponse } from '../../../../types/api.type';
 import Cookies from 'js-cookie';
 import { STORAGE_KEYS } from '../../../../constants/storage.constants';
 import {
