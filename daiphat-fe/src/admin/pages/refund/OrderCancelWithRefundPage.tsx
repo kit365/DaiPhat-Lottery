@@ -29,7 +29,7 @@ import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import { prefixAdmin } from '../../constants/routes';
-import { useOrderDetail } from '../order/hooks/useOrderManagement';
+import { useOrderDetail } from '../../features/orders/hooks/useOrder';
 import { useCancelOrderWithRefund } from './hooks/useRefundManagement';
 import { OrderStatus, resolveOrderDetailStatusBadge } from '../../../types/order.type';
 import {
@@ -40,7 +40,7 @@ import {
 import {
     resolveOrderDetailTicketDisplay,
     type IncidentTicketDisplay,
-} from '../order/constants/incidentTicket.constants';
+} from '../../features/orders/constants/incidentTicket.constants';
 import { UploadFiles } from '../../components/ui/UploadFiles';
 
 type StaffCancelType = StaffCancelOrderWithRefundRequest['cancelType'];

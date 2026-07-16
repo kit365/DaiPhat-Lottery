@@ -27,7 +27,7 @@ import {
     useInitiateUserPasswordReset,
     useUploadUserAvatar
 } from "../../hooks/useUsers";
-import { useRoles } from "../../../../hooks/useRole";
+import { useRoles } from "../../../role/hooks/useRole";
 import { StaffTicketServiceOrderHistory } from "../sections/StaffBookingHistory";
 import { StaffBoardingHistory } from "../sections/StaffBoardingHistory";
 import { useForm, Controller } from "react-hook-form";

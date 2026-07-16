@@ -78,6 +78,7 @@ export const TicketAttributeList = ({ isTrash = false }: { isTrash?: boolean }) 
                     initialState={columnsInitialState}
                     getRowHeight={() => 'auto'}
                     disableRowSelectionOnClick
+                    className="admin-datagrid"
                     sx={dataGridStyles}
                 />
             </div>

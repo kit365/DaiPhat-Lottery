@@ -10,8 +10,8 @@ import { confirmDelete } from "../../utils/swal";
 import { prefixAdmin } from "../../constants/routes";
 import { Search } from "../../components/ui/Search";
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../assets/icons";
-import { DATA_GRID_LOCALE_VN } from "../role/configs/localeText.config";
-import { dataGridStyles, dataGridContainerStyles } from "../role/configs/styles.config";
+import { DATA_GRID_LOCALE_VN } from "../../../shared/components/DataTable/localeText.config";
+import { dataGridStyles } from "../ticket/configs/styles.config";
 import { ExportImport } from "../../components/ui/ExportImport";
 
 const TabBadge = styled('span')(() => ({
@@ -303,8 +303,9 @@ export const TicketSubtypeListPage = () => {
                     </Box>
                 </Box>
 
-                <Box sx={{ ...dataGridContainerStyles, minHeight: '500px' }}>
+                <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 500 }}>
                     <DataGrid
+                        className="admin-datagrid"
                         getRowHeight={() => 'auto'}
                         checkboxSelection
                         disableRowSelectionOnClick
@@ -335,33 +336,7 @@ export const TicketSubtypeListPage = () => {
                             setPageSize(model.pageSize);
                         }}
                         pageSizeOptions={[5, 10, 25]}
-                        sx={{
-                            ...dataGridStyles,
-                            border: 'none',
-                            '& .MuiDataGrid-columnHeader': {
-                                bgcolor: 'var(--palette-background-neutral)',
-                                color: 'var(--palette-text-secondary)',
-                                fontSize: '1rem',
-                                fontWeight: 600,
-                                paddingX: '24px',
-                            },
-                            '& .MuiDataGrid-columnHeaderTitleContainer': {
-                                paddingX: '16px',
-                            },
-                            '& .MuiDataGrid-columnHeaderCheckbox .MuiDataGrid-columnHeaderTitleContainer': {
-                                padding: 0,
-                            },
-                            '& .MuiDataGrid-cell': {
-                                borderBottom: '1px dashed var(--palette-background-neutral)',
-                                paddingX: '8px',
-                            },
-                            '& .MuiDataGrid-row:hover': {
-                                bgcolor: 'var(--palette-action-hover)'
-                            },
-                            '& .MuiDataGrid-columnHeader--moving': {
-                                bgcolor: 'var(--palette-background-neutral)',
-                            },
-                        }}
+                        sx={dataGridStyles}
                     />
                 </Box>
             </Card>

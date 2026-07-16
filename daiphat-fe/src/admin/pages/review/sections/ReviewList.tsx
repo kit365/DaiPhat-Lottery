@@ -7,7 +7,7 @@ import { dataGridContainerStyles, dataGridStyles } from '../configs/styles.confi
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../assets/icons';
 import { Search } from '../../../components/ui/Search';
 import { ExportImport } from '../../../components/ui/ExportImport';
-import { DATA_GRID_LOCALE_VN } from '../../role/configs/localeText.config';
+import { DATA_GRID_LOCALE_VN } from '../../../../shared/components/DataTable/localeText.config';
 
 const STATUS_OPTIONS = [
     { value: 'all', label: 'Tất cả' },
@@ -100,6 +100,7 @@ export const ReviewList = () => {
 
             <Box sx={dataGridContainerStyles}>
                 <DataGrid
+                    className="admin-datagrid"
                     rows={reviews}
                     loading={isLoading}
                     columns={columns}
@@ -110,9 +111,7 @@ export const ReviewList = () => {
                         columnUnsortedIcon: UnsortedIcon,
                         noRowsOverlay: () => (
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                                <Typography sx={{ fontSize: '0.875rem', color: 'var(--palette-text-secondary)' }}>
-                                    Không có dữ liệu để hiển thị
-                                </Typography>
+                                <span className="admin-datagrid-empty">Không có dữ liệu để hiển thị</span>
                             </Box>
                         )
                     }}
@@ -135,32 +134,7 @@ export const ReviewList = () => {
                     getRowHeight={() => 'auto'}
                     checkboxSelection
                     disableRowSelectionOnClick
-                    sx={{
-                        ...dataGridStyles,
-                        border: 'none',
-                        '& .MuiDataGrid-columnHeaders': {
-                            bgcolor: 'var(--palette-background-neutral)',
-                            borderBottom: '1px solid var(--palette-divider)',
-                        },
-                        '& .MuiDataGrid-columnHeader': {
-                            bgcolor: 'var(--palette-background-neutral)',
-                            color: 'var(--palette-text-secondary)',
-                            fontSize: '0.875rem',
-                            fontWeight: 600,
-                        },
-                        '& .MuiDataGrid-columnHeaderTitleContainer': {
-                            paddingX: '16px',
-                        },
-                        '& .MuiDataGrid-columnHeaderCheckbox .MuiDataGrid-columnHeaderTitleContainer': {
-                            padding: 0,
-                        },
-                        '& .MuiDataGrid-cell': {
-                            borderBottom: '1px dashed var(--palette-background-neutral)',
-                        },
-                        '& .MuiDataGrid-row:hover': {
-                            bgcolor: 'var(--palette-action-hover)'
-                        }
-                    }}
+                    sx={dataGridStyles}
                 />
             </Box>
         </Card>

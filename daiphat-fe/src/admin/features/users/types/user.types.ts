@@ -1,4 +1,4 @@
-import { BaseQueryParams } from "../../../config/type";
+import { BaseQueryParams } from "../../../../types/api.type";
 import { UserStatus } from "../../../../types/user.type";
 
 export interface UserQueryParams extends BaseQueryParams {

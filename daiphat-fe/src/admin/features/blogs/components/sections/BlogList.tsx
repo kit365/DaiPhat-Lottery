@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { DeleteIcon, EditIcon, EyeIcon, ThreeDotsIcon, SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../../assets/icons";
 import { prefixAdmin } from "../../../../constants/routes";
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { dataGridStyles } from "../../../../pages/ticket/configs/styles.config";
 
 import dayjs from "dayjs";
 import 'dayjs/locale/vi';
@@ -293,18 +294,12 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
         }] : []),
     ];
 
-    if (isLoading) {
+    if (viewMode === 'grid' && (isLoading || blogs.length === 0)) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-                <CircularProgress color="inherit" />
-            </Box>
-        );
-    }
-
-    if (blogs.length === 0) {
-        return (
-            <Box sx={{ textAlign: 'center', py: 5, fontSize: '1rem', color: 'var(--palette-text-secondary)' }}>
-                {t("admin.common.no_data")}
+            <Box sx={{ height: 640, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {isLoading
+                    ? <CircularProgress color="inherit" />
+                    : <span className="text-[1.125rem]">{t("admin.common.no_data")}</span>}
             </Box>
         );
     }
@@ -312,38 +307,38 @@ export const BlogList = ({ blogs = [], isLoading = false, page, onPageChange, pa
     return (
         <>
             {viewMode === 'list' ? (
-                <Card elevation={0} sx={{ height: 640, display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <DataGrid
-                            rows={currentData.map(b => ({ ...b, id: b._id || b.id }))}
-                            getRowId={(row) => row.id}
-                            loading={isLoading}
-                            columns={columns}
-                            density="comfortable"
-                            slots={{
-                                columnSortedAscendingIcon: SortAscendingIcon,
-                                columnSortedDescendingIcon: SortDescendingIcon,
-                                columnUnsortedIcon: UnsortedIcon,
-                                noRowsOverlay: () => (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                                        {isLoading ? <CircularProgress size={32} /> : <span className='text-[1.125rem]'>{t("admin.common.no_data")}</span>}
-                                    </Box>
-                                )
-                            }}
-                            localeText={DATA_GRID_LOCALE_VN}
-                            hideFooterPagination
-
-                            getRowHeight={() => 'auto'}
-                            disableRowSelectionOnClick
-                        />
-                    </div>
-                </Card>
+                <Box sx={{ height: 640, width: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <DataGrid
+                        rows={currentData.map(b => ({ ...b, id: b._id || b.id }))}
+                        getRowId={(row) => row.id}
+                        loading={isLoading}
+                        columns={columns}
+                        density="comfortable"
+                        className="admin-datagrid"
+                    sx={dataGridStyles}
+                        slots={{
+                            columnSortedAscendingIcon: SortAscendingIcon,
+                            columnSortedDescendingIcon: SortDescendingIcon,
+                            columnUnsortedIcon: UnsortedIcon,
+                            noRowsOverlay: () => (
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                                    {isLoading ? <CircularProgress size={32} /> : <span className='text-[1.125rem]'>{t("admin.common.no_data")}</span>}
+                                </Box>
+                            )
+                        }}
+                        localeText={DATA_GRID_LOCALE_VN}
+                        hideFooterPagination
+                        getRowHeight={() => 'auto'}
+                        disableRowSelectionOnClick
+                    />
+                </Box>
             ) : (
                 <Box
                     sx={{
                         display: "grid",
                         gap: "calc(3 * var(--spacing))",
                         gridTemplateColumns: "repeat(2, 1fr)",
+                        p: "20px",
                     }}
                 >
                     {currentData.map((blog: any) => {

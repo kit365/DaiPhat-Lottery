@@ -18,7 +18,7 @@ import { Icon } from "@iconify/react";
 import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { useTicketServiceOrderDetail, useUpdateTicketServiceOrderStatus, useUpdateTicketServiceOrder, useTicketServiceOrders, useApplyOptimization } from "./hooks/useTicketServiceOrderManagement";
-import { useNotifications } from "../../hooks/useNotification";
+import { useNotifications } from "../../features/notifications/hooks/useNotification";
 import { toast } from "react-toastify";
 import { prefixAdmin } from "../../constants/routes";
 import { confirmAction, confirmInputText } from "../../utils/swal";

@@ -38,7 +38,7 @@ import {
 } from './hooks/useImportBatch';
 import { useImportBatchEditDraft } from './hooks/useImportBatchEditDraft';
 import { useActiveSuppliers } from '../supplier/hooks/useSupplier';
-import { useProviders } from '../provider/hooks/useProvider';
+import { useStations } from '../../features/station/hooks/useStation';
 import {
     updateImportBatchSchema,
     type UpdateImportBatchFormValues,
@@ -128,7 +128,7 @@ export const ImportBatchEditPage = () => {
     const { data: batch, isLoading: isBatchLoading, isError: isBatchError, refetch: refetchBatch } = useImportBatchDetail(id);
     const { mutateAsync: updateAsync, isPending } = useUpdateImportBatch(id);
     const { data: activeSuppliers = [], isLoading: isLoadingSuppliers } = useActiveSuppliers();
-    const { data: providersRes } = useProviders({ size: 1000 });
+    const { data: providersRes } = useStations({ size: 1000 });
     const providers = useMemo(
         () => (providersRes as { data?: { recordList?: Array<{ id?: number; _id?: number; name?: string }> } })?.data?.recordList ?? [],
         [providersRes]

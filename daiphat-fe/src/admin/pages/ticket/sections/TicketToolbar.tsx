@@ -8,7 +8,7 @@ import { Columns } from "../../../components/ui/Columns";
 import { ExportButton } from "../../../components/ui/ExportButton";
 import { SettingsList } from "../../../components/ui/SettingsList";
 import { toolbarStyles } from "../configs/styles.config";
-import { useProviders } from "../../provider/hooks/useProvider";
+import { useStations } from '../../../features/station/hooks/useStation';
 import dayjs from "dayjs";
 
 interface ToolbarProps {
@@ -35,7 +35,7 @@ export const TicketToolbar = ({
     onSearchChange,
 }: ToolbarProps) => {
     const { t } = useTranslation();
-    const { data: providersData } = useProviders({ size: 1000 });
+    const { data: providersData } = useStations({ size: 1000 });
     
     const filterFields = useMemo(() => {
         const providerList = providersData?.data?.recordList || [];

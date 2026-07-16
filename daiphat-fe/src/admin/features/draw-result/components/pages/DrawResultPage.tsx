@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Button } from '@mui/material';
+import { Button } from '@mui/material';
 import SyncIcon from '@mui/icons-material/Sync';
 import dayjs from 'dayjs';
 import { Title } from '../../../../components/ui/Title';
@@ -40,8 +40,8 @@ export const DrawResultPage: React.FC = () => {
     );
 
     return (
-        <Box className="admin-list-page">
-            <div className="admin-list-header">
+        <>
+            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
                 <div className="mr-auto">
                     <Title title="Kết quả Xổ số" />
                     <Breadcrumb
@@ -52,7 +52,7 @@ export const DrawResultPage: React.FC = () => {
                         ]}
                     />
                 </div>
-                <div className="admin-list-header__actions">
+                <div>
                     <CanAccess permission={PERMISSIONS.LOTTERY_RESULT.SYNC}>
                         <Button
                             onClick={() => setIsSyncModalOpen(true)}
@@ -66,7 +66,7 @@ export const DrawResultPage: React.FC = () => {
                 </div>
             </div>
 
-            <DrawResultList 
+            <DrawResultList
                 data={filteredRows}
                 isLoading={isLoading}
                 isRefreshing={isFetching && !isLoading}
@@ -87,7 +87,7 @@ export const DrawResultPage: React.FC = () => {
                 onViewDetails={(id) => setSelectedResultId(id)}
             />
 
-            <DrawResultSyncModal 
+            <DrawResultSyncModal
                 open={isSyncModalOpen}
                 initialRegion={region}
                 initialDateMode={dateMode}
@@ -119,10 +119,10 @@ export const DrawResultPage: React.FC = () => {
                 onClose={() => setIsSyncModalOpen(false)}
             />
 
-            <DrawResultDetailModal 
+            <DrawResultDetailModal
                 resultId={selectedResultId}
                 onClose={() => setSelectedResultId(null)}
             />
-        </Box>
+        </>
     );
 };

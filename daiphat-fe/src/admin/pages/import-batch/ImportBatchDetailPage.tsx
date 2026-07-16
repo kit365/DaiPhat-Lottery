@@ -22,7 +22,7 @@ import { CanAccess } from '../../components/auth/CanAccess';
 import { PERMISSIONS } from '../../constants/permission.constants';
 import { prefixAdmin, ROUTES } from '../../constants/routes';
 import { useImportBatchDetail } from './hooks/useImportBatch';
-import { useProviders } from '../provider/hooks/useProvider';
+import { useStations } from '../../features/station/hooks/useStation';
 import {
     getBatchTypeLabel,
     getImportBatchCancelledAlertMessage,
@@ -55,7 +55,7 @@ export const ImportBatchDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { data: batch, isLoading } = useImportBatchDetail(id);
-    const { data: providersRes } = useProviders({ size: 1000 });
+    const { data: providersRes } = useStations({ size: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
 
     const resolveStationName = (stationId: number) =>
