@@ -29,6 +29,10 @@ public class SystemConfigApplicationMapper {
         Object parsed = SystemConfigValueValidator.parse(request.configValue(), model.getDataType());
         if (parsed instanceof String normalized) {
             model.setConfigValue(normalized);
+        } else if (parsed instanceof Boolean bool) {
+            model.setConfigValue(bool.toString());
+        } else if (parsed instanceof Integer number) {
+            model.setConfigValue(String.valueOf(number));
         } else {
             model.setConfigValue(request.configValue().trim());
         }

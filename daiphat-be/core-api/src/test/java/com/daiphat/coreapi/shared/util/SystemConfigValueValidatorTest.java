@@ -31,6 +31,27 @@ class SystemConfigValueValidatorTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"true", "TRUE", " True "})
+    void parse_boolean_acceptsTrue(String value) {
+        assertThat(SystemConfigValueValidator.parse(value, DataType.BOOLEAN)).isEqualTo(true);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"false", "FALSE", " False "})
+    void parse_boolean_acceptsFalse(String value) {
+        assertThat(SystemConfigValueValidator.parse(value, DataType.BOOLEAN)).isEqualTo(false);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"yes", "1", "0", "abc", ""})
+    void parse_boolean_rejectsInvalidValues(String value) {
+        assertThatThrownBy(() -> SystemConfigValueValidator.parse(value, DataType.BOOLEAN))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"14:30", "9:05", "23:59"})
     void parse_time_acceptsValidValues(String value) {
         Object result = SystemConfigValueValidator.parse(value, DataType.TIME);

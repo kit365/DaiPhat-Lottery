@@ -7,6 +7,7 @@ export enum ConfigType {
 export enum ConfigDataType {
     INT = 'INT',
     TIME = 'TIME',
+    BOOLEAN = 'BOOLEAN',
 }
 
 export const CONFIG_TYPE_LABELS: Record<ConfigType, string> = {
@@ -18,6 +19,7 @@ export const CONFIG_TYPE_LABELS: Record<ConfigType, string> = {
 export const CONFIG_DATA_TYPE_LABELS: Record<ConfigDataType, string> = {
     [ConfigDataType.INT]: 'Số nguyên',
     [ConfigDataType.TIME]: 'Thời gian (HH:mm)',
+    [ConfigDataType.BOOLEAN]: 'Boolean (true/false)',
 };
 
 export interface SystemConfigResponse {
