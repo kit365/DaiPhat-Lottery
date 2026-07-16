@@ -13,7 +13,7 @@ public class LotteryStationNextDrawDateScheduler {
 
     private final LotteryStationServicePort lotteryStationServicePort;
 
-    @Scheduled(cron = "${daiphat.lottery.station-next-draw-recalculate-cron:0 0 0 * * *}")
+    @Scheduled(cron = "${daiphat.lottery.station-next-draw-recalculate-cron}")
     public void recalculateNextDrawDates() {
         int updatedCount = lotteryStationServicePort.recalculateNextDrawDates();
         log.info("Recalculated next draw date for {} lottery stations", updatedCount);

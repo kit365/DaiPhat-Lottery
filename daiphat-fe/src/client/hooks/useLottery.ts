@@ -6,7 +6,6 @@ import {
   LotteryResult,
   DisplayType,
   LotteryStationDraw,
-  PrizeStructureResponse,
   TicketCheckResult,
   buildRecentDateOptions,
   formatDisplayDateToApi,

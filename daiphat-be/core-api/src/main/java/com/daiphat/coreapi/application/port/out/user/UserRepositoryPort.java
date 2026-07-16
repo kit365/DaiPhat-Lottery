@@ -4,7 +4,6 @@ import com.daiphat.coreapi.domain.model.UserModel;
 import com.daiphat.coreapi.domain.model.enums.user.UserStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,16 +39,4 @@ public interface UserRepositoryPort {
 
     void deleteById(UUID id);
 
-    Optional<String> findStaffInviteTokenByEmail(String email);
-
-    void savePendingStaffInvite(
-            String email,
-            String roleCode,
-            String token,
-            UUID invitedById,
-            LocalDateTime invitedAt,
-            LocalDateTime expiresAt
-    );
-
-    void approveStaffInviteByToken(String token);
 }

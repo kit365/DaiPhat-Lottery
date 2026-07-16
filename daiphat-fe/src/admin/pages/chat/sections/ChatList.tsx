@@ -29,7 +29,6 @@ import {
     Badge
 } from "@mui/material";
 import { Icon } from "@iconify/react";
-import { ChatIcon } from './icons/ChatIcon';
 import { adminChatDetailKey, ADMIN_CHAT_CONVERSATIONS_KEY } from '../../../hooks/useChat';
 import { MessageSenderRole, ConversationStatusEnum } from '../../../../types/chat.type';
 import { SortOrderEnum } from '../../../../constants/common.constants';
@@ -73,8 +72,8 @@ import { SortButton } from "../../../components/ui/SortButton";
 import { SettingsList } from "../../../components/ui/SettingsList";
 import { Conversation } from '../../../../types/chat.type';
 import { useAuthStore } from '../../../../stores/useAuthStore';
-import { useAccounts } from '../../account-admin/hooks/useAccountAdmin';
-import { RoleEnum } from '../../account-admin/configs/constants';
+import { useAccounts } from '../../../features/users/hooks/useUsers';
+import { RoleEnum } from "../../../../types/role.type";
 
 type AssigneeFilter = 'all' | 'unassigned' | 'mine' | string;
 

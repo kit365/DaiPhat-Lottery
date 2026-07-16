@@ -4,6 +4,7 @@ import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.application.config.AuthProperties;
 import com.daiphat.coreapi.infrastructure.security.jwt.JwtAuthenticationFilter;
 import com.daiphat.coreapi.infrastructure.websocket.WebSocketConfig;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,6 +39,13 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, exception) ->
+                                response.sendError(
+                                        HttpServletResponse.SC_UNAUTHORIZED,
+                                        "Authentication required"
+                                ))
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/v3/api-docs/**",
@@ -56,7 +64,6 @@ public class SecurityConfig {
                                 AUTH + "/register",
                                 AUTH + "/register/resend-verification",
                                 AUTH + "/forgot-password/**",
-                                ApiConstants.API_V1 + "/users/accept-invite",
                                 ApiConstants.API_V1 + "/transactions/payment/webhook/*"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,

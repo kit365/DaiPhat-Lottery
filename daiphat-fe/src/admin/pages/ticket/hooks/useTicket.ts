@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     getTickets,
-    getCreateTicketData,
     createTicket,
     bulkCreateTickets,
     getTicketById,
@@ -22,14 +21,6 @@ export const useTicketList = (params?: any, options?: any) => {
         queryKey: ['tickets', params],
         queryFn: () => getTickets(params),
         ...options,
-    });
-};
-
-export const useCreateTicketData = () => {
-    return useQuery({
-        queryKey: ['ticket-create-data'],
-        queryFn: getCreateTicketData,
-        select: (res: ApiResponse<any>) => res.data,
     });
 };
 

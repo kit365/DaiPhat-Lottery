@@ -39,6 +39,8 @@ public class UserModel {
     private boolean hasPassword;
     private boolean agreedToTerms;
     private String password;
+    @Builder.Default
+    private long authVersion = 0L;
 
     // Rate Limit & Account Locking
     @Builder.Default
@@ -165,6 +167,10 @@ public class UserModel {
         }
         this.password = password;
         this.hasPassword = true;
+    }
+
+    public void revokeAllSessions() {
+        this.authVersion++;
     }
 
     public void markEmailVerified() {

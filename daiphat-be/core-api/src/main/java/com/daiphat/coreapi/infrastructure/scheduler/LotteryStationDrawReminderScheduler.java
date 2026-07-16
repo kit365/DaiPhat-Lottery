@@ -13,7 +13,7 @@ public class LotteryStationDrawReminderScheduler {
 
     private final LotteryStationServicePort lotteryStationServicePort;
 
-    @Scheduled(cron = "${daiphat.lottery.draw-reminder-cron:0 * * * * *}")
+    @Scheduled(cron = "${daiphat.lottery.draw-reminder-cron}")
     public void sendUpcomingDrawReminders() {
         int notifiedCount = lotteryStationServicePort.sendUpcomingDrawReminderNotifications();
         if (notifiedCount > 0) {
