@@ -101,8 +101,8 @@ export const parseTicketSuggestToken = (content: string): ParsedTicketSuggest | 
 
     const defaultText =
       tickets.length === 1
-        ? 'Đại Phát gợi ý 1 vé đang bán hôm nay.'
-        : `Đại Phát gợi ý ${tickets.length} vé đang bán hôm nay.`;
+        ? 'Dưới đây là 1 vé đang bán hôm nay dành cho quý khách:'
+        : `Dưới đây là ${tickets.length} vé đang bán hôm nay dành cho quý khách:`;
 
     return {
       text: leading || defaultText,
@@ -112,4 +112,64 @@ export const parseTicketSuggestToken = (content: string): ParsedTicketSuggest | 
   } catch {
     return null;
   }
+};
+
+/**
+ * Splits fortune/advisory prose from the ticket intro line so the UI can show
+ * a bot bubble first, then "Dưới đây là các vé..." + cards.
+ * Legacy status lines ("Đang tìm vé...", "tìm thấy...", "Gợi ý...") are dropped.
+ */
+export const splitTicketSuggestText = (
+  text: string
+): { reply: string; caption: string } => {
+  const trimmed = text?.trim() ?? '';
+  if (!trimmed) {
+    return { reply: '', caption: '' };
+  }
+
+  const isLegacyStatusLine = (part: string): boolean => {
+    const line = part.trim();
+    return /^(đang|Đang)\s+tìm vé(?:\s|:|$)/.test(line)
+      || /^(đại phát|Đại Phát)\s+(gợi ý|tìm thấy)(?:\s|$)/.test(line)
+      || /^(gợi ý|tìm thấy)(?:\s|$)/.test(line);
+  };
+
+  const isTicketIntroLine = (part: string): boolean => {
+    const line = part.trim();
+    return /^(dưới đây|Dưới đây)\s+là(?:\s|$)/.test(line)
+      || /^(hiện|Hiện)\s+(Đại Phát|đại phát|kho)\s+chưa có vé(?:\s|$)/.test(line)
+      || /^(một số|Một số)\s+vé đang bán(?:\s|$)/.test(line)
+      || /trong lúc đó,\s+dưới đây là/i.test(line);
+  };
+
+  const parts = trimmed
+    .split(/\n\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => !isLegacyStatusLine(part));
+
+  if (parts.length === 0) {
+    return { reply: '', caption: '' };
+  }
+
+  if (parts.length === 1) {
+    const only = parts[0] ?? '';
+    if (isTicketIntroLine(only)) {
+      return { reply: '', caption: only };
+    }
+    return { reply: only, caption: '' };
+  }
+
+  const last = parts[parts.length - 1] ?? '';
+  if (isTicketIntroLine(last)) {
+    return {
+      reply: parts.slice(0, -1).join('\n\n'),
+      caption: last,
+    };
+  }
+
+  return {
+    reply: parts.join('\n\n'),
+    caption: '',
+  };
 };

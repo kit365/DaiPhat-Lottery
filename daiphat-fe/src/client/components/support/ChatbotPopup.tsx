@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { InfiniteData, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircle, X, Minus, Send } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast } from '../../../utils/toast.util';
 import { useAuth } from '../../hooks/useAuth';
@@ -42,6 +43,7 @@ import {
 } from '../../utils/scheduleToken.util';
 import {
   parseTicketSuggestToken,
+  splitTicketSuggestText,
   type ChatSuggestedTicket,
 } from '../../utils/ticketSuggestToken.util';
 import {
@@ -60,7 +62,7 @@ interface Message {
   sender: 'bot' | 'user';
   text: string;
   timestamp: string;
-  variant?: 'bubble' | 'divider' | 'date' | 'schedule' | 'schedule-options' | 'schedule-ask-location' | 'schedule-ask-station' | 'schedule-ask-date' | 'schedule-ask-date-mode' | 'schedule-confirm-station' | 'schedule-region-choice' | 'schedule-result' | 'ticket-suggest';
+  variant?: 'bubble' | 'divider' | 'date' | 'schedule' | 'schedule-options' | 'schedule-ask-location' | 'schedule-ask-station' | 'schedule-ask-date' | 'schedule-ask-date-mode' | 'schedule-confirm-station' | 'schedule-region-choice' | 'schedule-result' | 'ticket-suggest' | 'typing';
   scheduleRegion?: string;
   scheduleStationId?: number;
   scheduleStationIds?: number[];
@@ -163,7 +165,8 @@ const isSystemNoticeText = (text: string): boolean => {
     isAiHandoffErrorText(text) ||
     normalized.includes('đã tiếp nhận') ||
     normalized.includes('đang chờ nhân viên tiếp nhận') ||
-    normalized.includes('yêu cầu của bạn đang chờ')
+    normalized.includes('yêu cầu của bạn đang chờ') ||
+    normalized.includes('huỷ yêu cầu gặp nhân viên')
   );
 };
 
@@ -431,6 +434,17 @@ const buildMessagesFromTimeline = (pages: CustomerChatTimelineResponse[]): Messa
 
 const pruneOverlayMessages = (overlay: Message[], timelineMessages: Message[]): Message[] =>
   overlay.filter((extra) => {
+    if (extra.id.startsWith('optimistic-user-')) {
+      return !timelineMessages.some(
+        (timelineMessage) =>
+          timelineMessage.sender === 'user' && timelineMessage.text.trim() === extra.text.trim()
+      );
+    }
+
+    if (extra.id.startsWith('typing-')) {
+      return true;
+    }
+
     if (extra.id.startsWith('local-')) {
       return !timelineMessages.some((timelineMessage) => timelineMessage.id === extra.id);
     }
@@ -444,6 +458,18 @@ const pruneOverlayMessages = (overlay: Message[], timelineMessages: Message[]): 
     return true;
   });
 
+const formatNowTime = () =>
+  new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+const countBotReplies = (messages: Message[]): number =>
+  messages.filter(
+    (message) =>
+      message.sender === 'bot' &&
+      message.variant !== 'divider' &&
+      message.variant !== 'date' &&
+      message.variant !== 'typing' &&
+      message.id !== 'welcome'
+  ).length;
 export const ChatbotPopup = () => {
   const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
@@ -455,6 +481,7 @@ export const ChatbotPopup = () => {
     loadOpenConversation,
     loadConversationDetail,
     escalateConversation,
+    cancelStaffRequest,
     markConversationAsRead,
     sendRealtimeMessage,
     subscribeToCustomerInbox,
@@ -470,20 +497,28 @@ export const ChatbotPopup = () => {
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [conversationStatus, setConversationStatus] = useState<ConversationStatus | null>(null);
   const [isEscalating, setIsEscalating] = useState(false);
+  const [isCancellingStaff, setIsCancellingStaff] = useState(false);
   const [overlayMessages, setOverlayMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isSendingUi, setIsSendingUi] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesContentRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
   const pendingScrollRestore = useRef(0);
   const shouldStickToBottom = useRef(true);
   const wasAtBottomRef = useRef(true);
   const wasOpenRef = useRef(false);
+  const wasAuthReadyRef = useRef(false);
+  const wasMinimizedRef = useRef(false);
   const timelinePrefetchLockRef = useRef(false);
   const lastMessageIdRef = useRef<string | null>(null);
   const lastReadAckKeyRef = useRef<string | null>(null);
   const initialTimelineScrollDoneRef = useRef(false);
+  const scrollRafRef = useRef<number | null>(null);
+  const awaitingBotReplyRef = useRef(false);
+  const botReplyCountAtSendRef = useRef(0);
   /** Blocks duplicate send while Vietnamese/CJK IME finishes composition after Enter. */
   const isSendingRef = useRef(false);
   /** Discard IME leftover syllables that get re-inserted into a cleared input. */
@@ -753,8 +788,33 @@ export const ChatbotPopup = () => {
     }
   };
 
+  const handleCancelStaffRequest = async () => {
+    if (isCancellingStaff || isEscalating || !conversationId) {
+      return;
+    }
+
+    if (conversationStatus !== 'WAITING_FOR_OPERATOR') {
+      return;
+    }
+
+    setIsCancellingStaff(true);
+    try {
+      const detail = await cancelStaffRequest(conversationId);
+      if (!detail) {
+        return;
+      }
+      applyConversationDetail(detail);
+    } finally {
+      setIsCancellingStaff(false);
+    }
+  };
+
   const handleLoadOlderMessages = useCallback(() => {
     if (!timelineQuery.hasPreviousPage || timelineQuery.isFetchingPreviousPage || !messagesContainerRef.current) {
+      return;
+    }
+    // Avoid prefetch while the panel is still settling on the latest message.
+    if (!initialTimelineScrollDoneRef.current) {
       return;
     }
     pendingScrollRestore.current = messagesContainerRef.current.scrollHeight;
@@ -763,8 +823,46 @@ export const ChatbotPopup = () => {
     void fetchPreviousPage();
   }, [fetchPreviousPage, timelineQuery.hasPreviousPage, timelineQuery.isFetchingPreviousPage]);
 
+  const pinScrollToBottom = useCallback((force = false, behavior: ScrollBehavior = 'auto') => {
+    const container = messagesContainerRef.current;
+    if (!container || !isOpen || isMinimized) {
+      return;
+    }
+    if (!force && !shouldStickToBottom.current && !wasAtBottomRef.current) {
+      return;
+    }
+
+    if (scrollRafRef.current != null) {
+      window.cancelAnimationFrame(scrollRafRef.current);
+    }
+
+    scrollRafRef.current = window.requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      const top = container.scrollHeight;
+      if (behavior === 'smooth' && typeof container.scrollTo === 'function') {
+        container.scrollTo({ top, behavior: 'smooth' });
+      } else {
+        container.scrollTop = top;
+      }
+      shouldStickToBottom.current = true;
+      wasAtBottomRef.current = true;
+    });
+  }, [isMinimized, isOpen]);
+
   useEffect(() => {
-    setOverlayMessages((prev) => pruneOverlayMessages(prev, timelineMessages));
+    setOverlayMessages((prev) => {
+      const pruned = pruneOverlayMessages(prev, timelineMessages);
+      if (!awaitingBotReplyRef.current) {
+        return pruned.filter((message) => !message.id.startsWith('typing-'));
+      }
+
+      const botCount = countBotReplies(timelineMessages);
+      if (botCount > botReplyCountAtSendRef.current) {
+        awaitingBotReplyRef.current = false;
+        return pruned.filter((message) => !message.id.startsWith('typing-'));
+      }
+      return pruned;
+    });
   }, [timelineMessages]);
 
   useEffect(() => {
@@ -784,6 +882,7 @@ export const ChatbotPopup = () => {
       (entries) => {
         if (
           entries[0]?.isIntersecting &&
+          initialTimelineScrollDoneRef.current &&
           timelineQuery.hasPreviousPage &&
           !timelineQuery.isFetchingPreviousPage &&
           !timelinePrefetchLockRef.current
@@ -839,16 +938,52 @@ export const ChatbotPopup = () => {
       hasNewTailMessage &&
       (shouldStickToBottom.current || isNearBottom(container))
     ) {
-      container.scrollTop = container.scrollHeight;
-      shouldStickToBottom.current = true;
-      wasAtBottomRef.current = true;
+      // Smooth after the panel is ready; hard-jump only on first settle.
+      pinScrollToBottom(true, initialTimelineScrollDoneRef.current ? 'smooth' : 'auto');
     }
   }, [
     displayMessages,
     isMinimized,
     isOpen,
+    pinScrollToBottom,
     timelineQuery.isFetchingPreviousPage,
   ]);
+
+  // Keep the latest message visible when rich cards expand — coalesce resize spikes.
+  useEffect(() => {
+    const content = messagesContentRef.current;
+    if (!content || !isOpen || isMinimized) {
+      return;
+    }
+
+    let resizeTimer: number | null = null;
+    const resizeObserver = new ResizeObserver(() => {
+      if (
+        pendingScrollRestore.current > 0 ||
+        timelineQuery.isFetchingPreviousPage
+      ) {
+        return;
+      }
+      if (!(shouldStickToBottom.current || wasAtBottomRef.current)) {
+        return;
+      }
+      if (resizeTimer != null) {
+        window.clearTimeout(resizeTimer);
+      }
+      // Wait a beat so ticket cards finish laying out, then one smooth pin.
+      resizeTimer = window.setTimeout(() => {
+        pinScrollToBottom(true, initialTimelineScrollDoneRef.current ? 'smooth' : 'auto');
+      }, 48);
+    });
+    resizeObserver.observe(content);
+
+    return () => {
+      if (resizeTimer != null) {
+        window.clearTimeout(resizeTimer);
+      }
+      resizeObserver.disconnect();
+    };
+  }, [isMinimized, isOpen, pinScrollToBottom, timelineQuery.isFetchingPreviousPage]);
 
   useEffect(() => {
     if (!isOpen || isMinimized || !isAuthReady) {
@@ -864,18 +999,30 @@ export const ChatbotPopup = () => {
     ) {
       return;
     }
-    const container = messagesContainerRef.current;
-    if (!container) {
-      return;
-    }
-    container.scrollTop = container.scrollHeight;
-    shouldStickToBottom.current = true;
-    wasAtBottomRef.current = true;
-    initialTimelineScrollDoneRef.current = true;
+
+    const frame = window.requestAnimationFrame(() => {
+      pinScrollToBottom(true);
+      // Second pass after paint — schedule/ticket cards may still be measuring.
+      window.requestAnimationFrame(() => {
+        pinScrollToBottom(true);
+        initialTimelineScrollDoneRef.current = true;
+      });
+    });
+
+    const retryTimer = window.setTimeout(() => {
+      pinScrollToBottom(true);
+      initialTimelineScrollDoneRef.current = true;
+    }, 250);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(retryTimer);
+    };
   }, [
     isAuthReady,
     isMinimized,
     isOpen,
+    pinScrollToBottom,
     timelineQuery.data?.pages.length,
     timelineQuery.isFetchingPreviousPage,
     timelineQuery.isLoading,
@@ -893,6 +1040,29 @@ export const ChatbotPopup = () => {
     }
     wasOpenRef.current = isOpen;
   }, [isOpen]);
+
+  useEffect(() => {
+    const unminimized = wasMinimizedRef.current && !isMinimized && isOpen;
+    wasMinimizedRef.current = isMinimized;
+    if (!unminimized) {
+      return;
+    }
+    shouldStickToBottom.current = true;
+    wasAtBottomRef.current = true;
+    initialTimelineScrollDoneRef.current = false;
+  }, [isMinimized, isOpen]);
+
+  // After login while chat is already open, re-pin once timeline is ready.
+  useEffect(() => {
+    const becameReady = isAuthReady && !wasAuthReadyRef.current;
+    wasAuthReadyRef.current = isAuthReady;
+    if (!becameReady || !isOpen || isMinimized) {
+      return;
+    }
+    shouldStickToBottom.current = true;
+    wasAtBottomRef.current = true;
+    initialTimelineScrollDoneRef.current = false;
+  }, [isAuthReady, isMinimized, isOpen]);
 
   useEffect(() => {
     if (!token) {
@@ -1074,6 +1244,18 @@ export const ChatbotPopup = () => {
       return;
     }
 
+    if (event.eventType === 'CONVERSATION_STAFF_REQUEST_CANCELLED') {
+      void loadConversationDetail(event.conversationId).then((detail) => {
+        if (detail) {
+          applyConversationState(detail);
+        } else {
+          setConversationStatus(event.status);
+        }
+        void refreshTimelineMessages();
+      });
+      return;
+    }
+
     if (event.eventType === 'CONVERSATION_TAKEN' || event.eventType === 'CONVERSATION_ASSIGNED') {
       void loadConversationDetail(event.conversationId).then((detail) => {
         if (!detail) {
@@ -1178,6 +1360,7 @@ export const ChatbotPopup = () => {
     sendLockTimeoutRef.current = window.setTimeout(() => {
       suppressInputAfterSendRef.current = false;
       isSendingRef.current = false;
+      setIsSendingUi(false);
       sendLockTimeoutRef.current = null;
       setInputValue((current) => (current.trim() ? '' : current));
     }, 400);
@@ -1193,10 +1376,33 @@ export const ChatbotPopup = () => {
     }
 
     isSendingRef.current = true;
+    setIsSendingUi(true);
     suppressInputAfterSendRef.current = true;
     setInputValue('');
     shouldStickToBottom.current = true;
     wasAtBottomRef.current = true;
+
+    const sendToken = `${Date.now()}`;
+    botReplyCountAtSendRef.current = countBotReplies(timelineMessages);
+    awaitingBotReplyRef.current = true;
+    setOverlayMessages((prev) => [
+      ...prev.filter((message) => !message.id.startsWith('typing-') && !message.id.startsWith('optimistic-user-')),
+      {
+        id: `optimistic-user-${sendToken}`,
+        sender: 'user',
+        text: normalizedText,
+        timestamp: formatNowTime(),
+        variant: 'bubble',
+      },
+      {
+        id: `typing-${sendToken}`,
+        sender: 'bot',
+        text: '',
+        timestamp: formatNowTime(),
+        variant: 'typing',
+      },
+    ]);
+    pinScrollToBottom(true, 'smooth');
 
     const wantsStaff = isExplicitStaffRequestText(normalizedText);
 
@@ -1210,6 +1416,10 @@ export const ChatbotPopup = () => {
         });
 
         if (!detail) {
+          awaitingBotReplyRef.current = false;
+          setOverlayMessages((prev) =>
+            prev.filter((message) => !message.id.startsWith(`typing-${sendToken}`))
+          );
           return;
         }
 
@@ -1243,6 +1453,13 @@ export const ChatbotPopup = () => {
       }
       void refreshTimelineMessages();
     } catch (error) {
+      awaitingBotReplyRef.current = false;
+      setOverlayMessages((prev) =>
+        prev.filter(
+          (message) =>
+            message.id !== `optimistic-user-${sendToken}` && message.id !== `typing-${sendToken}`
+        )
+      );
       AppToast.error('Không thể gửi tin nhắn realtime lúc này.');
     } finally {
       releaseSendLock();
@@ -1371,7 +1588,7 @@ export const ChatbotPopup = () => {
       {!isMinimized && (
         <>
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 bg-[#f8f9fa] scrollbar-thin scrollbar-thumb-gray-200">
-            <div className="flex min-h-full flex-col justify-end gap-3 mx-auto w-full max-w-md px-1">
+            <div ref={messagesContentRef} className="flex min-h-full flex-col justify-end gap-3 mx-auto w-full max-w-md px-1">
               <div ref={topSentinelRef} className="h-px w-full shrink-0" aria-hidden />
 
               {timelineQuery.isFetchingPreviousPage && (
@@ -1554,34 +1771,74 @@ export const ChatbotPopup = () => {
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
                   </div>
-                ) : msg.variant === 'ticket-suggest' ? (
+                ) : msg.variant === 'typing' ? (
                   <div key={msg.id} className="flex w-full justify-start">
                     <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
-                    <div className="w-full max-w-[95%] min-w-0 items-start flex flex-col">
-                      <p className="text-[14px] text-gray-700 mb-2 px-1 whitespace-pre-wrap">{msg.text}</p>
-                      <ChatTicketSuggestCards
-                        tickets={msg.suggestedTickets ?? []}
-                        onBuy={handleBuySuggestedTicket}
-                        disabled={isEscalating || isInitializing || isLoadingOpen}
-                      />
-                      <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {ticketSuggestFollowUpChips({ isEmptyMatch: msg.ticketSuggestEmptyMatch }).map((chip) => (
-                          <button
-                            key={chip.id}
-                            type="button"
-                            onClick={() => void handleQuickReply(chip)}
-                            disabled={isEscalating || isInitializing || isLoadingOpen}
-                            className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
-                          >
-                            {chip.label}
-                          </button>
-                        ))}
-                      </div>
-                      <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
+                    <div className="bg-white text-gray-500 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-3">
+                      <span className="inline-flex gap-1 items-center" aria-label="Đang soạn trả lời">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '120ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '240ms' }} />
+                      </span>
                     </div>
                   </div>
+                ) : msg.variant === 'ticket-suggest' ? (
+                  (() => {
+                    const { reply, caption } = splitTicketSuggestText(msg.text);
+                    return (
+                      <motion.div
+                        key={msg.id}
+                        className="flex w-full flex-col gap-2"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.28, ease: 'easeOut' }}
+                      >
+                        {reply ? (
+                          <div className="flex w-full justify-start">
+                            <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
+                              <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
+                            </div>
+                            <div className="max-w-[85%] min-w-0 items-start flex flex-col">
+                              <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px] whitespace-pre-wrap">
+                                {reply}
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                        <div className="flex w-full justify-start">
+                          <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
+                            <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
+                          </div>
+                          <div className="w-full max-w-[95%] min-w-0 items-start flex flex-col">
+                            {caption ? (
+                              <p className="text-[14px] text-gray-700 mb-2 px-1 whitespace-pre-wrap">{caption}</p>
+                            ) : null}
+                            <ChatTicketSuggestCards
+                              tickets={msg.suggestedTickets ?? []}
+                              onBuy={handleBuySuggestedTicket}
+                              disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
+                            />
+                            <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                              {ticketSuggestFollowUpChips({ isEmptyMatch: msg.ticketSuggestEmptyMatch }).map((chip) => (
+                                <button
+                                  key={chip.id}
+                                  type="button"
+                                  onClick={() => void handleQuickReply(chip)}
+                                  disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
+                                  className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
+                                >
+                                  {chip.label}
+                                </button>
+                              ))}
+                            </div>
+                            <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })()
                 ) : msg.variant === 'divider' ? (
                   <p
                     key={msg.id}
@@ -1619,14 +1876,24 @@ export const ChatbotPopup = () => {
               )}
 
               {showWaitingForStaff && (
-                <p className="flex items-center justify-center text-center text-[13px] text-gray-500 px-2 pb-1">
-                  Đang chờ nhân viên tiếp nhận
-                  <span className="inline-flex ml-0.5">
-                    <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
-                    <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
-                    <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
-                  </span>
-                </p>
+                <div className="flex flex-col items-center gap-2 px-3 pb-2">
+                  <p className="flex items-center justify-center text-center text-[13px] text-gray-500">
+                    Đang chờ nhân viên tiếp nhận
+                    <span className="inline-flex ml-0.5">
+                      <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
+                      <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
+                      <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
+                    </span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleCancelStaffRequest()}
+                    disabled={isCancellingStaff || isEscalating}
+                    className="text-[13px] font-medium text-[#df1b1c] underline underline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isCancellingStaff ? 'Đang huỷ...' : 'Huỷ gặp nhân viên'}
+                  </button>
+                </div>
               )}
 
               <div ref={messagesEndRef} />
@@ -1645,7 +1912,7 @@ export const ChatbotPopup = () => {
                       key={chip.id}
                       type="button"
                       onClick={() => void handleQuickReply(chip)}
-                      disabled={isEscalating || isInitializing || isLoadingOpen}
+                      disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
                       className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
                       {chip.label}
@@ -1675,9 +1942,9 @@ export const ChatbotPopup = () => {
                 <button
                   type="button"
                   onClick={() => void handleSend(inputValue)}
-                  disabled={!inputValue.trim() || isInitializing || isLoadingOpen}
+                  disabled={!inputValue.trim() || isInitializing || isLoadingOpen || isSendingUi}
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-                    inputValue.trim() && !isInitializing && !isLoadingOpen
+                    inputValue.trim() && !isInitializing && !isLoadingOpen && !isSendingUi
                       ? 'bg-[#df1b1c] text-white shadow-md hover:bg-red-700'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
