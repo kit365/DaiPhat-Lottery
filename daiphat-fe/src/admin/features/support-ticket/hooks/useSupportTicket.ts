@@ -3,13 +3,20 @@ import { toast } from 'react-toastify';
 import { supportTicketAdminApi } from '../services/supportTicketService';
 import { QUERY_KEYS } from '../constants/queryKeys';
 import {
-    CreateSupportTicketCommentRequest,
     GetStaffTicketsParams,
-    ResolveSupportTicketRequest,
+    StaffSupportTicketResponseRequest,
 } from '../../../../types/support.type';
 
 const getErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.message || error.message || fallback;
+
+const invalidateTicketQueries = (queryClient: ReturnType<typeof useQueryClient>, ticketId?: number) => {
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKETS] });
+    if (ticketId) {
+        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKET_DETAIL, ticketId] });
+        queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKET_COMMENTS, ticketId] });
+    }
+};
 
 export const useGetStaffTickets = (params: GetStaffTicketsParams) => {
     return useQuery({
@@ -49,9 +56,7 @@ export const useAssignSupportTicket = () => {
         onSuccess: (response, id) => {
             if (response.success) {
                 toast.success(response.message || 'Tiếp nhận yêu cầu thành công');
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKETS] });
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKET_DETAIL, id] });
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKET_COMMENTS, id] });
+                invalidateTicketQueries(queryClient, id);
             } else {
                 toast.error(response.message || 'Không thể tiếp nhận yêu cầu');
             }
@@ -62,33 +67,7 @@ export const useAssignSupportTicket = () => {
     });
 };
 
-export const useResolveSupportTicket = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: ({ id, data }: { id: number; data: ResolveSupportTicketRequest }) =>
-            supportTicketAdminApi.resolveTicket(id, data),
-        onSuccess: (response, variables) => {
-            if (response.success) {
-                toast.success(response.message || 'Giải quyết yêu cầu thành công');
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKETS] });
-                queryClient.invalidateQueries({
-                    queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKET_DETAIL, variables.id],
-                });
-                queryClient.invalidateQueries({
-                    queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKET_COMMENTS, variables.id],
-                });
-            } else {
-                toast.error(response.message || 'Không thể giải quyết yêu cầu');
-            }
-        },
-        onError: (error: any) => {
-            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
-        },
-    });
-};
-
-export const useSendStaffTicketComment = () => {
+export const useRespondSupportTicket = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
@@ -98,21 +77,15 @@ export const useSendStaffTicketComment = () => {
             file,
         }: {
             ticketId: number;
-            data: CreateSupportTicketCommentRequest;
+            data: StaffSupportTicketResponseRequest;
             file?: File | null;
-        }) => supportTicketAdminApi.addComment(ticketId, data, file),
+        }) => supportTicketAdminApi.respondToTicket(ticketId, data, file),
         onSuccess: (response, variables) => {
             if (response.success) {
-                toast.success(response.message || 'Gửi tin nhắn thành công');
-                queryClient.invalidateQueries({
-                    queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKET_COMMENTS, variables.ticketId],
-                });
-                queryClient.invalidateQueries({
-                    queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKET_DETAIL, variables.ticketId],
-                });
-                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.ADMIN_SUPPORT_TICKETS] });
+                toast.success(response.message || 'Gửi phản hồi thành công');
+                invalidateTicketQueries(queryClient, variables.ticketId);
             } else {
-                toast.error(response.message || 'Có lỗi xảy ra khi gửi tin nhắn');
+                toast.error(response.message || 'Có lỗi xảy ra khi gửi phản hồi');
             }
         },
         onError: (error: any) => {

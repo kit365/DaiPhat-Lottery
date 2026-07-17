@@ -6,6 +6,7 @@ import {
     CreateSupportTicketCommentRequest,
     GetStaffTicketsParams,
     ResolveSupportTicketRequest,
+    StaffSupportTicketResponseRequest,
     SupportTicketCommentResponse,
     SupportTicketResponse,
     SupportTicketStaffSummaryResponse,
@@ -43,6 +44,26 @@ export const supportTicketAdminApi = {
         data: ResolveSupportTicketRequest
     ): Promise<ApiResponse<SupportTicketResponse>> => {
         const response = await apiApp.put(`${STAFF_BASE}/${id}/resolve`, data, withAuth());
+        return response.data;
+    },
+
+    respondToTicket: async (
+        id: number,
+        data: StaffSupportTicketResponseRequest,
+        file?: File | null
+    ): Promise<ApiResponse<SupportTicketResponse>> => {
+        const formData = new FormData();
+        formData.append('data', new Blob([JSON.stringify(data)], { type: 'application/json' }));
+        if (file) {
+            formData.append('file', file);
+        }
+        const token = Cookies.get(STORAGE_KEYS.TOKEN);
+        const response = await apiApp.post(`${STAFF_BASE}/${id}/responses`, formData, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data',
+            },
+        });
         return response.data;
     },
 

@@ -47,8 +47,9 @@ const STATUS_TABS: { value: string; label: string }[] = [
     { value: 'IN_PROGRESS', label: 'Đang xử lý' },
     { value: 'WAITING_FOR_CUSTOMER', label: 'Chờ khách' },
     { value: 'RESOLVED', label: 'Đã giải quyết' },
+    { value: 'REJECTED', label: 'Đã từ chối' },
     { value: 'CLOSED', label: 'Đã đóng' },
-    { value: 'OPEN,IN_PROGRESS,WAITING_FOR_CUSTOMER,RESOLVED,CLOSED', label: 'Tất cả' },
+    { value: 'OPEN,IN_PROGRESS,WAITING_FOR_CUSTOMER,RESOLVED,REJECTED,CLOSED', label: 'Tất cả' },
 ];
 
 const STATUS_COLORS: Partial<Record<TicketStatus, 'default' | 'primary' | 'warning' | 'success' | 'error' | 'info'>> = {
@@ -56,6 +57,7 @@ const STATUS_COLORS: Partial<Record<TicketStatus, 'default' | 'primary' | 'warni
     [TicketStatus.IN_PROGRESS]: 'primary',
     [TicketStatus.WAITING_FOR_CUSTOMER]: 'warning',
     [TicketStatus.RESOLVED]: 'success',
+    [TicketStatus.REJECTED]: 'error',
     [TicketStatus.CLOSED]: 'error',
 };
 
@@ -137,6 +139,7 @@ export const SupportTicketList = () => {
         const overdue =
             due.isBefore(dayjs()) &&
             status !== TicketStatus.RESOLVED &&
+            status !== TicketStatus.REJECTED &&
             status !== TicketStatus.CLOSED;
         return (
             <Box component="span" sx={{ color: overdue ? 'error.main' : 'inherit', fontWeight: overdue ? 700 : 500 }}>
