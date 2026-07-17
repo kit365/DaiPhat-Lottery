@@ -10,6 +10,7 @@ export enum TicketRefType {
     ORDER = 'ORDER',
     PAYMENT_TRANSACTION = 'PAYMENT_TRANSACTION',
     PRIZE_CLAIM = 'PRIZE_CLAIM',
+    REFUND_REQUEST = 'REFUND_REQUEST',
 }
 
 export enum TicketCommentSenderRole {
@@ -30,6 +31,7 @@ export const TICKET_REF_TYPE_LABELS: Record<TicketRefType, string> = {
     [TicketRefType.ORDER]: 'Đơn hàng',
     [TicketRefType.PAYMENT_TRANSACTION]: 'Giao dịch thanh toán',
     [TicketRefType.PRIZE_CLAIM]: 'Yêu cầu nhận thưởng',
+    [TicketRefType.REFUND_REQUEST]: 'Yêu cầu hoàn tiền',
 };
 
 export interface TicketCategoryResponse {
