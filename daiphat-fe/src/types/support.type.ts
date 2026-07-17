@@ -132,6 +132,9 @@ export interface GetStaffTicketsParams {
     assignedTo?: string;
     sortBy?: 'dueAt' | 'createdAt' | 'updatedAt';
     direction?: 'asc' | 'desc';
+    refType?: TicketRefType;
+    ticketCategoryId?: number;
+    categoryCodes?: string;
 }
 
 export interface SupportTicketSummaryResponse {
@@ -163,6 +166,10 @@ export interface SupportTicketResponse {
     createdAt: string;
     updatedAt: string;
     comments: SupportTicketCommentResponse[];
+    customerName?: string;
+    assignedToName?: string;
+    ticketCategoryName?: string;
+    ticketCategoryCode?: string;
 }
 
 export interface CreateSupportTicketRequest {
