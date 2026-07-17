@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -64,5 +65,14 @@ public class SupportTicketRepositoryAdapter implements SupportTicketRepositoryPo
                                 refType, ticketCategoryId, categoryCodes),
                         pageable)
                 .map(supportTicketPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public List<SupportTicketModel> findResolvedBefore(LocalDateTime cutoff) {
+        return supportTicketRepository
+                .findByStatusAndResolvedAtBefore(TicketStatus.RESOLVED, cutoff)
+                .stream()
+                .map(supportTicketPersistenceMapper::toDomain)
+                .toList();
     }
 }

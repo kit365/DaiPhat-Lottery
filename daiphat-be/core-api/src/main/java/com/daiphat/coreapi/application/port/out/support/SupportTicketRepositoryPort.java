@@ -6,6 +6,7 @@ import com.daiphat.coreapi.domain.model.support.SupportTicketModel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,4 +33,6 @@ public interface SupportTicketRepositoryPort {
             Long ticketCategoryId,
             List<String> categoryCodes
     );
+
+    List<SupportTicketModel> findResolvedBefore(LocalDateTime cutoff);
 }

@@ -1,8 +1,11 @@
 package com.daiphat.coreapi.application.listener;
 
 import com.daiphat.coreapi.application.event.SupportTicketAssignedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketClosedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketCommentAddedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketCreatedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketRejectedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketReopenedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketResolvedEvent;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
@@ -100,7 +103,64 @@ public class SupportTicketEventListener {
         notifyUser(
                 event.customerId(),
                 "Yêu cầu hỗ trợ đã được giải quyết",
-                "Ticket #" + event.ticketId() + " đã được nhân viên giải quyết.",
+                "Ticket #" + event.ticketId()
+                        + " đã được nhân viên giải quyết. Vui lòng xác nhận bạn có hài lòng với phương án này.",
+                event.ticketId());
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleSupportTicketRejected(SupportTicketRejectedEvent event) {
+        log.info("Handling SupportTicketRejectedEvent for ticketId: {}", event.ticketId());
+
+        if (event.customerId() == null) {
+            return;
+        }
+
+        notifyUser(
+                event.customerId(),
+                "Yêu cầu hỗ trợ đã bị từ chối",
+                "Ticket #" + event.ticketId()
+                        + " đã bị từ chối vì không hợp lệ hoặc không đủ điều kiện. Vui lòng xem lý do trong lịch sử trao đổi.",
+                event.ticketId());
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleSupportTicketReopened(SupportTicketReopenedEvent event) {
+        log.info("Handling SupportTicketReopenedEvent for ticketId: {}", event.ticketId());
+
+        notifyOperators(
+                "Khách hàng chưa hài lòng với phương án giải quyết",
+                "Ticket #" + event.ticketId() + " (" + event.title()
+                        + ") đã được mở lại và đang chờ tiếp nhận.",
+                event.ticketId(),
+                null);
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleSupportTicketClosed(SupportTicketClosedEvent event) {
+        log.info("Handling SupportTicketClosedEvent for ticketId: {}", event.ticketId());
+
+        if (event.customerId() == null) {
+            return;
+        }
+
+        if (event.autoClosed()) {
+            notifyUser(
+                    event.customerId(),
+                    "Yêu cầu hỗ trợ đã tự động đóng",
+                    "Ticket #" + event.ticketId()
+                            + " đã được đóng tự động vì không có phản hồi sau khi giải quyết.",
+                    event.ticketId());
+            return;
+        }
+
+        notifyUser(
+                event.customerId(),
+                "Yêu cầu hỗ trợ đã đóng",
+                "Ticket #" + event.ticketId() + " đã được đóng theo xác nhận của bạn.",
                 event.ticketId());
     }
 
