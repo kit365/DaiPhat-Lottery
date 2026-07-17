@@ -1,12 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
     canCustomerSendComment,
+    isTerminalTicketStatus,
     sortCommentsByCreatedAt,
     SupportTicketCommentResponse,
     TicketCommentSenderRole,
     TicketStatus,
 } from '../../../types/support.type';
-import { useGetTicketComments, useSendTicketComment } from '../../hooks/useSupportTicket';
+import {
+    useGetTicketComments,
+    useSendTicketComment,
+    useSubmitResolutionFeedback,
+} from '../../hooks/useSupportTicket';
+import { usePublicSystemConfig } from '../../hooks/useSystemConfig';
 import { ImageUploadPreview } from './ImageUploadPreview';
 import { ComplaintCommentBubble } from './ComplaintCommentBubble';
 import { ComplaintSystemNotice } from './ComplaintSystemNotice';
@@ -23,12 +29,19 @@ export const ComplaintTimelineChat: React.FC<ComplaintTimelineChatProps> = ({ ti
     const [content, setContent] = useState('');
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const isComposingRef = useRef(false);
 
     const { data, isLoading, isError } = useGetTicketComments(ticketId);
     const sendMutation = useSendTicketComment();
+    const feedbackMutation = useSubmitResolutionFeedback();
+    const { data: autoCloseHoursConfig } = usePublicSystemConfig('SUPPORT_TICKET_AUTO_CLOSE_HOURS');
+    const autoCloseHours = autoCloseHoursConfig?.configValue || '48';
 
     const comments: SupportTicketCommentResponse[] = sortCommentsByCreatedAt(data?.data ?? []);
-    const isTerminal = status === TicketStatus.RESOLVED || status === TicketStatus.CLOSED;
+    const isResolved = status === TicketStatus.RESOLVED;
+    const isRejected = status === TicketStatus.REJECTED;
+    const isClosed = status === TicketStatus.CLOSED;
+    const isTerminal = isTerminalTicketStatus(status) && !isResolved;
     const canSend = canCustomerSendComment(status, comments);
 
     useEffect(() => {
@@ -63,6 +76,20 @@ export const ComplaintTimelineChat: React.FC<ComplaintTimelineChatProps> = ({ ti
                 },
             }
         );
+    };
+
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (event.key !== 'Enter' || event.shiftKey || isComposingRef.current) {
+            return;
+        }
+        event.preventDefault();
+        if (!sendMutation.isPending && content.trim() && canSend) {
+            handleSubmit();
+        }
+    };
+
+    const handleSatisfaction = (satisfied: boolean) => {
+        feedbackMutation.mutate({ id: ticketId, satisfied });
     };
 
     return (
@@ -112,10 +139,46 @@ export const ComplaintTimelineChat: React.FC<ComplaintTimelineChatProps> = ({ ti
             </div>
 
             <div className="border-t border-[#F4F6F8] p-4 sm:p-6 lg:px-8 lg:pb-6 bg-[#FAFBFC]">
-                {isTerminal ? (
+                {isResolved ? (
+                    <div className="flex flex-col items-center gap-3 py-6 text-center bg-white border border-[#E5E8EB] rounded-2xl shadow-sm px-4 sm:px-6 mb-2">
+                        <div className="w-12 h-12 rounded-full bg-[#E4F8ED] text-[#1CD162] flex items-center justify-center text-2xl mb-1">
+                            <i className="fa-solid fa-clipboard-check"></i>
+                        </div>
+                        <h4 className="text-[16px] font-bold text-[#212B36]">
+                            Bạn có hài lòng với phương án giải quyết của chúng tôi không?
+                        </h4>
+                        <p className="text-[13px] text-[#637381] max-w-md mb-2">
+                            Nếu chọn <strong className="text-[#00A76F]">Có</strong>, yêu cầu sẽ được hoàn tất. Nếu chọn <strong className="text-[#ee1314]">Không</strong>, yêu cầu sẽ được mở lại để nhân viên tiếp tục hỗ trợ bạn.
+                        </p>
+                        <div className="flex items-center gap-3 flex-wrap justify-center w-full mb-3">
+                            <button
+                                type="button"
+                                disabled={feedbackMutation.isPending}
+                                onClick={() => handleSatisfaction(true)}
+                                className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-[#00A76F] text-white font-bold text-[14px] hover:bg-[#007867] shadow-sm hover:shadow-none transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                            >
+                                <i className="fa-solid fa-thumbs-up"></i> Có, tôi hài lòng
+                            </button>
+                            <button
+                                type="button"
+                                disabled={feedbackMutation.isPending}
+                                onClick={() => handleSatisfaction(false)}
+                                className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-[#FFF4F4] text-[#ee1314] font-bold text-[14px] hover:bg-[#FFE4E4] transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                            >
+                                <i className="fa-solid fa-rotate-left"></i> Không, mở lại yêu cầu
+                            </button>
+                        </div>
+                        <p className="text-[12px] text-[#919EAB] italic">
+                            * Lưu ý: Nếu không có phản hồi, khiếu nại sẽ tự động đóng sau <strong className="font-semibold text-[#637381]">{autoCloseHours} giờ</strong>.
+                        </p>
+                    </div>
+                ) : isRejected ? (
                     <p className="text-[13px] text-[#919EAB] text-center italic py-2">
-                        Yêu cầu đã {status === TicketStatus.CLOSED ? 'đóng' : 'giải quyết'}. Không thể gửi thêm tin
-                        nhắn.
+                        Yêu cầu đã bị từ chối. Vui lòng xem lý do trong lịch sử trao đổi phía trên.
+                    </p>
+                ) : isClosed || isTerminal ? (
+                    <p className="text-[13px] text-[#919EAB] text-center italic py-2">
+                        Yêu cầu đã đóng. Không thể gửi thêm tin nhắn.
                     </p>
                 ) : !canSend ? (
                     <p className="text-[13px] text-[#637381] text-center py-2">
@@ -128,11 +191,18 @@ export const ComplaintTimelineChat: React.FC<ComplaintTimelineChatProps> = ({ ti
                             <textarea
                                 value={content}
                                 onChange={(e) => setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH))}
+                                onKeyDown={handleKeyDown}
+                                onCompositionStart={() => {
+                                    isComposingRef.current = true;
+                                }}
+                                onCompositionEnd={() => {
+                                    isComposingRef.current = false;
+                                }}
                                 rows={2}
-                                placeholder="Nhập nội dung trao đổi..."
+                                placeholder="Nhập nội dung trao đổi... (Enter để gửi, Shift+Enter xuống dòng)"
                                 className="w-full px-4 pt-4 pb-14 text-[14px] text-[#212B36] placeholder:text-[#919EAB] focus:outline-none resize-none bg-transparent"
                             />
-                            
+
                             <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
                                 <div className="flex items-center gap-2 pl-2">
                                     <span className="text-[12px] font-medium text-[#919EAB]">

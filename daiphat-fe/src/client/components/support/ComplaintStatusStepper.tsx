@@ -15,7 +15,23 @@ export const ComplaintStatusStepper: React.FC<ComplaintStatusStepperProps> = ({ 
                 <div>
                     <h3 className="text-[#637381] font-bold text-[18px]">Yêu cầu đã đóng</h3>
                     <p className="text-[#637381] text-[14px] mt-1.5 font-medium">
-                        Bạn đã đóng yêu cầu hỗ trợ này.
+                        Yêu cầu hỗ trợ này đã được đóng.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    if (status === TicketStatus.REJECTED) {
+        return (
+            <div className="bg-[#FFF0F0] rounded-[20px] p-6 lg:p-8 border border-[#ee1314]/20 flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+                <div className="w-14 h-14 rounded-full bg-[#B71D18] text-white flex items-center justify-center text-2xl shrink-0 shadow-sm">
+                    <i className="fa-solid fa-circle-xmark"></i>
+                </div>
+                <div>
+                    <h3 className="text-[#B71D18] font-bold text-[18px]">Yêu cầu đã bị từ chối</h3>
+                    <p className="text-[#637381] text-[14px] mt-1.5 font-medium">
+                        Yêu cầu không hợp lệ hoặc không đủ điều kiện. Vui lòng xem lý do trong phần trao đổi.
                     </p>
                 </div>
             </div>

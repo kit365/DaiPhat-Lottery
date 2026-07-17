@@ -77,6 +77,14 @@ export const supportTicketService = {
         return response.data;
     },
 
+    submitResolutionFeedback: async (
+        id: number,
+        satisfied: boolean
+    ): Promise<ApiResponse<SupportTicketResponse>> => {
+        const response = await apiApp.put(`${BASE_URL}/${id}/resolution-feedback`, { satisfied });
+        return response.data;
+    },
+
     getComments: async (id: number): Promise<ApiResponse<SupportTicketCommentResponse[]>> => {
         const response = await apiApp.get(`${BASE_URL}/${id}/comments`);
         return response.data;
