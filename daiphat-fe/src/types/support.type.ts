@@ -3,6 +3,7 @@ export enum TicketStatus {
     IN_PROGRESS = 'IN_PROGRESS',
     WAITING_FOR_CUSTOMER = 'WAITING_FOR_CUSTOMER',
     RESOLVED = 'RESOLVED',
+    REJECTED = 'REJECTED',
     CLOSED = 'CLOSED',
 }
 
@@ -19,11 +20,18 @@ export enum TicketCommentSenderRole {
     SYSTEM = 'SYSTEM',
 }
 
+export enum StaffTicketResponseAction {
+    NORMAL = 'NORMAL',
+    RESOLVE = 'RESOLVE',
+    REJECT = 'REJECT',
+}
+
 export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
     [TicketStatus.OPEN]: 'Mới tạo',
     [TicketStatus.IN_PROGRESS]: 'Đang xử lý',
     [TicketStatus.WAITING_FOR_CUSTOMER]: 'Chờ khách phản hồi',
     [TicketStatus.RESOLVED]: 'Đã giải quyết',
+    [TicketStatus.REJECTED]: 'Đã từ chối',
     [TicketStatus.CLOSED]: 'Đã đóng',
 };
 
@@ -57,6 +65,15 @@ export interface CreateSupportTicketCommentRequest {
     content: string;
 }
 
+export interface StaffSupportTicketResponseRequest {
+    content: string;
+    action: StaffTicketResponseAction;
+}
+
+export interface ResolutionFeedbackRequest {
+    satisfied: boolean;
+}
+
 export function sortCommentsByCreatedAt(
     comments: SupportTicketCommentResponse[]
 ): SupportTicketCommentResponse[] {
@@ -73,11 +90,27 @@ export function findLastConversationalComment(
         .pop();
 }
 
+export function findReasonComment(
+    comments: SupportTicketCommentResponse[],
+    reasonId?: number | null
+): SupportTicketCommentResponse | undefined {
+    if (!reasonId) return undefined;
+    return comments.find((comment) => comment.id === reasonId);
+}
+
+export function isTerminalTicketStatus(status: TicketStatus): boolean {
+    return (
+        status === TicketStatus.RESOLVED ||
+        status === TicketStatus.REJECTED ||
+        status === TicketStatus.CLOSED
+    );
+}
+
 export function canCustomerSendComment(
     status: TicketStatus,
     comments: SupportTicketCommentResponse[]
 ): boolean {
-    if (status === TicketStatus.RESOLVED || status === TicketStatus.CLOSED) {
+    if (isTerminalTicketStatus(status)) {
         return false;
     }
     const last = findLastConversationalComment(comments);
@@ -91,7 +124,7 @@ export function canOperatorSendComment(
     status: TicketStatus,
     comments: SupportTicketCommentResponse[]
 ): boolean {
-    if (status === TicketStatus.RESOLVED || status === TicketStatus.CLOSED) {
+    if (isTerminalTicketStatus(status)) {
         return false;
     }
     if (status === TicketStatus.OPEN) {
@@ -161,6 +194,8 @@ export interface SupportTicketResponse {
     refType?: TicketRefType;
     status: TicketStatus;
     response?: string;
+    resolvedReasonId?: number;
+    rejectedReasonId?: number;
     resolvedAt?: string;
     dueAt?: string;
     createdAt: string;

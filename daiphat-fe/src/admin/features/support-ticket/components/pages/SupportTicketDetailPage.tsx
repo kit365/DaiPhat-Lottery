@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
     Alert,
@@ -8,13 +8,8 @@ import {
     CardContent,
     Chip,
     CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
     Grid,
     Stack,
-    TextField,
     Typography,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
@@ -28,9 +23,10 @@ import { StaffComplaintTimeline } from '../sections/StaffComplaintTimeline';
 import {
     useAssignSupportTicket,
     useGetStaffTicketDetail,
-    useResolveSupportTicket,
 } from '../../hooks/useSupportTicket';
 import {
+    findReasonComment,
+    isTerminalTicketStatus,
     TicketCommentSenderRole,
     TicketRefType,
     TicketStatus,
@@ -84,12 +80,8 @@ export const SupportTicketDetailPage = () => {
     const navigate = useNavigate();
     const ticketId = Number(id);
 
-    const [resolveOpen, setResolveOpen] = useState(false);
-    const [resolution, setResolution] = useState('');
-
     const { data, isLoading, isError } = useGetStaffTicketDetail(ticketId);
     const assignMutation = useAssignSupportTicket();
-    const resolveMutation = useResolveSupportTicket();
 
     const ticket = data?.data;
 
@@ -98,33 +90,22 @@ export const SupportTicketDetailPage = () => {
         [ticket?.comments]
     );
 
+    const reasonComment = useMemo(() => {
+        if (!ticket) return undefined;
+        return (
+            findReasonComment(ticket.comments || [], ticket.resolvedReasonId) ||
+            findReasonComment(ticket.comments || [], ticket.rejectedReasonId)
+        );
+    }, [ticket]);
+
     const isOverdue = useMemo(() => {
         if (!ticket?.dueAt) return false;
-        if (ticket.status === TicketStatus.RESOLVED || ticket.status === TicketStatus.CLOSED) return false;
+        if (isTerminalTicketStatus(ticket.status)) return false;
         return dayjs(ticket.dueAt).isBefore(dayjs());
     }, [ticket?.dueAt, ticket?.status]);
 
     const canAssign = ticket?.status === TicketStatus.OPEN;
-    const canResolve =
-        ticket?.status === TicketStatus.IN_PROGRESS ||
-        ticket?.status === TicketStatus.WAITING_FOR_CUSTOMER;
-
     const referenceLink = buildReferenceLink(ticket?.refType, ticket?.refId);
-
-    const handleResolve = () => {
-        if (!resolution.trim()) return;
-        resolveMutation.mutate(
-            { id: ticketId, data: { response: resolution.trim() } },
-            {
-                onSuccess: (res) => {
-                    if (res.success) {
-                        setResolveOpen(false);
-                        setResolution('');
-                    }
-                },
-            }
-        );
-    };
 
     if (isLoading) {
         return (
@@ -168,18 +149,6 @@ export const SupportTicketDetailPage = () => {
                                 startIcon={<Icon icon="mdi:account-check-outline" />}
                             >
                                 Tiếp nhận
-                            </Button>
-                        </CanAccess>
-                    )}
-                    {canResolve && (
-                        <CanAccess permission={PERMISSIONS.SUPPORT_TICKET.MANAGE}>
-                            <Button
-                                variant="outlined"
-                                color="success"
-                                onClick={() => setResolveOpen(true)}
-                                startIcon={<Icon icon="mdi:check-circle-outline" />}
-                            >
-                                Giải quyết
                             </Button>
                         </CanAccess>
                     )}
@@ -284,21 +253,41 @@ export const SupportTicketDetailPage = () => {
                             </CardContent>
                         </Card>
 
-                        {(ticket.response || ticket.resolvedAt) && (
+                        {(reasonComment || ticket.response || ticket.resolvedAt) && (
                             <Card sx={cardSx}>
                                 <CardContent>
-                                    <CardSectionTitle icon="mdi:check-decagram-outline" title="Kết quả xử lý" iconColor="#00A76F" />
-                                    {ticket.response && (
+                                    <CardSectionTitle
+                                        icon={
+                                            ticket.status === TicketStatus.REJECTED
+                                                ? 'mdi:close-octagon-outline'
+                                                : 'mdi:check-decagram-outline'
+                                        }
+                                        title={
+                                            ticket.status === TicketStatus.REJECTED
+                                                ? 'Lý do từ chối'
+                                                : 'Kết quả xử lý'
+                                        }
+                                        iconColor={ticket.status === TicketStatus.REJECTED ? '#B71D18' : '#00A76F'}
+                                    />
+                                    {(reasonComment?.content || ticket.response) && (
                                         <Box sx={{ mb: 2 }}>
-                                            <FieldLabel>Phản hồi giải quyết</FieldLabel>
+                                            <FieldLabel>
+                                                {ticket.status === TicketStatus.REJECTED
+                                                    ? 'Nội dung từ chối'
+                                                    : 'Phản hồi giải quyết'}
+                                            </FieldLabel>
                                             <FieldValue sx={{ whiteSpace: 'pre-wrap', fontWeight: 500 }}>
-                                                {ticket.response}
+                                                {reasonComment?.content || ticket.response}
                                             </FieldValue>
                                         </Box>
                                     )}
                                     {ticket.resolvedAt && (
                                         <Box>
-                                            <FieldLabel>Thời gian giải quyết</FieldLabel>
+                                            <FieldLabel>
+                                                {ticket.status === TicketStatus.REJECTED
+                                                    ? 'Thời gian từ chối'
+                                                    : 'Thời gian giải quyết'}
+                                            </FieldLabel>
                                             <FieldValue>
                                                 {dayjs(ticket.resolvedAt).format('DD/MM/YYYY HH:mm')}
                                             </FieldValue>
@@ -387,36 +376,6 @@ export const SupportTicketDetailPage = () => {
             </Grid>
 
             <StaffComplaintTimeline ticketId={ticketId} status={ticket.status} />
-
-            <Dialog open={resolveOpen} onClose={() => setResolveOpen(false)} fullWidth maxWidth="sm">
-                <DialogTitle>Giải quyết yêu cầu hỗ trợ</DialogTitle>
-                <DialogContent>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Nhập nội dung phản hồi cuối cùng gửi cho khách hàng. Sau khi giải quyết, yêu cầu sẽ chuyển sang
-                        trạng thái Đã giải quyết.
-                    </Typography>
-                    <TextField
-                        autoFocus
-                        fullWidth
-                        multiline
-                        minRows={4}
-                        label="Nội dung giải quyết"
-                        value={resolution}
-                        onChange={(e) => setResolution(e.target.value)}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setResolveOpen(false)}>Hủy</Button>
-                    <Button
-                        variant="contained"
-                        color="success"
-                        disabled={!resolution.trim() || resolveMutation.isPending}
-                        onClick={handleResolve}
-                    >
-                        Xác nhận giải quyết
-                    </Button>
-                </DialogActions>
-            </Dialog>
         </>
     );
 };

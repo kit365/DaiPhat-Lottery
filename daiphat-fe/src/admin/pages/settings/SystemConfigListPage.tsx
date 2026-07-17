@@ -56,6 +56,7 @@ const TYPE_TABS: { value: TypeFilter; label: string }[] = [
     { value: ConfigType.ORDER_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.ORDER_SETTING] },
     { value: ConfigType.TICKET_IMPORT, label: CONFIG_TYPE_LABELS[ConfigType.TICKET_IMPORT] },
     { value: ConfigType.REFUND_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.REFUND_SETTING] },
+    { value: ConfigType.COMPLAINT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.COMPLAINT_SETTING] },
 ];
 
 const truncateValue = (value: string, maxLen = 48) => {
@@ -63,7 +64,7 @@ const truncateValue = (value: string, maxLen = 48) => {
     return `${value.slice(0, maxLen)}…`;
 };
 
-const getTypeChipColor = (type: ConfigType): 'default' | 'primary' | 'secondary' | 'warning' => {
+const getTypeChipColor = (type: ConfigType): 'default' | 'primary' | 'secondary' | 'warning' | 'error' | 'info' => {
     switch (type) {
         case ConfigType.ORDER_SETTING:
             return 'primary';
@@ -71,6 +72,8 @@ const getTypeChipColor = (type: ConfigType): 'default' | 'primary' | 'secondary'
             return 'warning';
         case ConfigType.REFUND_SETTING:
             return 'secondary';
+        case ConfigType.COMPLAINT_SETTING:
+            return 'error';
         default:
             return 'default';
     }
@@ -97,6 +100,7 @@ export const SystemConfigListPage = () => {
             [ConfigType.ORDER_SETTING]: 0,
             [ConfigType.TICKET_IMPORT]: 0,
             [ConfigType.REFUND_SETTING]: 0,
+            [ConfigType.COMPLAINT_SETTING]: 0,
         };
         allConfigs.forEach((c) => {
             if (counts[c.configType] !== undefined) {
