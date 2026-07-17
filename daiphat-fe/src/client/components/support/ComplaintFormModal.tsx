@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     SupportTicketResponse,
@@ -6,6 +6,7 @@ import {
     TicketRefType,
 } from '../../../types/support.type';
 import { useGetMyOrders } from '../../hooks/useOrder';
+import { useGetMyRefunds } from '../../hooks/useRefund';
 import {
     useCreateComplaint,
     useGetTicketCategories,
@@ -14,6 +15,9 @@ import {
 import { ImageUploadPreview } from './ImageUploadPreview';
 import { AppToast } from '../../../utils/toast.util';
 import { TICKET_REF_TYPE_LABELS } from '../../../types/support.type';
+import { SelectOrderModal } from './SelectOrderModal';
+import { SelectRefundModal } from './SelectRefundModal';
+import { RefundRequestResponse } from '../../../types/refund.type';
 
 interface ComplaintFormModalProps {
     isOpen: boolean;
@@ -23,6 +27,12 @@ interface ComplaintFormModalProps {
     defaultRefundId?: number | string;
     defaultCategoryCode?: string;
 }
+
+const getCategoryIcon = (code: string) => {
+    if (code.includes('ORDER')) return 'fa-box';
+    if (code.includes('PAYMENT') || code.includes('REFUND')) return 'fa-money-bill-wave';
+    return 'fa-headset';
+};
 
 export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     isOpen,
@@ -37,20 +47,50 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
 
     const { data: categoriesData } = useGetTicketCategories();
     const { data: ordersData } = useGetMyOrders({ page: 1, limit: 100 });
+    const { data: refundsData } = useGetMyRefunds({ page: 1, limit: 100 });
     const createMutation = useCreateComplaint();
     const updateMutation = useUpdateComplaint();
 
     const categories = categoriesData?.data || [];
+    
+    // Selectable categories (exclude GROUP_ categories)
+    const selectableCategories = useMemo(() => {
+        return categories.filter(c => !c.code.startsWith('GROUP_'));
+    }, [categories]);
+
     const visibleCategories = useMemo(() => {
         if (defaultCategoryCode) {
-            return categories.filter((category) => category.code === defaultCategoryCode);
+            return selectableCategories.filter((category) => category.code === defaultCategoryCode);
         }
         if (defaultRefundId != null) {
-            return categories.filter((category) => category.requiredRefType === TicketRefType.REFUND_REQUEST);
+            return selectableCategories.filter((category) => category.requiredRefType === TicketRefType.REFUND_REQUEST);
         }
-        return categories;
-    }, [categories, defaultCategoryCode, defaultRefundId]);
+        return selectableCategories;
+    }, [selectableCategories, defaultCategoryCode, defaultRefundId]);
+
+    const groupedCategories = useMemo(() => {
+        const groups: Record<number, { parent: TicketCategoryResponse | undefined; items: TicketCategoryResponse[] }> = {};
+        const ungrouped: TicketCategoryResponse[] = [];
+
+        visibleCategories.forEach(cat => {
+            if (cat.parentId) {
+                if (!groups[cat.parentId]) {
+                    groups[cat.parentId] = {
+                        parent: categories.find(c => c.id === cat.parentId),
+                        items: []
+                    };
+                }
+                groups[cat.parentId].items.push(cat);
+            } else {
+                ungrouped.push(cat);
+            }
+        });
+        
+        return { groups: Object.values(groups), ungrouped };
+    }, [visibleCategories, categories]);
+
     const orders = ordersData?.data?.recordList || [];
+    const refunds = (refundsData?.data?.recordList || []) as RefundRequestResponse[];
 
     const [ticketCategoryId, setTicketCategoryId] = useState<number | ''>('');
     const [title, setTitle] = useState('');
@@ -58,12 +98,21 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     const [refId, setRefId] = useState('');
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
 
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+    const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+
     const selectedCategory = useMemo(
         () => categories.find((c) => c.id === ticketCategoryId),
         [categories, ticketCategoryId]
     );
 
     const requiredRefType = selectedCategory?.requiredRefType;
+
+    const selectedOrder = useMemo(() => orders.find(o => o.id === refId), [orders, refId]);
+    const selectedRefund = useMemo(() => refunds.find(r => String(r.id) === refId), [refunds, refId]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -79,8 +128,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                 (defaultCategoryCode
                     ? visibleCategories.find((category) => category.code === defaultCategoryCode)
                     : undefined) ||
-                visibleCategories[0] ||
-                categories[0];
+                visibleCategories[0];
 
             setTicketCategoryId(preferredCategory?.id || '');
             setTitle('');
@@ -101,10 +149,20 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
         }
     }, [isOpen, isEditing, defaultOrderId, selectedCategory]);
 
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const handleCategoryChange = (categoryId: number) => {
         setTicketCategoryId(categoryId);
-        const category = visibleCategories.find((c) => c.id === categoryId)
-            || categories.find((c) => c.id === categoryId);
+        setIsDropdownOpen(false);
+        const category = visibleCategories.find((c) => c.id === categoryId);
         if (!category?.requiredRefType) {
             setRefId('');
         } else if (category.requiredRefType === TicketRefType.ORDER && defaultOrderId) {
@@ -199,8 +257,8 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     return (
         <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between p-6 border-b border-[#E5E8EB] sticky top-0 bg-white z-10">
+            <div className="relative bg-white rounded-[20px] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between p-6 border-b border-[#E5E8EB] bg-white z-10">
                     <h2 className="text-[18px] font-bold text-[#212B36]">
                         {isEditing ? 'Chỉnh sửa khiếu nại' : 'Tạo khiếu nại mới'}
                     </h2>
@@ -212,137 +270,242 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[13px] font-bold text-[#454F5B]">Danh mục *</label>
-                        <select
-                            value={ticketCategoryId}
-                            onChange={(e) => handleCategoryChange(Number(e.target.value))}
-                            disabled={isEditing || Boolean(defaultCategoryCode)}
-                            className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314] cursor-pointer disabled:bg-[#F4F6F8] disabled:cursor-not-allowed"
-                            required
-                        >
-                            <option value="" disabled>
-                                Chọn danh mục...
-                            </option>
-                            {visibleCategories.map((cat: TicketCategoryResponse) => (
-                                <option key={cat.id} value={cat.id}>
-                                    {cat.name}
-                                </option>
-                            ))}
-                        </select>
-                        {selectedCategory?.description && (
-                            <p className="text-[12px] text-[#919EAB]">{selectedCategory.description}</p>
-                        )}
-                    </div>
+                <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Cột trái */}
+                        <div className="flex flex-col gap-6">
+                            {/* Danh mục Dropdown */}
+                            <div className="flex flex-col gap-2" ref={dropdownRef}>
+                                <label className="text-[13px] font-bold text-[#454F5B]">Danh mục *</label>
+                                <div className="relative">
+                                    <div
+                                        className={`w-full px-4 py-3 bg-white border ${isDropdownOpen ? 'border-[#ee1314]' : 'border-[#E5E8EB]'} rounded-xl text-[14px] flex items-center justify-between cursor-pointer transition-colors ${isEditing || defaultCategoryCode ? 'bg-[#F4F6F8] cursor-not-allowed opacity-80' : 'hover:border-[#ee1314]'}`}
+                                        onClick={() => {
+                                            if (!isEditing && !defaultCategoryCode) {
+                                                setIsDropdownOpen(!isDropdownOpen);
+                                            }
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {selectedCategory ? (
+                                                <>
+                                                    <i className={`fa-solid ${getCategoryIcon(selectedCategory.code)} text-[#ee1314]`}></i>
+                                                    <span className="text-[#212B36] font-medium">{selectedCategory.name}</span>
+                                                </>
+                                            ) : (
+                                                <span className="text-[#919EAB]">Chọn danh mục...</span>
+                                            )}
+                                        </div>
+                                        <i className={`fa-solid fa-chevron-down text-[#919EAB] transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
+                                    </div>
 
-                    {requiredRefType === TicketRefType.ORDER && (
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[13px] font-bold text-[#454F5B]">Đơn hàng liên quan *</label>
-                            <select
-                                value={refId}
-                                onChange={(e) => setRefId(e.target.value)}
-                                className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314] cursor-pointer"
-                                required
-                            >
-                                <option value="" disabled>
-                                    Chọn đơn hàng...
-                                </option>
-                                {orders.map((order) => (
-                                    <option key={order.id} value={order.id}>
-                                        #{order.id.slice(0, 8).toUpperCase()} —{' '}
-                                        {order.totalAmount?.toLocaleString('vi-VN')}đ — {order.status}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-
-                    {requiredRefType === TicketRefType.REFUND_REQUEST && (
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[13px] font-bold text-[#454F5B]">
-                                {TICKET_REF_TYPE_LABELS[requiredRefType]} *
-                            </label>
-                            {defaultRefundId != null ? (
-                                <div className="w-full px-4 py-3 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
-                                    #{defaultRefundId}
+                                    {/* Dropdown Menu */}
+                                    {isDropdownOpen && (
+                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-[#E5E8EB] rounded-xl shadow-lg z-20 max-h-[280px] overflow-y-auto overflow-x-hidden p-2">
+                                            {groupedCategories.groups.map((group, idx) => (
+                                                <div key={idx} className="mb-2 last:mb-0">
+                                                    {group.parent && (
+                                                        <div className="px-3 py-2 text-[12px] font-bold text-[#919EAB] uppercase tracking-wider">
+                                                            {group.parent.name}
+                                                        </div>
+                                                    )}
+                                                    <div className="flex flex-col gap-1">
+                                                        {group.items.map(cat => (
+                                                            <div
+                                                                key={cat.id}
+                                                                className={`px-3 py-2.5 rounded-lg cursor-pointer flex items-center gap-3 transition-colors ${ticketCategoryId === cat.id ? 'bg-[#FFF4F4] text-[#ee1314]' : 'hover:bg-[#F4F6F8] text-[#212B36]'}`}
+                                                                onClick={() => handleCategoryChange(cat.id)}
+                                                            >
+                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ticketCategoryId === cat.id ? 'bg-[#ee1314]/10' : 'bg-white shadow-sm border border-[#E5E8EB]'}`}>
+                                                                    <i className={`fa-solid ${getCategoryIcon(cat.code)} ${ticketCategoryId === cat.id ? 'text-[#ee1314]' : 'text-[#637381]'}`}></i>
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-semibold text-[13px]">{cat.name}</span>
+                                                                    {cat.description && <span className="text-[11px] text-[#919EAB] line-clamp-1">{cat.description}</span>}
+                                                                </div>
+                                                                {ticketCategoryId === cat.id && (
+                                                                    <i className="fa-solid fa-check ml-auto text-[#ee1314]"></i>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {groupedCategories.ungrouped.length > 0 && (
+                                                <div className="mt-2 pt-2 border-t border-[#E5E8EB]">
+                                                    <div className="px-3 py-2 text-[12px] font-bold text-[#919EAB] uppercase tracking-wider">
+                                                        Khác
+                                                    </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        {groupedCategories.ungrouped.map(cat => (
+                                                            <div
+                                                                key={cat.id}
+                                                                className={`px-3 py-2.5 rounded-lg cursor-pointer flex items-center gap-3 transition-colors ${ticketCategoryId === cat.id ? 'bg-[#FFF4F4] text-[#ee1314]' : 'hover:bg-[#F4F6F8] text-[#212B36]'}`}
+                                                                onClick={() => handleCategoryChange(cat.id)}
+                                                            >
+                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ticketCategoryId === cat.id ? 'bg-[#ee1314]/10' : 'bg-white shadow-sm border border-[#E5E8EB]'}`}>
+                                                                    <i className={`fa-solid ${getCategoryIcon(cat.code)} ${ticketCategoryId === cat.id ? 'text-[#ee1314]' : 'text-[#637381]'}`}></i>
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-semibold text-[13px]">{cat.name}</span>
+                                                                    {cat.description && <span className="text-[11px] text-[#919EAB] line-clamp-1">{cat.description}</span>}
+                                                                </div>
+                                                                {ticketCategoryId === cat.id && (
+                                                                    <i className="fa-solid fa-check ml-auto text-[#ee1314]"></i>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                            ) : (
+                                {selectedCategory?.description && (
+                                    <p className="text-[12px] text-[#919EAB] mt-1">{selectedCategory.description}</p>
+                                )}
+                            </div>
+
+                            {requiredRefType === TicketRefType.ORDER && (
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[13px] font-bold text-[#454F5B]">Đơn hàng liên quan *</label>
+                                    <div
+                                        onClick={() => setIsOrderModalOpen(true)}
+                                        className="w-full px-4 py-3 bg-white border border-[#E5E8EB] hover:border-[#ee1314] rounded-xl text-[14px] flex items-center justify-between cursor-pointer transition-colors"
+                                    >
+                                        {selectedOrder ? (
+                                            <div className="flex items-center gap-3">
+                                                <i className="fa-solid fa-file-invoice text-[#637381]"></i>
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-[#212B36]">
+                                                        #{selectedOrder.id.slice(0, 8).toUpperCase()}
+                                                    </span>
+                                                    <span className="text-[12px] text-[#919EAB]">
+                                                        {selectedOrder.totalAmount?.toLocaleString('vi-VN')}đ
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <span className="text-[#919EAB]">Chọn đơn hàng...</span>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className="px-3 py-1.5 bg-[#F4F6F8] text-[#454F5B] text-[12px] font-bold rounded-lg hover:bg-[#DFE3E8]"
+                                        >
+                                            {selectedOrder ? 'Thay đổi' : 'Chọn'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {requiredRefType === TicketRefType.REFUND_REQUEST && (
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[13px] font-bold text-[#454F5B]">
+                                        {TICKET_REF_TYPE_LABELS[requiredRefType]} *
+                                    </label>
+                                    {defaultRefundId != null ? (
+                                        <div className="w-full px-4 py-3 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
+                                            #{defaultRefundId}
+                                        </div>
+                                    ) : (
+                                        <div
+                                            onClick={() => setIsRefundModalOpen(true)}
+                                            className="w-full px-4 py-3 bg-white border border-[#E5E8EB] hover:border-[#ee1314] rounded-xl text-[14px] flex items-center justify-between cursor-pointer transition-colors"
+                                        >
+                                            {selectedRefund ? (
+                                                <div className="flex items-center gap-3">
+                                                    <i className="fa-solid fa-rotate-left text-[#637381]"></i>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-[#212B36]">
+                                                            #{selectedRefund.id}
+                                                        </span>
+                                                        <span className="text-[12px] text-[#919EAB]">
+                                                            {selectedRefund.refundAmount?.toLocaleString('vi-VN')}đ
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[#919EAB]">Chọn yêu cầu hoàn tiền...</span>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className="px-3 py-1.5 bg-[#F4F6F8] text-[#454F5B] text-[12px] font-bold rounded-lg hover:bg-[#DFE3E8]"
+                                            >
+                                                {selectedRefund ? 'Thay đổi' : 'Chọn'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {requiredRefType && requiredRefType !== TicketRefType.ORDER && requiredRefType !== TicketRefType.REFUND_REQUEST && (
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[13px] font-bold text-[#454F5B]">
+                                        {TICKET_REF_TYPE_LABELS[requiredRefType]} *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={refId}
+                                        onChange={(e) => setRefId(e.target.value)}
+                                        placeholder={`Nhập mã ${TICKET_REF_TYPE_LABELS[requiredRefType].toLowerCase()}`}
+                                        className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314]"
+                                        required
+                                        maxLength={100}
+                                    />
+                                </div>
+                            )}
+
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[13px] font-bold text-[#454F5B]">Tiêu đề *</label>
                                 <input
                                     type="text"
-                                    value={refId}
-                                    onChange={(e) => setRefId(e.target.value)}
-                                    placeholder={`Nhập mã ${TICKET_REF_TYPE_LABELS[requiredRefType].toLowerCase()}`}
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value.slice(0, 200))}
+                                    placeholder="Tóm tắt vấn đề của bạn..."
                                     className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314]"
                                     required
-                                    maxLength={100}
                                 />
-                            )}
+                                <span className="text-[11px] text-[#919EAB] text-right">{title.length}/200</span>
+                            </div>
                         </div>
-                    )}
 
-                    {requiredRefType && requiredRefType !== TicketRefType.ORDER && requiredRefType !== TicketRefType.REFUND_REQUEST && (
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[13px] font-bold text-[#454F5B]">
-                                {TICKET_REF_TYPE_LABELS[requiredRefType]} *
-                            </label>
-                            <input
-                                type="text"
-                                value={refId}
-                                onChange={(e) => setRefId(e.target.value)}
-                                placeholder={`Nhập mã ${TICKET_REF_TYPE_LABELS[requiredRefType].toLowerCase()}`}
-                                className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314]"
-                                required
-                                maxLength={100}
-                            />
+                        {/* Cột phải */}
+                        <div className="flex flex-col gap-6">
+                            <div className="flex flex-col gap-2 flex-1">
+                                <label className="text-[13px] font-bold text-[#454F5B]">Mô tả chi tiết *</label>
+                                <textarea
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    placeholder="Mô tả chi tiết vấn đề bạn gặp phải..."
+                                    className="w-full flex-1 min-h-[140px] px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314] resize-none"
+                                    required
+                                />
+                            </div>
+
+                            <div className="bg-[#F9FAFB] p-4 rounded-xl border border-[#E5E8EB] shadow-sm">
+                                <ImageUploadPreview
+                                    value={attachmentFile}
+                                    existingUrl={editingTicket?.attachmentUrl}
+                                    onChange={setAttachmentFile}
+                                    label="Hình ảnh đính kèm"
+                                    helperText="Hình ảnh minh chứng (không bắt buộc)"
+                                />
+                            </div>
                         </div>
-                    )}
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[13px] font-bold text-[#454F5B]">Tiêu đề *</label>
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value.slice(0, 200))}
-                            placeholder="Tóm tắt vấn đề của bạn..."
-                            className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314]"
-                            required
-                        />
-                        <span className="text-[11px] text-[#919EAB] text-right">{title.length}/200</span>
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[13px] font-bold text-[#454F5B]">Mô tả chi tiết *</label>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows={4}
-                            placeholder="Mô tả chi tiết vấn đề bạn gặp phải..."
-                            className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314] resize-none"
-                            required
-                        />
-                    </div>
-
-                    <ImageUploadPreview
-                        value={attachmentFile}
-                        existingUrl={editingTicket?.attachmentUrl}
-                        onChange={setAttachmentFile}
-                        label="Hình ảnh đính kèm"
-                        helperText="Tải lên hình ảnh minh chứng (không bắt buộc)"
-                    />
-
-                    <div className="flex gap-3 pt-2">
+                    <div className="flex gap-4 pt-8 mt-4 border-t border-[#E5E8EB] justify-end">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 py-3 rounded-xl border border-[#E5E8EB] text-[#637381] font-bold text-[14px] hover:bg-[#F4F6F8] transition-colors cursor-pointer"
+                            className="px-8 py-3 rounded-xl border border-[#E5E8EB] text-[#637381] font-bold text-[14px] hover:bg-[#F4F6F8] transition-colors cursor-pointer"
                         >
                             Hủy
                         </button>
                         <button
                             type="submit"
                             disabled={isPending}
-                            className="flex-1 py-3 rounded-xl bg-[#ee1314] text-white font-bold text-[14px] hover:bg-[#c80f11] transition-colors disabled:opacity-50 cursor-pointer"
+                            className="px-8 py-3 rounded-xl bg-[#ee1314] text-white font-bold text-[14px] hover:bg-[#c80f11] transition-colors disabled:opacity-50 cursor-pointer min-w-[160px] flex justify-center items-center"
                         >
                             {isPending ? (
                                 <i className="fa-solid fa-spinner fa-spin"></i>
@@ -355,6 +518,20 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                     </div>
                 </form>
             </div>
+
+            <SelectOrderModal 
+                isOpen={isOrderModalOpen} 
+                onClose={() => setIsOrderModalOpen(false)} 
+                onSelect={(id) => setRefId(id)} 
+                selectedOrderId={refId}
+            />
+
+            <SelectRefundModal 
+                isOpen={isRefundModalOpen} 
+                onClose={() => setIsRefundModalOpen(false)} 
+                onSelect={(id) => setRefId(id)} 
+                selectedRefundId={refId}
+            />
         </div>
     );
 };
