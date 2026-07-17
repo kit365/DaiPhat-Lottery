@@ -355,7 +355,7 @@ public enum ErrorCode {
     TICKET_REF_INVALID("TKT_008", "Đối tượng tham chiếu không hợp lệ.", HttpStatus.BAD_REQUEST),
     TICKET_REF_ORDER_MISMATCH("TKT_009", "Đơn hàng không thuộc tài khoản của bạn.", HttpStatus.BAD_REQUEST),
     TICKET_ATTACHMENT_ONLY_ALLOWED("TKT_010", "Ở trạng thái chờ phản hồi, chỉ được cập nhật tệp đính kèm.", HttpStatus.BAD_REQUEST),
-    TICKET_COMMENT_NOT_ALLOWED("TKT_011", "Không thể gửi tin nhắn khi yêu cầu đã được giải quyết hoặc đã đóng.", HttpStatus.BAD_REQUEST),
+    TICKET_COMMENT_NOT_ALLOWED("TKT_011", "Không thể gửi tin nhắn khi yêu cầu đã được giải quyết, từ chối hoặc đã đóng.", HttpStatus.BAD_REQUEST),
     TICKET_COMMENT_TURN_VIOLATION("TKT_012", "Vui lòng chờ phản hồi từ bên còn lại trước khi gửi tin nhắn mới.", HttpStatus.BAD_REQUEST),
     TICKET_COMMENT_CONTENT_INVALID("TKT_013", "Nội dung tin nhắn không được để trống.", HttpStatus.BAD_REQUEST),
     TICKET_CANNOT_ASSIGN("TKT_014", "Chỉ có thể tiếp nhận yêu cầu hỗ trợ đang ở trạng thái mới tạo.", HttpStatus.BAD_REQUEST),
@@ -377,6 +377,24 @@ public enum ErrorCode {
     TICKET_REFUND_COMPLAINT_WINDOW_EXPIRED(
             "TKT_021",
             "Yêu cầu hoàn tiền này đã hết thời hạn khiếu nại (hết hạn sau %d ngày).",
+            HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_REJECT("TKT_022", "Không thể từ chối yêu cầu hỗ trợ ở trạng thái hiện tại.", HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_ACCEPT_RESOLUTION(
+            "TKT_023",
+            "Chỉ có thể xác nhận hài lòng khi yêu cầu đang ở trạng thái đã giải quyết.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_REOPEN_RESOLUTION(
+            "TKT_024",
+            "Chỉ có thể mở lại yêu cầu khi đang ở trạng thái đã giải quyết.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_STAFF_ACTION_INVALID("TKT_025", "Hành động phản hồi của nhân viên không hợp lệ.", HttpStatus.BAD_REQUEST),
+    TICKET_REASON_COMMENT_REQUIRED(
+            "TKT_026",
+            "Phải có bình luận lý do hợp lệ khi giải quyết hoặc từ chối yêu cầu.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_AUTO_CLOSE(
+            "TKT_027",
+            "Chỉ có thể tự động đóng yêu cầu đang ở trạng thái đã giải quyết.",
             HttpStatus.BAD_REQUEST),
 
     // Chat Errors

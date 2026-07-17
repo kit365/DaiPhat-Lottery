@@ -2,7 +2,9 @@ package com.daiphat.coreapi.application.port.in.support;
 
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketCommentRequest;
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketRequest;
+import com.daiphat.coreapi.application.dto.request.support.ResolutionFeedbackRequest;
 import com.daiphat.coreapi.application.dto.request.support.ResolveSupportTicketRequest;
+import com.daiphat.coreapi.application.dto.request.support.StaffSupportTicketResponseRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
@@ -40,6 +42,14 @@ public interface SupportTicketServicePort {
     SupportTicketResponse assignByStaff(Long id, UUID staffId);
 
     SupportTicketResponse resolveByStaff(Long id, UUID staffId, ResolveSupportTicketRequest request);
+
+    SupportTicketResponse respondByStaff(
+            Long id, UUID staffId, StaffSupportTicketResponseRequest request, UploadRequest file);
+
+    SupportTicketResponse submitResolutionFeedback(
+            Long id, UUID customerId, ResolutionFeedbackRequest request);
+
+    int autoCloseResolvedTickets();
 
     SupportTicketResponse updateByCustomer(
             Long id, UUID customerId, UpdateSupportTicketRequest request, UploadRequest file);
