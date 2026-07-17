@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { DeleteIcon, EditIcon, EyeIcon, ThreeDotsIcon, SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../../assets/icons";
 import { prefixAdmin } from "../../../../constants/routes";
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
-import { dataGridStyles } from "../../../../pages/ticket/configs/styles.config";
+import { dataGridStyles } from "../../../../shared/data-grid";
 
 import dayjs from "dayjs";
 import 'dayjs/locale/vi';

@@ -2,15 +2,16 @@ import { Toolbar, Box, Button, Badge, SvgIcon } from "@mui/material";
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { Search } from "../../../../components/ui/Search";
-import { JiraFilter } from "../../../../pages/ticket/sections/JiraFilter";
+import { JiraFilter, toolbarStyles, IGridSettings } from "../../../../shared/data-grid";
 import { SettingsList } from "../../../../components/ui/SettingsList";
 import { SortButton } from "../../../../components/ui/SortButton";
-import { toolbarStyles } from "../../../../pages/ticket/configs/styles.config";
 import Tooltip from '@mui/material/Tooltip';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { toast } from "react-toastify";
 import { useRef, useState } from "react";
+import dayjs from "dayjs";
+import { OrderFilterParams } from "../../../../../types/order.type";
 
 const CustomViewColumnIcon = (props: any) => (
     <SvgIcon {...props} viewBox="0 0 24 24">
@@ -110,9 +111,6 @@ const DummyExportButton = () => {
         </>
     );
 };
-import dayjs from "dayjs";
-import { OrderFilterParams } from "../../../../../types/order.type";
-import { IGridSettings } from "../../../../pages/ticket/configs/types";
 
 interface ToolbarProps {
     settings: IGridSettings;

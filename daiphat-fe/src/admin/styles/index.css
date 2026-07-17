@@ -125,6 +125,29 @@ input:-webkit-autofill:active {
     box-shadow: var(--customShadows-z8) !important;
 }
 
+.btn-primary-admin.Mui-disabled {
+    background-color: rgba(145, 158, 171, 0.24) !important;
+    color: rgba(145, 158, 171, 0.8) !important;
+}
+
+/* Form typography — sync create/edit pages */
+.admin-form-title {
+    font-size: 0.875rem !important;
+    font-weight: 700 !important;
+    color: var(--palette-text-primary) !important;
+}
+
+.admin-form-label {
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    color: var(--palette-text-secondary) !important;
+}
+
+.admin-form-helper {
+    font-size: 0.75rem !important;
+    color: var(--palette-text-secondary) !important;
+}
+
 .admin-datagrid-card {
     background: var(--palette-background-paper) !important;
     color: var(--palette-text-primary) !important;
@@ -478,6 +501,13 @@ input:-webkit-autofill:active {
     color: var(--palette-text-primary);
 }
 
+.admin-cell-subtitle {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--palette-text-disabled);
+    line-height: 1.4;
+}
+
 .admin-cell-date {
     font-size: 0.875rem;
     color: var(--palette-text-primary);
@@ -537,6 +567,11 @@ input:-webkit-autofill:active {
 .admin-status-badge--inactive {
     background-color: var(--palette-error-lighter);
     color: var(--palette-error-dark);
+}
+
+.admin-status-badge--success {
+    background-color: var(--palette-success-lighter);
+    color: var(--palette-success-dark);
 }
 
 /* DataGrid action menu typography */

@@ -3,7 +3,7 @@ import { z } from "zod";
 export const createStationSchema = z.object({
     name: z
         .string()
-        .min(1, "Tên sản phẩm không được để trống")
+        .min(1, "Tên nhà đài không được để trống")
         .max(100),
 
     province: z.string().optional(),

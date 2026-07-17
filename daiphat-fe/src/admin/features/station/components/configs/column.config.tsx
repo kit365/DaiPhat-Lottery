@@ -1,10 +1,15 @@
 import { GridColDef } from "@mui/x-data-grid";
+import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
 import {
     RenderActionsCell,
     RenderTitleCell,
     RenderStatusCell,
     RenderCreatedAtCell
 } from '../utils/render-cells';
+
+const DAY_LABEL: Record<string, string> = Object.fromEntries(
+    DAYS_OF_WEEK.map((d) => [d.value, d.shortLabel || d.label])
+);
 
 export const columnsConfig: GridColDef<any>[] = [
     {
@@ -25,11 +30,7 @@ export const columnsConfig: GridColDef<any>[] = [
             
             let formatted = 'Chưa có';
             if (drawDays && drawDays.length > 0) {
-                const dayMap: Record<string, string> = {
-                    'MONDAY': 'T2', 'TUESDAY': 'T3', 'WEDNESDAY': 'T4',
-                    'THURSDAY': 'T5', 'FRIDAY': 'T6', 'SATURDAY': 'T7', 'SUNDAY': 'CN'
-                };
-                const days = drawDays.map((d: string) => dayMap[d] || d).join(', ');
+                const days = drawDays.map((d: string) => DAY_LABEL[d] || d).join(', ');
                 formatted = `${days} (${drawTime || '--:--'})`;
             }
             

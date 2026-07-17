@@ -82,8 +82,3 @@ export interface StationListFilters {
     page: number;
     limit: number;
 }
-
-export interface ISelectOption {
-    value: string;
-    label: string;
-}

@@ -19,19 +19,14 @@ import {
     TextField,
     MenuItem,
     Stack,
-    Autocomplete,
-    createFilterOptions
 } from "@mui/material";
 import { Icon } from "@iconify/react";
 import { useUserTickets, useCreateUserTicket, useUpdateUserTicket, useDeleteUserTicket } from "../../hooks/useUserTicket";
-import { useTicketSubtypes, useCreateTicketSubtype } from "../../hooks/useTicketSubtype";
 import { CircularProgress } from "@mui/material";
 import { uploadImagesToCloudinary } from '../../../../api/uploadCloudinary.api';
 import { toast } from "react-toastify";
 import { useRef } from "react";
 import { confirmDelete } from '../../../../utils/swal';
-
-const filter = createFilterOptions<any>();
 
 interface UserUserTicketListProps {
     userId: string;
@@ -59,16 +54,6 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
 
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const { data: resTicketSubtypes } = useTicketSubtypes({ type: formData.type });
-    const ticketSubtypes = resTicketSubtypes?.data?.recordList || [];
-    const { mutate: createTicketSubtypeMutate } = useCreateTicketSubtype();
-
-    interface TicketSubtypeOption {
-        inputValue?: string;
-        name: string;
-        _id?: string;
-    }
 
     const handleOpenDialog = (userTicket: any = null) => {
         if (userTicket) {
@@ -370,59 +355,14 @@ export const UserUserTicketList = ({ userId }: UserUserTicketListProps) => {
                             </TextField>
                         </Stack>
 
-                        <Autocomplete
+                        <TextField
+                            fullWidth
+                            label="Đài"
+                            placeholder="Ví dụ: Tiền Giang, TP.HCM, Hà Nội..."
                             value={formData.ticketSubtype}
-                            onChange={async (_, newValue) => {
-                                if (typeof newValue === 'string') {
-                                    setFormData({ ...formData, ticketSubtype: newValue });
-                                } else if (newValue && (newValue as TicketSubtypeOption).inputValue) {
-                                    const ticketSubtypeName = (newValue as TicketSubtypeOption).inputValue || "";
-                                    setFormData({ ...formData, ticketSubtype: ticketSubtypeName });
-                                    createTicketSubtypeMutate({ name: ticketSubtypeName, type: formData.type });
-                                } else {
-                                    setFormData({ ...formData, ticketSubtype: (newValue as TicketSubtypeOption)?.name || "" });
-                                }
-                            }}
-                            filterOptions={(options, params) => {
-                                const filtered = filter(options, params);
-                                const { inputValue } = params;
-                                const isExisting = options.some((option) => inputValue === (option as TicketSubtypeOption).name);
-                                if (inputValue !== '' && !isExisting) {
-                                    filtered.push({
-                                        inputValue: inputValue,
-                                        name: `Thêm "${inputValue}"`,
-                                    });
-                                }
-                                return filtered;
-                            }}
-                            selectOnFocus
-                            clearOnBlur
-                            handleHomeEndKeys
-                            options={ticketSubtypes as TicketSubtypeOption[]}
-                            getOptionLabel={(option) => {
-                                if (typeof option === 'string') {
-                                    return option;
-                                }
-                                if ((option as TicketSubtypeOption).inputValue) {
-                                    return (option as TicketSubtypeOption).inputValue || "";
-                                }
-                                return (option as TicketSubtypeOption).name;
-                            }}
-                            renderOption={(props, option) => (
-                                <li {...props} key={(option as TicketSubtypeOption)._id || (option as TicketSubtypeOption).name} style={{ fontSize: '0.875rem' }}>
-                                    {(option as TicketSubtypeOption).name}
-                                </li>
-                            )}
-                            freeSolo
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    label="Đài"
-                                    placeholder="Ví dụ: Tiền Giang, TP.HCM, Hà Nội..."
-                                    InputLabelProps={{ shrink: true }}
-                                />
-                            )}
-                            sx={{ '& .MuiInputBase-root': { fontSize: '0.875rem' } }}
+                            onChange={(e) => setFormData({ ...formData, ticketSubtype: e.target.value })}
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
                         />
 
                         <Stack direction="row" spacing={2}>

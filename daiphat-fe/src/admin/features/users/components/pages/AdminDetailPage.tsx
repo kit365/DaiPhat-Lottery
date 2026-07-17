@@ -28,7 +28,6 @@ import {
     useUploadUserAvatar
 } from "../../hooks/useUsers";
 import { useRoles } from "../../../role/hooks/useRole";
-import { StaffTicketServiceOrderHistory } from "../sections/StaffBookingHistory";
 import { StaffBoardingHistory } from "../sections/StaffBoardingHistory";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -230,16 +229,6 @@ export const AdminDetailPage = () => {
                         <Stack direction="row" spacing={1} alignItems="center">
                             <Icon icon="solar:user-id-bold" width={20} />
                             <span>Tổng quan</span>
-                        </Stack>
-                    }
-                />
-                <Tab
-                    disableRipple
-                    value="ticketServiceOrder-history"
-                    label={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Icon icon="solar:calendar-date-bold" width={20} />
-                            <span>Lịch sử dịch vụ</span>
                         </Stack>
                     }
                 />
@@ -468,16 +457,6 @@ export const AdminDetailPage = () => {
                         </div>
                     </div>
                 </form>
-            )}
-
-            {currentTab === "ticketServiceOrder-history" && id && (
-                <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", overflow: 'hidden' }}>
-                    <Box sx={{ p: 3, borderBottom: '1px dashed var(--palette-divider)' }}>
-                        <Typography variant="h6">Lịch sử dịch vụ</Typography>
-                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Toàn bộ đơn dịch vụ quản trị viên được phân công</Typography>
-                    </Box>
-                    <StaffTicketServiceOrderHistory staffId={id} />
-                </Card>
             )}
 
             {currentTab === "boarding-history" && id && (

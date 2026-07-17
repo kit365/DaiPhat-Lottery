@@ -95,11 +95,11 @@ export const StationCreatePage = () => {
         create(payload, {
             onSuccess: (response) => {
                 if (response.success) {
-                    const createdProviderId = response.data?.id || response.data?._id;
+                    const createdStationId = response.data?.id || response.data?._id;
                     const fileToUpload = data.image instanceof File ? data.image : null;
 
-                    if (createdProviderId && fileToUpload) {
-                        uploadImage({ id: createdProviderId, file: fileToUpload }, {
+                    if (createdStationId && fileToUpload) {
+                        uploadImage({ id: createdStationId, file: fileToUpload }, {
                             onSuccess: () => {
                                 finalizeSuccess(response.message || "");
                             },
@@ -310,7 +310,7 @@ export const StationCreatePage = () => {
                                                                                     alignItems: 'center',
                                                                                     justifyContent: 'center',
                                                                                     cursor: 'pointer',
-                                                                                    backgroundColor: isSelected ? '#10b981' : 'rgba(0, 0, 0, 0.04)',
+                                                                                    backgroundColor: isSelected ? '#00A76F' : 'rgba(0, 0, 0, 0.04)',
                                                                                     color: isSelected ? '#fff' : 'text.primary',
                                                                                     fontWeight: isSelected ? 600 : 400,
                                                                                     transition: 'all 0.2s',
@@ -351,28 +351,28 @@ export const StationCreatePage = () => {
                                                             InputLabelProps: { shrink: true },
                                                             sx: {
                                                                 '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                                                                    borderColor: 'var(--palette-text-primary) !important',
+                                                                    borderColor: '#00A76F !important',
                                                                 },
                                                                 '& .MuiInputLabel-root.Mui-focused': {
-                                                                    color: 'var(--palette-text-primary) !important',
+                                                                    color: '#00A76F !important',
                                                                 }
                                                             }
                                                         },
                                                         popper: {
                                                             sx: {
                                                                 '& .Mui-selected, & .Mui-selected:hover': {
-                                                                    backgroundColor: '#10b981 !important',
+                                                                    backgroundColor: '#00A76F !important',
                                                                     color: '#fff !important',
                                                                 },
                                                                 '& .MuiClockPointer-root, & .MuiClock-pin': {
-                                                                    backgroundColor: '#10b981 !important',
+                                                                    backgroundColor: '#00A76F !important',
                                                                 },
                                                                 '& .MuiClockPointer-thumb': {
-                                                                    backgroundColor: '#10b981 !important',
-                                                                    borderColor: '#10b981 !important',
+                                                                    backgroundColor: '#00A76F !important',
+                                                                    borderColor: '#00A76F !important',
                                                                 },
                                                                 '& .MuiButton-textPrimary': {
-                                                                    color: '#10b981 !important',
+                                                                    color: '#00A76F !important',
                                                                 }
                                                             }
                                                         }

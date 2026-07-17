@@ -4,31 +4,25 @@ import { Title } from "../../../../components/ui/Title"
 import { useState, useMemo } from "react"
 import { CollapsibleCard } from "../../../../components/ui/CollapsibleCard"
 import { prefixAdmin } from "../../../../constants/routes";
+import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStationDetail } from "../../hooks/useStation";
 
-const REGION_OPTIONS = [
-    { value: 'NORTH', label: 'Miền Bắc' },
-    { value: 'CENTRAL', label: 'Miền Trung' },
-    { value: 'SOUTH', label: 'Miền Nam' },
-];
+const REGION_LABELS: Record<string, string> = {
+    MIEN_BAC: 'Miền Bắc',
+    MIEN_TRUNG: 'Miền Trung',
+    MIEN_NAM: 'Miền Nam',
+};
 
-const WEEKDAY_OPTIONS = [
-    { value: 'MONDAY', label: 'Thứ 2' },
-    { value: 'TUESDAY', label: 'Thứ 3' },
-    { value: 'WEDNESDAY', label: 'Thứ 4' },
-    { value: 'THURSDAY', label: 'Thứ 5' },
-    { value: 'FRIDAY', label: 'Thứ 6' },
-    { value: 'SATURDAY', label: 'Thứ 7' },
-    { value: 'SUNDAY', label: 'Chủ nhật' }
-];
+const DAY_LABEL: Record<string, string> = Object.fromEntries(
+    DAYS_OF_WEEK.map((d) => [d.value, d.label])
+);
 
 export const StationDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    const { data: providerRes, isLoading } = useStationDetail(id);
-    const providerDetail = providerRes;
+    const { data: stationDetail, isLoading } = useStationDetail(id);
 
     const [expandedDetail, setExpandedDetail] = useState(true);
     const outerTheme = useTheme();
@@ -54,21 +48,22 @@ export const StationDetailPage = () => {
         return <Box display="flex" justifyContent="center" alignItems="center" height="400px"><CircularProgress /></Box>
     }
 
-    if (!providerDetail) {
+    if (!stationDetail) {
         return <Box display="flex" justifyContent="center" alignItems="center" height="400px"><Typography>Không tìm thấy nhà đài.</Typography></Box>
     }
 
-    const regionLabel = REGION_OPTIONS.find(r => r.value === providerDetail.region)?.label || providerDetail.region || 'N/A';
-    
-    // Parse drawDays properly if it's an array or comma-separated string
+    const regionLabel = REGION_LABELS[stationDetail.region] || stationDetail.region || 'N/A';
+
     let drawDaysArray: string[] = [];
-    if (Array.isArray(providerDetail.drawDays)) {
-        drawDaysArray = providerDetail.drawDays;
-    } else if (typeof providerDetail.drawDays === 'string') {
-        drawDaysArray = providerDetail.drawDays.split(',');
+    if (Array.isArray(stationDetail.drawDays)) {
+        drawDaysArray = stationDetail.drawDays;
+    } else if (typeof stationDetail.drawDays === 'string') {
+        drawDaysArray = stationDetail.drawDays.split(',');
     }
-    
-    const drawDaysLabels = drawDaysArray.map(day => WEEKDAY_OPTIONS.find(w => w.value === day.trim())?.label || day).join(', ');
+
+    const drawDaysLabels = drawDaysArray
+        .map((day) => DAY_LABEL[day.trim()] || day.trim())
+        .join(', ');
 
     return (
         <>
@@ -77,13 +72,13 @@ export const StationDetailPage = () => {
                     <Title title={"Chi tiết nhà đài"} />
                     <Breadcrumb
                         items={[
-                            { label: "Dashboard", to: "/" },
+                            { label: "Bảng điều khiển", to: `/${prefixAdmin}` },
                             { label: "Nhà đài", to: `/${prefixAdmin}/provider/list` },
                             { label: "Chi tiết" }
                         ]}
                     />
                 </div>
-                <Button variant="contained" color="primary" onClick={() => navigate(`/${prefixAdmin}/provider/edit/${id}`)}>
+                <Button variant="contained" className="btn-primary-admin" onClick={() => navigate(`/${prefixAdmin}/provider/edit/${id}`)}>
                     Chỉnh sửa
                 </Button>
             </div>
@@ -109,13 +104,13 @@ export const StationDetailPage = () => {
                             >
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 8" } }}>
                                     <Typography variant="caption" color="text.secondary">Tên nhà đài</Typography>
-                                    <Typography variant="h6" fontWeight={700} color="primary.main">{providerDetail.name || 'N/A'}</Typography>
+                                    <Typography variant="h6" fontWeight={700} color="text.primary">{stationDetail.name || 'N/A'}</Typography>
                                 </Box>
 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Trạng thái</Typography>
                                     <Box mt={0.5}>
-                                        {providerDetail.status === 'ACTIVE' || providerDetail.status === 'active' ? (
+                                        {stationDetail.status === 'ACTIVE' || stationDetail.status === 'active' ? (
                                             <Chip label="Hoạt động" color="success" size="small" />
                                         ) : (
                                             <Chip label="Vô hiệu hóa" color="default" size="small" />
@@ -135,18 +130,18 @@ export const StationDetailPage = () => {
 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Giờ quay thưởng</Typography>
-                                    <Typography variant="body1" fontWeight={600}>{providerDetail.drawTime || 'N/A'}</Typography>
+                                    <Typography variant="body1" fontWeight={600}>{stationDetail.drawTime || 'N/A'}</Typography>
                                 </Box>
                                 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 4" } }}>
                                     <Typography variant="caption" color="text.secondary">Độ ưu tiên</Typography>
-                                    <Typography variant="body1" fontWeight={600}>{providerDetail.priority !== undefined ? providerDetail.priority : 'N/A'}</Typography>
+                                    <Typography variant="body1" fontWeight={600}>{stationDetail.priority !== undefined ? stationDetail.priority : 'N/A'}</Typography>
                                 </Box>
 
                                 <Box sx={{ gridColumn: { xs: "span 12", md: "span 8" } }}>
                                     <Typography variant="caption" color="text.secondary">Tính năng Scan</Typography>
                                     <Box mt={0.5}>
-                                        {providerDetail.scanEnabled ? (
+                                        {stationDetail.scanEnabled ? (
                                             <Chip label="Có hỗ trợ" color="info" size="small" variant="outlined" />
                                         ) : (
                                             <Chip label="Không hỗ trợ" color="default" size="small" variant="outlined" />
@@ -157,17 +152,17 @@ export const StationDetailPage = () => {
                                 <Box sx={{ gridColumn: { xs: "span 12" } }}>
                                     <Typography variant="caption" color="text.secondary">Mô tả</Typography>
                                     <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5, bgcolor: '#FAFBFC', p: 1.5, borderRadius: 1, border: '1px solid #DFE1E6' }}>
-                                        {providerDetail.description || 'Không có mô tả'}
+                                        {stationDetail.description || 'Không có mô tả'}
                                     </Typography>
                                 </Box>
                             </Box>
 
                             <Box sx={{ mt: 2 }}>
                                 <Typography variant="caption" color="text.secondary" mb={1} display="block">Logo / Hình ảnh</Typography>
-                                {providerDetail.avatar || providerDetail.image ? (
+                                {stationDetail.avatar || stationDetail.image ? (
                                     <Box 
                                         component="img"
-                                        src={providerDetail.avatar || providerDetail.image}
+                                        src={stationDetail.avatar || stationDetail.image}
                                         sx={{ 
                                             maxWidth: '200px', 
                                             maxHeight: '200px', 
@@ -205,5 +200,5 @@ export const StationDetailPage = () => {
                 </Stack>
             </ThemeProvider>
         </>
-    )
-}
+    );
+};
