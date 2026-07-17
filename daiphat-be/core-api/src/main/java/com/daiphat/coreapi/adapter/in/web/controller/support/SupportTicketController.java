@@ -5,6 +5,7 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketCommentRequest;
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketRequest;
+import com.daiphat.coreapi.application.dto.request.support.ResolutionFeedbackRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
@@ -119,6 +120,19 @@ public class SupportTicketController {
         return ApiResponse.success(
                 "Đóng yêu cầu hỗ trợ thành công.",
                 supportTicketServicePort.closeByCustomer(id, principal.getId()));
+    }
+
+    @PutMapping(ID_PATH + "/resolution-feedback")
+    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    public ApiResponse<SupportTicketResponse> submitResolutionFeedback(
+            @PathVariable Long id,
+            @Valid @RequestBody ResolutionFeedbackRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                Boolean.TRUE.equals(request.satisfied())
+                        ? "Cảm ơn bạn đã xác nhận. Yêu cầu hỗ trợ đã được đóng."
+                        : "Yêu cầu hỗ trợ đã được mở lại để tiếp tục xử lý.",
+                supportTicketServicePort.submitResolutionFeedback(id, principal.getId(), request));
     }
 
     @GetMapping(ID_PATH + "/comments")
