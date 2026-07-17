@@ -3,6 +3,7 @@ package com.daiphat.coreapi.application.service.chat.ticket;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePort;
+import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Queries available (IN_STOCK) lottery tickets from DB for chat replies.
@@ -24,6 +26,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChatTicketInventoryService {
 
+    /**
+     * Sentinel meaning "the upcoming sale window": today plus the next {@link #UPCOMING_DRAW_WINDOW_DAYS} days.
+     * Every station draws weekly, so a 7-day window always covers each station's next draw.
+     * Tickets whose draw already happened today are excluded at query level (public cutoff filter).
+     */
     public static final String DRAW_DATE_TODAY = "today";
     public static final int DEFAULT_LIMIT = 5;
     public static final int FALLBACK_LIMIT = 3;
@@ -33,7 +40,9 @@ public class ChatTicketInventoryService {
     public static final String MATCH_PREFIX = "prefix";
     public static final String MATCH_EXACT = "exact";
 
-    private static final String SORT_BY_NUMBERS = "numbers";
+    static final int UPCOMING_DRAW_WINDOW_DAYS = 7;
+
+    private static final String SORT_BY_DRAW_DATE = "drawDate";
     private static final String SORT_DIRECTION_ASC = "asc";
     private static final int MATCH_PAGE_SIZE = 40;
     private static final int MATCH_MAX_PAGES = 5;
@@ -64,7 +73,7 @@ public class ChatTicketInventoryService {
                     null,
                     resolvedDrawDate,
                     resolvedSearch,
-                    SORT_BY_NUMBERS,
+                    SORT_BY_DRAW_DATE,
                     SORT_DIRECTION_ASC
             );
             if (page == null || page.getRecordList() == null) {
@@ -107,7 +116,7 @@ public class ChatTicketInventoryService {
                         null,
                         resolvedDrawDate,
                         fragment,
-                        SORT_BY_NUMBERS,
+                        SORT_BY_DRAW_DATE,
                         SORT_DIRECTION_ASC
                 );
                 List<LotteryTicketResponse> records = response != null ? response.getRecordList() : null;
@@ -164,7 +173,7 @@ public class ChatTicketInventoryService {
             return new TicketInventoryReply(display, display);
         }
 
-        String display = emptyLead + " Trong lúc đó, dưới đây là vài vé đang bán hôm nay dành cho quý khách:";
+        String display = emptyLead + " Trong lúc đó, dưới đây là vài vé đang bán cho kỳ quay sắp tới dành cho quý khách:";
         return new TicketInventoryReply(withLeadingDisplay(display, toToken(fallback)), display);
     }
 
@@ -177,8 +186,8 @@ public class ChatTicketInventoryService {
 
         String lead = leadingReply != null && !leadingReply.isBlank() ? leadingReply.trim() : "";
         String display = lead.isBlank()
-                ? "Dưới đây là vài vé đang bán hôm nay dành cho quý khách:"
-                : lead + "\n\nDưới đây là vài vé đang bán hôm nay dành cho quý khách:";
+                ? "Dưới đây là vài vé đang bán cho kỳ quay sắp tới dành cho quý khách:"
+                : lead + "\n\nDưới đây là vài vé đang bán cho kỳ quay sắp tới dành cho quý khách:";
         return new TicketInventoryReply(withLeadingDisplay(display, toToken(tickets)), display);
     }
 
@@ -206,7 +215,10 @@ public class ChatTicketInventoryService {
 
     static String resolveDrawDateFilter(String drawDate) {
         if (drawDate == null || drawDate.isBlank() || DRAW_DATE_TODAY.equalsIgnoreCase(drawDate.trim())) {
-            return LocalDate.now().toString();
+            LocalDate today = DrawScheduleUtils.today();
+            return IntStream.range(0, UPCOMING_DRAW_WINDOW_DAYS)
+                    .mapToObj(offset -> today.plusDays(offset).toString())
+                    .collect(Collectors.joining(","));
         }
         return drawDate.trim();
     }
@@ -263,7 +275,7 @@ public class ChatTicketInventoryService {
             return "Dưới đây là " + count + " vé đang bán khớp đuôi số " + search.trim()
                     + " dành cho quý khách:";
         }
-        return "Dưới đây là " + count + " vé đang bán hôm nay dành cho quý khách:";
+        return "Dưới đây là " + count + " vé đang bán cho kỳ quay sắp tới dành cho quý khách:";
     }
 
     private static String formatIsoDate(LocalDate drawDate) {
