@@ -18,7 +18,6 @@ export const ROUTES = {
             STATISTICS: {
                 GENERAL: `/${prefixAdmin}/dashboard/statistics/general`,
                 ORDERS: `/${prefixAdmin}/dashboard/statistics/orders`,
-                TICKET_SERVICES: `/${prefixAdmin}/dashboard/statistics/ticketServices`,
             },
             SETTINGS: {
                 ROOT: `/${prefixAdmin}/dashboard/settings`,
@@ -27,7 +26,6 @@ export const ROUTES = {
                 PAYMENT: `/${prefixAdmin}/dashboard/settings/payment`,
                 SOCIAL: `/${prefixAdmin}/dashboard/settings/social`,
                 APP_PASSWORD: `/${prefixAdmin}/dashboard/settings/app-password`,
-                TICKET_SUBTYPE: `/${prefixAdmin}/settings/ticket-subtype/list`,
                 SYSTEM_CONFIG: `/${prefixAdmin}/settings/system-config/list`,
             }
         },
@@ -51,7 +49,6 @@ export const ROUTES = {
             PRIZE_STRUCTURE: `/${prefixAdmin}/prize-structures/list`,
             DRAW_RESULT: `/${prefixAdmin}/draw-results`,
             REGION: `/${prefixAdmin}/region/list`,
-            ATTRIBUTE: `/${prefixAdmin}/ticket/attribute/list`,
             EXPIRED: `/${prefixAdmin}/ticket/expired`,
         },
         IMPORT_BATCH: {
@@ -65,11 +62,6 @@ export const ROUTES = {
             CREATE: `/${prefixAdmin}/supplier/create`,
             EDIT: (id: number | string) => `/${prefixAdmin}/supplier/edit/${id}`,
         },
-        TICKET_SERVICES: {
-            LIST: `/${prefixAdmin}/ticketService/list`,
-            CREATE: `/${prefixAdmin}/ticketService/create`,
-            CATEGORIES: `/${prefixAdmin}/ticketService/categories`,
-        },
         BLOGS: {
             LIST: `/${prefixAdmin}/blog/list`,
             DETAIL: `/${prefixAdmin}/blog/detail/`,
@@ -81,20 +73,9 @@ export const ROUTES = {
             DETAIL: `/${prefixAdmin}/order/detail/`,
             CREATE_COUNTER: `/${prefixAdmin}/order/create-counter`,
         },
-        SUPPORT_TICKETS: {
-            LIST: `/${prefixAdmin}/support-tickets/list`,
-            DETAIL: `/${prefixAdmin}/support-tickets/detail/`,
-        },
         REFUNDS: {
             LIST: `/${prefixAdmin}/refunds/list`,
             DETAIL: `/${prefixAdmin}/refunds/detail/`,
-        },
-        TICKET_SERVICE_ORDERS: {
-            LIST: `/${prefixAdmin}/ticketServiceOrder/list`,
-            CREATE: `/${prefixAdmin}/ticketServiceOrder/create`,
-            CONFIG: `/${prefixAdmin}/ticketServiceOrder/config`,
-            EDIT: `/${prefixAdmin}/ticketServiceOrder/edit/`,
-            DETAIL: `/${prefixAdmin}/ticketServiceOrder/detail/`,
         },
         REVIEWS: `/${prefixAdmin}/review`,
         ROLES: {
@@ -123,11 +104,6 @@ export const ROUTES = {
             }
         },
         CHAT: `/${prefixAdmin}/chat`,
-        COUPONS: {
-            LIST: `/${prefixAdmin}/coupon/list`,
-            CREATE: `/${prefixAdmin}/coupon/create`,
-        },
-        CALENDAR: `/${prefixAdmin}/calendar`,
         NOTIFICATIONS: `/${prefixAdmin}/notifications`,
         PROFILE: `/${prefixAdmin}/profile`,
         ACCOUNT: `/${prefixAdmin}/account`,

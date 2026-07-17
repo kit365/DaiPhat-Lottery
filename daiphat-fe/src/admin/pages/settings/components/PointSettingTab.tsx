@@ -78,7 +78,7 @@ export const PointSettingTab = () => {
 
                     <Grid size={{ xs: 12 }}>
                         <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                            <Button
+                            <Button className="btn-primary-admin"
                                 type="submit"
                                 variant="contained"
                                 disabled={isPending}
@@ -88,7 +88,7 @@ export const PointSettingTab = () => {
                                     py: 1.5,
                                     borderRadius: "12px",
                                     fontWeight: 700,
-                                    fontSize: "1rem",
+                                    fontSize: "0.875rem",
                                     textTransform: "none",
                                     boxShadow: "0 8px 16px rgba(28, 37, 46, 0.24)",
                                     "&:hover": {

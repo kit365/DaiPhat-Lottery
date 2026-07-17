@@ -12,10 +12,6 @@ export const settingGeneralSchema = z.object({
     defaultPassword: z.string().optional().or(z.literal("")),
     facebook: z.string().optional().or(z.literal("")),
     instagram: z.string().optional().or(z.literal("")),
-    ticketSubtypes: z.array(z.object({
-        name: z.string().min(1, "Vui lòng nhập tên giống"),
-        type: z.enum(["dog", "cat", "other"])
-    })).default([]),
     ticketServiceColors: z.array(z.object({
         ticketServiceId: z.string(),
         color: z.string()

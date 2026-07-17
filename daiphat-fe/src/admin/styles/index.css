@@ -125,15 +125,38 @@ input:-webkit-autofill:active {
     box-shadow: var(--customShadows-z8) !important;
 }
 
+.btn-primary-admin.Mui-disabled {
+    background-color: rgba(145, 158, 171, 0.24) !important;
+    color: rgba(145, 158, 171, 0.8) !important;
+}
+
+/* Form typography — sync create/edit pages */
+.admin-form-title {
+    font-size: 0.875rem !important;
+    font-weight: 700 !important;
+    color: var(--palette-text-primary) !important;
+}
+
+.admin-form-label {
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    color: var(--palette-text-secondary) !important;
+}
+
+.admin-form-helper {
+    font-size: 0.75rem !important;
+    color: var(--palette-text-secondary) !important;
+}
+
 .admin-datagrid-card {
     background: var(--palette-background-paper) !important;
     color: var(--palette-text-primary) !important;
-    border-radius: 16px !important;
+    border-radius: var(--shape-borderRadius-lg) !important;
     height: 640px !important;
     display: flex !important;
     flex-direction: column !important;
-    box-shadow: var(--shadow-sm) !important;
-    border: 1px solid var(--palette-divider) !important;
+    box-shadow: var(--customShadows-card) !important;
+    overflow: hidden !important;
 }
 
 .swal2-container {
@@ -280,4 +303,358 @@ input:-webkit-autofill:active {
     .admin-list-toolbar__actions {
         flex-wrap: wrap;
     }
+}
+
+/* -------------------------------------------------------------------------
+   Admin DataGrid — font / color / typography (single source of truth)
+   Use: <DataGrid className="admin-datagrid" ... />
+   ------------------------------------------------------------------------- */
+.admin-datagrid.MuiDataGrid-root {
+    color: var(--palette-text-primary);
+    border-width: 0;
+    --DataGrid-t-color-interactive-focus: var(--palette-success-main);
+    --DataGrid-t-color-border-base: var(--palette-background-neutral);
+    overflow: auto;
+}
+
+.admin-datagrid .MuiDataGrid-columnHeaders {
+    border-radius: 0;
+    position: sticky;
+    top: 70px;
+    z-index: 3;
+    background: var(--palette-background-neutral);
+}
+
+.admin-datagrid .MuiDataGrid-columnHeader {
+    color: var(--palette-text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: none;
+    border-bottom: 1px solid var(--palette-background-neutral);
+    background-color: var(--palette-background-neutral);
+}
+
+.admin-datagrid .MuiDataGrid-columnHeader--withRightBorder {
+    border-right: 1px solid var(--palette-background-neutral);
+}
+
+.admin-datagrid .MuiDataGrid-menuIcon .MuiButtonBase-root {
+    color: var(--palette-text-secondary);
+    rotate: 90deg;
+}
+
+.admin-datagrid .MuiDataGrid-columnHeaders .MuiButtonBase-root {
+    font-size: 1.125rem;
+}
+
+.admin-datagrid .MuiDataGrid-footerContainer {
+    border-top: 1px dashed var(--palette-background-neutral);
+    min-height: auto;
+    font-size: 0.875rem;
+    color: inherit;
+}
+
+.admin-datagrid .MuiTablePagination-selectLabel,
+.admin-datagrid .MuiTablePagination-displayedRows {
+    font-size: 0.875rem;
+    color: inherit;
+}
+
+.admin-datagrid .MuiTablePagination-selectLabel {
+    margin-bottom: -2px;
+}
+
+.admin-datagrid .MuiSelect-select {
+    min-height: 21.5625px;
+    line-height: 1.5rem;
+    font-size: 0.9375rem;
+}
+
+.admin-datagrid .MuiSelect-icon {
+    top: 6px;
+}
+
+.admin-datagrid .MuiTablePaginationActions-root {
+    margin-right: 8px;
+}
+
+.admin-datagrid .MuiTablePaginationActions-root .MuiButtonBase-root {
+    padding: 5px;
+}
+
+.admin-datagrid .MuiTablePaginationActions-root .MuiSvgIcon-root {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.admin-datagrid .MuiDataGrid-withBorderColor {
+    border-color: var(--palette-background-neutral);
+}
+
+.admin-datagrid .MuiDataGrid-cell {
+    color: inherit;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    border-right-style: dashed;
+}
+
+/* First content column (skip checkbox) */
+.admin-datagrid .MuiDataGrid-columnHeader[aria-colindex="1"]:not(.MuiDataGrid-columnHeaderCheckbox),
+.admin-datagrid .MuiDataGrid-cell[aria-colindex="1"]:not(.MuiDataGrid-cellCheckbox),
+.admin-datagrid .MuiDataGrid-columnHeaderCheckbox + .MuiDataGrid-columnHeader,
+.admin-datagrid .MuiDataGrid-cellCheckbox + .MuiDataGrid-cell {
+    padding-left: 24px !important;
+}
+
+.admin-datagrid .MuiDataGrid-toolbarContainer {
+    color: inherit;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: var(--palette-background-paper);
+    border-bottom: none;
+}
+
+.admin-datagrid .MuiCheckbox-root {
+    color: var(--palette-text-disabled);
+}
+
+.admin-datagrid .MuiCheckbox-root.Mui-checked,
+.admin-datagrid .MuiCheckbox-root.Mui-indeterminate {
+    color: var(--palette-primary-main);
+}
+
+.admin-datagrid .MuiFormControl-root {
+    color: inherit;
+}
+
+.admin-datagrid .MuiInputLabel-root {
+    color: var(--palette-text-secondary);
+}
+
+.admin-datagrid .MuiInputLabel-root.Mui-focused {
+    color: var(--palette-text-primary);
+}
+
+.admin-datagrid .MuiOutlinedInput-root {
+    color: var(--palette-text-primary);
+}
+
+.admin-datagrid .MuiOutlinedInput-root fieldset {
+    border-color: rgba(145 158 171 / 20%);
+}
+
+.admin-datagrid .MuiOutlinedInput-root:hover fieldset {
+    border-color: rgba(145 158 171 / 40%);
+}
+
+.admin-datagrid .MuiOutlinedInput-root.Mui-focused fieldset {
+    border-color: var(--palette-text-primary);
+}
+
+.admin-datagrid .MuiDataGrid-actionsCell .MuiIconButton-root {
+    color: var(--palette-text-secondary);
+}
+
+.admin-datagrid .MuiDataGrid-actionsCell .MuiSvgIcon-root {
+    font-size: 1.25rem;
+}
+
+.admin-datagrid .MuiDataGrid-overlay {
+    font-size: 1.125rem;
+    color: var(--palette-text-secondary);
+}
+
+.admin-datagrid-empty {
+    font-size: 1.125rem;
+    color: var(--palette-text-secondary);
+}
+
+/* Cell text helpers */
+.admin-cell-title,
+.admin-datagrid .ticket-title {
+    color: var(--palette-text-primary) !important;
+    font-weight: 600 !important;
+    font-size: 0.8125rem !important;
+    transition: color 0.2s;
+}
+
+.admin-datagrid .MuiDataGrid-cell:hover .admin-cell-title,
+.admin-datagrid .MuiDataGrid-cell:hover .ticket-title,
+.admin-datagrid .MuiDataGrid-cell:hover .supplier-title,
+.admin-datagrid .MuiDataGrid-cell:hover .admin-cell-date,
+.admin-datagrid .MuiDataGrid-cell:hover .date-text {
+    color: var(--palette-success-main) !important;
+}
+
+.admin-datagrid .supplier-title {
+    color: var(--palette-text-primary);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    transition: color 0.2s;
+}
+
+.admin-cell-text {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--palette-text-primary);
+}
+
+.admin-cell-subtitle {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--palette-text-disabled);
+    line-height: 1.4;
+}
+
+.admin-cell-date {
+    font-size: 0.875rem;
+    color: var(--palette-text-primary);
+    transition: color 0.2s;
+    text-transform: capitalize;
+}
+
+.admin-cell-date-secondary,
+.admin-datagrid .date-text {
+    font-size: 0.75rem;
+    color: var(--palette-text-secondary);
+    text-transform: lowercase;
+}
+
+.admin-avatar-upload-btn {
+    position: absolute !important;
+    bottom: -10px !important;
+    right: -10px !important;
+    color: var(--palette-text-secondary) !important;
+}
+
+.admin-avatar-upload-btn:hover {
+    color: var(--palette-primary-main) !important;
+}
+
+/* Status badges */
+.admin-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.5;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0 6px;
+    border-radius: 6px;
+    background-color: var(--palette-grey-200);
+    color: var(--palette-grey-800);
+}
+
+.admin-status-badge--draft {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.admin-status-badge--pending {
+    background-color: var(--palette-warning-lighter);
+    color: var(--palette-warning-dark);
+}
+
+.admin-status-badge--active {
+    background-color: var(--palette-info-lighter);
+    color: var(--palette-info-dark);
+}
+
+.admin-status-badge--inactive {
+    background-color: var(--palette-error-lighter);
+    color: var(--palette-error-dark);
+}
+
+.admin-status-badge--success {
+    background-color: var(--palette-success-lighter);
+    color: var(--palette-success-dark);
+}
+
+/* DataGrid action menu typography */
+.MuiDataGrid-menu .MuiTypography-root,
+.admin-menu-item .MuiTypography-root {
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
+}
+
+.admin-menu-item--danger .MuiTypography-root {
+    color: var(--palette-error-main) !important;
+}
+
+.admin-list-action-button .MuiBadge-badge {
+    background-color: #ff5630 !important;
+}
+
+.admin-list-action-button .MuiSvgIcon-root,
+.admin-list-action-button .MuiSvgIcon-root.MuiSvgIcon-root {
+    font-size: 1.125rem !important;
+}
+
+.admin-list-action-button .MuiButton-icon {
+    margin-top: -2px !important;
+}
+
+/* -------------------------------------------------------------------------
+   Admin Table (MUI Table lists — e.g. region)
+   ------------------------------------------------------------------------- */
+.admin-table-wrap {
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.admin-table-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex: 1;
+}
+
+.admin-table-container {
+    flex: 1;
+    overflow: auto;
+}
+
+.admin-table {
+    width: 100%;
+}
+
+.admin-table .MuiTableCell-head {
+    color: var(--palette-text-secondary) !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    border-bottom: 1px dashed var(--palette-divider) !important;
+    background: var(--palette-background-neutral) !important;
+}
+
+.admin-table .MuiTableCell-head:first-of-type,
+.admin-table .MuiTableCell-body:first-of-type {
+    padding-left: 24px !important;
+}
+
+.admin-table .MuiTableCell-body {
+    color: var(--palette-text-primary) !important;
+    font-size: 0.875rem !important;
+    border-bottom: 1px dashed var(--palette-divider) !important;
+}
+
+.admin-table .MuiTableRow-root:hover .MuiTableCell-body {
+    background-color: var(--palette-action-hover);
+}
+
+.admin-table-action {
+    color: var(--palette-text-secondary) !important;
+}
+
+.admin-table-action:hover {
+    color: var(--palette-primary-main) !important;
+    background-color: var(--palette-action-hover) !important;
 }

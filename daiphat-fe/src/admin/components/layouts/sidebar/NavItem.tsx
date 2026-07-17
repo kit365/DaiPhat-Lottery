@@ -6,8 +6,8 @@ import { ArrowIcon } from "../../../assets/icons";
 import { useSidebar } from "../../../context/sidebar/useSidebar";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { hasPermission, resolveRoleCode } from "../../../utils/permission.util";
-import { useRefundPendingCount } from "../../../hooks/useRefundPendingCount";
-import { usePreparingOrderCount } from "../../../hooks/usePreparingOrderCount";
+import { useRefundPendingCount } from "../../../pages/refund/hooks/useRefundPendingCount";
+import { usePreparingOrderCount } from "../../../features/orders/hooks/useOrder";
 
 
 const SubNavItem = ({ child, isSubActive, t }: any) => {
