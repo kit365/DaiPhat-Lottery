@@ -30,6 +30,7 @@ import { Search } from "../../../../components/ui/Search";
 import { prefixAdmin } from "../../../../constants/routes";
 import { useBlogTagsPaged, useCreateBlogTag, useUpdateBlogTag, useDeleteBlogTag } from "../../hooks/useBlogTag";
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { dataGridStyles } from "../../../../shared/data-grid";
 import { DeleteIcon, EditIcon, ThreeDotsIcon, SortAscendingIcon, SortDescendingIcon, UnsortedIcon, EyeIcon } from "../../../../assets/icons";
 import { confirmDelete } from "../../../../utils/swal";
 import { toast } from "react-toastify";
@@ -258,13 +259,15 @@ export const BlogTagListPage = () => {
                         loading={isLoading}
                         columns={columns}
                         density="comfortable"
+                        className="admin-datagrid"
+                    sx={dataGridStyles}
                         slots={{
                             columnSortedAscendingIcon: SortAscendingIcon,
                             columnSortedDescendingIcon: SortDescendingIcon,
                             columnUnsortedIcon: UnsortedIcon,
                             noRowsOverlay: () => (
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                                    {isLoading ? <CircularProgress size={32} /> : <span className='text-[1.125rem]'>{t("admin.common.no_data")}</span>}
+                                    {isLoading ? <CircularProgress size={32} /> : <span className="admin-datagrid-empty">{t("admin.common.no_data")}</span>}
                                 </Box>
                             )
                         }}
@@ -281,9 +284,7 @@ export const BlogTagListPage = () => {
                             setPageSize(model.pageSize);
                         }}
                         pageSizeOptions={[5, 10, 20]}
-                        
                         getRowHeight={() => 'auto'}
-                        checkboxSelection
                         disableRowSelectionOnClick
                     />
                 </div>

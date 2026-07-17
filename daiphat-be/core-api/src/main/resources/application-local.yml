@@ -69,17 +69,6 @@ daiphat:
     password-policy:
       min-length: 6
       max-length: 100
-  blog:
-    seed:
-      enabled: true
-  lottery:
-    seed:
-      enabled: false
-      tickets-per-station-per-date: 12
-  order:
-    seed:
-      enabled: false
-
 logging:
   level:
     root: INFO

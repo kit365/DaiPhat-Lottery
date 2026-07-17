@@ -1,7 +1,7 @@
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../components/ui/Title';
 import { useCreateUser, useUploadUserAvatar } from "../../hooks/useUsers";
-import { useRoles } from "../../../../hooks/useRole";
+import { useRoles } from "../../../role/hooks/useRole";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { useEffect, useRef, useState } from "react";

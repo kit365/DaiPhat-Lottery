@@ -98,7 +98,7 @@ export const MapSettingTab = () => {
                                 </Grid>
 
                                 <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 2 }}>
-                                    <Button
+                                    <Button className="btn-primary-admin"
                                         type="submit"
                                         variant="contained"
                                         disabled={isPending}

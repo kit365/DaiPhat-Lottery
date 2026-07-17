@@ -11,7 +11,6 @@ import { useAuth } from "../pages/authen/hooks/useAuth";
 import { useAuthStore } from "../../stores/useAuthStore";
 
 import { SocketProvider } from "../context/SocketContext";
-import { OverrunAlerter } from "../components/OverrunAlerter";
 
 import { Suspense } from "react";
 import LoadingScreen from "../components/ui/LoadingScreen";
@@ -45,7 +44,6 @@ const LayoutAdminContent = () => {
 
     return (
         <div className="flex min-h-screen bg-white">
-            <OverrunAlerter />
             <SideBar />
 
             <div className={`flex-1 min-h-screen bg-white transition-[padding-left] duration-[120ms] ease-linear ${isOpen ? 'pl-[300px]' : 'pl-[88px]'}`}>
