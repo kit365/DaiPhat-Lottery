@@ -2,7 +2,9 @@ package com.daiphat.coreapi.application.service.support;
 
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketCommentRequest;
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketRequest;
+import com.daiphat.coreapi.application.dto.request.support.ResolutionFeedbackRequest;
 import com.daiphat.coreapi.application.dto.request.support.ResolveSupportTicketRequest;
+import com.daiphat.coreapi.application.dto.request.support.StaffSupportTicketResponseRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
@@ -12,13 +14,17 @@ import com.daiphat.coreapi.application.dto.response.support.SupportTicketSummary
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.event.SupportTicketAssignedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketClosedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketCommentAddedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketCreatedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketRejectedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketReopenedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketResolvedEvent;
 import com.daiphat.coreapi.application.mapper.support.SupportApplicationMapper;
 import com.daiphat.coreapi.application.port.in.support.SupportTicketServicePort;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketCommentRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.TicketCategoryRepositoryPort;
@@ -26,10 +32,13 @@ import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
 import com.daiphat.coreapi.domain.model.UserModel;
+import com.daiphat.coreapi.domain.model.enums.support.StaffTicketResponseAction;
 import com.daiphat.coreapi.domain.model.enums.support.TicketCommentSenderRole;
 import com.daiphat.coreapi.domain.model.enums.support.TicketRefType;
+import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.enums.support.TicketStatus;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
+import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import com.daiphat.coreapi.domain.model.support.SupportTicketCommentModel;
 import com.daiphat.coreapi.domain.model.support.SupportTicketModel;
 import com.daiphat.coreapi.domain.model.support.TicketCategoryModel;
@@ -65,6 +74,7 @@ public class SupportTicketService implements SupportTicketServicePort {
     private final SupportApplicationMapper supportApplicationMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final RefundComplaintEligibilityService refundComplaintEligibilityService;
+    private final SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     @Override
     @Transactional
@@ -185,19 +195,159 @@ public class SupportTicketService implements SupportTicketServicePort {
     @Override
     @Transactional
     public SupportTicketResponse resolveByStaff(Long id, UUID staffId, ResolveSupportTicketRequest request) {
-        SupportTicketModel ticket = getTicketOrThrow(id);
         String resolution = request.response() != null ? request.response().trim() : "";
-        if (resolution.isBlank()) {
-            throw new DomainException(ErrorCode.TICKET_RESOLUTION_INVALID);
+        return respondByStaff(
+                id,
+                staffId,
+                new StaffSupportTicketResponseRequest(resolution, StaffTicketResponseAction.RESOLVE),
+                null);
+    }
+
+    @Override
+    @Transactional
+    public SupportTicketResponse respondByStaff(
+            Long id, UUID staffId, StaffSupportTicketResponseRequest request, UploadRequest file) {
+        SupportTicketModel ticket = getTicketOrThrow(id);
+        ticket.ensureCommentAllowed();
+        ticket.ensureOperatorCanComment();
+
+        List<SupportTicketCommentModel> existingComments =
+                supportTicketCommentRepositoryPort.findByTicketIdOrderByCreatedAtAsc(id);
+        SupportTicketModel.ensureSenderTurn(existingComments, TicketCommentSenderRole.OPERATOR);
+
+        String content = request.content() != null ? request.content().trim() : "";
+        if (content.isBlank()) {
+            throw new DomainException(ErrorCode.TICKET_COMMENT_CONTENT_INVALID);
         }
-        ticket.resolveByStaff(resolution);
+
+        StaffTicketResponseAction action = request.action();
+        if (action == null) {
+            throw new DomainException(ErrorCode.TICKET_STAFF_ACTION_INVALID);
+        }
+
+        String attachmentUrl = uploadAttachmentIfPresent(file);
+        SupportTicketCommentModel comment = SupportTicketCommentModel.builder()
+                .supportTicketId(id)
+                .senderId(staffId)
+                .senderRole(TicketCommentSenderRole.OPERATOR)
+                .content(content)
+                .attachmentUrl(attachmentUrl)
+                .build();
+        SupportTicketCommentModel savedComment = supportTicketCommentRepositoryPort.save(comment);
+
+        switch (action) {
+            case NORMAL -> {
+                ticket.recordOperatorComment();
+                supportTicketRepositoryPort.save(ticket);
+                eventPublisher.publishEvent(SupportTicketCommentAddedEvent.builder()
+                        .ticketId(id)
+                        .customerId(ticket.getCustomerId())
+                        .assignedTo(ticket.getAssignedTo())
+                        .senderRole(TicketCommentSenderRole.OPERATOR)
+                        .build());
+            }
+            case RESOLVE -> {
+                ticket.resolveByStaff(savedComment.getId(), content);
+                SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
+                saveSystemComment(saved.getId(), "Ticket đã được giải quyết. Vui lòng xác nhận bạn có hài lòng với phương án này.");
+                eventPublisher.publishEvent(SupportTicketResolvedEvent.builder()
+                        .ticketId(saved.getId())
+                        .customerId(saved.getCustomerId())
+                        .build());
+            }
+            case REJECT -> {
+                ticket.rejectByStaff(savedComment.getId(), content);
+                SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
+                saveSystemComment(saved.getId(), "Ticket đã bị từ chối vì không hợp lệ hoặc không đủ điều kiện.");
+                eventPublisher.publishEvent(SupportTicketRejectedEvent.builder()
+                        .ticketId(saved.getId())
+                        .customerId(saved.getCustomerId())
+                        .build());
+            }
+            default -> throw new DomainException(ErrorCode.TICKET_STAFF_ACTION_INVALID);
+        }
+
+        return toDetailResponse(getTicketOrThrow(id));
+    }
+
+    @Override
+    @Transactional
+    public SupportTicketResponse submitResolutionFeedback(
+            Long id, UUID customerId, ResolutionFeedbackRequest request) {
+        if (request == null || request.satisfied() == null) {
+            throw new DomainException(ErrorCode.INVALID_INPUT);
+        }
+
+        SupportTicketModel ticket = getOwnedTicketOrThrow(id, customerId);
+        if (Boolean.TRUE.equals(request.satisfied())) {
+            ticket.acceptResolutionByCustomer();
+            SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
+            saveSystemComment(saved.getId(), "Khách hàng hài lòng với phương án giải quyết. Ticket đã đóng.");
+            eventPublisher.publishEvent(SupportTicketClosedEvent.builder()
+                    .ticketId(saved.getId())
+                    .customerId(saved.getCustomerId())
+                    .autoClosed(false)
+                    .build());
+            return toDetailResponse(saved);
+        }
+
+        TicketCategoryModel category = getCategoryOrThrow(ticket.getTicketCategoryId());
+        ticket.reopenAfterDissatisfaction(calculateDueAt(category.getPriority()));
         SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
-        saveSystemComment(saved.getId(), "Ticket đã được giải quyết");
-        eventPublisher.publishEvent(SupportTicketResolvedEvent.builder()
+        saveSystemComment(
+                saved.getId(),
+                "Khách hàng chưa hài lòng với phương án giải quyết. Ticket được mở lại và đưa về hàng chờ tiếp nhận.");
+        eventPublisher.publishEvent(SupportTicketReopenedEvent.builder()
                 .ticketId(saved.getId())
                 .customerId(saved.getCustomerId())
+                .title(saved.getTitle())
                 .build());
         return toDetailResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public int autoCloseResolvedTickets() {
+        long autoCloseHours = getAutoCloseHours();
+        LocalDateTime cutoff = LocalDateTime.now().minusHours(autoCloseHours);
+        List<SupportTicketModel> expired = supportTicketRepositoryPort.findResolvedBefore(cutoff);
+        int closedCount = 0;
+        for (SupportTicketModel ticket : expired) {
+            if (ticket.getStatus() != TicketStatus.RESOLVED) {
+                continue;
+            }
+            ticket.autoCloseResolved();
+            SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
+            saveSystemComment(
+                    saved.getId(),
+                    "Ticket đã tự động đóng sau " + autoCloseHours
+                            + " giờ không có phản hồi từ khách hàng.");
+            eventPublisher.publishEvent(SupportTicketClosedEvent.builder()
+                    .ticketId(saved.getId())
+                    .customerId(saved.getCustomerId())
+                    .autoClosed(true)
+                    .build());
+            closedCount++;
+        }
+        return closedCount;
+    }
+
+    private long getAutoCloseHours() {
+        return systemConfigRepositoryPort
+                .findActiveByConfigKey(SystemConfigEnum.SUPPORT_TICKET_AUTO_CLOSE_HOURS.name())
+                .map(SystemConfigModel::getConfigValue)
+                .map(this::parseAutoCloseHours)
+                .orElseGet(() -> Long.parseLong(SystemConfigEnum.SUPPORT_TICKET_AUTO_CLOSE_HOURS.getDefaultValue()));
+    }
+
+    private Long parseAutoCloseHours(String rawValue) {
+        long defaultHours = Long.parseLong(SystemConfigEnum.SUPPORT_TICKET_AUTO_CLOSE_HOURS.getDefaultValue());
+        try {
+            long hours = Long.parseLong(rawValue.trim());
+            return hours > 0 ? hours : defaultHours;
+        } catch (NumberFormatException ex) {
+            return defaultHours;
+        }
     }
 
     @Override
@@ -360,6 +510,8 @@ public class SupportTicketService implements SupportTicketServicePort {
                 base.refType(),
                 base.status(),
                 base.response(),
+                base.resolvedReasonId(),
+                base.rejectedReasonId(),
                 base.resolvedAt(),
                 base.dueAt(),
                 base.createdAt(),
