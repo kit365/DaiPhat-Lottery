@@ -47,6 +47,8 @@ public interface SupportApplicationMapper {
                 base.refType(),
                 base.status(),
                 base.response(),
+                base.resolvedReasonId(),
+                base.rejectedReasonId(),
                 base.resolvedAt(),
                 base.dueAt(),
                 base.createdAt(),
