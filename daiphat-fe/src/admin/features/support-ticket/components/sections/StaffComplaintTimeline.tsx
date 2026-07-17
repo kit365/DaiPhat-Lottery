@@ -23,6 +23,8 @@ import {
     useGetStaffTicketComments,
     useRespondSupportTicket,
 } from '../../hooks/useSupportTicket';
+import { usePermissions } from '../../../../hooks/usePermission';
+import { PERMISSIONS } from '../../../../constants/permission.constants';
 
 interface StaffComplaintTimelineProps {
     ticketId: number;
@@ -52,8 +54,10 @@ export const StaffComplaintTimeline = ({ ticketId, status }: StaffComplaintTimel
     const respondMutation = useRespondSupportTicket();
 
     const comments: SupportTicketCommentResponse[] = sortCommentsByCreatedAt(data?.data ?? []);
+    const { can } = usePermissions();
     const isTerminal = isTerminalTicketStatus(status);
-    const canSend = canOperatorSendComment(status, comments);
+    const hasProcessPermission = can(PERMISSIONS.SUPPORT_TICKET.PROCESS);
+    const canSend = canOperatorSendComment(status, comments) && hasProcessPermission;
 
     useEffect(() => {
         if (scrollRef.current) {
