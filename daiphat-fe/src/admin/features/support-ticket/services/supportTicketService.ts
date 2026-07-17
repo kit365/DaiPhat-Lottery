@@ -1,7 +1,7 @@
 import Cookies from 'js-cookie';
-import { apiApp } from '../../api';
-import { STORAGE_KEYS } from '../../constants/storage.constants';
-import { ApiResponse, PageResponse } from '../../types/api.type';
+import { apiApp } from '../../../../api';
+import { STORAGE_KEYS } from '../../../../constants/storage.constants';
+import { ApiResponse, PageResponse } from '../../../../types/api.type';
 import {
     CreateSupportTicketCommentRequest,
     GetStaffTicketsParams,
@@ -10,7 +10,7 @@ import {
     SupportTicketResponse,
     SupportTicketStaffSummaryResponse,
     TicketCategoryResponse,
-} from '../../types/support.type';
+} from '../../../../types/support.type';
 
 const STAFF_BASE = '/staff/tickets';
 const TICKET_BASE = '/tickets';

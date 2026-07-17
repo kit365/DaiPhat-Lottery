@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { supportTicketAdminApi } from '../../../api/supportTicket.api';
-import { QUERY_KEYS } from '../../../../constants/queryKeys';
+import { supportTicketAdminApi } from '../services/supportTicketService';
+import { QUERY_KEYS } from '../constants/queryKeys';
 import {
     CreateSupportTicketCommentRequest,
     GetStaffTicketsParams,

@@ -75,8 +75,8 @@ const RefundListPage = lazy(() => import("../pages/refund/RefundListPage").then(
 const RefundDetailPage = lazy(() => import("../pages/refund/RefundDetailPage").then(m => ({ default: m.RefundDetailPage })));
 const RefundCreatePage = lazy(() => import("../pages/refund/RefundCreatePage").then(m => ({ default: m.RefundCreatePage })));
 const OrderCancelWithRefundPage = lazy(() => import("../pages/refund/OrderCancelWithRefundPage").then(m => ({ default: m.OrderCancelWithRefundPage })));
-const SupportTicketListPage = lazy(() => import("../pages/support-ticket/SupportTicketListPage").then(m => ({ default: m.SupportTicketListPage })));
-const SupportTicketDetailPage = lazy(() => import("../pages/support-ticket/SupportTicketDetailPage").then(m => ({ default: m.SupportTicketDetailPage })));
+const SupportTicketListPage = lazy(() => import("../features/support-ticket").then(m => ({ default: m.SupportTicketListPage })));
+const SupportTicketDetailPage = lazy(() => import("../features/support-ticket").then(m => ({ default: m.SupportTicketDetailPage })));
 
 export const AdminRoutes = [
     { index: true, element: <Navigate to="/admin/dashboard" replace /> },

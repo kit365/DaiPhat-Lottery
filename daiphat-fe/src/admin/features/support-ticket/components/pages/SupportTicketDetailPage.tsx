@@ -19,24 +19,24 @@ import {
 } from '@mui/material';
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
-import { Title } from '../../components/ui/Title';
-import { Breadcrumb } from '../../components/ui/Breadcrumb';
-import { CanAccess } from '../../components/auth/CanAccess';
-import { PERMISSIONS } from '../../constants/permission.constants';
-import { prefixAdmin } from '../../constants/routes';
-import { StaffComplaintTimeline } from './components/StaffComplaintTimeline';
+import { Title } from '../../../../components/ui/Title';
+import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { CanAccess } from '../../../../components/auth/CanAccess';
+import { PERMISSIONS } from '../../../../constants/permission.constants';
+import { prefixAdmin } from '../../../../constants/routes';
+import { StaffComplaintTimeline } from '../sections/StaffComplaintTimeline';
 import {
     useAssignSupportTicket,
     useGetStaffTicketDetail,
     useResolveSupportTicket,
-} from './hooks/useSupportTicket';
+} from '../../hooks/useSupportTicket';
 import {
     TicketCommentSenderRole,
     TicketRefType,
     TicketStatus,
     TICKET_REF_TYPE_LABELS,
     TICKET_STATUS_LABELS,
-} from '../../../types/support.type';
+} from '../../../../../types/support.type';
 
 function FieldLabel({ children }: { children: ReactNode }) {
     return (
@@ -209,28 +209,28 @@ export const SupportTicketDetailPage = () => {
             )}
 
             <Grid container spacing={3} sx={{ mb: 3 }}>
-                <Grid item xs={12} lg={8}>
+                <Grid size={{ xs: 12, lg: 8 }}>
                     <Stack spacing={3}>
                         <Card sx={cardSx}>
                             <CardContent>
                                 <CardSectionTitle icon="mdi:file-document-outline" title="Thông tin yêu cầu" />
                                 <Grid container spacing={2.5}>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
                                         <FieldLabel>Danh mục</FieldLabel>
                                         <FieldValue>{ticket.ticketCategoryName || '—'}</FieldValue>
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
                                         <FieldLabel>Tiêu đề</FieldLabel>
                                         <FieldValue>{ticket.title}</FieldValue>
                                     </Grid>
-                                    <Grid item xs={12}>
+                                    <Grid size={{ xs: 12 }}>
                                         <FieldLabel>Mô tả</FieldLabel>
                                         <FieldValue sx={{ whiteSpace: 'pre-wrap', fontWeight: 500 }}>
                                             {ticket.description}
                                         </FieldValue>
                                     </Grid>
                                     {ticket.attachmentUrl && (
-                                        <Grid item xs={12}>
+                                        <Grid size={{ xs: 12 }}>
                                             <FieldLabel>Hình đính kèm</FieldLabel>
                                             <Box
                                                 component="a"
@@ -264,13 +264,13 @@ export const SupportTicketDetailPage = () => {
                             <CardContent>
                                 <CardSectionTitle icon="mdi:link-variant" title="Tham chiếu liên quan" />
                                 <Grid container spacing={2.5}>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
                                         <FieldLabel>Loại tham chiếu</FieldLabel>
                                         <FieldValue>
                                             {ticket.refType ? TICKET_REF_TYPE_LABELS[ticket.refType] : '—'}
                                         </FieldValue>
                                     </Grid>
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
                                         <FieldLabel>Mã tham chiếu</FieldLabel>
                                         {referenceLink ? (
                                             <Link to={referenceLink} style={{ fontWeight: 600, color: '#2065D1' }}>
@@ -310,7 +310,7 @@ export const SupportTicketDetailPage = () => {
                     </Stack>
                 </Grid>
 
-                <Grid item xs={12} lg={4}>
+                <Grid size={{ xs: 12, lg: 4 }}>
                     <Stack spacing={3}>
                         <Card sx={cardSx}>
                             <CardContent>

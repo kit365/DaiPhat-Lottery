@@ -5,14 +5,14 @@ import {
     SupportTicketCommentResponse,
     TicketCommentSenderRole,
     TicketStatus,
-} from '../../../../types/support.type';
-import { ComplaintCommentBubble } from '../../../../client/components/support/ComplaintCommentBubble';
-import { ComplaintSystemNotice } from '../../../../client/components/support/ComplaintSystemNotice';
-import { ImageUploadPreview } from '../../../../client/components/support/ImageUploadPreview';
+} from '../../../../../types/support.type';
+import { ComplaintCommentBubble } from '../../../../../client/components/support/ComplaintCommentBubble';
+import { ComplaintSystemNotice } from '../../../../../client/components/support/ComplaintSystemNotice';
+import { ImageUploadPreview } from '../../../../../client/components/support/ImageUploadPreview';
 import {
     useGetStaffTicketComments,
     useSendStaffTicketComment,
-} from '../hooks/useSupportTicket';
+} from '../../hooks/useSupportTicket';
 
 interface StaffComplaintTimelineProps {
     ticketId: number;
