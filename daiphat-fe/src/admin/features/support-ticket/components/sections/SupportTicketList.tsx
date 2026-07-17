@@ -25,21 +25,21 @@ import {
 import { Icon } from '@iconify/react';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
-import { Search } from '../../../components/ui/Search';
-import { CanAccess } from '../../../components/auth/CanAccess';
-import { PERMISSIONS } from '../../../constants/permission.constants';
-import { prefixAdmin } from '../../../constants/routes';
+import { Search } from '../../../../components/ui/Search';
+import { CanAccess } from '../../../../components/auth/CanAccess';
+import { PERMISSIONS } from '../../../../constants/permission.constants';
+import { prefixAdmin } from '../../../../constants/routes';
 import {
     useAssignSupportTicket,
     useGetAdminTicketCategories,
     useGetStaffTickets,
-} from '../hooks/useSupportTicket';
+} from '../../hooks/useSupportTicket';
 import {
     TicketRefType,
     TicketStatus,
     TICKET_REF_TYPE_LABELS,
     TICKET_STATUS_LABELS,
-} from '../../../../types/support.type';
+} from '../../../../../types/support.type';
 
 const STATUS_TABS: { value: string; label: string }[] = [
     { value: 'OPEN,IN_PROGRESS,WAITING_FOR_CUSTOMER', label: 'Đang xử lý' },

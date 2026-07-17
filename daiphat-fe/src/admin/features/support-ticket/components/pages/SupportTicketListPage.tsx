@@ -1,7 +1,7 @@
-import { Title } from '../../components/ui/Title';
-import { Breadcrumb } from '../../components/ui/Breadcrumb';
-import { prefixAdmin } from '../../constants/routes';
-import { SupportTicketList } from './sections/SupportTicketList';
+import { Title } from '../../../../components/ui/Title';
+import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { prefixAdmin } from '../../../../constants/routes';
+import { SupportTicketList } from '../sections/SupportTicketList';
 
 export const SupportTicketListPage = () => {
     return (
