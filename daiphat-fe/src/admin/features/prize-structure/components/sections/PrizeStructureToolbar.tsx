@@ -2,7 +2,7 @@ import { Toolbar, Box, Button, Badge, SvgIcon } from "@mui/material";
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import type { GridDensity } from '@mui/x-data-grid';
 import { Search } from "../../../../components/ui/Search";
-import { JiraFilter } from "../../../../pages/ticket/sections/JiraFilter";
+import { JiraFilter } from "../../../../shared/data-grid";
 import { Columns } from "../../../../components/ui/Columns";
 import { ExportButton } from "../../../../components/ui/ExportButton";
 import { SettingsList } from "../../../../components/ui/SettingsList";

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import SyncIcon from '@mui/icons-material/Sync';
-import { Box, Button } from "@mui/material";
+import { Button } from "@mui/material";
 import { Breadcrumb } from "../../../../components/ui/Breadcrumb";
 import { Title } from "../../../../components/ui/Title";
 import { prefixAdmin } from "../../../../constants/routes";
@@ -15,8 +15,8 @@ export const PrizeStructureListPage = () => {
     const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
     return (
-        <Box className="admin-list-page">
-            <div className="admin-list-header">
+        <>
+            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
                 <div className="mr-auto">
                     <Title title="Cơ cấu giải thưởng" />
                     <Breadcrumb
@@ -27,7 +27,7 @@ export const PrizeStructureListPage = () => {
                         ]}
                     />
                 </div>
-                <div className="admin-list-header__actions">
+                <div>
                     <CanAccess permission={PERMISSIONS.PRIZE_STRUCTURE.SYNC}>
                         <Button
                             onClick={() => setIsSyncModalOpen(true)}
@@ -43,10 +43,10 @@ export const PrizeStructureListPage = () => {
 
             <PrizeStructureList hook={hook} />
 
-            <SyncPrizeStructureModal 
-                open={isSyncModalOpen} 
-                onClose={() => setIsSyncModalOpen(false)} 
+            <SyncPrizeStructureModal
+                open={isSyncModalOpen}
+                onClose={() => setIsSyncModalOpen(false)}
             />
-        </Box>
+        </>
     );
 };

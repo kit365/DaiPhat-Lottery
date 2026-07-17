@@ -72,7 +72,7 @@ export const SettingsPage = () => {
                         '& .MuiTab-root': {
                             textTransform: 'none',
                             fontWeight: 600,
-                            fontSize: '0.9375rem',
+                            fontSize: '0.875rem',
                             minWidth: 100,
                             color: 'text.secondary',
                             '&.Mui-selected': {

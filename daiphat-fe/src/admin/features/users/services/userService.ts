@@ -1,5 +1,5 @@
 import { apiApp } from "../../../../api";
-import { ApiResponse, PageResponse } from "../../../config/type";
+import { ApiResponse, PageResponse } from "../../../../types/api.type";
 import { User } from "../../../../types/user.type";
 import { UserQueryParams, CreateUserRequest, UpdateUserRequest } from "../types/user.types";
 

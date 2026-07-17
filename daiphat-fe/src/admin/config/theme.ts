@@ -100,7 +100,7 @@ export const adminTheme = createTheme({
                     color: "#1C252E",
                     backgroundColor: "white !important",
                     borderRadius: "8px",
-                    fontSize: "0.875rem",
+                    fontSize: "1rem",
                     '& .MuiOutlinedInput-notchedOutline': {
                         borderColor: "#919eab33",
                         transition: 'border-color 0.2s',
@@ -120,6 +120,7 @@ export const adminTheme = createTheme({
                 },
                 input: {
                     padding: "16px 14px",
+                    fontSize: "1rem",
                     backgroundColor: "white !important",
                     borderRadius: "8px",
                     "&:-webkit-autofill": {
@@ -145,6 +146,23 @@ export const adminTheme = createTheme({
                     "& input:-webkit-autofill": {
                         "WebkitBoxShadow": "0 0 0 100px white inset !important",
                         "WebkitTextFillColor": "#1C252E !important",
+                    },
+                },
+            },
+        },
+        MuiButton: {
+            styleOverrides: {
+                containedPrimary: {
+                    backgroundColor: 'var(--palette-text-primary)',
+                    color: 'var(--palette-common-white)',
+                    boxShadow: 'none',
+                    fontWeight: 700,
+                    fontSize: '0.875rem',
+                    textTransform: 'none',
+                    borderRadius: '8px',
+                    '&:hover': {
+                        backgroundColor: 'var(--palette-grey-700)',
+                        boxShadow: 'var(--customShadows-z8)',
                     },
                 },
             },

@@ -38,7 +38,7 @@ import {
 } from '../../../../types/refund.type';
 import { useGetStaffRefunds } from '../hooks/useRefundManagement';
 import { RefundProcessingStatusBadge } from '../components/RefundProcessingStatusBadge';
-import { useSettings } from '../../ticket/hooks/useSettings';
+import { useSettings } from '../../../shared/data-grid';
 import { RefundToolbar } from './RefundToolbar';
 
 const TabBadge = styled('span')(() => ({

@@ -2,12 +2,12 @@ import { RoleEnum } from "../../../../../types/role.type";
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataGrid } from '@mui/x-data-grid';
-import { Box, CircularProgress, Typography, styled } from '@mui/material';
+import { Box, CircularProgress, styled } from '@mui/material';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { getColumnsConfig } from '../configs/column.config';
-import { PaginationMetadata } from '../../../../config/type';
-import { dataGridStyles } from '../../../../pages/ticket/configs/styles.config';
+import { PaginationMetadata } from '../../../../../types/api.type';
+import { dataGridStyles } from '../../../../shared/data-grid';
 
 
 interface UserTableProps {
@@ -117,7 +117,7 @@ export const UserTable = ({
     }, [pagination?.currentPage, pagination?.limit, isClient]);
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: 640 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
             <DataGrid
                 rows={data || []}
                 columns={columns}
@@ -140,15 +140,8 @@ export const UserTable = ({
                 disableRowSelectionOnClick
                 density="comfortable"
                 localeText={DATA_GRID_LOCALE_VN}
-                sx={{
-                    ...dataGridStyles,
-                    '& .MuiDataGrid-columnHeader[aria-colindex="1"]': {
-                        paddingLeft: '24px !important',
-                    },
-                    '& .MuiDataGrid-cell[aria-colindex="1"]': {
-                        paddingLeft: '24px !important',
-                    }
-                }}
+                className="admin-datagrid"
+                    sx={dataGridStyles}
                 slots={{
                     columnSortedAscendingIcon: SortAscendingIcon,
                     columnSortedDescendingIcon: SortDescendingIcon,
@@ -156,7 +149,9 @@ export const UserTable = ({
                     loadingOverlay: () => <CircularProgress size={30} sx={{ margin: 'auto' }} />,
                     noRowsOverlay: () => (
                         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                            <Typography color="textSecondary">Không có dữ liệu</Typography>
+                            {isLoading
+                                ? <CircularProgress size={32} />
+                                : <span className="text-[1.125rem]">Không có dữ liệu</span>}
                         </Box>
                     )
                 }}
