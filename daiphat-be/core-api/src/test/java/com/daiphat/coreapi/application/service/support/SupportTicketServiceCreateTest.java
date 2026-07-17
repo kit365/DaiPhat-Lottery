@@ -5,6 +5,7 @@ import com.daiphat.coreapi.application.event.SupportTicketCreatedEvent;
 import com.daiphat.coreapi.application.mapper.support.SupportApplicationMapper;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketCommentRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.TicketCategoryRepositoryPort;
@@ -53,6 +54,8 @@ class SupportTicketServiceCreateTest {
     private ApplicationEventPublisher eventPublisher;
     @Mock
     private RefundComplaintEligibilityService refundComplaintEligibilityService;
+    @Mock
+    private SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     private SupportTicketService supportTicketService;
 
@@ -67,7 +70,8 @@ class SupportTicketServiceCreateTest {
                 storagePort,
                 supportApplicationMapper,
                 eventPublisher,
-                refundComplaintEligibilityService);
+                refundComplaintEligibilityService,
+                systemConfigRepositoryPort);
     }
 
     @Test
@@ -97,7 +101,7 @@ class SupportTicketServiceCreateTest {
                 new com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse(
                         99L, 1L, CUSTOMER_ID, null, "Hoàn tiền chậm", "Chưa nhận được tiền",
                         null, "8", TicketRefType.REFUND_REQUEST, TicketStatus.OPEN,
-                        null, null, null, null, null, List.of(),
+                        null, null, null, null, null, null, null, List.of(),
                         null, null, null, null));
         when(ticketCategoryRepositoryPort.findById(1L)).thenReturn(Optional.of(category));
         when(userRepositoryPort.findById(CUSTOMER_ID)).thenReturn(Optional.empty());

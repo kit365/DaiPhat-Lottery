@@ -7,6 +7,7 @@ import com.daiphat.coreapi.domain.model.enums.support.TicketStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,11 +18,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SupportTicketModelTest {
 
     @Test
-    void ensureCommentAllowed_rejectsResolvedAndClosed() {
+    void ensureCommentAllowed_rejectsResolvedRejectedAndClosed() {
         SupportTicketModel resolved = SupportTicketModel.builder().status(TicketStatus.RESOLVED).build();
+        SupportTicketModel rejected = SupportTicketModel.builder().status(TicketStatus.REJECTED).build();
         SupportTicketModel closed = SupportTicketModel.builder().status(TicketStatus.CLOSED).build();
 
         assertThatThrownBy(resolved::ensureCommentAllowed)
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.TICKET_COMMENT_NOT_ALLOWED);
+
+        assertThatThrownBy(rejected::ensureCommentAllowed)
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.TICKET_COMMENT_NOT_ALLOWED);
@@ -100,10 +107,12 @@ class SupportTicketModelTest {
     void resolveByStaff_fromInProgress_setsResolvedFields() {
         SupportTicketModel ticket = SupportTicketModel.builder().status(TicketStatus.IN_PROGRESS).build();
 
-        ticket.resolveByStaff("Refund processed");
+        ticket.resolveByStaff(55L, "Refund processed");
 
         assertThat(ticket.getStatus()).isEqualTo(TicketStatus.RESOLVED);
         assertThat(ticket.getResponse()).isEqualTo("Refund processed");
+        assertThat(ticket.getResolvedReasonId()).isEqualTo(55L);
+        assertThat(ticket.getRejectedReasonId()).isNull();
         assertThat(ticket.getResolvedAt()).isNotNull();
     }
 
@@ -111,19 +120,83 @@ class SupportTicketModelTest {
     void resolveByStaff_fromWaitingForCustomer_setsResolvedFields() {
         SupportTicketModel ticket = SupportTicketModel.builder().status(TicketStatus.WAITING_FOR_CUSTOMER).build();
 
-        ticket.resolveByStaff("Issue fixed");
+        ticket.resolveByStaff(56L, "Issue fixed");
 
         assertThat(ticket.getStatus()).isEqualTo(TicketStatus.RESOLVED);
+        assertThat(ticket.getResolvedReasonId()).isEqualTo(56L);
     }
 
     @Test
     void resolveByStaff_whenClosed_throwsCannotResolve() {
         SupportTicketModel ticket = SupportTicketModel.builder().status(TicketStatus.CLOSED).build();
 
-        assertThatThrownBy(() -> ticket.resolveByStaff("Done"))
+        assertThatThrownBy(() -> ticket.resolveByStaff(1L, "Done"))
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.TICKET_CANNOT_RESOLVE);
+    }
+
+    @Test
+    void rejectByStaff_setsRejectedFields() {
+        SupportTicketModel ticket = SupportTicketModel.builder().status(TicketStatus.IN_PROGRESS).build();
+
+        ticket.rejectByStaff(77L, "Not eligible");
+
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.REJECTED);
+        assertThat(ticket.getRejectedReasonId()).isEqualTo(77L);
+        assertThat(ticket.getResolvedReasonId()).isNull();
+        assertThat(ticket.getResponse()).isEqualTo("Not eligible");
+        assertThat(ticket.getResolvedAt()).isNotNull();
+    }
+
+    @Test
+    void acceptResolutionByCustomer_fromResolved_closes() {
+        SupportTicketModel ticket = SupportTicketModel.builder().status(TicketStatus.RESOLVED).build();
+
+        ticket.acceptResolutionByCustomer();
+
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CLOSED);
+    }
+
+    @Test
+    void reopenAfterDissatisfaction_clearsAssigneeAndResetsSla() {
+        UUID staffId = UUID.randomUUID();
+        LocalDateTime newDueAt = LocalDateTime.now().plusDays(2);
+        SupportTicketModel ticket = SupportTicketModel.builder()
+                .status(TicketStatus.RESOLVED)
+                .assignedTo(staffId)
+                .resolvedReasonId(10L)
+                .response("Old resolution")
+                .resolvedAt(LocalDateTime.now().minusHours(1))
+                .build();
+
+        ticket.reopenAfterDissatisfaction(newDueAt);
+
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.OPEN);
+        assertThat(ticket.getAssignedTo()).isNull();
+        assertThat(ticket.getDueAt()).isEqualTo(newDueAt);
+        assertThat(ticket.getResolvedAt()).isNull();
+        assertThat(ticket.getResponse()).isNull();
+        assertThat(ticket.getResolvedReasonId()).isNull();
+    }
+
+    @Test
+    void autoCloseResolved_fromResolved_closes() {
+        SupportTicketModel ticket = SupportTicketModel.builder().status(TicketStatus.RESOLVED).build();
+
+        ticket.autoCloseResolved();
+
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CLOSED);
+    }
+
+    @Test
+    void autoCloseResolved_whenNotResolved_throws() {
+        SupportTicketModel ticket = SupportTicketModel.builder().status(TicketStatus.IN_PROGRESS).build();
+
+        assertThatThrownBy(ticket::autoCloseResolved)
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.TICKET_CANNOT_AUTO_CLOSE);
     }
 
     @Test

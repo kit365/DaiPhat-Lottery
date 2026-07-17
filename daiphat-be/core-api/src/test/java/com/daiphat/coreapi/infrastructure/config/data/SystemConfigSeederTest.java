@@ -54,9 +54,23 @@ class SystemConfigSeederTest {
                         "STAFF_INCIDENT_CUTOFF",
                         "INVALID_INFO_EXPIRED_DAYS",
                         "MAX_REFUND_REQUESTS_PER_DAY",
-                        "MAX_REFUND_BANK_INFO_RETRY"
+                        "MAX_REFUND_BANK_INFO_RETRY",
+                        "REFUND_COMPLAINT_PROCESSING_WAIT_HOURS",
+                        "REFUND_COMPLAINT_GRACE_DAYS",
+                        "SUPPORT_TICKET_AUTO_CLOSE_HOURS"
                 );
         assertThat(captor.getAllValues()).allMatch(entity -> Boolean.TRUE.equals(entity.getIsActive()));
+        assertThat(captor.getAllValues())
+                .filteredOn(entity -> entity.getConfigKey().startsWith("REFUND_COMPLAINT_"))
+                .extracting(SystemConfigEntity::getConfigType)
+                .containsOnly(ConfigType.COMPLAINT_SETTING);
+        assertThat(captor.getAllValues())
+                .filteredOn(entity -> entity.getConfigKey().equals("SUPPORT_TICKET_AUTO_CLOSE_HOURS"))
+                .singleElement()
+                .satisfies(entity -> {
+                    assertThat(entity.getConfigType()).isEqualTo(ConfigType.COMPLAINT_SETTING);
+                    assertThat(entity.getConfigValue()).isEqualTo("48");
+                });
     }
 
     @Test

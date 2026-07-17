@@ -5,6 +5,7 @@ import com.daiphat.coreapi.application.dto.response.support.SupportTicketComment
 import com.daiphat.coreapi.application.mapper.support.SupportApplicationMapper;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketCommentRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.TicketCategoryRepositoryPort;
@@ -61,6 +62,8 @@ class SupportTicketServiceCommentTest {
     private ApplicationEventPublisher eventPublisher;
     @Mock
     private RefundComplaintEligibilityService refundComplaintEligibilityService;
+    @Mock
+    private SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     private SupportTicketService supportTicketService;
 
@@ -75,7 +78,8 @@ class SupportTicketServiceCommentTest {
                 storagePort,
                 supportApplicationMapper,
                 eventPublisher,
-                refundComplaintEligibilityService);
+                refundComplaintEligibilityService,
+                systemConfigRepositoryPort);
     }
 
     @Test

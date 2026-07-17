@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.event.SupportTicketResolvedEvent;
 import com.daiphat.coreapi.application.mapper.support.SupportApplicationMapper;
 import com.daiphat.coreapi.application.port.out.file.StoragePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
+import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketCommentRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.application.port.out.support.TicketCategoryRepositoryPort;
@@ -68,6 +69,8 @@ class SupportTicketServiceStaffTest {
     private ApplicationEventPublisher eventPublisher;
     @Mock
     private RefundComplaintEligibilityService refundComplaintEligibilityService;
+    @Mock
+    private SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     private SupportTicketService supportTicketService;
 
@@ -82,7 +85,8 @@ class SupportTicketServiceStaffTest {
                 storagePort,
                 supportApplicationMapper,
                 eventPublisher,
-                refundComplaintEligibilityService);
+                refundComplaintEligibilityService,
+                systemConfigRepositoryPort);
     }
 
     @Test
@@ -128,6 +132,13 @@ class SupportTicketServiceStaffTest {
         when(supportTicketRepositoryPort.findById(TICKET_ID)).thenReturn(Optional.of(ticket));
         when(supportTicketRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(supportTicketCommentRepositoryPort.findByTicketIdOrderByCreatedAtAsc(TICKET_ID)).thenReturn(List.of());
+        when(supportTicketCommentRepositoryPort.save(any())).thenAnswer(invocation -> {
+            SupportTicketCommentModel comment = invocation.getArgument(0);
+            if (comment.getId() == null) {
+                comment.setId(100L);
+            }
+            return comment;
+        });
         when(supportApplicationMapper.toTicketResponse(any(), any())).thenReturn(mockResponse(TicketStatus.RESOLVED));
 
         supportTicketService.resolveByStaff(TICKET_ID, STAFF_ID, new ResolveSupportTicketRequest("Đã hoàn tiền"));
@@ -136,17 +147,15 @@ class SupportTicketServiceStaffTest {
         verify(supportTicketRepositoryPort).save(ticketCaptor.capture());
         assertThat(ticketCaptor.getValue().getStatus()).isEqualTo(TicketStatus.RESOLVED);
         assertThat(ticketCaptor.getValue().getResponse()).isEqualTo("Đã hoàn tiền");
+        assertThat(ticketCaptor.getValue().getResolvedReasonId()).isEqualTo(100L);
         assertThat(ticketCaptor.getValue().getResolvedAt()).isNotNull();
 
-        ArgumentCaptor<SupportTicketCommentModel> commentCaptor = ArgumentCaptor.forClass(SupportTicketCommentModel.class);
-        verify(supportTicketCommentRepositoryPort).save(commentCaptor.capture());
-        assertThat(commentCaptor.getValue().getContent()).isEqualTo("Ticket đã được giải quyết");
-
+        verify(supportTicketCommentRepositoryPort, org.mockito.Mockito.atLeast(2)).save(any());
         verify(eventPublisher).publishEvent(any(SupportTicketResolvedEvent.class));
     }
 
     @Test
-    void resolveByStaff_whenClosed_throwsCannotResolve() {
+    void resolveByStaff_whenClosed_throwsCommentNotAllowed() {
         when(supportTicketRepositoryPort.findById(TICKET_ID))
                 .thenReturn(Optional.of(ticket(TicketStatus.CLOSED)));
 
@@ -154,7 +163,7 @@ class SupportTicketServiceStaffTest {
                         TICKET_ID, STAFF_ID, new ResolveSupportTicketRequest("Done")))
                 .isInstanceOf(DomainException.class)
                 .extracting(ex -> ((DomainException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.TICKET_CANNOT_RESOLVE);
+                .isEqualTo(ErrorCode.TICKET_COMMENT_NOT_ALLOWED);
     }
 
     @Test
@@ -245,7 +254,7 @@ class SupportTicketServiceStaffTest {
     private SupportTicketResponse mockResponse(TicketStatus status) {
         return new SupportTicketResponse(
                 TICKET_ID, 1L, CUSTOMER_ID, STAFF_ID, "Issue", "desc", null, null, null,
-                status, null, null, null, null, null, List.of(),
+                status, null, null, null, null, null, null, null, List.of(),
                 null, null, null, null);
     }
 }
