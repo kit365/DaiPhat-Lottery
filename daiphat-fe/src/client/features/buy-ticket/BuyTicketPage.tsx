@@ -6,7 +6,11 @@ import { ChevronRight, Calendar as CalendarIcon, CheckCircle2, ShieldCheck, Refr
 import { useCartStore } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast as toast } from '../../../utils/toast.util';
-import { useStationsByDrawDate, useStationsToday, useStationsTomorrow } from '../../../admin/pages/provider/hooks/useProvider';
+import {
+    useStationsByDrawDate,
+    useStationsToday,
+    useStationsTomorrow,
+} from '../../../admin/features/station/hooks/useStation';
 import { apiApp } from '../../../api';
 import { LotteryTicketStatus } from '../../../constants/lottery.constants';
 import dayjs from 'dayjs';

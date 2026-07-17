@@ -7,6 +7,7 @@ import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../..
 import { getColumnsConfig, columnsInitialState } from '../configs/column.config';
 import { BlogCategoryToolbar } from './BlogCategoryToolbar';
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
+import { dataGridStyles } from "../../../../shared/data-grid";
 import { useBlogCategories } from "../../hooks/useBlogCategory";
 
 export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => {
@@ -36,6 +37,8 @@ export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => 
                     loading={isLoading}
                     columns={getColumnsConfig(isTrash)}
                     density="comfortable"
+                    className="admin-datagrid"
+                    sx={dataGridStyles}
                     slots={{
                         toolbar: BlogCategoryToolbar as any,
                         columnSortedAscendingIcon: SortAscendingIcon,
@@ -43,7 +46,7 @@ export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => 
                         columnUnsortedIcon: UnsortedIcon,
                         noRowsOverlay: () => (
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                                {isLoading ? <CircularProgress size={32} /> : <span className='text-[1.125rem]'>Không có dữ liệu để hiển thị</span>}
+                                {isLoading ? <CircularProgress size={32} /> : <span className='text-[1.125rem]'>Không có dữ liệu</span>}
                             </Box>
                         )
                     }}
@@ -70,9 +73,7 @@ export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => 
                     pageSizeOptions={[5, 10, 20]}
                     initialState={columnsInitialState}
                     getRowHeight={() => 'auto'}
-                    checkboxSelection
                     disableRowSelectionOnClick
-
                 />
             </div>
         </Card>

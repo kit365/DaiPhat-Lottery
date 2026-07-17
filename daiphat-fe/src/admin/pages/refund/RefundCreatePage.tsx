@@ -25,7 +25,7 @@ import { Icon } from '@iconify/react';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
 import { prefixAdmin } from '../../constants/routes';
-import { handleOrderTicketIncidents, updateOrderStatus } from '../../api/order.api';
+import { handleOrderTicketIncidents, updateOrderStatus } from '../../features/orders/services/orderService';
 
 /** Quick suggestions for staff refund reason (UI-only; not persisted separately). */
 const STAFF_REFUND_REASON_SUGGESTIONS = [
