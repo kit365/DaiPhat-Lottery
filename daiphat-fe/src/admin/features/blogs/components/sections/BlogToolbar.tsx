@@ -4,7 +4,7 @@ import ViewListIcon from "@mui/icons-material/ViewList";
 import { useMemo, useRef, useState } from "react";
 import { AppToast as toast } from "../../../../../utils/toast.util";
 import { Search } from "../../../../components/ui/Search";
-import { JiraFilter } from "../../../../pages/ticket/sections/JiraFilter";
+import { JiraFilter } from "../../../../shared/data-grid";
 import { SortButton } from "../../../../components/ui/SortButton";
 
 const CustomViewColumnIcon = (props: any) => (

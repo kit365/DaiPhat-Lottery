@@ -1,13 +1,11 @@
 import { Box, Card, Grid, TextField, Button, Typography, Stack } from "@mui/material";
-import { Link } from "react-router-dom";
 import { Icon } from "@iconify/react";
-import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { settingGeneralSchema, SettingGeneralFormValues } from "../../../schemas/setting.schema";
 import { useSettingGeneral, useUpdateSettingGeneral } from "../hooks/useSettings";
 import { useEffect } from "react";
 import { FormUploadSingleFile } from "../../../components/upload/FormUploadSingleFile";
-import { ROUTES } from "../../../constants/routes";
 
 export const GeneralSettingTab = () => {
     const { data: generalData, isLoading: isSettingsLoading } = useSettingGeneral();
@@ -31,14 +29,8 @@ export const GeneralSettingTab = () => {
             copyright: "",
             facebook: "",
             instagram: "",
-            ticketSubtypes: [],
             defaultPassword: ""
         }
-    });
-
-    const { fields: ticketSubtypeFields, append: appendTicketSubtype, remove: removeTicketSubtype } = useFieldArray({
-        control,
-        name: "ticketSubtypes"
     });
 
     useEffect(() => {
@@ -47,7 +39,6 @@ export const GeneralSettingTab = () => {
                 ...generalData,
                 websiteDomain: generalData.websiteDomain || "",
                 favicon: generalData.favicon || "",
-                ticketSubtypes: generalData.ticketSubtypes || [],
                 defaultPassword: generalData.defaultPassword || ""
             });
         }
@@ -176,84 +167,9 @@ export const GeneralSettingTab = () => {
                         </Card>
                     </Grid>
 
-                    {/* TicketSubtypes Section */}
-                    <Grid size={{ xs: 12 }}>
-                        <Card sx={{ p: 3, borderRadius: "16px", boxShadow: "var(--customShadows-card)" }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                                <Typography variant="h6" sx={{ fontWeight: 700 }}>Danh sách Giống thú cưng (theo UserTicket)</Typography>
-                                <Button
-                                    variant="contained"
-                                    component={Link}
-                                    to={ROUTES.ADMIN.DASHBOARD.SETTINGS.TICKET_SUBTYPE}
-                                    startIcon={<Icon icon="eva:list-fill" />}
-                                    sx={{ background: "#1C252E", "&:hover": { background: "#454F5B" } }}
-                                >
-                                    Quản lý giống
-                                </Button>
-                            </Box>
-
-                            <Grid container spacing={2}>
-                                {ticketSubtypeFields.map((field, index) => (
-                                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={field.id}>
-                                        <Stack direction="row" spacing={1} alignItems="center">
-                                            <Controller
-                                                name={`ticketSubtypes.${index}.name`}
-                                                control={control}
-                                                render={({ field: nameField }) => (
-                                                    <TextField {...nameField} fullWidth size="small" label="Tên giống" />
-                                                )}
-                                            />
-                                            <Controller
-                                                name={`ticketSubtypes.${index}.type`}
-                                                control={control}
-                                                render={({ field: typeField }) => (
-                                                    <TextField
-                                                        {...typeField}
-                                                        select
-                                                        size="small"
-                                                        sx={{ minWidth: 80 }}
-                                                        SelectProps={{ native: true }}
-                                                    >
-                                                        <option value="dog">Chó</option>
-                                                        <option value="cat">Mèo</option>
-                                                        <option value="other">Khác</option>
-                                                    </TextField>
-                                                )}
-                                            />
-                                            <Button
-                                                size="small"
-                                                color="error"
-                                                onClick={() => removeTicketSubtype(index)}
-                                                sx={{ minWidth: 40 }}
-                                            >
-                                                <Icon icon="solar:trash-bin-trash-bold" width={20} />
-                                            </Button>
-                                        </Stack>
-                                    </Grid>
-                                ))}
-                                <Grid size={{ xs: 12 }}>
-                                    <Button
-                                        variant="outlined"
-                                        fullWidth
-                                        startIcon={<Icon icon="eva:plus-fill" />}
-                                        onClick={() => appendTicketSubtype({ name: "", type: "dog" })}
-                                        sx={{
-                                            mt: 2,
-                                            borderStyle: "dashed",
-                                            borderColor: "var(--palette-text-disabled)",
-                                            color: "var(--palette-text-secondary)"
-                                        }}
-                                    >
-                                        Thêm giống mẫu nhanh
-                                    </Button>
-                                </Grid>
-                            </Grid>
-                        </Card>
-                    </Grid>
-
                     <Grid size={{ xs: 12 }}>
                         <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                            <Button
+                            <Button className="btn-primary-admin"
                                 type="submit"
                                 variant="contained"
                                 disabled={isPending}
@@ -263,7 +179,7 @@ export const GeneralSettingTab = () => {
                                     py: 1.5,
                                     borderRadius: "12px",
                                     fontWeight: 700,
-                                    fontSize: "1rem",
+                                    fontSize: "0.875rem",
                                     textTransform: "none",
                                     boxShadow: "0 8px 16px rgba(28, 37, 46, 0.24)",
                                     "&:hover": {

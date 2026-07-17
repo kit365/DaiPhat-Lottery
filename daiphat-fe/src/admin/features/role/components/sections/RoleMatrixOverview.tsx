@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search } from "../../../../components/ui/Search";
-import { JiraFilter } from "../../../../pages/ticket/sections/JiraFilter";
+import { JiraFilter } from "../../../../shared/data-grid";
 import { Badge, SvgIcon } from "@mui/material";
 import {
     Box,

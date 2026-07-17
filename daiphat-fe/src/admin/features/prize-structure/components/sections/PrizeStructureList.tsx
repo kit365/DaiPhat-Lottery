@@ -10,7 +10,7 @@ import {
     columnsPanelStyles,
     dataGridStyles,
     filterPanelStyles,
-} from '../../../../pages/ticket/configs/styles.config';
+} from '../../../../shared/data-grid';
 import { usePrizeStructuresByRegion } from '../../hooks/usePrizeStructure';
 import { usePrizeStructureGridSettings } from '../../hooks/usePrizeStructureGridSettings';
 

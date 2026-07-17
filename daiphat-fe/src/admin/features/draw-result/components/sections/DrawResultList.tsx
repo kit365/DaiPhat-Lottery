@@ -4,9 +4,9 @@ import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../../assets/icons';
 import { useDataGridLocale } from '../../../../hooks/useDataGridLocale';
-import { useSettings } from '../../../../pages/ticket/hooks/useSettings';
+import { useSettings } from '../../../../shared/data-grid';
 import { columnsConfig, columnsInitialState } from '../configs/column.config';
-import { dataGridStyles } from '../../../../pages/ticket/configs/styles.config';
+import { dataGridStyles } from '../../../../shared/data-grid';
 import { DrawResultToolbar } from './DrawResultToolbar';
 
 export const DrawResultList = ({

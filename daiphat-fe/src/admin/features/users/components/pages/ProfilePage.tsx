@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import {
     Box,
     Card,
@@ -9,7 +8,6 @@ import {
     Avatar,
     CircularProgress,
     TextField,
-    Chip,
     InputAdornment,
     IconButton,
     List,
@@ -17,15 +15,12 @@ import {
     ListItemIcon,
     ListItemText,
     Button,
-    Divider
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { Icon } from "@iconify/react";
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../components/ui/Title';
-import { prefixAdmin } from '../../../../constants/routes';
 import { useUpdateUser } from "../../hooks/useUsers";
-import { useTicketServiceOrders } from "../../../../pages/ticket-service-order/hooks/useTicketServiceOrderManagement";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { accountAdminSchema } from "../../../../schemas/account-admin.schema";
@@ -33,7 +28,6 @@ import { toast } from "react-toastify";
 import { AxiosError } from "axios";
 import { uploadImagesToCloudinary } from '../../../../api/uploadCloudinary.api';
 import { LoadingButton } from '../../../../components/ui/LoadingButton';
-import dayjs from "dayjs";
 import * as zod from "zod";
 import { useAuthStore } from "../../../../../stores/useAuthStore";
 import { authService } from "../../../../pages/authen/services/auth.service";
@@ -124,10 +118,9 @@ const PasswordRequirementList = ({ password, policy }: { password: string; polic
 export const ProfilePage = () => {
     const { user } = useAuthStore();
     const id = user?.id;
-    const navigate = useNavigate();
 
     // States
-    const [activeTab, setActiveTab] = useState<"general" | "security" | "history">("general");
+    const [activeTab, setActiveTab] = useState<"general" | "security">("general");
     const [isEditing, setIsEditing] = useState(false);
     const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | null>(null);
 
@@ -138,10 +131,6 @@ export const ProfilePage = () => {
     const { mutate: changePassword, isPending: isChangingPassword } = useMutation({
         mutationFn: authService.changePassword,
     });
-    
-    // History can stay as it is specific to the profile view, but we make it optional
-    const { data: ticketServiceOrdersData, isLoading: isTicketServiceOrdersLoading } = useTicketServiceOrders({ staffId: id });
-    const ticketServiceOrders = (ticketServiceOrdersData as { data?: { recordList?: Record<string, any>[] } } | undefined)?.data?.recordList || [];
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -449,12 +438,11 @@ export const ProfilePage = () => {
                             {[
                                 { id: "general", label: "Hồ sơ", icon: "solar:user-id-bold" },
                                 { id: "security", label: "Bảo mật", icon: "solar:lock-password-bold" },
-                                { id: "history", label: "Lịch sử", icon: "solar:history-bold" }
                             ].map((tab) => (
                                 <ListItemButton
                                     key={tab.id}
                                     selected={activeTab === tab.id}
-                                    onClick={() => { setActiveTab(tab.id as "general" | "security" | "history"); setIsEditing(false); }}
+                                    onClick={() => { setActiveTab(tab.id as "general" | "security"); setIsEditing(false); }}
                                     sx={{
                                         borderRadius: "12px",
                                         mb: { xs: 0, md: 1 },
@@ -721,105 +709,6 @@ export const ProfilePage = () => {
                         </Card>
                     )}
 
-                    {activeTab === "history" && (
-                        <Card sx={{ borderRadius: "16px", boxShadow: "var(--customShadows-card)", border: '1px solid var(--palette-divider)', overflow: 'hidden' }}>
-                            <Box sx={{ p: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <Typography variant="h6" sx={{ fontWeight: 800 }}>Lịch sử công việc</Typography>
-                                <Typography variant="caption" sx={{ color: 'var(--palette-text-disabled)', fontWeight: 700 }}>
-                                    {ticketServiceOrders.length} ĐƠN GẦN NHẤT
-                                </Typography>
-                            </Box>
-
-                            <Divider />
-
-                            {isTicketServiceOrdersLoading ? (
-                                <Box sx={{ p: 10, textAlign: 'center' }}>
-                                    <CircularProgress size={40} />
-                                </Box>
-                            ) : ticketServiceOrders.length === 0 ? (
-                                <Box sx={{ p: 10, textAlign: 'center', color: 'var(--palette-text-disabled)' }}>
-                                    <Icon icon="solar:document-text-bold-duotone" width={80} style={{ opacity: 0.15 }} />
-                                    <Typography variant="body1" sx={{ mt: 2, fontWeight: 600 }}>Sạch bóng dữ liệu việc làm.</Typography>
-                                </Box>
-                            ) : (
-                                <Box sx={{ overflowX: 'auto', p: 1, mt: 1 }}>
-                                    <Box sx={{ minWidth: 900 }}>
-                                        {ticketServiceOrders.map((ticketServiceOrder) => (
-                                            <Box
-                                                key={ticketServiceOrder._id}
-                                                onClick={() => navigate(`/${prefixAdmin}/ticketServiceOrder/detail/${ticketServiceOrder._id}`)}
-                                                sx={{
-                                                    display: 'grid',
-                                                    gridTemplateColumns: '140px 1fr 200px 160px 160px',
-                                                    p: 2.5,
-                                                    mx: 1,
-                                                    mb: 1,
-                                                    borderRadius: '12px',
-                                                    border: '1px solid transparent',
-                                                    cursor: 'pointer',
-                                                    '&:hover': {
-                                                        bgcolor: 'var(--palette-background-neutral)',
-                                                        borderColor: 'var(--palette-divider)',
-                                                        boxShadow: '0 4px 12px 0 rgba(145, 158, 171, 0.08)'
-                                                    },
-                                                    alignItems: 'center',
-                                                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
-                                                }}
-                                            >
-                                                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'var(--palette-primary-main)' }}>
-                                                    #{ticketServiceOrder.code}
-                                                </Typography>
-                                                <Box>
-                                                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{ticketServiceOrder.ticketServiceId?.name}</Typography>
-                                                    <Typography variant="body2" sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.75rem' }}>
-                                                        Khách: {ticketServiceOrder.userId ? `${ticketServiceOrder.userId.lastName} ${ticketServiceOrder.userId.firstName}` : "N/A"}
-                                                    </Typography>
-                                                </Box>
-                                                <Box>
-                                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{dayjs(ticketServiceOrder.start).format("DD MMM, YYYY")}</Typography>
-                                                    <Typography variant="caption" sx={{ color: 'var(--palette-text-secondary)', fontSize: '0.7rem' }}>
-                                                        {dayjs(ticketServiceOrder.start).format("HH:mm")} - {dayjs(ticketServiceOrder.end).format("HH:mm")}
-                                                    </Typography>
-                                                </Box>
-                                                <Typography variant="subtitle1" textAlign="right" sx={{ fontWeight: 800 }}>
-                                                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(ticketServiceOrder.total || 0)}
-                                                </Typography>
-                                                <Box textAlign="center">
-                                                    {(() => {
-                                                        const statusMap: Record<string, { label: string; color: string; bg: string }> = {
-                                                            pending: { label: "Chờ duyệt", color: "var(--palette-warning-dark)", bg: "var(--palette-warning-lighter)" },
-                                                            confirmed: { label: "Xác nhận", color: "var(--palette-info-dark)", bg: "var(--palette-info-lighter)" },
-                                                            delayed: { label: "Trễ hẹn", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" },
-                                                            "in-progress": { label: "Đang làm", color: "var(--palette-primary-dark)", bg: "var(--palette-primary-lighter)" },
-                                                            completed: { label: "Hoàn tất", color: "var(--palette-success-dark)", bg: "var(--palette-success-lighter)" },
-                                                            cancelled: { label: "Đã hủy", color: "var(--palette-error-dark)", bg: "var(--palette-error-lighter)" }
-                                                        };
-                                                        const orderStatus = ticketServiceOrder.ticketServiceOrderStatus as string;
-                                                        const status = statusMap[orderStatus] || { label: orderStatus, color: 'var(--palette-text-secondary)', bg: "var(--palette-background-neutral)" };
-                                                        return (
-                                                            <Chip
-                                                                label={status.label}
-                                                                size="small"
-                                                                sx={{
-                                                                    borderRadius: "8px",
-                                                                    fontWeight: 800,
-                                                                    fontSize: '0.65rem',
-                                                                    color: status.color,
-                                                                    bgcolor: status.bg,
-                                                                    height: '24px',
-                                                                    textTransform: 'uppercase'
-                                                                }}
-                                                            />
-                                                        );
-                                                    })()}
-                                                </Box>
-                                            </Box>
-                                        ))}
-                                    </Box>
-                                </Box>
-                            )}
-                        </Card>
-                    )}
                 </Grid>
             </Grid>
         </Box>

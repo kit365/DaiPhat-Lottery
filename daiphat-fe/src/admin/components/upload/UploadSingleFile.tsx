@@ -3,7 +3,7 @@ import { UploadFileIcon, UploadIcon } from "../../assets/icons";
 import { useDropzone } from "react-dropzone";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
-import { toast } from "react-toastify";
+import { AppToast } from "../../../utils/toast.util";
 
 interface CustomFile extends File {
     preview: string;
@@ -74,9 +74,9 @@ export const UploadSingleFile = memo(
                 }
                 onChange(url);
                 setLocalFile(null);
-                toast.success("Tải ảnh lên thành công!");
+                AppToast.success("Tải ảnh lên thành công!");
             } catch (err: any) {
-                toast.error(err?.message || "Tải ảnh lên thất bại!");
+                AppToast.error(err?.message || "Tải ảnh lên thất bại!");
             } finally {
                 setIsUploading(false);
             }
@@ -241,10 +241,12 @@ export const UploadSingleFile = memo(
 
         return (
             <Stack>
-                <Typography variant="h6" sx={{ fontSize: "0.875rem", fontWeight: 600, mb: "12px" }}>
-                    {label}
-                    {required ? <Box component="span" sx={{ color: "error.main", ml: 0.5 }}>*</Box> : null}
-                </Typography>
+                {label ? (
+                    <Typography variant="h6" sx={{ fontSize: "0.875rem", fontWeight: 600, mb: "12px" }}>
+                        {label}
+                        {required ? <Box component="span" sx={{ color: "error.main", ml: 0.5 }}>*</Box> : null}
+                    </Typography>
+                ) : null}
 
                 <div
                     {...getRootProps()}

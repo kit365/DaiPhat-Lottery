@@ -7,7 +7,7 @@ import { useAuthStore } from '../../../../../stores/useAuthStore';
 import { PERMISSIONS } from '../../../../constants/permission.constants';
 import { getColumnsConfig } from '../configs/column.config';
 import { PaginationMetadata } from '../../../../../types/api.type';
-import { dataGridStyles } from '../../../../pages/ticket/configs/styles.config';
+import { dataGridStyles } from '../../../../shared/data-grid';
 
 
 interface UserTableProps {

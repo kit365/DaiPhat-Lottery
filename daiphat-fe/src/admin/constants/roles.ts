@@ -86,21 +86,6 @@ export const PERMISSIONS_GROUPED = [
         ]
     },
     {
-        module: "Quản lý tiện ích",
-        permissions: [
-            { id: PERMISSIONS.TICKET_SERVICE.VIEW, name: "Xem tiện ích" },
-            { id: PERMISSIONS.TICKET_SERVICE.CREATE, name: "Tạo tiện ích" },
-            { id: PERMISSIONS.TICKET_SERVICE.EDIT, name: "Sửa tiện ích" },
-        ]
-    },
-    {
-        module: "Đơn mua hộ & tra vé",
-        permissions: [
-            { id: PERMISSIONS.TICKET_SERVICE_ORDER.VIEW, name: "Xem đơn mua hộ" },
-            { id: PERMISSIONS.TICKET_SERVICE_ORDER.EDIT, name: "Sửa đơn mua hộ" },
-        ]
-    },
-    {
         module: "Quản lý đơn hàng",
         permissions: [
             { id: PERMISSIONS.ORDER.VIEW, name: "Xem đơn hàng" },
@@ -148,9 +133,6 @@ export const PERMISSIONS_GROUPED = [
     {
         module: "Khác",
         permissions: [
-            { id: PERMISSIONS.COUPON.VIEW, name: "Xem mã giảm giá" },
-            { id: PERMISSIONS.COUPON.CREATE, name: "Tạo mã giảm giá" },
-            { id: PERMISSIONS.COUPON.EDIT, name: "Sửa mã giảm giá" },
             { id: PERMISSIONS.CHAT.VIEW, name: "Xem chat" },
             { id: PERMISSIONS.CHAT.MANAGE, name: "Quản lý chat" },
             { id: PERMISSIONS.NOTIFICATION.VIEW, name: "Xem thông báo" },

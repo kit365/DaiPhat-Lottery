@@ -27,7 +27,6 @@ import { toast } from "react-toastify";
 import { uploadImagesToCloudinary } from "../../../../api/uploadCloudinary.api";
 import { LoadingButton } from "../../../../components/ui/LoadingButton";
 import { UserUserTicketList } from "../sections/UserTicketList";
-import { UserTicketServiceOrderHistory } from "../sections/UserTicketServiceOrderHistory";
 import { UserOrderHistory } from "../sections/UserOrderHistory";
 import { UserBoardingHistory } from "../sections/UserBoardingHistory";
 
@@ -183,16 +182,6 @@ export const ClientDetailPage = () => {
                         <Stack direction="row" spacing={1} alignItems="center">
                             <Icon icon="solar:user-id-bold" width={20} />
                             <span>Tổng quan</span>
-                        </Stack>
-                    }
-                />
-                <Tab
-                    disableRipple
-                    value="ticketServiceOrder"
-                    label={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Icon icon="solar:calendar-date-bold" width={20} />
-                            <span>Lịch sử dịch vụ</span>
                         </Stack>
                     }
                 />
@@ -393,15 +382,6 @@ export const ClientDetailPage = () => {
                         </div>
                     </div>
                 </form>
-            )}
-
-            {currentTab === "ticketServiceOrder" && id && (
-                <Card sx={{ borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", overflow: 'hidden' }}>
-                    <Box sx={{ p: 3, borderBottom: '1px dashed var(--palette-divider)' }}>
-                        <Typography variant="h6">Lịch sử đặt chỗ dịch vụ</Typography>
-                    </Box>
-                    <UserTicketServiceOrderHistory userId={id} />
-                </Card>
             )}
 
             {currentTab === "order" && id && (

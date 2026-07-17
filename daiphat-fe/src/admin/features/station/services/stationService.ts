@@ -64,7 +64,20 @@ const mapStation = (item: Station): Station => {
 export const getStations = async (
     params?: StationQueryParams
 ): Promise<ApiResponse<PageResponse<Station>>> => {
-    const response = await apiApp.get(BASE_URL, { params });
+    const requestParams = params
+        ? {
+              ...params,
+              drawDay: params.drawDay
+                  ? String(params.drawDay)
+                        .split(',')
+                        .map((d) => FE_TO_BACKEND_DAY[d.trim()] || d.trim())
+                        .filter(Boolean)
+                        .join(',')
+                  : undefined,
+          }
+        : undefined;
+
+    const response = await apiApp.get(BASE_URL, { params: requestParams });
     const result = response.data?.data;
     const recordList = (result?.recordList || []).map(mapStation);
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getTickets } from '../../../../api/ticket.api';
+import { getTickets } from '../../../ticket/inventory/services/ticketService';
 import {
     getReplacementCandidates,
     handleOrderTicketIncidents,

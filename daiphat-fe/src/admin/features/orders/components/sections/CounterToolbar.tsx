@@ -3,10 +3,9 @@ import { useEffect, useMemo, type Dispatch, type SetStateAction, useState, useRe
 import { useTranslation } from "react-i18next";
 import { useStationsByDrawDate } from "../../../station/hooks/useStation";
 import { Search } from "../../../../components/ui/Search";
-import { JiraFilter } from "../../../../pages/ticket/sections/JiraFilter";
+import { JiraFilter, toolbarStyles } from "../../../../shared/data-grid";
 import { SettingsList } from "../../../../components/ui/SettingsList";
 import { SortButton } from "../../../../components/ui/SortButton";
-import { toolbarStyles } from "../../../../pages/ticket/configs/styles.config";
 import Tooltip from '@mui/material/Tooltip';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
