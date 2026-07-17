@@ -35,9 +35,7 @@ public class StaffSupportTicketController {
     private final SupportTicketServicePort supportTicketServicePort;
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('"
-            + RoleConstants.ROLE_STAFF_OPERATOR + "', '"
-            + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAnyAuthority('admin:view', 'supportTicket:view')")
     public ApiResponse<PageResponse<SupportTicketStaffSummaryResponse>> getTickets(
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int limit,
@@ -57,9 +55,7 @@ public class StaffSupportTicketController {
     }
 
     @PutMapping(ID_PATH + "/assign")
-    @PreAuthorize("hasAnyAuthority('"
-            + RoleConstants.ROLE_STAFF_OPERATOR + "', '"
-            + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAnyAuthority('admin:edit', 'supportTicket:process')")
     public ApiResponse<SupportTicketResponse> assign(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
@@ -69,9 +65,7 @@ public class StaffSupportTicketController {
     }
 
     @PutMapping(ID_PATH + "/resolve")
-    @PreAuthorize("hasAnyAuthority('"
-            + RoleConstants.ROLE_STAFF_OPERATOR + "', '"
-            + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAnyAuthority('admin:edit', 'supportTicket:process')")
     public ApiResponse<SupportTicketResponse> resolve(
             @PathVariable Long id,
             @Valid @RequestBody ResolveSupportTicketRequest request,
@@ -82,9 +76,7 @@ public class StaffSupportTicketController {
     }
 
     @PostMapping(value = ID_PATH + "/responses", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyAuthority('"
-            + RoleConstants.ROLE_STAFF_OPERATOR + "', '"
-            + RoleConstants.ADMIN + "')")
+    @PreAuthorize("hasAnyAuthority('admin:edit', 'supportTicket:process')")
     public ApiResponse<SupportTicketResponse> respond(
             @PathVariable Long id,
             @Valid @RequestPart("data") StaffSupportTicketResponseRequest request,

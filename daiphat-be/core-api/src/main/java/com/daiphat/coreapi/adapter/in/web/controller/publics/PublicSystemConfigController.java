@@ -21,6 +21,6 @@ public class PublicSystemConfigController {
     public ApiResponse<SystemConfigModel> getByKey(@PathVariable String key) {
         return systemConfigServicePort.getConfigByKey(key)
                 .map(config -> ApiResponse.success(null, config))
-                .orElseGet(() -> ApiResponse.error("Không tìm thấy cấu hình", "CONFIG_NOT_FOUND"));
+                .orElseGet(() -> ApiResponse.<SystemConfigModel>error("Không tìm thấy cấu hình"));
     }
 }
