@@ -79,8 +79,9 @@ export const ComplaintTimelineChat: React.FC<ComplaintTimelineChatProps> = ({ ti
 
             <div
                 ref={scrollRef}
-                className="flex-1 min-h-[280px] max-h-[480px] overflow-y-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col gap-4"
+                className="flex-1 min-h-[280px] max-h-[480px] overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6 relative"
             >
+                <div className="absolute left-8 sm:left-10 lg:left-12 top-6 bottom-6 w-[2px] bg-[#E5E8EB] z-0 rounded-full"></div>
                 {isLoading && (
                     <div className="flex-1 flex items-center justify-center text-[14px] text-[#637381]">
                         <i className="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải trao đổi...
@@ -123,41 +124,45 @@ export const ComplaintTimelineChat: React.FC<ComplaintTimelineChatProps> = ({ ti
                     </p>
                 ) : (
                     <div className="flex flex-col gap-4">
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[13px] font-bold text-[#454F5B]">Nội dung tin nhắn</label>
+                        <div className="flex flex-col relative border border-[#E5E8EB] bg-white rounded-[20px] overflow-hidden focus-within:border-[#ee1314]/40 focus-within:shadow-[0_0_0_4px_rgba(238,19,20,0.05)] transition-all">
                             <textarea
                                 value={content}
                                 onChange={(e) => setContent(e.target.value.slice(0, MAX_CONTENT_LENGTH))}
-                                rows={3}
+                                rows={2}
                                 placeholder="Nhập nội dung trao đổi..."
-                                className="w-full rounded-xl border border-[#E5E8EB] bg-white px-4 py-3 text-[14px] text-[#212B36] placeholder:text-[#919EAB] focus:outline-none focus:border-[#ee1314]/50 resize-none"
+                                className="w-full px-4 pt-4 pb-14 text-[14px] text-[#212B36] placeholder:text-[#919EAB] focus:outline-none resize-none bg-transparent"
                             />
-                            <span className="text-[11px] text-[#919EAB] text-right">
-                                {content.length}/{MAX_CONTENT_LENGTH}
-                            </span>
+                            
+                            <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+                                <div className="flex items-center gap-2 pl-2">
+                                    <span className="text-[12px] font-medium text-[#919EAB]">
+                                        {content.length}/{MAX_CONTENT_LENGTH}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleSubmit}
+                                    disabled={sendMutation.isPending || !content.trim()}
+                                    className="px-4 py-2 rounded-xl bg-[#ee1314] text-white flex items-center gap-2 hover:bg-[#c80f11] font-bold text-[13px] transition-all disabled:opacity-50 disabled:bg-[#F4F6F8] disabled:text-[#919EAB] cursor-pointer"
+                                >
+                                    {sendMutation.isPending ? (
+                                        <i className="fa-solid fa-spinner fa-spin text-[14px]"></i>
+                                    ) : (
+                                        <>
+                                            <span>Gửi</span>
+                                            <i className="fa-solid fa-paper-plane text-[13px]"></i>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
 
                         <ImageUploadPreview
                             value={attachmentFile}
                             onChange={setAttachmentFile}
-                            label="Hình ảnh đính kèm (tuỳ chọn)"
-                            helperText="Hỗ trợ các định dạng hình ảnh (JPG, PNG, ...)"
+                            label="Đính kèm thêm hình ảnh (nếu cần)"
+                            helperText=""
                         />
-
-                        <button
-                            type="button"
-                            onClick={handleSubmit}
-                            disabled={sendMutation.isPending || !content.trim()}
-                            className="self-end px-6 py-3 rounded-xl bg-[#ee1314] text-white font-bold text-[14px] hover:bg-[#c80f11] transition-colors disabled:opacity-50 cursor-pointer"
-                        >
-                            {sendMutation.isPending ? (
-                                <i className="fa-solid fa-spinner fa-spin"></i>
-                            ) : (
-                                <>
-                                    <i className="fa-solid fa-paper-plane mr-2"></i> Gửi tin nhắn
-                                </>
-                            )}
-                        </button>
                     </div>
                 )}
             </div>

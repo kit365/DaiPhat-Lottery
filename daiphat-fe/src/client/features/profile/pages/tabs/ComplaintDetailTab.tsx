@@ -130,43 +130,61 @@ export const ComplaintDetailTab = () => {
                         <h3 className="text-[18px] font-bold text-[#212B36]">Thông tin khiếu nại</h3>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 border-t border-[#F4F6F8] pt-5">
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[13px] text-[#637381]">Danh mục</span>
-                            <span className="text-[15px] font-semibold text-[#212B36]">{categoryName}</span>
+                    <div className="flex flex-col border-t border-[#F4F6F8] pt-2">
+                        <div className="flex flex-col sm:flex-row sm:items-start py-4 border-b border-dashed border-[#F4F6F8] gap-1 sm:gap-4">
+                            <div className="sm:w-1/3 text-[14px] text-[#637381] flex items-center gap-2 font-medium">
+                                <i className="fa-solid fa-layer-group w-4 text-center text-[#919EAB]"></i> Danh mục
+                            </div>
+                            <div className="sm:w-2/3 text-[15px] font-semibold text-[#212B36]">{categoryName}</div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[13px] text-[#637381]">Tiêu đề</span>
-                            <span className="text-[15px] font-semibold text-[#212B36]">{ticket.title}</span>
+                        <div className="flex flex-col sm:flex-row sm:items-start py-4 border-b border-dashed border-[#F4F6F8] gap-1 sm:gap-4">
+                            <div className="sm:w-1/3 text-[14px] text-[#637381] flex items-center gap-2 font-medium">
+                                <i className="fa-solid fa-heading w-4 text-center text-[#919EAB]"></i> Tiêu đề
+                            </div>
+                            <div className="sm:w-2/3 text-[15px] font-semibold text-[#212B36]">{ticket.title}</div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[13px] text-[#637381]">Mô tả</span>
-                            <span className="text-[15px] font-medium text-[#212B36] leading-relaxed whitespace-pre-wrap">
+                        <div className="flex flex-col sm:flex-row sm:items-start py-4 border-b border-dashed border-[#F4F6F8] gap-1 sm:gap-4">
+                            <div className="sm:w-1/3 text-[14px] text-[#637381] flex items-center gap-2 mt-0.5 font-medium">
+                                <i className="fa-solid fa-align-left w-4 text-center text-[#919EAB]"></i> Mô tả
+                            </div>
+                            <div className="sm:w-2/3 text-[15px] font-medium text-[#212B36] leading-relaxed whitespace-pre-wrap bg-[#F9FAFB] p-3 rounded-xl border border-[#E5E8EB]">
                                 {ticket.description}
-                            </span>
+                            </div>
                         </div>
                         {ticket.refId && ticket.refType && (
-                            <div className="flex flex-col gap-1">
-                                <span className="text-[13px] text-[#637381]">
+                            <div className="flex flex-col sm:flex-row sm:items-center py-4 border-b border-dashed border-[#F4F6F8] gap-1 sm:gap-4">
+                                <div className="sm:w-1/3 text-[14px] text-[#637381] flex items-center gap-2 font-medium">
+                                    <i className="fa-solid fa-link w-4 text-center text-[#919EAB]"></i> 
                                     {TICKET_REF_TYPE_LABELS[ticket.refType]}
-                                </span>
-                                {ticket.refType === TicketRefType.ORDER ? (
-                                    <Link
-                                        to={`/profile/orders/${ticket.refId}`}
-                                        className="text-[15px] font-semibold text-[#2065D1] hover:underline w-max"
-                                    >
-                                        Xem đơn hàng #{ticket.refId.slice(0, 8).toUpperCase()}
-                                    </Link>
-                                ) : (
-                                    <span className="text-[15px] font-semibold text-[#212B36] font-mono">
-                                        {ticket.refId}
-                                    </span>
-                                )}
+                                </div>
+                                <div className="sm:w-2/3">
+                                    {ticket.refType === TicketRefType.ORDER ? (
+                                        <Link
+                                            to={`/profile/orders/${ticket.refId}`}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F5FF] text-[#2065D1] rounded-lg text-[14px] font-bold hover:bg-[#D0E2FF] transition-colors"
+                                        >
+                                            <i className="fa-solid fa-up-right-from-square text-[12px]"></i>
+                                            Mã đơn #{ticket.refId.slice(0, 8).toUpperCase()}
+                                        </Link>
+                                    ) : ticket.refType === TicketRefType.REFUND_REQUEST ? (
+                                        <Link
+                                            to={`/profile/refunds/${ticket.refId}`}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF4F4] text-[#ee1314] rounded-lg text-[14px] font-bold hover:bg-[#FFE4E4] transition-colors"
+                                        >
+                                            <i className="fa-solid fa-up-right-from-square text-[12px]"></i>
+                                            Mã yêu cầu #{ticket.refId}
+                                        </Link>
+                                    ) : (
+                                        <span className="text-[15px] font-semibold text-[#212B36] font-mono bg-[#F4F6F8] px-2 py-1 rounded-md">
+                                            {ticket.refId}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         )}
                         {isReadOnly && ticket.status !== TicketStatus.CLOSED && (
-                            <p className="text-[12px] text-[#919EAB] italic">
-                                Thông tin trên không thể chỉnh sửa ở trạng thái hiện tại.
+                            <p className="text-[13px] text-[#919EAB] italic mt-4 flex items-center gap-2">
+                                <i className="fa-solid fa-circle-info"></i> Thông tin trên không thể chỉnh sửa ở trạng thái hiện tại.
                             </p>
                         )}
                     </div>
@@ -181,32 +199,33 @@ export const ComplaintDetailTab = () => {
                     </div>
 
                     {ticket.attachmentUrl ? (
-                        <div className="border-t border-[#F4F6F8] pt-5">
+                        <div className="border-t border-[#F4F6F8] pt-5 flex flex-col items-center">
                             <a
                                 href={ticket.attachmentUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="block rounded-xl border border-[#E5E8EB] overflow-hidden hover:border-[#ee1314]/30 transition-colors"
+                                className="block rounded-2xl border border-[#E5E8EB] overflow-hidden hover:border-[#ee1314]/50 transition-all hover:shadow-md w-full bg-[#F4F6F8]"
                             >
                                 <img
                                     src={ticket.attachmentUrl}
                                     alt="Đính kèm"
-                                    className="w-full max-h-[280px] object-contain bg-[#F9FAFB]"
+                                    className="w-full h-48 sm:h-64 object-contain"
                                 />
                             </a>
                             <a
                                 href={ticket.attachmentUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-[#2065D1] font-bold text-[14px] hover:underline mt-3"
+                                className="inline-flex items-center gap-2 px-4 py-2 mt-4 bg-[#F0F5FF] text-[#2065D1] rounded-xl text-[14px] font-bold hover:bg-[#D0E2FF] transition-colors"
                             >
                                 <i className="fa-solid fa-up-right-from-square"></i> Xem ảnh gốc
                             </a>
                         </div>
                     ) : (
-                        <p className="text-[14px] text-[#637381] border-t border-[#F4F6F8] pt-5">
-                            Chưa có tệp đính kèm
-                        </p>
+                        <div className="border-t border-[#F4F6F8] pt-8 pb-4 flex flex-col items-center justify-center text-[#919EAB] gap-2">
+                            <i className="fa-solid fa-image text-3xl opacity-50"></i>
+                            <p className="text-[14px]">Chưa có tệp đính kèm</p>
+                        </div>
                     )}
                 </div>
             </div>
