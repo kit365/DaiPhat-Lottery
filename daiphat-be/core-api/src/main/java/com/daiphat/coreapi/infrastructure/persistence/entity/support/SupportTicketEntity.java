@@ -63,6 +63,12 @@ public class SupportTicketEntity {
     @Column(columnDefinition = "TEXT")
     private String response;
 
+    @Column(name = "resolved_reason_id")
+    private Long resolvedReasonId;
+
+    @Column(name = "rejected_reason_id")
+    private Long rejectedReasonId;
+
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
 

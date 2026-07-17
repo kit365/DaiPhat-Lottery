@@ -19,6 +19,8 @@ public record SupportTicketResponse(
         TicketRefType refType,
         TicketStatus status,
         String response,
+        Long resolvedReasonId,
+        Long rejectedReasonId,
         LocalDateTime resolvedAt,
         LocalDateTime dueAt,
         LocalDateTime createdAt,
