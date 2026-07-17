@@ -8,12 +8,14 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTi
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketSerialEntity_;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity_;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity_;
+import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -78,6 +80,17 @@ public final class LotteryTicketSpecification {
             predicates.add(cb.greaterThan(root.get(LotteryTicketEntity_.quantity), 0));
             predicates.add(cb.isTrue(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.isActive)));
             predicates.add(cb.isNull(root.get(LotteryTicketEntity_.station).get(BaseEntity_.deletedAt)));
+
+            // Sale cutoff: tickets stop being publicly sellable once their draw has happened,
+            // even if the expiry scheduler has not flipped their status yet.
+            LocalDate today = DrawScheduleUtils.today();
+            LocalTime now = DrawScheduleUtils.nowTime();
+            predicates.add(cb.greaterThanOrEqualTo(root.get(LotteryTicketEntity_.drawDate), today));
+            predicates.add(cb.or(
+                    cb.notEqual(root.get(LotteryTicketEntity_.drawDate), today),
+                    cb.isNull(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.drawTime)),
+                    cb.greaterThan(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.drawTime), now)
+            ));
 
             if (stationId != null) {
                 predicates.add(cb.equal(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.id), stationId));

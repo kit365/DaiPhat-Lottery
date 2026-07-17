@@ -14,6 +14,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -34,11 +36,18 @@ class ChatTicketInventoryServiceTest {
     @InjectMocks
     private ChatTicketInventoryService service;
 
+    private static String upcomingWindow() {
+        LocalDate today = LocalDate.now(com.daiphat.coreapi.shared.util.DrawScheduleUtils.VIETNAM_ZONE);
+        return IntStream.range(0, 7)
+                .mapToObj(offset -> today.plusDays(offset).toString())
+                .collect(Collectors.joining(","));
+    }
+
     @Test
-    void findAvailable_resolvesTodayToIsoDate() {
-        String today = LocalDate.now().toString();
+    void findAvailable_resolvesTodayToUpcomingDrawWindow() {
+        String upcoming = upcomingWindow();
         when(lotteryTicketServicePort.getPublicTickets(
-                eq(1), eq(5), isNull(), isNull(), eq(today), eq("68"), eq("numbers"), eq("asc")
+                eq(1), eq(5), isNull(), isNull(), eq(upcoming), eq("68"), eq("drawDate"), eq("asc")
         )).thenReturn(pageOf(List.of(ticket("126800", 1L, "Đài TP"))));
 
         List<LotteryTicketResponse> result = service.findAvailable("68", null, "today", 5);
@@ -46,15 +55,15 @@ class ChatTicketInventoryServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).numbers()).isEqualTo("126800");
         verify(lotteryTicketServicePort).getPublicTickets(
-                1, 5, null, null, today, "68", "numbers", "asc"
+                1, 5, null, null, upcoming, "68", "drawDate", "asc"
         );
     }
 
     @Test
     void findAvailableMatching_pagesUntilEnoughTrueSuffixMatches() {
-        String today = LocalDate.now().toString();
+        String upcoming = upcomingWindow();
         when(lotteryTicketServicePort.getPublicTickets(
-                eq(1), eq(40), isNull(), isNull(), eq(today), eq("68"), eq("numbers"), eq("asc")
+                eq(1), eq(40), isNull(), isNull(), eq(upcoming), eq("68"), eq("drawDate"), eq("asc")
         )).thenReturn(pageOf(
                 List.of(
                         ticket("126868", 1L, "A"),
@@ -64,7 +73,7 @@ class ChatTicketInventoryServiceTest {
                 false
         ));
         when(lotteryTicketServicePort.getPublicTickets(
-                eq(2), eq(40), isNull(), isNull(), eq(today), eq("68"), eq("numbers"), eq("asc")
+                eq(2), eq(40), isNull(), isNull(), eq(upcoming), eq("68"), eq("drawDate"), eq("asc")
         )).thenReturn(pageOf(
                 List.of(
                         ticket("446868", 4L, "D"),
@@ -81,7 +90,7 @@ class ChatTicketInventoryServiceTest {
         assertThat(result).extracting(LotteryTicketResponse::numbers)
                 .containsExactly("126868", "336868", "446868", "556868", "666868");
         verify(lotteryTicketServicePort, times(2)).getPublicTickets(
-                anyInt(), eq(40), isNull(), isNull(), eq(today), eq("68"), eq("numbers"), eq("asc")
+                anyInt(), eq(40), isNull(), isNull(), eq(upcoming), eq("68"), eq("drawDate"), eq("asc")
         );
     }
 
@@ -147,9 +156,9 @@ class ChatTicketInventoryServiceTest {
 
     @Test
     void appendInventoryBlock_appendsTokenAfterFortuneText() {
-        String today = LocalDate.now().toString();
+        String upcoming = upcomingWindow();
         when(lotteryTicketServicePort.getPublicTickets(
-                eq(1), eq(5), isNull(), isNull(), eq(today), isNull(), eq("numbers"), eq("asc")
+                eq(1), eq(5), isNull(), isNull(), eq(upcoming), isNull(), eq("drawDate"), eq("asc")
         )).thenReturn(pageOf(List.of(ticket("555666", 3L, "Đài Cần Thơ"))));
 
         ChatTicketInventoryService.TicketInventoryReply reply =

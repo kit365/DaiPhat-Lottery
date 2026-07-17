@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.TimeZone;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -21,6 +22,9 @@ import com.daiphat.coreapi.application.config.PaymentProperties;
 public class CoreApiApplication {
 
     public static void main(String[] args) {
+        // Lottery draw schedules follow Vietnam time; pin the JVM zone so every
+        // LocalDate/LocalTime.now() matches business time regardless of host timezone.
+        TimeZone.setDefault(TimeZone.getTimeZone(com.daiphat.coreapi.shared.util.DrawScheduleUtils.VIETNAM_ZONE));
         loadLocalDotEnv();
         SpringApplication.run(CoreApiApplication.class, args);
     }
