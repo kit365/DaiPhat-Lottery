@@ -107,7 +107,7 @@ export function resolveRefundComplaintEligibility(
         return {
             eligible: false,
             reasonCode: 'status_invalid',
-            message: 'Trạng thái yêu cầu hoàn tiền không hợp lệ cho loại khiếu nại này.',
+            message: 'Yêu cầu hoàn tiền này cần xử lý thủ công. Vui lòng mang CCCD đến quầy hỗ trợ hoặc liên hệ CSKH.',
         };
     }
 

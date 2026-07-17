@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetMyRefunds } from '../../hooks/useRefund';
 import { RefundRequestResponse, REFUND_STATUS_LABELS } from '../../../types/refund.type';
+import { resolveRefundComplaintEligibility } from '../../utils/refundComplaintEligibility.logic';
 
 interface SelectRefundModalProps {
     isOpen: boolean;
@@ -9,6 +10,16 @@ interface SelectRefundModalProps {
     onSelect: (refundId: string) => void;
     selectedRefundId?: string;
 }
+
+const getShortReason = (reasonCode: string) => {
+    switch (reasonCode) {
+        case 'too_early': return 'Chưa đến hạn';
+        case 'window_expired': return 'Đã quá hạn';
+        case 'status_invalid': return 'Xử lý thủ công';
+        case 'not_eligible': return 'Không hỗ trợ';
+        default: return 'Không khả dụng';
+    }
+};
 
 export const SelectRefundModal: React.FC<SelectRefundModalProps> = ({
     isOpen,
@@ -68,14 +79,24 @@ export const SelectRefundModal: React.FC<SelectRefundModalProps> = ({
                         <div className="flex flex-col gap-3">
                             {refunds.map((refund) => {
                                 const isSelected = String(refund.id) === String(selectedRefundId);
+                                const eligibility = resolveRefundComplaintEligibility(refund);
+                                const isEligible = eligibility.eligible;
+
                                 return (
                                     <div
                                         key={refund.id}
                                         onClick={() => {
+                                            if (!isEligible) return;
                                             onSelect(String(refund.id));
                                             onClose();
                                         }}
-                                        className={`p-4 rounded-xl border transition-colors cursor-pointer flex items-center justify-between gap-4 ${isSelected ? 'bg-[#FFF4F4] border-[#ee1314]' : 'bg-white border-[#E5E8EB] hover:border-[#ee1314]/50 hover:shadow-sm'}`}
+                                        className={`p-4 rounded-xl border transition-colors flex items-center justify-between gap-4 ${
+                                            !isEligible 
+                                                ? 'bg-[#F9FAFB] border-[#E5E8EB] opacity-60 cursor-not-allowed'
+                                                : isSelected 
+                                                    ? 'bg-[#FFF4F4] border-[#ee1314] cursor-pointer' 
+                                                    : 'bg-white border-[#E5E8EB] hover:border-[#ee1314]/50 hover:shadow-sm cursor-pointer'
+                                        }`}
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isSelected ? 'bg-[#ee1314]/10 text-[#ee1314]' : 'bg-[#F4F6F8] text-[#637381]'}`}>
@@ -87,6 +108,11 @@ export const SelectRefundModal: React.FC<SelectRefundModalProps> = ({
                                                     <span className="px-2 py-0.5 bg-[#F4F6F8] text-[#454F5B] text-[10px] font-bold rounded-md uppercase">
                                                         {REFUND_STATUS_LABELS[refund.status] || refund.status}
                                                     </span>
+                                                    {!isEligible && (
+                                                        <span className="px-2 py-0.5 bg-[#FF4842]/10 text-[#FF4842] text-[10px] font-bold rounded-md uppercase ml-1">
+                                                            {getShortReason(eligibility.reasonCode)}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <span className="text-[13px] font-semibold text-[#ee1314]">
                                                     {refund.refundAmount?.toLocaleString('vi-VN')}đ
@@ -97,7 +123,9 @@ export const SelectRefundModal: React.FC<SelectRefundModalProps> = ({
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-center text-[#ee1314]">
-                                            {isSelected ? (
+                                            {!isEligible ? (
+                                                <i className="fa-solid fa-ban text-xl text-[#DFE3E8]"></i>
+                                            ) : isSelected ? (
                                                 <i className="fa-solid fa-circle-check text-xl"></i>
                                             ) : (
                                                 <i className="fa-regular fa-circle text-xl text-[#DFE3E8]"></i>
