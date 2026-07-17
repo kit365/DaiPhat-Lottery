@@ -7,7 +7,7 @@ import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from "../../../..
 import { getColumnsConfig, columnsInitialState } from '../configs/column.config';
 import { BlogCategoryToolbar } from './BlogCategoryToolbar';
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
-import { dataGridStyles } from "../../../../pages/ticket/configs/styles.config";
+import { dataGridStyles } from "../../../../shared/data-grid";
 import { useBlogCategories } from "../../hooks/useBlogCategory";
 
 export const BlogCategoryList = ({ isTrash = false }: { isTrash?: boolean }) => {

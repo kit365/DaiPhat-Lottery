@@ -158,20 +158,10 @@ export const OrderHandoverConfirmDialog = ({
                 </Button>
                 <Button
                     variant="contained"
-                    color="success"
+                    className="btn-primary-admin"
                     disabled={!acknowledged}
                     onClick={handleConfirm}
-                    sx={{
-                        textTransform: 'none',
-                        fontWeight: 700,
-                        borderRadius: '8px',
-                        boxShadow: 'none',
-                        minWidth: 140,
-                        '&.Mui-disabled': {
-                            bgcolor: 'action.disabledBackground',
-                            color: 'action.disabled',
-                        },
-                    }}
+                    sx={{ minWidth: 140 }}
                 >
                     Xác nhận hoàn thành
                 </Button>

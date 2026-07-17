@@ -40,7 +40,7 @@ import { Title } from '../../../../components/ui/Title';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
 import { CounterToolbar } from '../sections/CounterToolbar';
 import { prefixAdmin } from '../../../../constants/routes';
-import { useTicketList } from '../../../../pages/ticket/hooks/useTicket';
+import { useTickets } from '../../../ticket/inventory/hooks/useTicket';
 import { LotteryTicketStatus } from '../../../../../constants/lottery.constants';
 import { useStationsByDrawDate } from '../../../station/hooks/useStation';
 import dayjs from 'dayjs';
@@ -150,13 +150,13 @@ export const CounterOrderCreatePage = () => {
         previousDrawDatesKeyRef.current = drawDatesKey;
     }, [scheduleStations, selectedDrawDates]);
 
-    const { data: ticketsRes, isLoading } = useTicketList({
+    const { data: ticketsRes, isLoading } = useTickets({
         status: LotteryTicketStatus.IN_STOCK,
         search: searchQuery || undefined,
         stationIds: filters.region && filters.region.length > 0 ? filters.region.map((id: string) => Number(id)) : undefined,
         drawDate: filters.dateRange && filters.dateRange.length > 0 ? filters.dateRange : undefined,
         page: page + 1,
-        limit: rowsPerPage
+        limit: rowsPerPage,
     });
 
     const paginatedTickets = (ticketsRes as any)?.data?.recordList || [];
@@ -743,9 +743,10 @@ export const CounterOrderCreatePage = () => {
                                     <Button 
                                         disabled={hasPaymentError || hasCustomerError || isCreating}
                                         variant="contained" 
+                                        className="btn-primary-admin"
                                         size="large" 
                                         fullWidth 
-                                        sx={{ mt: 2, bgcolor: '#212B36', '&:hover': { bgcolor: '#161C24' }, boxShadow: 'var(--customShadows-primary)' }}
+                                        sx={{ mt: 2, minHeight: '2.75rem !important', px: '16px !important' }}
                                         onClick={handleOpenCheckoutConfirm}
                                     >
                                         Chốt đơn ngay
@@ -781,9 +782,9 @@ export const CounterOrderCreatePage = () => {
                         </Typography>
                         <Button 
                             variant="contained" 
+                            className="btn-primary-admin"
                             disabled={totalSelectedQuantity === 0}
                             onClick={() => setActiveStep(2)}
-                            sx={{ bgcolor: '#212B36', '&:hover': { bgcolor: '#161C24' }, boxShadow: 'var(--customShadows-primary)' }}
                         >
                             Tiếp tục
                         </Button>
@@ -819,7 +820,7 @@ export const CounterOrderCreatePage = () => {
                     <Button onClick={handleContinueAsGuest} variant="outlined" sx={{ borderColor: 'divider', color: 'text.primary', '&:hover': { borderColor: 'text.primary', bgcolor: 'transparent' } }}>
                         Tạo đơn khách lẻ
                     </Button>
-                    <Button onClick={handleLinkExistingAccount} variant="contained" sx={{ bgcolor: '#212B36', color: '#fff', '&:hover': { bgcolor: '#161C24' } }}>
+                    <Button onClick={handleLinkExistingAccount} variant="contained" className="btn-primary-admin">
                         Liên kết tài khoản
                     </Button>
                 </DialogActions>
@@ -861,8 +862,8 @@ export const CounterOrderCreatePage = () => {
                     <Button 
                         onClick={handleCreateOrder} 
                         variant="contained" 
+                        className="btn-primary-admin"
                         disabled={isCreating}
-                        sx={{ bgcolor: '#212B36', color: '#fff', '&:hover': { bgcolor: '#161C24' } }}
                     >
                         {isCreating ? 'Đang xử lý...' : 'Xác nhận'}
                     </Button>

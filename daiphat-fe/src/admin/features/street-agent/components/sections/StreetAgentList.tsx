@@ -18,7 +18,7 @@ import { STATUS_OPTIONS } from "../configs/constants";
 import { Search } from "../../../../components/ui/Search";
 import { ExportImport } from "../../../../components/ui/ExportImport";
 import { getTabBadgeStyles } from "../../../../utils/badge";
-import { dataGridStyles } from "../../../../pages/ticket/configs/styles.config";
+import { dataGridStyles } from "../../../../shared/data-grid";
 
 const TabBadge = styled("span")(() => ({
     height: "24px",

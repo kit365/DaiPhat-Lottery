@@ -30,7 +30,7 @@ import { Search } from "../../../../components/ui/Search";
 import { prefixAdmin } from "../../../../constants/routes";
 import { useBlogTagsPaged, useCreateBlogTag, useUpdateBlogTag, useDeleteBlogTag } from "../../hooks/useBlogTag";
 import { DATA_GRID_LOCALE_VN } from "../../../../../shared/components/DataTable/localeText.config";
-import { dataGridStyles } from "../../../../pages/ticket/configs/styles.config";
+import { dataGridStyles } from "../../../../shared/data-grid";
 import { DeleteIcon, EditIcon, ThreeDotsIcon, SortAscendingIcon, SortDescendingIcon, UnsortedIcon, EyeIcon } from "../../../../assets/icons";
 import { confirmDelete } from "../../../../utils/swal";
 import { toast } from "react-toastify";

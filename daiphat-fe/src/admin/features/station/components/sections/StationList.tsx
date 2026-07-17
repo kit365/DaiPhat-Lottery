@@ -7,15 +7,15 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
 import { SortAscendingIcon, SortDescendingIcon, UnsortedIcon } from '../../../../assets/icons';
-import { IGridSettings } from '../../../../pages/ticket/configs/types';
-import { StationToolbar } from './StationToolbar';
-import { useSettings } from '../../../../pages/ticket/hooks/useSettings';
-import { columnsConfig, columnsInitialState } from '../configs/column.config';
 import {
+    IGridSettings,
+    useSettings,
     columnsPanelStyles,
     dataGridStyles,
     filterPanelStyles,
-} from '../../../../pages/ticket/configs/styles.config';
+} from '../../../../shared/data-grid';
+import { StationToolbar } from './StationToolbar';
+import { columnsConfig, columnsInitialState } from '../configs/column.config';
 import { DATA_GRID_LOCALE_VN } from '../../../../../shared/components/DataTable/localeText.config';
 import { useStations } from '../../hooks/useStation';
 import { StationListFilters } from '../../types/station.type';

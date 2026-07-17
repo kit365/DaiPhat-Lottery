@@ -1,11 +1,11 @@
 import { Toolbar, Box, Button, Badge, SvgIcon } from "@mui/material";
 import { useMemo, type Dispatch, type SetStateAction } from "react";
-import { IGridSettings } from "../../../../pages/ticket/configs/types";
+import { IGridSettings, JiraFilter } from "../../../../shared/data-grid";
 import { Search } from "../../../../components/ui/Search";
-import { JiraFilter } from "../../../../pages/ticket/sections/JiraFilter";
 import { Columns } from "../../../../components/ui/Columns";
 import { ExportButton } from "../../../../components/ui/ExportButton";
 import { SettingsList } from "../../../../components/ui/SettingsList";
+import { DAYS_OF_WEEK } from "../../../../constants/schedule.constants";
 
 interface ToolbarProps {
     settings: IGridSettings;
@@ -52,15 +52,10 @@ export const StationToolbar = ({
             {
                 id: 'drawDay',
                 label: "Lịch quay",
-                options: [
-                    { value: 'MONDAY', label: "Thứ 2" },
-                    { value: 'TUESDAY', label: "Thứ 3" },
-                    { value: 'WEDNESDAY', label: "Thứ 4" },
-                    { value: 'THURSDAY', label: "Thứ 5" },
-                    { value: 'FRIDAY', label: "Thứ 6" },
-                    { value: 'SATURDAY', label: "Thứ 7" },
-                    { value: 'SUNDAY', label: "Chủ nhật" }
-                ]
+                options: DAYS_OF_WEEK.map((day) => ({
+                    value: day.value,
+                    label: day.label,
+                })),
             }
         ];
     }, []);
