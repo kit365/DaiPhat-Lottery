@@ -8,12 +8,7 @@ import {
 import { AppToast } from '../../../utils/toast.util';
 import { ComplaintFormModal } from './ComplaintFormModal';
 
-const DISABLED_HELPER_TEXT: Record<Exclude<RefundComplaintEligibilityCode, 'eligible'>, string> = {
-    too_early: 'Vui lòng chờ hết thời gian cam kết xử lý để có thể gửi khiếu nại.',
-    window_expired: `Chỉ có thể gửi khiếu nại trong vòng ${DEFAULT_REFUND_COMPLAINT_GRACE_DAYS} ngày sau khi hoàn tiền.`,
-    status_invalid: 'Yêu cầu hoàn tiền này không đủ điều kiện gửi khiếu nại.',
-    not_eligible: 'Yêu cầu hoàn tiền này không đủ điều kiện gửi khiếu nại.',
-};
+
 
 interface RefundComplaintButtonProps {
     refund: Pick<RefundRequestResponse, 'id' | 'status' | 'updatedAt'>;
@@ -47,7 +42,7 @@ export const RefundComplaintButton = ({
 
     const helperText = eligibility.eligible
         ? null
-        : DISABLED_HELPER_TEXT[eligibility.reasonCode as Exclude<RefundComplaintEligibilityCode, 'eligible'>];
+        : eligibility.message;
 
     if (variant === 'button') {
         return (
