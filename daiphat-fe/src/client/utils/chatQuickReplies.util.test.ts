@@ -55,12 +55,50 @@ describe('resolveContextualQuickReplies', () => {
     expect(result.chips).toHaveLength(0);
   });
 
-  it('returns staff chip on escalation signal', () => {
+  it('always returns the base follow-up chips after a plain bot bubble', () => {
     const result = resolveContextualQuickReplies(
-      { id: '1', sender: 'bot', variant: 'bubble', text: 'AI tạm thời không khả dụng' },
-      { hasCustomerMessages: true, showStaffEscalation: true }
+      {
+        id: '1',
+        sender: 'bot',
+        variant: 'bubble',
+        intent: 'OTHER_KNOWLEDGE',
+        text: 'Đại Phát tra sổ mơ dân gian giúp quý khách: mơ thấy "bò" thường gắn với các số 09, 19, 49.',
+      },
+      { hasCustomerMessages: true }
     );
-    expect(result.chips[0]).toMatchObject({ action: 'staff', label: 'Gặp nhân viên hỗ trợ' });
+    expect(result.hint).toBeUndefined();
+    expect(result.chips.map((chip) => chip.label)).toEqual([
+      'Gợi ý khác',
+      'Tìm đuôi số',
+      'Gặp nhân viên',
+    ]);
+  });
+
+  it('appends the base chips after context-specific order chips', () => {
+    const result = resolveContextualQuickReplies(
+      { id: '2', sender: 'bot', variant: 'bubble', text: 'Đơn hàng của bạn đang được chuẩn bị.' },
+      { hasCustomerMessages: true }
+    );
+    expect(result.chips.map((chip) => chip.label)).toEqual([
+      'Xem đơn mới nhất',
+      'Tra cứu lịch quay',
+      'Gợi ý khác',
+      'Tìm đuôi số',
+      'Gặp nhân viên',
+    ]);
+  });
+
+  it('does not render the duplicated generic staff-support hint', () => {
+    const result = resolveContextualQuickReplies(
+      { id: '3', sender: 'bot', variant: 'bubble', text: 'AI tạm thời không khả dụng' },
+      { hasCustomerMessages: true }
+    );
+    expect(result.hint).toBeUndefined();
+    expect(result.chips.map((chip) => chip.label)).toEqual([
+      'Gợi ý khác',
+      'Tìm đuôi số',
+      'Gặp nhân viên',
+    ]);
   });
 });
 
@@ -101,16 +139,15 @@ describe('shouldShowContextualQuickReplies', () => {
     ).toBe(false);
   });
 
-  it('hides when user focuses input', () => {
+  it('keeps chips visible while input is focused but empty', () => {
     expect(
       shouldShowContextualQuickReplies({
-        lastMessage: { id: '1', sender: 'bot', variant: 'schedule-result' },
+        lastMessage: { id: '1', sender: 'bot', variant: 'bubble' },
         inputValue: '',
-        isInputFocused: true,
         isInteractive: true,
         replies: { chips: [{ id: 'a', label: 'A', action: 'send', message: 'a' }] },
       })
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('shows when last bot message has chips and input is empty', () => {
