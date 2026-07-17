@@ -10,7 +10,7 @@ import {
     useGetComplaintDetail,
     useGetTicketCategories,
 } from '../../../../hooks/useSupportTicket';
-import { TicketRefType, TicketStatus, TICKET_REF_TYPE_LABELS } from '../../../../../types/support.type';
+import { TicketRefType, TicketStatus, TICKET_REF_TYPE_LABELS, findReasonComment } from '../../../../../types/support.type';
 import { AppToast } from '../../../../../utils/toast.util';
 import { UnavailableReferenceState, UNAVAILABLE_REFERENCE_MESSAGE } from '../../../../components/notification/UnavailableReferenceState';
 
@@ -33,6 +33,14 @@ export const ComplaintDetailTab = () => {
             categoriesData?.data?.find((c) => c.id === ticket.ticketCategoryId)?.name || '—'
         );
     }, [ticket, categoriesData]);
+
+    const reasonText = useMemo(() => {
+        if (!ticket) return '';
+        const reason =
+            findReasonComment(ticket.comments || [], ticket.resolvedReasonId) ||
+            findReasonComment(ticket.comments || [], ticket.rejectedReasonId);
+        return reason?.content || ticket.response || '';
+    }, [ticket]);
 
     const handleClose = async () => {
         const confirmed = await AppToast.confirm(
@@ -229,16 +237,47 @@ export const ComplaintDetailTab = () => {
                 </div>
             </div>
 
-            {ticket.status === TicketStatus.RESOLVED && ticket.resolvedAt && (
-                <div className="bg-[#E4F8ED] rounded-[20px] p-6 lg:p-8 border border-[#1CD162]/20 flex items-center gap-4">
+            {ticket.status === TicketStatus.RESOLVED && (
+                <div className="bg-[#E4F8ED] rounded-[20px] p-6 lg:p-8 border border-[#1CD162]/20 flex items-start gap-4">
                     <div className="w-10 h-10 rounded-full bg-[#1CD162] text-white flex items-center justify-center text-lg shrink-0">
                         <i className="fa-solid fa-check"></i>
                     </div>
                     <div>
                         <h3 className="text-[18px] font-bold text-[#212B36]">Đã giải quyết</h3>
-                        <p className="text-[14px] text-[#637381] mt-1">
-                            {format(new Date(ticket.resolvedAt), 'dd/MM/yyyy HH:mm')}
+                        {ticket.resolvedAt && (
+                            <p className="text-[14px] text-[#637381] mt-1">
+                                {format(new Date(ticket.resolvedAt), 'dd/MM/yyyy HH:mm')}
+                            </p>
+                        )}
+                        {reasonText && (
+                            <p className="text-[14px] text-[#454F5B] mt-3 whitespace-pre-wrap leading-relaxed">
+                                {reasonText}
+                            </p>
+                        )}
+                        <p className="text-[13px] text-[#637381] mt-3">
+                            Vui lòng xác nhận bạn có hài lòng với phương án giải quyết trong phần trao đổi bên dưới.
                         </p>
+                    </div>
+                </div>
+            )}
+
+            {ticket.status === TicketStatus.REJECTED && (
+                <div className="bg-[#FFF0F0] rounded-[20px] p-6 lg:p-8 border border-[#ee1314]/20 flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-full bg-[#B71D18] text-white flex items-center justify-center text-lg shrink-0">
+                        <i className="fa-solid fa-circle-xmark"></i>
+                    </div>
+                    <div>
+                        <h3 className="text-[18px] font-bold text-[#212B36]">Đã từ chối</h3>
+                        {ticket.resolvedAt && (
+                            <p className="text-[14px] text-[#637381] mt-1">
+                                {format(new Date(ticket.resolvedAt), 'dd/MM/yyyy HH:mm')}
+                            </p>
+                        )}
+                        {reasonText && (
+                            <p className="text-[14px] text-[#454F5B] mt-3 whitespace-pre-wrap leading-relaxed">
+                                {reasonText}
+                            </p>
+                        )}
                     </div>
                 </div>
             )}
