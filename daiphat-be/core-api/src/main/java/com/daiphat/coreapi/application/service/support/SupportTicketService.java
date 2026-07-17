@@ -13,6 +13,7 @@ import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.event.SupportTicketAssignedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketCommentAddedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketCreatedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketResolvedEvent;
 import com.daiphat.coreapi.application.mapper.support.SupportApplicationMapper;
 import com.daiphat.coreapi.application.port.in.support.SupportTicketServicePort;
@@ -98,6 +99,12 @@ public class SupportTicketService implements SupportTicketServicePort {
                 .build();
         supportTicketCommentRepositoryPort.save(firstComment);
 
+        eventPublisher.publishEvent(SupportTicketCreatedEvent.builder()
+                .ticketId(saved.getId())
+                .title(saved.getTitle())
+                .customerId(customerId)
+                .build());
+
         return toDetailResponse(saved);
     }
 
@@ -137,12 +144,21 @@ public class SupportTicketService implements SupportTicketServicePort {
             String search,
             UUID assignedTo,
             String sortBy,
-            String direction) {
+            String direction,
+            String refType,
+            Long ticketCategoryId,
+            String categoryCodes) {
         Sort.Direction sortDirection = parseSortDirection(direction);
         String resolvedSortBy = resolveStaffSortField(sortBy);
         Pageable pageable = PageableUtils.of(page, limit, Sort.by(sortDirection, resolvedSortBy));
         Page<SupportTicketModel> result = supportTicketRepositoryPort.findAllForStaff(
-                pageable, parseStatuses(statuses), assignedTo, normalizeSearch(search));
+                pageable,
+                parseStatuses(statuses),
+                assignedTo,
+                normalizeSearch(search),
+                parseRefType(refType),
+                ticketCategoryId,
+                parseCategoryCodes(categoryCodes));
         return PageResponse.from(
                 result.map(this::toStaffSummaryResponse),
                 page,
@@ -319,7 +335,41 @@ public class SupportTicketService implements SupportTicketServicePort {
     private SupportTicketResponse toDetailResponse(SupportTicketModel ticket) {
         List<SupportTicketCommentModel> comments =
                 supportTicketCommentRepositoryPort.findByTicketIdOrderByCreatedAtAsc(ticket.getId());
-        return supportApplicationMapper.toTicketResponse(ticket, comments);
+        SupportTicketResponse base = supportApplicationMapper.toTicketResponse(ticket, comments);
+        if (base == null) {
+            return null;
+        }
+
+        TicketCategoryModel category = ticket.getTicketCategoryId() != null
+                ? ticketCategoryRepositoryPort.findById(ticket.getTicketCategoryId()).orElse(null)
+                : null;
+        String customerName = resolveUserDisplayName(ticket.getCustomerId());
+        String assignedToName = ticket.getAssignedTo() != null
+                ? resolveUserDisplayName(ticket.getAssignedTo())
+                : null;
+
+        return new SupportTicketResponse(
+                base.id(),
+                base.ticketCategoryId(),
+                base.customerId(),
+                base.assignedTo(),
+                base.title(),
+                base.description(),
+                base.attachmentUrl(),
+                base.refId(),
+                base.refType(),
+                base.status(),
+                base.response(),
+                base.resolvedAt(),
+                base.dueAt(),
+                base.createdAt(),
+                base.updatedAt(),
+                base.comments(),
+                customerName,
+                assignedToName,
+                category != null ? category.getName() : null,
+                category != null ? category.getCode() : null
+        );
     }
 
     private SupportTicketModel getTicketOrThrow(Long id) {
@@ -472,5 +522,28 @@ public class SupportTicketService implements SupportTicketServicePort {
             case "updatedAt" -> "updatedAt";
             default -> "dueAt";
         };
+    }
+
+    private static TicketRefType parseRefType(String refType) {
+        if (refType == null || refType.isBlank()) {
+            return null;
+        }
+        try {
+            return TicketRefType.valueOf(refType.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new DomainException(ErrorCode.TICKET_REF_INVALID);
+        }
+    }
+
+    private static List<String> parseCategoryCodes(String categoryCodes) {
+        if (categoryCodes == null || categoryCodes.isBlank()) {
+            return null;
+        }
+        List<String> parsed = Arrays.stream(categoryCodes.split(","))
+                .map(String::trim)
+                .filter(code -> !code.isBlank())
+                .map(String::toUpperCase)
+                .toList();
+        return parsed.isEmpty() ? null : parsed;
     }
 }

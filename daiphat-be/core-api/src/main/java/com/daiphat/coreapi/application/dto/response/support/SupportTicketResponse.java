@@ -23,6 +23,10 @@ public record SupportTicketResponse(
         LocalDateTime dueAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        List<SupportTicketCommentResponse> comments
+        List<SupportTicketCommentResponse> comments,
+        String customerName,
+        String assignedToName,
+        String ticketCategoryName,
+        String ticketCategoryCode
 ) {
 }

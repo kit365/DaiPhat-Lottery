@@ -51,7 +51,11 @@ public interface SupportApplicationMapper {
                 base.dueAt(),
                 base.createdAt(),
                 base.updatedAt(),
-                toCommentResponses(comments)
+                toCommentResponses(comments),
+                base.customerName(),
+                base.assignedToName(),
+                base.ticketCategoryName(),
+                base.ticketCategoryCode()
         );
     }
 }

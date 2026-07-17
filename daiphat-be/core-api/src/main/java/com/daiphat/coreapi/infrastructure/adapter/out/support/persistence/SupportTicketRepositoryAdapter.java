@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.adapter.out.support.persistence;
 
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
+import com.daiphat.coreapi.domain.model.enums.support.TicketRefType;
 import com.daiphat.coreapi.domain.model.enums.support.TicketStatus;
 import com.daiphat.coreapi.domain.model.support.SupportTicketModel;
 import com.daiphat.coreapi.infrastructure.persistence.mapper.support.SupportTicketPersistenceMapper;
@@ -52,10 +53,15 @@ public class SupportTicketRepositoryAdapter implements SupportTicketRepositoryPo
             Pageable pageable,
             List<TicketStatus> statuses,
             UUID assignedTo,
-            String search) {
+            String search,
+            TicketRefType refType,
+            Long ticketCategoryId,
+            List<String> categoryCodes) {
         String normalizedSearch = (search == null || search.isBlank()) ? null : search.trim();
         return supportTicketRepository.findAll(
-                        SupportTicketSpecification.filter(null, null, statuses, assignedTo, normalizedSearch),
+                        SupportTicketSpecification.filter(
+                                null, null, statuses, assignedTo, normalizedSearch,
+                                refType, ticketCategoryId, categoryCodes),
                         pageable)
                 .map(supportTicketPersistenceMapper::toDomain);
     }

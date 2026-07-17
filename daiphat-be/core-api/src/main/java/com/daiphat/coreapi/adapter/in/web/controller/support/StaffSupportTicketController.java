@@ -41,11 +41,15 @@ public class StaffSupportTicketController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) UUID assignedTo,
             @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false) String direction) {
+            @RequestParam(required = false) String direction,
+            @RequestParam(required = false) String refType,
+            @RequestParam(required = false) Long ticketCategoryId,
+            @RequestParam(required = false) String categoryCodes) {
         return ApiResponse.success(
                 "Lấy danh sách yêu cầu hỗ trợ thành công.",
                 supportTicketServicePort.getTicketsForStaff(
-                        page, limit, statuses, search, assignedTo, sortBy, direction));
+                        page, limit, statuses, search, assignedTo, sortBy, direction,
+                        refType, ticketCategoryId, categoryCodes));
     }
 
     @PutMapping(ID_PATH + "/assign")
