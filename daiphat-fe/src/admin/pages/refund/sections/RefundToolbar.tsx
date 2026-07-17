@@ -3,8 +3,8 @@ import { type Dispatch, type SetStateAction, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { Search } from "../../../components/ui/Search";
 import { SettingsList } from "../../../components/ui/SettingsList";
-import { toolbarStyles } from "../../ticket/configs/styles.config";
-import { IGridSettings } from "../../ticket/configs/types";
+import { toolbarStyles } from "../../../shared/data-grid";
+import { IGridSettings } from "../../../shared/data-grid";
 
 const CustomViewColumnIcon = (props: any) => (
     <SvgIcon {...props} viewBox="0 0 24 24">

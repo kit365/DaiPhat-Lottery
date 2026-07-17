@@ -25,8 +25,7 @@ import { toast } from 'react-toastify';
 import { useShifts } from '../hooks/useShifts';
 import { useAccounts } from '../../../features/users/hooks/useUsers';
 import { useSchedules } from '../hooks/useSchedules';
-import { useTicketServiceOrderConfig } from '../../ticket-service-order/hooks/useTicketServiceOrderConfig';
-import { useRoles } from '../../../hooks/useRole';
+import { useRoles } from '../../../features/role/hooks/useRole';
 import CloseIcon from '@mui/icons-material/Close';
 import { dialogStyles } from '../configs/styles.config';
 import { Icon } from '@iconify/react';
@@ -46,7 +45,6 @@ export const BulkScheduleDialog = ({
     departmentId,
     loading = false,
 }: BulkScheduleDialogProps) => {
-    const { data: config } = useTicketServiceOrderConfig();
     const accountsRes = useAccounts({ departmentId, status: 'active' });
     const shiftsRes = useShifts({ departmentId, status: 'active' });
     const { data: rolesRes } = useRoles();
@@ -116,53 +114,8 @@ export const BulkScheduleDialog = ({
         return [...new Set(records.map((s: any) => s.staffId?._id || s.staffId))];
     }, [schedulesRes]);
 
-    // Calculate staffing status per role
-    const staffingStatus = useMemo(() => {
-        if (!config || !watchShiftId) return null;
-
-        const rule = config.staffingRules?.find((r: any) => r.shiftId === watchShiftId);
-        if (!rule) return null;
-
-        const payload = schedulesRes?.data as any;
-        const data = payload?.data || payload;
-        const records = Array.isArray(data?.recordList)
-            ? data.recordList
-            : (Array.isArray(data) ? data : []);
-
-        const statusPerRole = rule.roleRequirements.map((req: any) => {
-            const roleObj = roles.find((r: any) => r._id === req.roleId);
-
-            const staffIdsInThisRole = accounts
-                .filter((a: any) => (a.roles || []).some((r: any) =>
-                    (typeof r === 'string' ? r === req.roleId : r._id === req.roleId)
-                ))
-                .map((a: any) => a._id);
-
-            const newlyAddedCount = watchStaffIds.filter(id => staffIdsInThisRole.includes(id)).length;
-
-            const totalDays = dayjs(watchEndDate).diff(dayjs(watchStartDate), 'day') + 1;
-            const existingCountTotal = records.filter((s: any) =>
-                (s.shiftId?._id === watchShiftId || s.shiftId === watchShiftId) &&
-                staffIdsInThisRole.includes(s.staffId?._id || s.staffId)
-            ).length;
-
-            const existingAvg = totalDays > 0 ? Math.ceil(existingCountTotal / totalDays) : 0;
-
-            return {
-                roleId: req.roleId,
-                roleName: roleObj?.name || req.roleName || 'Nhân viên',
-                required: req.minStaff,
-                currentAvg: existingAvg,
-                newlyAdded: newlyAddedCount,
-                totalAvg: existingAvg + newlyAddedCount,
-                isExcess: (existingAvg + newlyAddedCount) > req.minStaff
-            };
-        });
-
-        return statusPerRole;
-    }, [config, watchShiftId, schedulesRes, accounts, roles, watchStaffIds, watchStartDate, watchEndDate]);
-
-    const isExcessive = staffingStatus?.some(s => s.isExcess);
+    const staffingStatus = null;
+    const isExcessive = false;
 
     useEffect(() => {
         if (open) {
@@ -177,10 +130,6 @@ export const BulkScheduleDialog = ({
     }, [open, reset]);
 
     const onSubmit = (data: any) => {
-        if (isExcessive) {
-            toast.error("Phát hiện dư thừa nhân sự! Số lượng nhân viên chọn vượt quá định mức trong cấu hình TicketServiceOrder.");
-            return;
-        }
         const selectedShift = shifts.find((s: any) => s._id === data.shiftId);
         onSave({
             ...data,

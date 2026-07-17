@@ -1,7 +1,5 @@
 import { Box, Card, Grid, TextField, Typography, Stack } from "@mui/material";
-import { Link } from "react-router-dom";
-import { Icon } from "@iconify/react";
-import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { settingGeneralSchema } from "../../schemas/setting.schema";
 import { Title } from "../../components/ui/Title";
@@ -9,31 +7,15 @@ import { Breadcrumb } from "../../components/ui/Breadcrumb";
 import { toast } from "react-toastify";
 import { useEffect, useRef, useState } from "react";
 import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
-import Tooltip from '@mui/material/Tooltip';
 import { useSettingGeneral, useUpdateSettingGeneral } from "./hooks/useSettingGeneral";
-import { useTicketServices } from "../ticket-service/hooks/useTicketService";
 import { LoadingButton } from "../../components/ui/LoadingButton";
 import { Tiptap } from "../../components/layouts/titap/Tiptap";
-
-const PREDEFINED_COLORS = [
-    "var(--palette-primary-main)", // Green
-    "#8e33ff", // Purple
-    "#FFAB00", // Orange
-    "var(--palette-error-main)", // Red
-    "#00B8D9", // Cyan
-    "#2196f3", // Blue
-    "#FF4842", // Light Red
-    "#74CAFB", // Sky Blue
-    "#1890FF", // Bright Blue
-    "#54D62C", // Lime Green
-];
 
 export const SettingGeneralPage = () => {
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { data: initialData, isLoading: isSettingsLoading } = useSettingGeneral();
-    const { data: ticketServices = [], isLoading: isTicketServicesLoading } = useTicketServices();
     const { mutate: updateSettings } = useUpdateSettingGeneral();
 
     const {
@@ -56,7 +38,6 @@ export const SettingGeneralPage = () => {
             facebook: "",
             instagram: "",
             ticketServiceColors: [],
-            ticketSubtypes: [],
             privacyPolicy: "",
             termsOfUse: "",
             conditions: ""
@@ -64,35 +45,15 @@ export const SettingGeneralPage = () => {
     });
 
     useEffect(() => {
-        const ticketServiceList = (ticketServices as any)?.data || [];
-        if (initialData && ticketServiceList.length > 0) {
-            // Merge existing ticketService colors with all ticketServices
-            const mergedTicketServiceColors = ticketServiceList.map((ticketService: any) => {
-                const existingColor = initialData.ticketServiceColors?.find(
-                    (sc: any) => sc.ticketServiceId === ticketService._id || sc.ticketServiceId === ticketService.id
-                );
-                return {
-                    ticketServiceId: ticketService._id || ticketService.id,
-                    ticketServiceName: ticketService.name, // We use this for display in UI
-                    color: existingColor ? existingColor.color : PREDEFINED_COLORS[0]
-                };
-            });
-
-            reset({
-                ...initialData,
-                ticketSubtypes: initialData.ticketSubtypes || [],
-                ticketServiceColors: mergedTicketServiceColors,
-                privacyPolicy: initialData.privacyPolicy || "",
-                termsOfUse: initialData.termsOfUse || "",
-                conditions: initialData.conditions || ""
-            });
-        }
-    }, [initialData, ticketServices, reset]);
-
-    const { fields } = useFieldArray({
-        control,
-        name: "ticketServiceColors",
-    });
+        if (!initialData) return;
+        reset({
+            ...initialData,
+            ticketServiceColors: initialData.ticketServiceColors || [],
+            privacyPolicy: initialData.privacyPolicy || "",
+            termsOfUse: initialData.termsOfUse || "",
+            conditions: initialData.conditions || ""
+        });
+    }, [initialData, reset]);
 
     const logo = watch("logo");
 
@@ -145,7 +106,7 @@ export const SettingGeneralPage = () => {
         updateSettings(formattedData);
     };
 
-    const isPageLoading = isSettingsLoading || isTicketServicesLoading;
+    const isPageLoading = isSettingsLoading;
 
     if (isPageLoading) {
         return <Typography sx={{ p: 4 }}>Đang tải dữ liệu...</Typography>;
@@ -218,86 +179,6 @@ export const SettingGeneralPage = () => {
                                     <br />
                                     Dung lượng tối đa 3 Mb
                                 </Typography>
-                            </Card>
-
-                            <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", bgcolor: "var(--palette-background-paper)" }}>
-                                <Typography variant="subtitle1" sx={{ mb: 3, fontWeight: 700, fontSize: '0.875rem' }}>Màu sắc Dịch vụ</Typography>
-
-                                <Stack spacing={3} sx={{ maxHeight: '400px', overflowY: 'auto', pr: 1 }}>
-                                    {fields.map((field, index) => (
-                                        <Stack key={field.id} direction="row" spacing={2} alignItems="center" justifyContent="space-between">
-                                            <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--palette-text-primary)' }}>
-                                                {(field as any).ticketServiceName}
-                                            </Typography>
-
-                                            <Controller
-                                                name={`ticketServiceColors.${index}.color`}
-                                                control={control}
-                                                render={({ field: fieldProp }) => (
-                                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: '140px', justifyContent: 'flex-end' }}>
-                                                        {PREDEFINED_COLORS.map((color) => {
-                                                            const isSelected = fieldProp.value === color;
-                                                            return (
-                                                                <Tooltip key={color} title={color} arrow>
-                                                                    <Box
-                                                                        onClick={() => fieldProp.onChange(color)}
-                                                                        sx={{
-                                                                            width: 20,
-                                                                            height: 20,
-                                                                            borderRadius: '50%',
-                                                                            bgcolor: color,
-                                                                            cursor: 'pointer',
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'center',
-                                                                            border: isSelected ? '2px solid var(--palette-text-primary)' : '2px solid transparent',
-                                                                            transition: 'all 0.2s',
-                                                                            '&:hover': { transform: 'scale(1.2)' }
-                                                                        }}
-                                                                    >
-                                                                        {isSelected && (
-                                                                            <Box sx={{ color: 'white', display: 'flex' }}>
-                                                                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"><path fill="currentColor" d="m9 16.17l-4.17-4.17l-1.42 1.41L9 19L21 7l-1.41-1.41z"></path></svg>
-                                                                            </Box>
-                                                                        )}
-                                                                    </Box>
-                                                                </Tooltip>
-                                                            );
-                                                        })}
-                                                    </Box>
-                                                )}
-                                            />
-                                        </Stack>
-                                    ))}
-                                </Stack>
-                            </Card>
-
-                            <Card sx={{ p: 4, borderRadius: "var(--shape-borderRadius-lg)", boxShadow: "var(--customShadows-card)", bgcolor: "var(--palette-background-paper)" }}>
-                                <Typography variant="subtitle1" sx={{ mb: 3, fontWeight: 700, fontSize: '0.875rem' }}>Các Tỉnh thành</Typography>
-                                <Typography variant="body2" sx={{ mb: 3, color: 'var(--palette-text-secondary)', fontSize: '0.8125rem' }}>
-                                    Quản lý danh sách các tỉnh thành phát hành vé và mở thưởng xổ số.
-                                </Typography>
-                                <LoadingButton
-                                    component={Link}
-                                    to="/admin/ticketSubtype/list"
-                                    fullWidth
-                                    variant="outlined"
-                                    startIcon={<Icon icon="solar:userTickets-bold" />}
-                                    label="Quản lý ngay"
-                                    sx={{
-                                        borderRadius: "var(--shape-borderRadius)",
-                                        textTransform: 'none',
-                                        fontSize: '0.875rem',
-                                        fontWeight: 700,
-                                        py: 1.5,
-                                        borderColor: 'var(--palette-text-disabled)52',
-                                        color: 'var(--palette-text-primary)',
-                                        '&:hover': {
-                                            borderColor: 'var(--palette-text-primary)',
-                                            bgcolor: 'rgba(28, 37, 46, 0.04)'
-                                        }
-                                    }}
-                                />
                             </Card>
                         </Stack>
                     </Grid>

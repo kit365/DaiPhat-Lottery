@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { RoleEnum } from "../../../../../types/role.type";
 import { Toolbar, Box, Button, Badge, SvgIcon } from '@mui/material';
 import { Search } from "../../../../components/ui/Search";
-import { JiraFilter } from "../../../../pages/ticket/sections/JiraFilter";
+import { JiraFilter } from "../../../../shared/data-grid";
 
 interface UserToolbarProps {
     filterName: string;

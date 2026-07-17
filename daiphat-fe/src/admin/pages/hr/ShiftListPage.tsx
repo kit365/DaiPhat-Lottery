@@ -150,7 +150,8 @@ export const ShiftListPage = () => {
                             setPageSize(model.pageSize);
                         }}
                         pageSizeOptions={[5, 10, 20]}
-                        sx={dataGridStyles}
+                        className="admin-datagrid"
+                    sx={dataGridStyles}
                     />
                 </Box>
             </Card>

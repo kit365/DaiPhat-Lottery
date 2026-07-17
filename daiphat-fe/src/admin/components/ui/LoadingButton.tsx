@@ -13,6 +13,7 @@ export const LoadingButton = ({
     loadingLabel,
     startIcon,
     sx,
+    className,
     variant = "contained",
     ...props
 }: LoadingButtonProps) => {
@@ -24,29 +25,35 @@ export const LoadingButton = ({
         textTransform: "none",
         boxShadow: "none",
         ...(variant === "contained" && {
-            bgcolor: '#1C252E',
-            color: '#FFFFFF',
-            '&:hover': {
-                bgcolor: "#454F5B",
-                boxShadow: "0 8px 16px 0 rgba(145, 158, 171, 0.16)",
+            bgcolor: "var(--palette-text-primary)",
+            color: "var(--palette-common-white)",
+            "&:hover": {
+                bgcolor: "var(--palette-grey-700)",
+                boxShadow: "var(--customShadows-z8)",
             },
         }),
-        '&.Mui-disabled': {
-            bgcolor: 'rgba(145, 158, 171, 0.24)',
-            color: 'rgba(145, 158, 171, 0.8)',
+        "&.Mui-disabled": {
+            bgcolor: "rgba(145, 158, 171, 0.24)",
+            color: "rgba(145, 158, 171, 0.8)",
         },
-        ...sx
+        ...sx,
     };
+
+    const mergedClassName =
+        variant === "contained"
+            ? ["btn-primary-admin", className].filter(Boolean).join(" ")
+            : className;
 
     return (
         <Button
             variant={variant}
             disabled={loading || props.disabled}
+            className={mergedClassName}
             sx={defaultSx}
             startIcon={loading ? <CircularProgress size={18} color="inherit" /> : startIcon}
             {...props}
         >
-            {loading ? (loadingLabel || "Đang xử lý...") : label}
+            {loading ? loadingLabel || "Đang xử lý..." : label}
         </Button>
     );
 };

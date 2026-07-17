@@ -105,11 +105,6 @@ export const PERMISSIONS = {
         VIEW: "ticketServiceOrder:view",
         EDIT: "ticketServiceOrder:edit",
     },
-    COUPON: {
-        VIEW: "coupon:view",
-        CREATE: "coupon:create",
-        EDIT: "coupon:edit",
-    },
     CHAT: {
         VIEW: "chat:view",
         MANAGE: "chat:manage",

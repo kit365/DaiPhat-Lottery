@@ -66,7 +66,7 @@ const WaitTimerChip = ({ startTime }: { startTime: string }) => {
 };
 
 import { AppToast as toast } from '../../../../utils/toast.util';
-import { JiraFilter } from "../../ticket/sections/JiraFilter";
+import { JiraFilter } from "../../../shared/data-grid";
 import { Search } from "../../../components/ui/Search";
 import { SortButton } from "../../../components/ui/SortButton";
 import { SettingsList } from "../../../components/ui/SettingsList";
