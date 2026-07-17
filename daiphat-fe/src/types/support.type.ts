@@ -41,6 +41,7 @@ export interface TicketCategoryResponse {
     description: string;
     priority: number;
     requiredRefType: TicketRefType | null;
+    parentId?: number | null;
 }
 
 export interface SupportTicketCommentResponse {
