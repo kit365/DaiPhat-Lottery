@@ -20,6 +20,8 @@ interface ComplaintFormModalProps {
     onClose: () => void;
     editingTicket?: SupportTicketResponse | null;
     defaultOrderId?: string;
+    defaultRefundId?: number | string;
+    defaultCategoryCode?: string;
 }
 
 export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
@@ -27,6 +29,8 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     onClose,
     editingTicket,
     defaultOrderId,
+    defaultRefundId,
+    defaultCategoryCode,
 }) => {
     const navigate = useNavigate();
     const isEditing = !!editingTicket;
@@ -37,6 +41,15 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     const updateMutation = useUpdateComplaint();
 
     const categories = categoriesData?.data || [];
+    const visibleCategories = useMemo(() => {
+        if (defaultCategoryCode) {
+            return categories.filter((category) => category.code === defaultCategoryCode);
+        }
+        if (defaultRefundId != null) {
+            return categories.filter((category) => category.requiredRefType === TicketRefType.REFUND_REQUEST);
+        }
+        return categories;
+    }, [categories, defaultCategoryCode, defaultRefundId]);
     const orders = ordersData?.data?.recordList || [];
 
     const [ticketCategoryId, setTicketCategoryId] = useState<number | ''>('');
@@ -62,13 +75,24 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
             setRefId(editingTicket.refId || '');
             setAttachmentFile(null);
         } else {
-            setTicketCategoryId(categories[0]?.id || '');
+            const preferredCategory =
+                (defaultCategoryCode
+                    ? visibleCategories.find((category) => category.code === defaultCategoryCode)
+                    : undefined) ||
+                visibleCategories[0] ||
+                categories[0];
+
+            setTicketCategoryId(preferredCategory?.id || '');
             setTitle('');
             setDescription('');
-            setRefId(defaultOrderId || '');
+            if (defaultRefundId != null) {
+                setRefId(String(defaultRefundId));
+            } else {
+                setRefId(defaultOrderId || '');
+            }
             setAttachmentFile(null);
         }
-    }, [isOpen, editingTicket, categories, defaultOrderId]);
+    }, [isOpen, editingTicket, categories, visibleCategories, defaultOrderId, defaultRefundId, defaultCategoryCode]);
 
     useEffect(() => {
         if (!isOpen || isEditing || !defaultOrderId || !selectedCategory) return;
@@ -79,11 +103,14 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
 
     const handleCategoryChange = (categoryId: number) => {
         setTicketCategoryId(categoryId);
-        const category = categories.find((c) => c.id === categoryId);
+        const category = visibleCategories.find((c) => c.id === categoryId)
+            || categories.find((c) => c.id === categoryId);
         if (!category?.requiredRefType) {
             setRefId('');
         } else if (category.requiredRefType === TicketRefType.ORDER && defaultOrderId) {
             setRefId(defaultOrderId);
+        } else if (category.requiredRefType === TicketRefType.REFUND_REQUEST && defaultRefundId != null) {
+            setRefId(String(defaultRefundId));
         } else {
             setRefId('');
         }
@@ -191,14 +218,14 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                         <select
                             value={ticketCategoryId}
                             onChange={(e) => handleCategoryChange(Number(e.target.value))}
-                            disabled={isEditing}
+                            disabled={isEditing || Boolean(defaultCategoryCode)}
                             className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314] cursor-pointer disabled:bg-[#F4F6F8] disabled:cursor-not-allowed"
                             required
                         >
                             <option value="" disabled>
                                 Chọn danh mục...
                             </option>
-                            {categories.map((cat: TicketCategoryResponse) => (
+                            {visibleCategories.map((cat: TicketCategoryResponse) => (
                                 <option key={cat.id} value={cat.id}>
                                     {cat.name}
                                 </option>
@@ -231,7 +258,30 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                         </div>
                     )}
 
-                    {requiredRefType && requiredRefType !== TicketRefType.ORDER && (
+                    {requiredRefType === TicketRefType.REFUND_REQUEST && (
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[13px] font-bold text-[#454F5B]">
+                                {TICKET_REF_TYPE_LABELS[requiredRefType]} *
+                            </label>
+                            {defaultRefundId != null ? (
+                                <div className="w-full px-4 py-3 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
+                                    #{defaultRefundId}
+                                </div>
+                            ) : (
+                                <input
+                                    type="text"
+                                    value={refId}
+                                    onChange={(e) => setRefId(e.target.value)}
+                                    placeholder={`Nhập mã ${TICKET_REF_TYPE_LABELS[requiredRefType].toLowerCase()}`}
+                                    className="w-full px-4 py-3 bg-white border border-[#E5E8EB] rounded-xl text-[14px] outline-none focus:border-[#ee1314]"
+                                    required
+                                    maxLength={100}
+                                />
+                            )}
+                        </div>
+                    )}
+
+                    {requiredRefType && requiredRefType !== TicketRefType.ORDER && requiredRefType !== TicketRefType.REFUND_REQUEST && (
                         <div className="flex flex-col gap-2">
                             <label className="text-[13px] font-bold text-[#454F5B]">
                                 {TICKET_REF_TYPE_LABELS[requiredRefType]} *
