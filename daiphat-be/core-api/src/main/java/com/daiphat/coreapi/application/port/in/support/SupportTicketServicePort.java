@@ -32,7 +32,10 @@ public interface SupportTicketServicePort {
             String search,
             UUID assignedTo,
             String sortBy,
-            String direction);
+            String direction,
+            String refType,
+            Long ticketCategoryId,
+            String categoryCodes);
 
     SupportTicketResponse assignByStaff(Long id, UUID staffId);
 

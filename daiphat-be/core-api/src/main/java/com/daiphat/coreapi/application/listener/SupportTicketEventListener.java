@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.listener;
 
 import com.daiphat.coreapi.application.event.SupportTicketAssignedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketCommentAddedEvent;
+import com.daiphat.coreapi.application.event.SupportTicketCreatedEvent;
 import com.daiphat.coreapi.application.event.SupportTicketResolvedEvent;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
 import com.daiphat.coreapi.application.port.out.user.UserRepositoryPort;
@@ -35,6 +36,18 @@ public class SupportTicketEventListener {
 
     private final NotificationServicePort notificationService;
     private final UserRepositoryPort userRepositoryPort;
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleSupportTicketCreated(SupportTicketCreatedEvent event) {
+        log.info("Handling SupportTicketCreatedEvent for ticketId: {}", event.ticketId());
+
+        notifyOperators(
+                "Yêu cầu hỗ trợ mới",
+                "Khách hàng vừa tạo ticket #" + event.ticketId() + ": " + event.title() + ".",
+                event.ticketId(),
+                null);
+    }
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
