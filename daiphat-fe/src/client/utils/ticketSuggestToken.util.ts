@@ -101,8 +101,8 @@ export const parseTicketSuggestToken = (content: string): ParsedTicketSuggest | 
 
     const defaultText =
       tickets.length === 1
-        ? 'Dưới đây là 1 vé đang bán hôm nay dành cho quý khách:'
-        : `Dưới đây là ${tickets.length} vé đang bán hôm nay dành cho quý khách:`;
+        ? 'Dưới đây là 1 vé đang bán cho kỳ quay sắp tới dành cho quý khách:'
+        : `Dưới đây là ${tickets.length} vé đang bán cho kỳ quay sắp tới dành cho quý khách:`;
 
     return {
       text: leading || defaultText,

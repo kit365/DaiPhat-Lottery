@@ -62,6 +62,7 @@ interface Message {
   sender: 'bot' | 'user';
   text: string;
   timestamp: string;
+  intent?: string | null;
   variant?: 'bubble' | 'divider' | 'date' | 'schedule' | 'schedule-options' | 'schedule-ask-location' | 'schedule-ask-station' | 'schedule-ask-date' | 'schedule-ask-date-mode' | 'schedule-confirm-station' | 'schedule-region-choice' | 'schedule-result' | 'ticket-suggest' | 'typing';
   scheduleRegion?: string;
   scheduleStationId?: number;
@@ -360,6 +361,7 @@ const toUiMessage = (message: ChatMessageResponse): Message => {
     sender: message.senderType === 'CUSTOMER' ? 'user' : 'bot',
     text: displayText,
     timestamp: formatTime(message.createdAt),
+    intent: message.intent,
     variant: resolved.variant,
     scheduleRegion: resolved.scheduleRegion,
     scheduleStationId: resolved.scheduleStationId,
@@ -500,7 +502,6 @@ export const ChatbotPopup = () => {
   const [isCancellingStaff, setIsCancellingStaff] = useState(false);
   const [overlayMessages, setOverlayMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [isInputFocused, setIsInputFocused] = useState(false);
   const [isSendingUi, setIsSendingUi] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -536,7 +537,16 @@ export const ChatbotPopup = () => {
     const base = timelineMessages.length > 0
       ? timelineMessages
       : [WELCOME_MESSAGE, ...timelineMessages];
-    return [...base, ...overlayMessages];
+    // Lọc overlay ngay lúc render (không đợi effect) để bubble optimistic không
+    // render trùng với tin thật từ server trong 1 frame — nguyên nhân list bị "giật".
+    let overlay = pruneOverlayMessages(overlayMessages, timelineMessages);
+    const stillAwaitingReply =
+      awaitingBotReplyRef.current &&
+      countBotReplies(timelineMessages) <= botReplyCountAtSendRef.current;
+    if (!stillAwaitingReply) {
+      overlay = overlay.filter((message) => !message.id.startsWith('typing-'));
+    }
+    return [...base, ...overlay];
   }, [timelineMessages, overlayMessages]);
 
   const displayMessages = useMemo(() => prepareDisplayMessages(messages), [messages]);
@@ -598,40 +608,42 @@ export const ChatbotPopup = () => {
     [messages]
   );
 
-  const hasAiErrorOrDisabledSignal = useMemo(
-    () =>
-      displayMessages.some(
-        (message) =>
-          message.sender === 'bot' &&
-          (isStrictAiDisabledNoticeText(message.text) || isAiHandoffErrorText(message.text))
-      ),
-    [displayMessages]
-  );
-
   const showAiDisabledNotice =
     hasCustomerMessages &&
     isOpenBotThread(conversationStatus) &&
     !hasAiDisabledNoticeInTimeline(displayMessages) &&
     !hasAiAssistanceActivity(displayMessages);
 
-  // Chỉ gợi ý gặp nhân viên khi AI lỗi/tắt — không spam sau mỗi lượt chat bình thường.
-  const showStaffCta =
-    hasCustomerMessages &&
-    isOpenBotThread(conversationStatus) &&
-    (showAiDisabledNotice || hasAiErrorOrDisabledSignal);
-
   const showWaitingForStaff =
     hasCustomerMessages && conversationStatus === 'WAITING_FOR_OPERATOR';
 
-  const lastDisplayMessage = displayMessages[displayMessages.length - 1] ?? null;
+  /**
+   * Ngữ cảnh cho quick replies = tin nhắn bot có nội dung gần nhất.
+   * Bỏ qua divider hệ thống (kết nối/huỷ gặp nhân viên), typing indicator và tin của khách
+   * để hàng chip không biến mất giữa các bước gửi tin / escalate.
+   */
+  const quickReplyContextMessage = useMemo(() => {
+    for (let index = displayMessages.length - 1; index >= 0; index -= 1) {
+      const message = displayMessages[index];
+      if (
+        message.variant === 'divider' ||
+        message.variant === 'date' ||
+        message.variant === 'typing' ||
+        message.sender !== 'bot'
+      ) {
+        continue;
+      }
+      return message;
+    }
+    return null;
+  }, [displayMessages]);
 
   const contextualReplies = useMemo(
     () =>
-      resolveContextualQuickReplies(lastDisplayMessage, {
+      resolveContextualQuickReplies(quickReplyContextMessage, {
         hasCustomerMessages,
-        showStaffEscalation: showStaffCta,
       }),
-    [hasCustomerMessages, lastDisplayMessage, showStaffCta]
+    [hasCustomerMessages, quickReplyContextMessage]
   );
 
   const appendSystemMessage = (id: string, text: string) => {
@@ -1187,6 +1199,9 @@ export const ChatbotPopup = () => {
             intent: payload.intent ?? null,
             createdAt: payload.createdAt || new Date().toISOString(),
             isRead: false,
+            isEdited: false,
+            readerCount: 0,
+            isDeleted: false,
           })
       );
     },
@@ -1446,13 +1461,29 @@ export const ChatbotPopup = () => {
         }
       }
 
-      const detail = await loadConversationDetail(conversationId);
-      if (detail) {
-        applyConversationState(detail);
-        seedTimelineFromDetail(detail);
-      }
-      void refreshTimelineMessages();
-    } catch (error) {
+      // Đồng bộ dự phòng: bình thường websocket tự đưa tin nhắn về và merge vào timeline.
+      // Chỉ khi sau 1.2s tin của khách vẫn chưa xuất hiện (socket lỗi) mới reload chi tiết
+      // + refetch — tránh refetch toàn bộ timeline ngay giữa lúc bot trả lời (gây giật).
+      window.setTimeout(() => {
+        const cached = queryClient.getQueryData<InfiniteData<CustomerChatTimelineResponse>>(
+          clientTimelineKey()
+        );
+        const cachedMessages = buildMessagesFromTimeline(cached?.pages ?? []);
+        const socketDelivered = cachedMessages.some(
+          (message) => message.sender === 'user' && message.text.trim() === normalizedText
+        );
+        if (socketDelivered) {
+          return;
+        }
+        void loadConversationDetail(conversationId).then((detail) => {
+          if (detail) {
+            applyConversationState(detail);
+            seedTimelineFromDetail(detail);
+          }
+          void refreshTimelineMessages();
+        });
+      }, 1200);
+    } catch {
       awaitingBotReplyRef.current = false;
       setOverlayMessages((prev) =>
         prev.filter(
@@ -1484,9 +1515,8 @@ export const ChatbotPopup = () => {
   };
 
   const showContextualQuickReplies = shouldShowContextualQuickReplies({
-    lastMessage: lastDisplayMessage,
+    lastMessage: quickReplyContextMessage,
     inputValue,
-    isInputFocused,
     isInteractive: isOpenBotThread(conversationStatus) && !isEscalating && conversationStatus !== 'WAITING_FOR_OPERATOR',
     replies: contextualReplies,
   });
@@ -1928,8 +1958,6 @@ export const ChatbotPopup = () => {
                   type="text"
                   value={inputValue}
                   onChange={handleInputChange}
-                  onFocus={() => setIsInputFocused(true)}
-                  onBlur={() => setIsInputFocused(false)}
                   onCompositionEnd={() => {
                     if (suppressInputAfterSendRef.current) {
                       setInputValue('');
