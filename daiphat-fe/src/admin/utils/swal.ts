@@ -1,5 +1,10 @@
-// SweetAlert2 utility for confirmations
+// SweetAlert2 — sync confirm CTAs with admin buttons (grey primary / red delete)
 import Swal from 'sweetalert2';
+
+const ADMIN_PRIMARY = '#1C252E';
+const ADMIN_CANCEL = '#919EAB';
+const ADMIN_DELETE = '#FF5630';
+const ADMIN_WARNING = '#FFAB00';
 
 export const confirmDelete = (text: string, onConfirm: () => void) => {
     Swal.fire({
@@ -7,10 +12,10 @@ export const confirmDelete = (text: string, onConfirm: () => void) => {
         text: text,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#6366f1',
+        confirmButtonColor: ADMIN_DELETE,
+        cancelButtonColor: ADMIN_CANCEL,
         confirmButtonText: 'Đồng ý',
-        cancelButtonText: 'Hủy'
+        cancelButtonText: 'Hủy',
     }).then((result) => {
         if (result.isConfirmed) {
             onConfirm();
@@ -18,20 +23,23 @@ export const confirmDelete = (text: string, onConfirm: () => void) => {
     });
 };
 
-export const confirmAction = (title: string, text: string, onConfirm: () => void, icon: 'info' | 'warning' | 'success' = 'info') => {
-    let confirmButtonColor = '#10b981'; // default success (green)
-    if (icon === 'info') confirmButtonColor = '#2196f3'; // blue
-    if (icon === 'warning') confirmButtonColor = '#f59e0b'; // orange
+export const confirmAction = (
+    title: string,
+    text: string,
+    onConfirm: () => void,
+    icon: 'info' | 'warning' | 'success' = 'info'
+) => {
+    const confirmButtonColor = icon === 'warning' ? ADMIN_WARNING : ADMIN_PRIMARY;
 
     Swal.fire({
         title: title,
         text: text,
         icon: icon,
         showCancelButton: true,
-        confirmButtonColor: confirmButtonColor,
-        cancelButtonColor: '#6b7280',
+        confirmButtonColor,
+        cancelButtonColor: ADMIN_CANCEL,
         confirmButtonText: 'Xác nhận',
-        cancelButtonText: 'Hủy'
+        cancelButtonText: 'Hủy',
     }).then((result) => {
         if (result.isConfirmed) {
             onConfirm();
@@ -44,8 +52,8 @@ export const confirmSuccess = (title: string, text: string) => {
         title: title,
         text: text,
         icon: 'success',
-        confirmButtonColor: '#10b981',
-        confirmButtonText: 'Đóng'
+        confirmButtonColor: ADMIN_PRIMARY,
+        confirmButtonText: 'Đóng',
     });
 };
 
@@ -56,8 +64,8 @@ export const confirmInput = (title: string, label: string, onConfirm: (value: st
         inputLabel: label,
         inputValue: 15,
         showCancelButton: true,
-        confirmButtonColor: '#6366f1',
-        cancelButtonColor: '#6b7280',
+        confirmButtonColor: ADMIN_PRIMARY,
+        cancelButtonColor: ADMIN_CANCEL,
         confirmButtonText: 'Xác nhận',
         cancelButtonText: 'Quay lại',
         inputValidator: (value) => {
@@ -65,7 +73,7 @@ export const confirmInput = (title: string, label: string, onConfirm: (value: st
                 return 'Vui lòng nhập số phút hợp lệ';
             }
             return null;
-        }
+        },
     }).then((result) => {
         if (result.isConfirmed) {
             onConfirm(result.value);
@@ -73,7 +81,13 @@ export const confirmInput = (title: string, label: string, onConfirm: (value: st
     });
 };
 
-export const confirmInputText = (title: string, label: string, placeholder: string = "", onConfirm: (value: string) => void, icon: 'info' | 'warning' | 'success' | 'error' = 'info') => {
+export const confirmInputText = (
+    title: string,
+    label: string,
+    placeholder: string = '',
+    onConfirm: (value: string) => void,
+    icon: 'info' | 'warning' | 'success' | 'error' = 'info'
+) => {
     Swal.fire({
         title: title,
         input: 'text',
@@ -81,8 +95,8 @@ export const confirmInputText = (title: string, label: string, placeholder: stri
         inputPlaceholder: placeholder,
         icon: icon,
         showCancelButton: true,
-        confirmButtonColor: '#ffa500',
-        cancelButtonColor: '#6b7280',
+        confirmButtonColor: icon === 'warning' ? ADMIN_WARNING : ADMIN_PRIMARY,
+        cancelButtonColor: ADMIN_CANCEL,
         confirmButtonText: 'Xác nhận',
         cancelButtonText: 'Hủy',
         inputValidator: (value) => {
@@ -90,7 +104,7 @@ export const confirmInputText = (title: string, label: string, placeholder: stri
                 return 'Vui lòng không để trống!';
             }
             return null;
-        }
+        },
     }).then((result) => {
         if (result.isConfirmed) {
             onConfirm(result.value);

@@ -4,10 +4,8 @@ import ScheduleSendIcon from "@mui/icons-material/ScheduleSend";
 import ExtensionIcon from "@mui/icons-material/Extension";
 import ArticleIcon from "@mui/icons-material/Article";
 import DiscountIcon from "@mui/icons-material/Discount";
-import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import PeopleIcon from "@mui/icons-material/People";
 import SecurityIcon from "@mui/icons-material/Security";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SettingsIcon from "@mui/icons-material/Settings";
 
 
@@ -112,13 +110,6 @@ export const menuManagementData = [
         permission: PERMISSIONS.CHAT.VIEW
     },
     {
-        id: "support-tickets",
-        label: "Khiếu nại / Hỗ trợ",
-        Icon: ChatIcon,
-        path: ROUTES.ADMIN.SUPPORT_TICKETS.LIST,
-        permission: PERMISSIONS.SUPPORT_TICKET.VIEW,
-    },
-    {
         id: "prize-structure",
         label: "Cơ cấu giải",
         Icon: EmojiEventsIcon,
@@ -136,32 +127,11 @@ export const menuManagementData = [
 
 export const menuDevelopmentData = [
     {
-        id: "ticketServices",
-        label: "Tiện ích / Tra vé",
-        Icon: ConfirmationNumberIcon,
-        permission: PERMISSIONS.TICKET_SERVICE.VIEW,
-        children: [
-            { id: "list", label: "Danh sách tiện ích", path: ROUTES.ADMIN.TICKET_SERVICES.LIST, permission: PERMISSIONS.TICKET_SERVICE.VIEW },
-            { id: "create", label: "Tạo tiện ích mới", path: ROUTES.ADMIN.TICKET_SERVICES.CREATE, permission: PERMISSIONS.TICKET_SERVICE.CREATE },
-            { id: "category", label: "Danh mục tiện ích", path: ROUTES.ADMIN.TICKET_SERVICES.CATEGORIES, permission: PERMISSIONS.TICKET_SERVICE.VIEW },
-        ]
-    },
-
-    {
         id: "reviews",
         label: "Đánh giá",
         Icon: RateReviewIcon,
         path: ROUTES.ADMIN.REVIEWS,
         permission: PERMISSIONS.REVIEW.VIEW
-    },
-
-    {
-        id: "calendar",
-        label: "Lịch",
-        tKey: "admin.sidebar.calendar",
-        Icon: CalendarMonthIcon,
-        path: ROUTES.ADMIN.CALENDAR,
-        permission: PERMISSIONS.CALENDAR.VIEW
     },
     {
         id: "settings",
@@ -176,7 +146,6 @@ export const menuDevelopmentData = [
             { id: "settings-payment", label: "Thanh toán", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.PAYMENT },
             { id: "settings-social", label: "Mạng xã hội", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SOCIAL },
             { id: "settings-app-password", label: "Mật khẩu ứng dụng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.APP_PASSWORD },
-            { id: "settings-ticketSubtype", label: "Tỉnh thành quay thưởng", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.TICKET_SUBTYPE, permission: PERMISSIONS.SETTINGS.VIEW },
             { id: "settings-system-config", label: "Cấu hình hệ thống", path: ROUTES.ADMIN.DASHBOARD.SETTINGS.SYSTEM_CONFIG, permission: PERMISSIONS.SETTINGS.VIEW },
         ]
     }

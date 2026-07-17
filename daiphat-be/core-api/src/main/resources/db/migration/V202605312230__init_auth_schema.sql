@@ -90,3 +90,6 @@ CREATE TABLE IF NOT EXISTS staff_invites (
 CREATE INDEX IF NOT EXISTS idx_users_role_id ON users(role_id);
 CREATE INDEX IF NOT EXISTS idx_staff_invites_email_status ON staff_invites(email, status);
 CREATE INDEX IF NOT EXISTS idx_staff_invites_token ON staff_invites(token);
+
+-- Seed static auth roles.
+-- Do not put secret-bearing records here. User/admin credentials must be seeded by application code from env.

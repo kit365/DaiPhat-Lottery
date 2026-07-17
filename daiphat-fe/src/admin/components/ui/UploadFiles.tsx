@@ -3,7 +3,7 @@ import { UploadFileIcon, UploadIcon } from "../../assets/icons"
 import { useDropzone } from 'react-dropzone';
 import { useEffect, memo, useState, useCallback, useRef, useMemo } from "react";
 import { uploadImagesToCloudinary } from "../../api/uploadCloudinary.api";
-import { toast } from 'react-toastify';
+import { AppToast } from '../../../utils/toast.util';
 import { useTranslation } from "react-i18next";
 
 interface CustomFile extends File {
@@ -72,9 +72,9 @@ export const UploadFiles = memo(({ files, onFilesChange, compact }: UploadFilesP
             onFilesChange([...currentLinks, ...uploadedUrls] as any);
 
             onFilesChange([...currentLinks, ...uploadedUrls] as any);
-            toast.success(t("admin.upload.success"));
+            AppToast.success(t("admin.upload.success"));
         } catch (error) {
-            toast.error(t("admin.upload.error"));
+            AppToast.error(t("admin.upload.error"));
         } finally {
             setIsUploading(false);
         }
