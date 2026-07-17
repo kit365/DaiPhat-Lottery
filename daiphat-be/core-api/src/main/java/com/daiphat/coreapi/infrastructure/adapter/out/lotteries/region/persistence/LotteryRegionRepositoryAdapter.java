@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.region;
+package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.region.persistence;
 
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryRegionRepositoryPort;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryRegionModel;

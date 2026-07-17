@@ -4,6 +4,7 @@ import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
 import com.daiphat.coreapi.infrastructure.persistence.entity.order.TransactionEntity;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
@@ -34,4 +35,8 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
     Optional<TransactionEntity> findFirstByOrder_IdAndTypeOrderByPaidAtDescIdDesc(UUID orderId, TransactionType type);
 
     Optional<TransactionEntity> findFirstByRefundRequest_IdOrderByPaidAtDescIdDesc(Long refundRequestId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from TransactionEntity t where t.paymentRef like concat(:prefix, '%')")
+    int deleteByPaymentRefStartingWith(@Param("prefix") String prefix);
 }
