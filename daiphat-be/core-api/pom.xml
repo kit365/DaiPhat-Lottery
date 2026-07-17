@@ -201,9 +201,6 @@
                         <testExclude>**/application/service/chat/intent/WebAccountIntentHandlerTest.java</testExclude>
                         <testExclude>**/application/service/chat/intent/WebScheduleIntentHandlerTest.java</testExclude>
                         <testExclude>**/application/service/chat/flow/schedule/DrawScheduleFlowServiceTest.java</testExclude>
-                    <!-- Pre-existing: some chat tests reference packages missing on this branch. -->
-                    <testExcludes>
-                        <testExclude>**/application/service/chat/**</testExclude>
                     </testExcludes>
                 </configuration>
             </plugin>

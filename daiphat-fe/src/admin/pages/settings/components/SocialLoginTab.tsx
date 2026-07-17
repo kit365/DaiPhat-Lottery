@@ -125,7 +125,7 @@ export const SocialLoginTab = () => {
                     </Box>
 
                     <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button
+                        <Button className="btn-primary-admin"
                             type="submit"
                             variant="contained"
                             disabled={isPending}

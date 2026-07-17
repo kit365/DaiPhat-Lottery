@@ -1,6 +1,6 @@
 import { RoleEnum } from "../../../../../types/role.type";
 import React, { useState } from 'react';
-import { Box, Card, Button, Tabs, Tab } from '@mui/material';
+import { Card, Button, Tabs, Tab } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { UserTable } from '../sections/UserTable';
 import { UserToolbar } from '../sections/UserToolbar';
@@ -60,30 +60,39 @@ export const ClientListPage = () => {
     };
 
     return (
-        <Box className="admin-list-page">
-            {/* Header */}
-            <Box className="admin-list-header">
-                <Box>
+        <>
+            <div className="mb-[calc(5*var(--spacing))] gap-[calc(2*var(--spacing))] flex items-start justify-end">
+                <div className="mr-auto">
                     <Title title="Danh sách Khách hàng" />
                     <Breadcrumb
                         items={[
-                            { label: "Dashboard", to: `/${prefixAdmin}` },
+                            { label: "Dashboard", to: "/" },
                             { label: "Danh sách Khách hàng" },
                         ]}
                     />
-                </Box>
-                <CanAccess permission={PERMISSIONS.USER.CREATE}>
-                    <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => navigate(`/${prefixAdmin}/account-user/create`)}
-                        className="btn-primary-admin"
-                    >
-                        Thêm khách hàng
-                    </Button>
-                </CanAccess>
-            </Box>
-            <Card className="admin-list-card admin-list-card--table">
+                </div>
+                <div>
+                    <CanAccess permission={PERMISSIONS.USER.CREATE}>
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => navigate(`/${prefixAdmin}/account-user/create`)}
+                            className="btn-primary-admin"
+                        >
+                            Thêm khách hàng
+                        </Button>
+                    </CanAccess>
+                </div>
+            </div>
+
+            <Card elevation={0} sx={{
+                borderRadius: 'var(--shape-borderRadius-lg)',
+                bgcolor: 'var(--palette-background-paper)',
+                boxShadow: 'var(--customShadows-card)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+            }}>
                 <Tabs
                     value={tabStatus}
                     onChange={handleTabChange}
@@ -145,16 +154,18 @@ export const ClientListPage = () => {
                     onFilterName={(value) => handleFilterChange('q', value)}
                     isClient={true}
                 />
-                <UserTable 
-                    data={usersData?.data?.recordList || []}
-                    isLoading={isLoading}
-                    pagination={usersData?.data?.pagination}
-                    onPageChange={handlePageChange}
-                    onLimitChange={handleLimitChange}
-                    onRefresh={refetch}
-                    isClient={true}
-                />
+                <div style={{ height: 640, width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <UserTable 
+                        data={usersData?.data?.recordList || []}
+                        isLoading={isLoading}
+                        pagination={usersData?.data?.pagination}
+                        onPageChange={handlePageChange}
+                        onLimitChange={handleLimitChange}
+                        onRefresh={refetch}
+                        isClient={true}
+                    />
+                </div>
             </Card>
-        </Box>
+        </>
     );
 };

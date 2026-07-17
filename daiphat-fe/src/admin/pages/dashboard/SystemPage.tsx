@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import DashboardCard from "../../components/dashboard/DashboardCard";
 import WelcomeWidget from "../../components/dashboard/WelcomeWidget";
 import { getSystemStats } from "../../api/dashboard.api";
-import { ImportBatchDraftBanner } from "../import-batch/components/ImportBatchDraftBanner";
+import { ImportBatchDraftBanner } from "../../features/ticket/import-batch";
 
 
 

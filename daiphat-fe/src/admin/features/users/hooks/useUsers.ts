@@ -14,9 +14,9 @@ import {
     deleteUserAvatar,
     getStaffByTicketService
 } from "../services/userService";
-import { getRoles } from "../../../services/role.service";
+import { getRoles } from "../../role/services/roleService";
 import { QUERY_KEYS } from "../constants/queryKeys";
-import { ApiResponse, PageResponse } from "../../../config/type";
+import { ApiResponse, PageResponse } from "../../../../types/api.type";
 import { User } from "../../../../types/user.type";
 import { UserQueryParams, CreateUserRequest, UpdateUserRequest } from "../types/user.types";
 

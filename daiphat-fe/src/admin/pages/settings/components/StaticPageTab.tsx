@@ -80,7 +80,7 @@ export const StaticPageTab = ({ pageKey, label }: StaticPageTabProps) => {
                     </Box>
 
                     <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button
+                        <Button className="btn-primary-admin"
                             type="submit"
                             variant="contained"
                             disabled={isPending}
