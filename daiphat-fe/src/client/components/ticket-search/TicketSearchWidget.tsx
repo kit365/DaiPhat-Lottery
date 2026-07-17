@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { Search } from 'lucide-react';
-import { useStationsToday, useStationsTomorrow } from '../../../admin/pages/provider/hooks/useProvider';
+import { useStationsToday, useStationsTomorrow } from '../../../admin/features/station/hooks/useStation';
 import { useLotteryTicketSearch } from '../../hooks/useLotteryTicketSearch';
 import { addPublicTicketToCart } from '../../utils/ticketCart.util';
 import { PublicLotteryTicket, TicketSearchMode } from '../../../types/lottery-ticket.type';

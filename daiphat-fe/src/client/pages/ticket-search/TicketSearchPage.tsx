@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
-import { useStationsToday, useStationsTomorrow } from '../../../admin/pages/provider/hooks/useProvider';
+import { useStationsToday, useStationsTomorrow } from '../../../admin/features/station/hooks/useStation';
 import { useLotteryTicketSearch } from '../../hooks/useLotteryTicketSearch';
 import { usePurchasedTicketLookup } from '../../hooks/usePurchasedTicketLookup';
 import { useAuthStore } from '../../../stores/useAuthStore';
