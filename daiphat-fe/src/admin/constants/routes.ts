@@ -80,6 +80,7 @@ export const ROUTES = {
         SUPPORT_TICKETS: {
             LIST: `/${prefixAdmin}/support-tickets/list`,
             DETAIL: `/${prefixAdmin}/support-tickets/detail/`,
+            CATEGORIES: `/${prefixAdmin}/support-tickets/categories`,
         },
         REVIEWS: `/${prefixAdmin}/review`,
         ROLES: {
