@@ -396,6 +396,18 @@ public enum ErrorCode {
             "TKT_027",
             "Chỉ có thể tự động đóng yêu cầu đang ở trạng thái đã giải quyết.",
             HttpStatus.BAD_REQUEST),
+    TICKET_ORDER_COMPLAINT_NOT_ELIGIBLE(
+            "TKT_028",
+            "%s",
+            HttpStatus.BAD_REQUEST),
+    TICKET_ORDER_COMPLAINT_CATEGORY_MISMATCH(
+            "TKT_029",
+            "Loại khiếu nại không phù hợp với trạng thái đơn hàng hiện tại.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_ORDER_COMPLAINT_EVIDENCE_REQUIRED(
+            "TKT_030",
+            "Khiếu nại lỗi đồng bộ thanh toán yêu cầu đính kèm biên lai chuyển khoản.",
+            HttpStatus.BAD_REQUEST),
 
     // Chat Errors
     CONVERSATION_NOT_FOUND("CHT_001", "Không tìm thấy cuộc trò chuyện.", HttpStatus.NOT_FOUND),

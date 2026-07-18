@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketRe
 import com.daiphat.coreapi.application.dto.request.support.ResolutionFeedbackRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.support.OrderComplaintEligibilityResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketSummaryResponse;
@@ -52,6 +53,16 @@ public class SupportTicketController {
                         principal.getId(),
                         request,
                         file != null ? StorageUtils.toUploadRequest(file) : null));
+    }
+
+    @GetMapping("/orders/{orderId}/complaint-eligibility")
+    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    public ApiResponse<OrderComplaintEligibilityResponse> getOrderComplaintEligibility(
+            @PathVariable java.util.UUID orderId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                "Kiểm tra điều kiện khiếu nại đơn hàng thành công.",
+                supportTicketServicePort.getOrderComplaintEligibility(orderId, principal.getId()));
     }
 
     @GetMapping("/my")

@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.request.support.ResolveSupportTicketR
 import com.daiphat.coreapi.application.dto.request.support.StaffSupportTicketResponseRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.support.OrderComplaintEligibilityResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketStaffSummaryResponse;
@@ -37,7 +38,6 @@ import com.daiphat.coreapi.domain.model.enums.support.TicketCommentSenderRole;
 import com.daiphat.coreapi.domain.model.enums.support.TicketRefType;
 import com.daiphat.coreapi.domain.model.enums.settings.SystemConfigEnum;
 import com.daiphat.coreapi.domain.model.enums.support.TicketStatus;
-import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.settings.SystemConfigModel;
 import com.daiphat.coreapi.domain.model.support.SupportTicketCommentModel;
 import com.daiphat.coreapi.domain.model.support.SupportTicketModel;
@@ -74,6 +74,7 @@ public class SupportTicketService implements SupportTicketServicePort {
     private final SupportApplicationMapper supportApplicationMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final RefundComplaintEligibilityService refundComplaintEligibilityService;
+    private final OrderComplaintEligibilityService orderComplaintEligibilityService;
     private final SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     @Override
@@ -83,6 +84,9 @@ public class SupportTicketService implements SupportTicketServicePort {
 
         TicketCategoryModel category = getCategoryOrThrow(request.ticketCategoryId());
         validateRefForCategory(category, request.refId(), request.refType(), customerId);
+        if (orderComplaintEligibilityService.requiresEvidence(category) && file == null) {
+            throw new DomainException(ErrorCode.TICKET_ORDER_COMPLAINT_EVIDENCE_REQUIRED);
+        }
 
         String attachmentUrl = uploadAttachmentIfPresent(file);
 
@@ -116,6 +120,12 @@ public class SupportTicketService implements SupportTicketServicePort {
                 .build());
 
         return toDetailResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OrderComplaintEligibilityResponse getOrderComplaintEligibility(UUID orderId, UUID customerId) {
+        return orderComplaintEligibilityService.evaluate(orderId, customerId);
     }
 
     @Override
@@ -558,23 +568,9 @@ public class SupportTicketService implements SupportTicketServicePort {
             throw new DomainException(ErrorCode.TICKET_REF_INVALID);
         }
         if (required == TicketRefType.ORDER) {
-            validateOrderRef(refId, customerId);
+            orderComplaintEligibilityService.validate(category, refId, customerId);
         } else if (required == TicketRefType.REFUND_REQUEST) {
             refundComplaintEligibilityService.validate(category, refId, customerId);
-        }
-    }
-
-    private void validateOrderRef(String refId, UUID customerId) {
-        UUID orderId;
-        try {
-            orderId = UUID.fromString(refId.trim());
-        } catch (IllegalArgumentException ex) {
-            throw new DomainException(ErrorCode.TICKET_REF_INVALID);
-        }
-        OrderModel order = orderRepositoryPort.findById(orderId)
-                .orElseThrow(() -> new DomainException(ErrorCode.TICKET_REF_INVALID));
-        if (!customerId.equals(order.getUserId())) {
-            throw new DomainException(ErrorCode.TICKET_REF_ORDER_MISMATCH);
         }
     }
 
