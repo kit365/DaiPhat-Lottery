@@ -7,6 +7,7 @@ import com.daiphat.coreapi.application.dto.request.support.ResolveSupportTicketR
 import com.daiphat.coreapi.application.dto.request.support.StaffSupportTicketResponseRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.support.OrderComplaintEligibilityResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketStaffSummaryResponse;
@@ -19,6 +20,8 @@ import java.util.UUID;
 public interface SupportTicketServicePort {
 
     SupportTicketResponse create(UUID customerId, CreateSupportTicketRequest request, UploadRequest file);
+
+    OrderComplaintEligibilityResponse getOrderComplaintEligibility(UUID orderId, UUID customerId);
 
     PageResponse<SupportTicketSummaryResponse> getMyTickets(
             UUID customerId, int page, int limit, String status, String search);

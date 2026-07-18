@@ -9,7 +9,12 @@ public final class OrderCancelReasonDefaults {
 
     public static final String CUSTOMER_REQUEST = "Khách hàng hủy đơn trong thời gian cho phép";
     public static final String ADMIN_FORCE_CANCEL = "Nhân viên hủy đơn theo yêu cầu hỗ trợ khách hàng";
-    public static final String SYSTEM_PAYMENT_TIMEOUT = "Quá thời gian thanh toán 10 phút.";
+    public static final String SYSTEM_PAYMENT_TIMEOUT = "Quá thời gian thanh toán 3 phút.";
+
+    public static String systemPaymentTimeout(int minutes) {
+        int safeMinutes = minutes > 0 ? minutes : 3;
+        return "Quá thời gian thanh toán " + safeMinutes + " phút.";
+    }
     public static final String OUT_OF_STOCK_INCIDENT =
             "Hủy đơn do sự cố kho — toàn bộ vé không thể giao và không còn vé thay thế";
 
