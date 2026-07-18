@@ -54,6 +54,7 @@ type TypeFilter = 'all' | ConfigType;
 const TYPE_TABS: { value: TypeFilter; label: string }[] = [
     { value: 'all', label: 'Tất cả' },
     { value: ConfigType.ORDER_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.ORDER_SETTING] },
+    { value: ConfigType.PAYMENT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.PAYMENT_SETTING] },
     { value: ConfigType.TICKET_IMPORT, label: CONFIG_TYPE_LABELS[ConfigType.TICKET_IMPORT] },
     { value: ConfigType.REFUND_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.REFUND_SETTING] },
     { value: ConfigType.COMPLAINT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.COMPLAINT_SETTING] },
@@ -68,6 +69,8 @@ const getTypeChipColor = (type: ConfigType): 'default' | 'primary' | 'secondary'
     switch (type) {
         case ConfigType.ORDER_SETTING:
             return 'primary';
+        case ConfigType.PAYMENT_SETTING:
+            return 'info';
         case ConfigType.TICKET_IMPORT:
             return 'warning';
         case ConfigType.REFUND_SETTING:
@@ -98,6 +101,7 @@ export const SystemConfigListPage = () => {
         const counts: Record<TypeFilter, number> = {
             all: allConfigs.length,
             [ConfigType.ORDER_SETTING]: 0,
+            [ConfigType.PAYMENT_SETTING]: 0,
             [ConfigType.TICKET_IMPORT]: 0,
             [ConfigType.REFUND_SETTING]: 0,
             [ConfigType.COMPLAINT_SETTING]: 0,
