@@ -64,6 +64,7 @@ export const QUERY_KEYS = {
     CLIENT_MY_COMPLAINTS: 'client-my-complaints',
     CLIENT_COMPLAINT_DETAIL: 'client-complaint-detail',
     CLIENT_TICKET_COMMENTS: 'client-ticket-comments',
+    CLIENT_ORDER_COMPLAINT_ELIGIBILITY: 'client-order-complaint-eligibility',
 
     // Refunds (Admin)
     ADMIN_REFUNDS: 'admin-refunds',
