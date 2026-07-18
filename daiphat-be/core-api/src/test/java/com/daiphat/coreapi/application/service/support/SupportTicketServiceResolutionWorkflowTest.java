@@ -56,6 +56,7 @@ class SupportTicketServiceResolutionWorkflowTest {
     @Mock private SupportApplicationMapper supportApplicationMapper;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private RefundComplaintEligibilityService refundComplaintEligibilityService;
+    @Mock private OrderComplaintEligibilityService orderComplaintEligibilityService;
     @Mock private SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     @InjectMocks

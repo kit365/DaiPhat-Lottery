@@ -81,6 +81,7 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
     private final PaymentGatewayStrategyFactory paymentGatewayStrategyFactory = mock(PaymentGatewayStrategyFactory.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final OrderRefundGraceService orderRefundGraceService = mock(OrderRefundGraceService.class);
+    private final PaymentTimeoutConfigService paymentTimeoutConfigService = mock(PaymentTimeoutConfigService.class);
 
     private OrderServicePort orderService;
 
@@ -103,11 +104,13 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
                 paymentCountdownCachePort,
                 paymentGatewayStrategyFactory,
                 eventPublisher,
-                orderRefundGraceService
+                orderRefundGraceService,
+                paymentTimeoutConfigService
         );
         when(orderRefundGraceService.evaluate(any())).thenReturn(
                 new OrderRefundGraceService.RefundGraceEvaluation(false, null, 0L, 0, null, null)
         );
+        when(paymentTimeoutConfigService.getTimeoutSeconds()).thenReturn(180L);
     }
 
     @Test

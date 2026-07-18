@@ -108,6 +108,15 @@ class RefundComplaintEligibilityServiceTest {
     }
 
     @Test
+    @DisplayName("Final state at exactly 7 days remains eligible")
+    void paidIssue_exactlySevenDays_ok() {
+        stubRefund(RefundRequestStatus.PAID, LocalDateTime.now().minusDays(7));
+
+        assertThatCode(() -> service.validate(paidCategory(), "10", CUSTOMER_ID))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     @DisplayName("Wrong owner is rejected")
     void wrongOwner() {
         stubRefund(RefundRequestStatus.PAID, LocalDateTime.now().minusDays(1));

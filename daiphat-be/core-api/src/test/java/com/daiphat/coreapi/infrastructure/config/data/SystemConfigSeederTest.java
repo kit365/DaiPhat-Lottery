@@ -48,6 +48,7 @@ class SystemConfigSeederTest {
                         "ORDER_CANCEL_GRACE_MIN",
                         "CUSTOMER_CANCEL_CUTOFF",
                         "ORDER_PREPARE_SLA_MIN",
+                        "PAYMENT_TIMEOUT_MINUTES",
                         "VENDOR_RETURN_CUTOFF",
                         "LATE_IMPORT_TIME",
                         "IMPORT_BATCH_CUTOFF_TIME",
@@ -57,7 +58,11 @@ class SystemConfigSeederTest {
                         "MAX_REFUND_BANK_INFO_RETRY",
                         "REFUND_COMPLAINT_PROCESSING_WAIT_HOURS",
                         "REFUND_COMPLAINT_GRACE_DAYS",
-                        "SUPPORT_TICKET_AUTO_CLOSE_HOURS"
+                        "SUPPORT_TICKET_AUTO_CLOSE_HOURS",
+                        "ORDER_COMPLAINT_DRAW_CUTOFF_TIME",
+                        "ORDER_SERVICE_COMPLAINT_WINDOW_HOURS",
+                        "ORDER_STATUS_DELAY_COMPLAINT_MINUTES",
+                        "ORDER_CANCELLED_COMPLAINT_WINDOW_HOURS"
                 );
         assertThat(captor.getAllValues()).allMatch(entity -> Boolean.TRUE.equals(entity.getIsActive()));
         assertThat(captor.getAllValues())
@@ -71,6 +76,18 @@ class SystemConfigSeederTest {
                     assertThat(entity.getConfigType()).isEqualTo(ConfigType.COMPLAINT_SETTING);
                     assertThat(entity.getConfigValue()).isEqualTo("48");
                 });
+        assertThat(captor.getAllValues())
+                .filteredOn(entity -> entity.getConfigKey().equals("PAYMENT_TIMEOUT_MINUTES"))
+                .singleElement()
+                .satisfies(entity -> {
+                    assertThat(entity.getConfigType()).isEqualTo(ConfigType.PAYMENT_SETTING);
+                    assertThat(entity.getConfigValue()).isEqualTo("3");
+                });
+        assertThat(captor.getAllValues())
+                .filteredOn(entity -> entity.getConfigKey().startsWith("ORDER_")
+                        && entity.getConfigKey().contains("COMPLAINT"))
+                .extracting(SystemConfigEntity::getConfigType)
+                .containsOnly(ConfigType.COMPLAINT_SETTING);
     }
 
     @Test
