@@ -17,4 +17,5 @@ public class TicketCategoryModel {
     private int priority;
     private TicketRefType requiredRefType;
     private Long parentId;
+    private boolean isActive;
 }
