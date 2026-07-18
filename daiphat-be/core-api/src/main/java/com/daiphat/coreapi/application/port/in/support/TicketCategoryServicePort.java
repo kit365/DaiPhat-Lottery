@@ -7,4 +7,6 @@ import java.util.List;
 public interface TicketCategoryServicePort {
 
     List<TicketCategoryResponse> getActiveCategories();
+
+    TicketCategoryResponse updateCategory(Long id, com.daiphat.coreapi.application.dto.request.support.UpdateTicketCategoryRequest request);
 }
