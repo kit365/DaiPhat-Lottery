@@ -101,4 +101,9 @@ export const supportTicketAdminApi = {
         const response = await apiApp.get(CATEGORY_URL, withAuth());
         return response.data;
     },
+
+    updateCategory: async (id: number, data: com.daiphat.coreapi.application.dto.request.support.UpdateTicketCategoryRequest): Promise<ApiResponse<TicketCategoryResponse>> => {
+        const response = await apiApp.put(`${CATEGORY_URL}/${id}`, data, withAuth());
+        return response.data;
+    },
 };

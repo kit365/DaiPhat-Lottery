@@ -26,6 +26,11 @@ export enum StaffTicketResponseAction {
     REJECT = 'REJECT',
 }
 
+export interface UpdateTicketCategoryRequest {
+    priority: number;
+    isActive: boolean;
+}
+
 export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
     [TicketStatus.OPEN]: 'Mới tạo',
     [TicketStatus.IN_PROGRESS]: 'Đang xử lý',
@@ -50,6 +55,7 @@ export interface TicketCategoryResponse {
     priority: number;
     requiredRefType: TicketRefType | null;
     parentId?: number | null;
+    isActive: boolean;
 }
 
 export interface SupportTicketCommentResponse {
