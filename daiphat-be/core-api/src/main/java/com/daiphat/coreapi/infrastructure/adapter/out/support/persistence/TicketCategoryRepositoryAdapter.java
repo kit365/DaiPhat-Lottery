@@ -27,4 +27,18 @@ public class TicketCategoryRepositoryAdapter implements TicketCategoryRepository
     public List<TicketCategoryModel> findAll() {
         return ticketCategoryPersistenceMapper.toDomainList(ticketCategoryRepository.findAll());
     }
+
+    @Override
+    public TicketCategoryModel save(TicketCategoryModel model) {
+        var entity = ticketCategoryPersistenceMapper.toEntity(model);
+        return ticketCategoryPersistenceMapper.toDomain(ticketCategoryRepository.save(entity));
+    }
+
+    @Override
+    public boolean existsByParentIdAndPriorityAndIdNot(Long parentId, int priority, Long id) {
+        if (parentId == null) {
+            return ticketCategoryRepository.existsByParentIdIsNullAndPriorityAndIdNot(priority, id);
+        }
+        return ticketCategoryRepository.existsByParentIdAndPriorityAndIdNot(parentId, priority, id);
+    }
 }

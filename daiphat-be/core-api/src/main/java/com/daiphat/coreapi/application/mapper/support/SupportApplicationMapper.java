@@ -13,6 +13,7 @@ import java.util.List;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface SupportApplicationMapper {
 
+    @Mapping(target = "isActive", expression = "java(model.isActive())")
     TicketCategoryResponse toCategoryResponse(TicketCategoryModel model);
 
     List<TicketCategoryResponse> toCategoryResponses(List<TicketCategoryModel> models);

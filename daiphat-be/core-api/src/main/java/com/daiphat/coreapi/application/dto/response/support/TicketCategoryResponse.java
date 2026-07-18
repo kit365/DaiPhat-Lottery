@@ -13,6 +13,7 @@ public record TicketCategoryResponse(
         String description,
         int priority,
         TicketRefType requiredRefType,
-        Long parentId
+        Long parentId,
+        boolean isActive
 ) {
 }
