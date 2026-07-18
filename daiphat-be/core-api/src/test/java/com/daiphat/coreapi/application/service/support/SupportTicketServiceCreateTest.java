@@ -55,6 +55,8 @@ class SupportTicketServiceCreateTest {
     @Mock
     private RefundComplaintEligibilityService refundComplaintEligibilityService;
     @Mock
+    private OrderComplaintEligibilityService orderComplaintEligibilityService;
+    @Mock
     private SystemConfigRepositoryPort systemConfigRepositoryPort;
 
     private SupportTicketService supportTicketService;
@@ -71,6 +73,7 @@ class SupportTicketServiceCreateTest {
                 supportApplicationMapper,
                 eventPublisher,
                 refundComplaintEligibilityService,
+                orderComplaintEligibilityService,
                 systemConfigRepositoryPort);
     }
 
