@@ -44,6 +44,10 @@ public class TicketCategoryEntity {
     @Column(name = "parent_id")
     private Long parentId;
 
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private boolean isActive = true;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
