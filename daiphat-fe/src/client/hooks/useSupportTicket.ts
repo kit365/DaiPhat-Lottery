@@ -19,6 +19,15 @@ export const useGetTicketCategories = () => {
     });
 };
 
+export const useGetOrderComplaintEligibility = (orderId?: string, enabled = true) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.CLIENT_ORDER_COMPLAINT_ELIGIBILITY, orderId],
+        queryFn: () => supportTicketService.getOrderComplaintEligibility(orderId!),
+        enabled: !!orderId && enabled,
+        refetchInterval: 30_000,
+    });
+};
+
 export const useGetMyTickets = (params: GetMyTicketsParams, enabled = true) => {
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS, params],

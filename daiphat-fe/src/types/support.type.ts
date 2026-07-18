@@ -228,3 +228,31 @@ export interface GetMyTicketsParams {
     status?: TicketStatus;
     search?: string;
 }
+
+export type OrderComplaintEligibilityCode =
+    | 'eligible'
+    | 'too_early'
+    | 'window_expired'
+    | 'status_invalid'
+    | 'not_eligible';
+
+export interface OrderComplaintEligibilityResponse {
+    eligible: boolean;
+    categoryCode?: string | null;
+    reasonCode: OrderComplaintEligibilityCode | string;
+    message: string;
+    requiresEvidence: boolean;
+    remainingSeconds?: number | null;
+    eligibleAt?: string | null;
+    expiresAt?: string | null;
+    orderId: string;
+    orderStatus?: string | null;
+}
+
+export const ORDER_COMPLAINT_CATEGORY_CODES = {
+    PAYMENT_SYNC_ERROR: 'PAYMENT_SYNC_ERROR',
+    ORDER_PREPARATION_DELAY: 'ORDER_PREPARATION_DELAY',
+    ORDER_PICKUP_ISSUE: 'ORDER_PICKUP_ISSUE',
+    ORDER_SERVICE_QUALITY: 'ORDER_SERVICE_QUALITY',
+    ORDER_CANCELLED_OUT_OF_STOCK: 'ORDER_CANCELLED_OUT_OF_STOCK',
+} as const;

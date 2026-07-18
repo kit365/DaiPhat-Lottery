@@ -4,6 +4,7 @@ import {
     CreateSupportTicketCommentRequest,
     CreateSupportTicketRequest,
     GetMyTicketsParams,
+    OrderComplaintEligibilityResponse,
     SupportTicketCommentResponse,
     SupportTicketResponse,
     SupportTicketSummaryResponse,
@@ -30,6 +31,13 @@ const multipartHeaders = {
 export const supportTicketService = {
     getCategories: async (): Promise<ApiResponse<TicketCategoryResponse[]>> => {
         const response = await apiApp.get(CATEGORY_URL);
+        return response.data;
+    },
+
+    getOrderComplaintEligibility: async (
+        orderId: string
+    ): Promise<ApiResponse<OrderComplaintEligibilityResponse>> => {
+        const response = await apiApp.get(`${BASE_URL}/orders/${orderId}/complaint-eligibility`);
         return response.data;
     },
 

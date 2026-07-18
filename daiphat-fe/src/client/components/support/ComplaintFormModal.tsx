@@ -26,6 +26,7 @@ interface ComplaintFormModalProps {
     defaultOrderId?: string;
     defaultRefundId?: number | string;
     defaultCategoryCode?: string;
+    requireEvidence?: boolean;
 }
 
 const getCategoryIcon = (code: string) => {
@@ -41,6 +42,7 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     defaultOrderId,
     defaultRefundId,
     defaultCategoryCode,
+    requireEvidence = false,
 }) => {
     const navigate = useNavigate();
     const isEditing = !!editingTicket;
@@ -65,8 +67,11 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
         if (defaultRefundId != null) {
             return selectableCategories.filter((category) => category.requiredRefType === TicketRefType.REFUND_REQUEST);
         }
+        if (defaultOrderId) {
+            return selectableCategories.filter((category) => category.requiredRefType === TicketRefType.ORDER);
+        }
         return selectableCategories;
-    }, [selectableCategories, defaultCategoryCode, defaultRefundId]);
+    }, [selectableCategories, defaultCategoryCode, defaultRefundId, defaultOrderId]);
 
     const groupedCategories = useMemo(() => {
         const groups: Record<number, { parent: TicketCategoryResponse | undefined; items: TicketCategoryResponse[] }> = {};
@@ -110,6 +115,8 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
     );
 
     const requiredRefType = selectedCategory?.requiredRefType;
+    const evidenceRequired =
+        requireEvidence || selectedCategory?.code === 'PAYMENT_SYNC_ERROR';
 
     const selectedOrder = useMemo(() => orders.find(o => o.id === refId), [orders, refId]);
     const selectedRefund = useMemo(() => refunds.find(r => String(r.id) === refId), [refunds, refId]);
@@ -196,6 +203,10 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                 AppToast.error(`Vui lòng chọn ${TICKET_REF_TYPE_LABELS[requiredRefType].toLowerCase()}`);
                 return false;
             }
+        }
+        if (evidenceRequired && !attachmentFile && !editingTicket?.attachmentUrl) {
+            AppToast.error('Vui lòng đính kèm biên lai chuyển khoản cho khiếu nại này.');
+            return false;
         }
         return true;
     };
@@ -369,32 +380,38 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                             {requiredRefType === TicketRefType.ORDER && (
                                 <div className="flex flex-col gap-2">
                                     <label className="text-[13px] font-bold text-[#454F5B]">Đơn hàng liên quan *</label>
-                                    <div
-                                        onClick={() => setIsOrderModalOpen(true)}
-                                        className="w-full px-4 py-3 bg-white border border-[#E5E8EB] hover:border-[#ee1314] rounded-xl text-[14px] flex items-center justify-between cursor-pointer transition-colors"
-                                    >
-                                        {selectedOrder ? (
-                                            <div className="flex items-center gap-3">
-                                                <i className="fa-solid fa-file-invoice text-[#637381]"></i>
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-[#212B36]">
-                                                        #{selectedOrder.id.slice(0, 8).toUpperCase()}
-                                                    </span>
-                                                    <span className="text-[12px] text-[#919EAB]">
-                                                        {selectedOrder.totalAmount?.toLocaleString('vi-VN')}đ
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <span className="text-[#919EAB]">Chọn đơn hàng...</span>
-                                        )}
-                                        <button
-                                            type="button"
-                                            className="px-3 py-1.5 bg-[#F4F6F8] text-[#454F5B] text-[12px] font-bold rounded-lg hover:bg-[#DFE3E8]"
+                                    {defaultOrderId ? (
+                                        <div className="w-full px-4 py-3 bg-[#F4F6F8] border border-[#E5E8EB] rounded-xl text-[14px] text-[#212B36] font-semibold">
+                                            #{(selectedOrder?.orderCode || defaultOrderId).toString()}
+                                        </div>
+                                    ) : (
+                                        <div
+                                            onClick={() => setIsOrderModalOpen(true)}
+                                            className="w-full px-4 py-3 bg-white border border-[#E5E8EB] hover:border-[#ee1314] rounded-xl text-[14px] flex items-center justify-between cursor-pointer transition-colors"
                                         >
-                                            {selectedOrder ? 'Thay đổi' : 'Chọn'}
-                                        </button>
-                                    </div>
+                                            {selectedOrder ? (
+                                                <div className="flex items-center gap-3">
+                                                    <i className="fa-solid fa-file-invoice text-[#637381]"></i>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-[#212B36]">
+                                                            #{selectedOrder.id.slice(0, 8).toUpperCase()}
+                                                        </span>
+                                                        <span className="text-[12px] text-[#919EAB]">
+                                                            {selectedOrder.totalAmount?.toLocaleString('vi-VN')}đ
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[#919EAB]">Chọn đơn hàng...</span>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className="px-3 py-1.5 bg-[#F4F6F8] text-[#454F5B] text-[12px] font-bold rounded-lg hover:bg-[#DFE3E8]"
+                                            >
+                                                {selectedOrder ? 'Thay đổi' : 'Chọn'}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -487,8 +504,13 @@ export const ComplaintFormModal: React.FC<ComplaintFormModalProps> = ({
                                     value={attachmentFile}
                                     existingUrl={editingTicket?.attachmentUrl}
                                     onChange={setAttachmentFile}
+                                    required={evidenceRequired}
                                     label="Hình ảnh đính kèm"
-                                    helperText="Hình ảnh minh chứng (không bắt buộc)"
+                                    helperText={
+                                        evidenceRequired
+                                            ? 'Bắt buộc đính kèm biên lai chuyển khoản để đối soát'
+                                            : 'Hình ảnh minh chứng (không bắt buộc)'
+                                    }
                                 />
                             </div>
                         </div>

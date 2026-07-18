@@ -1,6 +1,31 @@
 import React from 'react';
 import { useGetMyOrders } from '../../hooks/useOrder';
 
+const ORDER_STATUS_LABELS: Record<string, string> = {
+    PENDING_PAYMENT: 'Chờ thanh toán',
+    PAID: 'Đã thanh toán',
+    PREPARING: 'Đang xử lý',
+    PENDING_PICKUP: 'Chờ nhận vé',
+    COMPLETED: 'Hoàn thành',
+    CANCELLED: 'Đã huỷ'
+};
+
+const ORDER_STATUS_STYLES: Record<string, string> = {
+    PENDING_PAYMENT: 'bg-[#FFF9F3] text-[#FFB020]',
+    PAID: 'bg-[#E4F8ED] text-[#1CD162]',
+    PREPARING: 'bg-[#F0F5FF] text-[#2065D1]',
+    PENDING_PICKUP: 'bg-[#F0F5FF] text-[#2065D1]',
+    COMPLETED: 'bg-[#E4F8ED] text-[#1CD162]',
+    CANCELLED: 'bg-[#ee1314] text-white'
+};
+
+const ORDER_CANCEL_TYPE_LABELS: Record<string, string> = {
+    CUSTOMER_REQUEST: 'Người dùng huỷ',
+    ADMIN_FORCE_CANCEL: 'Nhân viên hủy theo yêu cầu từ khách',
+    SYSTEM_PAYMENT_TIMEOUT: 'Quá hạn thanh toán',
+    OUT_OF_STOCK_INCIDENT: 'Sự cố kho vé'
+};
+
 interface SelectOrderModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -14,7 +39,7 @@ export const SelectOrderModal: React.FC<SelectOrderModalProps> = ({
     onSelect,
     selectedOrderId,
 }) => {
-    const { data: ordersData, isLoading } = useGetMyOrders({ page: 1, limit: 100 }, isOpen);
+    const { data: ordersData, isLoading } = useGetMyOrders({ page: 1, size: 100 }, isOpen);
     const orders = ordersData?.data?.recordList || [];
 
     if (!isOpen) return null;
@@ -47,15 +72,41 @@ export const SelectOrderModal: React.FC<SelectOrderModalProps> = ({
                     ) : (
                         <div className="flex flex-col gap-3">
                             {orders.map((order) => {
+                                const isEligible = (() => {
+                                    if (order.complaintEligibility) {
+                                        return {
+                                            eligible: order.complaintEligibility.eligible,
+                                            reason: order.complaintEligibility.message || 'Không đủ điều kiện'
+                                        };
+                                    }
+                                    
+                                    // Fallback if complaintEligibility is missing for some reason
+                                    if (order.status === 'PENDING_PAYMENT') return { eligible: false, reason: 'Chưa thanh toán' };
+                                    if (order.status === 'CANCELLED') {
+                                        if (order.cancelType === 'CUSTOMER_REQUEST') return { eligible: false, reason: 'Bạn đã huỷ đơn này' };
+                                        if (order.cancelType === 'ADMIN_FORCE_CANCEL') return { eligible: false, reason: 'Nhân viên đã huỷ đơn này' };
+                                        if (order.cancelType !== 'SYSTEM_PAYMENT_TIMEOUT' && order.cancelType !== 'OUT_OF_STOCK_INCIDENT') {
+                                            return { eligible: false, reason: 'Đơn đã huỷ' };
+                                        }
+                                    }
+                                    return { eligible: true };
+                                })();
                                 const isSelected = order.id === selectedOrderId;
                                 return (
                                     <div
                                         key={order.id}
                                         onClick={() => {
+                                            if (!isEligible.eligible) return;
                                             onSelect(order.id);
                                             onClose();
                                         }}
-                                        className={`p-4 rounded-xl border transition-colors cursor-pointer flex items-center justify-between gap-4 ${isSelected ? 'bg-[#FFF4F4] border-[#ee1314]' : 'bg-white border-[#E5E8EB] hover:border-[#ee1314]/50 hover:shadow-sm'}`}
+                                        className={`p-4 rounded-xl border transition-colors flex items-center justify-between gap-4 ${
+                                            !isEligible.eligible
+                                                ? 'bg-[#F9FAFB] border-[#E5E8EB] opacity-60 cursor-not-allowed'
+                                                : isSelected
+                                                ? 'bg-[#FFF4F4] border-[#ee1314] cursor-pointer'
+                                                : 'bg-white border-[#E5E8EB] hover:border-[#ee1314]/50 hover:shadow-sm cursor-pointer'
+                                        }`}
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isSelected ? 'bg-[#ee1314]/10 text-[#ee1314]' : 'bg-[#F4F6F8] text-[#637381]'}`}>
@@ -64,9 +115,14 @@ export const SelectOrderModal: React.FC<SelectOrderModalProps> = ({
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-bold text-[#212B36] text-[14px]">#{order.id.slice(0, 8).toUpperCase()}</span>
-                                                    <span className="px-2 py-0.5 bg-[#F4F6F8] text-[#454F5B] text-[10px] font-bold rounded-md uppercase">
-                                                        {order.status}
+                                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase ${ORDER_STATUS_STYLES[order.status] || 'bg-[#F4F6F8] text-[#454F5B]'}`}>
+                                                        {ORDER_STATUS_LABELS[order.status] || order.status}
                                                     </span>
+                                                    {order.status === 'CANCELLED' && order.cancelType && (
+                                                        <span className="px-2 py-0.5 bg-[#FFF4F4] text-[#ee1314] text-[10px] font-bold rounded-md uppercase">
+                                                            {ORDER_CANCEL_TYPE_LABELS[order.cancelType] || order.cancelType}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <span className="text-[13px] font-semibold text-[#ee1314]">
                                                     {order.totalAmount?.toLocaleString('vi-VN')}đ
@@ -74,6 +130,11 @@ export const SelectOrderModal: React.FC<SelectOrderModalProps> = ({
                                                 <span className="text-[12px] text-[#919EAB]">
                                                     {order.createdAt ? new Date(order.createdAt).toLocaleDateString('vi-VN') : ''}
                                                 </span>
+                                                {!isEligible.eligible && (
+                                                    <span className="text-[11px] font-bold text-[#FFB020] mt-1 bg-[#FFF9F3] px-2 py-0.5 rounded w-max">
+                                                        {isEligible.reason}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-center text-[#ee1314]">
