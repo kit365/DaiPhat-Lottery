@@ -56,7 +56,6 @@ Sau khi các service healthy:
 - Backend/Swagger: http://localhost:8080/swagger-ui/index.html
 - PostgreSQL: `localhost:5434`
 - Redis: `localhost:6380`
-- MongoDB: `localhost:27018`
 
 Backend chạy dev mode trong container và tự khởi động lại khi source thay đổi. Access token của local được giữ ở 5 giây để test refresh token và WebSocket.
 
@@ -80,16 +79,24 @@ Chỉ dùng lệnh sau khi thật sự muốn xóa toàn bộ database/volume lo
 docker compose down -v
 ```
 
-Compose local của backend nằm tại `daiphat-be/`; chạy lệnh Docker trong thư mục đó. Cấu hình triển khai production giữ tại `docker-compose.prod.yml` ở root.
+Compose được chuẩn hoá ở root:
+
+- `docker-compose.yml`: local app (FE build + Spring Boot trong một image, kèm PostgreSQL và Redis).
+- `docker-compose.uat.yml`: UAT, dùng image đã publish và dịch vụ Neon/Upstash bên ngoài.
+- `docker-compose.prod.yml`: production, cùng image và cấu trúc UAT nhưng secrets/URL Prod.
+
+Azure App Service không chạy Compose: nó pull đúng `APP_IMAGE` và nhận cùng biến môi trường qua App Settings. Hai file UAT/Prod giữ lại để preflight image hoặc làm phương án chạy trên VM.
+
+Health check dùng `GET /actuator/health/readiness`; cấu hình Azure App Service Health check theo path này để SMTP ngoài không làm instance bị đánh dấu down.
 
 ### Profiles cấu hình backend
 
 - `application.yml`: cấu hình dùng chung; không chọn profile và không có `${VAR:fallback}`.
 - `application-local.yml`: hạ tầng và policy dành riêng cho local; được phép hardcode.
-- `application-staging.yml`: staging gần production, mọi credential/runtime value phải đến từ environment.
+- `application-staging.yml`: profile dùng cho UAT, mọi credential/runtime value phải đến từ environment.
 - `application-prod.yml`: production, đọc environment do root `.env` hoặc CI/CD cung cấp.
 
-Các file `.env*` runtime đều bị Git ignore. Local backend dùng `daiphat-be/core-api/.env`; production nhận biến môi trường từ root `.env` hoặc CI/CD. Các biến dùng prefix (`CORE_`, `AUTH_`, `VITE_`) để nhìn ra phạm vi sử dụng.
+Các file `.env*` runtime đều bị Git ignore. Dùng `.env.uat.example` và `.env.prod.example` làm mẫu; secrets thật đặt ở App Settings Azure hoặc secret store. Các biến dùng prefix (`CORE_`, `AUTH_`, `VITE_`) để nhìn ra phạm vi sử dụng.
 
 ## Backend setup thủ công (tùy chọn)
 

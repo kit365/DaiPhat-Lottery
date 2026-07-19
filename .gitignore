@@ -29,6 +29,7 @@ logs/
 
 # Runtime environment files (never commit credentials)
 .env*
+azure-app-settings.*.json
 !**/.env.properties
 mvnd/
 .mvnd/
