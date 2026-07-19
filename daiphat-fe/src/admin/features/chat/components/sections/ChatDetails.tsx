@@ -9,9 +9,9 @@ import {
     Chip,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
-import { Conversation } from '../../../../types/chat.type';
+import { Conversation } from '../../../../../types/chat.type';
 import { getConversationDisplayTitle, getAssigneeDisplayLabel, getConversationAvatarLetter } from '../utils';
-import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useAuthStore } from '../../../../../stores/useAuthStore';
 
 interface ChatDetailsProps {
     conversation?: Conversation;
@@ -41,7 +41,7 @@ export const ChatDetails = ({ conversation }: ChatDetailsProps) => {
         >
             <Box sx={{ p: 3, textAlign: 'center' }}>
                 <Avatar
-                    sx={{ width: 80, height: 80, mx: 'auto', mb: 1.5, fontSize: '1.5rem', fontWeight: 800, border: '2px solid #eee' }}
+                    sx={{ width: 80, height: 80, mx: 'auto', mb: 1.5, fontSize: '1.5rem', fontWeight: 800, border: '2px solid var(--palette-divider)' }}
                 >
                     {getConversationAvatarLetter(conversation)}
                 </Avatar>
@@ -77,7 +77,7 @@ export const ChatDetails = ({ conversation }: ChatDetailsProps) => {
                     </Stack>
                 </Box>
                 
-                <Button fullWidth variant="outlined" sx={{ color: 'var(--palette-primary-main)', borderColor: 'var(--palette-primary-main)', '&:hover': { borderColor: 'var(--palette-primary-dark)', bgcolor: '#fff0f0' } }}>
+                <Button fullWidth variant="outlined" sx={{ color: 'var(--palette-primary-main)', borderColor: 'var(--palette-primary-main)', '&:hover': { borderColor: 'var(--palette-primary-dark)', bgcolor: 'var(--palette-error-lighter)' } }}>
                     Xem chi tiết khách hàng
                 </Button>
             </Box>
@@ -90,7 +90,7 @@ export const ChatDetails = ({ conversation }: ChatDetailsProps) => {
                 </Typography>
                 <Stack spacing={2} sx={{ position: 'relative', '&::before': { content: '""', position: 'absolute', left: 15, top: 10, bottom: 10, width: 2, bgcolor: 'var(--palette-divider)' } }}>
                     <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ position: 'relative', zIndex: 1 }}>
-                        <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: '#e0f2fe', color: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: 'var(--palette-info-lighter)', color: 'var(--palette-info-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Icon icon="solar:user-speak-bold" />
                         </Box>
                         <Box>
@@ -100,7 +100,7 @@ export const ChatDetails = ({ conversation }: ChatDetailsProps) => {
                     </Stack>
                     {conversation.assignedOperatorId && (
                         <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ position: 'relative', zIndex: 1 }}>
-                            <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: '#dcfce7', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: 'var(--palette-success-lighter)', color: 'var(--palette-success-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <Icon icon="solar:user-circle-bold" />
                             </Box>
                             <Box>
@@ -121,13 +121,13 @@ export const ChatDetails = ({ conversation }: ChatDetailsProps) => {
                 <Grid container spacing={1.5}>
                     <Grid item xs={6}>
                         <Button fullWidth variant="outlined" sx={{ color: 'text.primary', borderColor: 'var(--palette-divider)', justifyContent: 'flex-start', px: 1.5 }}>
-                            <Icon icon="solar:chat-line-bold" width={18} style={{ marginRight: 8, color: '#6366f1' }} />
+                            <Icon icon="solar:chat-line-bold" width={18} style={{ marginRight: 8, color: 'var(--palette-info-dark)' }} />
                             <Typography variant="caption" sx={{ fontWeight: 600 }}>Trả lời mẫu</Typography>
                         </Button>
                     </Grid>
                     <Grid item xs={6}>
                         <Button fullWidth variant="outlined" sx={{ color: 'text.primary', borderColor: 'var(--palette-divider)', justifyContent: 'flex-start', px: 1.5 }}>
-                            <Icon icon="solar:magnifer-bold" width={18} style={{ marginRight: 8, color: '#f59e0b' }} />
+                            <Icon icon="solar:magnifer-bold" width={18} style={{ marginRight: 8, color: 'var(--palette-warning-main)' }} />
                             <Typography variant="caption" sx={{ fontWeight: 600 }}>Tra cứu vé</Typography>
                         </Button>
                     </Grid>
@@ -135,7 +135,7 @@ export const ChatDetails = ({ conversation }: ChatDetailsProps) => {
             </Box>
 
             <Box sx={{ p: 3, pt: 0 }}>
-                <Button fullWidth variant="contained" sx={{ bgcolor: '#f1f5f9', color: '#ef4444', fontWeight: 600, boxShadow: 'none', '&:hover': { bgcolor: '#fee2e2', boxShadow: 'none' } }}>
+                <Button fullWidth variant="contained" sx={{ bgcolor: 'var(--palette-grey-200)', color: 'var(--palette-error-main)', fontWeight: 600, boxShadow: 'none', '&:hover': { bgcolor: 'var(--palette-error-lighter)', boxShadow: 'none' } }}>
                     Đóng hội thoại
                 </Button>
             </Box>

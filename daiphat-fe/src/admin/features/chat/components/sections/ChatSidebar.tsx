@@ -2,7 +2,7 @@ import { ConversationTitle } from '../components/ConversationTitle';
 import { ConversationAvatarLetter } from '../components/ConversationAvatarLetter';
 import { getConversationDisplayTitle, getConversationAvatarLetter, getAssigneeDisplayLabel, getConversationPreviewText } from '../utils';
 import React, { useState, useEffect } from 'react';
-import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useAuthStore } from '../../../../../stores/useAuthStore';
 import {
     Box,
     TextField,
@@ -18,8 +18,8 @@ import {
     Badge,
 } from '@mui/material';
 import { Icon } from '@iconify/react';
-import { Conversation } from '../../../../types/chat.type';
-import { MessageSenderRole, ConversationStatusEnum } from '../../../../types/chat.type';
+import { Conversation } from '../../../../../types/chat.type';
+import { MessageSenderRole, ConversationStatusEnum } from '../../../../../types/chat.type';
 import dayjs from 'dayjs';
 
 const WaitTimer = ({ startTime }: { startTime: string }) => {
@@ -43,18 +43,18 @@ const WaitTimer = ({ startTime }: { startTime: string }) => {
     }, [startTime]);
 
     return (
-        <Typography variant="caption" sx={{ color: '#ef4444', fontWeight: 700, fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Typography variant="caption" sx={{ color: 'var(--palette-error-main)', fontWeight: 700, fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Icon icon="mdi:clock-outline" /> {elapsed}
         </Typography>
     );
 };
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-    [ConversationStatusEnum.OPEN]: { label: 'Mở', color: '#6366f1', bg: '#e0e7ff' },
-    [ConversationStatusEnum.ACTIVE]: { label: 'Đang xử lý', color: '#22c55e', bg: '#dcfce7' },
-    [ConversationStatusEnum.WAITING_FOR_OPERATOR]: { label: 'Chờ nhân viên nhận', color: '#f97316', bg: '#ffedd5' },
-    [ConversationStatusEnum.WAITING_FOR_CUSTOMER]: { label: 'Chờ khách hàng', color: '#0ea5e9', bg: '#e0f2fe' },
-    [ConversationStatusEnum.CLOSED]: { label: 'Đã đóng', color: '#6b7280', bg: '#f3f4f6' },
+    [ConversationStatusEnum.OPEN]: { label: 'Mở', color: 'var(--palette-info-dark)', bg: 'var(--palette-info-lighter)' },
+    [ConversationStatusEnum.ACTIVE]: { label: 'Đang xử lý', color: 'var(--palette-success-dark)', bg: 'var(--palette-success-lighter)' },
+    [ConversationStatusEnum.WAITING_FOR_OPERATOR]: { label: 'Chờ nhân viên nhận', color: 'var(--palette-warning-dark)', bg: 'var(--palette-warning-lighter)' },
+    [ConversationStatusEnum.WAITING_FOR_CUSTOMER]: { label: 'Chờ khách hàng', color: 'var(--palette-info-main)', bg: 'var(--palette-info-lighter)' },
+    [ConversationStatusEnum.CLOSED]: { label: 'Đã đóng', color: 'var(--palette-grey-700)', bg: 'var(--palette-grey-200)' },
 };
 
 interface ChatSidebarProps {

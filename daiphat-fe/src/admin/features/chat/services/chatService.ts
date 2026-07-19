@@ -1,21 +1,22 @@
-import { apiApp } from '../../api';
-import { ApiResponse } from '../../types/api.type';
+import { apiApp } from '../../../../api';
+import { ApiResponse } from '../../../../types/api.type';
 import {
     ChatMessageResponse,
-    ChatConversationSocketEvent,
     ConversationCloseReason,
     ConversationDetailResponse,
     ConversationResponse,
     CustomerChatTimelineResponse,
     EscalationReason,
-} from '../../types/chat.type';
-import { Conversation, Message } from '../../types/chat.type';
+    Conversation,
+    Message,
+} from '../../../../types/chat.type';
+import { AiServiceConfig } from '../types/chat.type';
 
 const BASE_URL = '/chat/conversations';
 
 export const mapMessage = (message: ChatMessageResponse): Message => ({
     id: message.id,
-    senderId: message.senderId,
+    senderId: message.senderId ?? '',
     senderType: message.senderType,
     conversationId: message.conversationId,
     content: message.content?.trim() || '',
@@ -29,6 +30,31 @@ export const mapConversation = (conversation: ConversationResponse): Conversatio
 });
 
 export const chatService = {
+    getAiConfig: async (): Promise<AiServiceConfig> => {
+        const response = await apiApp.get<ApiResponse<AiServiceConfig>>('/admin/chat/ai-config');
+        const payload = response.data;
+
+        if (!payload.success || !payload.data) {
+            throw new Error(payload.message || 'Không thể tải trạng thái trợ lý AI');
+        }
+
+        return payload.data;
+    },
+
+    updateAiStatus: async (enabled: boolean): Promise<AiServiceConfig> => {
+        const response = await apiApp.patch<ApiResponse<AiServiceConfig>>(
+            '/admin/chat/ai-config',
+            { enabled }
+        );
+        const payload = response.data;
+
+        if (!payload.success || !payload.data) {
+            throw new Error(payload.message || 'Không thể cập nhật trạng thái trợ lý AI');
+        }
+
+        return payload.data;
+    },
+
     getConversations: async (): Promise<Conversation[]> => {
         const response = await apiApp.get<ApiResponse<ConversationResponse[]>>(`${BASE_URL}/management`);
         const payload = response.data;

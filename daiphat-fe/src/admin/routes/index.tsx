@@ -61,7 +61,7 @@ const DepartmentListPage = lazy(() => import("../pages/hr/DepartmentListPage").t
 const OrderListPage = lazy(() => import("../features/orders").then(m => ({ default: m.OrderListPage })));
 const OrderDetailPage = lazy(() => import("../features/orders").then(m => ({ default: m.OrderDetailPage })));
 const CounterOrderCreatePage = lazy(() => import("../features/orders").then(m => ({ default: m.CounterOrderCreatePage })));
-const ChatPage = lazy(() => import("../pages/chat/ChatPage").then(m => ({ default: m.ChatPage })));
+const ChatPage = lazy(() => import("../features/chat").then(m => ({ default: m.ChatPage })));
 const ReviewListPage = lazy(() => import("../pages/review/ReviewListPage").then(m => ({ default: m.ReviewListPage })));
 const NotificationListPage = lazy(() => import("../features/notifications").then(m => ({ default: m.NotificationListPage })));
 const ImportBatchListPage = lazy(() => import("../features/ticket/import-batch").then(m => ({ default: m.ImportBatchListPage })));
@@ -138,7 +138,7 @@ export const AdminRoutes = [
     { path: "refunds/create", element: <PermissionGuard permission={PERMISSIONS.REFUND.PROCESS}><RefundCreatePage /></PermissionGuard> },
     { path: "dashboard/settings/*", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><SettingsPage /></PermissionGuard> },
     { path: "settings/system-config/list", element: <PermissionGuard permission={PERMISSIONS.SETTINGS.VIEW}><SystemConfigListPage /></PermissionGuard> },
-    { path: "chat", element: <ChatPage /> },
+    { path: "chat", element: <PermissionGuard permission={PERMISSIONS.CHAT.VIEW}><ChatPage /></PermissionGuard> },
     { path: "review", element: <ReviewListPage /> },
     { path: "*", element: <Navigate to="/admin/dashboard" replace /> },
 
