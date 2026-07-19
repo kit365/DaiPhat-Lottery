@@ -48,6 +48,12 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                "/",
+                                "/index.html",
+                                "/assets/**",
+                                "/*.ico",
+                                "/*.png",
+                                "/*.svg",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
@@ -88,7 +94,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH,
                                 ApiConstants.API_V1 + "/blogs/*/view"
                         ).permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers(ApiConstants.API_V1 + "/**").authenticated()
+                        .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

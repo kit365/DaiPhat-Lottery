@@ -270,10 +270,12 @@ class WebSocketService {
     }
 
     private resolveEndpoint(): string {
-        const configuredBaseUrl = import.meta.env.VITE_WS_BASE_URL || import.meta.env.VITE_API_BASE_URL || DEFAULT_WS_SERVER_URL;
-        const normalizedBaseUrl = configuredBaseUrl.endsWith('/')
-            ? configuredBaseUrl.slice(0, -1)
-            : configuredBaseUrl;
+        const configuredBaseUrl = import.meta.env.VITE_WS_BASE_URL || import.meta.env.VITE_API_BASE_URL;
+        const runtimeBaseUrl = configuredBaseUrl
+            || (typeof window !== 'undefined' ? window.location.origin : DEFAULT_WS_SERVER_URL);
+        const normalizedBaseUrl = runtimeBaseUrl.endsWith('/')
+            ? runtimeBaseUrl.slice(0, -1)
+            : runtimeBaseUrl;
         return `${normalizedBaseUrl}${WS_ENDPOINT_PATH}`;
     }
 
