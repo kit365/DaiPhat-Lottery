@@ -45,9 +45,20 @@ public class SupportTicketEventListener {
     public void handleSupportTicketCreated(SupportTicketCreatedEvent event) {
         log.info("Handling SupportTicketCreatedEvent for ticketId: {}", event.ticketId());
 
+        if (event.customerId() != null) {
+            notifyUser(
+                    event.customerId(),
+                    "Ghi nhận yêu cầu hỗ trợ",
+                    String.format("Yêu cầu hỗ trợ về %s: \"%s\" của bạn đã được hệ thống ghi nhận thành công. Nhân viên của chúng tôi sẽ sớm tiếp nhận và phản hồi.",
+                            event.categoryName(), event.title()),
+                    event.ticketId()
+            );
+        }
+
         notifyOperators(
                 "Yêu cầu hỗ trợ mới",
-                "Khách hàng vừa tạo ticket #" + event.ticketId() + ": " + event.title() + ".",
+                String.format("Khách hàng vừa tạo yêu cầu mới về %s: \"%s\".",
+                        event.categoryName(), event.title()),
                 event.ticketId(),
                 null);
     }
@@ -60,7 +71,8 @@ public class SupportTicketEventListener {
         if (event.senderRole() == TicketCommentSenderRole.CUSTOMER) {
             notifyOperators(
                     "Khách hàng đã phản hồi yêu cầu hỗ trợ",
-                    "Ticket #" + event.ticketId() + " có tin nhắn mới từ khách hàng.",
+                    String.format("Yêu cầu hỗ trợ về %s: \"%s\" có tin nhắn mới từ khách hàng.",
+                            event.categoryName(), event.title()),
                     event.ticketId(),
                     event.assignedTo());
             return;
@@ -70,7 +82,8 @@ public class SupportTicketEventListener {
             notifyUser(
                     event.customerId(),
                     "Nhân viên đã phản hồi yêu cầu hỗ trợ",
-                    "Ticket #" + event.ticketId() + " có tin nhắn mới từ nhân viên hỗ trợ.",
+                    String.format("Yêu cầu hỗ trợ về %s: \"%s\" có tin nhắn mới từ nhân viên hỗ trợ.",
+                            event.categoryName(), event.title()),
                     event.ticketId());
         }
     }
@@ -87,7 +100,8 @@ public class SupportTicketEventListener {
         notifyUser(
                 event.customerId(),
                 "Yêu cầu hỗ trợ đang được xử lý",
-                event.staffName() + " đã tiếp nhận ticket #" + event.ticketId() + ".",
+                String.format("%s đã tiếp nhận yêu cầu hỗ trợ về %s: \"%s\".",
+                        event.staffName(), event.categoryName(), event.title()),
                 event.ticketId());
     }
 
@@ -103,8 +117,8 @@ public class SupportTicketEventListener {
         notifyUser(
                 event.customerId(),
                 "Yêu cầu hỗ trợ đã được giải quyết",
-                "Ticket #" + event.ticketId()
-                        + " đã được nhân viên giải quyết. Vui lòng xác nhận bạn có hài lòng với phương án này.",
+                String.format("Yêu cầu hỗ trợ về %s: \"%s\" đã được nhân viên giải quyết. Vui lòng xác nhận bạn có hài lòng với phương án này.",
+                        event.categoryName(), event.title()),
                 event.ticketId());
     }
 
@@ -120,8 +134,8 @@ public class SupportTicketEventListener {
         notifyUser(
                 event.customerId(),
                 "Yêu cầu hỗ trợ đã bị từ chối",
-                "Ticket #" + event.ticketId()
-                        + " đã bị từ chối vì không hợp lệ hoặc không đủ điều kiện. Vui lòng xem lý do trong lịch sử trao đổi.",
+                String.format("Yêu cầu hỗ trợ về %s: \"%s\" đã bị từ chối vì không hợp lệ hoặc không đủ điều kiện. Vui lòng xem lý do trong lịch sử trao đổi.",
+                        event.categoryName(), event.title()),
                 event.ticketId());
     }
 
@@ -132,8 +146,8 @@ public class SupportTicketEventListener {
 
         notifyOperators(
                 "Khách hàng chưa hài lòng với phương án giải quyết",
-                "Ticket #" + event.ticketId() + " (" + event.title()
-                        + ") đã được mở lại và đang chờ tiếp nhận.",
+                String.format("Yêu cầu hỗ trợ về %s: \"%s\" đã được mở lại và đang chờ tiếp nhận.",
+                        event.categoryName(), event.title()),
                 event.ticketId(),
                 null);
     }
@@ -151,8 +165,8 @@ public class SupportTicketEventListener {
             notifyUser(
                     event.customerId(),
                     "Yêu cầu hỗ trợ đã tự động đóng",
-                    "Ticket #" + event.ticketId()
-                            + " đã được đóng tự động vì không có phản hồi sau khi giải quyết.",
+                    String.format("Yêu cầu hỗ trợ về %s: \"%s\" đã được đóng tự động vì không có phản hồi sau khi giải quyết.",
+                            event.categoryName(), event.title()),
                     event.ticketId());
             return;
         }
@@ -160,7 +174,8 @@ public class SupportTicketEventListener {
         notifyUser(
                 event.customerId(),
                 "Yêu cầu hỗ trợ đã đóng",
-                "Ticket #" + event.ticketId() + " đã được đóng theo xác nhận của bạn.",
+                String.format("Yêu cầu hỗ trợ về %s: \"%s\" đã được đóng theo xác nhận của bạn.",
+                        event.categoryName(), event.title()),
                 event.ticketId());
     }
 

@@ -8,6 +8,7 @@ import java.util.UUID;
 public record SupportTicketCreatedEvent(
         Long ticketId,
         String title,
+        String categoryName,
         UUID customerId
 ) {
 }

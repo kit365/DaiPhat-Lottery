@@ -7,6 +7,8 @@ import java.util.UUID;
 @Builder
 public record SupportTicketRejectedEvent(
         Long ticketId,
+        String title,
+        String categoryName,
         UUID customerId
 ) {
 }
