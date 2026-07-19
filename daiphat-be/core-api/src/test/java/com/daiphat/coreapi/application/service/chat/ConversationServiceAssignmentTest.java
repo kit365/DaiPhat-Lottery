@@ -320,6 +320,32 @@ class ConversationServiceAssignmentTest {
     }
 
     @Test
+    void disconnectStaff_whenAssigned_returnsToOpenAndNotifies() {
+        ConversationModel conversation = conversation(ConversationStatus.WAITING_FOR_CUSTOMER, OPERATOR_A);
+        when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(user("Customer"));
+        when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
+        when(chatApplicationMapper.toConversationResponse(any()))
+                .thenReturn(mockConversationResponse(ConversationStatus.OPEN, null));
+        when(chatApplicationMapper.toMessageResponses(any())).thenReturn(List.of());
+
+        conversationService.disconnectStaff(CUSTOMER_ID, CONVERSATION_ID);
+
+        assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.OPEN);
+        assertThat(conversation.getAssignedOperatorId()).isNull();
+        verify(messageRepositoryPort).save(argThat((MessageModel message) ->
+                message.getContent() != null
+                        && message.getContent().contains("ngắt kết nối với nhân viên")));
+        verify(chatConversationEventPublisherPort).publishToOperators(argThat(event ->
+                event.eventType() == ConversationSocketEventType.CONVERSATION_STAFF_REQUEST_CANCELLED
+                        && event.status() == ConversationStatus.OPEN
+        ));
+    }
+
+    @Test
     void assignConversationToMe_fromOpen_assignsAtomically() {
         ConversationModel conversation = conversation(ConversationStatus.WAITING_FOR_OPERATOR, null);
         when(userLookupServicePort.findActiveByIdOrThrow(OPERATOR_A)).thenReturn(user("Operator A"));

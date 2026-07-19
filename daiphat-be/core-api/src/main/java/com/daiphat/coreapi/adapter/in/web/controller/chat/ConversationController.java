@@ -170,6 +170,20 @@ public class ConversationController {
         );
     }
 
+    @PostMapping("/my/{conversationId}/disconnect-staff")
+    @PreAuthorize("hasAnyAuthority('"
+            + RoleConstants.ROLE_MEMBER + "', '"
+            + RoleConstants.ROLE_STREET_AGENT + "', '"
+            + RoleConstants.ADMIN + "')")
+    public ApiResponse<ConversationDetailResponse> disconnectMyStaff(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @PathVariable Long conversationId) {
+        return ApiResponse.success(
+                "Đã ngắt kết nối với nhân viên hỗ trợ.",
+                conversationServicePort.disconnectStaff(principal.getId(), conversationId)
+        );
+    }
+
     @GetMapping("/management")
     @PreAuthorize("hasAnyAuthority('"
             + RoleConstants.ROLE_STAFF_OPERATOR + "', '"

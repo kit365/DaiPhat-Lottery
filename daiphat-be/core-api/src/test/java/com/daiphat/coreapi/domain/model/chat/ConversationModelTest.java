@@ -78,6 +78,19 @@ class ConversationModelTest {
     }
 
     @Test
+    void disconnectStaff_returnsAssignedConversationToOpen() {
+        ConversationModel conversation = ConversationModel.builder()
+                .status(ConversationStatus.WAITING_FOR_CUSTOMER)
+                .assignedOperatorId(OPERATOR_ID)
+                .build();
+
+        conversation.disconnectStaff();
+
+        assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.OPEN);
+        assertThat(conversation.getAssignedOperatorId()).isNull();
+    }
+
+    @Test
     void cancelStaffRequest_rejectsWhenNotWaiting() {
         ConversationModel conversation = ConversationModel.builder()
                 .status(ConversationStatus.OPEN)

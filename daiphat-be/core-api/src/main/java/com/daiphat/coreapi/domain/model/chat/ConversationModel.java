@@ -102,6 +102,20 @@ public class ConversationModel {
         return "Quý khách đã huỷ yêu cầu gặp nhân viên. Đại Phát sẽ tiếp tục hỗ trợ quý khách.";
     }
 
+    public void disconnectStaff() {
+        if (assignedOperatorId == null
+                || (status != ConversationStatus.ACTIVE
+                && status != ConversationStatus.WAITING_FOR_CUSTOMER)) {
+            throw new DomainException(ErrorCode.CONVERSATION_CANNOT_CANCEL_STAFF_REQUEST);
+        }
+        assignedOperatorId = null;
+        status = ConversationStatus.OPEN;
+    }
+
+    public static String disconnectStaffCopy() {
+        return "Quý khách đã ngắt kết nối với nhân viên hỗ trợ.";
+    }
+
     public void waitForCustomer() {
         status = ConversationStatus.WAITING_FOR_CUSTOMER;
     }
