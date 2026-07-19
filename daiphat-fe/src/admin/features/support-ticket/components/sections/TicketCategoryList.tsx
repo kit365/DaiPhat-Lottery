@@ -23,6 +23,8 @@ import {
     Close as CloseIcon,
     Edit as EditIcon,
     SubdirectoryArrowRightRounded as SubdirectoryArrowRightIcon,
+    KeyboardArrowUp,
+    KeyboardArrowDown,
 } from '@mui/icons-material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supportTicketAdminApi } from '../../services/supportTicketService';
@@ -242,16 +244,22 @@ export const TicketCategoryList = ({
                                 size="small"
                                 value={editData.name}
                                 onChange={(e) => setEditData(prev => ({ ...prev, name: e.target.value }))}
+                                onKeyDown={(e) => e.stopPropagation()}
                                 placeholder="Tên danh mục"
                                 fullWidth
+                                multiline
+                                maxRows={3}
                                 error={!!errorMsg && errorMsg.toLowerCase().includes('tên')}
                             />
                             <TextField
                                 size="small"
                                 value={editData.description}
                                 onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+                                onKeyDown={(e) => e.stopPropagation()}
                                 placeholder="Mô tả danh mục"
                                 fullWidth
+                                multiline
+                                maxRows={4}
                             />
                         </Box>
                     );
@@ -332,11 +340,27 @@ export const TicketCategoryList = ({
                     return (
                         <TextField 
                             size="small" 
-                            type="number"
+                            type="text"
                             value={editData.priority}
-                            onChange={(e) => handlePriorityChange(e.target.value, Number(params.row.id), params.row.parentId)}
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                handlePriorityChange(val, Number(params.row.id), params.row.parentId)
+                            }}
                             error={!!errorMsg}
                             helperText={errorMsg}
+                            inputProps={{ style: { textAlign: 'center' } }}
+                            InputProps={{
+                                endAdornment: (
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', mr: -1, '& .MuiIconButton-root': { p: 0, height: 16 } }}>
+                                        <IconButton onClick={() => handlePriorityChange(String((Number(editData.priority) || 0) + 1), Number(params.row.id), params.row.parentId)}>
+                                            <KeyboardArrowUp fontSize="small" />
+                                        </IconButton>
+                                        <IconButton onClick={() => handlePriorityChange(String(Math.max(1, (Number(editData.priority) || 0) - 1)), Number(params.row.id), params.row.parentId)}>
+                                            <KeyboardArrowDown fontSize="small" />
+                                        </IconButton>
+                                    </Box>
+                                )
+                            }}
                             sx={{ width: 100, my: 1 }}
                         />
                     );
