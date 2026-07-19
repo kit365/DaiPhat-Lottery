@@ -22,8 +22,6 @@ spring:
     redis:
       host: localhost
       port: 6380
-    mongodb:
-      uri: mongodb://core_admin:core_pass_2026@localhost:27018/daiphat_core_db?authSource=admin
   mail:
     host: ${AUTH_LOCAL_MAIL_HOST}
     port: ${AUTH_LOCAL_MAIL_PORT}

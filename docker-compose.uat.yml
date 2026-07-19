@@ -1,18 +1,19 @@
-name: daiphat-prod
+name: daiphat-uat
 
 # This file is for Docker preflight or a VM fallback. Azure App Service runs
 # the same APP_IMAGE and receives these variables through App Settings.
 services:
   app:
     platform: linux/amd64
-    image: ${APP_IMAGE:-docker.io/kitops365/daiphat:prod}
+    image: ${APP_IMAGE:-docker.io/kitops365/daiphat:uat}
     pull_policy: always
     restart: unless-stopped
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      # The existing "staging" Spring profile is the UAT profile.
+      SPRING_PROFILES_ACTIVE: staging
       SERVER_PORT: 8080
     env_file:
-      - path: ./.env.prod
+      - path: ./.env.uat
         required: false
     ports:
       - "${APP_PORT:-8080}:8080"

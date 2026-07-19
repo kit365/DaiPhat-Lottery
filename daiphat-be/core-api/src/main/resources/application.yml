@@ -1,5 +1,5 @@
 server:
-  port: ${CORE_API_PORT}
+  port: ${SERVER_PORT:${CORE_API_PORT:8080}}
   forward-headers-strategy: framework
 
 spring:
