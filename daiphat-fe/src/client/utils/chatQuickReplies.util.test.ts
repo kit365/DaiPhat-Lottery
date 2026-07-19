@@ -100,6 +100,40 @@ describe('resolveContextualQuickReplies', () => {
       'Gặp nhân viên',
     ]);
   });
+
+  it('only offers staff support while AI is disabled', () => {
+    const result = resolveContextualQuickReplies(
+      {
+        id: '4',
+        sender: 'bot',
+        variant: 'bubble',
+        text: 'Hiện Đại Phát chưa có vé khớp đuôi số 43.',
+      },
+      { hasCustomerMessages: true, isAiEnabled: false }
+    );
+
+    expect(result.chips).toEqual([
+      {
+        id: 'ai-disabled-staff',
+        label: 'Gặp nhân viên',
+        action: 'staff',
+        primary: true,
+      },
+    ]);
+  });
+
+  it('keeps ticket-suggest footer empty when AI is disabled (inline staff chip owns the CTA)', () => {
+    const result = resolveContextualQuickReplies(
+      {
+        id: '5',
+        sender: 'bot',
+        variant: 'ticket-suggest',
+        text: 'Đại Phát gợi ý vé.',
+      },
+      { hasCustomerMessages: true, isAiEnabled: false }
+    );
+    expect(result.chips).toHaveLength(0);
+  });
 });
 
 describe('scheduleResultFollowUpChips', () => {
@@ -122,8 +156,8 @@ describe('ticketSuggestFollowUpChips', () => {
     expect(chips.map((chip) => chip.label)).toEqual(['Gợi ý khác', 'Tìm đuôi số', 'Gặp nhân viên']);
   });
 
-  it('labels search chip as đổi đuôi when empty match', () => {
-    expect(ticketSuggestFollowUpChips({ isEmptyMatch: true })[1].label).toBe('Đổi đuôi khác');
+  it('always labels the search chip as tìm đuôi số', () => {
+    expect(ticketSuggestFollowUpChips()[1].label).toBe('Tìm đuôi số');
   });
 });
 

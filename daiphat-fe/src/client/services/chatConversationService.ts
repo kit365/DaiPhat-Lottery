@@ -1,5 +1,6 @@
 import { apiApp } from '../../api';
 import {
+    ChatAiStatusResponse,
     ConversationDetailResponse,
     CustomerChatTimelineResponse,
     EscalateConversationRequest,
@@ -11,6 +12,19 @@ import { ApiResponse } from '../../types/api.type';
 const BASE_URL = '/chat/conversations';
 
 export const chatConversationService = {
+    getAiStatus: async (): Promise<ChatAiStatusResponse> => {
+        try {
+            const response = await apiApp.get<ApiResponse<ChatAiStatusResponse>>(
+                '/chat/ai-status',
+                { skipGlobalErrorToast: true } as any
+            );
+            return response.data.data ?? { enabled: true };
+        } catch {
+            // Fail open: do not hide AI chips if status endpoint is temporarily unavailable.
+            return { enabled: true };
+        }
+    },
+
     init: async (data: InitConversationRequest): Promise<InitConversationApiResponse> => {
         const response = await apiApp.post<InitConversationApiResponse>(`${BASE_URL}/init`, data);
         return response.data;
@@ -46,6 +60,13 @@ export const chatConversationService = {
     cancelStaffRequest: async (conversationId: number): Promise<ApiResponse<ConversationDetailResponse>> => {
         const response = await apiApp.post<ApiResponse<ConversationDetailResponse>>(
             `${BASE_URL}/my/${conversationId}/cancel-staff-request`
+        );
+        return response.data;
+    },
+
+    disconnectStaff: async (conversationId: number): Promise<ApiResponse<ConversationDetailResponse>> => {
+        const response = await apiApp.post<ApiResponse<ConversationDetailResponse>>(
+            `${BASE_URL}/my/${conversationId}/disconnect-staff`
         );
         return response.data;
     },
