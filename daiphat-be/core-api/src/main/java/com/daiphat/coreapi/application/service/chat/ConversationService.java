@@ -420,6 +420,26 @@ public class ConversationService implements ConversationServicePort {
 
     @Override
     @Transactional
+    public ConversationDetailResponse disconnectStaff(UUID customerId, Long conversationId) {
+        userLookupServicePort.findActiveByIdOrThrow(customerId);
+        ConversationModel conversation = conversationRepositoryPort.findByIdForUpdate(conversationId)
+                .orElseThrow(() -> new DomainException(ErrorCode.CONVERSATION_NOT_FOUND));
+
+        assertCustomerAccess(conversation, customerId);
+        conversation.disconnectStaff();
+
+        ConversationModel savedConversation = conversationRepositoryPort.save(conversation);
+        saveSystemDividerMessage(savedConversation.getId(), ConversationModel.disconnectStaffCopy());
+        publishConversationEvent(
+                ConversationSocketEventType.CONVERSATION_STAFF_REQUEST_CANCELLED,
+                savedConversation,
+                null
+        );
+        return toConversationDetailResponse(getConversationOrThrow(savedConversation.getId()));
+    }
+
+    @Override
+    @Transactional
     public ConversationDetailResponse assignConversationToMe(UUID operatorId, Long conversationId) {
         ConversationModel conversation = conversationRepositoryPort.findByIdForUpdate(conversationId)
                 .orElseThrow(() -> new DomainException(ErrorCode.CONVERSATION_NOT_FOUND));

@@ -84,6 +84,22 @@ export const useChatConversation = () => {
         }
     };
 
+    const disconnectStaff = async (
+        conversationId: number
+    ): Promise<ConversationDetailResponse | null> => {
+        try {
+            const response = await chatConversationService.disconnectStaff(conversationId);
+            if (!response.success || !response.data) {
+                toast.error(response.message || 'Không thể ngắt kết nối với nhân viên.');
+                return null;
+            }
+            return response.data;
+        } catch (error: any) {
+            toast.error(getErrorMessage(error, 'Không thể ngắt kết nối với nhân viên.'));
+            return null;
+        }
+    };
+
     const sendRealtimeMessage = async (conversationId: number, content: string): Promise<void> => {
         await connect();
         await socketService.sendChatMessage({
@@ -166,6 +182,7 @@ export const useChatConversation = () => {
         loadConversationDetail,
         escalateConversation,
         cancelStaffRequest,
+        disconnectStaff,
         markConversationAsRead,
         sendRealtimeMessage,
         subscribeToConversation,
