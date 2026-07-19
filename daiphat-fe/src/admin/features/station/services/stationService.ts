@@ -65,16 +65,21 @@ export const getStations = async (
     params?: StationQueryParams
 ): Promise<ApiResponse<PageResponse<Station>>> => {
     const requestParams = params
-        ? {
-              ...params,
-              drawDay: params.drawDay
-                  ? String(params.drawDay)
-                        .split(',')
-                        .map((d) => FE_TO_BACKEND_DAY[d.trim()] || d.trim())
-                        .filter(Boolean)
-                        .join(',')
-                  : undefined,
-          }
+        ? (() => {
+              const { limit, ...rest } = params;
+              return {
+                  ...rest,
+                  // LotteryStationController uses `size`; the UI model uses `limit`.
+                  size: limit,
+                  drawDay: params.drawDay
+                      ? String(params.drawDay)
+                            .split(',')
+                            .map((d) => FE_TO_BACKEND_DAY[d.trim()] || d.trim())
+                            .filter(Boolean)
+                            .join(',')
+                      : undefined,
+              };
+          })()
         : undefined;
 
     const response = await apiApp.get(BASE_URL, { params: requestParams });

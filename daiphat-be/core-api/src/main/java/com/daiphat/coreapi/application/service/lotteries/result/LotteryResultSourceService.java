@@ -10,7 +10,6 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryStationSourceType;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 
@@ -22,7 +21,8 @@ public class LotteryResultSourceService implements LotteryResultSourceServicePor
     private final LotteryResultSourceSyncPort lotteryResultSourceSyncPort;
 
     @Override
-    @Transactional(readOnly = true)
+    // External HTTP fetch must not join the sync TX — a nested TX marks rollback-only when
+    // empty/invalid source throws DomainException, even if syncResult catches and handles it.
     public LotteryResultSourcePreviewResult preview(LotteryStationSourceType sourceType, Long stationId, LocalDate drawDate) {
         if (stationId == null) {
             throw new DomainException(ErrorCode.LOTTERY_RESULT_STATION_REQUIRED);

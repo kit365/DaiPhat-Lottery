@@ -48,6 +48,10 @@ public interface ConversationServicePort {
 
     ConversationDetailResponse escalateConversation(UUID actorId, Long conversationId, EscalationReason reason);
 
+    ConversationDetailResponse cancelStaffRequest(UUID customerId, Long conversationId);
+
+    ConversationDetailResponse disconnectStaff(UUID customerId, Long conversationId);
+
     ConversationDetailResponse assignConversationToMe(UUID operatorId, Long conversationId);
 
     ConversationDetailResponse unassignConversation(UUID operatorId, Long conversationId);

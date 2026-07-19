@@ -2,7 +2,7 @@ package com.daiphat.coreapi.application.service.chat.intent;
 
 import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentContext;
 import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentOutcome;
-import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponseDto;
+import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponse;
 import com.daiphat.coreapi.application.service.chat.flow.schedule.DrawScheduleFlowService;
 import com.daiphat.coreapi.application.strategy.chat.intent.WebScheduleIntentStrategy;
 import com.daiphat.coreapi.domain.model.chat.ConversationModel;
@@ -46,7 +46,7 @@ class WebScheduleIntentHandlerTest {
     void resolve_delegatesToDrawScheduleFlowService() {
         ConversationModel conversation = conversation();
         MessageModel customerMessage = customerMessage("lịch quay");
-        ChatClassifyResponseDto classification = ChatClassifyResponseDto.builder()
+        ChatClassifyResponse classification = ChatClassifyResponse.builder()
                 .intent(ChatIntent.WEB_SCHEDULE.name())
                 .confidence(0.75)
                 .entities(Map.of())
@@ -71,7 +71,7 @@ class WebScheduleIntentHandlerTest {
     void resolve_withRegionEntity_passesClassificationThrough() {
         ConversationModel conversation = conversation();
         MessageModel customerMessage = customerMessage("miền nam");
-        ChatClassifyResponseDto classification = ChatClassifyResponseDto.builder()
+        ChatClassifyResponse classification = ChatClassifyResponse.builder()
                 .intent(ChatIntent.WEB_SCHEDULE.name())
                 .confidence(0.88)
                 .entities(Map.of(ENTITY_REGION, LotteryRegionCode.MIEN_NAM.code()))

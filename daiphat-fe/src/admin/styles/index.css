@@ -352,6 +352,10 @@ input:-webkit-autofill:active {
     min-height: auto;
     font-size: 0.875rem;
     color: inherit;
+    position: relative;
+    z-index: 5;
+    pointer-events: auto;
+    background: var(--palette-background-paper);
 }
 
 .admin-datagrid .MuiTablePagination-selectLabel,

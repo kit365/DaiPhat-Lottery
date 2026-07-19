@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.chat.bot;
 
 import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponse;
+import com.daiphat.coreapi.application.dto.response.chat.ChatGenerateResponse;
 import com.daiphat.coreapi.application.port.in.chat.AiServiceConfigPort;
 import com.daiphat.coreapi.application.port.in.chat.ChatAiPort;
 import com.daiphat.coreapi.application.port.out.ai.AiConsultPort;
@@ -34,10 +35,10 @@ public class ChatAiService implements ChatAiPort {
     }
 
     @Override
-    public String generateFortuneReply(String message, Long conversationId) {
+    public ChatGenerateResponse generateFortune(String message, Long conversationId) {
         if (!isEnabled()) {
             return null;
         }
-        return aiConsultPort.generateFortuneReply(message, conversationId);
+        return aiConsultPort.generateFortune(message, conversationId);
     }
 }

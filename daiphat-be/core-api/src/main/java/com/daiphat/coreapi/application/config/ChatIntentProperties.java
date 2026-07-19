@@ -16,6 +16,8 @@ public class ChatIntentProperties {
 
     private List<String> escalateKeywords = new ArrayList<>();
     private List<String> accountKeywords = new ArrayList<>();
+    private List<String> searchKeywords = new ArrayList<>();
+    private List<String> suggestKeywords = new ArrayList<>();
     private List<String> resultKeywords = new ArrayList<>();
     private List<String> fortuneKeywords = new ArrayList<>();
     private List<String> trashTalkExact = new ArrayList<>();

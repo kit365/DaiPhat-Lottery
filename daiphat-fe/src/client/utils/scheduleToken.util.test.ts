@@ -48,6 +48,12 @@ describe('buildBuyTicketPath', () => {
     );
   });
 
+  it('builds path with ticketId from chat CTA', () => {
+    expect(
+      buildBuyTicketPath({ ticketId: 99, stationId: 3, highlightDate: '2026-07-21' })
+    ).toBe('/buy-ticket?ticketId=99&stationId=3&drawDate=2026-07-21');
+  });
+
   it('builds path for region scope', () => {
     expect(buildBuyTicketPath({ region: 'MIEN_NAM' })).toBe('/buy-ticket?region=MIEN_NAM');
   });

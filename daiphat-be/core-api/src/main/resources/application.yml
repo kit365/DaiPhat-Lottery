@@ -80,11 +80,16 @@ daiphat:
         staff-response-sla-minutes: 15
         scheduler-rate-ms: 10000
   lottery:
+    seed:
+      southern-stations:
+        # Upsert 21 đài Miền Nam + lịch quay (Thứ 2–CN) mỗi lần startup
+        enabled: ${LOTTERY_SEED_SOUTHERN_STATIONS_ENABLED:true}
     crawler:
       user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36
     draw-reminder-minutes: 30
     draw-reminder-cron: "0 * * * * *"
-    expire-cron: "0 30 18 * * *"
+    # Quét mỗi 5 phút để vé chuyển EXPIRED ngay sau giờ quay (16:15) thay vì chờ đến tối
+    expire-cron: "0 */5 * * * *"
     station-next-draw-recalculate-cron: "0 0 0 * * *"
     result-poll-seconds: 60
     historical-result-poll-seconds: 10

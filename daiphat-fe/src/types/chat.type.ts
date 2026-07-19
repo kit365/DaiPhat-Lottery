@@ -28,6 +28,7 @@ export type ConversationSocketEventType =
     | 'CONVERSATION_ASSIGNED'
     | 'CONVERSATION_TAKEN'
     | 'CONVERSATION_UNASSIGNED'
+    | 'CONVERSATION_STAFF_REQUEST_CANCELLED'
     | 'CONVERSATION_CLOSED'
     | 'MESSAGE_READ';
 
@@ -38,6 +39,10 @@ export enum MessageSenderRole {
 }
 export type MessageSenderType = MessageSenderRole;
 export type ChatMessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'SYSTEM';
+
+export interface ChatAiStatusResponse {
+    enabled: boolean;
+}
 
 export interface InitConversationRequest {
     title?: string;

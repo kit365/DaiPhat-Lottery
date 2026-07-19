@@ -56,6 +56,7 @@ public class SystemConfigEntity {
     private String description;
 
     @Column(name = "is_active", nullable = false)
+    @lombok.Builder.Default
     private Boolean isActive = true;
 
     @CreatedDate

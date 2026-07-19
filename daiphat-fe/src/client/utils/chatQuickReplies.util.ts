@@ -16,6 +16,7 @@ export interface ChatQuickReplyMessageContext {
   sender: 'bot' | 'user';
   variant?: string;
   text?: string;
+  intent?: string | null;
   scheduleRegion?: string;
   scheduleStationId?: number;
   scheduleStationIds?: number[];
@@ -24,7 +25,7 @@ export interface ChatQuickReplyMessageContext {
 
 export interface ResolveContextualQuickRepliesOptions {
   hasCustomerMessages: boolean;
-  showStaffEscalation?: boolean;
+  isAiEnabled?: boolean;
 }
 
 export interface ContextualQuickReplies {
@@ -41,6 +42,7 @@ const INLINE_ACTION_VARIANTS = new Set([
   'schedule-confirm-station',
   'schedule-region-choice',
   'schedule-result',
+  'ticket-suggest',
 ]);
 
 const REGION_LABELS: Record<string, string> = {
@@ -76,6 +78,17 @@ const welcomeQuickReplies = (): ContextualQuickReplies => ({
   ],
 });
 
+const staffOnlyQuickReplies = (): ContextualQuickReplies => ({
+  chips: [
+    {
+      id: 'ai-disabled-staff',
+      label: 'Gặp nhân viên',
+      action: 'staff',
+      primary: true,
+    },
+  ],
+});
+
 /** Gợi ý gắn inline trong bubble schedule-result (không dùng footer). */
 export const scheduleResultFollowUpChips = (message: ChatQuickReplyMessageContext): QuickReplyChip[] => [
   {
@@ -98,10 +111,27 @@ export const scheduleResultFollowUpChips = (message: ChatQuickReplyMessageContex
   },
 ];
 
-const staffEscalationQuickReplies = (): ContextualQuickReplies => ({
-  hint: 'Bạn cần thêm trợ giúp?',
-  chips: [{ id: 'staff-escalation', label: 'Gặp nhân viên hỗ trợ', action: 'staff', primary: true }],
-});
+/** Chip phụ dưới hàng card gợi ý vé. */
+export const ticketSuggestFollowUpChips = (): QuickReplyChip[] => [
+  {
+    id: 'ticket-suggest-again',
+    label: 'Gợi ý khác',
+    action: 'send',
+    message: 'gợi ý vé số cho tôi',
+    primary: true,
+  },
+  {
+    id: 'ticket-suggest-search',
+    label: 'Tìm đuôi số',
+    action: 'send',
+    message: 'tìm vé đuôi số',
+  },
+  {
+    id: 'ticket-suggest-staff',
+    label: 'Gặp nhân viên',
+    action: 'staff',
+  },
+];
 
 export const resolveContextualQuickReplies = (
   lastBotMessage: ChatQuickReplyMessageContext | null | undefined,
@@ -111,14 +141,16 @@ export const resolveContextualQuickReplies = (
     return { chips: [] };
   }
 
-  if (options.showStaffEscalation) {
-    return staffEscalationQuickReplies();
-  }
-
   const variant = lastBotMessage.variant ?? 'bubble';
 
   if (INLINE_ACTION_VARIANTS.has(variant)) {
+    // Ticket/schedule cards already render their own actions; when AI is off the
+    // ticket card row keeps a single "Gặp nhân viên" chip inline.
     return { chips: [] };
+  }
+
+  if (options.isAiEnabled === false) {
+    return staffOnlyQuickReplies();
   }
 
   if (!options.hasCustomerMessages && lastBotMessage.id === 'welcome') {
@@ -127,11 +159,20 @@ export const resolveContextualQuickReplies = (
 
   if (variant === 'bubble') {
     const normalized = (lastBotMessage.text ?? '').toLowerCase();
-    if (normalized.includes('đơn hàng') || normalized.includes('mua vé')) {
+    // 3 hành động cơ bản luôn có mặt sau mọi câu trả lời của bot.
+    const baseChips = ticketSuggestFollowUpChips().map((chip) => ({
+      ...chip,
+      primary: false,
+    }));
+
+    // Chỉ khớp 'đơn hàng' — nhiều câu trả lời vé chứa cụm "xem mục Mua vé" nên
+    // 'mua vé' sẽ nhận nhầm ngữ cảnh đơn hàng.
+    if (normalized.includes('đơn hàng')) {
       return {
         chips: [
           { id: 'order-again', label: 'Xem đơn mới nhất', action: 'send', message: 'cho em xem đơn hàng', primary: true },
           { id: 'order-schedule', label: 'Tra cứu lịch quay', action: 'send', message: 'tra cứu lịch quay' },
+          ...baseChips,
         ],
       };
     }
@@ -140,9 +181,14 @@ export const resolveContextualQuickReplies = (
         chips: [
           { id: 'result-schedule', label: 'Tra cứu lịch quay', action: 'send', message: 'tra cứu lịch quay', primary: true },
           { id: 'result-again', label: 'Tra cứu kết quả khác', action: 'send', message: 'tra cứu kết quả xổ số' },
+          ...baseChips,
         ],
       };
     }
+
+    return {
+      chips: ticketSuggestFollowUpChips(),
+    };
   }
 
   return { chips: [] };
@@ -151,11 +197,11 @@ export const resolveContextualQuickReplies = (
 export const shouldShowContextualQuickReplies = (options: {
   lastMessage?: ChatQuickReplyMessageContext | null;
   inputValue: string;
-  isInputFocused?: boolean;
   isInteractive: boolean;
   replies: ContextualQuickReplies;
 }): boolean => {
-  if (!options.isInteractive || options.inputValue.trim() || options.isInputFocused) {
+  // Chỉ ẩn khi user đang gõ dở nội dung — focus vào ô nhập không làm mất chips.
+  if (!options.isInteractive || options.inputValue.trim()) {
     return false;
   }
   if (!options.lastMessage || options.lastMessage.sender !== 'bot') {

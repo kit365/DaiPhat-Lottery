@@ -2,10 +2,12 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { InfiniteData, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircle, X, Minus, Send } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast } from '../../../utils/toast.util';
 import { useAuth } from '../../hooks/useAuth';
 import { useChatConversation } from '../../hooks/useChatConversation';
+import { useChatAiStatus } from '../../hooks/useChatAiStatus';
 import { getCustomerChatTimelineKey, CLIENT_TIMELINE_USER_KEY, useMyChatTimeline } from '../../../hooks/useCustomerChatTimeline';
 import {
   countUnreadInboundMessages,
@@ -27,9 +29,11 @@ import {
 } from '../../../types/chat.type';
 import { ChatSocketMessageEvent } from '../../../types/websocket.type';
 import { ChatLotterySchedule } from './ChatLotterySchedule';
+import { ChatTicketSuggestCards } from './ChatTicketSuggestCards';
 import {
   parseConfirmStationToken,
   parseScheduleResultToken,
+  buildBuyTicketPath,
   SCHEDULE_TOKEN_ASK_DATE,
   SCHEDULE_TOKEN_ASK_DATE_MODE,
   SCHEDULE_TOKEN_ASK_LOCATION,
@@ -39,10 +43,16 @@ import {
   type ConfirmStationOption,
 } from '../../utils/scheduleToken.util';
 import {
+  parseTicketSuggestToken,
+  splitTicketSuggestText,
+  type ChatSuggestedTicket,
+} from '../../utils/ticketSuggestToken.util';
+import {
   type QuickReplyChip,
   resolveBuyTicketPathFromChip,
   resolveContextualQuickReplies,
   scheduleResultFollowUpChips,
+  ticketSuggestFollowUpChips,
   SCHEDULE_RESTART_DISPLAY_LABEL,
   SCHEDULE_RESTART_MESSAGE,
   shouldShowContextualQuickReplies,
@@ -53,12 +63,16 @@ interface Message {
   sender: 'bot' | 'user';
   text: string;
   timestamp: string;
-  variant?: 'bubble' | 'divider' | 'date' | 'schedule' | 'schedule-options' | 'schedule-ask-location' | 'schedule-ask-station' | 'schedule-ask-date' | 'schedule-ask-date-mode' | 'schedule-confirm-station' | 'schedule-region-choice' | 'schedule-result';
+  intent?: string | null;
+  fromStaff?: boolean;
+  variant?: 'bubble' | 'divider' | 'date' | 'schedule' | 'schedule-options' | 'schedule-ask-location' | 'schedule-ask-station' | 'schedule-ask-date' | 'schedule-ask-date-mode' | 'schedule-confirm-station' | 'schedule-region-choice' | 'schedule-result' | 'ticket-suggest' | 'typing';
   scheduleRegion?: string;
   scheduleStationId?: number;
   scheduleStationIds?: number[];
   scheduleHighlightDate?: string;
   confirmStationOptions?: ConfirmStationOption[];
+  suggestedTickets?: ChatSuggestedTicket[];
+  ticketSuggestEmptyMatch?: boolean;
 }
 
 const SESSION_DIVIDER_PATTERNS = [
@@ -128,10 +142,6 @@ const isAiHandoffErrorText = (text: string): boolean => {
 const hasAiDisabledNoticeInTimeline = (messages: Message[]): boolean =>
   messages.some((message) => isStrictAiDisabledNoticeText(message.text));
 
-/**
- * Case B signals: handoff / unavailable / real bot reply.
- * Welcome, session dividers, and AI-disabled notice do not count.
- */
 const hasAiAssistanceActivity = (messages: Message[]): boolean =>
   messages.some((message) => {
     if (message.sender !== 'bot' || message.id === 'welcome') {
@@ -140,11 +150,11 @@ const hasAiAssistanceActivity = (messages: Message[]): boolean =>
     if (isStrictAiDisabledNoticeText(message.text) || isSessionDividerText(message.text)) {
       return false;
     }
-    if (isAiHandoffErrorText(message.text)) {
-      return true;
-    }
     return message.variant !== 'divider' && message.variant !== 'date';
   });
+
+const isStaffConnectingNoticeText = (text: string): boolean =>
+  text.toLowerCase().includes('đang kết nối bạn với nhân viên hỗ trợ');
 
 const isSystemNoticeText = (text: string): boolean => {
   const normalized = text.toLowerCase();
@@ -154,7 +164,9 @@ const isSystemNoticeText = (text: string): boolean => {
     isAiHandoffErrorText(text) ||
     normalized.includes('đã tiếp nhận') ||
     normalized.includes('đang chờ nhân viên tiếp nhận') ||
-    normalized.includes('yêu cầu của bạn đang chờ')
+    normalized.includes('yêu cầu của bạn đang chờ') ||
+    normalized.includes('huỷ yêu cầu gặp nhân viên') ||
+    normalized.includes('ngắt kết nối với nhân viên')
   );
 };
 
@@ -203,8 +215,22 @@ const compactHandoffBotMessages = (messages: Message[]): Message[] => {
 const isOpenBotThread = (status: ConversationStatus | null): boolean =>
   status === 'OPEN' || status === null;
 
-const prepareDisplayMessages = (messages: Message[]): Message[] =>
-  compactHandoffBotMessages(messages);
+const prepareDisplayMessages = (messages: Message[], isAiEnabled: boolean): Message[] =>
+  compactHandoffBotMessages(
+    messages.filter((message) => {
+      // Never drop real staff replies — only suppress auto handoff copy when AI is off.
+      if (message.fromStaff || message.sender === 'user') {
+        return true;
+      }
+      if (!isAiEnabled && isStaffConnectingNoticeText(message.text)) {
+        return false;
+      }
+      if (!isAiEnabled && isAiHandoffErrorText(message.text)) {
+        return false;
+      }
+      return true;
+    })
+  );
 
 const SCHEDULE_OPTIONS_CONTENT = 'SCHEDULE_OPTIONS';
 const SCHEDULE_REGION_CODES = new Set(['MIEN_NAM', 'MIEN_TRUNG', 'MIEN_BAC']);
@@ -226,6 +252,8 @@ const resolveMessageVariant = (
   | 'scheduleStationIds'
   | 'scheduleHighlightDate'
   | 'confirmStationOptions'
+  | 'suggestedTickets'
+  | 'ticketSuggestEmptyMatch'
 > => {
   const text = message.content?.trim() || '';
 
@@ -296,11 +324,18 @@ const resolveMessageVariant = (
     }
   }
 
-  if (
-    message.type === 'SYSTEM' ||
-    message.senderType === 'AI_SYSTEM' ||
-    isSystemNoticeText(text)
-  ) {
+  const ticketSuggest = parseTicketSuggestToken(text);
+  if (ticketSuggest) {
+    return {
+      variant: 'ticket-suggest',
+      text: ticketSuggest.text,
+      suggestedTickets: ticketSuggest.tickets,
+      ticketSuggestEmptyMatch: ticketSuggest.isEmptyMatch,
+    };
+  }
+
+  // AI_SYSTEM replies are normal bot bubbles; only SYSTEM / notice texts are dividers.
+  if (message.type === 'SYSTEM' || isSystemNoticeText(text)) {
     return { variant: 'divider', text };
   }
   return { variant: 'bubble', text: text || '[Tin nhắn trống]' };
@@ -339,12 +374,16 @@ const toUiMessage = (message: ChatMessageResponse): Message => {
     sender: message.senderType === 'CUSTOMER' ? 'user' : 'bot',
     text: displayText,
     timestamp: formatTime(message.createdAt),
+    intent: message.intent,
+    fromStaff: message.senderType === 'OPERATOR',
     variant: resolved.variant,
     scheduleRegion: resolved.scheduleRegion,
     scheduleStationId: resolved.scheduleStationId,
     scheduleStationIds: resolved.scheduleStationIds,
     scheduleHighlightDate: resolved.scheduleHighlightDate,
     confirmStationOptions: resolved.confirmStationOptions,
+    suggestedTickets: resolved.suggestedTickets,
+    ticketSuggestEmptyMatch: resolved.ticketSuggestEmptyMatch,
   };
 };
 
@@ -411,6 +450,17 @@ const buildMessagesFromTimeline = (pages: CustomerChatTimelineResponse[]): Messa
 
 const pruneOverlayMessages = (overlay: Message[], timelineMessages: Message[]): Message[] =>
   overlay.filter((extra) => {
+    if (extra.id.startsWith('optimistic-user-')) {
+      return !timelineMessages.some(
+        (timelineMessage) =>
+          timelineMessage.sender === 'user' && timelineMessage.text.trim() === extra.text.trim()
+      );
+    }
+
+    if (extra.id.startsWith('typing-')) {
+      return true;
+    }
+
     if (extra.id.startsWith('local-')) {
       return !timelineMessages.some((timelineMessage) => timelineMessage.id === extra.id);
     }
@@ -424,6 +474,18 @@ const pruneOverlayMessages = (overlay: Message[], timelineMessages: Message[]): 
     return true;
   });
 
+const formatNowTime = () =>
+  new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+const countBotReplies = (messages: Message[]): number =>
+  messages.filter(
+    (message) =>
+      message.sender === 'bot' &&
+      message.variant !== 'divider' &&
+      message.variant !== 'date' &&
+      message.variant !== 'typing' &&
+      message.id !== 'welcome'
+  ).length;
 export const ChatbotPopup = () => {
   const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
@@ -435,6 +497,8 @@ export const ChatbotPopup = () => {
     loadOpenConversation,
     loadConversationDetail,
     escalateConversation,
+    cancelStaffRequest,
+    disconnectStaff,
     markConversationAsRead,
     sendRealtimeMessage,
     subscribeToCustomerInbox,
@@ -443,6 +507,8 @@ export const ChatbotPopup = () => {
     isLoadingOpen,
   } = useChatConversation();
   const timelineQuery = useMyChatTimeline(token);
+  const aiStatusQuery = useChatAiStatus(Boolean(token && userId));
+  const isAiEnabled = aiStatusQuery.data?.enabled !== false;
   const { fetchPreviousPage, refetch: refetchTimeline } = timelineQuery;
   const timelineRefreshingRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -450,20 +516,36 @@ export const ChatbotPopup = () => {
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [conversationStatus, setConversationStatus] = useState<ConversationStatus | null>(null);
   const [isEscalating, setIsEscalating] = useState(false);
+  const [isCancellingStaff, setIsCancellingStaff] = useState(false);
+  const [isDisconnectingStaff, setIsDisconnectingStaff] = useState(false);
   const [overlayMessages, setOverlayMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isSendingUi, setIsSendingUi] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesContentRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
   const pendingScrollRestore = useRef(0);
   const shouldStickToBottom = useRef(true);
   const wasAtBottomRef = useRef(true);
   const wasOpenRef = useRef(false);
+  const wasAuthReadyRef = useRef(false);
+  const wasMinimizedRef = useRef(false);
   const timelinePrefetchLockRef = useRef(false);
   const lastMessageIdRef = useRef<string | null>(null);
   const lastReadAckKeyRef = useRef<string | null>(null);
   const initialTimelineScrollDoneRef = useRef(false);
+  const scrollRafRef = useRef<number | null>(null);
+  const awaitingBotReplyRef = useRef(false);
+  const botReplyCountAtSendRef = useRef(0);
+  /** Blocks duplicate send while Vietnamese/CJK IME finishes composition after Enter. */
+  const isSendingRef = useRef(false);
+  const sendStartedAtRef = useRef(0);
+  /** Discard IME leftover syllables that get re-inserted into a cleared input. */
+  const suppressInputAfterSendRef = useRef(false);
+  const sendLockTimeoutRef = useRef<number | null>(null);
+  const botReplyTimeoutRef = useRef<number | null>(null);
+  const releaseSendLockRef = useRef<() => void>(() => undefined);
   const handleIncomingMessageRef = useRef<(payload: ChatSocketMessageEvent) => void>(() => undefined);
   const handleConversationEventRef = useRef<(event: ChatConversationSocketEvent) => void>(() => undefined);
 
@@ -476,11 +558,34 @@ export const ChatbotPopup = () => {
     const base = timelineMessages.length > 0
       ? timelineMessages
       : [WELCOME_MESSAGE, ...timelineMessages];
-    return [...base, ...overlayMessages];
+    // Lọc overlay ngay lúc render (không đợi effect) để bubble optimistic không
+    // render trùng với tin thật từ server trong 1 frame — nguyên nhân list bị "giật".
+    let overlay = pruneOverlayMessages(overlayMessages, timelineMessages);
+    const stillAwaitingReply =
+      awaitingBotReplyRef.current &&
+      countBotReplies(timelineMessages) <= botReplyCountAtSendRef.current;
+    if (!stillAwaitingReply) {
+      overlay = overlay.filter((message) => !message.id.startsWith('typing-'));
+    }
+    return [...base, ...overlay];
   }, [timelineMessages, overlayMessages]);
 
-  const displayMessages = useMemo(() => prepareDisplayMessages(messages), [messages]);
+  const displayMessages = useMemo(
+    () => prepareDisplayMessages(messages, isAiEnabled),
+    [isAiEnabled, messages]
+  );
   const isAuthReady = Boolean(token && userId);
+
+  useEffect(() => {
+    return () => {
+      if (sendLockTimeoutRef.current != null) {
+        window.clearTimeout(sendLockTimeoutRef.current);
+      }
+      if (botReplyTimeoutRef.current != null) {
+        window.clearTimeout(botReplyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const seedTimelineFromDetail = useCallback(
     (detail: ConversationDetailResponse) => {
@@ -530,40 +635,49 @@ export const ChatbotPopup = () => {
     [messages]
   );
 
-  const hasAiErrorOrDisabledSignal = useMemo(
-    () =>
-      displayMessages.some(
-        (message) =>
-          message.sender === 'bot' &&
-          (isStrictAiDisabledNoticeText(message.text) || isAiHandoffErrorText(message.text))
-      ),
-    [displayMessages]
-  );
-
   const showAiDisabledNotice =
+    aiStatusQuery.isSuccess &&
+    !isAiEnabled &&
     hasCustomerMessages &&
     isOpenBotThread(conversationStatus) &&
     !hasAiDisabledNoticeInTimeline(displayMessages) &&
     !hasAiAssistanceActivity(displayMessages);
 
-  // Chỉ gợi ý gặp nhân viên khi AI lỗi/tắt — không spam sau mỗi lượt chat bình thường.
-  const showStaffCta =
-    hasCustomerMessages &&
-    isOpenBotThread(conversationStatus) &&
-    (showAiDisabledNotice || hasAiErrorOrDisabledSignal);
-
   const showWaitingForStaff =
     hasCustomerMessages && conversationStatus === 'WAITING_FOR_OPERATOR';
 
-  const lastDisplayMessage = displayMessages[displayMessages.length - 1] ?? null;
+  const showChattingWithStaff =
+    hasCustomerMessages &&
+    (conversationStatus === 'ACTIVE' || conversationStatus === 'WAITING_FOR_CUSTOMER');
+
+  /**
+   * Ngữ cảnh cho quick replies = tin nhắn bot có nội dung gần nhất.
+   * Bỏ qua divider hệ thống (kết nối/huỷ gặp nhân viên), typing indicator và tin của khách
+   * để hàng chip không biến mất giữa các bước gửi tin / escalate.
+   */
+  const quickReplyContextMessage = useMemo(() => {
+    for (let index = displayMessages.length - 1; index >= 0; index -= 1) {
+      const message = displayMessages[index];
+      if (
+        message.variant === 'divider' ||
+        message.variant === 'date' ||
+        message.variant === 'typing' ||
+        message.sender !== 'bot'
+      ) {
+        continue;
+      }
+      return message;
+    }
+    return null;
+  }, [displayMessages]);
 
   const contextualReplies = useMemo(
     () =>
-      resolveContextualQuickReplies(lastDisplayMessage, {
+      resolveContextualQuickReplies(quickReplyContextMessage, {
         hasCustomerMessages,
-        showStaffEscalation: showStaffCta,
+        isAiEnabled,
       }),
-    [hasCustomerMessages, lastDisplayMessage, showStaffCta]
+    [hasCustomerMessages, isAiEnabled, quickReplyContextMessage]
   );
 
   const appendSystemMessage = (id: string, text: string) => {
@@ -720,8 +834,50 @@ export const ChatbotPopup = () => {
     }
   };
 
+  const handleCancelStaffRequest = async () => {
+    if (isCancellingStaff || isEscalating || !conversationId) {
+      return;
+    }
+
+    if (conversationStatus !== 'WAITING_FOR_OPERATOR') {
+      return;
+    }
+
+    setIsCancellingStaff(true);
+    try {
+      const detail = await cancelStaffRequest(conversationId);
+      if (!detail) {
+        return;
+      }
+      applyConversationDetail(detail);
+    } finally {
+      setIsCancellingStaff(false);
+    }
+  };
+
+  const handleDisconnectStaff = async () => {
+    if (isDisconnectingStaff || isEscalating || !conversationId || !showChattingWithStaff) {
+      return;
+    }
+
+    setIsDisconnectingStaff(true);
+    try {
+      const detail = await disconnectStaff(conversationId);
+      if (!detail) {
+        return;
+      }
+      applyConversationDetail(detail);
+    } finally {
+      setIsDisconnectingStaff(false);
+    }
+  };
+
   const handleLoadOlderMessages = useCallback(() => {
     if (!timelineQuery.hasPreviousPage || timelineQuery.isFetchingPreviousPage || !messagesContainerRef.current) {
+      return;
+    }
+    // Avoid prefetch while the panel is still settling on the latest message.
+    if (!initialTimelineScrollDoneRef.current) {
       return;
     }
     pendingScrollRestore.current = messagesContainerRef.current.scrollHeight;
@@ -730,8 +886,47 @@ export const ChatbotPopup = () => {
     void fetchPreviousPage();
   }, [fetchPreviousPage, timelineQuery.hasPreviousPage, timelineQuery.isFetchingPreviousPage]);
 
+  const pinScrollToBottom = useCallback((force = false, behavior: ScrollBehavior = 'auto') => {
+    const container = messagesContainerRef.current;
+    if (!container || !isOpen || isMinimized) {
+      return;
+    }
+    if (!force && !shouldStickToBottom.current && !wasAtBottomRef.current) {
+      return;
+    }
+
+    if (scrollRafRef.current != null) {
+      window.cancelAnimationFrame(scrollRafRef.current);
+    }
+
+    scrollRafRef.current = window.requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      const top = container.scrollHeight;
+      if (behavior === 'smooth' && typeof container.scrollTo === 'function') {
+        container.scrollTo({ top, behavior: 'smooth' });
+      } else {
+        container.scrollTop = top;
+      }
+      shouldStickToBottom.current = true;
+      wasAtBottomRef.current = true;
+    });
+  }, [isMinimized, isOpen]);
+
   useEffect(() => {
-    setOverlayMessages((prev) => pruneOverlayMessages(prev, timelineMessages));
+    setOverlayMessages((prev) => {
+      const pruned = pruneOverlayMessages(prev, timelineMessages);
+      if (!awaitingBotReplyRef.current) {
+        return pruned.filter((message) => !message.id.startsWith('typing-'));
+      }
+
+      const botCount = countBotReplies(timelineMessages);
+      if (botCount > botReplyCountAtSendRef.current) {
+        awaitingBotReplyRef.current = false;
+        releaseSendLockRef.current();
+        return pruned.filter((message) => !message.id.startsWith('typing-'));
+      }
+      return pruned;
+    });
   }, [timelineMessages]);
 
   useEffect(() => {
@@ -751,6 +946,7 @@ export const ChatbotPopup = () => {
       (entries) => {
         if (
           entries[0]?.isIntersecting &&
+          initialTimelineScrollDoneRef.current &&
           timelineQuery.hasPreviousPage &&
           !timelineQuery.isFetchingPreviousPage &&
           !timelinePrefetchLockRef.current
@@ -806,16 +1002,52 @@ export const ChatbotPopup = () => {
       hasNewTailMessage &&
       (shouldStickToBottom.current || isNearBottom(container))
     ) {
-      container.scrollTop = container.scrollHeight;
-      shouldStickToBottom.current = true;
-      wasAtBottomRef.current = true;
+      // Smooth after the panel is ready; hard-jump only on first settle.
+      pinScrollToBottom(true, initialTimelineScrollDoneRef.current ? 'smooth' : 'auto');
     }
   }, [
     displayMessages,
     isMinimized,
     isOpen,
+    pinScrollToBottom,
     timelineQuery.isFetchingPreviousPage,
   ]);
+
+  // Keep the latest message visible when rich cards expand — coalesce resize spikes.
+  useEffect(() => {
+    const content = messagesContentRef.current;
+    if (!content || !isOpen || isMinimized) {
+      return;
+    }
+
+    let resizeTimer: number | null = null;
+    const resizeObserver = new ResizeObserver(() => {
+      if (
+        pendingScrollRestore.current > 0 ||
+        timelineQuery.isFetchingPreviousPage
+      ) {
+        return;
+      }
+      if (!(shouldStickToBottom.current || wasAtBottomRef.current)) {
+        return;
+      }
+      if (resizeTimer != null) {
+        window.clearTimeout(resizeTimer);
+      }
+      // Wait a beat so ticket cards finish laying out, then one smooth pin.
+      resizeTimer = window.setTimeout(() => {
+        pinScrollToBottom(true, initialTimelineScrollDoneRef.current ? 'smooth' : 'auto');
+      }, 48);
+    });
+    resizeObserver.observe(content);
+
+    return () => {
+      if (resizeTimer != null) {
+        window.clearTimeout(resizeTimer);
+      }
+      resizeObserver.disconnect();
+    };
+  }, [isMinimized, isOpen, pinScrollToBottom, timelineQuery.isFetchingPreviousPage]);
 
   useEffect(() => {
     if (!isOpen || isMinimized || !isAuthReady) {
@@ -831,18 +1063,30 @@ export const ChatbotPopup = () => {
     ) {
       return;
     }
-    const container = messagesContainerRef.current;
-    if (!container) {
-      return;
-    }
-    container.scrollTop = container.scrollHeight;
-    shouldStickToBottom.current = true;
-    wasAtBottomRef.current = true;
-    initialTimelineScrollDoneRef.current = true;
+
+    const frame = window.requestAnimationFrame(() => {
+      pinScrollToBottom(true);
+      // Second pass after paint — schedule/ticket cards may still be measuring.
+      window.requestAnimationFrame(() => {
+        pinScrollToBottom(true);
+        initialTimelineScrollDoneRef.current = true;
+      });
+    });
+
+    const retryTimer = window.setTimeout(() => {
+      pinScrollToBottom(true);
+      initialTimelineScrollDoneRef.current = true;
+    }, 250);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(retryTimer);
+    };
   }, [
     isAuthReady,
     isMinimized,
     isOpen,
+    pinScrollToBottom,
     timelineQuery.data?.pages.length,
     timelineQuery.isFetchingPreviousPage,
     timelineQuery.isLoading,
@@ -860,6 +1104,29 @@ export const ChatbotPopup = () => {
     }
     wasOpenRef.current = isOpen;
   }, [isOpen]);
+
+  useEffect(() => {
+    const unminimized = wasMinimizedRef.current && !isMinimized && isOpen;
+    wasMinimizedRef.current = isMinimized;
+    if (!unminimized) {
+      return;
+    }
+    shouldStickToBottom.current = true;
+    wasAtBottomRef.current = true;
+    initialTimelineScrollDoneRef.current = false;
+  }, [isMinimized, isOpen]);
+
+  // After login while chat is already open, re-pin once timeline is ready.
+  useEffect(() => {
+    const becameReady = isAuthReady && !wasAuthReadyRef.current;
+    wasAuthReadyRef.current = isAuthReady;
+    if (!becameReady || !isOpen || isMinimized) {
+      return;
+    }
+    shouldStickToBottom.current = true;
+    wasAtBottomRef.current = true;
+    initialTimelineScrollDoneRef.current = false;
+  }, [isAuthReady, isMinimized, isOpen]);
 
   useEffect(() => {
     if (!token) {
@@ -885,6 +1152,8 @@ export const ChatbotPopup = () => {
       if (openDetail) {
         applyConversationState(openDetail);
         appendStatusFromDetail(openDetail);
+        seedTimelineFromDetail(openDetail);
+        void refreshTimelineMessages();
         return;
       }
 
@@ -984,6 +1253,9 @@ export const ChatbotPopup = () => {
             intent: payload.intent ?? null,
             createdAt: payload.createdAt || new Date().toISOString(),
             isRead: false,
+            isEdited: false,
+            readerCount: 0,
+            isDeleted: false,
           })
       );
     },
@@ -992,6 +1264,8 @@ export const ChatbotPopup = () => {
 
   const handleIncomingMessage = useCallback((payload: ChatSocketMessageEvent) => {
     mergeSocketMessageToTimeline(payload);
+    shouldStickToBottom.current = true;
+    wasAtBottomRef.current = true;
 
     if (payload.conversationId && payload.conversationId !== conversationId) {
       setConversationId(payload.conversationId);
@@ -999,12 +1273,24 @@ export const ChatbotPopup = () => {
     }
 
     const activeConversationId = payload.conversationId ?? conversationId ?? null;
+    const isFromStaff =
+      payload.senderType === 'OPERATOR' || payload.senderType === 'AI_SYSTEM';
+
+    if (payload.senderType === 'AI_SYSTEM' && awaitingBotReplyRef.current) {
+      awaitingBotReplyRef.current = false;
+      releaseSendLockRef.current();
+    }
+
+    // Staff replies must always land in the customer timeline even if a socket
+    // payload was partially lost — refresh as a reliable fallback.
+    if (payload.senderType === 'OPERATOR') {
+      void refreshTimelineMessages();
+    }
+
     if (!activeConversationId || !isOpen || isMinimized) {
       return;
     }
 
-    const isFromStaff =
-      payload.senderType === 'OPERATOR' || payload.senderType === 'AI_SYSTEM';
     if (isFromStaff && payload.senderType === 'OPERATOR') {
       queryClient.setQueryData<InfiniteData<CustomerChatTimelineResponse>>(
         clientTimelineKey(),
@@ -1012,7 +1298,15 @@ export const ChatbotPopup = () => {
       );
       void markConversationAsRead(activeConversationId);
     }
-  }, [conversationId, isMinimized, isOpen, markConversationAsRead, mergeSocketMessageToTimeline, queryClient]);
+  }, [
+    conversationId,
+    isMinimized,
+    isOpen,
+    markConversationAsRead,
+    mergeSocketMessageToTimeline,
+    queryClient,
+    refreshTimelineMessages,
+  ]);
 
   const syncConversationFromEvent = useCallback(
     (event: ChatConversationSocketEvent) => {
@@ -1041,6 +1335,18 @@ export const ChatbotPopup = () => {
       return;
     }
 
+    if (event.eventType === 'CONVERSATION_STAFF_REQUEST_CANCELLED') {
+      void loadConversationDetail(event.conversationId).then((detail) => {
+        if (detail) {
+          applyConversationState(detail);
+        } else {
+          setConversationStatus(event.status);
+        }
+        void refreshTimelineMessages();
+      });
+      return;
+    }
+
     if (event.eventType === 'CONVERSATION_TAKEN' || event.eventType === 'CONVERSATION_ASSIGNED') {
       void loadConversationDetail(event.conversationId).then((detail) => {
         if (!detail) {
@@ -1055,6 +1361,8 @@ export const ChatbotPopup = () => {
             assignedOperatorId: event.assignedOperatorId ?? detail.conversation.assignedOperatorId,
           },
         });
+        seedTimelineFromDetail(detail);
+        shouldStickToBottom.current = true;
         void refreshTimelineMessages();
       });
       return;
@@ -1076,6 +1384,7 @@ export const ChatbotPopup = () => {
     loadConversationDetail,
     loadOpenConversation,
     refreshTimelineMessages,
+    seedTimelineFromDetail,
     syncConversationFromEvent,
   ]);
 
@@ -1137,37 +1446,116 @@ export const ChatbotPopup = () => {
     subscribeToConversation,
   ]);
 
+  const releaseSendLock = useCallback(() => {
+    if (sendLockTimeoutRef.current != null) {
+      window.clearTimeout(sendLockTimeoutRef.current);
+    }
+    if (botReplyTimeoutRef.current != null) {
+      window.clearTimeout(botReplyTimeoutRef.current);
+      botReplyTimeoutRef.current = null;
+    }
+    // Keep suppressing briefly so IME compositionend cannot re-seed the last word + re-send.
+    // Also enforce a short minimum interaction cycle to absorb rapid repeated taps.
+    const elapsed = Date.now() - sendStartedAtRef.current;
+    const releaseDelay = Math.max(200, 1_000 - elapsed);
+    sendLockTimeoutRef.current = window.setTimeout(() => {
+      suppressInputAfterSendRef.current = false;
+      isSendingRef.current = false;
+      setIsSendingUi(false);
+      sendLockTimeoutRef.current = null;
+      setInputValue((current) => (current.trim() ? '' : current));
+    }, releaseDelay);
+  }, []);
+
+  releaseSendLockRef.current = releaseSendLock;
+
   const handleSend = async (text: string) => {
     const normalizedText = text.trim();
-    if (!normalizedText) return;
+    if (!normalizedText || isSendingRef.current) return;
 
     if (!token) {
       AppToast.info('Vui lòng đăng nhập để bắt đầu cuộc trò chuyện hỗ trợ.');
       return;
     }
 
+    isSendingRef.current = true;
+    sendStartedAtRef.current = Date.now();
+    setIsSendingUi(true);
+    suppressInputAfterSendRef.current = true;
     setInputValue('');
     shouldStickToBottom.current = true;
     wasAtBottomRef.current = true;
+
+    const sendToken = `${Date.now()}`;
+    const isStaffThread =
+      conversationStatus === 'ACTIVE' ||
+      conversationStatus === 'WAITING_FOR_CUSTOMER' ||
+      conversationStatus === 'WAITING_FOR_OPERATOR';
+    botReplyCountAtSendRef.current = countBotReplies(timelineMessages);
+    awaitingBotReplyRef.current = !isStaffThread;
+    setOverlayMessages((prev) => [
+      ...prev.filter((message) => !message.id.startsWith('typing-') && !message.id.startsWith('optimistic-user-')),
+      {
+        id: `optimistic-user-${sendToken}`,
+        sender: 'user',
+        text: normalizedText,
+        timestamp: formatNowTime(),
+        variant: 'bubble',
+      },
+      ...(isStaffThread
+        ? []
+        : [
+            {
+              id: `typing-${sendToken}`,
+              sender: 'bot' as const,
+              text: '',
+              timestamp: formatNowTime(),
+              variant: 'typing' as const,
+            },
+          ]),
+    ]);
+    pinScrollToBottom(true, 'smooth');
+
+    if (!isStaffThread) {
+      if (botReplyTimeoutRef.current != null) {
+        window.clearTimeout(botReplyTimeoutRef.current);
+      }
+      botReplyTimeoutRef.current = window.setTimeout(() => {
+        awaitingBotReplyRef.current = false;
+        setOverlayMessages((prev) =>
+          prev.filter((message) => !message.id.startsWith(`typing-${sendToken}`))
+        );
+        releaseSendLockRef.current();
+        void refreshTimelineMessages();
+      }, 10_000);
+    }
 
     const wantsStaff = isExplicitStaffRequestText(normalizedText);
 
     // Case 1: gõ muốn gặp NV — gửi bubble + escalate.
     if (conversationStatus === 'CLOSED' || !conversationId) {
-      const detail = await initConversation({
-        title: wantsStaff ? 'Yêu cầu gặp nhân viên' : 'Yêu cầu hỗ trợ từ khách hàng',
-        content: normalizedText,
-        requestStaff: wantsStaff,
-      });
+      try {
+        const detail = await initConversation({
+          title: wantsStaff ? 'Yêu cầu gặp nhân viên' : 'Yêu cầu hỗ trợ từ khách hàng',
+          content: normalizedText,
+          requestStaff: wantsStaff,
+        });
 
-      if (!detail) {
-        return;
-      }
+        if (!detail) {
+          awaitingBotReplyRef.current = false;
+          setOverlayMessages((prev) =>
+            prev.filter((message) => !message.id.startsWith(`typing-${sendToken}`))
+          );
+          return;
+        }
 
-      if (wantsStaff) {
-        applyStaffRequestResult(detail, detail.conversation.id);
-      } else {
-        applyConversationDetail(detail);
+        if (wantsStaff) {
+          applyStaffRequestResult(detail, detail.conversation.id);
+        } else {
+          applyConversationDetail(detail);
+        }
+      } finally {
+        releaseSendLock();
       }
       return;
     }
@@ -1180,31 +1568,71 @@ export const ChatbotPopup = () => {
         if (escalated) {
           hydrateTimelineFromDetail();
           applyStaffRequestResult(escalated, conversationId, { refreshTimeline: false });
+          awaitingBotReplyRef.current = false;
+          releaseSendLock();
           return;
         }
       }
 
-      const detail = await loadConversationDetail(conversationId);
-      if (detail) {
-        applyConversationState(detail);
-        seedTimelineFromDetail(detail);
-      }
-      void refreshTimelineMessages();
-    } catch (error) {
+      // Đồng bộ dự phòng: bình thường websocket tự đưa tin nhắn về và merge vào timeline.
+      // Chỉ khi sau 1.2s tin của khách vẫn chưa xuất hiện (socket lỗi) mới reload chi tiết
+      // + refetch — tránh refetch toàn bộ timeline ngay giữa lúc bot trả lời (gây giật).
+      window.setTimeout(() => {
+        const cached = queryClient.getQueryData<InfiniteData<CustomerChatTimelineResponse>>(
+          clientTimelineKey()
+        );
+        const cachedMessages = buildMessagesFromTimeline(cached?.pages ?? []);
+        const socketDelivered = cachedMessages.some(
+          (message) => message.sender === 'user' && message.text.trim() === normalizedText
+        );
+        if (socketDelivered) {
+          return;
+        }
+        void loadConversationDetail(conversationId).then((detail) => {
+          if (detail) {
+            applyConversationState(detail);
+            seedTimelineFromDetail(detail);
+          }
+          void refreshTimelineMessages();
+        });
+      }, 1200);
+    } catch {
+      awaitingBotReplyRef.current = false;
+      setOverlayMessages((prev) =>
+        prev.filter(
+          (message) =>
+            message.id !== `optimistic-user-${sendToken}` && message.id !== `typing-${sendToken}`
+        )
+      );
       AppToast.error('Không thể gửi tin nhắn realtime lúc này.');
+      releaseSendLock();
+    } finally {
+      if (isStaffThread) {
+        releaseSendLock();
+      }
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      void handleSend(inputValue);
+    if (e.key !== 'Enter') return;
+    // Vietnamese/CJK IME: Enter often confirms composition; ignore until composition ends.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    void handleSend(inputValue);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (suppressInputAfterSendRef.current) {
+      // Drop IME leftover (often only the last word) after a successful send+clear.
+      setInputValue('');
+      return;
     }
+    setInputValue(e.target.value);
   };
 
   const showContextualQuickReplies = shouldShowContextualQuickReplies({
-    lastMessage: lastDisplayMessage,
+    lastMessage: quickReplyContextMessage,
     inputValue,
-    isInputFocused,
     isInteractive: isOpenBotThread(conversationStatus) && !isEscalating && conversationStatus !== 'WAITING_FOR_OPERATOR',
     replies: contextualReplies,
   });
@@ -1223,6 +1651,18 @@ export const ChatbotPopup = () => {
     if (chip.message) {
       await handleSend(chip.message);
     }
+  };
+
+  const handleBuySuggestedTicket = (ticket: ChatSuggestedTicket) => {
+    navigate(
+      buildBuyTicketPath({
+        ticketId: ticket.id,
+        stationId: ticket.stationId,
+        highlightDate: ticket.drawDate,
+      })
+    );
+    setIsOpen(false);
+    setIsMinimized(false);
   };
 
   // primary = 1 CTA chính/lượt (màu đỏ); secondary = gợi ý phụ (xám nhạt)
@@ -1294,7 +1734,7 @@ export const ChatbotPopup = () => {
       {!isMinimized && (
         <>
           <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 bg-[#f8f9fa] scrollbar-thin scrollbar-thumb-gray-200">
-            <div className="flex min-h-full flex-col justify-end gap-3 mx-auto w-full max-w-md px-1">
+            <div ref={messagesContentRef} className="flex min-h-full flex-col justify-end gap-3 mx-auto w-full max-w-md px-1">
               <div ref={topSentinelRef} className="h-px w-full shrink-0" aria-hidden />
 
               {timelineQuery.isFetchingPreviousPage && (
@@ -1448,7 +1888,7 @@ export const ChatbotPopup = () => {
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
                     <div className="w-full max-w-[95%] min-w-0 items-start flex flex-col">
-                      {msg.variant === 'schedule-result' && (
+                      {isAiEnabled && msg.variant === 'schedule-result' && (
                         <p className="text-[14px] text-gray-700 mb-2 px-1">{msg.text}</p>
                       )}
                       <div className="bg-white rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 overflow-hidden w-full">
@@ -1477,6 +1917,87 @@ export const ChatbotPopup = () => {
                       <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                     </div>
                   </div>
+                ) : msg.variant === 'typing' ? (
+                  <div key={msg.id} className="flex w-full justify-start">
+                    <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
+                      <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
+                    </div>
+                    <div className="bg-white text-gray-500 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-3">
+                      <span className="inline-flex gap-1 items-center" aria-label="Đang soạn trả lời">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '120ms' }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '240ms' }} />
+                      </span>
+                    </div>
+                  </div>
+                ) : msg.variant === 'ticket-suggest' ? (
+                  (() => {
+                    const { reply, caption } = splitTicketSuggestText(msg.text);
+                    return (
+                      <motion.div
+                        key={msg.id}
+                        className="flex w-full flex-col gap-2"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.28, ease: 'easeOut' }}
+                      >
+                        {reply ? (
+                          <div className="flex w-full justify-start">
+                            <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
+                              <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
+                            </div>
+                            <div className="max-w-[85%] min-w-0 items-start flex flex-col">
+                              <div className="bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 px-4 py-2.5 text-[15px] whitespace-pre-wrap">
+                                {reply}
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                        <div className="flex w-full justify-start">
+                          <div className="w-8 h-8 rounded-full overflow-hidden mr-2 shrink-0 border border-gray-200 mt-auto mb-1 bg-white">
+                            <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
+                          </div>
+                          <div className="w-full max-w-[95%] min-w-0 items-start flex flex-col">
+                            {caption ? (
+                              <p className="text-[14px] text-gray-700 mb-2 px-1 whitespace-pre-wrap">{caption}</p>
+                            ) : null}
+                            <ChatTicketSuggestCards
+                              tickets={msg.suggestedTickets ?? []}
+                              onBuy={handleBuySuggestedTicket}
+                              disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
+                            />
+                            {isAiEnabled ? (
+                              <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                {ticketSuggestFollowUpChips().map((chip) => (
+                                  <button
+                                    key={chip.id}
+                                    type="button"
+                                    onClick={() => void handleQuickReply(chip)}
+                                    disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
+                                    className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
+                                  >
+                                    {chip.label}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : isOpenBotThread(conversationStatus) ? (
+                              <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                <button
+                                  type="button"
+                                  onClick={() => void handleRequestStaff()}
+                                  disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
+                                  className={`${quickReplyChipClass(true)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
+                                >
+                                  Gặp nhân viên
+                                </button>
+                              </div>
+                            ) : null}
+                            <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })()
                 ) : msg.variant === 'divider' ? (
                   <p
                     key={msg.id}
@@ -1492,10 +2013,15 @@ export const ChatbotPopup = () => {
                       </div>
                     )}
                     <div className={`max-w-[85%] min-w-0 ${msg.sender === 'bot' ? 'items-start' : 'items-end'} flex flex-col`}>
+                      {msg.fromStaff && (
+                        <span className="text-[11px] font-medium text-emerald-600 mb-0.5 px-1">Nhân viên hỗ trợ</span>
+                      )}
                       <div
                         className={`px-4 py-2.5 text-[15px] whitespace-pre-wrap ${
                           msg.sender === 'bot'
-                            ? 'bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100'
+                            ? msg.fromStaff
+                              ? 'bg-emerald-50 text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-emerald-100'
+                              : 'bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100'
                             : 'bg-gradient-to-r from-[#df1b1c] to-[#ff4b4b] text-white rounded-2xl rounded-br-sm shadow-md'
                         }`}
                       >
@@ -1514,14 +2040,40 @@ export const ChatbotPopup = () => {
               )}
 
               {showWaitingForStaff && (
-                <p className="flex items-center justify-center text-center text-[13px] text-gray-500 px-2 pb-1">
-                  Đang chờ nhân viên tiếp nhận
-                  <span className="inline-flex ml-0.5">
-                    <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
-                    <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
-                    <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
-                  </span>
-                </p>
+                <div className="flex flex-col items-center gap-2 px-3 pb-2">
+                  <p className="flex items-center justify-center text-center text-[13px] text-gray-500">
+                    Đang chờ nhân viên tiếp nhận
+                    <span className="inline-flex ml-0.5">
+                      <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
+                      <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
+                      <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
+                    </span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleCancelStaffRequest()}
+                    disabled={isCancellingStaff || isEscalating}
+                    className="text-[13px] font-medium text-[#df1b1c] underline underline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isCancellingStaff ? 'Đang huỷ...' : 'Huỷ gặp nhân viên'}
+                  </button>
+                </div>
+              )}
+
+              {showChattingWithStaff && (
+                <div className="flex flex-col items-center gap-1.5 px-4 py-1">
+                  <p className="text-center text-[12px] text-emerald-600 font-medium">
+                    Bạn đang được hỗ trợ bởi nhân viên
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleDisconnectStaff()}
+                    disabled={isDisconnectingStaff || isEscalating}
+                    className="text-[12px] font-medium text-[#df1b1c] underline underline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isDisconnectingStaff ? 'Đang ngắt kết nối...' : 'Ngắt kết nối với nhân viên'}
+                  </button>
+                </div>
               )}
 
               <div ref={messagesEndRef} />
@@ -1540,7 +2092,7 @@ export const ChatbotPopup = () => {
                       key={chip.id}
                       type="button"
                       onClick={() => void handleQuickReply(chip)}
-                      disabled={isEscalating || isInitializing || isLoadingOpen}
+                      disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
                       className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
                       {chip.label}
@@ -1555,18 +2107,22 @@ export const ChatbotPopup = () => {
                 <input
                   type="text"
                   value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onFocus={() => setIsInputFocused(true)}
-                  onBlur={() => setIsInputFocused(false)}
+                  onChange={handleInputChange}
+                  onCompositionEnd={() => {
+                    if (suppressInputAfterSendRef.current) {
+                      setInputValue('');
+                    }
+                  }}
                   onKeyDown={handleKeyPress}
                   placeholder="Nhập nội dung cần hỗ trợ..."
                   className="flex-1 bg-transparent border-none focus:outline-none text-[15px] text-gray-700 placeholder-gray-400 py-2"
                 />
                 <button
+                  type="button"
                   onClick={() => void handleSend(inputValue)}
-                  disabled={!inputValue.trim() || isInitializing || isLoadingOpen}
+                  disabled={!inputValue.trim() || isInitializing || isLoadingOpen || isSendingUi}
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-                    inputValue.trim() && !isInitializing && !isLoadingOpen
+                    inputValue.trim() && !isInitializing && !isLoadingOpen && !isSendingUi
                       ? 'bg-[#df1b1c] text-white shadow-md hover:bg-red-700'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}

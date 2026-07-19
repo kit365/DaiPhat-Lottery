@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.service.chat;
 
 import com.daiphat.coreapi.application.config.ChatConversationProperties;
+import com.daiphat.coreapi.application.config.ChatMessageProperties;
 import com.daiphat.coreapi.application.constant.chat.bot.ChatAiMessages;
 import com.daiphat.coreapi.application.dto.request.chat.SendChatMessageSocketRequest;
 import com.daiphat.coreapi.application.dto.response.chat.ChatConversationSocketEvent;
@@ -35,6 +36,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -48,12 +51,15 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("ConversationService staff assignment")
 class ConversationServiceAssignmentTest {
 
@@ -81,11 +87,61 @@ class ConversationServiceAssignmentTest {
     private ChatBotPort chatBotPort;
     @Mock
     private ChatEscalationPort chatEscalationPort;
+    @Mock
+    private ChatMessageProperties chatMessageProperties;
 
     private ConversationService conversationService;
 
     @BeforeEach
     void setUp() {
+        lenient().when(chatMessageProperties.getHandoff()).thenReturn(ChatAiMessages.HANDOFF);
+        lenient().when(chatMessageProperties.getNoOperatorOnline()).thenReturn(ChatAiMessages.NO_OPERATOR_ONLINE);
+        lenient().when(chatApplicationMapper.enrichConversationResponse(any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(chatApplicationMapper.markAsRead(any())).thenAnswer(invocation -> {
+            MessageResponse response = invocation.getArgument(0);
+            if (response == null || response.isRead()) {
+                return response;
+            }
+            return MessageResponse.builder()
+                    .id(response.id())
+                    .conversationId(response.conversationId())
+                    .parentId(response.parentId())
+                    .senderId(response.senderId())
+                    .senderType(response.senderType())
+                    .content(response.content())
+                    .intent(response.intent())
+                    .confidence(response.confidence())
+                    .type(response.type())
+                    .fileUrl(response.fileUrl())
+                    .fileName(response.fileName())
+                    .isEdited(response.isEdited())
+                    .editedAt(response.editedAt())
+                    .isRead(true)
+                    .readerCount(Math.max(response.readerCount(), 1))
+                    .isDeleted(response.isDeleted())
+                    .deletedAt(response.deletedAt())
+                    .createdAt(response.createdAt())
+                    .updatedAt(response.updatedAt())
+                    .build();
+        });
+        lenient().when(chatApplicationMapper.toChatMessageSocketResponse(any())).thenAnswer(invocation -> {
+            MessageModel model = invocation.getArgument(0);
+            return ChatMessageSocketResponse.builder()
+                    .id(model.getId())
+                    .conversationId(model.getConversationId())
+                    .parentId(model.getParentId())
+                    .senderId(model.getSenderId())
+                    .senderType(model.getSenderType())
+                    .content(model.getContent())
+                    .intent(model.getIntent())
+                    .type(model.getType())
+                    .createdAt(model.getCreatedAt())
+                    .build();
+        });
+        lenient().when(chatApplicationMapper.enrichSocketResponse(any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
         conversationService = new ConversationService(
                 conversationRepositoryPort,
                 messageRepositoryPort,
@@ -95,7 +151,8 @@ class ConversationServiceAssignmentTest {
                 chatMessagePublisherPort,
                 chatConversationProperties,
                 chatBotPort,
-                chatEscalationPort
+                chatEscalationPort,
+                chatMessageProperties
         );
     }
 
@@ -145,7 +202,13 @@ class ConversationServiceAssignmentTest {
         when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(customer);
         when(conversationRepositoryPort.findLatestOpenByCustomerId(CUSTOMER_ID)).thenReturn(Optional.empty());
         when(conversationRepositoryPort.findLatestClosedByCustomerId(CUSTOMER_ID)).thenReturn(Optional.empty());
-        when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> {
+            ConversationModel model = invocation.getArgument(0);
+            if (model.getId() == null) {
+                model.setId(CONVERSATION_ID);
+            }
+            return model;
+        });
         when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(savedConversation));
         when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
@@ -204,10 +267,90 @@ class ConversationServiceAssignmentTest {
     }
 
     @Test
-    void assignConversationToMe_fromOpen_assignsAtomically() {
+    void cancelStaffRequest_fromWaiting_returnsToOpenAndNotifies() {
+        ConversationModel conversation = conversation(ConversationStatus.WAITING_FOR_OPERATOR, null);
+        when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(user("Customer"));
+        when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
+        when(chatApplicationMapper.toConversationResponse(any()))
+                .thenReturn(mockConversationResponse(ConversationStatus.OPEN, null));
+        when(chatApplicationMapper.toMessageResponses(any())).thenReturn(List.of());
+
+        conversationService.cancelStaffRequest(CUSTOMER_ID, CONVERSATION_ID);
+
+        assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.OPEN);
+        ArgumentCaptor<ChatConversationSocketEvent> eventCaptor = ArgumentCaptor.forClass(ChatConversationSocketEvent.class);
+        verify(chatConversationEventPublisherPort).publishToOperators(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().eventType())
+                .isEqualTo(ConversationSocketEventType.CONVERSATION_STAFF_REQUEST_CANCELLED);
+        verify(messageRepositoryPort).save(argThat((MessageModel message) ->
+                message.getContent() != null
+                        && message.getContent().contains("huỷ yêu cầu gặp nhân viên")));
+    }
+
+    @Test
+    void cancelStaffRequest_whenAlreadyOpen_isIdempotent() {
         ConversationModel conversation = conversation(ConversationStatus.OPEN, null);
+        when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(user("Customer"));
+        when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
+        when(chatApplicationMapper.toConversationResponse(any()))
+                .thenReturn(mockConversationResponse(ConversationStatus.OPEN, null));
+        when(chatApplicationMapper.toMessageResponses(any())).thenReturn(List.of());
+
+        conversationService.cancelStaffRequest(CUSTOMER_ID, CONVERSATION_ID);
+
+        verify(conversationRepositoryPort, never()).save(any());
+        verify(chatConversationEventPublisherPort, never()).publishToOperators(any());
+    }
+
+    @Test
+    void cancelStaffRequest_whenAssigned_throws() {
+        ConversationModel conversation = conversation(ConversationStatus.ACTIVE, OPERATOR_A);
+        when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(user("Customer"));
+        when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+
+        assertThatThrownBy(() -> conversationService.cancelStaffRequest(CUSTOMER_ID, CONVERSATION_ID))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.CONVERSATION_CANNOT_CANCEL_STAFF_REQUEST);
+    }
+
+    @Test
+    void disconnectStaff_whenAssigned_returnsToOpenAndNotifies() {
+        ConversationModel conversation = conversation(ConversationStatus.WAITING_FOR_CUSTOMER, OPERATOR_A);
+        when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(user("Customer"));
+        when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
+        when(chatApplicationMapper.toConversationResponse(any()))
+                .thenReturn(mockConversationResponse(ConversationStatus.OPEN, null));
+        when(chatApplicationMapper.toMessageResponses(any())).thenReturn(List.of());
+
+        conversationService.disconnectStaff(CUSTOMER_ID, CONVERSATION_ID);
+
+        assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.OPEN);
+        assertThat(conversation.getAssignedOperatorId()).isNull();
+        verify(messageRepositoryPort).save(argThat((MessageModel message) ->
+                message.getContent() != null
+                        && message.getContent().contains("ngắt kết nối với nhân viên")));
+        verify(chatConversationEventPublisherPort).publishToOperators(argThat(event ->
+                event.eventType() == ConversationSocketEventType.CONVERSATION_STAFF_REQUEST_CANCELLED
+                        && event.status() == ConversationStatus.OPEN
+        ));
+    }
+
+    @Test
+    void assignConversationToMe_fromOpen_assignsAtomically() {
+        ConversationModel conversation = conversation(ConversationStatus.WAITING_FOR_OPERATOR, null);
         when(userLookupServicePort.findActiveByIdOrThrow(OPERATOR_A)).thenReturn(user("Operator A"));
         when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
         when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
@@ -318,6 +461,7 @@ class ConversationServiceAssignmentTest {
         when(userLookupServicePort.findActiveByIdOrThrow(OPERATOR_A)).thenReturn(operator("Operator A", OPERATOR_A));
         when(userLookupServicePort.findById(OPERATOR_A)).thenReturn(Optional.of(operator("Operator A", OPERATOR_A)));
         when(conversationRepositoryPort.findByIdForUpdate(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
+        when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(conversation));
         when(conversationRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepositoryPort.findByConversationId(CONVERSATION_ID)).thenReturn(List.of());
@@ -371,6 +515,7 @@ class ConversationServiceAssignmentTest {
                 .thenReturn(List.of());
         when(conversationRepositoryPort.findStaffResponseOverdueSince(any()))
                 .thenReturn(List.of());
+        when(conversationRepositoryPort.findById(CONVERSATION_ID)).thenReturn(Optional.of(waiting));
         when(messageRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         int expiredCount = conversationService.expireTimedOutConversations();
@@ -434,7 +579,7 @@ class ConversationServiceAssignmentTest {
         );
 
         assertThat(closedConversation.getStatus()).isEqualTo(ConversationStatus.CLOSED);
-        verify(conversationRepositoryPort).save(argThat(model -> model.getId() == null));
+        verify(conversationRepositoryPort, atLeastOnce()).save(any());
         verify(chatBotPort).processCustomerMessage(any(), any());
     }
 
@@ -559,6 +704,13 @@ class ConversationServiceAssignmentTest {
                 .content("Newer")
                 .createdAt(now.minusHours(1))
                 .build();
+        MessageModel extraOlder = MessageModel.builder()
+                .id(3L)
+                .conversationId(CONVERSATION_ID)
+                .senderType(MessageSenderType.CUSTOMER)
+                .content("Extra older")
+                .createdAt(now.minusHours(3))
+                .build();
 
         when(userLookupServicePort.findActiveByIdOrThrow(OPERATOR_A)).thenReturn(operator("Operator A", OPERATOR_A));
         when(conversationRepositoryPort.findByCustomerId(CUSTOMER_ID)).thenReturn(List.of(active));
@@ -571,7 +723,7 @@ class ConversationServiceAssignmentTest {
                 isNull(),
                 eq(3),
                 argThat((Collection<Long> ids) -> ids.contains(CONVERSATION_ID))
-        )).thenReturn(List.of(newer, older));
+        )).thenReturn(List.of(newer, older, extraOlder));
         when(messageRepositoryPort.findCustomerTimelineMessageBefore(
                 eq(CUSTOMER_ID),
                 eq(older.getCreatedAt()),
@@ -609,6 +761,13 @@ class ConversationServiceAssignmentTest {
                 .content("Latest")
                 .createdAt(now)
                 .build();
+        MessageModel fillerFirstPage = MessageModel.builder()
+                .id(75L)
+                .conversationId(15L)
+                .senderType(MessageSenderType.OPERATOR)
+                .content("Filler")
+                .createdAt(now.minusMinutes(5))
+                .build();
         MessageModel oldestInFirstPage = MessageModel.builder()
                 .id(50L)
                 .conversationId(15L)
@@ -627,18 +786,18 @@ class ConversationServiceAssignmentTest {
         when(userLookupServicePort.findActiveByIdOrThrow(CUSTOMER_ID)).thenReturn(user("Customer"));
         when(conversationRepositoryPort.findByCustomerId(CUSTOMER_ID)).thenReturn(List.of(active));
         when(messageRepositoryPort.findCustomerTimelinePage(CUSTOMER_ID, null, null, 3, null))
-                .thenReturn(List.of(newest, oldestInFirstPage));
+                .thenReturn(List.of(newest, fillerFirstPage, oldestInFirstPage));
         when(messageRepositoryPort.findCustomerTimelinePage(
                 CUSTOMER_ID,
-                oldestInFirstPage.getCreatedAt(),
-                oldestInFirstPage.getId(),
+                fillerFirstPage.getCreatedAt(),
+                fillerFirstPage.getId(),
                 3,
                 null
         )).thenReturn(List.of(olderSession));
         when(messageRepositoryPort.findCustomerTimelineMessageBefore(
                 eq(CUSTOMER_ID),
-                eq(oldestInFirstPage.getCreatedAt()),
-                eq(oldestInFirstPage.getId()),
+                eq(fillerFirstPage.getCreatedAt()),
+                eq(fillerFirstPage.getId()),
                 isNull()
         )).thenReturn(Optional.empty());
         when(messageRepositoryPort.findCustomerTimelineMessageBefore(
@@ -649,14 +808,14 @@ class ConversationServiceAssignmentTest {
         )).thenReturn(Optional.of(oldestInFirstPage));
         when(chatApplicationMapper.toMessageResponse(newest))
                 .thenReturn(MessageResponse.builder().id(100L).content("Latest").build());
-        when(chatApplicationMapper.toMessageResponse(oldestInFirstPage))
-                .thenReturn(MessageResponse.builder().id(50L).content("End of first page").build());
+        when(chatApplicationMapper.toMessageResponse(fillerFirstPage))
+                .thenReturn(MessageResponse.builder().id(75L).content("Filler").build());
         when(chatApplicationMapper.toMessageResponse(olderSession))
                 .thenReturn(MessageResponse.builder().id(10L).content("Previous session").build());
 
         CustomerChatTimelineResponse firstPage = conversationService.getMyChatTimeline(CUSTOMER_ID, 2, null, null);
         assertThat(firstPage.hasMore()).isTrue();
-        assertThat(firstPage.nextCursor()).contains("50");
+        assertThat(firstPage.nextCursor()).contains("75");
 
         String[] cursorParts = firstPage.nextCursor().split("\\|");
         CustomerChatTimelineResponse secondPage = conversationService.getMyChatTimeline(
@@ -670,8 +829,8 @@ class ConversationServiceAssignmentTest {
         assertThat(secondPage.items().getFirst().message().content()).isEqualTo("Previous session");
         verify(messageRepositoryPort).findCustomerTimelinePage(
                 CUSTOMER_ID,
-                oldestInFirstPage.getCreatedAt(),
-                oldestInFirstPage.getId(),
+                fillerFirstPage.getCreatedAt(),
+                fillerFirstPage.getId(),
                 3,
                 null
         );

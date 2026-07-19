@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React from 'react';
 import { useLotterySchedule } from '../../features/schedule';
 
 const REGION_LABELS: Record<string, { label: string; bg: string; text: string }> = {
@@ -17,15 +17,6 @@ export interface ChatLotteryScheduleProps {
 export const ChatLotterySchedule = ({ region, stationId, stationIds, highlightDate }: ChatLotteryScheduleProps) => {
   const { scheduleByDay, availableRegions, regionDrawTimes, highlightDayId, todayDayName, showFullWeek, isLoading, error } =
     useLotterySchedule({ region, stationId, stationIds, highlightDate });
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isLoading && containerRef.current) {
-      setTimeout(() => {
-        containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 100);
-    }
-  }, [isLoading]);
 
   const emphasizedDayId = showFullWeek ? todayDayName : (highlightDayId ?? todayDayName);
 
@@ -40,7 +31,7 @@ export const ChatLotterySchedule = ({ region, stationId, stationIds, highlightDa
 
   if (error) {
     return (
-      <div ref={containerRef} className="flex flex-col items-center justify-center p-4 text-center">
+      <div className="flex flex-col items-center justify-center p-4 text-center">
         <span className="material-symbols-outlined text-[24px] text-slate-300 mb-2">error</span>
         <p className="text-slate-500 font-medium text-xs">{error}</p>
       </div>
@@ -48,7 +39,7 @@ export const ChatLotterySchedule = ({ region, stationId, stationIds, highlightDa
   }
 
   return (
-    <div ref={containerRef} className="w-full bg-white overflow-hidden flex flex-col">
+    <div className="w-full bg-white overflow-hidden flex flex-col">
       <div className="bg-[#ee1314] text-white font-bold py-2.5 px-3 text-center text-[14px]">
         Lịch Mở Thưởng Xổ Số
       </div>

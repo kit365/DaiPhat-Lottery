@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   resolveContextualQuickReplies,
   scheduleResultFollowUpChips,
+  ticketSuggestFollowUpChips,
   SCHEDULE_RESTART_MESSAGE,
   shouldShowContextualQuickReplies,
 } from './chatQuickReplies.util';
@@ -33,6 +34,19 @@ describe('resolveContextualQuickReplies', () => {
     expect(result.chips).toHaveLength(0);
   });
 
+  it('does not duplicate footer chips after ticket suggest cards', () => {
+    const result = resolveContextualQuickReplies(
+      {
+        id: '43',
+        sender: 'bot',
+        variant: 'ticket-suggest',
+        text: 'Đại Phát gợi ý 2 vé đang bán hôm nay.',
+      },
+      { hasCustomerMessages: true }
+    );
+    expect(result.chips).toHaveLength(0);
+  });
+
   it('skips chips when bot message already has inline actions', () => {
     const result = resolveContextualQuickReplies(
       { id: '1', sender: 'bot', variant: 'schedule-ask-date-mode', text: 'Chọn ngày' },
@@ -41,12 +55,84 @@ describe('resolveContextualQuickReplies', () => {
     expect(result.chips).toHaveLength(0);
   });
 
-  it('returns staff chip on escalation signal', () => {
+  it('always returns the base follow-up chips after a plain bot bubble', () => {
     const result = resolveContextualQuickReplies(
-      { id: '1', sender: 'bot', variant: 'bubble', text: 'AI tạm thời không khả dụng' },
-      { hasCustomerMessages: true, showStaffEscalation: true }
+      {
+        id: '1',
+        sender: 'bot',
+        variant: 'bubble',
+        intent: 'OTHER_KNOWLEDGE',
+        text: 'Đại Phát tra sổ mơ dân gian giúp quý khách: mơ thấy "bò" thường gắn với các số 09, 19, 49.',
+      },
+      { hasCustomerMessages: true }
     );
-    expect(result.chips[0]).toMatchObject({ action: 'staff', label: 'Gặp nhân viên hỗ trợ' });
+    expect(result.hint).toBeUndefined();
+    expect(result.chips.map((chip) => chip.label)).toEqual([
+      'Gợi ý khác',
+      'Tìm đuôi số',
+      'Gặp nhân viên',
+    ]);
+  });
+
+  it('appends the base chips after context-specific order chips', () => {
+    const result = resolveContextualQuickReplies(
+      { id: '2', sender: 'bot', variant: 'bubble', text: 'Đơn hàng của bạn đang được chuẩn bị.' },
+      { hasCustomerMessages: true }
+    );
+    expect(result.chips.map((chip) => chip.label)).toEqual([
+      'Xem đơn mới nhất',
+      'Tra cứu lịch quay',
+      'Gợi ý khác',
+      'Tìm đuôi số',
+      'Gặp nhân viên',
+    ]);
+  });
+
+  it('does not render the duplicated generic staff-support hint', () => {
+    const result = resolveContextualQuickReplies(
+      { id: '3', sender: 'bot', variant: 'bubble', text: 'AI tạm thời không khả dụng' },
+      { hasCustomerMessages: true }
+    );
+    expect(result.hint).toBeUndefined();
+    expect(result.chips.map((chip) => chip.label)).toEqual([
+      'Gợi ý khác',
+      'Tìm đuôi số',
+      'Gặp nhân viên',
+    ]);
+  });
+
+  it('only offers staff support while AI is disabled', () => {
+    const result = resolveContextualQuickReplies(
+      {
+        id: '4',
+        sender: 'bot',
+        variant: 'bubble',
+        text: 'Hiện Đại Phát chưa có vé khớp đuôi số 43.',
+      },
+      { hasCustomerMessages: true, isAiEnabled: false }
+    );
+
+    expect(result.chips).toEqual([
+      {
+        id: 'ai-disabled-staff',
+        label: 'Gặp nhân viên',
+        action: 'staff',
+        primary: true,
+      },
+    ]);
+  });
+
+  it('keeps ticket-suggest footer empty when AI is disabled (inline staff chip owns the CTA)', () => {
+    const result = resolveContextualQuickReplies(
+      {
+        id: '5',
+        sender: 'bot',
+        variant: 'ticket-suggest',
+        text: 'Đại Phát gợi ý vé.',
+      },
+      { hasCustomerMessages: true, isAiEnabled: false }
+    );
+    expect(result.chips).toHaveLength(0);
   });
 });
 
@@ -64,6 +150,17 @@ describe('scheduleResultFollowUpChips', () => {
   });
 });
 
+describe('ticketSuggestFollowUpChips', () => {
+  it('offers suggest again, search, and staff', () => {
+    const chips = ticketSuggestFollowUpChips();
+    expect(chips.map((chip) => chip.label)).toEqual(['Gợi ý khác', 'Tìm đuôi số', 'Gặp nhân viên']);
+  });
+
+  it('always labels the search chip as tìm đuôi số', () => {
+    expect(ticketSuggestFollowUpChips()[1].label).toBe('Tìm đuôi số');
+  });
+});
+
 describe('shouldShowContextualQuickReplies', () => {
   it('hides when user is typing', () => {
     expect(
@@ -76,16 +173,15 @@ describe('shouldShowContextualQuickReplies', () => {
     ).toBe(false);
   });
 
-  it('hides when user focuses input', () => {
+  it('keeps chips visible while input is focused but empty', () => {
     expect(
       shouldShowContextualQuickReplies({
-        lastMessage: { id: '1', sender: 'bot', variant: 'schedule-result' },
+        lastMessage: { id: '1', sender: 'bot', variant: 'bubble' },
         inputValue: '',
-        isInputFocused: true,
         isInteractive: true,
         replies: { chips: [{ id: 'a', label: 'A', action: 'send', message: 'a' }] },
       })
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('shows when last bot message has chips and input is empty', () => {

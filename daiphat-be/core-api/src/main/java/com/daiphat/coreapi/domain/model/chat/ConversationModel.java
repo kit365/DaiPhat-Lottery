@@ -87,6 +87,35 @@ public class ConversationModel {
         status = ConversationStatus.WAITING_FOR_OPERATOR;
     }
 
+    /**
+     * Customer cancels the waiting-for-staff queue and returns to bot support.
+     * Only allowed while still unassigned in {@link ConversationStatus#WAITING_FOR_OPERATOR}.
+     */
+    public void cancelStaffRequest() {
+        if (assignedOperatorId != null || status != ConversationStatus.WAITING_FOR_OPERATOR) {
+            throw new DomainException(ErrorCode.CONVERSATION_CANNOT_CANCEL_STAFF_REQUEST);
+        }
+        status = ConversationStatus.OPEN;
+    }
+
+    public static String cancelStaffRequestCopy() {
+        return "Quý khách đã huỷ yêu cầu gặp nhân viên. Đại Phát sẽ tiếp tục hỗ trợ quý khách.";
+    }
+
+    public void disconnectStaff() {
+        if (assignedOperatorId == null
+                || (status != ConversationStatus.ACTIVE
+                && status != ConversationStatus.WAITING_FOR_CUSTOMER)) {
+            throw new DomainException(ErrorCode.CONVERSATION_CANNOT_CANCEL_STAFF_REQUEST);
+        }
+        assignedOperatorId = null;
+        status = ConversationStatus.OPEN;
+    }
+
+    public static String disconnectStaffCopy() {
+        return "Quý khách đã ngắt kết nối với nhân viên hỗ trợ.";
+    }
+
     public void waitForCustomer() {
         status = ConversationStatus.WAITING_FOR_CUSTOMER;
     }

@@ -83,10 +83,10 @@ class ChatScheduleDateExtractorTest {
 
     @Test
     void extractExtraction_uppercaseShortDateAfterNormalization() {
-        ChatScheduleDateExtraction extraction = parser.extractExtraction("XEM LỊCH QUAY NGÀY 20/2");
+        ChatScheduleDateExtraction extraction = parser.extractExtraction("XEM LỊCH QUAY NGÀY 20/8");
         assertThat(extraction.mode()).isEqualTo(com.daiphat.coreapi.domain.model.enums.chat.ChatScheduleDateMode.SPECIFIC_DATE);
         assertThat(extraction.resolvedDate()).isPresent();
-        assertThat(extraction.resolvedDate().get().getMonthValue()).isEqualTo(2);
+        assertThat(extraction.resolvedDate().get().getMonthValue()).isEqualTo(8);
         assertThat(extraction.resolvedDate().get().getDayOfMonth()).isEqualTo(20);
     }
 
