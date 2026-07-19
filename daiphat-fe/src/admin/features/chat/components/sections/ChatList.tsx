@@ -29,9 +29,9 @@ import {
     Badge
 } from "@mui/material";
 import { Icon } from "@iconify/react";
-import { adminChatDetailKey, ADMIN_CHAT_CONVERSATIONS_KEY } from '../../../hooks/useChat';
-import { MessageSenderRole, ConversationStatusEnum } from '../../../../types/chat.type';
-import { SortOrderEnum } from '../../../../constants/common.constants';
+import { adminChatDetailKey, ADMIN_CHAT_CONVERSATIONS_KEY } from '../../hooks/useChat';
+import { MessageSenderRole, ConversationStatusEnum } from '../../../../../types/chat.type';
+import { SortOrderEnum } from '../../../../../constants/common.constants';
 import dayjs from "dayjs";
 
 const WaitTimerChip = ({ startTime }: { startTime: string }) => {
@@ -65,15 +65,15 @@ const WaitTimerChip = ({ startTime }: { startTime: string }) => {
     );
 };
 
-import { AppToast as toast } from '../../../../utils/toast.util';
-import { JiraFilter } from "../../../shared/data-grid";
-import { Search } from "../../../components/ui/Search";
-import { SortButton } from "../../../components/ui/SortButton";
-import { SettingsList } from "../../../components/ui/SettingsList";
-import { Conversation } from '../../../../types/chat.type';
-import { useAuthStore } from '../../../../stores/useAuthStore';
-import { useAccounts } from '../../../features/users/hooks/useUsers';
-import { RoleEnum } from "../../../../types/role.type";
+import { AppToast as toast } from '../../../../../utils/toast.util';
+import { JiraFilter } from '../../../../shared/data-grid';
+import { Search } from '../../../../components/ui/Search';
+import { SortButton } from '../../../../components/ui/SortButton';
+import { SettingsList } from '../../../../components/ui/SettingsList';
+import { Conversation } from '../../../../../types/chat.type';
+import { useAuthStore } from '../../../../../stores/useAuthStore';
+import { useAccounts } from '../../../users/hooks/useUsers';
+import { RoleEnum } from '../../../../../types/role.type';
 
 type AssigneeFilter = 'all' | 'unassigned' | 'mine' | string;
 
@@ -325,7 +325,9 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
     }, [isAdmin, staffOperators]);
 
     return (
-        <Card sx={{
+        <Card
+            className="admin-list-card admin-list-card--table"
+            sx={{
             borderRadius: 'var(--shape-borderRadius-lg)',
             bgcolor: 'var(--palette-background-paper)',
             boxShadow: "var(--customShadows-card)",
@@ -421,7 +423,7 @@ export const ChatList = ({ conversations, onSelectConversation, onToggleMode, vi
                                         badgeContent={totalFilterCount}
                                         color="primary"
                                         variant="dot"
-                                        sx={{ '& .MuiBadge-badge': { backgroundColor: "#FF5630" } }}
+                                        sx={{ '& .MuiBadge-badge': { backgroundColor: 'var(--palette-error-main)' } }}
                                     >
                                         <SvgIcon sx={{ fontSize: '1.125rem !important' }} viewBox="0 0 24 24">
                                             <g fill="none" fillRule="evenodd">

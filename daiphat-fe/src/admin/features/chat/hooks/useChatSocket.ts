@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { AppToast } from '../../utils/toast.util';
-import { chatService } from '../services/chat.service';
+import { AppToast } from '../../../../utils/toast.util';
+import { chatService } from '../services/chatService';
 import { ADMIN_CHAT_CONVERSATIONS_KEY, adminChatCustomerTimelineKey, adminChatDetailKey } from './useChat';
-import { Conversation } from '../../types/chat.type';
+import { Conversation } from '../../../../types/chat.type';
 
-import { useWebSocket } from '../../hooks/useWebSocket';
-import { ChatConversationSocketEvent } from '../../types/chat.type';
+import { useWebSocket } from '../../../../hooks/useWebSocket';
+import { ChatConversationSocketEvent } from '../../../../types/chat.type';
 import {
     ChatSocketMessageEvent,
     ChatSocketMessagePayload,
     WebSocketSubscription,
-} from '../../types/websocket.type';
-import { isChatConversationSocketEvent } from '../../services/websocket/websocket.service';
+} from '../../../../types/websocket.type';
+import { isChatConversationSocketEvent } from '../../../../services/websocket/websocket.service';
 
 interface UseChatSocketOptions {
     conversationId?: string | number | null;

@@ -33,11 +33,11 @@ import {
     useMediaQuery,
     createTheme,
 } from '@mui/material';
-import { LoadingButton } from '../../../components/ui/LoadingButton';
+import { LoadingButton } from '../../../../components/ui/LoadingButton';
 import { Icon } from '@iconify/react';
 import { useCallback, useRef, useEffect, useLayoutEffect, useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { AppToast as toast } from '../../../../utils/toast.util';
+import { AppToast as toast } from '../../../../../utils/toast.util';
 import {
     useConversations,
     useCustomerChatTimeline,
@@ -47,22 +47,22 @@ import {
     useAssignConversation,
     useCloseConversation,
     mergeCustomerTimelineMessage,
-} from '../../../hooks/useChat';
-import { useChatSocket } from '../../../hooks/useChatSocket';
+} from '../../hooks/useChat';
+import { useChatSocket } from '../../hooks/useChatSocket';
 import { Link } from 'react-router-dom';
-import { prefixAdmin } from '../../../constants/routes';
-import { Conversation, Message } from '../../../../types/chat.type';
-import { ChatSocketMessageEvent } from '../../../../types/websocket.type';
-import { ChatConversationSocketEvent, MessageSenderRole, ConversationStatusEnum, ConversationCloseReason, CLOSE_REASON_OPTIONS } from '../../../../types/chat.type';
-import { useAuthStore } from '../../../../stores/useAuthStore';
+import { prefixAdmin } from '../../../../constants/routes';
+import { Conversation, Message } from '../../../../../types/chat.type';
+import { ChatSocketMessageEvent } from '../../../../../types/websocket.type';
+import { ChatConversationSocketEvent, MessageSenderRole, ConversationStatusEnum, ConversationCloseReason, CLOSE_REASON_OPTIONS } from '../../../../../types/chat.type';
+import { useAuthStore } from '../../../../../stores/useAuthStore';
 import dayjs from 'dayjs';
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-    [ConversationStatusEnum.OPEN]: { label: 'Mở', color: '#6366f1', bg: '#e0e7ff' },
-    [ConversationStatusEnum.ACTIVE]: { label: 'Đang xử lý', color: '#22c55e', bg: '#dcfce7' },
-    [ConversationStatusEnum.WAITING_FOR_OPERATOR]: { label: 'Chờ nhân viên nhận', color: '#f97316', bg: '#ffedd5' },
-    [ConversationStatusEnum.WAITING_FOR_CUSTOMER]: { label: 'Chờ khách hàng', color: '#0ea5e9', bg: '#e0f2fe' },
-    [ConversationStatusEnum.CLOSED]: { label: 'Đã đóng', color: '#6b7280', bg: '#f3f4f6' },
+    [ConversationStatusEnum.OPEN]: { label: 'Mở', color: 'var(--palette-info-dark)', bg: 'var(--palette-info-lighter)' },
+    [ConversationStatusEnum.ACTIVE]: { label: 'Đang xử lý', color: 'var(--palette-success-dark)', bg: 'var(--palette-success-lighter)' },
+    [ConversationStatusEnum.WAITING_FOR_OPERATOR]: { label: 'Chờ nhân viên nhận', color: 'var(--palette-warning-dark)', bg: 'var(--palette-warning-lighter)' },
+    [ConversationStatusEnum.WAITING_FOR_CUSTOMER]: { label: 'Chờ khách hàng', color: 'var(--palette-info-main)', bg: 'var(--palette-info-lighter)' },
+    [ConversationStatusEnum.CLOSED]: { label: 'Đã đóng', color: 'var(--palette-grey-700)', bg: 'var(--palette-grey-200)' },
 };
 
 const mapSocketMessage = (payload: ChatSocketMessageEvent): Message => ({
@@ -552,7 +552,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                             )}
                         </Typography>
                         {!isConnected && (
-                            <Typography variant="caption" sx={{ color: '#f97316' }}>
+                            <Typography variant="caption" sx={{ color: 'var(--palette-warning-main)' }}>
                                 Đang kết nối realtime...
                             </Typography>
                         )}
@@ -566,10 +566,10 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                             onClick={handleCloseConversation}
                             disabled={closeMutation.isPending}
                             sx={{
-                                color: '#6b7280',
-                                borderColor: '#d1d5db',
+                                color: 'var(--palette-grey-600)',
+                                borderColor: 'var(--palette-grey-300)',
                                 fontWeight: 600,
-                                '&:hover': { borderColor: '#9ca3af', bgcolor: '#f9fafb' },
+                                '&:hover': { borderColor: 'var(--palette-grey-500)', bgcolor: 'var(--palette-grey-100)' },
                             }}
                         >
                             {closeMutation.isPending ? 'Đang đóng...' : 'Đóng hội thoại'}
@@ -752,7 +752,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                                     </Avatar>
                                 )}
                                 {isBot && (
-                                    <Avatar sx={{ width: 28, height: 28, mb: 0.5, bgcolor: '#e0f2fe', color: '#0284c7' }}>
+                                    <Avatar sx={{ width: 28, height: 28, mb: 0.5, bgcolor: 'var(--palette-info-lighter)', color: 'var(--palette-info-dark)' }}>
                                         <Icon icon="solar:smart-speaker-bold-duotone" width={18} />
                                     </Avatar>
                                 )}
@@ -770,10 +770,10 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                                             px: 2,
                                             py: 1.25,
                                             borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                                            bgcolor: isMe ? 'var(--palette-primary-main)' : isBot ? '#f0f9ff' : 'white',
+                                            bgcolor: isMe ? 'var(--palette-primary-main)' : isBot ? 'var(--palette-info-lighter)' : 'var(--palette-background-paper)',
                                             color: isMe ? 'white' : 'text.primary',
                                             boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
-                                            border: isMe ? 'none' : isBot ? '1px solid #bae6fd' : '1px solid #eee',
+                                            border: isMe ? 'none' : isBot ? '1px solid var(--palette-info-light)' : '1px solid var(--palette-divider)',
                                             width: 'fit-content',
                                         }}
                                     >
@@ -794,7 +794,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                                     >
                                         {dayjs(msg.createdAt).format('HH:mm')}
                                         {showSeen && (
-                                            <span style={{ marginLeft: 4, fontWeight: 600, color: '#22c55e' }}>
+                                            <span style={{ marginLeft: 4, fontWeight: 600, color: 'var(--palette-success-main)' }}>
                                                 ✓ Đã xem
                                             </span>
                                         )}
@@ -807,20 +807,20 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                 </Box>
             </Box>
 
-            <Box sx={{ p: 2, bgcolor: 'white', borderTop: '1px solid #eee', flexShrink: 0 }}>
+            <Box sx={{ p: 2, bgcolor: 'var(--palette-background-paper)', borderTop: '1px solid var(--palette-divider)', flexShrink: 0 }}>
                 <Box
                     sx={{
                         display: 'flex',
                         alignItems: 'center',
                         bgcolor: 'var(--palette-background-neutral)',
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid var(--palette-grey-300)',
                         borderRadius: '50px',
                         p: 0.5,
                         pl: 2,
                         transition: 'all 0.2s',
                         '&:focus-within': {
-                            borderColor: '#fca5a5',
-                            boxShadow: '0 0 0 1px #fee2e2',
+                            borderColor: 'var(--palette-error-light)',
+                            boxShadow: '0 0 0 1px var(--palette-error-lighter)',
                         },
                     }}
                 >
@@ -854,7 +854,7 @@ export const ChatWindow = ({ conversationId, onToggleDetails }: ChatWindowProps)
                             color: 'white',
                             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                             '&:hover': { bgcolor: 'var(--palette-primary-dark)' },
-                            '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#9ca3af', boxShadow: 'none' },
+                            '&.Mui-disabled': { bgcolor: 'var(--palette-grey-300)', color: 'var(--palette-grey-500)', boxShadow: 'none' },
                         }}
                     >
                         <Icon icon="solar:plain-bold" width={18} style={{ transform: 'translateX(-1px) translateY(1px)' }} />

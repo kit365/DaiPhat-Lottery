@@ -1,6 +1,6 @@
-import { Conversation, ConversationStatusEnum, Message, CustomerChatTimelineResponse, SessionBoundaryResponse } from '../../../types/chat.type';
-import { flattenTimelineItems, formatSessionStartedLabel } from '../../../utils/chatTimeline.util';
-import { mapMessage } from '../../services/chat.service';
+import { Conversation, ConversationStatusEnum, Message, CustomerChatTimelineResponse, SessionBoundaryResponse } from '../../../../types/chat.type';
+import { flattenTimelineItems, formatSessionStartedLabel } from '../../../../utils/chatTimeline.util';
+import { mapMessage } from '../services/chatService';
 
 const isActiveStatus = (status: Conversation['status']): boolean =>
     status !== ConversationStatusEnum.CLOSED;
