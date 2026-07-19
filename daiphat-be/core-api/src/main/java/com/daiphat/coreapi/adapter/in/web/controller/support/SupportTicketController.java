@@ -78,6 +78,15 @@ public class SupportTicketController {
                 supportTicketServicePort.getMyTickets(principal.getId(), page, limit, status, search));
     }
 
+    @GetMapping("/my/active-count")
+    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    public ApiResponse<Long> getMyActiveCount(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                "Lấy số lượng yêu cầu hỗ trợ đang xử lý thành công.",
+                supportTicketServicePort.countActiveMyTickets(principal.getId()));
+    }
+
     @GetMapping(ID_PATH)
     @PreAuthorize("hasAnyAuthority('"
             + RoleConstants.ROLE_MEMBER + "', '"

@@ -35,4 +35,6 @@ public interface SupportTicketRepositoryPort {
     );
 
     List<SupportTicketModel> findResolvedBefore(LocalDateTime cutoff);
+
+    long countActiveTickets(UUID customerId);
 }

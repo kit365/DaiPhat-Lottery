@@ -26,6 +26,8 @@ public interface SupportTicketServicePort {
     PageResponse<SupportTicketSummaryResponse> getMyTickets(
             UUID customerId, int page, int limit, String status, String search);
 
+    long countActiveMyTickets(UUID customerId);
+
     SupportTicketResponse getByIdForCustomer(Long id, UUID customerId);
 
     SupportTicketResponse getByIdForStaff(Long id, UUID staffId);

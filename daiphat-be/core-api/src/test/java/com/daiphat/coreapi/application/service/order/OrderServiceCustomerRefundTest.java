@@ -81,7 +81,8 @@ class OrderServiceCustomerRefundTest {
                 paymentGatewayStrategyFactory,
                 eventPublisher,
                 orderRefundGraceService,
-                paymentTimeoutConfigService);
+                paymentTimeoutConfigService,
+                org.mockito.Mockito.mock(com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService.class));
 
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.ORDER_CANCEL_GRACE_MIN.name()))
                 .thenReturn(Optional.of(SystemConfigModel.builder().configValue("30").build()));
