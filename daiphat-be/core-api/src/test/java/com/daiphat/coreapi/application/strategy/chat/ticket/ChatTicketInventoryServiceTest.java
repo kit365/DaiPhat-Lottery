@@ -124,6 +124,27 @@ class ChatTicketInventoryServiceTest {
     }
 
     @Test
+    void formatReply_whenPrefixSearch_usesDauSoWording() {
+        ChatTicketInventoryService.TicketInventoryReply found = service.formatReply(
+                List.of(ticket("579361", 1L, "Bạc Liêu")),
+                "57",
+                true,
+                "prefix"
+        );
+        ChatTicketInventoryService.TicketInventoryReply empty = service.formatReply(
+                List.of(),
+                "57",
+                true,
+                "prefix"
+        );
+
+        assertThat(found.displayContent()).contains("khớp đầu số 57");
+        assertThat(found.displayContent()).doesNotContain("đuôi số");
+        assertThat(empty.displayContent()).contains("chưa có vé khớp đầu số 57");
+        assertThat(empty.displayContent()).contains("thử đầu số khác");
+    }
+
+    @Test
     void formatReply_whenNoInventoryAtAll_asksRetryWithoutToken() {
         when(lotteryTicketServicePort.getPublicTickets(
                 anyInt(), anyInt(), isNull(), isNull(), anyString(), isNull(), anyString(), anyString()

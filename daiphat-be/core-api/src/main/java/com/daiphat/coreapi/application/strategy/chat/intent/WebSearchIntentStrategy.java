@@ -64,15 +64,16 @@ public class WebSearchIntentStrategy implements ChatIntentHandlerStrategy {
     }
 
     public ChatIntentOutcome searchTickets(String search, String matchMode, Long stationId) {
+        String resolvedMode = normalizeMode(matchMode);
         List<LotteryTicketResponse> tickets = chatTicketInventoryService.findAvailableMatching(
                 search,
                 stationId,
                 ChatTicketInventoryService.DRAW_DATE_TODAY,
                 ChatTicketInventoryService.DEFAULT_LIMIT,
-                matchMode
+                resolvedMode
         );
         ChatTicketInventoryService.TicketInventoryReply reply =
-                chatTicketInventoryService.formatReply(tickets, search, true);
+                chatTicketInventoryService.formatReply(tickets, search, true, resolvedMode);
         return new ChatIntentOutcome.BotReply(
                 reply.content(),
                 reply.displayContent(),

@@ -31,9 +31,9 @@ public class RedisChatFlowCacheAdapter implements ChatFlowCachePort {
                     .orElseGet(Collections::emptyList);
         } catch (Exception exception) {
             log.warn(
-                    "Redis unavailable while loading chat flows for conversation {} — treating as empty: {}",
+                    "Failed to load chat flows for conversation {} — treating as empty (pending slots may reset): {}",
                     conversationId,
-                    exception.getMessage()
+                    exception.toString()
             );
             return List.of();
         }
@@ -56,9 +56,9 @@ public class RedisChatFlowCacheAdapter implements ChatFlowCachePort {
             );
         } catch (Exception exception) {
             log.warn(
-                    "Redis unavailable while saving chat flows for conversation {} — chat continues without cached state: {}",
+                    "Failed to save chat flows for conversation {} — chat continues without cached state: {}",
                     conversationId,
-                    exception.getMessage()
+                    exception.toString()
             );
         }
     }

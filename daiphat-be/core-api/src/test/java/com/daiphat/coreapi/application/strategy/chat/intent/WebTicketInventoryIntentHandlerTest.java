@@ -53,7 +53,7 @@ class WebTicketInventoryIntentHandlerTest {
         when(chatTicketInventoryService.findAvailableMatching(
                 eq("68"), isNull(), eq("today"), eq(5), eq("suffix")
         )).thenReturn(tickets);
-        when(chatTicketInventoryService.formatReply(tickets, "68", true))
+        when(chatTicketInventoryService.formatReply(tickets, "68", true, "suffix"))
                 .thenReturn(new ChatTicketInventoryService.TicketInventoryReply(
                         "TICKET_SUGGEST:[{\"numbers\":\"126868\"}]",
                         "Đại Phát tìm thấy 1 vé đang bán khớp \"68\":"
@@ -72,7 +72,7 @@ class WebTicketInventoryIntentHandlerTest {
         assertThat(botReply.displayContent()).doesNotContain("/buy-ticket");
         assertThat(botReply.intent()).isEqualTo(ChatIntent.WEB_SEARCH.name());
         verify(chatTicketInventoryService).findAvailableMatching("68", null, "today", 5, "suffix");
-        verify(chatTicketInventoryService).formatReply(tickets, "68", true);
+        verify(chatTicketInventoryService).formatReply(tickets, "68", true, "suffix");
     }
 
     @Test
@@ -125,7 +125,7 @@ class WebTicketInventoryIntentHandlerTest {
         when(chatTicketInventoryService.findAvailableMatching(
                 eq("68"), isNull(), eq("today"), eq(5), eq("suffix")
         )).thenReturn(tickets);
-        when(chatTicketInventoryService.formatReply(tickets, "68", true))
+        when(chatTicketInventoryService.formatReply(tickets, "68", true, "suffix"))
                 .thenReturn(new ChatTicketInventoryService.TicketInventoryReply(
                         "TICKET_SUGGEST:[{\"numbers\":\"126868\"}]",
                         "match"
@@ -140,6 +140,72 @@ class WebTicketInventoryIntentHandlerTest {
 
         assertThat(outcome).isPresent();
         assertThat(((ChatIntentOutcome.BotReply) outcome.get()).content()).contains("126868");
+        assertThat(conversation.findActiveFlow(ChatIntent.WEB_SEARCH.name())).isEmpty();
+    }
+
+    @Test
+    void webSearch_withoutDigits_asksForPrefixAndSetsPending() {
+        ConversationModel conversation = ConversationModel.builder()
+                .id(1L)
+                .customerId(UUID.randomUUID())
+                .status(ConversationStatus.OPEN)
+                .build();
+
+        ChatIntentOutcome outcome = searchStrategy.resolve(ChatIntentContext.builder()
+                .conversation(conversation)
+                .customerMessage(MessageModel.builder()
+                        .id(2L)
+                        .content("bạn có hỗ trợ tìm số đầu không")
+                        .senderType(MessageSenderType.CUSTOMER)
+                        .build())
+                .classification(ChatClassifyResponse.builder()
+                        .intent(ChatIntent.WEB_SEARCH.name())
+                        .confidence(0.9)
+                        .entities(Map.of())
+                        .build())
+                .build());
+
+        ChatIntentOutcome.BotReply botReply = (ChatIntentOutcome.BotReply) outcome;
+        assertThat(botReply.displayContent()).isEqualTo(WebSearchIntentStrategy.ASK_PREFIX_COPY);
+        assertThat(conversation.findActiveFlow(ChatIntent.WEB_SEARCH.name())).isPresent();
+        assertThat(WebSearchIntentStrategy.matchModeFromFlow(
+                conversation.findActiveFlow(ChatIntent.WEB_SEARCH.name()).orElseThrow()
+        )).isEqualTo("prefix");
+    }
+
+    @Test
+    void webSearchFlow_continuesPendingPrefixWithDigits() {
+        WebSearchFlowService flowService = new WebSearchFlowService(searchStrategy);
+        ConversationModel conversation = ConversationModel.builder()
+                .id(1L)
+                .customerId(UUID.randomUUID())
+                .status(ConversationStatus.OPEN)
+                .build();
+        searchStrategy.beginAskForFragment(conversation, "prefix");
+
+        List<LotteryTicketResponse> tickets = List.of(ticket("579361"));
+        when(chatTicketInventoryService.findAvailableMatching(
+                eq("57"), isNull(), eq("today"), eq(5), eq("prefix")
+        )).thenReturn(tickets);
+        when(chatTicketInventoryService.formatReply(tickets, "57", true, "prefix"))
+                .thenReturn(new ChatTicketInventoryService.TicketInventoryReply(
+                        "TICKET_SUGGEST:[{\"numbers\":\"579361\"}]",
+                        "Dưới đây là 1 vé đang bán khớp đầu số 57 dành cho quý khách:"
+                ));
+
+        var outcome = flowService.tryContinue(
+                conversation,
+                conversation.findActiveFlow(ChatIntent.WEB_SEARCH.name()).orElseThrow(),
+                MessageModel.builder().content("57").senderType(MessageSenderType.CUSTOMER).build(),
+                null
+        );
+
+        assertThat(outcome).isPresent();
+        ChatIntentOutcome.BotReply botReply = (ChatIntentOutcome.BotReply) outcome.get();
+        assertThat(botReply.content()).contains("579361");
+        assertThat(botReply.displayContent()).contains("đầu số 57");
+        verify(chatTicketInventoryService).findAvailableMatching("57", null, "today", 5, "prefix");
+        verify(chatTicketInventoryService).formatReply(tickets, "57", true, "prefix");
         assertThat(conversation.findActiveFlow(ChatIntent.WEB_SEARCH.name())).isEmpty();
     }
 
@@ -178,7 +244,7 @@ class WebTicketInventoryIntentHandlerTest {
         LotteryTicketResponse ending = ticket("334455");
         when(chatTicketInventoryService.findAvailableMatching(eq("55"), isNull(), eq("today"), eq(5), eq("suffix")))
                 .thenReturn(List.of(ending));
-        when(chatTicketInventoryService.formatReply(List.of(ending), "55", true))
+        when(chatTicketInventoryService.formatReply(List.of(ending), "55", true, "suffix"))
                 .thenReturn(new ChatTicketInventoryService.TicketInventoryReply(
                         "TICKET_SUGGEST:[{\"numbers\":\"334455\"}]",
                         "Đại Phát tìm thấy 1 vé đang bán khớp \"55\":"
@@ -193,14 +259,14 @@ class WebTicketInventoryIntentHandlerTest {
         ChatIntentOutcome.BotReply botReply = (ChatIntentOutcome.BotReply) outcome;
         assertThat(botReply.content()).contains("334455");
         assertThat(botReply.content()).doesNotContain("556677");
-        verify(chatTicketInventoryService).formatReply(List.of(ending), "55", true);
+        verify(chatTicketInventoryService).formatReply(List.of(ending), "55", true, "suffix");
     }
 
     @Test
     void webSearch_whenNoEndingMatch_asksFormatReplyToSuggestAlternatives() {
         when(chatTicketInventoryService.findAvailableMatching(eq("99"), isNull(), eq("today"), eq(5), eq("suffix")))
                 .thenReturn(List.of());
-        when(chatTicketInventoryService.formatReply(List.of(), "99", true))
+        when(chatTicketInventoryService.formatReply(List.of(), "99", true, "suffix"))
                 .thenReturn(new ChatTicketInventoryService.TicketInventoryReply(
                         "fallback",
                         "Kho chưa có số bạn tìm"
@@ -214,7 +280,7 @@ class WebTicketInventoryIntentHandlerTest {
 
         ChatIntentOutcome.BotReply botReply = (ChatIntentOutcome.BotReply) outcome;
         assertThat(botReply.displayContent()).contains("Kho chưa có số bạn tìm");
-        verify(chatTicketInventoryService).formatReply(List.of(), "99", true);
+        verify(chatTicketInventoryService).formatReply(List.of(), "99", true, "suffix");
     }
 
     @Test
@@ -222,7 +288,7 @@ class WebTicketInventoryIntentHandlerTest {
         LotteryTicketResponse prefix = ticket("123456");
         when(chatTicketInventoryService.findAvailableMatching(eq("12"), isNull(), eq("today"), eq(5), eq("prefix")))
                 .thenReturn(List.of(prefix));
-        when(chatTicketInventoryService.formatReply(List.of(prefix), "12", true))
+        when(chatTicketInventoryService.formatReply(List.of(prefix), "12", true, "prefix"))
                 .thenReturn(new ChatTicketInventoryService.TicketInventoryReply(
                         "TICKET_SUGGEST:[{\"numbers\":\"123456\"}]",
                         "Đại Phát tìm thấy 1 vé đang bán khớp \"12\":"
@@ -237,7 +303,7 @@ class WebTicketInventoryIntentHandlerTest {
         ChatIntentOutcome.BotReply botReply = (ChatIntentOutcome.BotReply) outcome;
         assertThat(botReply.content()).contains("123456");
         assertThat(botReply.content()).doesNotContain("991234");
-        verify(chatTicketInventoryService).formatReply(List.of(prefix), "12", true);
+        verify(chatTicketInventoryService).formatReply(List.of(prefix), "12", true, "prefix");
     }
 
     @Test
@@ -245,7 +311,7 @@ class WebTicketInventoryIntentHandlerTest {
         LotteryTicketResponse exact = ticket("334455");
         when(chatTicketInventoryService.findAvailableMatching(eq("334455"), isNull(), eq("today"), eq(5), eq("exact")))
                 .thenReturn(List.of(exact));
-        when(chatTicketInventoryService.formatReply(List.of(exact), "334455", true))
+        when(chatTicketInventoryService.formatReply(List.of(exact), "334455", true, "exact"))
                 .thenReturn(new ChatTicketInventoryService.TicketInventoryReply(
                         "TICKET_SUGGEST:[{\"numbers\":\"334455\"}]",
                         "Đại Phát tìm thấy 1 vé đang bán khớp \"334455\":"
@@ -259,7 +325,7 @@ class WebTicketInventoryIntentHandlerTest {
 
         ChatIntentOutcome.BotReply botReply = (ChatIntentOutcome.BotReply) outcome;
         assertThat(botReply.content()).contains("334455");
-        verify(chatTicketInventoryService).formatReply(List.of(exact), "334455", true);
+        verify(chatTicketInventoryService).formatReply(List.of(exact), "334455", true, "exact");
     }
 
     @Test
@@ -267,7 +333,7 @@ class WebTicketInventoryIntentHandlerTest {
         LotteryTicketResponse ending = ticket("556789");
         when(chatTicketInventoryService.findAvailableMatching(eq("56789"), isNull(), eq("today"), eq(5), eq("suffix")))
                 .thenReturn(List.of(ending));
-        when(chatTicketInventoryService.formatReply(List.of(ending), "56789", true))
+        when(chatTicketInventoryService.formatReply(List.of(ending), "56789", true, "suffix"))
                 .thenReturn(new ChatTicketInventoryService.TicketInventoryReply(
                         "TICKET_SUGGEST:[{\"numbers\":\"556789\"}]",
                         "match"
@@ -279,14 +345,14 @@ class WebTicketInventoryIntentHandlerTest {
                 Map.of("ticket_fragment", "56789", "ticket_match_mode", "suffix")
         ));
 
-        verify(chatTicketInventoryService).formatReply(List.of(ending), "56789", true);
+        verify(chatTicketInventoryService).formatReply(List.of(ending), "56789", true, "suffix");
     }
 
     @Test
     void webSearch_extractsDigitsFromMessageWhenEntityMissing() {
         when(chatTicketInventoryService.findAvailableMatching(eq("123456"), isNull(), eq("today"), eq(5), eq("exact")))
                 .thenReturn(List.of());
-        when(chatTicketInventoryService.formatReply(List.of(), "123456", true))
+        when(chatTicketInventoryService.formatReply(List.of(), "123456", true, "exact"))
                 .thenReturn(new ChatTicketInventoryService.TicketInventoryReply("empty", "empty"));
 
         searchStrategy.resolve(context("tìm vé 123456", ChatIntent.WEB_SEARCH, Map.of()));

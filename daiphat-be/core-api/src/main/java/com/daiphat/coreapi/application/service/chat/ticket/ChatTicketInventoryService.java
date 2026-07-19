@@ -154,14 +154,26 @@ public class ChatTicketInventoryService {
      * Empty đuôi/đầu search must not show unrelated fallback tickets — that misleads the customer.
      */
     public TicketInventoryReply formatReply(List<LotteryTicketResponse> primary, String search, boolean isSearch) {
+        return formatReply(primary, search, isSearch, null);
+    }
+
+    public TicketInventoryReply formatReply(
+            List<LotteryTicketResponse> primary,
+            String search,
+            boolean isSearch,
+            String matchMode
+    ) {
+        String mode = normalizeMatchMode(matchMode, search);
+        String matchLabel = matchLabel(mode);
+
         if (primary != null && !primary.isEmpty()) {
-            String display = buildPrimaryDisplay(primary.size(), search, isSearch);
+            String display = buildPrimaryDisplay(primary.size(), search, isSearch, matchLabel);
             return new TicketInventoryReply(withLeadingDisplay(display, toToken(primary)), display);
         }
 
         if (isSearch && search != null && !search.isBlank()) {
-            String display = "Hiện Đại Phát chưa có vé khớp đuôi số " + search.trim()
-                    + ". Quý khách có thể thử đuôi số khác, xem mục Mua vé, hoặc quay lại sau nhé.";
+            String display = "Hiện Đại Phát chưa có vé khớp " + matchLabel + " " + search.trim()
+                    + ". Quý khách có thể thử " + matchLabel + " khác, xem mục Mua vé, hoặc quay lại sau nhé.";
             return new TicketInventoryReply(display, display);
         }
 
@@ -270,12 +282,20 @@ public class ChatTicketInventoryService {
         return json.toString();
     }
 
-    private static String buildPrimaryDisplay(int count, String search, boolean isSearch) {
+    private static String buildPrimaryDisplay(int count, String search, boolean isSearch, String matchLabel) {
         if (isSearch && search != null && !search.isBlank()) {
-            return "Dưới đây là " + count + " vé đang bán khớp đuôi số " + search.trim()
+            return "Dưới đây là " + count + " vé đang bán khớp " + matchLabel + " " + search.trim()
                     + " dành cho quý khách:";
         }
         return "Dưới đây là " + count + " vé đang bán cho kỳ quay sắp tới dành cho quý khách:";
+    }
+
+    static String matchLabel(String matchMode) {
+        return switch (normalizeMatchMode(matchMode, null)) {
+            case MATCH_PREFIX -> "đầu số";
+            case MATCH_EXACT -> "số";
+            default -> "đuôi số";
+        };
     }
 
     private static String formatIsoDate(LocalDate drawDate) {
