@@ -25,6 +25,7 @@ export interface ChatQuickReplyMessageContext {
 
 export interface ResolveContextualQuickRepliesOptions {
   hasCustomerMessages: boolean;
+  isAiEnabled?: boolean;
 }
 
 export interface ContextualQuickReplies {
@@ -77,6 +78,17 @@ const welcomeQuickReplies = (): ContextualQuickReplies => ({
   ],
 });
 
+const staffOnlyQuickReplies = (): ContextualQuickReplies => ({
+  chips: [
+    {
+      id: 'ai-disabled-staff',
+      label: 'Gặp nhân viên',
+      action: 'staff',
+      primary: true,
+    },
+  ],
+});
+
 /** Gợi ý gắn inline trong bubble schedule-result (không dùng footer). */
 export const scheduleResultFollowUpChips = (message: ChatQuickReplyMessageContext): QuickReplyChip[] => [
   {
@@ -100,9 +112,7 @@ export const scheduleResultFollowUpChips = (message: ChatQuickReplyMessageContex
 ];
 
 /** Chip phụ dưới hàng card gợi ý vé. */
-export const ticketSuggestFollowUpChips = (options?: {
-  isEmptyMatch?: boolean;
-}): QuickReplyChip[] => [
+export const ticketSuggestFollowUpChips = (): QuickReplyChip[] => [
   {
     id: 'ticket-suggest-again',
     label: 'Gợi ý khác',
@@ -112,7 +122,7 @@ export const ticketSuggestFollowUpChips = (options?: {
   },
   {
     id: 'ticket-suggest-search',
-    label: options?.isEmptyMatch ? 'Đổi đuôi khác' : 'Tìm đuôi số',
+    label: 'Tìm đuôi số',
     action: 'send',
     message: 'tìm vé đuôi số',
   },
@@ -134,7 +144,13 @@ export const resolveContextualQuickReplies = (
   const variant = lastBotMessage.variant ?? 'bubble';
 
   if (INLINE_ACTION_VARIANTS.has(variant)) {
+    // Ticket/schedule cards already render their own actions; when AI is off the
+    // ticket card row keeps a single "Gặp nhân viên" chip inline.
     return { chips: [] };
+  }
+
+  if (options.isAiEnabled === false) {
+    return staffOnlyQuickReplies();
   }
 
   if (!options.hasCustomerMessages && lastBotMessage.id === 'welcome') {
@@ -171,9 +187,7 @@ export const resolveContextualQuickReplies = (
     }
 
     return {
-      chips: ticketSuggestFollowUpChips({
-        isEmptyMatch: normalized.includes('chưa có vé khớp đuôi'),
-      }),
+      chips: ticketSuggestFollowUpChips(),
     };
   }
 

@@ -7,6 +7,7 @@ import { useAuthStore } from '../../../stores/useAuthStore';
 import { AppToast } from '../../../utils/toast.util';
 import { useAuth } from '../../hooks/useAuth';
 import { useChatConversation } from '../../hooks/useChatConversation';
+import { useChatAiStatus } from '../../hooks/useChatAiStatus';
 import { getCustomerChatTimelineKey, CLIENT_TIMELINE_USER_KEY, useMyChatTimeline } from '../../../hooks/useCustomerChatTimeline';
 import {
   countUnreadInboundMessages,
@@ -63,6 +64,7 @@ interface Message {
   text: string;
   timestamp: string;
   intent?: string | null;
+  fromStaff?: boolean;
   variant?: 'bubble' | 'divider' | 'date' | 'schedule' | 'schedule-options' | 'schedule-ask-location' | 'schedule-ask-station' | 'schedule-ask-date' | 'schedule-ask-date-mode' | 'schedule-confirm-station' | 'schedule-region-choice' | 'schedule-result' | 'ticket-suggest' | 'typing';
   scheduleRegion?: string;
   scheduleStationId?: number;
@@ -140,10 +142,6 @@ const isAiHandoffErrorText = (text: string): boolean => {
 const hasAiDisabledNoticeInTimeline = (messages: Message[]): boolean =>
   messages.some((message) => isStrictAiDisabledNoticeText(message.text));
 
-/**
- * Case B signals: handoff / unavailable / real bot reply.
- * Welcome, session dividers, and AI-disabled notice do not count.
- */
 const hasAiAssistanceActivity = (messages: Message[]): boolean =>
   messages.some((message) => {
     if (message.sender !== 'bot' || message.id === 'welcome') {
@@ -152,11 +150,11 @@ const hasAiAssistanceActivity = (messages: Message[]): boolean =>
     if (isStrictAiDisabledNoticeText(message.text) || isSessionDividerText(message.text)) {
       return false;
     }
-    if (isAiHandoffErrorText(message.text)) {
-      return true;
-    }
     return message.variant !== 'divider' && message.variant !== 'date';
   });
+
+const isStaffConnectingNoticeText = (text: string): boolean =>
+  text.toLowerCase().includes('đang kết nối bạn với nhân viên hỗ trợ');
 
 const isSystemNoticeText = (text: string): boolean => {
   const normalized = text.toLowerCase();
@@ -167,7 +165,8 @@ const isSystemNoticeText = (text: string): boolean => {
     normalized.includes('đã tiếp nhận') ||
     normalized.includes('đang chờ nhân viên tiếp nhận') ||
     normalized.includes('yêu cầu của bạn đang chờ') ||
-    normalized.includes('huỷ yêu cầu gặp nhân viên')
+    normalized.includes('huỷ yêu cầu gặp nhân viên') ||
+    normalized.includes('ngắt kết nối với nhân viên')
   );
 };
 
@@ -216,8 +215,22 @@ const compactHandoffBotMessages = (messages: Message[]): Message[] => {
 const isOpenBotThread = (status: ConversationStatus | null): boolean =>
   status === 'OPEN' || status === null;
 
-const prepareDisplayMessages = (messages: Message[]): Message[] =>
-  compactHandoffBotMessages(messages);
+const prepareDisplayMessages = (messages: Message[], isAiEnabled: boolean): Message[] =>
+  compactHandoffBotMessages(
+    messages.filter((message) => {
+      // Never drop real staff replies — only suppress auto handoff copy when AI is off.
+      if (message.fromStaff || message.sender === 'user') {
+        return true;
+      }
+      if (!isAiEnabled && isStaffConnectingNoticeText(message.text)) {
+        return false;
+      }
+      if (!isAiEnabled && isAiHandoffErrorText(message.text)) {
+        return false;
+      }
+      return true;
+    })
+  );
 
 const SCHEDULE_OPTIONS_CONTENT = 'SCHEDULE_OPTIONS';
 const SCHEDULE_REGION_CODES = new Set(['MIEN_NAM', 'MIEN_TRUNG', 'MIEN_BAC']);
@@ -362,6 +375,7 @@ const toUiMessage = (message: ChatMessageResponse): Message => {
     text: displayText,
     timestamp: formatTime(message.createdAt),
     intent: message.intent,
+    fromStaff: message.senderType === 'OPERATOR',
     variant: resolved.variant,
     scheduleRegion: resolved.scheduleRegion,
     scheduleStationId: resolved.scheduleStationId,
@@ -484,6 +498,7 @@ export const ChatbotPopup = () => {
     loadConversationDetail,
     escalateConversation,
     cancelStaffRequest,
+    disconnectStaff,
     markConversationAsRead,
     sendRealtimeMessage,
     subscribeToCustomerInbox,
@@ -492,6 +507,8 @@ export const ChatbotPopup = () => {
     isLoadingOpen,
   } = useChatConversation();
   const timelineQuery = useMyChatTimeline(token);
+  const aiStatusQuery = useChatAiStatus(Boolean(token && userId));
+  const isAiEnabled = aiStatusQuery.data?.enabled !== false;
   const { fetchPreviousPage, refetch: refetchTimeline } = timelineQuery;
   const timelineRefreshingRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -500,6 +517,7 @@ export const ChatbotPopup = () => {
   const [conversationStatus, setConversationStatus] = useState<ConversationStatus | null>(null);
   const [isEscalating, setIsEscalating] = useState(false);
   const [isCancellingStaff, setIsCancellingStaff] = useState(false);
+  const [isDisconnectingStaff, setIsDisconnectingStaff] = useState(false);
   const [overlayMessages, setOverlayMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isSendingUi, setIsSendingUi] = useState(false);
@@ -522,9 +540,12 @@ export const ChatbotPopup = () => {
   const botReplyCountAtSendRef = useRef(0);
   /** Blocks duplicate send while Vietnamese/CJK IME finishes composition after Enter. */
   const isSendingRef = useRef(false);
+  const sendStartedAtRef = useRef(0);
   /** Discard IME leftover syllables that get re-inserted into a cleared input. */
   const suppressInputAfterSendRef = useRef(false);
   const sendLockTimeoutRef = useRef<number | null>(null);
+  const botReplyTimeoutRef = useRef<number | null>(null);
+  const releaseSendLockRef = useRef<() => void>(() => undefined);
   const handleIncomingMessageRef = useRef<(payload: ChatSocketMessageEvent) => void>(() => undefined);
   const handleConversationEventRef = useRef<(event: ChatConversationSocketEvent) => void>(() => undefined);
 
@@ -549,13 +570,19 @@ export const ChatbotPopup = () => {
     return [...base, ...overlay];
   }, [timelineMessages, overlayMessages]);
 
-  const displayMessages = useMemo(() => prepareDisplayMessages(messages), [messages]);
+  const displayMessages = useMemo(
+    () => prepareDisplayMessages(messages, isAiEnabled),
+    [isAiEnabled, messages]
+  );
   const isAuthReady = Boolean(token && userId);
 
   useEffect(() => {
     return () => {
       if (sendLockTimeoutRef.current != null) {
         window.clearTimeout(sendLockTimeoutRef.current);
+      }
+      if (botReplyTimeoutRef.current != null) {
+        window.clearTimeout(botReplyTimeoutRef.current);
       }
     };
   }, []);
@@ -609,6 +636,8 @@ export const ChatbotPopup = () => {
   );
 
   const showAiDisabledNotice =
+    aiStatusQuery.isSuccess &&
+    !isAiEnabled &&
     hasCustomerMessages &&
     isOpenBotThread(conversationStatus) &&
     !hasAiDisabledNoticeInTimeline(displayMessages) &&
@@ -616,6 +645,10 @@ export const ChatbotPopup = () => {
 
   const showWaitingForStaff =
     hasCustomerMessages && conversationStatus === 'WAITING_FOR_OPERATOR';
+
+  const showChattingWithStaff =
+    hasCustomerMessages &&
+    (conversationStatus === 'ACTIVE' || conversationStatus === 'WAITING_FOR_CUSTOMER');
 
   /**
    * Ngữ cảnh cho quick replies = tin nhắn bot có nội dung gần nhất.
@@ -642,8 +675,9 @@ export const ChatbotPopup = () => {
     () =>
       resolveContextualQuickReplies(quickReplyContextMessage, {
         hasCustomerMessages,
+        isAiEnabled,
       }),
-    [hasCustomerMessages, quickReplyContextMessage]
+    [hasCustomerMessages, isAiEnabled, quickReplyContextMessage]
   );
 
   const appendSystemMessage = (id: string, text: string) => {
@@ -821,6 +855,23 @@ export const ChatbotPopup = () => {
     }
   };
 
+  const handleDisconnectStaff = async () => {
+    if (isDisconnectingStaff || isEscalating || !conversationId || !showChattingWithStaff) {
+      return;
+    }
+
+    setIsDisconnectingStaff(true);
+    try {
+      const detail = await disconnectStaff(conversationId);
+      if (!detail) {
+        return;
+      }
+      applyConversationDetail(detail);
+    } finally {
+      setIsDisconnectingStaff(false);
+    }
+  };
+
   const handleLoadOlderMessages = useCallback(() => {
     if (!timelineQuery.hasPreviousPage || timelineQuery.isFetchingPreviousPage || !messagesContainerRef.current) {
       return;
@@ -871,6 +922,7 @@ export const ChatbotPopup = () => {
       const botCount = countBotReplies(timelineMessages);
       if (botCount > botReplyCountAtSendRef.current) {
         awaitingBotReplyRef.current = false;
+        releaseSendLockRef.current();
         return pruned.filter((message) => !message.id.startsWith('typing-'));
       }
       return pruned;
@@ -1100,6 +1152,8 @@ export const ChatbotPopup = () => {
       if (openDetail) {
         applyConversationState(openDetail);
         appendStatusFromDetail(openDetail);
+        seedTimelineFromDetail(openDetail);
+        void refreshTimelineMessages();
         return;
       }
 
@@ -1210,6 +1264,8 @@ export const ChatbotPopup = () => {
 
   const handleIncomingMessage = useCallback((payload: ChatSocketMessageEvent) => {
     mergeSocketMessageToTimeline(payload);
+    shouldStickToBottom.current = true;
+    wasAtBottomRef.current = true;
 
     if (payload.conversationId && payload.conversationId !== conversationId) {
       setConversationId(payload.conversationId);
@@ -1217,12 +1273,24 @@ export const ChatbotPopup = () => {
     }
 
     const activeConversationId = payload.conversationId ?? conversationId ?? null;
+    const isFromStaff =
+      payload.senderType === 'OPERATOR' || payload.senderType === 'AI_SYSTEM';
+
+    if (payload.senderType === 'AI_SYSTEM' && awaitingBotReplyRef.current) {
+      awaitingBotReplyRef.current = false;
+      releaseSendLockRef.current();
+    }
+
+    // Staff replies must always land in the customer timeline even if a socket
+    // payload was partially lost — refresh as a reliable fallback.
+    if (payload.senderType === 'OPERATOR') {
+      void refreshTimelineMessages();
+    }
+
     if (!activeConversationId || !isOpen || isMinimized) {
       return;
     }
 
-    const isFromStaff =
-      payload.senderType === 'OPERATOR' || payload.senderType === 'AI_SYSTEM';
     if (isFromStaff && payload.senderType === 'OPERATOR') {
       queryClient.setQueryData<InfiniteData<CustomerChatTimelineResponse>>(
         clientTimelineKey(),
@@ -1230,7 +1298,15 @@ export const ChatbotPopup = () => {
       );
       void markConversationAsRead(activeConversationId);
     }
-  }, [conversationId, isMinimized, isOpen, markConversationAsRead, mergeSocketMessageToTimeline, queryClient]);
+  }, [
+    conversationId,
+    isMinimized,
+    isOpen,
+    markConversationAsRead,
+    mergeSocketMessageToTimeline,
+    queryClient,
+    refreshTimelineMessages,
+  ]);
 
   const syncConversationFromEvent = useCallback(
     (event: ChatConversationSocketEvent) => {
@@ -1285,6 +1361,8 @@ export const ChatbotPopup = () => {
             assignedOperatorId: event.assignedOperatorId ?? detail.conversation.assignedOperatorId,
           },
         });
+        seedTimelineFromDetail(detail);
+        shouldStickToBottom.current = true;
         void refreshTimelineMessages();
       });
       return;
@@ -1306,6 +1384,7 @@ export const ChatbotPopup = () => {
     loadConversationDetail,
     loadOpenConversation,
     refreshTimelineMessages,
+    seedTimelineFromDetail,
     syncConversationFromEvent,
   ]);
 
@@ -1371,15 +1450,24 @@ export const ChatbotPopup = () => {
     if (sendLockTimeoutRef.current != null) {
       window.clearTimeout(sendLockTimeoutRef.current);
     }
+    if (botReplyTimeoutRef.current != null) {
+      window.clearTimeout(botReplyTimeoutRef.current);
+      botReplyTimeoutRef.current = null;
+    }
     // Keep suppressing briefly so IME compositionend cannot re-seed the last word + re-send.
+    // Also enforce a short minimum interaction cycle to absorb rapid repeated taps.
+    const elapsed = Date.now() - sendStartedAtRef.current;
+    const releaseDelay = Math.max(200, 1_000 - elapsed);
     sendLockTimeoutRef.current = window.setTimeout(() => {
       suppressInputAfterSendRef.current = false;
       isSendingRef.current = false;
       setIsSendingUi(false);
       sendLockTimeoutRef.current = null;
       setInputValue((current) => (current.trim() ? '' : current));
-    }, 400);
+    }, releaseDelay);
   }, []);
+
+  releaseSendLockRef.current = releaseSendLock;
 
   const handleSend = async (text: string) => {
     const normalizedText = text.trim();
@@ -1391,6 +1479,7 @@ export const ChatbotPopup = () => {
     }
 
     isSendingRef.current = true;
+    sendStartedAtRef.current = Date.now();
     setIsSendingUi(true);
     suppressInputAfterSendRef.current = true;
     setInputValue('');
@@ -1398,8 +1487,12 @@ export const ChatbotPopup = () => {
     wasAtBottomRef.current = true;
 
     const sendToken = `${Date.now()}`;
+    const isStaffThread =
+      conversationStatus === 'ACTIVE' ||
+      conversationStatus === 'WAITING_FOR_CUSTOMER' ||
+      conversationStatus === 'WAITING_FOR_OPERATOR';
     botReplyCountAtSendRef.current = countBotReplies(timelineMessages);
-    awaitingBotReplyRef.current = true;
+    awaitingBotReplyRef.current = !isStaffThread;
     setOverlayMessages((prev) => [
       ...prev.filter((message) => !message.id.startsWith('typing-') && !message.id.startsWith('optimistic-user-')),
       {
@@ -1409,15 +1502,33 @@ export const ChatbotPopup = () => {
         timestamp: formatNowTime(),
         variant: 'bubble',
       },
-      {
-        id: `typing-${sendToken}`,
-        sender: 'bot',
-        text: '',
-        timestamp: formatNowTime(),
-        variant: 'typing',
-      },
+      ...(isStaffThread
+        ? []
+        : [
+            {
+              id: `typing-${sendToken}`,
+              sender: 'bot' as const,
+              text: '',
+              timestamp: formatNowTime(),
+              variant: 'typing' as const,
+            },
+          ]),
     ]);
     pinScrollToBottom(true, 'smooth');
+
+    if (!isStaffThread) {
+      if (botReplyTimeoutRef.current != null) {
+        window.clearTimeout(botReplyTimeoutRef.current);
+      }
+      botReplyTimeoutRef.current = window.setTimeout(() => {
+        awaitingBotReplyRef.current = false;
+        setOverlayMessages((prev) =>
+          prev.filter((message) => !message.id.startsWith(`typing-${sendToken}`))
+        );
+        releaseSendLockRef.current();
+        void refreshTimelineMessages();
+      }, 10_000);
+    }
 
     const wantsStaff = isExplicitStaffRequestText(normalizedText);
 
@@ -1457,6 +1568,8 @@ export const ChatbotPopup = () => {
         if (escalated) {
           hydrateTimelineFromDetail();
           applyStaffRequestResult(escalated, conversationId, { refreshTimeline: false });
+          awaitingBotReplyRef.current = false;
+          releaseSendLock();
           return;
         }
       }
@@ -1492,8 +1605,11 @@ export const ChatbotPopup = () => {
         )
       );
       AppToast.error('Không thể gửi tin nhắn realtime lúc này.');
-    } finally {
       releaseSendLock();
+    } finally {
+      if (isStaffThread) {
+        releaseSendLock();
+      }
     }
   };
 
@@ -1772,7 +1888,7 @@ export const ChatbotPopup = () => {
                       <img src="https://i.ibb.co/4R7c75YN/z7824247008533-94446d3b6c16598cda67404d805c15c4.jpg" alt="Avatar" className="w-full h-full object-contain p-1" />
                     </div>
                     <div className="w-full max-w-[95%] min-w-0 items-start flex flex-col">
-                      {msg.variant === 'schedule-result' && (
+                      {isAiEnabled && msg.variant === 'schedule-result' && (
                         <p className="text-[14px] text-gray-700 mb-2 px-1">{msg.text}</p>
                       )}
                       <div className="bg-white rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 overflow-hidden w-full">
@@ -1850,19 +1966,32 @@ export const ChatbotPopup = () => {
                               onBuy={handleBuySuggestedTicket}
                               disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
                             />
-                            <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                              {ticketSuggestFollowUpChips({ isEmptyMatch: msg.ticketSuggestEmptyMatch }).map((chip) => (
+                            {isAiEnabled ? (
+                              <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                {ticketSuggestFollowUpChips().map((chip) => (
+                                  <button
+                                    key={chip.id}
+                                    type="button"
+                                    onClick={() => void handleQuickReply(chip)}
+                                    disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
+                                    className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
+                                  >
+                                    {chip.label}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : isOpenBotThread(conversationStatus) ? (
+                              <div className="flex gap-2 mt-2 w-full max-w-[95%] overflow-x-auto flex-nowrap pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                 <button
-                                  key={chip.id}
                                   type="button"
-                                  onClick={() => void handleQuickReply(chip)}
+                                  onClick={() => void handleRequestStaff()}
                                   disabled={isEscalating || isInitializing || isLoadingOpen || isSendingUi}
-                                  className={`${quickReplyChipClass(chip.primary)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
+                                  className={`${quickReplyChipClass(true)} shrink-0 disabled:opacity-60 disabled:cursor-not-allowed`}
                                 >
-                                  {chip.label}
+                                  Gặp nhân viên
                                 </button>
-                              ))}
-                            </div>
+                              </div>
+                            ) : null}
                             <span className="text-[11px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
                           </div>
                         </div>
@@ -1884,10 +2013,15 @@ export const ChatbotPopup = () => {
                       </div>
                     )}
                     <div className={`max-w-[85%] min-w-0 ${msg.sender === 'bot' ? 'items-start' : 'items-end'} flex flex-col`}>
+                      {msg.fromStaff && (
+                        <span className="text-[11px] font-medium text-emerald-600 mb-0.5 px-1">Nhân viên hỗ trợ</span>
+                      )}
                       <div
                         className={`px-4 py-2.5 text-[15px] whitespace-pre-wrap ${
                           msg.sender === 'bot'
-                            ? 'bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100'
+                            ? msg.fromStaff
+                              ? 'bg-emerald-50 text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-emerald-100'
+                              : 'bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100'
                             : 'bg-gradient-to-r from-[#df1b1c] to-[#ff4b4b] text-white rounded-2xl rounded-br-sm shadow-md'
                         }`}
                       >
@@ -1922,6 +2056,22 @@ export const ChatbotPopup = () => {
                     className="text-[13px] font-medium text-[#df1b1c] underline underline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isCancellingStaff ? 'Đang huỷ...' : 'Huỷ gặp nhân viên'}
+                  </button>
+                </div>
+              )}
+
+              {showChattingWithStaff && (
+                <div className="flex flex-col items-center gap-1.5 px-4 py-1">
+                  <p className="text-center text-[12px] text-emerald-600 font-medium">
+                    Bạn đang được hỗ trợ bởi nhân viên
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleDisconnectStaff()}
+                    disabled={isDisconnectingStaff || isEscalating}
+                    className="text-[12px] font-medium text-[#df1b1c] underline underline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isDisconnectingStaff ? 'Đang ngắt kết nối...' : 'Ngắt kết nối với nhân viên'}
                   </button>
                 </div>
               )}
