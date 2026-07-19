@@ -90,6 +90,11 @@ public class DrawScheduleFlowService implements ChatFlowService {
         if (activeFlow == null || activeFlow.pendingSlot() == null || activeFlow.pendingSlot().isBlank()) {
             return Optional.empty();
         }
+        // Do not force schedule slot answers when the user clearly asked to search tickets.
+        if (classification != null
+                && ChatIntent.WEB_SEARCH.name().equals(classification.getIntent())) {
+            return Optional.empty();
+        }
         if (isScheduleRestartMessage(customerMessage.getContent())
                 || isScheduleRestartQuery(customerMessage.getContent())) {
             resetScheduleFlow(conversation);

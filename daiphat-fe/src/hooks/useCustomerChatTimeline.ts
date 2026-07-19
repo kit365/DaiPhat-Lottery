@@ -1,6 +1,6 @@
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { chatConversationService } from '../client/services/chatConversationService';
-import { chatService } from '../admin/services/chat.service';
+import { chatService } from '../admin/features/chat/services/chatService';
 import { CustomerChatTimelineResponse } from '../types/chat.type';
 
 export type ChatTimelineScope = 'client' | 'admin';

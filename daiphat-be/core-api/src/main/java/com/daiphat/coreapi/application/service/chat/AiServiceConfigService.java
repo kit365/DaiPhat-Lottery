@@ -38,6 +38,20 @@ public class AiServiceConfigService implements AiServiceConfigPort {
     }
 
     @Override
+    public AiServiceConfigModel getChatbotConfig() {
+        return getRequiredChatbotConfig();
+    }
+
+    @Override
+    public AiServiceConfigModel updateChatbotEnabled(boolean enabled) {
+        return aiServiceConfigRepositoryPort.updateEnabled(AiServiceName.CHATBOT, enabled)
+                .orElseThrow(() -> new DomainException(
+                        ErrorCode.AI_SERVICE_CONFIG_NOT_FOUND,
+                        "Không tìm thấy cấu hình AI active cho service CHATBOT."
+                ));
+    }
+
+    @Override
     public boolean isChatbotEnabled() {
         return getRequiredChatbotConfig().isUsable();
     }
@@ -138,6 +152,8 @@ public class AiServiceConfigService implements AiServiceConfigPort {
                 AiIntentConfigKey.WITH_TICKET_CONFIDENCE,
                 AiIntentConfigKey.WITHOUT_TICKET_CONFIDENCE
         ));
+        keys.put(ChatIntent.WEB_SEARCH, List.of(AiIntentConfigKey.DEFAULT_CONFIDENCE));
+        keys.put(ChatIntent.WEB_SUGGEST, List.of(AiIntentConfigKey.DEFAULT_CONFIDENCE));
         keys.put(ChatIntent.OTHER_KNOWLEDGE, List.of(AiIntentConfigKey.DEFAULT_CONFIDENCE));
         keys.put(ChatIntent.TRASH_TALK, List.of(AiIntentConfigKey.DEFAULT_CONFIDENCE));
         keys.put(ChatIntent.UNKNOWN, List.of(AiIntentConfigKey.DEFAULT_CONFIDENCE));

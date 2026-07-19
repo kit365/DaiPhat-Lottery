@@ -34,6 +34,13 @@ import static com.daiphat.coreapi.application.constant.chat.schedule.ChatSchedul
 public class JavaKeywordIntentClassifier {
 
     private static final Pattern TICKET_PATTERN = Pattern.compile("\\b\\d{5,6}\\b");
+    private static final Pattern TICKET_FRAGMENT_PATTERN = Pattern.compile("\\b\\d{2,6}\\b");
+    private static final String ENTITY_TICKET_NUMBER = "ticket_number";
+    private static final String ENTITY_TICKET_FRAGMENT = "ticket_fragment";
+    private static final String ENTITY_TICKET_MATCH_MODE = "ticket_match_mode";
+    private static final String MATCH_SUFFIX = "suffix";
+    private static final String MATCH_PREFIX = "prefix";
+    private static final String MATCH_EXACT = "exact";
 
     private final ChatIntentProperties intentProperties;
     private final AiServiceConfigPort aiServiceConfigPort;
@@ -45,6 +52,18 @@ public class JavaKeywordIntentClassifier {
 
         if (containsAny(normalized, intentProperties.getEscalateKeywords())) {
             return buildDefault(ChatIntent.ESCALATE_REQUEST, Map.of());
+        }
+
+        // Inventory search must win before schedule/suggest: phrases like "có số đuôi là 55"
+        // were fuzzy-matched to đài names (e.g. "duoi la" ≈ "da lat") and wrongly opened lịch.
+        if (isTicketInventorySearchIntent(normalized)) {
+            Map<String, String> entities = extractTicketEntities(normalized);
+            return buildDefault(ChatIntent.WEB_SEARCH, entities);
+        }
+
+        // Suggest before account: "gợi ý ... mua vé" is inventory suggestion, not order support.
+        if (isSuggestIntent(normalized)) {
+            return buildDefault(ChatIntent.WEB_SUGGEST, Map.of());
         }
 
         if (containsAny(normalized, intentProperties.getAccountKeywords())) {
@@ -67,9 +86,9 @@ public class JavaKeywordIntentClassifier {
             Map<String, String> entities = new HashMap<>();
             Matcher ticketMatch = TICKET_PATTERN.matcher(normalized);
             if (ticketMatch.find()) {
-                entities.put("ticket_number", ticketMatch.group());
+                entities.put(ENTITY_TICKET_NUMBER, ticketMatch.group());
             }
-            AiIntentConfigKey confidenceKey = entities.containsKey("ticket_number")
+            AiIntentConfigKey confidenceKey = entities.containsKey(ENTITY_TICKET_NUMBER)
                     ? AiIntentConfigKey.WITH_TICKET_CONFIDENCE
                     : AiIntentConfigKey.WITHOUT_TICKET_CONFIDENCE;
             return build(ChatIntent.WEB_RESULT, confidenceKey, entities);
@@ -86,6 +105,91 @@ public class JavaKeywordIntentClassifier {
         return buildDefault(ChatIntent.UNKNOWN, Map.of());
     }
 
+    /**
+     * "gợi ý cho tôi vé số mua" does not contain contiguous "gợi ý vé", so also accept
+     * "gợi ý" plus a ticket/buy cue anywhere in the message.
+     */
+    private boolean isSuggestIntent(String normalized) {
+        if (containsAny(normalized, intentProperties.getSuggestKeywords())) {
+            return true;
+        }
+        if (!normalized.contains("goi y")) {
+            return false;
+        }
+        return containsAny(normalized, List.of(" ve", "ve ", " ve ", "so ", " so", "mua", "ticket"));
+    }
+
+    /**
+     * Messages like "68" / "có đuôi 55 không" / "tìm vé 123" map to inventory search.
+     */
+    private boolean isTicketInventorySearchIntent(String normalized) {
+        if (normalized == null || normalized.isBlank()) {
+            return false;
+        }
+        if (containsAny(normalized, intentProperties.getResultKeywords())) {
+            return false;
+        }
+        if (containsAny(normalized, intentProperties.getSearchKeywords())) {
+            return true;
+        }
+        return hasTicketFragmentWithoutResultCue(normalized);
+    }
+
+    /**
+     * Messages like "68" or "có 123456" without "dò/kết quả" still map to inventory search
+     * when a 2–6 digit fragment is present and result keywords are absent.
+     */
+    private boolean hasTicketFragmentWithoutResultCue(String normalized) {
+        if (containsAny(normalized, intentProperties.getResultKeywords())) {
+            return false;
+        }
+        // Bare digits after ask-đuôi (e.g. "72", "168") must map to WEB_SEARCH, not UNKNOWN.
+        if (normalized.matches("\\d{2,6}")) {
+            return true;
+        }
+        return TICKET_FRAGMENT_PATTERN.matcher(normalized).find()
+                && containsAny(normalized, List.of("co ", "co so", "duoi", "dau", "tim ", "ve "));
+    }
+
+    private Map<String, String> extractTicketEntities(String normalized) {
+        Map<String, String> entities = new HashMap<>();
+        Matcher fullTicket = TICKET_PATTERN.matcher(normalized);
+        if (fullTicket.find()) {
+            String number = fullTicket.group();
+            entities.put(ENTITY_TICKET_NUMBER, number);
+            entities.put(ENTITY_TICKET_FRAGMENT, number);
+            putTicketMatchMode(normalized, number, entities);
+            return entities;
+        }
+        Matcher fragment = TICKET_FRAGMENT_PATTERN.matcher(normalized);
+        String last = null;
+        while (fragment.find()) {
+            last = fragment.group();
+        }
+        if (last != null) {
+            entities.put(ENTITY_TICKET_FRAGMENT, last);
+            putTicketMatchMode(normalized, last, entities);
+        }
+        return entities;
+    }
+
+    private static void putTicketMatchMode(String normalized, String fragment, Map<String, String> entities) {
+        if (normalized.contains("duoi")) {
+            entities.put(ENTITY_TICKET_MATCH_MODE, MATCH_SUFFIX);
+            return;
+        }
+        if (normalized.contains("so dau") || normalized.contains("dau so")
+                || normalized.contains(" dau ") || normalized.endsWith(" dau") || normalized.startsWith("dau ")) {
+            entities.put(ENTITY_TICKET_MATCH_MODE, MATCH_PREFIX);
+            return;
+        }
+        if (fragment != null && fragment.length() >= 6) {
+            entities.put(ENTITY_TICKET_MATCH_MODE, MATCH_EXACT);
+            return;
+        }
+        entities.put(ENTITY_TICKET_MATCH_MODE, MATCH_SUFFIX);
+    }
+
     private boolean isScheduleIntent(String normalizedText, String originalMessage) {
         if (scheduleParser.mentionsScheduleIntent(originalMessage)) {
             return true;
@@ -96,11 +200,21 @@ public class JavaKeywordIntentClassifier {
         if (scheduleParser.findRegionCode(originalMessage) != null) {
             return true;
         }
-        if (scheduleStations.match(originalMessage).isPresent()) {
+        // Explicit station only (YAML / exact name) — fuzzy match is too aggressive for
+        // ticket phrases (e.g. "đuôi là" ≈ "Đà Lạt") and must not open schedule flow.
+        if (hasExplicitStationMention(originalMessage)) {
             return true;
         }
         return scheduleParser.extractExtraction(originalMessage).resolvedDate().isPresent()
                 && containsAny(normalizedText, intentProperties.getScheduleDateContextVerbs());
+    }
+
+    private boolean hasExplicitStationMention(String message) {
+        if (scheduleStations.hasYamlAliasHit(message)) {
+            return true;
+        }
+        ChatScheduleStationResolveResult resolved = scheduleStations.resolveExplicit(message);
+        return resolved != null && resolved.toOptionalSingle().isPresent();
     }
 
     private boolean mentionsStationScheduleLookup(String normalizedText) {

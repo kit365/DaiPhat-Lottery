@@ -1,12 +1,12 @@
 package com.daiphat.coreapi.application.service.chat.intent;
 
 import com.daiphat.coreapi.application.config.ChatScheduleProperties;
-import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponseDto;
+import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponse;
 import com.daiphat.coreapi.application.port.in.chat.AiServiceConfigPort;
 import com.daiphat.coreapi.application.port.in.chat.ChatAiPort;
 import com.daiphat.coreapi.application.service.chat.intent.ChatIntentTestFixtures;
-import com.daiphat.coreapi.application.service.chat.intent.JavaKeywordIntentClassifier;
-import com.daiphat.coreapi.application.service.chat.intent.ChatIntentClassifier;
+import com.daiphat.coreapi.application.service.chat.intent.classifier.JavaKeywordIntentClassifier;
+import com.daiphat.coreapi.application.service.chat.intent.classifier.ChatIntentClassifier;
 import com.daiphat.coreapi.application.service.chat.flow.schedule.ChatScheduleParser;
 import com.daiphat.coreapi.application.service.chat.flow.schedule.ChatScheduleStationResolver;
 import com.daiphat.coreapi.application.service.chat.flow.schedule.ChatScheduleTestFixtures;
@@ -55,6 +55,8 @@ class ChatIntentClassifierTest {
                     case WEB_ACCOUNT -> 0.92;
                     case WEB_SCHEDULE -> 0.88;
                     case WEB_RESULT -> 0.85;
+                    case WEB_SEARCH -> 0.88;
+                    case WEB_SUGGEST -> 0.85;
                     case ESCALATE_REQUEST -> 0.95;
                     case TRASH_TALK -> 0.90;
                     case OTHER_KNOWLEDGE -> 0.82;
@@ -72,7 +74,7 @@ class ChatIntentClassifierTest {
 
     @Test
     void classify_whenJavaConfident_doesNotCallRemote() {
-        ChatClassifyResponseDto result = classifier.classify("lịch quay", 1L);
+        ChatClassifyResponse result = classifier.classify("lịch quay", 1L);
 
         assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SCHEDULE.name());
         assertThat(result.getConfidence()).isGreaterThanOrEqualTo(0.7);
@@ -81,14 +83,14 @@ class ChatIntentClassifierTest {
 
     @Test
     void classify_whenJavaUnknown_fallsBackToRemote() {
-        ChatClassifyResponseDto remoteResult = ChatClassifyResponseDto.builder()
+        ChatClassifyResponse remoteResult = ChatClassifyResponse.builder()
                 .intent("WEB_RESULT")
                 .confidence(0.8)
                 .build();
         when(chatAiPort.isEnabled()).thenReturn(true);
         when(chatAiPort.classifyMessage("xyz random", 2L)).thenReturn(remoteResult);
 
-        ChatClassifyResponseDto result = classifier.classify("xyz random", 2L);
+        ChatClassifyResponse result = classifier.classify("xyz random", 2L);
 
         assertThat(result).isSameAs(remoteResult);
         verify(chatAiPort).classifyMessage("xyz random", 2L);
@@ -98,8 +100,8 @@ class ChatIntentClassifierTest {
     void classify_whenAiDisabled_stillUsesJavaKeywordWithoutPython() {
         when(chatAiPort.isEnabled()).thenReturn(false);
 
-        ChatClassifyResponseDto confident = classifier.classify("lịch quay", 1L);
-        ChatClassifyResponseDto uncertain = classifier.classify("???", 6L);
+        ChatClassifyResponse confident = classifier.classify("lịch quay", 1L);
+        ChatClassifyResponse uncertain = classifier.classify("???", 6L);
 
         assertThat(confident.getIntent()).isEqualTo(ChatIntent.WEB_SCHEDULE.name());
         assertThat(uncertain.getIntent()).isEqualTo(ChatIntent.UNKNOWN.name());
@@ -108,7 +110,7 @@ class ChatIntentClassifierTest {
 
     @Test
     void classify_traCuuDai_mapsToWebScheduleWithoutEscalation() {
-        ChatClassifyResponseDto result = classifier.classify("tra cứu đài", 4L);
+        ChatClassifyResponse result = classifier.classify("tra cứu đài", 4L);
 
         assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SCHEDULE.name());
         assertThat(result.getConfidence()).isGreaterThanOrEqualTo(0.7);
@@ -117,15 +119,15 @@ class ChatIntentClassifierTest {
 
     @Test
     void classify_traCuuDonHang_staysAccountNotSchedule() {
-        ChatClassifyResponseDto result = classifier.classify("tra cứu đơn hàng", 5L);
+        ChatClassifyResponse result = classifier.classify("tra cứu đơn hàng", 5L);
 
         assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_ACCOUNT.name());
     }
 
     @Test
     void classify_slotAnswerTatCa_mapsToWebScheduleRegardlessOfCase() {
-        ChatClassifyResponseDto lower = classifier.classify("Tất cả", 7L);
-        ChatClassifyResponseDto upper = classifier.classify("TẤT CẢ", 8L);
+        ChatClassifyResponse lower = classifier.classify("Tất cả", 7L);
+        ChatClassifyResponse upper = classifier.classify("TẤT CẢ", 8L);
 
         assertThat(lower.getIntent()).isEqualTo(ChatIntent.WEB_SCHEDULE.name());
         assertThat(upper.getIntent()).isEqualTo(ChatIntent.WEB_SCHEDULE.name());
@@ -133,10 +135,96 @@ class ChatIntentClassifierTest {
 
     @Test
     void classify_uppercaseScheduleWithDate_mapsToWebSchedule() {
-        ChatClassifyResponseDto result = classifier.classify("XEM LỊCH QUAY NGÀY 20/2", 9L);
+        ChatClassifyResponse result = classifier.classify("XEM LỊCH QUAY NGÀY 20/8", 9L);
 
         assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SCHEDULE.name());
         assertThat(result.getEntities()).containsKey("drawDate");
+    }
+
+    @Test
+    void classify_duoiSo_mapsToWebSearch() {
+        ChatClassifyResponse result = classifier.classify("có đuôi 68 không", 10L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SEARCH.name());
+        assertThat(result.getEntities()).containsEntry("ticket_fragment", "68");
+        verify(chatAiPort, never()).classifyMessage(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void classify_bareDigits_mapsToWebSearch() {
+        ChatClassifyResponse result = classifier.classify("72", 16L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SEARCH.name());
+        assertThat(result.getEntities()).containsEntry("ticket_fragment", "72");
+        assertThat(result.getEntities()).containsEntry("ticket_match_mode", "suffix");
+        verify(chatAiPort, never()).classifyMessage(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void classify_coSoDuoiLa_mapsToWebSearchNotSchedule() {
+        // Regression: "đuôi là" was fuzzy-matched to "Đà Lạt" → WEB_SCHEDULE + wrong đài card.
+        ChatClassifyResponse result = classifier.classify("có số đuôi là 55 không", 13L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SEARCH.name());
+        assertThat(result.getEntities()).containsEntry("ticket_fragment", "55");
+        assertThat(result.getEntities()).containsEntry("ticket_match_mode", "suffix");
+        verify(chatAiPort, never()).classifyMessage(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void classify_soDau_mapsToWebSearchWithPrefixMode() {
+        ChatClassifyResponse result = classifier.classify("có 2 số đầu 12 không", 14L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SEARCH.name());
+        assertThat(result.getEntities()).containsEntry("ticket_fragment", "12");
+        assertThat(result.getEntities()).containsEntry("ticket_match_mode", "prefix");
+    }
+
+    @Test
+    void classify_fullSixDigits_mapsToExactMode() {
+        ChatClassifyResponse result = classifier.classify("tìm vé 334455", 15L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SEARCH.name());
+        assertThat(result.getEntities()).containsEntry("ticket_fragment", "334455");
+        assertThat(result.getEntities()).containsEntry("ticket_match_mode", "exact");
+    }
+
+    @Test
+    void classify_goiYVe_mapsToWebSuggest() {
+        ChatClassifyResponse result = classifier.classify("gợi ý vé hôm nay", 11L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SUGGEST.name());
+        verify(chatAiPort, never()).classifyMessage(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void classify_goiYChoToiVeSoMua_mapsToWebSuggest() {
+        ChatClassifyResponse result = classifier.classify("hãy gợi ý cho tôi vé số mua", 14L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SUGGEST.name());
+        verify(chatAiPort, never()).classifyMessage(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void classify_goiYMuaVe_mapsToWebSuggestNotAccount() {
+        ChatClassifyResponse result = classifier.classify("gợi ý mua vé cho tôi", 15L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SUGGEST.name());
+    }
+
+    @Test
+    void classify_namMoThayConHeo_mapsToOtherKnowledge() {
+        ChatClassifyResponse result = classifier.classify("tôi nằm mơ thấy con heo", 16L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.OTHER_KNOWLEDGE.name());
+        verify(chatAiPort, never()).classifyMessage(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void classify_conSoMayMan_mapsToWebSuggestNotFortune() {
+        ChatClassifyResponse result = classifier.classify("con số may mắn", 12L);
+
+        assertThat(result.getIntent()).isEqualTo(ChatIntent.WEB_SUGGEST.name());
     }
 
     @Test
@@ -144,7 +232,7 @@ class ChatIntentClassifierTest {
         when(chatAiPort.isEnabled()).thenReturn(true);
         when(chatAiPort.classifyMessage("???", 3L)).thenReturn(null);
 
-        ChatClassifyResponseDto result = classifier.classify("???", 3L);
+        ChatClassifyResponse result = classifier.classify("???", 3L);
 
         assertThat(result).isNull();
     }

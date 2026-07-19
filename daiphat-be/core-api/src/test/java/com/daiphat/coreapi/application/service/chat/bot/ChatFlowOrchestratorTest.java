@@ -1,19 +1,22 @@
 package com.daiphat.coreapi.application.service.chat.bot;
 
+import com.daiphat.coreapi.application.service.chat.flow.ChatFlowOrchestrator;
+
 import com.daiphat.coreapi.application.config.ChatFlowProperties;
-import com.daiphat.coreapi.application.dto.chat.bot.ChatFlowHandleResult;
+import com.daiphat.coreapi.application.dto.chat.flow.ChatFlowHandleResult;
 import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentContext;
 import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentOutcome;
-import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponseDto;
+import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponse;
 import com.daiphat.coreapi.application.port.in.chat.AiServiceConfigPort;
 import com.daiphat.coreapi.application.port.in.chat.ChatFlowService;
-import com.daiphat.coreapi.application.service.chat.intent.ChatIntentClassifier;
+import com.daiphat.coreapi.application.service.chat.intent.classifier.ChatIntentClassifier;
 import com.daiphat.coreapi.application.strategy.chat.intent.ChatIntentHandlerStrategy;
 import com.daiphat.coreapi.domain.model.chat.ConversationModel;
 import com.daiphat.coreapi.domain.model.chat.MessageModel;
 import com.daiphat.coreapi.domain.model.chat.PendingFlowState;
 import com.daiphat.coreapi.domain.model.enums.chat.ChatIntent;
 import com.daiphat.coreapi.domain.model.enums.chat.ChatSchedulePendingSlot;
+import com.daiphat.coreapi.domain.model.enums.chat.ChatSearchPendingSlot;
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
 import com.daiphat.coreapi.domain.model.enums.chat.MessageSenderType;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +51,8 @@ class ChatFlowOrchestratorTest {
     @Mock
     private ChatFlowService scheduleFlowService;
     @Mock
+    private ChatFlowService searchFlowService;
+    @Mock
     private ChatIntentHandlerStrategy accountIntentHandler;
     @Mock
     private ChatIntentHandlerStrategy unknownIntentHandler;
@@ -65,6 +70,7 @@ class ChatFlowOrchestratorTest {
         chatFlowProperties.setTtlMinutes(10);
 
         when(scheduleFlowService.flowIntent()).thenReturn(ChatIntent.WEB_SCHEDULE.name());
+        when(searchFlowService.flowIntent()).thenReturn(ChatIntent.WEB_SEARCH.name());
         when(accountIntentHandler.supportedIntent()).thenReturn(ChatIntent.WEB_ACCOUNT);
         when(unknownIntentHandler.supportedIntent()).thenReturn(ChatIntent.UNKNOWN);
         org.mockito.Mockito.lenient()
@@ -73,7 +79,7 @@ class ChatFlowOrchestratorTest {
 
         orchestrator = new ChatFlowOrchestrator(
                 classifier,
-                List.of(scheduleFlowService),
+                List.of(scheduleFlowService, searchFlowService),
                 List.of(accountIntentHandler, unknownIntentHandler),
                 chatFlowProperties,
                 aiServiceConfigPort
@@ -87,7 +93,7 @@ class ChatFlowOrchestratorTest {
         conversation.setPendingSlot(ChatSchedulePendingSlot.LOCATION);
         MessageModel message = customerMessage("TP.HCM");
         PendingFlowState flow = conversation.latestFlow().orElseThrow();
-        ChatClassifyResponseDto classification = classification(ChatIntent.WEB_SCHEDULE, 0.7);
+        ChatClassifyResponse classification = classification(ChatIntent.WEB_SCHEDULE, 0.7);
 
         when(classifier.classify("TP.HCM", CONVERSATION_ID)).thenReturn(classification);
         when(scheduleFlowService.tryContinue(eq(conversation), eq(flow), eq(message), eq(classification)))
@@ -106,7 +112,7 @@ class ChatFlowOrchestratorTest {
         conversation.setPendingIntent(ChatIntent.WEB_SCHEDULE.name());
         conversation.setPendingSlot(ChatSchedulePendingSlot.LOCATION);
         MessageModel message = customerMessage("cho em xem đơn hàng");
-        ChatClassifyResponseDto classification = classification(ChatIntent.WEB_ACCOUNT, 0.92);
+        ChatClassifyResponse classification = classification(ChatIntent.WEB_ACCOUNT, 0.92);
 
         when(classifier.classify("cho em xem đơn hàng", CONVERSATION_ID)).thenReturn(classification);
         when(accountIntentHandler.resolve(any())).thenReturn(
@@ -124,7 +130,7 @@ class ChatFlowOrchestratorTest {
     void handle_whenSlotAnswerWithoutActiveFlow_resumesBeforeStartFlow() {
         ConversationModel conversation = openConversation();
         MessageModel message = customerMessage("Tất cả");
-        ChatClassifyResponseDto classification = classification(ChatIntent.WEB_SCHEDULE, 0.76);
+        ChatClassifyResponse classification = classification(ChatIntent.WEB_SCHEDULE, 0.76);
         ChatIntentOutcome resumed = new ChatIntentOutcome.BotReply(
                 ChatScheduleConstants.TOKEN_ASK_DATE_MODE,
                 ChatIntent.WEB_SCHEDULE.name()
@@ -145,7 +151,7 @@ class ChatFlowOrchestratorTest {
     void handle_whenWebScheduleIntent_startsFlowService() {
         ConversationModel conversation = openConversation();
         MessageModel message = customerMessage("lịch quay");
-        ChatClassifyResponseDto classification = classification(ChatIntent.WEB_SCHEDULE, 0.88);
+        ChatClassifyResponse classification = classification(ChatIntent.WEB_SCHEDULE, 0.88);
 
         when(classifier.classify("lịch quay", CONVERSATION_ID)).thenReturn(classification);
         when(scheduleFlowService.tryResumeSlotAnswer(conversation, null, message, classification))
@@ -160,10 +166,34 @@ class ChatFlowOrchestratorTest {
     }
 
     @Test
+    void handle_whenPendingTicketFragment_continuesBeforeClassify() {
+        ConversationModel conversation = openConversation();
+        PendingFlowState flow = PendingFlowState.create(ChatIntent.WEB_SEARCH.name())
+                .withPendingSlot(ChatSearchPendingSlot.TICKET_FRAGMENT.name());
+        conversation.upsertFlow(flow);
+        MessageModel message = customerMessage("72");
+        ChatIntentOutcome searched = new ChatIntentOutcome.BotReply(
+                "TICKET_SUGGEST:[]",
+                "Dưới đây là 1 vé đang bán khớp đuôi số 72 dành cho quý khách:",
+                ChatIntent.WEB_SEARCH.name()
+        );
+
+        when(searchFlowService.tryResumeSlotAnswer(eq(conversation), eq(flow), eq(message), eq(null)))
+                .thenReturn(Optional.of(searched));
+
+        ChatFlowHandleResult result = orchestrator.handle(conversation, message);
+
+        assertThat(result.outcome()).isSameAs(searched);
+        verify(classifier, never()).classify(any(), any());
+        verify(unknownIntentHandler, never()).resolve(any());
+        verify(searchFlowService).tryResumeSlotAnswer(eq(conversation), eq(flow), eq(message), eq(null));
+    }
+
+    @Test
     void handle_whenUnknownIntent_delegatesToHandler() {
         ConversationModel conversation = openConversation();
         MessageModel message = customerMessage("???");
-        ChatClassifyResponseDto classification = classification(ChatIntent.UNKNOWN, 0.2);
+        ChatClassifyResponse classification = classification(ChatIntent.UNKNOWN, 0.2);
 
         when(classifier.classify("???", CONVERSATION_ID)).thenReturn(classification);
         when(unknownIntentHandler.resolve(any())).thenReturn(
@@ -197,8 +227,8 @@ class ChatFlowOrchestratorTest {
                 .build();
     }
 
-    private ChatClassifyResponseDto classification(ChatIntent intent, double confidence) {
-        return ChatClassifyResponseDto.builder()
+    private ChatClassifyResponse classification(ChatIntent intent, double confidence) {
+        return ChatClassifyResponse.builder()
                 .intent(intent.name())
                 .confidence(confidence)
                 .build();

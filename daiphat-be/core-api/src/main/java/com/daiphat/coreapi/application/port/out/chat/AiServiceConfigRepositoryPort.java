@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface AiServiceConfigRepositoryPort {
 
     Optional<AiServiceConfigModel> findActiveByServiceName(AiServiceName serviceName);
+
+    Optional<AiServiceConfigModel> updateEnabled(AiServiceName serviceName, boolean enabled);
 }

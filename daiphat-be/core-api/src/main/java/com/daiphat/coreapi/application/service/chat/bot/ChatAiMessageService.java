@@ -99,6 +99,8 @@ public class ChatAiMessageService implements ChatAiMessagePort {
                 chatApplicationMapper.toChatMessageSocketResponse(savedMessage),
                 botDisplayName
         );
+        // Prefer machine UI tokens (SCHEDULE_*, TICKET_SUGGEST:) so FE can render rich cards live.
+        String socketContent = resolveSocketContent(savedMessage.getContent(), displayContent);
         ChatMessageSocketResponse response = ChatMessageSocketResponse.builder()
                 .id(baseResponse.id())
                 .conversationId(baseResponse.conversationId())
@@ -106,13 +108,35 @@ public class ChatAiMessageService implements ChatAiMessagePort {
                 .senderId(baseResponse.senderId())
                 .senderName(baseResponse.senderName())
                 .senderType(baseResponse.senderType())
-                .content(displayContent != null && !displayContent.isBlank() ? displayContent : savedMessage.getContent())
+                .content(socketContent)
                 .intent(baseResponse.intent())
                 .type(baseResponse.type())
                 .createdAt(baseResponse.createdAt())
                 .build();
         chatMessagePublisherPort.publishToConversation(conversation.getId(), response);
         chatMessagePublisherPort.publishToCustomer(conversation.getCustomerId(), response);
+    }
+
+    static String resolveSocketContent(String machineContent, String displayContent) {
+        if (isMachineUiToken(machineContent)) {
+            return machineContent;
+        }
+        if (displayContent != null && !displayContent.isBlank()) {
+            return displayContent;
+        }
+        return machineContent;
+    }
+
+    private static boolean isMachineUiToken(String content) {
+        if (content == null || content.isBlank()) {
+            return false;
+        }
+        String trimmed = content.trim();
+        if (trimmed.startsWith("TICKET_SUGGEST:") || trimmed.startsWith("SCHEDULE_")) {
+            return true;
+        }
+        // Fortune / other replies may prepend human text before a ticket token.
+        return trimmed.contains("\nTICKET_SUGGEST:") || trimmed.contains("\n\nTICKET_SUGGEST:");
     }
 
     private void touchLastMessage(

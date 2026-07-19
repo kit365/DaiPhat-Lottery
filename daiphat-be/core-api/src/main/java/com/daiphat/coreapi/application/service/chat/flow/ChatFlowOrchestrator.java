@@ -69,6 +69,12 @@ public class ChatFlowOrchestrator {
             return restartResult.get();
         }
 
+        // Resume "hỏi đuôi → user trả số" before classify/switch so bare digits never fall to UNKNOWN.
+        Optional<ChatFlowHandleResult> pendingTicketSearch = continuePendingTicketFragment(conversation, message);
+        if (pendingTicketSearch.isPresent()) {
+            return pendingTicketSearch.get();
+        }
+
         ChatClassifyResponse classification = classify(message, conversation);
 
         if (classification != null && shouldSwitchToNewIntent(classification, conversation)) {
@@ -86,6 +92,26 @@ public class ChatFlowOrchestrator {
             return new ChatFlowHandleResult(null, null);
         }
         return buildHandleResult(conversation, message, classification);
+    }
+
+    /**
+     * When WEB_SEARCH is waiting for đuôi/đầu digits, consume a digit reply immediately
+     * (before classify/switch). Non-digit messages fall through so the user can change topic.
+     */
+    private Optional<ChatFlowHandleResult> continuePendingTicketFragment(
+            ConversationModel conversation,
+            MessageModel message
+    ) {
+        ChatFlowService searchFlow = flowServicesByIntent.get(ChatIntent.WEB_SEARCH.name());
+        if (searchFlow == null || !conversation.isBotOwned()) {
+            return Optional.empty();
+        }
+        PendingFlowState flow = conversation.findActiveFlow(ChatIntent.WEB_SEARCH.name()).orElse(null);
+        if (flow == null) {
+            return Optional.empty();
+        }
+        Optional<ChatIntentOutcome> outcome = searchFlow.tryResumeSlotAnswer(conversation, flow, message, null);
+        return outcome.map(value -> new ChatFlowHandleResult(null, value));
     }
 
     private Optional<ChatFlowHandleResult> handleScheduleRestart(

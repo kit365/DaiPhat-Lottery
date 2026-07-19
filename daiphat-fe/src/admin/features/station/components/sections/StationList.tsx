@@ -63,7 +63,7 @@ export const StationList = () => {
         [filters]
     );
 
-    const { data, isLoading, error } = useStations(queryParams);
+    const { data, isLoading, isFetching, error } = useStations(queryParams);
 
     const stations = data?.data?.recordList || [];
     const pagination = data?.data?.pagination || {
@@ -78,19 +78,27 @@ export const StationList = () => {
     };
 
     const setSearchFilter = (search: string) => {
-        setFilters((prev) => ({ ...prev, search, page: 1 }));
+        setFilters((prev) =>
+            prev.search === search ? prev : { ...prev, search, page: 1 }
+        );
     };
 
     const setPage = (page: number) => {
-        setFilters((prev) => ({ ...prev, page }));
+        setFilters((prev) => (prev.page === page ? prev : { ...prev, page }));
     };
 
     const setLimit = (limit: number) => {
-        setFilters((prev) => ({ ...prev, limit, page: 1 }));
+        setFilters((prev) =>
+            prev.limit === limit ? prev : { ...prev, limit, page: 1 }
+        );
     };
 
     const setSort = (sortBy?: string, direction?: string) => {
-        setFilters((prev) => ({ ...prev, sortBy, direction, page: 1 }));
+        setFilters((prev) =>
+            prev.sortBy === sortBy && prev.direction === direction
+                ? prev
+                : { ...prev, sortBy, direction, page: 1 }
+        );
     };
 
     const clearFilters = () => {
@@ -173,8 +181,8 @@ export const StationList = () => {
                             setSort(undefined, undefined);
                         }
                     }}
-                    loading={isLoading}
-                    rowCount={pagination?.totalRecords || 0}
+                    loading={isFetching}
+                    rowCount={Number(pagination?.totalRecords) || 0}
                     paginationModel={{
                         page: filters.page - 1,
                         pageSize: filters.limit,

@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.application.service.chat.intent;
 
+import com.daiphat.coreapi.application.config.ChatMessageProperties;
 import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentContext;
 import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentOutcome;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
@@ -15,6 +16,7 @@ import com.daiphat.coreapi.domain.model.enums.chat.ChatIntent;
 import com.daiphat.coreapi.domain.model.enums.chat.ConversationStatus;
 import com.daiphat.coreapi.domain.model.enums.chat.MessageSenderType;
 import com.daiphat.coreapi.domain.model.enums.order.OrderStatus;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,9 +39,24 @@ class WebAccountIntentHandlerTest {
 
     @Mock
     private OrderServicePort orderServicePort;
+    @Mock
+    private ChatMessageProperties chatMessageProperties;
 
     @InjectMocks
     private WebAccountIntentStrategy handler;
+
+    @BeforeEach
+    void setUp() {
+        ChatMessageProperties.AccountMessages accountMessages = new ChatMessageProperties.AccountMessages();
+        accountMessages.setNoOrders(ChatWebAccountMessages.NO_ORDERS_MESSAGE);
+        accountMessages.setLatestOrderPrefix(ChatWebAccountMessages.LATEST_ORDER_PREFIX);
+        accountMessages.setLatestOrderStatusSeparator(ChatWebAccountMessages.LATEST_ORDER_STATUS_SEPARATOR);
+        accountMessages.setLatestOrderCreatedAtPrefix(ChatWebAccountMessages.LATEST_ORDER_CREATED_AT_PREFIX);
+        accountMessages.setLatestOrderCreatedAtSuffix(ChatWebAccountMessages.LATEST_ORDER_CREATED_AT_SUFFIX);
+        accountMessages.setLatestOrderFooter(ChatWebAccountMessages.LATEST_ORDER_FOOTER);
+        accountMessages.setLookupFailed(ChatWebAccountMessages.LOOKUP_FAILED_MESSAGE);
+        when(chatMessageProperties.getAccount()).thenReturn(accountMessages);
+    }
 
     @Test
     @SuppressWarnings("unchecked")

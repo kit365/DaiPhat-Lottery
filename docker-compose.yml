@@ -5,6 +5,7 @@ name: daiphat-local
 services:
   postgres-db:
     image: pgvector/pgvector:pg16
+    restart: unless-stopped
     environment:
       POSTGRES_DB: daiphat_core_db
       POSTGRES_USER: sa
@@ -21,6 +22,7 @@ services:
 
   redis:
     image: redis:alpine
+    restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
       - "6380:6379"
@@ -32,10 +34,28 @@ services:
       timeout: 5s
       retries: 12
 
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: core_admin
+      MONGO_INITDB_ROOT_PASSWORD: core_pass_2026
+      MONGO_INITDB_DATABASE: daiphat_core_db
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--username", "core_admin", "--password", "core_pass_2026", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   app:
     build:
       context: .
       dockerfile: Dockerfile.azure
+    restart: unless-stopped
     env_file:
       - ./.env.local
     environment:
@@ -46,12 +66,15 @@ services:
       SPRING_DATASOURCE_PASSWORD: "12345"
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_MONGODB_URI: mongodb://core_admin:core_pass_2026@mongo:27017/daiphat_core_db?authSource=admin
     ports:
       - "8080:8080"
     depends_on:
       postgres-db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mongo:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/health/readiness"]
@@ -63,3 +86,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  mongo_data:

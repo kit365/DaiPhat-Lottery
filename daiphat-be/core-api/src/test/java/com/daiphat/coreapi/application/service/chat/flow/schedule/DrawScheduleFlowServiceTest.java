@@ -5,7 +5,9 @@ import com.daiphat.coreapi.application.dto.chat.schedule.ChatScheduleFuzzyCandid
 import com.daiphat.coreapi.application.dto.chat.schedule.ChatScheduleStationMatchResult;
 import com.daiphat.coreapi.application.dto.chat.schedule.ChatScheduleStationResolveResult;
 import com.daiphat.coreapi.application.config.ChatScheduleProperties;
-import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponseDto;
+import com.daiphat.coreapi.application.config.ChatMessageProperties;
+import com.daiphat.coreapi.application.constant.chat.schedule.ChatScheduleMessages;
+import com.daiphat.coreapi.application.dto.response.chat.ChatClassifyResponse;
 import com.daiphat.coreapi.application.dto.chat.intent.ChatIntentOutcome;
 import com.daiphat.coreapi.domain.model.chat.ConversationModel;
 import com.daiphat.coreapi.domain.model.chat.PendingFlowState;
@@ -40,6 +42,7 @@ import static com.daiphat.coreapi.application.constant.chat.schedule.ChatSchedul
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -48,6 +51,19 @@ import static org.mockito.Mockito.when;
 @MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("DrawScheduleFlowService")
 class DrawScheduleFlowServiceTest {
+
+    private static ChatMessageProperties messageProperties() {
+        ChatMessageProperties props = new ChatMessageProperties();
+        ChatMessageProperties.ScheduleMessages schedule = new ChatMessageProperties.ScheduleMessages();
+        schedule.setAskLocation(ChatScheduleMessages.ASK_LOCATION);
+        schedule.setAskDate(ChatScheduleMessages.ASK_DATE);
+        schedule.setAskDateMode(ChatScheduleMessages.ASK_DATE_MODE);
+        schedule.setDateNotFound(ChatScheduleMessages.DATE_NOT_FOUND);
+        schedule.setRegionNotFound(ChatScheduleMessages.REGION_NOT_FOUND);
+        schedule.setStationNotFound(ChatScheduleMessages.STATION_NOT_FOUND);
+        props.setSchedule(schedule);
+        return props;
+    }
 
     @Mock
     private ChatScheduleStationResolver stations;
@@ -62,7 +78,7 @@ class DrawScheduleFlowServiceTest {
     void setUp() {
         ChatScheduleProperties properties = ChatScheduleTestFixtures.minimalProperties();
         parser = spy(new ChatScheduleParser(properties, stations));
-        flowService = new DrawScheduleFlowService(parser, stations, flowRecovery);
+        flowService = new DrawScheduleFlowService(parser, stations, flowRecovery, messageProperties());
         when(flowRecovery.restoreIfNeeded(any(), any())).thenAnswer(invocation -> {
             PendingFlowState flow = invocation.getArgument(1);
             if (flow != null) {
@@ -152,7 +168,7 @@ class DrawScheduleFlowServiceTest {
     }
 
     @Test
-    void continueFlow_dateModeBareIntentWithStation_showsDateModeButtons() {
+    void continueFlow_dateModeBareIntentWithStation_restartsAndAsksLocation() {
         ConversationModel conversation = openConversation();
         conversation.setPendingIntent(ChatIntent.WEB_SCHEDULE.name());
         conversation.setPendingSlot(ChatSchedulePendingSlot.DATE_MODE);
@@ -164,8 +180,8 @@ class DrawScheduleFlowServiceTest {
 
         ChatIntentOutcome outcome = continueFlow(conversation, customerMessage("lịch mở thưởng"));
 
-        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).isEqualTo(TOKEN_ASK_DATE_MODE);
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.DATE_MODE);
+        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).isEqualTo(TOKEN_ASK_LOCATION);
+        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION);
     }
 
     @Test
@@ -193,7 +209,7 @@ class DrawScheduleFlowServiceTest {
         conversation.putCollectedSlot(SLOT_STATION_ID, "42");
         conversation.putCollectedSlot(SLOT_SCOPE, SCOPE_STATION);
 
-        when(parser.extractExtraction("30/2/2026")).thenReturn(ChatScheduleDateExtraction.invalid());
+        doReturn(ChatScheduleDateExtraction.invalid()).when(parser).extractExtraction("30/2/2026");
 
         ChatIntentOutcome outcome = continueFlow(conversation, customerMessage("30/2/2026"));
 
@@ -285,11 +301,11 @@ class DrawScheduleFlowServiceTest {
         conversation.putCollectedSlot(SLOT_DATE_MODE, ChatScheduleDateMode.SPECIFIC_DATE.name());
 
         LotteryStationModel station = station(42L, LotteryRegionCode.MIEN_NAM);
-        when(stations.resolve("TP.HCM")).thenReturn(
-                new ChatScheduleStationResolveResult.Single(
-                        new ChatScheduleStationMatchResult(station, ChatScheduleStationMatchSource.YAML)
-                )
+        ChatScheduleStationResolveResult.Single hcmMatch = new ChatScheduleStationResolveResult.Single(
+                new ChatScheduleStationMatchResult(station, ChatScheduleStationMatchSource.YAML)
         );
+        when(stations.resolve("TP.HCM")).thenReturn(hcmMatch);
+        when(stations.resolveExplicit("TP.HCM")).thenReturn(hcmMatch);
 
         ChatIntentOutcome outcome = continueFlow(conversation, customerMessage("TP.HCM"));
 
@@ -396,12 +412,12 @@ class DrawScheduleFlowServiceTest {
         LotteryStationModel hcm = station(1L, LotteryRegionCode.MIEN_NAM);
         LotteryStationModel benTre = station(2L, LotteryRegionCode.MIEN_NAM);
         benTre.setName("Bến Tre");
-        when(stations.resolve(message.getContent())).thenReturn(
-                new ChatScheduleStationResolveResult.Multiple(List.of(
-                        new ChatScheduleStationMatchResult(hcm, ChatScheduleStationMatchSource.YAML),
-                        new ChatScheduleStationMatchResult(benTre, ChatScheduleStationMatchSource.AUTO_ALIAS)
-                ))
-        );
+        ChatScheduleStationResolveResult.Multiple multiMatch = new ChatScheduleStationResolveResult.Multiple(List.of(
+                new ChatScheduleStationMatchResult(hcm, ChatScheduleStationMatchSource.YAML),
+                new ChatScheduleStationMatchResult(benTre, ChatScheduleStationMatchSource.AUTO_ALIAS)
+        ));
+        when(stations.resolve(message.getContent())).thenReturn(multiMatch);
+        when(stations.resolveExplicit(message.getContent())).thenReturn(multiMatch);
         when(parser.extractExtraction(message.getContent())).thenReturn(ChatScheduleDateExtraction.today());
 
         ChatIntentOutcome outcome = flowService.startFlow(conversation, message, classification(Map.of()));
@@ -608,9 +624,9 @@ class DrawScheduleFlowServiceTest {
 
         ChatIntentOutcome outcome = flowService.startFlow(conversation, message, classification(Map.of()));
 
-        assertThat(((ChatIntentOutcome.BotReply) outcome).content())
-                .isEqualTo(TOKEN_REGION_CHOICE_PREFIX + LotteryRegionCode.MIEN_NAM.code());
-        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.LOCATION_CHOICE);
+        assertThat(((ChatIntentOutcome.BotReply) outcome).content()).isEqualTo(TOKEN_ASK_DATE_MODE);
+        assertThat(conversation.getPendingSlot()).isEqualTo(ChatSchedulePendingSlot.DATE_MODE);
+        assertThat(conversation.collectedSlot(SLOT_SCOPE)).isEqualTo(SCOPE_REGION_ALL);
     }
 
     @Test
@@ -856,7 +872,8 @@ class DrawScheduleFlowServiceTest {
         DrawScheduleFlowService serviceWithRecovery = new DrawScheduleFlowService(
                 parser,
                 stations,
-                new ChatScheduleFlowRecovery(recoveryReader)
+                new ChatScheduleFlowRecovery(recoveryReader),
+                messageProperties()
         );
 
         Optional<ChatIntentOutcome> outcome = serviceWithRecovery.tryResumeSlotAnswer(
@@ -885,7 +902,8 @@ class DrawScheduleFlowServiceTest {
         DrawScheduleFlowService serviceWithRecovery = new DrawScheduleFlowService(
                 parser,
                 stations,
-                new ChatScheduleFlowRecovery(recoveryReader)
+                new ChatScheduleFlowRecovery(recoveryReader),
+                messageProperties()
         );
 
         Optional<ChatIntentOutcome> outcome = serviceWithRecovery.tryResumeSlotAnswer(
@@ -944,8 +962,8 @@ class DrawScheduleFlowServiceTest {
                 .build();
     }
 
-    private ChatClassifyResponseDto classification(Map<String, String> entities) {
-        return ChatClassifyResponseDto.builder()
+    private ChatClassifyResponse classification(Map<String, String> entities) {
+        return ChatClassifyResponse.builder()
                 .intent(ChatIntent.WEB_SCHEDULE.name())
                 .confidence(0.9)
                 .entities(entities)
