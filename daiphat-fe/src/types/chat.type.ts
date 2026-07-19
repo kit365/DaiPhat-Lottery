@@ -40,6 +40,10 @@ export enum MessageSenderRole {
 export type MessageSenderType = MessageSenderRole;
 export type ChatMessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'SYSTEM';
 
+export interface ChatAiStatusResponse {
+    enabled: boolean;
+}
+
 export interface InitConversationRequest {
     title?: string;
     content?: string;

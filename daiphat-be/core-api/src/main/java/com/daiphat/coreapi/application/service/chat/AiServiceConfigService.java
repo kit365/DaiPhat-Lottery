@@ -38,6 +38,20 @@ public class AiServiceConfigService implements AiServiceConfigPort {
     }
 
     @Override
+    public AiServiceConfigModel getChatbotConfig() {
+        return getRequiredChatbotConfig();
+    }
+
+    @Override
+    public AiServiceConfigModel updateChatbotEnabled(boolean enabled) {
+        return aiServiceConfigRepositoryPort.updateEnabled(AiServiceName.CHATBOT, enabled)
+                .orElseThrow(() -> new DomainException(
+                        ErrorCode.AI_SERVICE_CONFIG_NOT_FOUND,
+                        "Không tìm thấy cấu hình AI active cho service CHATBOT."
+                ));
+    }
+
+    @Override
     public boolean isChatbotEnabled() {
         return getRequiredChatbotConfig().isUsable();
     }

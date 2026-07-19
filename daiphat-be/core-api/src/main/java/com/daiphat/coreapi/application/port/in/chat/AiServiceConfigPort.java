@@ -1,9 +1,14 @@
 package com.daiphat.coreapi.application.port.in.chat;
 
+import com.daiphat.coreapi.domain.model.chat.AiServiceConfigModel;
 import com.daiphat.coreapi.domain.model.enums.chat.AiIntentConfigKey;
 import com.daiphat.coreapi.domain.model.enums.chat.ChatIntent;
 
 public interface AiServiceConfigPort {
+
+    AiServiceConfigModel getChatbotConfig();
+
+    AiServiceConfigModel updateChatbotEnabled(boolean enabled);
 
     boolean isChatbotEnabled();
 

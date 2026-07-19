@@ -7,6 +7,7 @@ import com.daiphat.coreapi.infrastructure.persistence.mapper.chat.AiServiceConfi
 import com.daiphat.coreapi.infrastructure.persistence.repository.chat.AiServiceConfigRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -20,6 +21,17 @@ public class AiServiceConfigRepositoryAdapter implements AiServiceConfigReposito
     @Override
     public Optional<AiServiceConfigModel> findActiveByServiceName(AiServiceName serviceName) {
         return aiServiceConfigRepository.findByServiceNameAndActiveTrueAndDeletedAtIsNull(serviceName)
+                .map(aiServiceConfigPersistenceMapper::toModel);
+    }
+
+    @Override
+    @Transactional
+    public Optional<AiServiceConfigModel> updateEnabled(AiServiceName serviceName, boolean enabled) {
+        return aiServiceConfigRepository.findByServiceNameAndActiveTrueAndDeletedAtIsNull(serviceName)
+                .map(entity -> {
+                    entity.setEnabled(enabled);
+                    return aiServiceConfigRepository.saveAndFlush(entity);
+                })
                 .map(aiServiceConfigPersistenceMapper::toModel);
     }
 }
