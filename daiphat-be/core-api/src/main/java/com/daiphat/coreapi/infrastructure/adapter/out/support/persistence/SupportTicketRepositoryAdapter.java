@@ -75,4 +75,12 @@ public class SupportTicketRepositoryAdapter implements SupportTicketRepositoryPo
                 .map(supportTicketPersistenceMapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public long countActiveTickets(UUID customerId) {
+        return supportTicketRepository.countByCustomer_IdAndStatusNotIn(
+                customerId,
+                List.of(TicketStatus.RESOLVED, TicketStatus.CLOSED)
+        );
+    }
 }

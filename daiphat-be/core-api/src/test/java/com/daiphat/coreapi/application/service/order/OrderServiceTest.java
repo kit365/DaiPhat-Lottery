@@ -105,7 +105,8 @@ private static final String DEFAULT_CUSTOMER_NAME = "Kiet";
                 paymentGatewayStrategyFactory,
                 eventPublisher,
                 orderRefundGraceService,
-                paymentTimeoutConfigService
+                paymentTimeoutConfigService,
+                mock(com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService.class)
         );
         when(orderRefundGraceService.evaluate(any())).thenReturn(
                 new OrderRefundGraceService.RefundGraceEvaluation(false, null, 0L, 0, null, null)

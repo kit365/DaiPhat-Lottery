@@ -60,6 +60,11 @@ export const supportTicketService = {
         return response.data;
     },
 
+    getMyActiveCount: async (): Promise<ApiResponse<number>> => {
+        const response = await apiApp.get(`${BASE_URL}/my/active-count`);
+        return response.data;
+    },
+
     getById: async (id: number): Promise<ApiResponse<SupportTicketResponse>> => {
         const response = await apiApp.get(`${BASE_URL}/${id}`, {
             skipGlobalErrorToast: true,

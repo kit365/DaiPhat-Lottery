@@ -116,6 +116,7 @@ public class SupportTicketService implements SupportTicketServicePort {
         eventPublisher.publishEvent(SupportTicketCreatedEvent.builder()
                 .ticketId(saved.getId())
                 .title(saved.getTitle())
+                .categoryName(category.getName())
                 .customerId(customerId)
                 .build());
 
@@ -126,6 +127,10 @@ public class SupportTicketService implements SupportTicketServicePort {
     @Transactional(readOnly = true)
     public OrderComplaintEligibilityResponse getOrderComplaintEligibility(UUID orderId, UUID customerId) {
         return orderComplaintEligibilityService.evaluate(orderId, customerId);
+    }
+
+    public long countActiveMyTickets(UUID customerId) {
+        return supportTicketRepositoryPort.countActiveTickets(customerId);
     }
 
     @Override
@@ -193,8 +198,11 @@ public class SupportTicketService implements SupportTicketServicePort {
         SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
         String staffName = resolveUserDisplayName(staffId);
         saveSystemComment(saved.getId(), staffName + " đã tiếp nhận ticket");
+        TicketCategoryModel category = getCategoryOrThrow(saved.getTicketCategoryId());
         eventPublisher.publishEvent(SupportTicketAssignedEvent.builder()
                 .ticketId(saved.getId())
+                .title(saved.getTitle())
+                .categoryName(category.getName())
                 .customerId(saved.getCustomerId())
                 .staffId(staffId)
                 .staffName(staffName)
@@ -249,8 +257,11 @@ public class SupportTicketService implements SupportTicketServicePort {
             case NORMAL -> {
                 ticket.recordOperatorComment();
                 supportTicketRepositoryPort.save(ticket);
+                TicketCategoryModel category = getCategoryOrThrow(ticket.getTicketCategoryId());
                 eventPublisher.publishEvent(SupportTicketCommentAddedEvent.builder()
                         .ticketId(id)
+                        .title(ticket.getTitle())
+                        .categoryName(category.getName())
                         .customerId(ticket.getCustomerId())
                         .assignedTo(ticket.getAssignedTo())
                         .senderRole(TicketCommentSenderRole.OPERATOR)
@@ -260,8 +271,11 @@ public class SupportTicketService implements SupportTicketServicePort {
                 ticket.resolveByStaff(savedComment.getId(), content);
                 SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
                 saveSystemComment(saved.getId(), "Ticket đã được giải quyết. Vui lòng xác nhận bạn có hài lòng với phương án này.");
+                TicketCategoryModel category = getCategoryOrThrow(ticket.getTicketCategoryId());
                 eventPublisher.publishEvent(SupportTicketResolvedEvent.builder()
                         .ticketId(saved.getId())
+                        .title(saved.getTitle())
+                        .categoryName(category.getName())
                         .customerId(saved.getCustomerId())
                         .build());
             }
@@ -269,8 +283,11 @@ public class SupportTicketService implements SupportTicketServicePort {
                 ticket.rejectByStaff(savedComment.getId(), content);
                 SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
                 saveSystemComment(saved.getId(), "Ticket đã bị từ chối vì không hợp lệ hoặc không đủ điều kiện.");
+                TicketCategoryModel category = getCategoryOrThrow(ticket.getTicketCategoryId());
                 eventPublisher.publishEvent(SupportTicketRejectedEvent.builder()
                         .ticketId(saved.getId())
+                        .title(saved.getTitle())
+                        .categoryName(category.getName())
                         .customerId(saved.getCustomerId())
                         .build());
             }
@@ -293,8 +310,11 @@ public class SupportTicketService implements SupportTicketServicePort {
             ticket.acceptResolutionByCustomer();
             SupportTicketModel saved = supportTicketRepositoryPort.save(ticket);
             saveSystemComment(saved.getId(), "Khách hàng hài lòng với phương án giải quyết. Ticket đã đóng.");
+            TicketCategoryModel category = getCategoryOrThrow(ticket.getTicketCategoryId());
             eventPublisher.publishEvent(SupportTicketClosedEvent.builder()
                     .ticketId(saved.getId())
+                    .title(saved.getTitle())
+                    .categoryName(category.getName())
                     .customerId(saved.getCustomerId())
                     .autoClosed(false)
                     .build());
@@ -309,8 +329,9 @@ public class SupportTicketService implements SupportTicketServicePort {
                 "Khách hàng chưa hài lòng với phương án giải quyết. Ticket được mở lại và đưa về hàng chờ tiếp nhận.");
         eventPublisher.publishEvent(SupportTicketReopenedEvent.builder()
                 .ticketId(saved.getId())
-                .customerId(saved.getCustomerId())
                 .title(saved.getTitle())
+                .categoryName(category.getName())
+                .customerId(saved.getCustomerId())
                 .build());
         return toDetailResponse(saved);
     }
@@ -332,8 +353,11 @@ public class SupportTicketService implements SupportTicketServicePort {
                     saved.getId(),
                     "Ticket đã tự động đóng sau " + autoCloseHours
                             + " giờ không có phản hồi từ khách hàng.");
+            TicketCategoryModel category = getCategoryOrThrow(ticket.getTicketCategoryId());
             eventPublisher.publishEvent(SupportTicketClosedEvent.builder()
                     .ticketId(saved.getId())
+                    .title(saved.getTitle())
+                    .categoryName(category.getName())
                     .customerId(saved.getCustomerId())
                     .autoClosed(true)
                     .build());
@@ -461,8 +485,11 @@ public class SupportTicketService implements SupportTicketServicePort {
         SupportTicketCommentModel savedComment = supportTicketCommentRepositoryPort.save(comment);
         supportTicketRepositoryPort.save(ticket);
 
+        TicketCategoryModel category = getCategoryOrThrow(ticket.getTicketCategoryId());
         eventPublisher.publishEvent(SupportTicketCommentAddedEvent.builder()
                 .ticketId(id)
+                .title(ticket.getTitle())
+                .categoryName(category.getName())
                 .customerId(ticket.getCustomerId())
                 .assignedTo(ticket.getAssignedTo())
                 .senderRole(senderRole)
