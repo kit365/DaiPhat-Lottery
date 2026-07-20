@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out.support;
+package com.daiphat.coreapi.infrastructure.adapter.out.support.persistence;
 
 import com.daiphat.coreapi.application.port.out.support.SupportTicketRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.support.TicketStatus;
