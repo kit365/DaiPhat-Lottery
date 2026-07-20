@@ -55,6 +55,10 @@ class SystemConfigServiceTest {
                 .configType(ConfigType.ORDER_SETTING)
                 .dataType(DataType.INT)
                 .description("Grace minutes")
+                .configName("Thời gian ân hạn hủy đơn")
+                .unit("phút")
+                .validationRules("{\"min\":1,\"max\":1440}")
+                .isEditable(true)
                 .isActive(true)
                 .build();
     }
@@ -173,6 +177,38 @@ class SystemConfigServiceTest {
                     .isInstanceOf(DomainException.class)
                     .extracting(ex -> ((DomainException) ex).getErrorCode())
                     .isEqualTo(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+
+            verify(systemConfigRepositoryPort, never()).save(any());
+            verify(systemConfigCachePort, never()).evict(any());
+        }
+
+        @Test
+        void rejectsOutOfRangeValue() {
+            SystemConfigModel existing = sampleConfig();
+            when(systemConfigRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
+
+            UpdateSystemConfigRequest request = new UpdateSystemConfigRequest("2000", "too large");
+
+            assertThatThrownBy(() -> systemConfigService.update(1L, request))
+                    .isInstanceOf(DomainException.class)
+                    .extracting(ex -> ((DomainException) ex).getErrorCode())
+                    .isEqualTo(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+
+            verify(systemConfigRepositoryPort, never()).save(any());
+            verify(systemConfigCachePort, never()).evict(any());
+        }
+
+        @Test
+        void rejectsWhenNotEditable() {
+            SystemConfigModel existing = sampleConfig();
+            existing.setIsEditable(false);
+            when(systemConfigRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
+
+            assertThatThrownBy(() -> systemConfigService.update(
+                    1L, new UpdateSystemConfigRequest("45", "Updated grace")))
+                    .isInstanceOf(DomainException.class)
+                    .extracting(ex -> ((DomainException) ex).getErrorCode())
+                    .isEqualTo(ErrorCode.SYSTEM_CONFIG_NOT_EDITABLE);
 
             verify(systemConfigRepositoryPort, never()).save(any());
             verify(systemConfigCachePort, never()).evict(any());

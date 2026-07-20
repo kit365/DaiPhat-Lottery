@@ -432,7 +432,8 @@ public enum ErrorCode {
     // System Config Errors
     SYSTEM_CONFIG_NOT_FOUND("CFG_001", "Cấu hình hệ thống không tồn tại.", HttpStatus.NOT_FOUND),
     SYSTEM_CONFIG_VALUE_INVALID("CFG_002", "Giá trị cấu hình không hợp lệ với kiểu dữ liệu.", HttpStatus.BAD_REQUEST),
-    SYSTEM_CONFIG_TYPE_INVALID("CFG_003", "Loại cấu hình không hợp lệ.", HttpStatus.BAD_REQUEST);
+    SYSTEM_CONFIG_TYPE_INVALID("CFG_003", "Loại cấu hình không hợp lệ.", HttpStatus.BAD_REQUEST),
+    SYSTEM_CONFIG_NOT_EDITABLE("CFG_004", "Cấu hình này không cho phép chỉnh sửa bởi Admin.", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final String message;
