@@ -12,6 +12,10 @@ public record SystemConfigResponse(
         String configType,
         String dataType,
         String description,
+        String configName,
+        String unit,
+        String validationRules,
+        Boolean isEditable,
         LocalDateTime updatedAt,
         String updatedBy
 ) {

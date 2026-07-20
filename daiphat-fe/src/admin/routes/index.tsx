@@ -51,7 +51,7 @@ const StreetAgentListPage = lazy(() => import("../features/street-agent").then(m
 const StreetAgentCreatePage = lazy(() => import("../features/street-agent").then(m => ({ default: m.StreetAgentCreatePage })));
 const StreetAgentEditPage = lazy(() => import("../features/street-agent").then(m => ({ default: m.StreetAgentEditPage })));
 const SettingsPage = lazy(() => import("../pages/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
-const SystemConfigListPage = lazy(() => import("../pages/settings/SystemConfigListPage").then(m => ({ default: m.SystemConfigListPage })));
+const SystemConfigListPage = lazy(() => import("../features/system-config/components/pages/SystemConfigListPage").then(m => ({ default: m.SystemConfigListPage })));
 const GeneralStatisticsPage = lazy(() => import("../pages/dashboard/statistics/GeneralStatisticsPage").then(m => ({ default: m.GeneralStatisticsPage })));
 const OrderStatisticsPage = lazy(() => import("../pages/dashboard/statistics/OrderStatisticsPage").then(m => ({ default: m.OrderStatisticsPage })));
 const StaffStatisticsPage = lazy(() => import("../pages/dashboard/statistics/StaffStatisticsPage").then(m => ({ default: m.StaffStatisticsPage })));
