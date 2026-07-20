@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ConfigDataType } from '../pages/settings/types/system-config';
+import { ConfigDataType } from '../features/system-config/types/system-config';
 
 const descriptionSchema = z
     .string()

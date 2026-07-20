@@ -20,21 +20,21 @@ import {
 import { Edit2 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
-import { Breadcrumb } from '../../components/ui/Breadcrumb';
-import { Search } from '../../components/ui/Search';
-import { Title } from '../../components/ui/Title';
-import { PERMISSIONS } from '../../constants/permission.constants';
-import { useAuthStore } from '../../../stores/useAuthStore';
-import { UpdateSystemConfigFormValues } from '../../schemas/system-config.schema';
-import { useSystemConfigs, useUpdateSystemConfig } from './hooks/useSystemConfig';
-import { SystemConfigEditDialog } from './sections/SystemConfigEditDialog';
+import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
+import { Search } from '../../../../components/ui/Search';
+import { Title } from '../../../../components/ui/Title';
+import { PERMISSIONS } from '../../../../constants/permission.constants';
+import { useAuthStore } from '../../../../../stores/useAuthStore';
+import { UpdateSystemConfigFormValues } from '../../../../schemas/system-config.schema';
+import { useSystemConfigs, useUpdateSystemConfig } from '../../hooks/useSystemConfig';
+import { SystemConfigEditDialog } from '../sections/SystemConfigEditDialog';
 import {
     CONFIG_DATA_TYPE_LABELS,
     CONFIG_TYPE_LABELS,
     ConfigDataType,
     ConfigType,
     SystemConfigResponse,
-} from './types/system-config';
+} from '../../types/system-config';
 
 const TabBadge = styled('span')(() => ({
     height: '24px',

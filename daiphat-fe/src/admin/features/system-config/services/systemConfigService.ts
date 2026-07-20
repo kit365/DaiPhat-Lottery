@@ -1,7 +1,7 @@
-import { apiApp } from '../../api';
-import { ApiResponse } from '../config/type';
-import { prefixAdmin } from '../constants/routes';
-import { SystemConfigResponse, UpdateSystemConfigRequest } from '../pages/settings/types/system-config';
+import { apiApp } from '../../../../api';
+import { ApiResponse } from '../../../../types/api.type';
+import { prefixAdmin } from '../../../constants/routes';
+import { SystemConfigResponse, UpdateSystemConfigRequest } from '../types/system-config';
 
 const BASE_URL = `/${prefixAdmin}/system-configs`;
 
