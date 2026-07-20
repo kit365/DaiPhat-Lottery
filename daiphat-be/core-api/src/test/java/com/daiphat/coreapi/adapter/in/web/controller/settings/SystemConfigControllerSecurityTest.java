@@ -76,7 +76,7 @@ class SystemConfigControllerSecurityTest {
     }
 
     private String requestBody() throws Exception {
-        return objectMapper.writeValueAsString(new UpdateSystemConfigRequest("45", "Updated"));
+        return objectMapper.writeValueAsString(new UpdateSystemConfigRequest("Thời gian ân hạn hủy đơn", "45", "Updated"));
     }
 
     @Test

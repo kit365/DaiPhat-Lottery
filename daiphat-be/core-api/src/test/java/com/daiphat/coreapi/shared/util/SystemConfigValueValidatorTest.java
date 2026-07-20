@@ -79,4 +79,38 @@ class SystemConfigValueValidatorTest {
     void validate_delegatesToParse() {
         SystemConfigValueValidator.validate("30", DataType.INT);
     }
+
+    @Test
+    void validate_withRules_acceptsInRangeInt() {
+        SystemConfigValueValidator.validate("30", DataType.INT, "{\"min\":1,\"max\":1440}");
+    }
+
+    @Test
+    void validate_withRules_rejectsOutOfRangeInt() {
+        assertThatThrownBy(() ->
+                SystemConfigValueValidator.validate("0", DataType.INT, "{\"min\":1,\"max\":1440}"))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+    }
+
+    @Test
+    void validate_withRules_acceptsInRangeTime() {
+        SystemConfigValueValidator.validate("14:30", DataType.TIME, "{\"min\":\"00:00\",\"max\":\"23:59\"}");
+    }
+
+    @Test
+    void validate_withRules_rejectsOutOfRangeTime() {
+        assertThatThrownBy(() ->
+                SystemConfigValueValidator.validate(
+                        "23:59", DataType.TIME, "{\"min\":\"00:00\",\"max\":\"18:00\"}"))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.SYSTEM_CONFIG_VALUE_INVALID);
+    }
+
+    @Test
+    void validate_withBlankRules_skipsRangeCheck() {
+        SystemConfigValueValidator.validate("99999", DataType.INT, "  ");
+    }
 }
