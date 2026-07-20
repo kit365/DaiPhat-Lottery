@@ -17,17 +17,17 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { useEffect } from 'react';
-import { LoadingButton } from '../../../components/ui/LoadingButton';
+import { LoadingButton } from '../../../../components/ui/LoadingButton';
 import {
     createUpdateSystemConfigSchema,
     UpdateSystemConfigFormValues,
-} from '../../../schemas/system-config.schema';
+} from '../../../../schemas/system-config.schema';
 import {
     CONFIG_DATA_TYPE_LABELS,
     CONFIG_TYPE_LABELS,
     ConfigDataType,
     SystemConfigResponse,
-} from '../types/system-config';
+} from '../../types/system-config';
 
 interface SystemConfigEditDialogProps {
     config: SystemConfigResponse | null;

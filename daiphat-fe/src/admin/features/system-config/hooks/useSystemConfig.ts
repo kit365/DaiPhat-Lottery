@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getSystemConfigs, updateSystemConfig } from '../../../api/system-config.api';
+import { getSystemConfigs, updateSystemConfig } from '../services/systemConfigService';
 import { ConfigType, UpdateSystemConfigRequest } from '../types/system-config';
 
 export const SYSTEM_CONFIG_KEYS = {
