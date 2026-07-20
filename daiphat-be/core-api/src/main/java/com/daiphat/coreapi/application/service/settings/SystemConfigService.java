@@ -65,7 +65,10 @@ public class SystemConfigService implements SystemConfigServicePort {
     @Transactional
     public SystemConfigResponse update(Long id, UpdateSystemConfigRequest request) {
         SystemConfigModel model = getConfigOrThrow(id);
-        SystemConfigValueValidator.validate(request.configValue(), model.getDataType());
+        if (!Boolean.TRUE.equals(model.getIsEditable())) {
+            throw new DomainException(ErrorCode.SYSTEM_CONFIG_NOT_EDITABLE);
+        }
+        SystemConfigValueValidator.validate(request.configValue(), model.getDataType(), model.getValidationRules());
         systemConfigApplicationMapper.merge(request, model);
         SystemConfigModel saved = systemConfigRepositoryPort.save(model);
 
