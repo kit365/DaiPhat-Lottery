@@ -18,15 +18,21 @@ export const supplierFormSchema = z.object({
         .refine((v) => !v || v.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
             message: 'Email không hợp lệ',
         }),
-    address: z.string().optional(),
-    taxCode: z.string().optional(),
+    address: z.string().trim().min(1, 'Vui lòng nhập địa chỉ'),
+    taxCode: z.string().trim().min(1, 'Vui lòng nhập mã số thuế'),
     paymentTermDays: z.preprocess(
-        (value) => (value === '' || value === undefined ? null : value),
-        z.coerce.number().min(0, 'Số ngày thanh toán không được âm').nullable().optional()
+        (value) => (value === '' || value === undefined || value === null ? undefined : value),
+        z.coerce.number({
+            required_error: 'Vui lòng nhập số ngày thanh toán',
+            invalid_type_error: 'Vui lòng nhập số hợp lệ',
+        }).min(0, 'Số ngày thanh toán không được âm')
     ),
     defaultImportCost: z.preprocess(
-        (value) => (value === '' || value === undefined ? null : value),
-        z.coerce.number().min(0, 'Giá vốn mặc định không được âm').nullable().optional()
+        (value) => (value === '' || value === undefined || value === null ? undefined : value),
+        z.coerce.number({
+            required_error: 'Vui lòng nhập giá vốn mặc định',
+            invalid_type_error: 'Vui lòng nhập số hợp lệ',
+        }).min(0, 'Giá vốn mặc định không được âm')
     ),
     isActive: z.boolean(),
 });
@@ -44,5 +50,5 @@ export const supplierFormDefaultValues: SupplierFormValues = {
     taxCode: '',
     paymentTermDays: 0,
     defaultImportCost: 10000,
-    isActive: false,
+    isActive: true,
 };
