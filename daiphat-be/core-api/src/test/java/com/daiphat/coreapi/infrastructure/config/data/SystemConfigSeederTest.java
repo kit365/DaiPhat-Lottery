@@ -65,6 +65,8 @@ class SystemConfigSeederTest {
                         "ORDER_CANCELLED_COMPLAINT_WINDOW_HOURS"
                 );
         assertThat(captor.getAllValues()).allMatch(entity -> Boolean.TRUE.equals(entity.getIsActive()));
+        assertThat(captor.getAllValues()).allMatch(entity ->
+                entity.getConfigName() != null && !entity.getConfigName().isBlank());
         assertThat(captor.getAllValues())
                 .filteredOn(entity -> entity.getConfigKey().startsWith("REFUND_COMPLAINT_"))
                 .extracting(SystemConfigEntity::getConfigType)
@@ -88,6 +90,14 @@ class SystemConfigSeederTest {
                         && entity.getConfigKey().contains("COMPLAINT"))
                 .extracting(SystemConfigEntity::getConfigType)
                 .containsOnly(ConfigType.COMPLAINT_SETTING);
+        assertThat(captor.getAllValues())
+                .filteredOn(entity -> "ORDER_CANCEL_GRACE_MIN".equals(entity.getConfigKey()))
+                .first()
+                .satisfies(entity -> {
+                    assertThat(entity.getConfigName()).isEqualTo("Thời gian ân hạn hủy đơn");
+                    assertThat(entity.getUnit()).isEqualTo("phút");
+                    assertThat(entity.getValidationRules()).isEqualTo("{\"min\":1,\"max\":1440}");
+                });
     }
 
     @Test
@@ -109,6 +119,36 @@ class SystemConfigSeederTest {
 
         assertThat(inactive.getIsActive()).isTrue();
         assertThat(inactive.getConfigValue()).isEqualTo("99");
+    }
+
+    @Test
+    void syncConfigsWithEnum_updatesMetadataWithoutChangingValue() {
+        SystemConfigEntity existing = SystemConfigEntity.builder()
+                .id(1L)
+                .configKey(SystemConfigEnum.ORDER_CANCEL_GRACE_MIN.name())
+                .configValue("99")
+                .configType(ConfigType.ORDER_SETTING)
+                .dataType(DataType.INT)
+                .description("stale")
+                .configName("stale name")
+                .unit("stale")
+                .validationRules("{}")
+                .isEditable(false)
+                .isActive(true)
+                .build();
+
+        when(configRepository.findAll()).thenReturn(new ArrayList<>(List.of(existing)));
+        when(configRepository.save(any(SystemConfigEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        systemConfigSeeder.syncConfigsWithEnum();
+
+        assertThat(existing.getConfigValue()).isEqualTo("99");
+        assertThat(existing.getConfigName()).isEqualTo(SystemConfigEnum.ORDER_CANCEL_GRACE_MIN.getConfigName());
+        assertThat(existing.getUnit()).isEqualTo(SystemConfigEnum.ORDER_CANCEL_GRACE_MIN.getUnit());
+        assertThat(existing.getValidationRules())
+                .isEqualTo(SystemConfigEnum.ORDER_CANCEL_GRACE_MIN.getValidationRules());
+        assertThat(existing.getIsEditable()).isTrue();
+        assertThat(existing.getDescription()).isEqualTo(SystemConfigEnum.ORDER_CANCEL_GRACE_MIN.getDescription());
     }
 
     @Test

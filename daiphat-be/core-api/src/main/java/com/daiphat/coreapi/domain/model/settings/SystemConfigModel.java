@@ -23,6 +23,10 @@ public class SystemConfigModel {
     private ConfigType configType;
     private DataType dataType;
     private String description;
+    private String configName;
+    private String unit;
+    private String validationRules;
+    private Boolean isEditable;
     private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
