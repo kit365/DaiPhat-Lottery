@@ -60,6 +60,8 @@ daiphat:
       closing-time: "14:00"
       window-minutes: 30
       timezone: Asia/Ho_Chi_Minh
+  support-ticket:
+    auto-close-rate-ms: 60000
   chat:
     ai:
       confidence-threshold: 0.7

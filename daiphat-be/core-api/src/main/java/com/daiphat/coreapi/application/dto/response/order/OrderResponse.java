@@ -36,6 +36,7 @@ public record OrderResponse(
         Boolean refundEligible,
         Long refundRemainingSeconds,
         Integer refundGraceMinutes,
-        LocalDateTime refundPaymentSuccessAt
+        LocalDateTime refundPaymentSuccessAt,
+        com.daiphat.coreapi.application.dto.response.support.OrderComplaintEligibilityResponse complaintEligibility
 ) {
 }

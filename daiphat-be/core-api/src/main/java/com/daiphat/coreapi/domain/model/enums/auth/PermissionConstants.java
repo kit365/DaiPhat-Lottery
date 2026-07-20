@@ -30,6 +30,7 @@ public final class PermissionConstants {
     public static final String CHAT = "chat";
     public static final String CALENDAR = "calendar";
     public static final String SETTINGS = "settings";
+    public static final String SUPPORT_TICKET = "supportTicket";
 
     // --- ACTIONS ---
     public static final String VIEW = ":view";

@@ -2,9 +2,12 @@ package com.daiphat.coreapi.application.port.in.support;
 
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketCommentRequest;
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketRequest;
+import com.daiphat.coreapi.application.dto.request.support.ResolutionFeedbackRequest;
 import com.daiphat.coreapi.application.dto.request.support.ResolveSupportTicketRequest;
+import com.daiphat.coreapi.application.dto.request.support.StaffSupportTicketResponseRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.support.OrderComplaintEligibilityResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketStaffSummaryResponse;
@@ -18,8 +21,12 @@ public interface SupportTicketServicePort {
 
     SupportTicketResponse create(UUID customerId, CreateSupportTicketRequest request, UploadRequest file);
 
+    OrderComplaintEligibilityResponse getOrderComplaintEligibility(UUID orderId, UUID customerId);
+
     PageResponse<SupportTicketSummaryResponse> getMyTickets(
             UUID customerId, int page, int limit, String status, String search);
+
+    long countActiveMyTickets(UUID customerId);
 
     SupportTicketResponse getByIdForCustomer(Long id, UUID customerId);
 
@@ -32,11 +39,22 @@ public interface SupportTicketServicePort {
             String search,
             UUID assignedTo,
             String sortBy,
-            String direction);
+            String direction,
+            String refType,
+            Long ticketCategoryId,
+            String categoryCodes);
 
     SupportTicketResponse assignByStaff(Long id, UUID staffId);
 
     SupportTicketResponse resolveByStaff(Long id, UUID staffId, ResolveSupportTicketRequest request);
+
+    SupportTicketResponse respondByStaff(
+            Long id, UUID staffId, StaffSupportTicketResponseRequest request, UploadRequest file);
+
+    SupportTicketResponse submitResolutionFeedback(
+            Long id, UUID customerId, ResolutionFeedbackRequest request);
+
+    int autoCloseResolvedTickets();
 
     SupportTicketResponse updateByCustomer(
             Long id, UUID customerId, UpdateSupportTicketRequest request, UploadRequest file);

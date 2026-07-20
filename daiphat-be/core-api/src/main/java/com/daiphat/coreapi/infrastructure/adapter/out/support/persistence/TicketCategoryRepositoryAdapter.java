@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out.support;
+package com.daiphat.coreapi.infrastructure.adapter.out.support.persistence;
 
 import com.daiphat.coreapi.application.port.out.support.TicketCategoryRepositoryPort;
 import com.daiphat.coreapi.domain.model.support.TicketCategoryModel;
@@ -26,5 +26,19 @@ public class TicketCategoryRepositoryAdapter implements TicketCategoryRepository
     @Override
     public List<TicketCategoryModel> findAll() {
         return ticketCategoryPersistenceMapper.toDomainList(ticketCategoryRepository.findAll());
+    }
+
+    @Override
+    public TicketCategoryModel save(TicketCategoryModel model) {
+        var entity = ticketCategoryPersistenceMapper.toEntity(model);
+        return ticketCategoryPersistenceMapper.toDomain(ticketCategoryRepository.save(entity));
+    }
+
+    @Override
+    public boolean existsByParentIdAndPriorityAndIdNot(Long parentId, int priority, Long id) {
+        if (parentId == null) {
+            return ticketCategoryRepository.existsByParentIdIsNullAndPriorityAndIdNot(priority, id);
+        }
+        return ticketCategoryRepository.existsByParentIdAndPriorityAndIdNot(parentId, priority, id);
     }
 }

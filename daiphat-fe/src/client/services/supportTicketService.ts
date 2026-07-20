@@ -4,6 +4,7 @@ import {
     CreateSupportTicketCommentRequest,
     CreateSupportTicketRequest,
     GetMyTicketsParams,
+    OrderComplaintEligibilityResponse,
     SupportTicketCommentResponse,
     SupportTicketResponse,
     SupportTicketSummaryResponse,
@@ -33,6 +34,13 @@ export const supportTicketService = {
         return response.data;
     },
 
+    getOrderComplaintEligibility: async (
+        orderId: string
+    ): Promise<ApiResponse<OrderComplaintEligibilityResponse>> => {
+        const response = await apiApp.get(`${BASE_URL}/orders/${orderId}/complaint-eligibility`);
+        return response.data;
+    },
+
     create: async (
         data: CreateSupportTicketRequest,
         file?: File | null
@@ -49,6 +57,11 @@ export const supportTicketService = {
         params: GetMyTicketsParams
     ): Promise<ApiResponse<PageResponse<SupportTicketSummaryResponse>>> => {
         const response = await apiApp.get(`${BASE_URL}/my`, { params });
+        return response.data;
+    },
+
+    getMyActiveCount: async (): Promise<ApiResponse<number>> => {
+        const response = await apiApp.get(`${BASE_URL}/my/active-count`);
         return response.data;
     },
 
@@ -74,6 +87,14 @@ export const supportTicketService = {
 
     close: async (id: number): Promise<ApiResponse<SupportTicketResponse>> => {
         const response = await apiApp.patch(`${BASE_URL}/${id}/close`);
+        return response.data;
+    },
+
+    submitResolutionFeedback: async (
+        id: number,
+        satisfied: boolean
+    ): Promise<ApiResponse<SupportTicketResponse>> => {
+        const response = await apiApp.put(`${BASE_URL}/${id}/resolution-feedback`, { satisfied });
         return response.data;
     },
 

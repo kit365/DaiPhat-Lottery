@@ -10,4 +10,8 @@ public interface TicketCategoryRepositoryPort {
     Optional<TicketCategoryModel> findById(Long id);
 
     List<TicketCategoryModel> findAll();
+
+    TicketCategoryModel save(TicketCategoryModel model);
+
+    boolean existsByParentIdAndPriorityAndIdNot(Long parentId, int priority, Long id);
 }

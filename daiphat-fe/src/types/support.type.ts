@@ -3,6 +3,7 @@ export enum TicketStatus {
     IN_PROGRESS = 'IN_PROGRESS',
     WAITING_FOR_CUSTOMER = 'WAITING_FOR_CUSTOMER',
     RESOLVED = 'RESOLVED',
+    REJECTED = 'REJECTED',
     CLOSED = 'CLOSED',
 }
 
@@ -10,6 +11,7 @@ export enum TicketRefType {
     ORDER = 'ORDER',
     PAYMENT_TRANSACTION = 'PAYMENT_TRANSACTION',
     PRIZE_CLAIM = 'PRIZE_CLAIM',
+    REFUND_REQUEST = 'REFUND_REQUEST',
 }
 
 export enum TicketCommentSenderRole {
@@ -18,11 +20,23 @@ export enum TicketCommentSenderRole {
     SYSTEM = 'SYSTEM',
 }
 
+export enum StaffTicketResponseAction {
+    NORMAL = 'NORMAL',
+    RESOLVE = 'RESOLVE',
+    REJECT = 'REJECT',
+}
+
+export interface UpdateTicketCategoryRequest {
+    priority: number;
+    isActive: boolean;
+}
+
 export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
     [TicketStatus.OPEN]: 'Mới tạo',
     [TicketStatus.IN_PROGRESS]: 'Đang xử lý',
     [TicketStatus.WAITING_FOR_CUSTOMER]: 'Chờ khách phản hồi',
     [TicketStatus.RESOLVED]: 'Đã giải quyết',
+    [TicketStatus.REJECTED]: 'Đã từ chối',
     [TicketStatus.CLOSED]: 'Đã đóng',
 };
 
@@ -30,6 +44,7 @@ export const TICKET_REF_TYPE_LABELS: Record<TicketRefType, string> = {
     [TicketRefType.ORDER]: 'Đơn hàng',
     [TicketRefType.PAYMENT_TRANSACTION]: 'Giao dịch thanh toán',
     [TicketRefType.PRIZE_CLAIM]: 'Yêu cầu nhận thưởng',
+    [TicketRefType.REFUND_REQUEST]: 'Yêu cầu hoàn tiền',
 };
 
 export interface TicketCategoryResponse {
@@ -39,6 +54,8 @@ export interface TicketCategoryResponse {
     description: string;
     priority: number;
     requiredRefType: TicketRefType | null;
+    parentId?: number | null;
+    isActive: boolean;
 }
 
 export interface SupportTicketCommentResponse {
@@ -52,6 +69,15 @@ export interface SupportTicketCommentResponse {
 
 export interface CreateSupportTicketCommentRequest {
     content: string;
+}
+
+export interface StaffSupportTicketResponseRequest {
+    content: string;
+    action: StaffTicketResponseAction;
+}
+
+export interface ResolutionFeedbackRequest {
+    satisfied: boolean;
 }
 
 export function sortCommentsByCreatedAt(
@@ -70,11 +96,27 @@ export function findLastConversationalComment(
         .pop();
 }
 
+export function findReasonComment(
+    comments: SupportTicketCommentResponse[],
+    reasonId?: number | null
+): SupportTicketCommentResponse | undefined {
+    if (!reasonId) return undefined;
+    return comments.find((comment) => comment.id === reasonId);
+}
+
+export function isTerminalTicketStatus(status: TicketStatus): boolean {
+    return (
+        status === TicketStatus.RESOLVED ||
+        status === TicketStatus.REJECTED ||
+        status === TicketStatus.CLOSED
+    );
+}
+
 export function canCustomerSendComment(
     status: TicketStatus,
     comments: SupportTicketCommentResponse[]
 ): boolean {
-    if (status === TicketStatus.RESOLVED || status === TicketStatus.CLOSED) {
+    if (isTerminalTicketStatus(status)) {
         return false;
     }
     const last = findLastConversationalComment(comments);
@@ -88,7 +130,7 @@ export function canOperatorSendComment(
     status: TicketStatus,
     comments: SupportTicketCommentResponse[]
 ): boolean {
-    if (status === TicketStatus.RESOLVED || status === TicketStatus.CLOSED) {
+    if (isTerminalTicketStatus(status)) {
         return false;
     }
     if (status === TicketStatus.OPEN) {
@@ -129,6 +171,9 @@ export interface GetStaffTicketsParams {
     assignedTo?: string;
     sortBy?: 'dueAt' | 'createdAt' | 'updatedAt';
     direction?: 'asc' | 'desc';
+    refType?: TicketRefType;
+    ticketCategoryId?: number;
+    categoryCodes?: string;
 }
 
 export interface SupportTicketSummaryResponse {
@@ -155,11 +200,17 @@ export interface SupportTicketResponse {
     refType?: TicketRefType;
     status: TicketStatus;
     response?: string;
+    resolvedReasonId?: number;
+    rejectedReasonId?: number;
     resolvedAt?: string;
     dueAt?: string;
     createdAt: string;
     updatedAt: string;
     comments: SupportTicketCommentResponse[];
+    customerName?: string;
+    assignedToName?: string;
+    ticketCategoryName?: string;
+    ticketCategoryCode?: string;
 }
 
 export interface CreateSupportTicketRequest {
@@ -183,3 +234,31 @@ export interface GetMyTicketsParams {
     status?: TicketStatus;
     search?: string;
 }
+
+export type OrderComplaintEligibilityCode =
+    | 'eligible'
+    | 'too_early'
+    | 'window_expired'
+    | 'status_invalid'
+    | 'not_eligible';
+
+export interface OrderComplaintEligibilityResponse {
+    eligible: boolean;
+    categoryCode?: string | null;
+    reasonCode: OrderComplaintEligibilityCode | string;
+    message: string;
+    requiresEvidence: boolean;
+    remainingSeconds?: number | null;
+    eligibleAt?: string | null;
+    expiresAt?: string | null;
+    orderId: string;
+    orderStatus?: string | null;
+}
+
+export const ORDER_COMPLAINT_CATEGORY_CODES = {
+    PAYMENT_SYNC_ERROR: 'PAYMENT_SYNC_ERROR',
+    ORDER_PREPARATION_DELAY: 'ORDER_PREPARATION_DELAY',
+    ORDER_PICKUP_ISSUE: 'ORDER_PICKUP_ISSUE',
+    ORDER_SERVICE_QUALITY: 'ORDER_SERVICE_QUALITY',
+    ORDER_CANCELLED_OUT_OF_STOCK: 'ORDER_CANCELLED_OUT_OF_STOCK',
+} as const;

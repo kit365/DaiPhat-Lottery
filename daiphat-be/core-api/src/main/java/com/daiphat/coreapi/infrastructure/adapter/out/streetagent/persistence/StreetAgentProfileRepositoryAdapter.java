@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out;
+package com.daiphat.coreapi.infrastructure.adapter.out.streetagent.persistence;
 
 import com.daiphat.coreapi.application.port.out.streetagent.StreetAgentProfileRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.streetagent.StreetAgentProfileStatus;
