@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out.order;
+package com.daiphat.coreapi.infrastructure.adapter.out.order.persistence;
 
 import com.daiphat.coreapi.application.port.out.order.OrderDetailSerialRepositoryPort;
 import com.daiphat.coreapi.infrastructure.persistence.repository.order.OrderDetailSerialRepository;

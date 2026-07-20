@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.station;
+package com.daiphat.coreapi.infrastructure.adapter.out.lotteries.station.persistence;
 
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryStationRepositoryPort;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;

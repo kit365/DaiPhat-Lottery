@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out.settings;
+package com.daiphat.coreapi.infrastructure.adapter.out.settings.persistence;
 
 import com.daiphat.coreapi.application.port.out.settings.SystemConfigRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.settings.ConfigType;
