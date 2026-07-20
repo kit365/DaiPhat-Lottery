@@ -26,6 +26,11 @@ export const CONFIG_DATA_TYPE_LABELS: Record<ConfigDataType, string> = {
     [ConfigDataType.BOOLEAN]: 'Boolean (true/false)',
 };
 
+export interface SystemConfigValidationRules {
+    min?: number | string;
+    max?: number | string;
+}
+
 export interface SystemConfigResponse {
     id: number;
     configKey: string;
@@ -33,11 +38,25 @@ export interface SystemConfigResponse {
     configType: ConfigType;
     dataType: ConfigDataType;
     description: string;
+    configName: string;
+    unit?: string | null;
+    validationRules?: string | null;
+    isEditable: boolean;
     updatedAt: string;
     updatedBy: string;
 }
 
 export interface UpdateSystemConfigRequest {
+    configName?: string;
     configValue: string;
     description: string;
 }
+
+export const parseValidationRules = (raw?: string | null): SystemConfigValidationRules | null => {
+    if (!raw?.trim()) return null;
+    try {
+        return JSON.parse(raw) as SystemConfigValidationRules;
+    } catch {
+        return null;
+    }
+};
