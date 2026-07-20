@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out;
+package com.daiphat.coreapi.infrastructure.adapter.out.refund.persistence;
 
 import com.daiphat.coreapi.application.port.out.refund.UserBankAccountRepositoryPort;
 import com.daiphat.coreapi.domain.model.refund.UserBankAccountModel;

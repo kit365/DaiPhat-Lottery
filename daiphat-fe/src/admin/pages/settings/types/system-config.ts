@@ -1,7 +1,9 @@
 export enum ConfigType {
     ORDER_SETTING = 'ORDER_SETTING',
+    PAYMENT_SETTING = 'PAYMENT_SETTING',
     TICKET_IMPORT = 'TICKET_IMPORT',
     REFUND_SETTING = 'REFUND_SETTING',
+    COMPLAINT_SETTING = 'COMPLAINT_SETTING',
 }
 
 export enum ConfigDataType {
@@ -12,8 +14,10 @@ export enum ConfigDataType {
 
 export const CONFIG_TYPE_LABELS: Record<ConfigType, string> = {
     [ConfigType.ORDER_SETTING]: 'Cấu hình đơn hàng',
+    [ConfigType.PAYMENT_SETTING]: 'Cấu hình thanh toán',
     [ConfigType.TICKET_IMPORT]: 'Cấu hình nhập vé',
     [ConfigType.REFUND_SETTING]: 'Cấu hình hoàn tiền',
+    [ConfigType.COMPLAINT_SETTING]: 'Cấu hình khiếu nại',
 };
 
 export const CONFIG_DATA_TYPE_LABELS: Record<ConfigDataType, string> = {

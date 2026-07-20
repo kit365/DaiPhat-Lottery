@@ -24,6 +24,12 @@ public enum SystemConfigEnum {
             "30",
             "SLA chuẩn bị đơn (phút)"
     ),
+    PAYMENT_TIMEOUT_MINUTES(
+            ConfigType.PAYMENT_SETTING,
+            DataType.INT,
+            "3",
+            "Thời gian chờ thanh toán trước khi hệ thống tự động hủy đơn (phút)"
+    ),
     VENDOR_RETURN_CUTOFF(
             ConfigType.ORDER_SETTING,
             DataType.TIME,
@@ -65,6 +71,48 @@ public enum SystemConfigEnum {
             DataType.INT,
             "3",
             "Số lần tối đa khách hàng được phép cập nhật thông tin tài khoản ngân hàng sau khi chuyển khoản hoàn tiền thất bại"
+    ),
+    REFUND_COMPLAINT_PROCESSING_WAIT_HOURS(
+            ConfigType.COMPLAINT_SETTING,
+            DataType.INT,
+            "48",
+            "Số giờ tối thiểu yêu cầu hoàn tiền phải ở WAITING_FOR_INFO/READY_TO_PAY trước khi khiếu nại xử lý chậm"
+    ),
+    REFUND_COMPLAINT_GRACE_DAYS(
+            ConfigType.COMPLAINT_SETTING,
+            DataType.INT,
+            "7",
+            "Số ngày khiếu nại còn hiệu lực sau khi yêu cầu hoàn tiền ở trạng thái cuối (PAID/MANUAL_RESOLUTION), tối đa 15"
+    ),
+    SUPPORT_TICKET_AUTO_CLOSE_HOURS(
+            ConfigType.COMPLAINT_SETTING,
+            DataType.INT,
+            "48",
+            "Số giờ tự động đóng ticket sau khi được đánh dấu đã giải quyết nếu khách hàng không phản hồi"
+    ),
+    ORDER_COMPLAINT_DRAW_CUTOFF_TIME(
+            ConfigType.COMPLAINT_SETTING,
+            DataType.TIME,
+            "15:00",
+            "Giờ gần mở thưởng sau đó khách có thể khiếu nại đơn còn ở PAID/PREPARING"
+    ),
+    ORDER_SERVICE_COMPLAINT_WINDOW_HOURS(
+            ConfigType.COMPLAINT_SETTING,
+            DataType.INT,
+            "24",
+            "Số giờ khách được khiếu nại chất lượng dịch vụ sau khi đơn hoàn thành"
+    ),
+    ORDER_STATUS_DELAY_COMPLAINT_MINUTES(
+            ConfigType.COMPLAINT_SETTING,
+            DataType.INT,
+            "15",
+            "Số phút đơn ở PAID/PREPARING không đổi trạng thái trước khi khách được khiếu nại xử lý chậm"
+    ),
+    ORDER_CANCELLED_COMPLAINT_WINDOW_HOURS(
+            ConfigType.COMPLAINT_SETTING,
+            DataType.INT,
+            "24",
+            "Số giờ khách được khiếu nại sau khi đơn bị hủy do sự cố hết vé"
     );
 
     private final ConfigType configType;

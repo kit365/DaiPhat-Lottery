@@ -13,6 +13,7 @@ import {
 } from '../../../../../types/refund.type';
 import { RefundStatusBadge } from '../../../../components/refund/RefundStatusBadge';
 import { RefundStatusStepper } from '../../../../components/refund/RefundStatusStepper';
+import { RefundComplaintButton } from '../../../../components/support/RefundComplaintButton';
 import { BankAccountFormModal } from '../../../../components/refund/BankAccountFormModal';
 import { TransferEvidencePreview } from '../../../../../admin/pages/refund/components/TransferEvidencePreview';
 import {
@@ -130,12 +131,15 @@ export const RefundDetailTab = () => {
                         Tạo lúc {format(new Date(refund.createdAt), 'dd/MM/yyyy HH:mm')}
                     </p>
                 </div>
+                <RefundComplaintButton refund={refund} variant="button" />
             </div>
 
-            <RefundStatusStepper
-                status={refund.status}
-                requestRole={refund.requestRole}
-            />
+            {refund.status !== RefundRequestStatus.MANUAL_RESOLUTION && (
+                <RefundStatusStepper
+                    status={refund.status}
+                    requestRole={refund.requestRole}
+                />
+            )}
 
             {refund.status === RefundRequestStatus.WAITING_FOR_INFO && (
                 <div className="rounded-[20px] p-5 lg:p-6 border border-[#FFB020]/40 bg-[#FFF9F3] flex flex-col gap-3">
@@ -167,11 +171,11 @@ export const RefundDetailTab = () => {
                         </div>
                         <div className="min-w-0 flex-1">
                             <h3 className="text-[16px] font-bold text-[#C62828]">
-                                Không thể xử lý hoàn tiền trực tuyến
+                                Cần xử lý thủ công
                             </h3>
-                            <p className="text-[14px] text-[#637381] mt-1 leading-relaxed whitespace-pre-wrap">
-                                {refund.operatorNote?.trim()
-                                    || 'Vượt quá số lần nhập lại. Vui lòng mang CCCD đến quầy hỗ trợ hoặc liên hệ với CSKH để được hỗ trợ trong thời gian sớm nhất!'}
+                            <p className="text-[14px] text-[#637381] mt-1 leading-relaxed">
+                                Yêu cầu hoàn tiền này không thể xử lý trực tuyến. Vui lòng mang CCCD đến
+                                quầy hỗ trợ hoặc liên hệ CSKH để được hỗ trợ trong thời gian sớm nhất.
                             </p>
                             <p className="text-[13px] text-[#637381] mt-2">
                                 Bạn không thể cập nhật tài khoản ngân hàng trên hệ thống cho yêu cầu này nữa.

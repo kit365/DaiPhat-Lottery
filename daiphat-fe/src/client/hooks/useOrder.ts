@@ -33,10 +33,11 @@ export const useGetOrderStatuses = () => {
     });
 };
 
-export const useGetMyOrders = (params: GetMyOrdersParams) => {
+export const useGetMyOrders = (params: GetMyOrdersParams, enabled: boolean = true) => {
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_MY_ORDERS, params],
-        queryFn: () => orderService.getMyOrders(params)
+        queryFn: () => orderService.getMyOrders(params),
+        enabled
     });
 };
 

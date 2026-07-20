@@ -19,10 +19,16 @@ public record SupportTicketResponse(
         TicketRefType refType,
         TicketStatus status,
         String response,
+        Long resolvedReasonId,
+        Long rejectedReasonId,
         LocalDateTime resolvedAt,
         LocalDateTime dueAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        List<SupportTicketCommentResponse> comments
+        List<SupportTicketCommentResponse> comments,
+        String customerName,
+        String assignedToName,
+        String ticketCategoryName,
+        String ticketCategoryCode
 ) {
 }

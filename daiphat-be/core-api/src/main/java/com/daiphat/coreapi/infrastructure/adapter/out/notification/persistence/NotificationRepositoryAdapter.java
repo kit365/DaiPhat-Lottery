@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out;
+package com.daiphat.coreapi.infrastructure.adapter.out.notification.persistence;
 
 import com.daiphat.coreapi.application.port.out.notification.NotificationRepositoryPort;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;

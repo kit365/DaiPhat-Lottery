@@ -13,6 +13,7 @@ import java.util.List;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface SupportApplicationMapper {
 
+    @Mapping(target = "isActive", expression = "java(model.isActive())")
     TicketCategoryResponse toCategoryResponse(TicketCategoryModel model);
 
     List<TicketCategoryResponse> toCategoryResponses(List<TicketCategoryModel> models);
@@ -47,11 +48,17 @@ public interface SupportApplicationMapper {
                 base.refType(),
                 base.status(),
                 base.response(),
+                base.resolvedReasonId(),
+                base.rejectedReasonId(),
                 base.resolvedAt(),
                 base.dueAt(),
                 base.createdAt(),
                 base.updatedAt(),
-                toCommentResponses(comments)
+                toCommentResponses(comments),
+                base.customerName(),
+                base.assignedToName(),
+                base.ticketCategoryName(),
+                base.ticketCategoryCode()
         );
     }
 }

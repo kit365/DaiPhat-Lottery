@@ -19,6 +19,15 @@ export const useGetTicketCategories = () => {
     });
 };
 
+export const useGetOrderComplaintEligibility = (orderId?: string, enabled = true) => {
+    return useQuery({
+        queryKey: [QUERY_KEYS.CLIENT_ORDER_COMPLAINT_ELIGIBILITY, orderId],
+        queryFn: () => supportTicketService.getOrderComplaintEligibility(orderId!),
+        enabled: !!orderId && enabled,
+        refetchInterval: 30_000,
+    });
+};
+
 export const useGetMyTickets = (params: GetMyTicketsParams, enabled = true) => {
     return useQuery({
         queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS, params],
@@ -139,6 +148,37 @@ export const useCloseComplaint = () => {
                 queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_TICKET_COMMENTS, id] });
             } else {
                 toast.error(response.message || 'Có lỗi xảy ra khi đóng yêu cầu');
+            }
+        },
+        onError: (error: any) => {
+            toast.error(getErrorMessage(error, 'Lỗi kết nối đến máy chủ'));
+        },
+    });
+};
+
+export const useSubmitResolutionFeedback = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ id, satisfied }: { id: number; satisfied: boolean }) =>
+            supportTicketService.submitResolutionFeedback(id, satisfied),
+        onSuccess: (response, variables) => {
+            if (response.success) {
+                toast.success(
+                    response.message ||
+                        (variables.satisfied
+                            ? 'Cảm ơn bạn đã xác nhận. Yêu cầu đã được đóng.'
+                            : 'Yêu cầu đã được mở lại để tiếp tục xử lý.')
+                );
+                queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_COMPLAINTS] });
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.CLIENT_COMPLAINT_DETAIL, variables.id],
+                });
+                queryClient.invalidateQueries({
+                    queryKey: [QUERY_KEYS.CLIENT_TICKET_COMMENTS, variables.id],
+                });
+            } else {
+                toast.error(response.message || 'Không thể gửi phản hồi đánh giá');
             }
         },
         onError: (error: any) => {

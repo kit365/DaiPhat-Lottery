@@ -5,8 +5,10 @@ import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketCommentRequest;
 import com.daiphat.coreapi.application.dto.request.support.CreateSupportTicketRequest;
+import com.daiphat.coreapi.application.dto.request.support.ResolutionFeedbackRequest;
 import com.daiphat.coreapi.application.dto.request.support.UpdateSupportTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
+import com.daiphat.coreapi.application.dto.response.support.OrderComplaintEligibilityResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketCommentResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketResponse;
 import com.daiphat.coreapi.application.dto.response.support.SupportTicketSummaryResponse;
@@ -53,6 +55,16 @@ public class SupportTicketController {
                         file != null ? StorageUtils.toUploadRequest(file) : null));
     }
 
+    @GetMapping("/orders/{orderId}/complaint-eligibility")
+    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    public ApiResponse<OrderComplaintEligibilityResponse> getOrderComplaintEligibility(
+            @PathVariable java.util.UUID orderId,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                "Kiểm tra điều kiện khiếu nại đơn hàng thành công.",
+                supportTicketServicePort.getOrderComplaintEligibility(orderId, principal.getId()));
+    }
+
     @GetMapping("/my")
     @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
     public ApiResponse<PageResponse<SupportTicketSummaryResponse>> getMyTickets(
@@ -64,6 +76,15 @@ public class SupportTicketController {
         return ApiResponse.success(
                 "Lấy danh sách yêu cầu hỗ trợ của bạn thành công.",
                 supportTicketServicePort.getMyTickets(principal.getId(), page, limit, status, search));
+    }
+
+    @GetMapping("/my/active-count")
+    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    public ApiResponse<Long> getMyActiveCount(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                "Lấy số lượng yêu cầu hỗ trợ đang xử lý thành công.",
+                supportTicketServicePort.countActiveMyTickets(principal.getId()));
     }
 
     @GetMapping(ID_PATH)
@@ -119,6 +140,19 @@ public class SupportTicketController {
         return ApiResponse.success(
                 "Đóng yêu cầu hỗ trợ thành công.",
                 supportTicketServicePort.closeByCustomer(id, principal.getId()));
+    }
+
+    @PutMapping(ID_PATH + "/resolution-feedback")
+    @PreAuthorize("hasAuthority('" + RoleConstants.ROLE_MEMBER + "')")
+    public ApiResponse<SupportTicketResponse> submitResolutionFeedback(
+            @PathVariable Long id,
+            @Valid @RequestBody ResolutionFeedbackRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        return ApiResponse.success(
+                Boolean.TRUE.equals(request.satisfied())
+                        ? "Cảm ơn bạn đã xác nhận. Yêu cầu hỗ trợ đã được đóng."
+                        : "Yêu cầu hỗ trợ đã được mở lại để tiếp tục xử lý.",
+                supportTicketServicePort.submitResolutionFeedback(id, principal.getId(), request));
     }
 
     @GetMapping(ID_PATH + "/comments")
