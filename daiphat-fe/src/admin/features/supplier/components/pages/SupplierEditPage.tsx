@@ -154,7 +154,7 @@ export const SupplierEditPage = () => {
             />
             <Title title={`Sửa nhà cung cấp #${supplier.id}`} />
 
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form onSubmit={handleSubmit(onSubmit)} noValidate>
                 <CollapsibleCard title="Thông tin nhà cung cấp" expanded onToggle={() => undefined}>
                     <Stack spacing={3} sx={{ p: 3 }}>
                         <SupplierFormFields
