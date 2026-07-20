@@ -13,6 +13,7 @@ const STATUS_TABS: { value: TicketStatus | 'ALL'; label: string }[] = [
     { value: TicketStatus.IN_PROGRESS, label: TICKET_STATUS_LABELS[TicketStatus.IN_PROGRESS] },
     { value: TicketStatus.WAITING_FOR_CUSTOMER, label: TICKET_STATUS_LABELS[TicketStatus.WAITING_FOR_CUSTOMER] },
     { value: TicketStatus.RESOLVED, label: TICKET_STATUS_LABELS[TicketStatus.RESOLVED] },
+    { value: TicketStatus.REJECTED, label: TICKET_STATUS_LABELS[TicketStatus.REJECTED] },
     { value: TicketStatus.CLOSED, label: TICKET_STATUS_LABELS[TicketStatus.CLOSED] },
 ];
 

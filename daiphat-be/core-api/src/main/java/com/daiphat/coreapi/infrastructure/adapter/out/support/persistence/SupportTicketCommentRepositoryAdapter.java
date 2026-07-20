@@ -1,4 +1,4 @@
-package com.daiphat.coreapi.infrastructure.adapter.out.support;
+package com.daiphat.coreapi.infrastructure.adapter.out.support.persistence;
 
 import com.daiphat.coreapi.application.port.out.support.SupportTicketCommentRepositoryPort;
 import com.daiphat.coreapi.domain.model.support.SupportTicketCommentModel;

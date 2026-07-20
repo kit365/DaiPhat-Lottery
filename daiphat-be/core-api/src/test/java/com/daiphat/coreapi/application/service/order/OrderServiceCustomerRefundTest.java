@@ -58,6 +58,7 @@ class OrderServiceCustomerRefundTest {
     private final SystemConfigRepositoryPort systemConfigRepositoryPort = mock(SystemConfigRepositoryPort.class);
     private final RefundRequestRepositoryPort refundRequestRepositoryPort = mock(RefundRequestRepositoryPort.class);
     private final TransactionRepositoryPort transactionRepositoryPort = mock(TransactionRepositoryPort.class);
+    private final PaymentTimeoutConfigService paymentTimeoutConfigService = mock(PaymentTimeoutConfigService.class);
 
     private OrderServicePort orderService;
     private final UUID customerId = UUID.randomUUID();
@@ -79,7 +80,9 @@ class OrderServiceCustomerRefundTest {
                 paymentCountdownCachePort,
                 paymentGatewayStrategyFactory,
                 eventPublisher,
-                orderRefundGraceService);
+                orderRefundGraceService,
+                paymentTimeoutConfigService,
+                org.mockito.Mockito.mock(com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService.class));
 
         when(systemConfigRepositoryPort.findActiveByConfigKey(SystemConfigEnum.ORDER_CANCEL_GRACE_MIN.name()))
                 .thenReturn(Optional.of(SystemConfigModel.builder().configValue("30").build()));

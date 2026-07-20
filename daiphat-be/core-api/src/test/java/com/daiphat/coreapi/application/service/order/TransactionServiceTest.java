@@ -51,6 +51,7 @@ class TransactionServiceTest {
     private final PaymentAttemptCachePort paymentAttemptCachePort = mock(PaymentAttemptCachePort.class);
     private final PaymentGatewayStrategy gatewayStrategy = mock(PaymentGatewayStrategy.class);
     private final ApplicationEventPublisher applicationEventPublisher = mock(org.springframework.context.ApplicationEventPublisher.class);
+    private final PaymentTimeoutConfigService paymentTimeoutConfigService = mock(PaymentTimeoutConfigService.class);
 
     private static final String GATEWAY_SUCCESS_STATUS = "success";
     private static final String GATEWAY_FAILURE_STATUS = "failure";
@@ -71,8 +72,12 @@ class TransactionServiceTest {
                 lotteryTicketServicePort,
                 paymentCountdownCachePort,
                 paymentAttemptCachePort,
-                applicationEventPublisher
+                applicationEventPublisher,
+                paymentTimeoutConfigService
         );
+        when(paymentTimeoutConfigService.getTimeoutSeconds()).thenReturn(180L);
+        when(paymentTimeoutConfigService.getTimeoutCancelReason()).thenReturn("Quá thời gian thanh toán 3 phút.");
+        when(paymentTimeoutConfigService.getTimeoutMinutes()).thenReturn(3);
     }
 
     @Test

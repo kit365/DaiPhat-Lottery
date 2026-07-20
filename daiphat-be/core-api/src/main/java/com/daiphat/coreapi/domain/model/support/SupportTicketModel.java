@@ -33,6 +33,8 @@ public class SupportTicketModel {
     private TicketStatus status = TicketStatus.OPEN;
 
     private String response;
+    private Long resolvedReasonId;
+    private Long rejectedReasonId;
     private LocalDateTime resolvedAt;
     private LocalDateTime dueAt;
     private LocalDateTime createdAt;
@@ -47,7 +49,9 @@ public class SupportTicketModel {
     }
 
     public void ensureCommentAllowed() {
-        if (this.status == TicketStatus.RESOLVED || this.status == TicketStatus.CLOSED) {
+        if (this.status == TicketStatus.RESOLVED
+                || this.status == TicketStatus.REJECTED
+                || this.status == TicketStatus.CLOSED) {
             throw new DomainException(ErrorCode.TICKET_COMMENT_NOT_ALLOWED);
         }
     }
@@ -92,7 +96,9 @@ public class SupportTicketModel {
 
     public void recordOperatorComment() {
         ensureCommentAllowed();
-        if (this.status != TicketStatus.RESOLVED && this.status != TicketStatus.CLOSED) {
+        if (this.status != TicketStatus.RESOLVED
+                && this.status != TicketStatus.REJECTED
+                && this.status != TicketStatus.CLOSED) {
             this.status = TicketStatus.WAITING_FOR_CUSTOMER;
         }
     }
@@ -153,16 +159,64 @@ public class SupportTicketModel {
         this.assignedTo = staffId;
     }
 
-    public void resolveByStaff(String resolution) {
+    public void resolveByStaff(Long reasonCommentId, String resolution) {
         if (this.status != TicketStatus.IN_PROGRESS && this.status != TicketStatus.WAITING_FOR_CUSTOMER) {
             throw new DomainException(ErrorCode.TICKET_CANNOT_RESOLVE);
         }
         if (resolution == null || resolution.isBlank()) {
             throw new DomainException(ErrorCode.TICKET_RESOLUTION_INVALID);
         }
+        if (reasonCommentId == null) {
+            throw new DomainException(ErrorCode.TICKET_REASON_COMMENT_REQUIRED);
+        }
         this.response = resolution.trim();
+        this.resolvedReasonId = reasonCommentId;
+        this.rejectedReasonId = null;
         this.resolvedAt = LocalDateTime.now();
         this.status = TicketStatus.RESOLVED;
+    }
+
+    public void rejectByStaff(Long reasonCommentId, String rejectionReason) {
+        if (this.status != TicketStatus.IN_PROGRESS && this.status != TicketStatus.WAITING_FOR_CUSTOMER) {
+            throw new DomainException(ErrorCode.TICKET_CANNOT_REJECT);
+        }
+        if (rejectionReason == null || rejectionReason.isBlank()) {
+            throw new DomainException(ErrorCode.TICKET_RESOLUTION_INVALID);
+        }
+        if (reasonCommentId == null) {
+            throw new DomainException(ErrorCode.TICKET_REASON_COMMENT_REQUIRED);
+        }
+        this.response = rejectionReason.trim();
+        this.rejectedReasonId = reasonCommentId;
+        this.resolvedReasonId = null;
+        this.resolvedAt = LocalDateTime.now();
+        this.status = TicketStatus.REJECTED;
+    }
+
+    public void acceptResolutionByCustomer() {
+        if (this.status != TicketStatus.RESOLVED) {
+            throw new DomainException(ErrorCode.TICKET_CANNOT_ACCEPT_RESOLUTION);
+        }
+        this.status = TicketStatus.CLOSED;
+    }
+
+    public void reopenAfterDissatisfaction(LocalDateTime newDueAt) {
+        if (this.status != TicketStatus.RESOLVED) {
+            throw new DomainException(ErrorCode.TICKET_CANNOT_REOPEN_RESOLUTION);
+        }
+        this.status = TicketStatus.OPEN;
+        this.assignedTo = null;
+        this.dueAt = newDueAt;
+        this.resolvedAt = null;
+        this.response = null;
+        this.resolvedReasonId = null;
+    }
+
+    public void autoCloseResolved() {
+        if (this.status != TicketStatus.RESOLVED) {
+            throw new DomainException(ErrorCode.TICKET_CANNOT_AUTO_CLOSE);
+        }
+        this.status = TicketStatus.CLOSED;
     }
 
     public void markInProgressByStaff(UUID staffId) {

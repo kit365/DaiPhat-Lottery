@@ -9,7 +9,8 @@ import lombok.RequiredArgsConstructor;
 public enum TicketRefType implements LabeledEnum {
     ORDER("Đơn hàng"),
     PAYMENT_TRANSACTION("Giao dịch thanh toán"),
-    PRIZE_CLAIM("Yêu cầu nhận thưởng");
+    PRIZE_CLAIM("Yêu cầu nhận thưởng"),
+    REFUND_REQUEST("Yêu cầu hoàn tiền");
 
     private final String label;
 }

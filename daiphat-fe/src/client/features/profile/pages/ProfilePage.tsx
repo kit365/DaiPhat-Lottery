@@ -6,6 +6,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useAuthStore } from "../../../../stores/useAuthStore";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { useMyRefundPendingCount } from "../../../hooks/useMyRefundPendingCount";
+import { useMySupportTicketActiveCount } from "../../../hooks/useMySupportTicketActiveCount";
 
 type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'complaints' | 'bankAccounts' | 'notifications' | 'settings' | 'favorites';
 
@@ -35,6 +36,7 @@ export const ProfilePage = () => {
     const { token, openLoginModal } = useAuthStore();
     const { unreadCount } = useNotifications(4);
     const { pendingCount: pendingRefundCount } = useMyRefundPendingCount();
+    const { activeCount: activeTicketCount } = useMySupportTicketActiveCount();
     const location = useLocation();
     const navigate = useNavigate();
     const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +59,12 @@ export const ProfilePage = () => {
             return {
                 ...tab,
                 badge: pendingRefundCount > 0 ? pendingRefundCount : undefined,
+            };
+        }
+        if (tab.id === "complaints") {
+            return {
+                ...tab,
+                badge: activeTicketCount > 0 ? activeTicketCount : undefined,
             };
         }
         return tab;
