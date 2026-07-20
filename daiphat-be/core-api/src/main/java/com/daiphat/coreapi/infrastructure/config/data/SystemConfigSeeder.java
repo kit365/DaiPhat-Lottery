@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -37,6 +38,7 @@ public class SystemConfigSeeder {
 
         int inserted = 0;
         int reactivated = 0;
+        int metadataUpdated = 0;
 
         for (SystemConfigEnum enumConfig : SystemConfigEnum.values()) {
             String key = enumConfig.name();
@@ -49,16 +51,27 @@ public class SystemConfigSeeder {
                         .dataType(enumConfig.getDataType())
                         .configType(enumConfig.getConfigType())
                         .description(enumConfig.getDescription())
+                        .configName(enumConfig.getConfigName())
+                        .unit(enumConfig.getUnit())
+                        .validationRules(enumConfig.getValidationRules())
+                        .isEditable(enumConfig.isEditable())
                         .isActive(true)
                         .build());
                 inserted++;
-            } else if (!Boolean.TRUE.equals(dbConfig.getIsActive())) {
-                dbConfig.setIsActive(true);
-                configRepository.save(dbConfig);
-                reactivated++;
-            } else if (dbConfig.getConfigType() != enumConfig.getConfigType()) {
-                dbConfig.setConfigType(enumConfig.getConfigType());
-                configRepository.save(dbConfig);
+            } else {
+                boolean changed = false;
+                if (!Boolean.TRUE.equals(dbConfig.getIsActive())) {
+                    dbConfig.setIsActive(true);
+                    reactivated++;
+                    changed = true;
+                }
+                if (syncMetadata(dbConfig, enumConfig)) {
+                    metadataUpdated++;
+                    changed = true;
+                }
+                if (changed) {
+                    configRepository.save(dbConfig);
+                }
             }
         }
 
@@ -72,10 +85,49 @@ public class SystemConfigSeeder {
         }
 
         log.info(
-                "System: Synchronized system_config with enum — inserted={}, reactivated={}, deactivated={}.",
+                "System: Synchronized system_config with enum — inserted={}, reactivated={}, metadataUpdated={}, deactivated={}.",
                 inserted,
                 reactivated,
+                metadataUpdated,
                 deactivated
         );
+    }
+
+    /**
+     * Syncs enum-owned metadata without overwriting live configValue.
+     *
+     * @return true if any metadata field changed
+     */
+    private boolean syncMetadata(SystemConfigEntity dbConfig, SystemConfigEnum enumConfig) {
+        boolean changed = false;
+        if (dbConfig.getConfigType() != enumConfig.getConfigType()) {
+            dbConfig.setConfigType(enumConfig.getConfigType());
+            changed = true;
+        }
+        if (dbConfig.getDataType() != enumConfig.getDataType()) {
+            dbConfig.setDataType(enumConfig.getDataType());
+            changed = true;
+        }
+        if (!Objects.equals(dbConfig.getDescription(), enumConfig.getDescription())) {
+            dbConfig.setDescription(enumConfig.getDescription());
+            changed = true;
+        }
+        if (!Objects.equals(dbConfig.getConfigName(), enumConfig.getConfigName())) {
+            dbConfig.setConfigName(enumConfig.getConfigName());
+            changed = true;
+        }
+        if (!Objects.equals(dbConfig.getUnit(), enumConfig.getUnit())) {
+            dbConfig.setUnit(enumConfig.getUnit());
+            changed = true;
+        }
+        if (!Objects.equals(dbConfig.getValidationRules(), enumConfig.getValidationRules())) {
+            dbConfig.setValidationRules(enumConfig.getValidationRules());
+            changed = true;
+        }
+        if (!Objects.equals(dbConfig.getIsEditable(), enumConfig.isEditable())) {
+            dbConfig.setIsEditable(enumConfig.isEditable());
+            changed = true;
+        }
+        return changed;
     }
 }

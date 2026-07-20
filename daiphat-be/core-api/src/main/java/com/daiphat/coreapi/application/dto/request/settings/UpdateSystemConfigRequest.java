@@ -6,6 +6,10 @@ import lombok.Builder;
 
 @Builder
 public record UpdateSystemConfigRequest(
+        @NotBlank(message = "Tên cấu hình không được để trống")
+        @Size(max = 255, message = "Tên cấu hình không được vượt quá 255 ký tự")
+        String configName,
+
         @NotBlank(message = "Giá trị cấu hình không được để trống")
         String configValue,
 
