@@ -22,14 +22,13 @@ import com.daiphat.coreapi.domain.model.enums.order.OrderType;
 import com.daiphat.coreapi.domain.model.enums.payment.PaymentGateway;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionStatus;
 import com.daiphat.coreapi.domain.model.enums.transaction.TransactionType;
-import com.daiphat.coreapi.domain.model.orders.OrderCancelReasonDefaults;
 import com.daiphat.coreapi.domain.model.orders.OrderModel;
 import com.daiphat.coreapi.domain.model.orders.TransactionModel;
 import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,13 +41,8 @@ import java.util.UUID;
 @Slf4j
 public class TransactionService implements TransactionServicePort {
 
-    @Value("${daiphat.order.pending-payment-ttl-seconds}")
-    private long pendingPaymentTtlSeconds = 600;
-
     @Value("${daiphat.order.payment-failure-max-attempts}")
     private int paymentFailureMaxAttempts = 3;
-
-    private static final String PAYMENT_TIMEOUT_REASON = OrderCancelReasonDefaults.SYSTEM_PAYMENT_TIMEOUT;
 
     private final OrderRepositoryPort orderRepositoryPort;
     private final UserLookupServicePort userLookupServicePort;
@@ -57,6 +51,7 @@ public class TransactionService implements TransactionServicePort {
     private final PaymentCountdownCachePort paymentCountdownCachePort;
     private final PaymentAttemptCachePort paymentAttemptCachePort;
     private final ApplicationEventPublisher eventPublisher;
+    private final PaymentTimeoutConfigService paymentTimeoutConfigService;
 
     @Override
     @Transactional(noRollbackFor = DomainException.class)
@@ -218,7 +213,9 @@ public class TransactionService implements TransactionServicePort {
     @Override
     @Transactional
     public int expirePendingPayments() {
-        LocalDateTime threshold = LocalDateTime.now().minusSeconds(pendingPaymentTtlSeconds);
+        long timeoutSeconds = paymentTimeoutConfigService.getTimeoutSeconds();
+        String timeoutReason = paymentTimeoutConfigService.getTimeoutCancelReason();
+        LocalDateTime threshold = LocalDateTime.now().minusSeconds(timeoutSeconds);
         List<UUID> expiredOrderIds = orderRepositoryPort.findPendingPaymentOrderIdsCreatedBefore(threshold);
         int expiredCount = 0;
 
@@ -231,9 +228,9 @@ public class TransactionService implements TransactionServicePort {
                 continue;
             }
 
-            cancelPendingTransactions(order);
+            cancelPendingTransactions(order, timeoutReason);
             releaseReservedTickets(order);
-            order.cancelPendingPayment(PAYMENT_TIMEOUT_REASON, OrderCancelType.SYSTEM_PAYMENT_TIMEOUT);
+            order.cancelPendingPayment(timeoutReason, OrderCancelType.SYSTEM_PAYMENT_TIMEOUT);
             orderRepositoryPort.save(order);
             paymentCountdownCachePort.clear(order.getId());
             expiredCount++;
@@ -303,7 +300,7 @@ public class TransactionService implements TransactionServicePort {
                 .build());
     }
 
-    private void cancelPendingTransactions(OrderModel order) {
+    private void cancelPendingTransactions(OrderModel order, String timeoutReason) {
         for (TransactionModel transaction : order.getTransactions()) {
             if (transaction.getStatus() != TransactionStatus.PENDING) {
                 continue;
@@ -314,7 +311,7 @@ public class TransactionService implements TransactionServicePort {
                     && transaction.getGatewayOrderCode() != null) {
                 PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(transaction.getGateway());
                 try {
-                    strategy.cancelPayment(order, transaction, PAYMENT_TIMEOUT_REASON);
+                    strategy.cancelPayment(order, transaction, timeoutReason);
                 } catch (DomainException ex) {
                     log.warn("Could not cancel gateway link for expired order {} transaction {}: {}",
                             order.getId(), transaction.getId(), ex.getMessage());
@@ -322,7 +319,7 @@ public class TransactionService implements TransactionServicePort {
             }
 
             if (transaction.getStatus() == TransactionStatus.PENDING) {
-                transaction.markCancelled(PAYMENT_TIMEOUT_REASON);
+                transaction.markCancelled(timeoutReason);
             }
             clearFailureAttempts(transaction);
         }
@@ -345,7 +342,7 @@ public class TransactionService implements TransactionServicePort {
 
         long failureAttempts = paymentAttemptCachePort.incrementFailureAttempt(
                 transaction.getId(),
-                java.time.Duration.ofSeconds(pendingPaymentTtlSeconds)
+                java.time.Duration.ofSeconds(paymentTimeoutConfigService.getTimeoutSeconds())
         );
         if (failureAttempts < paymentFailureMaxAttempts) {
             return;

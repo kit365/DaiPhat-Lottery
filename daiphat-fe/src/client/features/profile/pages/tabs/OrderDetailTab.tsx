@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../../hooks/useOrder';
-import { useProcessPayment } from '../../../../hooks/useTransaction';
+import { useGetPendingPaymentCountdown, useProcessPayment } from '../../../../hooks/useTransaction';
 import { useGetMyRefunds } from '../../../../hooks/useRefund';
 import { OrderStatus, OrderType, resolveOrderDetailStatusBadge } from '../../../../../types/order.type';
 import { RefundRequestStatus, RefundType, formatRefundCountdown, isRefundCandidateStatus } from '../../../../../types/refund.type';
@@ -13,6 +13,7 @@ import {
     UNAVAILABLE_REFERENCE_MESSAGE,
 } from '../../../../components/notification/UnavailableReferenceState';
 import { RefundRequestModal } from '../../../../components/refund/RefundRequestModal';
+import { OrderComplaintButton } from '../../../../components/support/OrderComplaintButton';
 import { useGetOrderRefundEligibility } from '../../../../hooks/useRefund';
 import { useRefundCountdown } from '../../../../hooks/useRefundCountdown';
 import { format } from 'date-fns';
@@ -119,6 +120,9 @@ export const OrderDetailTab = () => {
     const [showRefundModal, setShowRefundModal] = useState(false);
 
     const order = orderData?.data;
+    const { data: countdownData } = useGetPendingPaymentCountdown(
+        order?.status === OrderStatus.PENDING_PAYMENT ? order.id : undefined
+    );
     const orderRefunds = useMemo(() => refundsData?.data?.recordList || [], [refundsData?.data?.recordList]);
 
     const pendingFullOrderRefund = useMemo(
@@ -182,33 +186,11 @@ export const OrderDetailTab = () => {
         setShowRefundModal(true);
     };
 
-    // Countdown logic for PENDING_PAYMENT
-    const [timeLeft, setTimeLeft] = useState({ minutes: 0, seconds: 0 });
-
-    useEffect(() => {
-        if (!order || order.status !== OrderStatus.PENDING_PAYMENT || !order.createdAt) return;
-
-        const calculateTimeLeft = () => {
-            const createdAtTime = new Date(order.createdAt).getTime();
-            const expiresAtTime = createdAtTime + 15 * 60 * 1000; // 15 mins expiry
-            const now = new Date().getTime();
-            const difference = expiresAtTime - now;
-
-            if (difference > 0) {
-                setTimeLeft({
-                    minutes: Math.floor((difference / 1000 / 60) % 60),
-                    seconds: Math.floor((difference / 1000) % 60)
-                });
-            } else {
-                setTimeLeft({ minutes: 0, seconds: 0 });
-            }
-        };
-
-        calculateTimeLeft();
-        const timer = setInterval(calculateTimeLeft, 1000);
-
-        return () => clearInterval(timer);
-    }, [order]);
+    const remainingCountdownSeconds = Math.max(0, countdownData?.data?.remainingSeconds ?? 0);
+    const timeLeft = {
+        minutes: Math.floor(remainingCountdownSeconds / 60),
+        seconds: remainingCountdownSeconds % 60,
+    };
 
     useEffect(() => {
         const state = location.state as { openRefund?: boolean } | null;
@@ -768,6 +750,25 @@ export const OrderDetailTab = () => {
                     </Link>
                 </div>
             )}
+
+            {!isPendingPayment && (
+                <div className="rounded-2xl px-5 py-4 border border-[#E5E8EB] bg-[#F8FAFC] flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+                    <div className="flex items-start gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-white border border-[#E5E8EB] text-[#919EAB] flex items-center justify-center shrink-0">
+                            <i className="fa-solid fa-headset text-[13px]"></i>
+                        </div>
+                        <div className="min-w-0 pt-0.5">
+                            <p className="text-[14px] font-semibold text-[#212B36] leading-tight">
+                                Khiếu nại đơn hàng
+                            </p>
+                            <p className="text-[12px] text-[#637381] mt-1 leading-relaxed">
+                                Gửi khiếu nại nếu đơn hàng bị lỗi thanh toán, chuẩn bị chậm, không nhận được vé hoặc dịch vụ chưa tốt.
+                            </p>
+                        </div>
+                    </div>
+                    <OrderComplaintButton orderId={order.id} variant="button" />
+                </div>
+            )}
             
             {/* Mobile Sticky Bottom Bar */}
             {isPendingPayment && (
@@ -801,7 +802,7 @@ export const OrderDetailTab = () => {
                 <>
                     <div className="text-center py-4 flex items-center justify-center gap-2 text-[13px] text-[#637381] font-semibold">
                         <i className="fa-regular fa-circle-check text-[#ee1314]"></i>
-                        Đơn hàng sẽ được giữ trong 15 phút. Vui lòng thanh toán để xác nhận giữ vé chính thức.
+                        Đơn hàng sẽ được giữ trong thời gian thanh toán còn lại. Vui lòng thanh toán để xác nhận giữ vé chính thức.
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4 border-t border-[#E5E8EB] pt-8 mb-8">

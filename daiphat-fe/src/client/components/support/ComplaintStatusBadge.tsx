@@ -6,6 +6,7 @@ export const COMPLAINT_STATUS_MAP: Record<TicketStatus, { label: string; bg: str
     [TicketStatus.IN_PROGRESS]: { label: 'Đang xử lý', bg: 'bg-[#F0F5FF]', text: 'text-[#2065D1]' },
     [TicketStatus.WAITING_FOR_CUSTOMER]: { label: 'Chờ phản hồi', bg: 'bg-[#FFF4F4]', text: 'text-[#ee1314]' },
     [TicketStatus.RESOLVED]: { label: 'Đã giải quyết', bg: 'bg-[#E4F8ED]', text: 'text-[#1CD162]' },
+    [TicketStatus.REJECTED]: { label: 'Đã từ chối', bg: 'bg-[#FFF0F0]', text: 'text-[#B71D18]' },
     [TicketStatus.CLOSED]: { label: 'Đã đóng', bg: 'bg-[#F4F6F8]', text: 'text-[#919EAB]' },
 };
 

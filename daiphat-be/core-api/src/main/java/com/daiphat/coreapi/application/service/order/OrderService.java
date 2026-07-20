@@ -20,6 +20,7 @@ import com.daiphat.coreapi.application.port.out.order.PaymentCountdownCachePort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService;
 import com.daiphat.coreapi.application.service.refund.OrderRefundGraceService.RefundGraceEvaluation;
+import com.daiphat.coreapi.application.service.support.OrderComplaintEligibilityService;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategy;
 import com.daiphat.coreapi.application.strategy.payment.PaymentGatewayStrategyFactory;
 import com.daiphat.coreapi.domain.exception.DomainException;
@@ -39,7 +40,6 @@ import com.daiphat.coreapi.shared.util.EnumOptionUtils;
 import com.daiphat.coreapi.shared.util.SortUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -66,9 +66,6 @@ public class OrderService implements OrderServicePort {
     private static final BigDecimal ONLINE_PAYMENT_MIN_AMOUNT = BigDecimal.valueOf(10_000);
     private static final long MAX_PICKUP_LEAD_DAYS = 3;
 
-    @Value("${daiphat.order.pending-payment-ttl-seconds}")
-    private long pendingPaymentTtlSeconds;
-
     private final OrderRepositoryPort orderRepositoryPort;
     private final LotteryTicketServicePort lotteryTicketServicePort;
     private final LotteryTicketSerialServicePort lotteryTicketSerialServicePort;
@@ -78,6 +75,8 @@ public class OrderService implements OrderServicePort {
     private final PaymentGatewayStrategyFactory paymentGatewayStrategyFactory;
     private final ApplicationEventPublisher eventPublisher;
     private final OrderRefundGraceService orderRefundGraceService;
+    private final PaymentTimeoutConfigService paymentTimeoutConfigService;
+    private final OrderComplaintEligibilityService orderComplaintEligibilityService;
 
     @Override
     @Transactional
@@ -351,6 +350,7 @@ public class OrderService implements OrderServicePort {
                 .refundRemainingSeconds(refundEvaluation.remainingSeconds())
                 .refundGraceMinutes(refundEvaluation.graceMinutes())
                 .refundPaymentSuccessAt(refundEvaluation.paymentSuccessAt())
+                .complaintEligibility(orderComplaintEligibilityService.evaluateOrder(order, LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))))
                 .build();
     }
 
@@ -382,6 +382,7 @@ public class OrderService implements OrderServicePort {
                 .refundRemainingSeconds(refundEvaluation.remainingSeconds())
                 .refundGraceMinutes(refundEvaluation.graceMinutes())
                 .refundPaymentSuccessAt(refundEvaluation.paymentSuccessAt())
+                .complaintEligibility(orderComplaintEligibilityService.evaluateOrder(order, LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))))
                 .build();
     }
 
@@ -713,7 +714,9 @@ public class OrderService implements OrderServicePort {
 
     private void registerPendingPaymentCountdown(OrderModel order) {
         if (order.getStatus() == OrderStatus.PENDING_PAYMENT && order.getId() != null) {
-            paymentCountdownCachePort.start(order.getId(), java.time.Duration.ofSeconds(pendingPaymentTtlSeconds));
+            paymentCountdownCachePort.start(
+                    order.getId(),
+                    java.time.Duration.ofSeconds(paymentTimeoutConfigService.getTimeoutSeconds()));
             return;
         }
         if (order.getId() != null) {

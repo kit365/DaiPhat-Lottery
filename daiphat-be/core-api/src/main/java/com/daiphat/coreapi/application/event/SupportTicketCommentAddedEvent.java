@@ -8,6 +8,8 @@ import java.util.UUID;
 @Builder
 public record SupportTicketCommentAddedEvent(
         Long ticketId,
+        String title,
+        String categoryName,
         UUID customerId,
         UUID assignedTo,
         TicketCommentSenderRole senderRole

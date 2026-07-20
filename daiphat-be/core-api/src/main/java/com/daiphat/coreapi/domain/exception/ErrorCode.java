@@ -355,13 +355,59 @@ public enum ErrorCode {
     TICKET_REF_INVALID("TKT_008", "Đối tượng tham chiếu không hợp lệ.", HttpStatus.BAD_REQUEST),
     TICKET_REF_ORDER_MISMATCH("TKT_009", "Đơn hàng không thuộc tài khoản của bạn.", HttpStatus.BAD_REQUEST),
     TICKET_ATTACHMENT_ONLY_ALLOWED("TKT_010", "Ở trạng thái chờ phản hồi, chỉ được cập nhật tệp đính kèm.", HttpStatus.BAD_REQUEST),
-    TICKET_COMMENT_NOT_ALLOWED("TKT_011", "Không thể gửi tin nhắn khi yêu cầu đã được giải quyết hoặc đã đóng.", HttpStatus.BAD_REQUEST),
+    TICKET_COMMENT_NOT_ALLOWED("TKT_011", "Không thể gửi tin nhắn khi yêu cầu đã được giải quyết, từ chối hoặc đã đóng.", HttpStatus.BAD_REQUEST),
     TICKET_COMMENT_TURN_VIOLATION("TKT_012", "Vui lòng chờ phản hồi từ bên còn lại trước khi gửi tin nhắn mới.", HttpStatus.BAD_REQUEST),
     TICKET_COMMENT_CONTENT_INVALID("TKT_013", "Nội dung tin nhắn không được để trống.", HttpStatus.BAD_REQUEST),
     TICKET_CANNOT_ASSIGN("TKT_014", "Chỉ có thể tiếp nhận yêu cầu hỗ trợ đang ở trạng thái mới tạo.", HttpStatus.BAD_REQUEST),
     TICKET_CANNOT_RESOLVE("TKT_015", "Không thể giải quyết yêu cầu hỗ trợ ở trạng thái hiện tại.", HttpStatus.BAD_REQUEST),
     TICKET_RESOLUTION_INVALID("TKT_016", "Nội dung phương án giải quyết không được để trống.", HttpStatus.BAD_REQUEST),
     TICKET_OPERATOR_MUST_ASSIGN_FIRST("TKT_017", "Vui lòng tiếp nhận ticket trước khi trả lời khách hàng.", HttpStatus.BAD_REQUEST),
+    TICKET_REF_REFUND_MISMATCH(
+            "TKT_018",
+            "Yêu cầu hoàn tiền không tồn tại hoặc không thuộc tài khoản của bạn.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_REFUND_COMPLAINT_TOO_EARLY(
+            "TKT_019",
+            "Yêu cầu hoàn tiền vẫn trong thời gian cam kết xử lý (%d giờ). Vui lòng chờ trong khi chúng tôi xử lý yêu cầu của bạn.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_REFUND_COMPLAINT_STATUS_INVALID(
+            "TKT_020",
+            "Trạng thái yêu cầu hoàn tiền không hợp lệ cho loại khiếu nại này.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_REFUND_COMPLAINT_WINDOW_EXPIRED(
+            "TKT_021",
+            "Yêu cầu hoàn tiền này đã hết thời hạn khiếu nại (hết hạn sau %d ngày).",
+            HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_REJECT("TKT_022", "Không thể từ chối yêu cầu hỗ trợ ở trạng thái hiện tại.", HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_ACCEPT_RESOLUTION(
+            "TKT_023",
+            "Chỉ có thể xác nhận hài lòng khi yêu cầu đang ở trạng thái đã giải quyết.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_REOPEN_RESOLUTION(
+            "TKT_024",
+            "Chỉ có thể mở lại yêu cầu khi đang ở trạng thái đã giải quyết.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_STAFF_ACTION_INVALID("TKT_025", "Hành động phản hồi của nhân viên không hợp lệ.", HttpStatus.BAD_REQUEST),
+    TICKET_REASON_COMMENT_REQUIRED(
+            "TKT_026",
+            "Phải có bình luận lý do hợp lệ khi giải quyết hoặc từ chối yêu cầu.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_CANNOT_AUTO_CLOSE(
+            "TKT_027",
+            "Chỉ có thể tự động đóng yêu cầu đang ở trạng thái đã giải quyết.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_ORDER_COMPLAINT_NOT_ELIGIBLE(
+            "TKT_028",
+            "%s",
+            HttpStatus.BAD_REQUEST),
+    TICKET_ORDER_COMPLAINT_CATEGORY_MISMATCH(
+            "TKT_029",
+            "Loại khiếu nại không phù hợp với trạng thái đơn hàng hiện tại.",
+            HttpStatus.BAD_REQUEST),
+    TICKET_ORDER_COMPLAINT_EVIDENCE_REQUIRED(
+            "TKT_030",
+            "Khiếu nại lỗi đồng bộ thanh toán yêu cầu đính kèm biên lai chuyển khoản.",
+            HttpStatus.BAD_REQUEST),
 
     // Chat Errors
     CONVERSATION_NOT_FOUND("CHT_001", "Không tìm thấy cuộc trò chuyện.", HttpStatus.NOT_FOUND),

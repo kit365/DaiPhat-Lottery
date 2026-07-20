@@ -1,5 +1,6 @@
 package com.daiphat.coreapi.infrastructure.persistence.specification;
 
+import com.daiphat.coreapi.domain.model.enums.support.TicketRefType;
 import com.daiphat.coreapi.domain.model.enums.support.TicketStatus;
 import com.daiphat.coreapi.infrastructure.persistence.entity.support.SupportTicketEntity;
 import jakarta.persistence.criteria.Predicate;
@@ -19,7 +20,7 @@ public final class SupportTicketSpecification {
             TicketStatus status,
             String search
     ) {
-        return filter(customerId, status, null, null, search);
+        return filter(customerId, status, null, null, search, null, null, null);
     }
 
     public static Specification<SupportTicketEntity> filter(
@@ -28,6 +29,19 @@ public final class SupportTicketSpecification {
             List<TicketStatus> statuses,
             UUID assignedTo,
             String search
+    ) {
+        return filter(customerId, status, statuses, assignedTo, search, null, null, null);
+    }
+
+    public static Specification<SupportTicketEntity> filter(
+            UUID customerId,
+            TicketStatus status,
+            List<TicketStatus> statuses,
+            UUID assignedTo,
+            String search,
+            TicketRefType refType,
+            Long ticketCategoryId,
+            List<String> categoryCodes
     ) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -44,6 +58,18 @@ public final class SupportTicketSpecification {
 
             if (assignedTo != null) {
                 predicates.add(cb.equal(root.get("assignedTo").get("id"), assignedTo));
+            }
+
+            if (refType != null) {
+                predicates.add(cb.equal(root.get("refType"), refType));
+            }
+
+            if (ticketCategoryId != null) {
+                predicates.add(cb.equal(root.get("ticketCategory").get("id"), ticketCategoryId));
+            }
+
+            if (categoryCodes != null && !categoryCodes.isEmpty()) {
+                predicates.add(root.get("ticketCategory").get("code").in(categoryCodes));
             }
 
             if (search != null && !search.isBlank()) {

@@ -11,6 +11,7 @@ public enum TicketStatus implements LabeledEnum {
     IN_PROGRESS("Đang xử lý"),
     WAITING_FOR_CUSTOMER("Chờ khách phản hồi"),
     RESOLVED("Đã giải quyết"),
+    REJECTED("Đã từ chối"),
     CLOSED("Đã đóng");
 
     private final String label;

@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { useGetMyRefunds, useGetRefundStatuses } from '../../../../hooks/useRefund';
 import { RefundRequestStatus, RefundType } from '../../../../../types/refund.type';
 import { RefundStatusBadge } from '../../../../components/refund/RefundStatusBadge';
+import { RefundComplaintButton } from '../../../../components/support/RefundComplaintButton';
 import { ProfileTablePagination } from '../components/ProfileTablePagination';
 
 const REFUND_TYPE_LABELS: Record<RefundType, string> = {
@@ -165,16 +166,19 @@ export const RefundsTab = () => {
                                             </span>
                                         </td>
                                         <td className="py-4 px-5 text-right align-top">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    navigate(`/profile/refunds/${refund.id}`);
-                                                }}
-                                                className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#919EAB] hover:text-[#2065D1] hover:border-[#2065D1] hover:bg-[#F0F5FF] transition-all cursor-pointer"
-                                                title="Xem chi tiết"
-                                            >
-                                                <i className="fa-regular fa-eye text-[13px]"></i>
-                                            </button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <RefundComplaintButton refund={refund} />
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`/profile/refunds/${refund.id}`);
+                                                    }}
+                                                    className="w-8 h-8 rounded-lg border border-[#E5E8EB] flex items-center justify-center text-[#919EAB] hover:text-[#2065D1] hover:border-[#2065D1] hover:bg-[#F0F5FF] transition-all cursor-pointer"
+                                                    title="Xem chi tiết"
+                                                >
+                                                    <i className="fa-regular fa-eye text-[13px]"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                     );
