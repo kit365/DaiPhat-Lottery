@@ -158,7 +158,8 @@ class SystemConfigServiceTest {
             when(systemConfigRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
             when(systemConfigRepositoryPort.save(any(SystemConfigModel.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            UpdateSystemConfigRequest request = new UpdateSystemConfigRequest("45", "Updated grace");
+            UpdateSystemConfigRequest request = new UpdateSystemConfigRequest(
+                    "Thời gian ân hạn hủy đơn", "45", "Updated grace");
             SystemConfigResponse response = systemConfigService.update(1L, request);
 
             assertThat(response.configValue()).isEqualTo("45");
@@ -171,7 +172,8 @@ class SystemConfigServiceTest {
             SystemConfigModel existing = sampleConfig();
             when(systemConfigRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
 
-            UpdateSystemConfigRequest request = new UpdateSystemConfigRequest("abc", "bad");
+            UpdateSystemConfigRequest request = new UpdateSystemConfigRequest(
+                    "Thời gian ân hạn hủy đơn", "abc", "bad");
 
             assertThatThrownBy(() -> systemConfigService.update(1L, request))
                     .isInstanceOf(DomainException.class)
@@ -187,7 +189,8 @@ class SystemConfigServiceTest {
             SystemConfigModel existing = sampleConfig();
             when(systemConfigRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
 
-            UpdateSystemConfigRequest request = new UpdateSystemConfigRequest("2000", "too large");
+            UpdateSystemConfigRequest request = new UpdateSystemConfigRequest(
+                    "Thời gian ân hạn hủy đơn", "2000", "too large");
 
             assertThatThrownBy(() -> systemConfigService.update(1L, request))
                     .isInstanceOf(DomainException.class)
@@ -205,7 +208,7 @@ class SystemConfigServiceTest {
             when(systemConfigRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
 
             assertThatThrownBy(() -> systemConfigService.update(
-                    1L, new UpdateSystemConfigRequest("45", "Updated grace")))
+                    1L, new UpdateSystemConfigRequest("Thời gian ân hạn hủy đơn", "45", "Updated grace")))
                     .isInstanceOf(DomainException.class)
                     .extracting(ex -> ((DomainException) ex).getErrorCode())
                     .isEqualTo(ErrorCode.SYSTEM_CONFIG_NOT_EDITABLE);
@@ -219,7 +222,7 @@ class SystemConfigServiceTest {
             when(systemConfigRepositoryPort.findById(99L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> systemConfigService.update(
-                    99L, new UpdateSystemConfigRequest("1", "x")))
+                    99L, new UpdateSystemConfigRequest("Tên cấu hình", "1", "x")))
                     .isInstanceOf(DomainException.class)
                     .extracting(ex -> ((DomainException) ex).getErrorCode())
                     .isEqualTo(ErrorCode.SYSTEM_CONFIG_NOT_FOUND);
