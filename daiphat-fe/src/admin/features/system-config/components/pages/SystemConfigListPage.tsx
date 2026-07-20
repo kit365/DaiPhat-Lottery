@@ -17,7 +17,7 @@ import {
     Typography,
     styled,
 } from '@mui/material';
-import { Edit2 } from 'lucide-react';
+import { Banknote, CreditCard, Edit2, LayoutList, MessageSquare, ShoppingCart, Ticket } from 'lucide-react';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import { Breadcrumb } from '../../../../components/ui/Breadcrumb';
@@ -51,13 +51,38 @@ const TabBadge = styled('span')(() => ({
 
 type TypeFilter = 'all' | ConfigType;
 
-const TYPE_TABS: { value: TypeFilter; label: string }[] = [
-    { value: 'all', label: 'Tất cả' },
-    { value: ConfigType.ORDER_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.ORDER_SETTING] },
-    { value: ConfigType.PAYMENT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.PAYMENT_SETTING] },
-    { value: ConfigType.TICKET_IMPORT, label: CONFIG_TYPE_LABELS[ConfigType.TICKET_IMPORT] },
-    { value: ConfigType.REFUND_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.REFUND_SETTING] },
-    { value: ConfigType.COMPLAINT_SETTING, label: CONFIG_TYPE_LABELS[ConfigType.COMPLAINT_SETTING] },
+const TYPE_TABS: { value: TypeFilter; label: string; icon: React.ReactNode; color: string }[] = [
+    { value: 'all', label: 'Tất cả', icon: <LayoutList size={18} />, color: 'primary.main' },
+    {
+        value: ConfigType.ORDER_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.ORDER_SETTING],
+        icon: <ShoppingCart size={18} />,
+        color: 'info.main',
+    },
+    {
+        value: ConfigType.PAYMENT_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.PAYMENT_SETTING],
+        icon: <CreditCard size={18} />,
+        color: 'success.main',
+    },
+    {
+        value: ConfigType.TICKET_IMPORT,
+        label: CONFIG_TYPE_LABELS[ConfigType.TICKET_IMPORT],
+        icon: <Ticket size={18} />,
+        color: 'warning.main',
+    },
+    {
+        value: ConfigType.REFUND_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.REFUND_SETTING],
+        icon: <Banknote size={18} />,
+        color: 'secondary.main',
+    },
+    {
+        value: ConfigType.COMPLAINT_SETTING,
+        label: CONFIG_TYPE_LABELS[ConfigType.COMPLAINT_SETTING],
+        icon: <MessageSquare size={18} />,
+        color: 'error.main',
+    },
 ];
 
 const truncateValue = (value: string, maxLen = 48) => {
@@ -127,6 +152,7 @@ export const SystemConfigListPage = () => {
         return items.filter(
             (c) =>
                 c.configKey.toLowerCase().includes(q) ||
+                (c.configName || '').toLowerCase().includes(q) ||
                 c.description.toLowerCase().includes(q) ||
                 c.configValue.toLowerCase().includes(q)
         );
@@ -144,6 +170,7 @@ export const SystemConfigListPage = () => {
         if (!selectedConfig) return;
 
         const payload = {
+            configName: data.configName.trim(),
             configValue: data.configValue.trim(),
             description: data.description.trim(),
         };
@@ -198,7 +225,7 @@ export const SystemConfigListPage = () => {
                         sx={{ mb: 2 }}
                     >
                         <Search
-                            placeholder="Tìm theo khóa, mô tả hoặc giá trị..."
+                            placeholder="Tìm theo tên, khóa, mô tả hoặc giá trị..."
                             value={search}
                             onChange={setSearch}
                             maxWidth="100%"
@@ -214,33 +241,42 @@ export const SystemConfigListPage = () => {
                         sx={{
                             minHeight: 44,
                             '& .MuiTab-root': { minHeight: 44, textTransform: 'none', fontWeight: 600 },
+                            '& .MuiTabs-indicator': {
+                                backgroundColor: TYPE_TABS.find((t) => t.value === typeFilter)?.color || 'primary.main',
+                            },
                         }}
                     >
-                        {TYPE_TABS.map((tab) => (
-                            <Tab
-                                key={tab.value}
-                                value={tab.value}
-                                label={
-                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        {tab.label}
-                                        <TabBadge
+                        {TYPE_TABS.map((tab) => {
+                            const isSelected = typeFilter === tab.value;
+                            return (
+                                <Tab
+                                    key={tab.value}
+                                    value={tab.value}
+                                    label={
+                                        <Box
                                             sx={{
-                                                bgcolor:
-                                                    typeFilter === tab.value
-                                                        ? 'primary.main'
-                                                        : 'action.hover',
-                                                color:
-                                                    typeFilter === tab.value
-                                                        ? 'primary.contrastText'
-                                                        : 'text.secondary',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1,
+                                                color: isSelected ? tab.color : 'text.secondary',
                                             }}
                                         >
-                                            {typeCounts[tab.value]}
-                                        </TabBadge>
-                                    </Box>
-                                }
-                            />
-                        ))}
+                                            {tab.icon}
+                                            {tab.label}
+                                            <TabBadge
+                                                sx={{
+                                                    ml: 0,
+                                                    bgcolor: isSelected ? tab.color : 'action.hover',
+                                                    color: isSelected ? '#fff' : 'text.secondary',
+                                                }}
+                                            >
+                                                {typeCounts[tab.value]}
+                                            </TabBadge>
+                                        </Box>
+                                    }
+                                />
+                            );
+                        })}
                     </Tabs>
                 </Box>
 
@@ -257,13 +293,13 @@ export const SystemConfigListPage = () => {
                                     },
                                 }}
                             >
-                                <TableCell>Khóa</TableCell>
+                                <TableCell>Tên cấu hình</TableCell>
                                 <TableCell>Mô tả</TableCell>
                                 <TableCell>Giá trị</TableCell>
-                                <TableCell>Loại</TableCell>
+                                <TableCell>Đơn vị</TableCell>
+                                <TableCell align="center">Loại</TableCell>
                                 <TableCell>Kiểu dữ liệu</TableCell>
-                                <TableCell>Cập nhật</TableCell>
-                                {canEdit && <TableCell align="right">Hành động</TableCell>}
+                                {canEdit && <TableCell align="center">Hành động</TableCell>}
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -286,10 +322,14 @@ export const SystemConfigListPage = () => {
                                         hover
                                         sx={{ '& td': { borderBottom: '1px dashed var(--palette-divider)' } }}
                                     >
-                                        <TableCell>
+                                        <TableCell sx={{ maxWidth: 240 }}>
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                {config.configName || config.configKey}
+                                            </Typography>
                                             <Typography
-                                                variant="body2"
-                                                sx={{ fontFamily: 'monospace', fontWeight: 600 }}
+                                                variant="caption"
+                                                color="text.disabled"
+                                                sx={{ fontFamily: 'monospace' }}
                                             >
                                                 {config.configKey}
                                             </Typography>
@@ -315,6 +355,11 @@ export const SystemConfigListPage = () => {
                                             </Tooltip>
                                         </TableCell>
                                         <TableCell>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {config.unit || '—'}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell align="center">
                                             <Chip
                                                 size="small"
                                                 label={CONFIG_TYPE_LABELS[config.configType] || config.configType}
@@ -329,29 +374,27 @@ export const SystemConfigListPage = () => {
                                                 variant="outlined"
                                             />
                                         </TableCell>
-                                        <TableCell>
-                                            <Typography variant="caption" display="block" color="text.secondary">
-                                                {config.updatedAt
-                                                    ? dayjs(config.updatedAt).format('DD/MM/YYYY HH:mm')
-                                                    : '—'}
-                                            </Typography>
-                                            {config.updatedBy && (
-                                                <Typography variant="caption" color="text.disabled">
-                                                    {config.updatedBy}
-                                                </Typography>
-                                            )}
-                                        </TableCell>
                                         {canEdit && (
-                                            <TableCell align="right">
-                                                <Tooltip title="Chỉnh sửa">
-                                                    <IconButton
-                                                        onClick={() => handleEdit(config)}
-                                                        size="small"
-                                                        color="primary"
-                                                    >
-                                                        <Edit2 size={18} />
-                                                    </IconButton>
-                                                </Tooltip>
+                                            <TableCell align="center">
+                                                {config.isEditable === false ? (
+                                                    <Tooltip title="Cấu hình hệ thống — không chỉnh sửa được">
+                                                        <span>
+                                                            <IconButton size="small" disabled>
+                                                                <Edit2 size={18} />
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+                                                ) : (
+                                                    <Tooltip title="Chỉnh sửa">
+                                                        <IconButton
+                                                            onClick={() => handleEdit(config)}
+                                                            size="small"
+                                                            color="primary"
+                                                        >
+                                                            <Edit2 size={18} />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
                                             </TableCell>
                                         )}
                                     </TableRow>
