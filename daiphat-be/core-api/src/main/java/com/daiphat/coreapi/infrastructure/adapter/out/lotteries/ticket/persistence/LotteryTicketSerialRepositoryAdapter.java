@@ -100,6 +100,13 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     }
 
     @Override
+    public List<LotteryTicketSerialModel> findAllByImportBatchLineId(Long importBatchLineId) {
+        return lotteryTicketSerialRepository.findAllByImportBatchLineId(importBatchLineId).stream()
+                .map(lotteryTicketSerialPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public long countByTicketIdAndImportBatchLineId(Long ticketId, Long importBatchLineId) {
         return lotteryTicketSerialRepository.countByTicketIdAndImportBatchLineId(ticketId, importBatchLineId);
     }

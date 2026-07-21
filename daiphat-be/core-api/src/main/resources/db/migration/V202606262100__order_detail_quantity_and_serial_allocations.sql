@@ -3,9 +3,11 @@ ALTER TABLE order_details
     ADD COLUMN IF NOT EXISTS lottery_ticket_id BIGINT,
     ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1;
 
+/*
 ALTER TABLE order_details
     ADD CONSTRAINT fk_order_details_lottery_ticket
         FOREIGN KEY (lottery_ticket_id) REFERENCES lottery_tickets (id);
+*/
 
 UPDATE order_details od
 SET lottery_ticket_id = lts.ticket_id,
