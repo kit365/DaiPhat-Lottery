@@ -187,7 +187,9 @@ public class ImportBatchDraftExpiryService {
             return false;
         }
         ImportBatchLineStatus status = line.getStatus();
-        return status == ImportBatchLineStatus.OPEN || status == ImportBatchLineStatus.IMPORTING;
+        return status == ImportBatchLineStatus.OPEN
+                || status == ImportBatchLineStatus.IMPORTING
+                || status == ImportBatchLineStatus.PAUSED;
     }
 
     private boolean isPastCutoff(LocalTime currentTime, LocalTime cutoff) {
