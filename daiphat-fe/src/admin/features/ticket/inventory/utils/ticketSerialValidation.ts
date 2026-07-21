@@ -46,8 +46,8 @@ export const QUOTA_UNDER_DECLARE_MESSAGE =
 export const normalizeSerialNumber = (value?: string) => value?.trim().toLowerCase() ?? '';
 export const normalizeTicketNumbers = (value?: string) => value?.trim() ?? '';
 
-export type SerialInput = { serialNumber?: string };
-export type TicketSectionInput = { numbers?: string; serials?: SerialInput[] };
+export type SerialInput = { id?: string | number; serialNumber?: string };
+export type TicketSectionInput = { numbers?: string; serials?: SerialInput[]; ticketId?: number };
 export type SerialPath = { sectionIndex: number; serialIndex: number };
 
 export type SectionRelationshipIssue =
@@ -113,6 +113,10 @@ export const findQuotaOverflowSerialPaths = (
     sections.forEach((section, sectionIndex) => {
         (section.serials ?? []).forEach((serial, serialIndex) => {
             if (!normalizeSerialNumber(serial.serialNumber)) {
+                return;
+            }
+            // Persisted serials already count toward imported quota on the server.
+            if (serial.id != null && String(serial.id).trim() !== '') {
                 return;
             }
             filledCount += 1;
