@@ -501,7 +501,7 @@ class ImportBatchServiceTest {
                 .declareQuantity(5)
                 .totalQuantity(2)
                 .importCost(BigDecimal.valueOf(10000))
-                .status(ImportBatchLineStatus.IMPORTING)
+                .status(ImportBatchLineStatus.PAUSED)
                 .build();
 
         ImportBatchModel batch = ImportBatchModel.builder()
@@ -619,8 +619,8 @@ class ImportBatchServiceTest {
     }
 
     @Test
-    @DisplayName("update allows increasing declare quantity on IMPORTING line")
-    void update_importingLine_increaseDeclareQuantity_succeeds() {
+    @DisplayName("update rejects changing declare quantity on IMPORTING line (must pause first)")
+    void update_importingLine_changeDeclareQuantity_throws() {
         fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
 
         ImportBatchLineModel importingLine = ImportBatchLineModel.builder()
@@ -648,12 +648,6 @@ class ImportBatchServiceTest {
         batch.recalculateAggregates();
 
         when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
-        when(importBatchLineRepositoryPort.findByImportBatchId(10L)).thenReturn(List.of(importingLine));
-        when(importBatchLineRepositoryPort.save(any(ImportBatchLineModel.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(importBatchRepositoryPort.save(any(ImportBatchModel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(importBatchApplicationMapper.toResponse(any(ImportBatchModel.class)))
-                .thenReturn(ImportBatchResponse.builder().id(10L).status(ImportBatchStatus.RECEIVING).build());
 
         UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
                 .supplierId(SUPPLIER_ID)
@@ -667,16 +661,15 @@ class ImportBatchServiceTest {
                         .build()))
                 .build();
 
-        importBatchService.update(10L, request);
-
-        assertThat(importingLine.getDeclareQuantity()).isEqualTo(6000);
-        assertThat(importingLine.getStatus()).isEqualTo(ImportBatchLineStatus.IMPORTING);
-        assertThat(importingLine.getTotalQuantity()).isEqualTo(2000);
+        assertThatThrownBy(() -> importBatchService.update(10L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_LINE_DECLARE_QUANTITY_LOCKED_IMPORTING);
     }
 
     @Test
-    @DisplayName("update allows decreasing declare quantity when still above imported count")
-    void update_importingLine_decreaseDeclareQuantityStillAboveImported_succeeds() {
+    @DisplayName("update allows changing import cost on IMPORTING line without changing declare quantity")
+    void update_importingLine_changeCostOnly_succeeds() {
         fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
 
         ImportBatchLineModel importingLine = ImportBatchLineModel.builder()
@@ -699,6 +692,7 @@ class ImportBatchServiceTest {
                 .drawDate(DRAW_DATE)
                 .supplierId(SUPPLIER_ID)
                 .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .totalDeclareQuantity(5000)
                 .lines(new ArrayList<>(List.of(importingLine)))
                 .build();
         batch.recalculateAggregates();
@@ -713,19 +707,20 @@ class ImportBatchServiceTest {
 
         UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
                 .supplierId(SUPPLIER_ID)
-                .totalDeclareQuantity(3000)
+                .totalDeclareQuantity(5000)
                 .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
                 .lines(List.of(UpdateImportBatchLineRequest.builder()
                         .id(100L)
                         .lotteryStationId(1L)
-                        .declareQuantity(3000)
-                        .importCost(BigDecimal.valueOf(10000))
+                        .declareQuantity(5000)
+                        .importCost(BigDecimal.valueOf(12000))
                         .build()))
                 .build();
 
         importBatchService.update(10L, request);
 
-        assertThat(importingLine.getDeclareQuantity()).isEqualTo(3000);
+        assertThat(importingLine.getDeclareQuantity()).isEqualTo(5000);
+        assertThat(importingLine.getImportCost()).isEqualByComparingTo(BigDecimal.valueOf(12000));
         assertThat(importingLine.getStatus()).isEqualTo(ImportBatchLineStatus.IMPORTING);
     }
 
@@ -775,8 +770,429 @@ class ImportBatchServiceTest {
     }
 
     @Test
-    @DisplayName("update allows removing IMPORTING line via removed flag")
-    void update_removeImportingLine_succeeds() {
+    @DisplayName("update allows PAUSED line declare below imported when tickets are removed first")
+    void update_pausedLine_reduceDeclareWithTicketRemoval_succeeds() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel pausedLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .lotteryStationId(1L)
+                .declareQuantity(112)
+                .totalQuantity(80)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.PAUSED)
+                .build();
+        ImportBatchLineModel openLine = ImportBatchLineModel.builder()
+                .id(101L)
+                .importBatchId(10L)
+                .lotteryStationId(2L)
+                .declareQuantity(100)
+                .totalQuantity(0)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.OPEN)
+                .build();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.RECEIVING)
+                .importMode(ImportBatchImportMode.IN_DAY)
+                .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .totalDeclareQuantity(212)
+                .totalImportedQuantity(80)
+                .lines(new ArrayList<>(List.of(pausedLine, openLine)))
+                .build();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(importBatchLineRepositoryPort.findByImportBatchId(10L))
+                .thenReturn(List.of(pausedLine, openLine));
+        when(importBatchLineRepositoryPort.save(any(ImportBatchLineModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchRepositoryPort.save(any(ImportBatchModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchApplicationMapper.toResponse(any(ImportBatchModel.class)))
+                .thenReturn(ImportBatchResponse.builder().id(10L).status(ImportBatchStatus.RECEIVING).build());
+        when(lotteryStationServicePort.getModelById(1L)).thenReturn(activeStation);
+        when(lotteryStationServicePort.getModelById(2L)).thenReturn(
+                LotteryStationModel.builder()
+                        .id(2L)
+                        .name("Bến Tre")
+                        .isActive(true)
+                        .drawDays(List.of(DayOfWeek.MONDAY))
+                        .drawTime(LocalTime.of(16, 15))
+                        .build()
+        );
+        when(importBatchTypeResolver.resolve(anyLong(), any(), any(), any()))
+                .thenReturn(new ImportBatchTypeResolver.ClassificationResult(
+                        ImportBatchType.NEW, false, List.of()));
+        when(importBatchCodeGenerator.generateLineCode(any(), any(), any())).thenReturn("CODE");
+
+        org.mockito.Mockito.doAnswer(invocation -> {
+            pausedLine.setTotalQuantity(50);
+            batch.setTotalImportedQuantity(50);
+            return null;
+        }).when(lotteryTicketServicePort)
+                .hardDeleteImportBatchTicketsForReduction(eq(10L), eq(List.of(501L, 502L)), eq(30));
+
+        UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
+                .supplierId(SUPPLIER_ID)
+                .totalDeclareQuantity(150)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .removedTicketIds(List.of(501L, 502L))
+                .adjustPausedDeclareQuantity(true)
+                .lines(List.of(
+                        UpdateImportBatchLineRequest.builder()
+                                .id(100L)
+                                .lotteryStationId(1L)
+                                .declareQuantity(50)
+                                .importCost(BigDecimal.valueOf(10000))
+                                .build(),
+                        UpdateImportBatchLineRequest.builder()
+                                .id(101L)
+                                .lotteryStationId(2L)
+                                .declareQuantity(100)
+                                .importCost(BigDecimal.valueOf(10000))
+                                .build()
+                ))
+                .build();
+
+        importBatchService.update(10L, request);
+
+        assertThat(pausedLine.getDeclareQuantity()).isEqualTo(50);
+        assertThat(pausedLine.getTotalQuantity()).isEqualTo(50);
+        assertThat(openLine.getDeclareQuantity()).isEqualTo(100);
+        verify(lotteryTicketServicePort)
+                .hardDeleteImportBatchTicketsForReduction(eq(10L), eq(List.of(501L, 502L)), eq(30));
+    }
+
+    @Test
+    @DisplayName("update rejects PAUSED line declare change without dedicated adjustment flow flag")
+    void update_pausedLine_changeDeclareWithoutAdjustmentFlag_throws() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel pausedLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .lotteryStationId(1L)
+                .declareQuantity(112)
+                .totalQuantity(80)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.PAUSED)
+                .build();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.RECEIVING)
+                .importMode(ImportBatchImportMode.IN_DAY)
+                .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .totalDeclareQuantity(112)
+                .totalImportedQuantity(80)
+                .lines(new ArrayList<>(List.of(pausedLine)))
+                .build();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+
+        UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
+                .supplierId(SUPPLIER_ID)
+                .totalDeclareQuantity(120)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .lines(List.of(UpdateImportBatchLineRequest.builder()
+                        .id(100L)
+                        .lotteryStationId(1L)
+                        .declareQuantity(120)
+                        .importCost(BigDecimal.valueOf(10000))
+                        .build()))
+                .build();
+
+        assertThatThrownBy(() -> importBatchService.update(10L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_LINE_DECLARE_QUANTITY_REQUIRES_ADJUSTMENT_FLOW);
+    }
+
+    @Test
+    @DisplayName("update rejects PAUSED line declare below imported without ticket removals (adjustment flow)")
+    void update_pausedLine_reduceDeclareWithoutTickets_throws() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel pausedLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .lotteryStationId(1L)
+                .declareQuantity(112)
+                .totalQuantity(80)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.PAUSED)
+                .build();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.RECEIVING)
+                .importMode(ImportBatchImportMode.IN_DAY)
+                .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .totalDeclareQuantity(112)
+                .totalImportedQuantity(80)
+                .lines(new ArrayList<>(List.of(pausedLine)))
+                .build();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+
+        UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
+                .supplierId(SUPPLIER_ID)
+                .totalDeclareQuantity(50)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .adjustPausedDeclareQuantity(true)
+                .lines(List.of(UpdateImportBatchLineRequest.builder()
+                        .id(100L)
+                        .lotteryStationId(1L)
+                        .declareQuantity(50)
+                        .importCost(BigDecimal.valueOf(10000))
+                        .build()))
+                .build();
+
+        assertThatThrownBy(() -> importBatchService.update(10L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_DECLARE_QUANTITY_BELOW_IMPORTED);
+    }
+
+    @Test
+    @DisplayName("update allows PAUSED line declare increase via dedicated adjustment flow")
+    void update_pausedLine_increaseDeclareWithAdjustmentFlag_succeeds() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel pausedLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .lotteryStationId(1L)
+                .declareQuantity(100)
+                .totalQuantity(40)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.PAUSED)
+                .batchType(ImportBatchType.NEW)
+                .build();
+        pausedLine.recalculateDeclaredCostValue();
+        pausedLine.recalculateTotalCostValue();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.RECEIVING)
+                .importMode(ImportBatchImportMode.IN_DAY)
+                .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .totalDeclareQuantity(100)
+                .totalImportedQuantity(40)
+                .lines(new ArrayList<>(List.of(pausedLine)))
+                .build();
+        batch.recalculateAggregates();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(importBatchLineRepositoryPort.findByImportBatchId(10L)).thenReturn(List.of(pausedLine));
+        when(importBatchLineRepositoryPort.save(any(ImportBatchLineModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchRepositoryPort.save(any(ImportBatchModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchApplicationMapper.toResponse(any(ImportBatchModel.class)))
+                .thenReturn(ImportBatchResponse.builder().id(10L).status(ImportBatchStatus.RECEIVING).build());
+        when(lotteryStationServicePort.getModelById(1L)).thenReturn(activeStation);
+        when(importBatchTypeResolver.resolve(anyLong(), any(), any(), any()))
+                .thenReturn(new ImportBatchTypeResolver.ClassificationResult(
+                        ImportBatchType.NEW, false, List.of()));
+        when(importBatchCodeGenerator.generateLineCode(any(), any(), any())).thenReturn("CODE");
+
+        UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
+                .supplierId(SUPPLIER_ID)
+                .totalDeclareQuantity(150)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .adjustPausedDeclareQuantity(true)
+                .lines(List.of(UpdateImportBatchLineRequest.builder()
+                        .id(100L)
+                        .lotteryStationId(1L)
+                        .declareQuantity(150)
+                        .importCost(BigDecimal.valueOf(10000))
+                        .build()))
+                .build();
+
+        importBatchService.update(10L, request);
+
+        assertThat(pausedLine.getDeclareQuantity()).isEqualTo(150);
+        assertThat(pausedLine.getStatus()).isEqualTo(ImportBatchLineStatus.PAUSED);
+    }
+
+    @Test
+    @DisplayName("update rejects PAUSED declare equal to imported without confirmPausedLineImported")
+    void update_pausedLine_declareEqualsImported_withoutConfirm_throws() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel pausedLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .lotteryStationId(1L)
+                .declareQuantity(3)
+                .totalQuantity(2)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.PAUSED)
+                .batchType(ImportBatchType.NEW)
+                .build();
+        pausedLine.recalculateDeclaredCostValue();
+        pausedLine.recalculateTotalCostValue();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.RECEIVING)
+                .importMode(ImportBatchImportMode.IN_DAY)
+                .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .totalDeclareQuantity(3)
+                .totalImportedQuantity(2)
+                .lines(new ArrayList<>(List.of(pausedLine)))
+                .build();
+        batch.recalculateAggregates();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+
+        UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
+                .supplierId(SUPPLIER_ID)
+                .totalDeclareQuantity(2)
+                .adjustPausedDeclareQuantity(true)
+                .lines(List.of(UpdateImportBatchLineRequest.builder()
+                        .id(100L)
+                        .lotteryStationId(1L)
+                        .declareQuantity(2)
+                        .importCost(BigDecimal.valueOf(10000))
+                        .build()))
+                .build();
+
+        assertThatThrownBy(() -> importBatchService.update(10L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_LINE_IMPORTED_CONFIRMATION_REQUIRED);
+    }
+
+    @Test
+    @DisplayName("update marks PAUSED line IMPORTED when declare equals imported with confirm flag")
+    void update_pausedLine_declareEqualsImported_withConfirm_marksImported() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel pausedLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .lotteryStationId(1L)
+                .declareQuantity(3)
+                .totalQuantity(2)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.PAUSED)
+                .batchType(ImportBatchType.NEW)
+                .build();
+        pausedLine.recalculateDeclaredCostValue();
+        pausedLine.recalculateTotalCostValue();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.RECEIVING)
+                .importMode(ImportBatchImportMode.IN_DAY)
+                .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .totalDeclareQuantity(3)
+                .totalImportedQuantity(2)
+                .lines(new ArrayList<>(List.of(pausedLine)))
+                .build();
+        batch.recalculateAggregates();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(importBatchLineRepositoryPort.findByImportBatchId(10L)).thenReturn(List.of(pausedLine));
+        when(importBatchLineRepositoryPort.save(any(ImportBatchLineModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchRepositoryPort.save(any(ImportBatchModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchApplicationMapper.toResponse(any(ImportBatchModel.class)))
+                .thenReturn(ImportBatchResponse.builder().id(10L).status(ImportBatchStatus.IMPORTED).build());
+        when(lotteryStationServicePort.getModelById(1L)).thenReturn(activeStation);
+        when(importBatchTypeResolver.resolve(anyLong(), any(), any(), any()))
+                .thenReturn(new ImportBatchTypeResolver.ClassificationResult(
+                        ImportBatchType.NEW, false, List.of()));
+        when(importBatchCodeGenerator.generateLineCode(any(), any(), any())).thenReturn("CODE");
+
+        UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
+                .supplierId(SUPPLIER_ID)
+                .totalDeclareQuantity(2)
+                .adjustPausedDeclareQuantity(true)
+                .confirmPausedLineImported(true)
+                .lines(List.of(UpdateImportBatchLineRequest.builder()
+                        .id(100L)
+                        .lotteryStationId(1L)
+                        .declareQuantity(2)
+                        .importCost(BigDecimal.valueOf(10000))
+                        .build()))
+                .build();
+
+        importBatchService.update(10L, request);
+
+        assertThat(pausedLine.getDeclareQuantity()).isEqualTo(2);
+        assertThat(pausedLine.getStatus()).isEqualTo(ImportBatchLineStatus.IMPORTED);
+    }
+
+    @Test
+    @DisplayName("update rejects changing invoice evidence on edit")
+    void update_changeInvoiceEvidence_throws() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel openLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .lotteryStationId(1L)
+                .declareQuantity(10)
+                .totalQuantity(0)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.OPEN)
+                .batchType(ImportBatchType.NEW)
+                .build();
+        openLine.recalculateDeclaredCostValue();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.DRAFT)
+                .importMode(ImportBatchImportMode.IN_DAY)
+                .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .totalDeclareQuantity(10)
+                .lines(new ArrayList<>(List.of(openLine)))
+                .build();
+        batch.recalculateAggregates();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+
+        UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
+                .supplierId(SUPPLIER_ID)
+                .totalDeclareQuantity(10)
+                .invoiceEvidenceUrl("https://cdn.example/replaced.jpg")
+                .lines(List.of(UpdateImportBatchLineRequest.builder()
+                        .id(100L)
+                        .lotteryStationId(1L)
+                        .declareQuantity(10)
+                        .importCost(BigDecimal.valueOf(10000))
+                        .build()))
+                .build();
+
+        assertThatThrownBy(() -> importBatchService.update(10L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_INVOICE_EVIDENCE_LOCKED);
+    }
+
+    @Test
+    @DisplayName("update rejects removing IMPORTING line until paused")
+    void update_removeImportingLine_rejected() {
         fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
 
         ImportBatchLineModel importingLine = ImportBatchLineModel.builder()
@@ -806,6 +1222,71 @@ class ImportBatchServiceTest {
                 .supplierId(SUPPLIER_ID)
                 .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
                 .lines(new ArrayList<>(List.of(importingLine, remainingLine)))
+                .build();
+        batch.recalculateAggregates();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(importBatchLineRepositoryPort.countActiveByImportBatchId(10L)).thenReturn(2L);
+
+        UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
+                .supplierId(SUPPLIER_ID)
+                .totalDeclareQuantity(5)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .lines(List.of(
+                        UpdateImportBatchLineRequest.builder()
+                                .id(100L)
+                                .lotteryStationId(1L)
+                                .declareQuantity(10)
+                                .importCost(BigDecimal.valueOf(10000))
+                                .removed(true)
+                                .build(),
+                        UpdateImportBatchLineRequest.builder()
+                                .id(101L)
+                                .lotteryStationId(2L)
+                                .declareQuantity(5)
+                                .importCost(BigDecimal.valueOf(10000))
+                                .build()
+                ))
+                .build();
+
+        assertThatThrownBy(() -> importBatchService.update(10L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_LINE_NOT_DELETABLE);
+    }
+
+    @Test
+    @DisplayName("update allows removing PAUSED line via removed flag")
+    void update_removePausedLine_succeeds() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel pausedLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .lotteryStationId(1L)
+                .declareQuantity(10)
+                .totalQuantity(2)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.PAUSED)
+                .build();
+        ImportBatchLineModel remainingLine = ImportBatchLineModel.builder()
+                .id(101L)
+                .importBatchId(10L)
+                .lotteryStationId(2L)
+                .declareQuantity(5)
+                .totalQuantity(0)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.OPEN)
+                .build();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.RECEIVING)
+                .importMode(ImportBatchImportMode.IN_DAY)
+                .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .lines(new ArrayList<>(List.of(pausedLine, remainingLine)))
                 .build();
         batch.recalculateAggregates();
 
@@ -848,7 +1329,131 @@ class ImportBatchServiceTest {
         importBatchService.update(10L, request);
 
         verify(lotteryTicketServicePort).purgeImportBatchLineTickets(100L);
-        assertThat(importingLine.getDeletedAt()).isNotNull();
+        assertThat(pausedLine.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("pauseLine moves IMPORTING line to PAUSED")
+    void pauseLine_importing_succeeds() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel importingLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .lotteryStationId(1L)
+                .declareQuantity(10)
+                .totalQuantity(2)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.IMPORTING)
+                .build();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.RECEIVING)
+                .lines(new ArrayList<>(List.of(importingLine)))
+                .build();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(importBatchLineRepositoryPort.findById(100L)).thenReturn(Optional.of(importingLine));
+        when(importBatchLineRepositoryPort.findByImportBatchId(10L)).thenReturn(List.of(importingLine));
+        when(importBatchLineRepositoryPort.save(any(ImportBatchLineModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchRepositoryPort.save(any(ImportBatchModel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchApplicationMapper.toResponse(any(ImportBatchModel.class)))
+                .thenReturn(ImportBatchResponse.builder().id(10L).status(ImportBatchStatus.RECEIVING).build());
+
+        importBatchService.pauseLine(10L, 100L);
+
+        assertThat(importingLine.getStatus()).isEqualTo(ImportBatchLineStatus.PAUSED);
+        verify(importBatchLineRepositoryPort).save(importingLine);
+    }
+
+    @Test
+    @DisplayName("pauseLine rejects non-IMPORTING line")
+    void pauseLine_open_throws() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel openLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .status(ImportBatchLineStatus.OPEN)
+                .build();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.DRAFT)
+                .lines(new ArrayList<>(List.of(openLine)))
+                .build();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(importBatchLineRepositoryPort.findById(100L)).thenReturn(Optional.of(openLine));
+
+        assertThatThrownBy(() -> importBatchService.pauseLine(10L, 100L))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_LINE_NOT_PAUSABLE);
+    }
+
+    @Test
+    @DisplayName("resumeLine moves PAUSED line to IMPORTING")
+    void resumeLine_paused_succeeds() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel pausedLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .lotteryStationId(1L)
+                .declareQuantity(10)
+                .totalQuantity(2)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.PAUSED)
+                .build();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.RECEIVING)
+                .lines(new ArrayList<>(List.of(pausedLine)))
+                .build();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(importBatchLineRepositoryPort.findById(100L)).thenReturn(Optional.of(pausedLine));
+        when(importBatchLineRepositoryPort.findByImportBatchId(10L)).thenReturn(List.of(pausedLine));
+        when(importBatchLineRepositoryPort.save(any(ImportBatchLineModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchRepositoryPort.save(any(ImportBatchModel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchApplicationMapper.toResponse(any(ImportBatchModel.class)))
+                .thenReturn(ImportBatchResponse.builder().id(10L).status(ImportBatchStatus.RECEIVING).build());
+
+        importBatchService.resumeLine(10L, 100L);
+
+        assertThat(pausedLine.getStatus()).isEqualTo(ImportBatchLineStatus.IMPORTING);
+        verify(importBatchLineRepositoryPort).save(pausedLine);
+    }
+
+    @Test
+    @DisplayName("resumeLine rejects non-PAUSED line")
+    void resumeLine_importing_throws() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel importingLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .status(ImportBatchLineStatus.IMPORTING)
+                .build();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.RECEIVING)
+                .lines(new ArrayList<>(List.of(importingLine)))
+                .build();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(importBatchLineRepositoryPort.findById(100L)).thenReturn(Optional.of(importingLine));
+
+        assertThatThrownBy(() -> importBatchService.resumeLine(10L, 100L))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_LINE_NOT_RESUMABLE);
     }
 
     @Test
@@ -1020,7 +1625,7 @@ class ImportBatchServiceTest {
     }
 
     @Test
-    @DisplayName("update allows supplier-only change for RECEIVING batch")
+    @DisplayName("update allows same-supplier payload for RECEIVING batch")
     void update_receivingBatchSupplierOnly_succeeds() {
         fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
         ImportBatchLineModel openLine = ImportBatchLineModel.builder()
@@ -1058,8 +1663,40 @@ class ImportBatchServiceTest {
     }
 
     @Test
-    @DisplayName("update rejects supplier change when imported lines exist")
-    void update_supplierChangeWithImportedLine_throws() {
+    @DisplayName("update rejects supplier change when batch is RECEIVING")
+    void update_supplierChangeOnReceiving_throws() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+        ImportBatchLineModel openLine = ImportBatchLineModel.builder()
+                .id(100L)
+                .importBatchId(10L)
+                .declareQuantity(10)
+                .status(ImportBatchLineStatus.OPEN)
+                .build();
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.RECEIVING)
+                .importMode(ImportBatchImportMode.IN_DAY)
+                .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
+                .totalDeclareQuantity(10)
+                .lines(new ArrayList<>(List.of(openLine)))
+                .build();
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+
+        UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
+                .supplierId(99L)
+                .totalDeclareQuantity(10)
+                .build();
+
+        assertThatThrownBy(() -> importBatchService.update(10L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_SUPPLIER_LOCKED_IMPORTED_LINES);
+    }
+
+    @Test
+    @DisplayName("update rejects supplier change when batch is PARTIALLY_IMPORTED")
+    void update_supplierChangeOnPartiallyImported_throws() {
         fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
         ImportBatchLineModel importedLine = ImportBatchLineModel.builder()
                 .id(100L)
@@ -1090,8 +1727,8 @@ class ImportBatchServiceTest {
     }
 
     @Test
-    @DisplayName("update allows invoice evidence replacement for RECEIVING IN_DAY batch")
-    void update_receivingBatchInvoiceEvidence_succeeds() {
+    @DisplayName("update rejects invoice evidence replacement for RECEIVING IN_DAY batch")
+    void update_receivingBatchInvoiceEvidence_locked() {
         fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
         ImportBatchLineModel openLine = ImportBatchLineModel.builder()
                 .id(100L)
@@ -1113,9 +1750,6 @@ class ImportBatchServiceTest {
                 .lines(new ArrayList<>(List.of(openLine)))
                 .build();
         when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
-        when(importBatchRepositoryPort.save(any(ImportBatchModel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(importBatchApplicationMapper.toResponse(any(ImportBatchModel.class)))
-                .thenReturn(ImportBatchResponse.builder().id(10L).status(ImportBatchStatus.RECEIVING).build());
 
         UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
                 .supplierId(SUPPLIER_ID)
@@ -1123,9 +1757,11 @@ class ImportBatchServiceTest {
                 .invoiceEvidenceUrl("https://cdn.example/new-invoice.jpg")
                 .build();
 
-        importBatchService.update(10L, request);
-
-        assertThat(batch.getInvoiceEvidenceUrl()).isEqualTo("https://cdn.example/new-invoice.jpg");
+        assertThatThrownBy(() -> importBatchService.update(10L, request))
+                .isInstanceOf(DomainException.class)
+                .extracting(ex -> ((DomainException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.IMPORT_BATCH_INVOICE_EVIDENCE_LOCKED);
+        assertThat(batch.getInvoiceEvidenceUrl()).isEqualTo("https://cdn.example/old-invoice.jpg");
     }
 
     @Test
@@ -1198,6 +1834,66 @@ class ImportBatchServiceTest {
         assertThat(response.id()).isEqualTo(10L);
         assertThat(openLine.getBatchType()).isEqualTo(ImportBatchType.SUPPLEMENTARY);
         assertThat(openLine.getDeclareQuantity()).isEqualTo(12);
+    }
+
+    @Test
+    @DisplayName("update allows declare quantity change on DRAFT OPEN line even if request stationId is 0")
+    void update_draftOpenLine_declareQuantity_withZeroStationId_keepsStationAndSucceeds() {
+        fixedClock(LocalDateTime.of(2026, 7, 7, 10, 0));
+
+        ImportBatchLineModel openLine = ImportBatchLineModel.builder()
+                .id(200L)
+                .importBatchId(10L)
+                .lotteryStationId(1L)
+                .declareQuantity(10)
+                .totalQuantity(0)
+                .importCost(BigDecimal.valueOf(10000))
+                .status(ImportBatchLineStatus.OPEN)
+                .batchType(ImportBatchType.NEW)
+                .build();
+        openLine.recalculateDeclaredCostValue();
+        openLine.recalculateTotalCostValue();
+
+        ImportBatchModel batch = ImportBatchModel.builder()
+                .id(10L)
+                .status(ImportBatchStatus.DRAFT)
+                .importMode(ImportBatchImportMode.IN_DAY)
+                .drawDate(DRAW_DATE)
+                .supplierId(SUPPLIER_ID)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .lines(new ArrayList<>(List.of(openLine)))
+                .build();
+        batch.recalculateAggregates();
+
+        when(importBatchRepositoryPort.findById(10L)).thenReturn(Optional.of(batch));
+        when(lotteryStationServicePort.getModelById(1L)).thenReturn(activeStation);
+        when(importBatchLineRepositoryPort.findByImportBatchId(10L)).thenReturn(List.of(openLine));
+        when(importBatchLineRepositoryPort.save(any(ImportBatchLineModel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchTypeResolver.resolve(1L, DRAW_DATE, activeStation, ImportBatchImportMode.IN_DAY))
+                .thenReturn(new ImportBatchTypeResolver.ClassificationResult(
+                        ImportBatchType.NEW, false, List.of()));
+        when(importBatchRepositoryPort.save(any(ImportBatchModel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(importBatchApplicationMapper.toResponse(any(ImportBatchModel.class)))
+                .thenReturn(ImportBatchResponse.builder().id(10L).status(ImportBatchStatus.DRAFT).build());
+
+        UpdateImportBatchRequest request = UpdateImportBatchRequest.builder()
+                .supplierId(SUPPLIER_ID)
+                .totalDeclareQuantity(15)
+                .invoiceEvidenceUrl("https://cdn.example/invoice.jpg")
+                .lines(List.of(UpdateImportBatchLineRequest.builder()
+                        .id(200L)
+                        .lotteryStationId(0L)
+                        .declareQuantity(15)
+                        .importCost(BigDecimal.valueOf(10000))
+                        .build()))
+                .build();
+
+        ImportBatchResponse response = importBatchService.update(10L, request);
+
+        assertThat(response.id()).isEqualTo(10L);
+        assertThat(openLine.getDeclareQuantity()).isEqualTo(15);
+        assertThat(openLine.getLotteryStationId()).isEqualTo(1L);
     }
 
     @Test
