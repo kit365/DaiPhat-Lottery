@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 @Entity
 @Table(
         name = "lottery_tickets",
@@ -45,6 +46,13 @@ public class LotteryTicketEntity extends BaseEntity {
 
     @Column(name = "draw_date", nullable = false)
     private LocalDate drawDate;
+
+    /**
+     * Legacy column restored by V202607151430 (NOT NULL). Import-batch flow resolves
+     * display batch codes from import_batch_lines; this field still must be persisted.
+     */
+    @Column(name = "batch_code", nullable = false, length = 100)
+    private String batchCode;
 
     @Column(nullable = false)
     @Builder.Default
@@ -84,4 +92,12 @@ public class LotteryTicketEntity extends BaseEntity {
 
     @Transient
     private LocalDateTime returnedAt;
+
+    @PrePersist
+    @PreUpdate
+    void ensureBatchCode() {
+        if (batchCode == null || batchCode.isBlank()) {
+            batchCode = "LEGACY-" + (id != null ? id : UUID.randomUUID());
+        }
+    }
 }

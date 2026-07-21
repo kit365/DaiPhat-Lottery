@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -27,7 +28,21 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
 
     @Override
     public LotteryTicketModel save(LotteryTicketModel model) {
-        LotteryTicketEntity entity = lotteryTicketPersistenceMapper.toEntity(model);
+        LotteryTicketEntity entity;
+        if (model.getId() != null) {
+            // Load managed entity and patch it so persistence-only fields (e.g. batchCode)
+            // are not wiped when mapping from domain (domain has no batchCode).
+            entity = lotteryTicketRepository.findById(model.getId())
+                    .orElseGet(() -> lotteryTicketPersistenceMapper.toEntity(model));
+            if (entity.getId() != null) {
+                lotteryTicketPersistenceMapper.updateEntityFromModel(model, entity);
+            }
+        } else {
+            entity = lotteryTicketPersistenceMapper.toEntity(model);
+        }
+        if (entity.getBatchCode() == null || entity.getBatchCode().isBlank()) {
+            entity.setBatchCode("LEGACY-" + (entity.getId() != null ? entity.getId() : UUID.randomUUID()));
+        }
         LotteryTicketEntity saved = lotteryTicketRepository.save(entity);
         return lotteryTicketPersistenceMapper.toDomain(saved);
     }
