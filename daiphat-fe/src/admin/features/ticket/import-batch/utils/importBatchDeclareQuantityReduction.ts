@@ -1,13 +1,13 @@
 import type { ImportBatch, ImportBatchLine } from '../types/importBatch.type';
 
 export const IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_IMPORTED_ONLY_MESSAGE =
-    'Không thể giảm số lượng khai báo vì phần vé thừa nằm ở các dòng đã nhập hoàn tất (IMPORTED). Chỉ được xóa vé ở dòng OPEN hoặc IMPORTING.';
+    'Không thể giảm số lượng khai báo vì phần vé thừa nằm ở các dòng đã nhập hoàn tất (IMPORTED). Chỉ được xóa vé ở dòng OPEN, IMPORTING hoặc PAUSED.';
 
 export const IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_WARNING =
     'Số lượng khai báo mới nhỏ hơn số vé đã nhập. Vui lòng xóa bớt vé trước khi áp dụng số lượng mới.';
 
 export const isDeletableImportBatchLineStatus = (status?: string) =>
-    status === 'OPEN' || status === 'IMPORTING';
+    status === 'OPEN' || status === 'IMPORTING' || status === 'PAUSED';
 
 export const sumRemovableImportedQuantity = (lines: ImportBatchLine[] = []) =>
     lines

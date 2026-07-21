@@ -27,13 +27,14 @@ import { Breadcrumb } from '../../../../../components/ui/Breadcrumb';
 import { Title } from '../../../../../components/ui/Title';
 import { CollapsibleCard } from '../../../../../components/ui/CollapsibleCard';
 import { LoadingButton } from '../../../../../components/ui/LoadingButton';
-import { UploadSingleFile } from '../../../../../components/upload/UploadSingleFile';
-import { uploadAdminImage } from '../../../../../api/upload.api';
+import { ImagePreview } from '../../../../../components/ui/ImagePreview';
 import { prefixAdmin, ROUTES } from '../../../../../constants/routes';
 import {
     useEligibleImportBatchStations,
     useImportBatchDetail,
     useImportBatchTimePolicy,
+    usePauseImportBatchLine,
+    useResumeImportBatchLine,
     useUpdateImportBatch,
 } from '../../hooks/useImportBatch';
 import { useImportBatchEditDraft } from '../../hooks/useImportBatchEditDraft';
@@ -46,6 +47,10 @@ import {
 } from '../../schemas/importBatch.schema';
 import { ImportBatchEditConfirmDialog } from '../sections/ImportBatchEditConfirmDialog';
 import { ImportBatchReduceDeclaredQuantityDialog } from '../sections/ImportBatchReduceDeclaredQuantityDialog';
+import {
+    ImportBatchLineDeclareQuantityReductionDialog,
+    type LineDeclareQuantityReductionConfirmResult,
+} from '../sections/ImportBatchLineDeclareQuantityReductionDialog';
 import { ImportBatchDeclaredQuantityProgress } from '../sections/ImportBatchDeclaredQuantityProgress';
 import { ImportBatchLineRow } from '../sections/ImportBatchLineRow';
 import { getImportBatchStatusLabel, getImportModeLabel } from '../../utils/batchTypeLabels';
@@ -53,7 +58,12 @@ import { formatImportBatchHeaderCode } from '../../utils/importBatchCode';
 import {
     batchUsesSharedInvoice,
     canChangeImportBatchSupplier,
+    canAdjustPausedImportBatchLineDeclareQuantity,
+    canEditImportBatchLineCost,
+    canEditImportBatchLineDeclareQuantity,
+    canPauseImportBatchLine,
     canRemoveImportBatchLine,
+    canResumeImportBatchLine,
     hasImportedImportBatchLines,
     importBatchRequiresInvoiceEvidence,
     IMPORT_BATCH_SUPPLIER_LOCKED_MESSAGE,
@@ -85,12 +95,16 @@ import {
     readLocalImportBatchEditDraft,
 } from '../../utils/importBatchEditDraft';
 import {
+    clearTicketLineFormDraft,
+    getPendingFilledSerialCount,
+} from '../../../inventory/utils/ticketLineFormDraftStorage';
+import {
     buildImportBatchEditBaseline,
     computeImportBatchEditChanges,
     type ImportBatchEditChangeSummary,
 } from '../../utils/importBatchEditChanges';
 import { isImportBatchEditable } from '../../utils/importBatchProgress';
-import { hasInvoiceEvidence, resolveInvoiceEvidenceUrl } from '../../utils/invoiceEvidence';
+import { hasInvoiceEvidence } from '../../utils/invoiceEvidence';
 import LoadingScreen from '../../../../../components/ui/LoadingScreen';
 import type { ImportBatch, ImportBatchEligibleStation, UpdateImportBatchPayload } from '../../types/importBatch.type';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -99,6 +113,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
+import { confirmAction, confirmDelete } from '../../../../../utils/swal';
 
 const emptyLine = (): UpdateImportBatchLineFormValues => ({
     lotteryStationId: 0,
@@ -120,14 +135,28 @@ export const ImportBatchEditPage = () => {
     const [pendingReductionExcess, setPendingReductionExcess] = useState(0);
     const [isReductionSubmitting, setIsReductionSubmitting] = useState(false);
     const [removedTicketIds, setRemovedTicketIds] = useState<number[]>([]);
+    const [lineReductionDialogOpen, setLineReductionDialogOpen] = useState(false);
+    const [isLineReductionSubmitting, setIsLineReductionSubmitting] = useState(false);
+    const [pendingLineReduction, setPendingLineReduction] = useState<{
+        index: number;
+        lineId: number;
+        stationName: string;
+        oldDeclare: number;
+        newDeclare: number;
+        serverImported: number;
+        draftSerialCount: number;
+    } | null>(null);
     const [lineQuantityAdjustmentHighlightIndices, setLineQuantityAdjustmentHighlightIndices] =
         useState<Set<number>>(new Set());
     const [scrollToAdjustmentLineIndex, setScrollToAdjustmentLineIndex] = useState<number | null>(null);
     const previousTotalDeclareQuantityRef = useRef<number>(0);
+    const previousLineDeclareRef = useRef<Record<number, number>>({});
     const baselineRef = useRef<UpdateImportBatchFormValues | null>(null);
 
     const { data: batch, isLoading: isBatchLoading, isError: isBatchError, refetch: refetchBatch } = useImportBatchDetail(id);
     const { mutateAsync: updateAsync, isPending } = useUpdateImportBatch(id);
+    const { mutateAsync: pauseLineAsync, isPending: isPausePending } = usePauseImportBatchLine();
+    const { mutateAsync: resumeLineAsync, isPending: isResumePending } = useResumeImportBatchLine();
     const { data: activeSuppliers = [], isLoading: isLoadingSuppliers } = useActiveSuppliers();
     const { data: providersRes } = useStations({ size: 1000 });
     const providers = useMemo(
@@ -145,6 +174,8 @@ export const ImportBatchEditPage = () => {
         reset,
         setValue,
         getValues,
+        setError,
+        clearErrors,
         formState: { errors, isSubmitted },
     } = useForm<UpdateImportBatchFormValues>({
         resolver: zodResolver(updateImportBatchSchema) as unknown as Resolver<UpdateImportBatchFormValues>,
@@ -202,7 +233,6 @@ export const ImportBatchEditPage = () => {
 
     const resolvedImportMode = importModeLock.locked ? importModeLock.mode : importMode;
     const showSharedReceipt = batchUsesSharedInvoice(resolvedImportMode);
-    const uploadReceipt = useCallback(async (file: File) => uploadAdminImage(file), []);
     const [isSaving, setIsSaving] = useState(false);
     const hasImportedLines = hasImportedImportBatchLines(batch);
     const canEditSupplier = canChangeImportBatchSupplier(batch);
@@ -427,6 +457,11 @@ export const ImportBatchEditPage = () => {
 
         reset(enrichedValues, { keepDirty: false, keepTouched: false, keepErrors: false });
         previousTotalDeclareQuantityRef.current = enrichedValues.totalDeclareQuantity ?? 0;
+        previousLineDeclareRef.current = Object.fromEntries(
+            (enrichedValues.lines ?? [])
+                .filter((line) => line.id != null)
+                .map((line) => [line.id!, line.declareQuantity ?? 0])
+        );
         formInitializedForBatchIdRef.current = id;
         setInitializedBatchId(id);
 
@@ -566,13 +601,23 @@ export const ImportBatchEditPage = () => {
     const buildLinesPayload = (
         data: UpdateImportBatchFormValues
     ): UpdateImportBatchPayload['lines'] =>
-        data.lines.map((line) => ({
-            id: line.id,
-            lotteryStationId: line.lotteryStationId!,
-            declareQuantity: line.declareQuantity!,
-            importCost: line.importCost!,
-            removed: line.removed || undefined,
-        }));
+        data.lines.map((line) => {
+            const formStationId =
+                line.lotteryStationId && line.lotteryStationId > 0 ? line.lotteryStationId : null;
+            const serverStationId =
+                line.id != null
+                    ? batch?.lines?.find((serverLine) => serverLine.id === line.id)?.lotteryStationId
+                    : undefined;
+            const lotteryStationId = formStationId ?? serverStationId ?? line.lotteryStationId!;
+
+            return {
+                id: line.id,
+                lotteryStationId,
+                declareQuantity: line.declareQuantity!,
+                importCost: line.importCost!,
+                removed: line.removed || undefined,
+            };
+        });
 
     const buildUpdatePayload = (data: UpdateImportBatchFormValues): UpdateImportBatchPayload => {
         const payload: UpdateImportBatchPayload = {
@@ -585,10 +630,7 @@ export const ImportBatchEditPage = () => {
             payload.removedTicketIds = removedTicketIds;
         }
 
-        if (showSharedReceipt && typeof data.invoiceEvidenceUrl === 'string') {
-            payload.invoiceEvidenceUrl = data.invoiceEvidenceUrl.trim();
-        }
-
+        // Invoice evidence is view-only on edit — never send a replacement URL.
         return payload;
     };
 
@@ -597,6 +639,8 @@ export const ImportBatchEditPage = () => {
             return;
         }
 
+        clearErrors('totalDeclareQuantity');
+
         const totalImportedQuantity = batch.totalImportedQuantity ?? 0;
         const currentLines = getValues('lines') ?? [];
         const linesSum = sumImportBatchLineDeclaredQuantity(currentLines);
@@ -604,10 +648,10 @@ export const ImportBatchEditPage = () => {
         if (requiresDeclareQuantityReduction(newValue, totalImportedQuantity)) {
             const reductionCheck = canReduceDeclareQuantity(batch, newValue);
             if (!reductionCheck.allowed) {
-                setValue('totalDeclareQuantity', previousTotalDeclareQuantityRef.current, {
-                    shouldValidate: true,
+                setError('totalDeclareQuantity', {
+                    type: 'manual',
+                    message: IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_IMPORTED_ONLY_MESSAGE,
                 });
-                toast.error(IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_IMPORTED_ONLY_MESSAGE);
                 return;
             }
 
@@ -690,6 +734,107 @@ export const ImportBatchEditPage = () => {
         setPendingReductionExcess(0);
     };
 
+    const handleOpenPausedDeclareQuantityAdjustment = (index: number) => {
+        const line = getValues(`lines.${index}`);
+        if (!batch?.id || !line?.id || line.status !== 'PAUSED') {
+            return;
+        }
+
+        const oldDeclare =
+            previousLineDeclareRef.current[line.id] ?? line.declareQuantity ?? 0;
+        const serverImported = line.totalQuantity ?? 0;
+        const draftSerialCount = getPendingFilledSerialCount(batch.id, line.id);
+
+        setPendingLineReduction({
+            index,
+            lineId: line.id,
+            stationName:
+                line.stationName ||
+                (line.lotteryStationId ? `Đài #${line.lotteryStationId}` : `Dòng #${line.id}`),
+            oldDeclare,
+            newDeclare: oldDeclare,
+            serverImported,
+            draftSerialCount,
+        });
+        setLineReductionDialogOpen(true);
+    };
+
+    const handleLineReductionDialogClose = () => {
+        if (isLineReductionSubmitting) {
+            return;
+        }
+        setLineReductionDialogOpen(false);
+        setPendingLineReduction(null);
+    };
+
+    const handleLineReductionConfirm = async (
+        result: LineDeclareQuantityReductionConfirmResult
+    ) => {
+        if (!batch || !pendingLineReduction) {
+            return;
+        }
+
+        const currentValues = getValues();
+        const nextLines = (currentValues.lines ?? []).map((line) => {
+            if (!line.id || line.removed) {
+                return line;
+            }
+            const nextDeclare = result.lineDeclares[line.id];
+            if (nextDeclare == null) {
+                return line;
+            }
+            return { ...line, declareQuantity: nextDeclare };
+        });
+
+        const nextValues: UpdateImportBatchFormValues = {
+            ...currentValues,
+            totalDeclareQuantity: result.totalDeclareQuantity,
+            lines: nextLines,
+        };
+
+        const payload: UpdateImportBatchPayload = {
+            ...buildUpdatePayload(nextValues),
+            totalDeclareQuantity: result.totalDeclareQuantity,
+            removedTicketIds: result.removedTicketIds,
+            adjustPausedDeclareQuantity: true,
+            confirmPausedLineImported: result.confirmPausedLineImported || undefined,
+        };
+
+        try {
+            setIsLineReductionSubmitting(true);
+            const res = await updateAsync(payload);
+
+            if (res.success) {
+                reset(nextValues, { keepDirty: false, keepTouched: false, keepErrors: false });
+                previousTotalDeclareQuantityRef.current = result.totalDeclareQuantity;
+                previousLineDeclareRef.current = {
+                    ...previousLineDeclareRef.current,
+                    ...result.lineDeclares,
+                };
+                clearTicketLineFormDraft(batch.id, pendingLineReduction.lineId);
+                setRemovedTicketIds([]);
+                setLineReductionDialogOpen(false);
+                setPendingLineReduction(null);
+                formInitializedForBatchIdRef.current = null;
+                await refetchBatch();
+                toast.success(
+                    result.confirmPausedLineImported
+                        ? res.message ||
+                              'Đã xác nhận dòng tạm dừng thành Đã nhập đủ.'
+                        : res.message || 'Đã điều chỉnh số lượng khai báo dòng tạm dừng.'
+                );
+            } else {
+                toast.error(res.message || 'Không thể điều chỉnh số lượng khai báo dòng.');
+            }
+        } catch (err: any) {
+            toast.error(
+                err?.response?.data?.message || 'Không thể điều chỉnh số lượng khai báo dòng.'
+            );
+        } finally {
+            setIsLineReductionSubmitting(false);
+        }
+    };
+
     const submitUpdate = async (data: UpdateImportBatchFormValues) => {
         if (!batch) {
             return;
@@ -701,21 +846,13 @@ export const ImportBatchEditPage = () => {
         }
 
         if (showSharedReceipt && requiresInvoice && !hasInvoiceEvidence(data.invoiceEvidenceUrl)) {
-            toast.error('Vui lòng chọn ảnh biên lai.');
+            toast.error('Phiếu nhập thiếu ảnh biên lai. Không thể lưu khi ảnh biên lai bắt buộc.');
             return;
         }
 
         try {
             setIsSaving(true);
-            const invoiceEvidenceUrl = showSharedReceipt
-                ? (await resolveInvoiceEvidenceUrl(data.invoiceEvidenceUrl, uploadReceipt)) || ''
-                : undefined;
-            const res = await updateAsync(
-                buildUpdatePayload({
-                    ...data,
-                    invoiceEvidenceUrl: invoiceEvidenceUrl ?? '',
-                })
-            );
+            const res = await updateAsync(buildUpdatePayload(data));
 
             if (res.success) {
                 clearDraft();
@@ -751,14 +888,14 @@ export const ImportBatchEditPage = () => {
         );
 
         if (submitShowSharedReceipt && submitRequiresInvoice && !hasInvoiceEvidence(data.invoiceEvidenceUrl)) {
-            toast.error('Vui lòng chọn ảnh biên lai.');
+            toast.error('Phiếu nhập thiếu ảnh biên lai. Không thể lưu khi ảnh biên lai bắt buộc.');
             return;
         }
 
         const summary = computeImportBatchEditChanges({
             baseline: baselineRef.current,
             current: data,
-            showSharedReceipt: submitShowSharedReceipt,
+            showSharedReceipt: false,
             resolveSupplierName,
             resolveStationName,
         });
@@ -784,16 +921,74 @@ export const ImportBatchEditPage = () => {
             toast.error('Không thể xóa dòng phiếu đã nhập đủ.');
             return;
         }
+        if (line?.status === 'IMPORTING') {
+            toast.error('Không thể xóa dòng đang nhập. Vui lòng tạm dừng nhập trước khi xóa.');
+            return;
+        }
         if (!canRemoveImportBatchLine(line?.status) && line?.id) {
             toast.error('Không thể xóa dòng phiếu ở trạng thái hiện tại.');
             return;
         }
 
-        if (line?.id) {
-            setValue(`lines.${index}.removed`, true, { shouldValidate: true, shouldDirty: true });
-        } else {
-            remove(index);
+        const stationLabel = line?.stationName || (line?.lotteryStationId ? `Đài #${line.lotteryStationId}` : 'dòng này');
+        confirmDelete(
+            `Dòng phiếu ${stationLabel} sẽ bị đánh dấu xóa. Thay đổi chỉ được áp dụng khi bạn lưu phiếu nhập lô.`,
+            () => {
+                if (line?.id) {
+                    setValue(`lines.${index}.removed`, true, { shouldValidate: true, shouldDirty: true });
+                } else {
+                    remove(index);
+                }
+            }
+        );
+    };
+
+    const handlePauseLine = (index: number) => {
+        const line = lines[index];
+        if (!batch?.id || !line?.id || !canPauseImportBatchLine(line.status)) {
+            return;
         }
+
+        const stationLabel = line.stationName || (line.lotteryStationId ? `Đài #${line.lotteryStationId}` : 'dòng này');
+        confirmAction(
+            'Xác nhận tạm dừng nhập?',
+            `Dòng phiếu ${stationLabel} sẽ chuyển sang trạng thái Tạm dừng nhập. Bạn có thể tiếp tục nhập sau khi nhấn Tiếp tục.`,
+            async () => {
+                try {
+                    const res = await pauseLineAsync({ batchId: batch.id, lineId: line.id! });
+                    setValue(`lines.${index}.status`, 'PAUSED', { shouldDirty: false, shouldValidate: true });
+                    toast.success(res.message || 'Đã tạm dừng nhập dòng phiếu.');
+                    await refetchBatch();
+                } catch (err: any) {
+                    toast.error(err?.response?.data?.message || 'Không thể tạm dừng nhập dòng phiếu.');
+                }
+            },
+            'warning'
+        );
+    };
+
+    const handleResumeLine = (index: number) => {
+        const line = lines[index];
+        if (!batch?.id || !line?.id || !canResumeImportBatchLine(line.status)) {
+            return;
+        }
+
+        const stationLabel = line.stationName || (line.lotteryStationId ? `Đài #${line.lotteryStationId}` : 'dòng này');
+        confirmAction(
+            'Xác nhận tiếp tục nhập?',
+            `Dòng phiếu ${stationLabel} sẽ chuyển lại trạng thái Đang nhập để tiếp tục quá trình nhập vé.`,
+            async () => {
+                try {
+                    const res = await resumeLineAsync({ batchId: batch.id, lineId: line.id! });
+                    setValue(`lines.${index}.status`, 'IMPORTING', { shouldDirty: false, shouldValidate: true });
+                    toast.success(res.message || 'Đã tiếp tục nhập dòng phiếu.');
+                    await refetchBatch();
+                } catch (err: any) {
+                    toast.error(err?.response?.data?.message || 'Không thể tiếp tục nhập dòng phiếu.');
+                }
+            },
+            'info'
+        );
     };
 
     if (isBatchLoading || isLoadingSuppliers) {
@@ -874,13 +1069,6 @@ export const ImportBatchEditPage = () => {
                         collapsible={false}
                     >
                         <Stack spacing={3}>
-                            {hasImportedLines && (
-                                <Alert severity="info">
-                                    Phiếu nhập lô đã có dòng đã nhập đủ. Nhà cung cấp không thể
-                                    thay đổi, nhưng bạn vẫn có thể cập nhật ảnh biên lai và các dòng
-                                    phiếu.
-                                </Alert>
-                            )}
 
                             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                                 <Controller
@@ -965,8 +1153,8 @@ export const ImportBatchEditPage = () => {
                                         label="Tổng số lượng khai báo phiếu nhập lô"
                                         fullWidth
                                         sx={{ maxWidth: { sm: 360 } }}
-                                        error={isSubmitted && !!fieldState.error}
-                                        helperText={isSubmitted && fieldState.error?.message}
+                                        error={!!fieldState.error}
+                                        helperText={fieldState.error?.message}
                                         onChange={(e) => {
                                             field.onChange(parseNonNegativeIntegerInput(e.target.value) ?? 0);
                                         }}
@@ -1035,12 +1223,12 @@ export const ImportBatchEditPage = () => {
                                             {showProgressColumn && (
                                                 <TableCell sx={{ width: 108 }}>Tiến độ nhập</TableCell>
                                             )}
-                                            <TableCell sx={{ width: 88 }}>Số lượng khai báo</TableCell>
+                                            <TableCell sx={{ width: 112 }}>Số lượng khai báo</TableCell>
                                             <TableCell sx={{ width: 148 }}>Giá vốn</TableCell>
                                             <TableCell align="right" sx={{ width: 108 }}>
                                                 Tổng giá vốn
                                             </TableCell>
-                                            <TableCell align="center" width={48} />
+                                            <TableCell align="center" width={260} />
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
@@ -1052,11 +1240,22 @@ export const ImportBatchEditPage = () => {
                                             const line = lines[index];
                                             const isReadOnly =
                                                 line?.readOnly ||
-                                                line?.status === 'IMPORTED' ||
-                                                line?.status === 'CANCELLED';
+                                                !canEditImportBatchLineCost(line?.status);
+                                            const declareQuantityReadOnly =
+                                                isReadOnly ||
+                                                !canEditImportBatchLineDeclareQuantity(line?.status);
                                             const canRemove =
                                                 !line?.id ||
                                                 canRemoveImportBatchLine(line?.status);
+                                            const canPause =
+                                                !!line?.id && canPauseImportBatchLine(line?.status);
+                                            const canResume =
+                                                !!line?.id && canResumeImportBatchLine(line?.status);
+                                            const canAdjustDeclare =
+                                                !!line?.id &&
+                                                canAdjustPausedImportBatchLineDeclareQuantity(
+                                                    line?.status
+                                                );
 
                                             return (
                                                 <ImportBatchLineRow
@@ -1075,7 +1274,20 @@ export const ImportBatchEditPage = () => {
                                                     }
                                                     canRemove={canRemove}
                                                     onRemove={() => handleRemoveLine(index)}
+                                                    canPause={canPause}
+                                                    onPause={() => handlePauseLine(index)}
+                                                    pausePending={isPausePending}
+                                                    canResume={canResume}
+                                                    onResume={() => handleResumeLine(index)}
+                                                    resumePending={isResumePending}
+                                                    canAdjustDeclareQuantity={canAdjustDeclare}
+                                                    onAdjustDeclareQuantity={() =>
+                                                        handleOpenPausedDeclareQuantityAdjustment(
+                                                            index
+                                                        )
+                                                    }
                                                     readOnly={isReadOnly}
+                                                    declareQuantityReadOnly={declareQuantityReadOnly}
                                                     lineStatus={line?.status}
                                                     stationLocked={!!line?.id}
                                                     stationName={line?.stationName}
@@ -1152,27 +1364,49 @@ export const ImportBatchEditPage = () => {
                                         color="text.secondary"
                                         sx={{ mb: 1.5 }}
                                     >
-                                        {typeof invoiceEvidenceUrl === 'string' && invoiceEvidenceUrl
-                                            ? 'Ảnh biên lai hiện tại sẽ được thay thế khi bạn chọn ảnh mới và lưu.'
-                                            : 'Chọn ảnh biên lai — ảnh sẽ được tải lên khi bạn lưu phiếu.'}
+                                        Ảnh biên lai chỉ được xem trên màn hình chỉnh sửa. Không thể
+                                        thay thế hoặc tải ảnh mới.
                                     </Typography>
-                                    <Controller
-                                        name="invoiceEvidenceUrl"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <UploadSingleFile
-                                                label=""
-                                                value={field.value}
-                                                onChange={field.onChange}
-                                                useRawFile
-                                                error={
-                                                    isSubmitted
-                                                        ? errors.invoiceEvidenceUrl?.message
-                                                        : undefined
-                                                }
-                                            />
-                                        )}
-                                    />
+                                    {typeof invoiceEvidenceUrl === 'string' &&
+                                    invoiceEvidenceUrl.trim() ? (
+                                        <ImagePreview
+                                            src={invoiceEvidenceUrl}
+                                            alt="Ảnh biên lai"
+                                            dialogTitle="Ảnh biên lai"
+                                            infoItems={[
+                                                {
+                                                    label: 'Mã phiếu',
+                                                    value: formatImportBatchHeaderCode(
+                                                        batch?.batchCode,
+                                                        batch?.id
+                                                    ),
+                                                },
+                                                {
+                                                    label: 'Ngày quay',
+                                                    value: batch?.drawDate
+                                                        ? dayjs(batch.drawDate).format('DD/MM/YYYY')
+                                                        : '—',
+                                                },
+                                                {
+                                                    label: 'Nhà cung cấp',
+                                                    value: batch?.supplierName || '—',
+                                                },
+                                                {
+                                                    label: 'Loại nhập',
+                                                    value: getImportModeLabel(resolvedImportMode),
+                                                },
+                                            ]}
+                                            thumbnailSx={{
+                                                maxWidth: 240,
+                                                maxHeight: 180,
+                                                borderRadius: 1,
+                                            }}
+                                        />
+                                    ) : (
+                                        <Alert severity="warning">
+                                            Phiếu nhập chưa có ảnh biên lai.
+                                        </Alert>
+                                    )}
                                 </Box>
                             )}
 
@@ -1221,6 +1455,39 @@ export const ImportBatchEditPage = () => {
                         onClose={handleReductionDialogClose}
                         onConfirm={(ticketIds) => {
                             void handleReductionConfirm(ticketIds);
+                        }}
+                    />
+                )}
+
+                {batch && pendingLineReduction && (
+                    <ImportBatchLineDeclareQuantityReductionDialog
+                        open={lineReductionDialogOpen}
+                        batchId={batch.id}
+                        lineId={pendingLineReduction.lineId}
+                        stationName={pendingLineReduction.stationName}
+                        oldDeclare={pendingLineReduction.oldDeclare}
+                        newDeclare={pendingLineReduction.newDeclare}
+                        serverImported={pendingLineReduction.serverImported}
+                        draftSerialCount={pendingLineReduction.draftSerialCount}
+                        currentTotalDeclareQuantity={totalDeclareQuantity ?? 0}
+                        lines={(lines ?? [])
+                            .filter((line) => !line.removed && line.id)
+                            .map((line) => ({
+                                id: line.id!,
+                                stationName:
+                                    line.stationName ||
+                                    (line.lotteryStationId
+                                        ? `Đài #${line.lotteryStationId}`
+                                        : `Dòng #${line.id}`),
+                                status: line.status,
+                                declareQuantity: line.declareQuantity ?? 0,
+                                totalQuantity: line.totalQuantity ?? 0,
+                                removed: line.removed,
+                            }))}
+                        isSubmitting={isLineReductionSubmitting}
+                        onClose={handleLineReductionDialogClose}
+                        onConfirm={(result) => {
+                            void handleLineReductionConfirm(result);
                         }}
                     />
                 )}
