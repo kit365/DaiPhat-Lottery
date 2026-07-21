@@ -34,6 +34,7 @@ const buildNumbersFieldSchema = (lengthRules: TicketNumberLengthRules) => {
 
 const buildTicketSectionSchema = (lengthRules: TicketNumberLengthRules) =>
     z.object({
+        ticketId: z.number().optional(),
         numbers: buildNumbersFieldSchema(lengthRules),
         serials: z.array(serialItemSchema).min(1, 'Phải có ít nhất 1 số sê-ri'),
     });
