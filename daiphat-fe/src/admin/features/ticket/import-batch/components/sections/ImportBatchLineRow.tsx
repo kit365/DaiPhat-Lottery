@@ -1,4 +1,6 @@
 import {
+    Box,
+    Button,
     Chip,
     FormControl,
     IconButton,
@@ -12,6 +14,8 @@ import {
     Typography,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import { Controller, Control, UseFormSetValue } from 'react-hook-form';
 import { memo, useMemo, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
@@ -42,7 +46,19 @@ interface ImportBatchLineRowProps {
     selectedStationIdsInOtherRows: number[];
     canRemove: boolean;
     onRemove: () => void;
+    canPause?: boolean;
+    onPause?: () => void;
+    pausePending?: boolean;
+    canResume?: boolean;
+    onResume?: () => void;
+    resumePending?: boolean;
+    /** Opens dedicated Pause & Adjust Quantity dialog for PAUSED lines. */
+    canAdjustDeclareQuantity?: boolean;
+    onAdjustDeclareQuantity?: () => void;
+    /** Locks station + cost (IMPORTED / CANCELLED). */
     readOnly?: boolean;
+    /** Locks declare quantity (IMPORTING / PAUSED / terminal — OPEN only is editable inline). */
+    declareQuantityReadOnly?: boolean;
     lineStatus?: ImportBatchLineStatus;
     stationLocked?: boolean;
     stationName?: string;
@@ -72,7 +88,16 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
     selectedStationIdsInOtherRows,
     canRemove,
     onRemove,
+    canPause = false,
+    onPause,
+    pausePending = false,
+    canResume = false,
+    onResume,
+    resumePending = false,
+    canAdjustDeclareQuantity = false,
+    onAdjustDeclareQuantity,
     readOnly = false,
+    declareQuantityReadOnly = false,
     lineStatus,
     stationLocked = false,
     stationName,
@@ -263,8 +288,8 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     ) : null}
                 </TableCell>
             )}
-            <TableCell sx={{ width: 88 }}>
-                {readOnly ? (
+            <TableCell sx={{ width: 112, overflow: 'visible' }}>
+                {readOnly || declareQuantityReadOnly ? (
                     <Typography variant="body2" sx={{ lineHeight: 1.5 }}>
                         {declareQuantity.toLocaleString('vi-VN')}
                     </Typography>
@@ -274,13 +299,14 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                         control={control}
                         render={({ field, fieldState }) => (
                             <TextField
-                                {...field}
-                                type="number"
-                                size="small"
+                                name={field.name}
+                                onBlur={field.onBlur}
                                 inputRef={(element) => {
                                     field.ref(element);
                                     declareQuantityInputRef.current = element;
                                 }}
+                                value={formatViInteger(field.value)}
+                                size="small"
                                 error={
                                     (showErrors && !!fieldState.error) || declareQuantityHighlighted
                                 }
@@ -289,8 +315,15 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                                     (showErrors ? fieldState.error?.message : undefined)
                                 }
                                 sx={{
-                                    width: 80,
+                                    width: 104,
                                     '& .MuiFormHelperText-root': { mx: 0, whiteSpace: 'normal' },
+                                    '& .MuiOutlinedInput-root': {
+                                        bgcolor: 'background.paper',
+                                    },
+                                    '& .MuiOutlinedInput-input': {
+                                        py: 1,
+                                        px: 1.25,
+                                    },
                                     ...(declareQuantityHighlighted
                                         ? {
                                               '& .MuiOutlinedInput-root': {
@@ -303,7 +336,20 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                                           }
                                         : {}),
                                 }}
-                                inputProps={{ min: declareQuantityMin }}
+                                onChange={(e) => {
+                                    const parsed = parseNonNegativeIntegerInput(e.target.value);
+                                    field.onChange(parsed ?? 0);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                        e.preventDefault();
+                                    }
+                                }}
+                                onWheel={preventNumberInputWheel}
+                                inputProps={{
+                                    inputMode: 'numeric',
+                                    min: declareQuantityMin,
+                                }}
                             />
                         )}
                     />
@@ -333,7 +379,7 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                                 }}
                                 onChange={(e) => {
                                     const parsed = parseNonNegativeIntegerInput(e.target.value);
-                                    field.onChange(parsed ?? undefined);
+                                    field.onChange(parsed ?? 0);
                                 }}
                                 onKeyDown={(e) => {
                                     if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
@@ -361,12 +407,69 @@ export const ImportBatchLineRow = memo(function ImportBatchLineRow({
                     {lineTotal.toLocaleString('vi-VN')} VNĐ
                 </Typography>
             </TableCell>
-            <TableCell align="center" sx={{ width: 48, px: 0.5 }}>
-                {canRemove && (
-                    <IconButton size="small" color="error" onClick={onRemove} aria-label="Xóa dòng">
-                        <DeleteOutlineIcon fontSize="small" />
-                    </IconButton>
-                )}
+            <TableCell
+                align="center"
+                sx={{
+                    width:
+                        canPause || canResume || canAdjustDeclareQuantity || canRemove
+                            ? 260
+                            : 48,
+                    px: 0.5,
+                }}
+            >
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 0.5,
+                        flexWrap: 'wrap',
+                    }}
+                >
+                    {canPause && (
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            color="warning"
+                            startIcon={<PauseCircleOutlineIcon fontSize="small" />}
+                            onClick={onPause}
+                            disabled={pausePending || !onPause}
+                            sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1 }}
+                        >
+                            Tạm dừng
+                        </Button>
+                    )}
+                    {canAdjustDeclareQuantity && (
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                            onClick={onAdjustDeclareQuantity}
+                            disabled={!onAdjustDeclareQuantity}
+                            sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1 }}
+                        >
+                            Điều chỉnh SL
+                        </Button>
+                    )}
+                    {canResume && (
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            color="success"
+                            startIcon={<PlayCircleOutlineIcon fontSize="small" />}
+                            onClick={onResume}
+                            disabled={resumePending || !onResume}
+                            sx={{ whiteSpace: 'nowrap', minWidth: 0, px: 1 }}
+                        >
+                            Tiếp tục
+                        </Button>
+                    )}
+                    {canRemove && (
+                        <IconButton size="small" color="error" onClick={onRemove} aria-label="Xóa dòng">
+                            <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                    )}
+                </Box>
             </TableCell>
         </TableRow>
     );

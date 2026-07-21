@@ -11,6 +11,9 @@ import {
     getImportBatchesWithoutLines,
     getEligibleImportBatchStations,
     getImportBatchTimePolicy,
+    getImportBatchLineEntryTickets,
+    pauseImportBatchLine,
+    resumeImportBatchLine,
     updateImportBatch,
 } from '../services/importBatchService';
 import type {
@@ -178,6 +181,61 @@ export const useDeleteImportBatchLine = () => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
             queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKETS] });
         },
+    });
+};
+
+export const usePauseImportBatchLine = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ batchId, lineId }: { batchId: number | string; lineId: number | string }) =>
+            pauseImportBatchLine(batchId, lineId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKETS] });
+        },
+    });
+};
+
+export const useResumeImportBatchLine = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ batchId, lineId }: { batchId: number | string; lineId: number | string }) =>
+            resumeImportBatchLine(batchId, lineId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_LIST] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_DETAIL] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_INCOMPLETE] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.IMPORT_BATCH_ACTIVE_DRAFT] });
+            queryClient.invalidateQueries({ queryKey: [TICKET_QUERY_KEYS.TICKETS] });
+        },
+    });
+};
+
+export const useImportBatchLineEntryTickets = (
+    batchId?: string | number,
+    lineId?: string | number
+) => {
+    const normalizedBatchId =
+        batchId !== undefined && batchId !== null && String(batchId).trim() !== ''
+            ? String(batchId)
+            : undefined;
+    const normalizedLineId =
+        lineId !== undefined && lineId !== null && String(lineId).trim() !== ''
+            ? String(lineId)
+            : undefined;
+
+    return useQuery({
+        queryKey: [QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS, normalizedBatchId, normalizedLineId],
+        queryFn: () => getImportBatchLineEntryTickets(normalizedBatchId!, normalizedLineId!),
+        enabled: !!normalizedBatchId && !!normalizedLineId,
+        select: (res) => res.data ?? null,
+        staleTime: 0,
+        refetchOnMount: 'always',
     });
 };
 

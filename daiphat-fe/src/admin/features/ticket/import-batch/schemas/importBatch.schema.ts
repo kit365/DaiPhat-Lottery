@@ -90,7 +90,7 @@ const updateImportBatchLineSchema = z
         resolvedBatchType: z
             .enum(['NEW', 'SUPPLEMENTARY', 'LATE_IMPORT', 'ADJUSTMENT'])
             .optional(),
-        status: z.enum(['OPEN', 'IMPORTING', 'IMPORTED', 'CANCELLED']).optional(),
+        status: z.enum(['OPEN', 'IMPORTING', 'PAUSED', 'IMPORTED', 'CANCELLED']).optional(),
         readOnly: z.boolean().optional(),
         removed: z.boolean().optional(),
         stationName: z.string().optional(),
@@ -119,10 +119,13 @@ const updateImportBatchLineSchema = z
         }
 
         const imported = line.totalQuantity ?? 0;
+        // PAUSED lines may temporarily go below imported while the reduction dialog
+        // selects tickets to delete; BE enforces consistency after ticket removal.
         if (
             imported > 0 &&
             line.declareQuantity != null &&
-            line.declareQuantity < imported
+            line.declareQuantity < imported &&
+            line.status !== 'PAUSED'
         ) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,

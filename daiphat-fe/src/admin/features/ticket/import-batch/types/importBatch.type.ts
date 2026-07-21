@@ -8,7 +8,7 @@ export type ImportBatchStatus =
     | 'CANCELLED'
     | 'IMPORTED'
     | 'IN_LEDGER';
-export type ImportBatchLineStatus = 'OPEN' | 'IMPORTING' | 'IMPORTED' | 'CANCELLED';
+export type ImportBatchLineStatus = 'OPEN' | 'IMPORTING' | 'PAUSED' | 'IMPORTED' | 'CANCELLED';
 
 export interface ImportBatchLine {
     id: number;
@@ -67,6 +67,13 @@ export interface UpdateImportBatchPayload {
     invoiceEvidenceUrl?: string;
     lines?: UpdateImportBatchLinePayload[];
     removedTicketIds?: number[];
+    /** Dedicated Pause & Adjust Quantity flow for PAUSED lines. */
+    adjustPausedDeclareQuantity?: boolean;
+    /**
+     * Operator confirmed completing a PAUSED line (declare quantity equals imported).
+     * Required when that adjustment would mark the line IMPORTED.
+     */
+    confirmPausedLineImported?: boolean;
 }
 
 export interface CreateImportBatchLinePayload {
@@ -152,4 +159,24 @@ export interface ImportBatchReductionTicketsResult {
     totalImportedQuantity: number;
     removableImportedQuantity: number;
     lines: ImportBatchReductionLine[];
+}
+
+export interface ImportBatchLineEntrySerial {
+    id: number;
+    serialNumber: string;
+    ticketImg?: string;
+    status?: string;
+}
+
+export interface ImportBatchLineEntryTicket {
+    id: number;
+    numbers: string;
+    status?: string;
+    serials: ImportBatchLineEntrySerial[];
+}
+
+export interface ImportBatchLineEntryTicketsResult {
+    importBatchId: number;
+    importBatchLineId: number;
+    tickets: ImportBatchLineEntryTicket[];
 }
