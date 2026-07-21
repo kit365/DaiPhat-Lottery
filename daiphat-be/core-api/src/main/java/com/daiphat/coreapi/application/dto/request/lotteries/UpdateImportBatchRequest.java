@@ -12,6 +12,16 @@ public record UpdateImportBatchRequest(
         @NotNull Integer totalDeclareQuantity,
         String invoiceEvidenceUrl,
         @Valid List<UpdateImportBatchLineRequest> lines,
-        List<Long> removedTicketIds
+        List<Long> removedTicketIds,
+        /**
+         * When true, PAUSED lines may change declare quantity (dedicated Pause & Adjust flow).
+         * Normal edit/save must leave this unset/false.
+         */
+        Boolean adjustPausedDeclareQuantity,
+        /**
+         * When true, the operator confirmed completing a PAUSED line by setting declare quantity
+         * equal to imported quantity (line becomes IMPORTED). Required for that case.
+         */
+        Boolean confirmPausedLineImported
 ) {
 }
