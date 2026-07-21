@@ -59,6 +59,7 @@ import { Controller, useFieldArray, useForm, useWatch, type Resolver } from 'rea
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { confirmDelete } from '../../../../../utils/swal';
 import dayjs from 'dayjs';
 
 const emptyLine = () => ({
@@ -714,7 +715,7 @@ export const ImportBatchCreatePage = () => {
                                                 Ngày quay
                                             </TableCell>
                                             <TableCell sx={{ width: 148 }}>Loại lô</TableCell>
-                                            <TableCell sx={{ width: 88 }}>Số lượng khai báo</TableCell>
+                                            <TableCell sx={{ width: 112 }}>Số lượng khai báo</TableCell>
                                             <TableCell sx={{ width: 148 }}>Giá vốn</TableCell>
                                             <TableCell align="right" sx={{ width: 108 }}>
                                                 Tổng giá vốn
@@ -740,7 +741,12 @@ export const ImportBatchCreatePage = () => {
                                                     selectedStationIdsByRow[index] ?? []
                                                 }
                                                 canRemove
-                                                onRemove={() => remove(index)}
+                                                onRemove={() => {
+                                                    confirmDelete(
+                                                        'Dòng phiếu này sẽ bị xóa khỏi phiếu nhập lô đang tạo.',
+                                                        () => remove(index)
+                                                    );
+                                                }}
                                                 showErrors={isSubmitted}
                                             />
                                         ))}

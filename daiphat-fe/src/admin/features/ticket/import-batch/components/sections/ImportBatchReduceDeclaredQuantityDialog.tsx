@@ -134,7 +134,7 @@ export const ImportBatchReduceDeclaredQuantityDialog = ({
                     <Alert severity="warning">
                         Số lượng khai báo mới ({targetTotalDeclareQuantity.toLocaleString('vi-VN')} vé) nhỏ hơn số vé
                         đã nhập. Vui lòng chọn và xóa đủ {excessToRemove.toLocaleString('vi-VN')} vé thuộc các dòng
-                        OPEN hoặc IMPORTING trước khi áp dụng.
+                        OPEN, IMPORTING hoặc PAUSED trước khi áp dụng.
                     </Alert>
 
                     <Box>
