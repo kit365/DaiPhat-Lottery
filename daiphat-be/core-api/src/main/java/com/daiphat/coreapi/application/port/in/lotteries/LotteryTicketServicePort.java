@@ -8,6 +8,7 @@ import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.storage.UploadRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.BulkCreateLotteryTicketsResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntryTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
@@ -39,6 +40,8 @@ public interface LotteryTicketServicePort {
     void hardDeleteImportBatchTicketsForReduction(Long importBatchId, List<Long> ticketIds, int requiredSerialCount);
 
     List<ImportBatchReductionTicketResponse> listReductionTicketsByImportBatchLine(Long importBatchLineId);
+
+    ImportBatchLineEntryTicketsResponse listEntryTicketsByImportBatchLine(Long importBatchLineId);
 
     void activateTicketsForImportBatchLine(Long importBatchLineId);
 
