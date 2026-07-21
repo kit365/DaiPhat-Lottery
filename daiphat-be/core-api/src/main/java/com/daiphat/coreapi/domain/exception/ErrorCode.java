@@ -288,7 +288,17 @@ public enum ErrorCode {
     ),
     IMPORT_BATCH_LINE_NOT_DELETABLE(
             "LT_091",
-            "Chỉ có thể xóa dòng phiếu nhập lô chưa hoàn tất.",
+            "Không thể xóa dòng phiếu ở trạng thái hiện tại. Dòng đang nhập cần tạm dừng trước khi xóa.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_NOT_PAUSABLE(
+            "LT_102",
+            "Chỉ có thể tạm dừng dòng phiếu đang ở trạng thái Đang nhập.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_NOT_RESUMABLE(
+            "LT_103",
+            "Chỉ có thể tiếp tục nhập dòng phiếu đang ở trạng thái Tạm dừng nhập.",
             HttpStatus.BAD_REQUEST
     ),
     IMPORT_BATCH_LAST_LINE_CANNOT_DELETE(
@@ -303,12 +313,32 @@ public enum ErrorCode {
     ),
     IMPORT_BATCH_LINE_NOT_EDITABLE(
             "LT_094",
-            "Dòng phiếu nhập lô không thể chỉnh sửa ở trạng thái hiện tại.",
+            "Dòng phiếu nhập lô không thể chỉnh sửa ở trạng thái hiện tại (đã nhập đủ hoặc đã hủy). Dòng đang nhập không được đổi nhà đài.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_DECLARE_QUANTITY_LOCKED_IMPORTING(
+            "LT_104",
+            "Không thể sửa số lượng khai báo khi dòng đang nhập. Vui lòng tạm dừng nhập trước khi chỉnh sửa.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_DECLARE_QUANTITY_REQUIRES_ADJUSTMENT_FLOW(
+            "LT_105",
+            "Không thể sửa số lượng khai báo trực tiếp khi dòng đang tạm dừng. Vui lòng dùng chức năng Điều chỉnh số lượng khai báo.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_LINE_IMPORTED_CONFIRMATION_REQUIRED(
+            "LT_106",
+            "Số lượng khai báo khớp số vé đã nhập. Vui lòng xác nhận để đánh dấu dòng là Đã nhập đủ.",
+            HttpStatus.BAD_REQUEST
+    ),
+    IMPORT_BATCH_INVOICE_EVIDENCE_LOCKED(
+            "LT_107",
+            "Không thể thay đổi ảnh biên lai khi chỉnh sửa phiếu nhập lô. Ảnh biên lai chỉ xem được.",
             HttpStatus.BAD_REQUEST
     ),
     IMPORT_BATCH_SUPPLIER_LOCKED_IMPORTED_LINES(
             "LT_097",
-            "Không thể thay đổi nhà cung cấp vì phiếu nhập đã có lô vé được nhập hoàn tất.",
+            "Không thể thay đổi nhà cung cấp khi phiếu nhập lô đã chuyển sang trạng thái Đang nhập hoặc Nhập một phần.",
             HttpStatus.BAD_REQUEST
     ),
     IMPORT_BATCH_DECLARE_QUANTITY_BELOW_IMPORTED(
@@ -323,7 +353,7 @@ public enum ErrorCode {
     ),
     IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_IMPORTED_ONLY(
             "LT_099",
-            "Không thể giảm số lượng khai báo vì phần vé thừa nằm ở các dòng đã nhập hoàn tất (IMPORTED). Chỉ được xóa vé ở dòng OPEN hoặc IMPORTING.",
+            "Không thể giảm số lượng khai báo vì phần vé thừa nằm ở các dòng đã nhập hoàn tất (IMPORTED). Chỉ được xóa vé ở dòng OPEN, IMPORTING hoặc PAUSED.",
             HttpStatus.BAD_REQUEST
     ),
     IMPORT_BATCH_DECLARE_QUANTITY_REDUCTION_TICKETS_INVALID(

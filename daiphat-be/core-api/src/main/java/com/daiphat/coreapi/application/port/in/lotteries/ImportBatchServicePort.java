@@ -9,6 +9,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchBlocked
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationsResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntryTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchTimePolicyResponse;
@@ -63,5 +64,11 @@ public interface ImportBatchServicePort {
 
     ImportBatchResponse deleteLine(Long batchId, Long lineId);
 
+    ImportBatchResponse pauseLine(Long batchId, Long lineId);
+
+    ImportBatchResponse resumeLine(Long batchId, Long lineId);
+
     ImportBatchReductionTicketsResponse getReductionTickets(Long importBatchId);
+
+    ImportBatchLineEntryTicketsResponse getLineEntryTickets(Long batchId, Long lineId);
 }
