@@ -21,17 +21,35 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { buildCreateTicketSchema, CreateTicketFormValues } from '../../schemas/ticket.schema';
 import { useStations } from '../../../../station/hooks/useStation';
 import { useRegions } from '../../../../region/hooks/useRegion';
-import { useDraftImportBatches, useImportBatchDetail } from '../../../import-batch/hooks/useImportBatch';
-import { getImportBatchCancelledAlertMessage, getImportBatchLineCancelledAlertMessage } from '../../../import-batch/utils/batchTypeLabels';
+import { useDraftImportBatches, useImportBatchDetail, useImportBatchLineEntryTickets } from '../../../import-batch/hooks/useImportBatch';
+import { QUERY_KEYS as IMPORT_BATCH_QUERY_KEYS } from '../../../import-batch/constants/queryKeys';
+import { useQueryClient } from '@tanstack/react-query';
+import { getImportBatchCancelledAlertMessage, getImportBatchLineCancelledAlertMessage, IMPORT_BATCH_LINE_PAUSED_ENTRY_MESSAGE } from '../../../import-batch/utils/batchTypeLabels';
 import {
     findFirstIncompleteLine,
     isImportBatchEditable,
     isLineCancelled,
+    isLinePaused,
 } from '../../../import-batch/utils/importBatchProgress';
 import { formatImportBatchSelectLabel } from '../../../import-batch/utils/importBatchCode';
 import { ImportBatchSelectionCard } from '../sections/ImportBatchSelectionCard';
 import { ImportBatchLineImportTabs } from '../sections/ImportBatchLineImportTabs';
 import type { ImportBatch } from '../../../import-batch/types/importBatch.type';
+import {
+    clearTicketLineFormDraft,
+    defaultTicketLineFormDraft,
+    readTicketLineFormDraft,
+    readTicketLineFormDrafts,
+    writeTicketLineFormDraft,
+    writeTicketLineFormDrafts,
+    type TicketLineFormDraft,
+} from '../../utils/ticketLineFormDraftStorage';
+import {
+    countPendingFilledSerials,
+    extractPendingDraftSections,
+    isPersistedSerial,
+    mergePersistedAndDraftSections,
+} from '../../utils/ticketLineFormHydration';
 import {
     applyDuplicateNumberFieldErrors,
     applyQuotaOverflowFieldErrors,
@@ -39,7 +57,6 @@ import {
     applySerialDuplicateFieldErrors,
     clearDuplicateNumberFieldErrors,
     clearSerialDuplicateFieldErrors,
-    countFilledSerials,
     findDuplicateNumberSectionIndices,
     findDuplicateSerialPaths,
     findFirstSerialErrorPath,
@@ -63,23 +80,16 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-type LineFormDraft = {
-    ticketSections: CreateTicketFormValues['ticketSections'];
-};
+type LineFormDraft = TicketLineFormDraft;
 
-const emptySerial = () => ({ serialNumber: '', ticketImg: undefined as string | undefined });
+const defaultSection = () => defaultTicketLineFormDraft().ticketSections[0];
 
-const defaultSection = () => ({
-    numbers: '',
-    serials: [emptySerial()],
-});
+const defaultLineDraft = (): LineFormDraft => defaultTicketLineFormDraft();
 
-const defaultLineDraft = (): LineFormDraft => ({
-    ticketSections: [defaultSection()],
-});
 
 export const TicketCreatePage = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
     const importBatchIdParam = searchParams.get('importBatchId');
     const importBatchLineIdParam = searchParams.get('importBatchLineId');
@@ -110,6 +120,9 @@ export const TicketCreatePage = () => {
 
     const initialLineAppliedRef = useRef(false);
     const lastInitializedBatchIdRef = useRef<string | null>(null);
+    const hydratedEntryKeyRef = useRef<string | null>(null);
+    /** Blocks autosave from overwriting localStorage until the form has been restored at least once. */
+    const draftPersistReadyRef = useRef(false);
     const [lineFormDrafts, setLineFormDrafts] = useState<Record<string, LineFormDraft>>({});
 
     const { data: providersRes } = useStations({ size: 1000 });
@@ -175,6 +188,16 @@ export const TicketCreatePage = () => {
 
     const watchedLineId = watch('importBatchLineId');
     const watchedStationId = watch('stationId');
+    const watchedTicketSections = watch('ticketSections');
+
+    const {
+        data: entryTicketsData,
+        isFetching: isFetchingEntryTickets,
+        refetch: refetchEntryTickets,
+    } = useImportBatchLineEntryTickets(
+        selectedBatchId || undefined,
+        watchedLineId || undefined
+    );
 
     const selectedLine = useMemo(() => {
         if (!watchedLineId) {
@@ -244,7 +267,7 @@ export const TicketCreatePage = () => {
     );
 
     const applyLineToForm = useCallback(
-        (lineId: string, drafts: Record<string, LineFormDraft>) => {
+        (lineId: string, drafts?: Record<string, LineFormDraft>) => {
             if (!resolvedBatch) {
                 return;
             }
@@ -252,17 +275,27 @@ export const TicketCreatePage = () => {
             if (!line) {
                 return;
             }
-            const draft = drafts[lineId] ?? defaultLineDraft();
+            // Always prefer an explicit drafts map, then fresh localStorage (not stale React state).
+            const storedDrafts = drafts ?? readTicketLineFormDrafts(resolvedBatch.id);
+            const draft =
+                storedDrafts[lineId] ?? readTicketLineFormDraft(resolvedBatch.id, lineId);
+            const tickets =
+                entryTicketsData &&
+                String(entryTicketsData.importBatchLineId) === String(lineId)
+                    ? entryTicketsData.tickets
+                    : [];
+            const mergedSections = mergePersistedAndDraftSections(tickets, draft);
+
             reset({
                 importBatchId: String(resolvedBatch.id),
                 importBatchLineId: lineId,
                 stationId: String(line.lotteryStationId),
-                ticketSections:
-                    draft.ticketSections.length > 0 ? draft.ticketSections : [defaultSection()],
+                ticketSections: mergedSections,
                 drawDate: resolvedBatch.drawDate,
             });
+            draftPersistReadyRef.current = true;
         },
-        [batchLines, reset, resolvedBatch]
+        [batchLines, entryTicketsData, reset, resolvedBatch]
     );
 
     useEffect(() => {
@@ -286,10 +319,11 @@ export const TicketCreatePage = () => {
 
         lastInitializedBatchIdRef.current = batchId;
         initialLineAppliedRef.current = true;
-        setLineFormDrafts({});
+        const storedDrafts = readTicketLineFormDrafts(batchId);
+        setLineFormDrafts(storedDrafts);
 
         if (lineId) {
-            applyLineToForm(lineId, {});
+            applyLineToForm(lineId, storedDrafts);
             syncBatchToUrl(batchId, lineId);
         }
     }, [
@@ -300,27 +334,155 @@ export const TicketCreatePage = () => {
         syncBatchToUrl,
     ]);
 
+    // Re-merge once when persisted tickets finish loading for the active line.
+    useEffect(() => {
+        if (!resolvedBatch || !watchedLineId || !entryTicketsData) {
+            return;
+        }
+        if (String(entryTicketsData.importBatchLineId) !== String(watchedLineId)) {
+            return;
+        }
+        if (isFetchingEntryTickets) {
+            return;
+        }
+        const hydrateKey = `${entryTicketsData.importBatchId}:${entryTicketsData.importBatchLineId}:${entryTicketsData.tickets
+            .map((ticket) => `${ticket.id}:${(ticket.serials ?? []).map((s) => s.id).join(',')}`)
+            .join('|')}`;
+        if (hydratedEntryKeyRef.current === hydrateKey) {
+            return;
+        }
+        hydratedEntryKeyRef.current = hydrateKey;
+        // Re-read drafts from localStorage so we never merge with a stale empty React state.
+        const freshDrafts = readTicketLineFormDrafts(resolvedBatch.id);
+        setLineFormDrafts(freshDrafts);
+        applyLineToForm(String(watchedLineId), freshDrafts);
+    }, [
+        applyLineToForm,
+        entryTicketsData,
+        isFetchingEntryTickets,
+        resolvedBatch,
+        watchedLineId,
+    ]);
+
+    const persistPendingDraftForLine = useCallback(
+        (batchId: string | number, lineId: string, sections: CreateTicketFormValues['ticketSections']) => {
+            if (!draftPersistReadyRef.current) {
+                return;
+            }
+            const pendingSections = extractPendingDraftSections(sections);
+            if (pendingSections == null) {
+                // Form has no unsaved content after hydrate — clear only this line's draft.
+                clearTicketLineFormDraft(batchId, lineId);
+                setLineFormDrafts((prev) => {
+                    if (!(lineId in prev)) {
+                        return prev;
+                    }
+                    const next = { ...prev };
+                    delete next[lineId];
+                    return next;
+                });
+                return;
+            }
+            const pendingDraft: LineFormDraft = { ticketSections: pendingSections };
+            writeTicketLineFormDraft(batchId, lineId, pendingDraft);
+            setLineFormDrafts((prev) => ({
+                ...prev,
+                [lineId]: pendingDraft,
+            }));
+        },
+        []
+    );
+
+    const persistDrafts = useCallback(
+        (drafts: Record<string, LineFormDraft>) => {
+            setLineFormDrafts(drafts);
+            if (selectedBatchId) {
+                writeTicketLineFormDrafts(selectedBatchId, drafts);
+            }
+        },
+        [selectedBatchId]
+    );
+
     const handleTabChange = (lineId: string) => {
         const currentLineId = watch('importBatchLineId');
         let nextDrafts = lineFormDrafts;
-        if (currentLineId) {
-            nextDrafts = {
-                ...lineFormDrafts,
-                [currentLineId]: {
-                    ticketSections: watch('ticketSections'),
-                },
-            };
-            setLineFormDrafts(nextDrafts);
+        if (currentLineId && selectedBatchId) {
+            const pendingSections = extractPendingDraftSections(watch('ticketSections'));
+            if (pendingSections == null) {
+                clearTicketLineFormDraft(selectedBatchId, currentLineId);
+                nextDrafts = { ...lineFormDrafts };
+                delete nextDrafts[currentLineId];
+                persistDrafts(nextDrafts);
+            } else {
+                const pendingDraft: LineFormDraft = { ticketSections: pendingSections };
+                nextDrafts = {
+                    ...lineFormDrafts,
+                    [currentLineId]: pendingDraft,
+                };
+                persistDrafts(nextDrafts);
+            }
         }
+        draftPersistReadyRef.current = false;
+        hydratedEntryKeyRef.current = null;
         applyLineToForm(lineId, nextDrafts);
         if (selectedBatchId) {
             syncBatchToUrl(selectedBatchId, lineId);
         }
     };
 
+    // Autosave pending drafts while typing + flush on tab hide / unload.
+    // Gated by draftPersistReadyRef so an empty pre-hydrate form cannot wipe localStorage.
+    useEffect(() => {
+        if (!selectedBatchId || !watchedLineId) {
+            return;
+        }
+
+        const flush = () => {
+            if (!draftPersistReadyRef.current) {
+                return;
+            }
+            persistPendingDraftForLine(
+                selectedBatchId,
+                String(watchedLineId),
+                getValues('ticketSections')
+            );
+        };
+
+        const debounceId = window.setTimeout(flush, 400);
+
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                flush();
+            }
+        };
+        const onPageHide = () => {
+            flush();
+        };
+
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        window.addEventListener('pagehide', onPageHide);
+        window.addEventListener('beforeunload', onPageHide);
+
+        return () => {
+            window.clearTimeout(debounceId);
+            flush();
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+            window.removeEventListener('pagehide', onPageHide);
+            window.removeEventListener('beforeunload', onPageHide);
+        };
+    }, [
+        selectedBatchId,
+        watchedLineId,
+        watchedTicketSections,
+        getValues,
+        persistPendingDraftForLine,
+    ]);
+
     const handleBatchChange = (batch: ImportBatch | null) => {
         initialLineAppliedRef.current = false;
         lastInitializedBatchIdRef.current = null;
+        hydratedEntryKeyRef.current = null;
+        draftPersistReadyRef.current = false;
         setLineFormDrafts({});
 
         if (!batch) {
@@ -444,6 +606,11 @@ export const TicketCreatePage = () => {
             return;
         }
 
+        if (isLinePaused(selectedLine)) {
+            toast.warning(IMPORT_BATCH_LINE_PAUSED_ENTRY_MESSAGE);
+            return;
+        }
+
         const imported = selectedLine.totalQuantity ?? 0;
         const declared = selectedLine.declareQuantity ?? 0;
         if (declared > 0 && imported >= declared) {
@@ -477,7 +644,7 @@ export const TicketCreatePage = () => {
             return;
         }
 
-        const filledSerials = countFilledSerials(data.ticketSections);
+        const filledSerials = countPendingFilledSerials(data.ticketSections);
         const remaining = Math.max(0, declared - imported);
         if (filledSerials > remaining) {
             const overflowPaths = findQuotaOverflowSerialPaths(data.ticketSections, remaining);
@@ -502,7 +669,10 @@ export const TicketCreatePage = () => {
                 .map((section) => ({
                     numbers: section.numbers.trim(),
                     serials: section.serials
-                        .filter((serial) => serial.serialNumber.trim())
+                        .filter(
+                            (serial) =>
+                                !isPersistedSerial(serial) && serial.serialNumber.trim()
+                        )
                         .map((serial) => ({
                             serialNumber: serial.serialNumber.trim(),
                             ticketImg:
@@ -524,16 +694,32 @@ export const TicketCreatePage = () => {
             if (res.success) {
                 toast.success('Nhập vé số thành công!');
                 const lineId = String(selectedLine.id);
-                const clearedDraft = defaultLineDraft();
-                setLineFormDrafts((prev) => ({
-                    ...prev,
-                    [lineId]: clearedDraft,
-                }));
+                clearTicketLineFormDraft(resolvedBatch.id, lineId);
+                setLineFormDrafts((prev) => {
+                    const next = { ...prev };
+                    delete next[lineId];
+                    writeTicketLineFormDrafts(resolvedBatch.id, next);
+                    return next;
+                });
+                hydratedEntryKeyRef.current = null;
+                await queryClient.invalidateQueries({
+                    queryKey: [IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_DETAIL],
+                });
+                await queryClient.invalidateQueries({
+                    queryKey: [
+                        IMPORT_BATCH_QUERY_KEYS.IMPORT_BATCH_LINE_ENTRY_TICKETS,
+                        String(resolvedBatch.id),
+                        lineId,
+                    ],
+                });
+                const refreshed = await refetchEntryTickets();
+                const tickets = refreshed.data?.tickets ?? [];
+                const mergedSections = mergePersistedAndDraftSections(tickets, defaultLineDraft());
                 reset({
                     importBatchId: String(resolvedBatch.id),
                     importBatchLineId: lineId,
                     stationId: String(selectedLine.lotteryStationId),
-                    ticketSections: clearedDraft.ticketSections,
+                    ticketSections: mergedSections,
                     drawDate: resolvedBatch.drawDate,
                 });
             } else {

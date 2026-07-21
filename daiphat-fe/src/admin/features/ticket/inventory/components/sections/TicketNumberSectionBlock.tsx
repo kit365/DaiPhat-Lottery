@@ -37,6 +37,7 @@ import {
     getTicketNumberLengthHint,
     sanitizeTicketNumberInput,
 } from '../../utils/ticketNumberValidation';
+import { isPersistedSerial } from '../../utils/ticketLineFormHydration';
 
 type TicketNumberSectionBlockProps = {
     sectionIndex: number;
@@ -75,6 +76,12 @@ export const TicketNumberSectionBlock = ({
         control,
         name: `ticketSections.${sectionIndex}.serials`,
     });
+    const sectionTicketId = useWatch({
+        control,
+        name: `ticketSections.${sectionIndex}.ticketId`,
+    });
+    const numbersLocked = sectionTicketId != null;
+    const numbersEditable = canEdit && !numbersLocked;
 
     const filledSerialCount = (watchedSerials ?? []).filter(
         (serial) => !!serial?.serialNumber?.trim()
@@ -103,6 +110,7 @@ export const TicketNumberSectionBlock = ({
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                     <Typography variant="subtitle2" fontWeight={700}>
                         Dãy số #{sectionIndex + 1}
+                        {numbersLocked ? ' (đã lưu)' : ''}
                     </Typography>
                     {!serialsExpanded && (
                         <Typography variant="caption" color="text.secondary">
@@ -124,7 +132,7 @@ export const TicketNumberSectionBlock = ({
                             <ExpandMoreIcon fontSize="small" />
                         )}
                     </IconButton>
-                    {canRemove && (
+                    {canRemove && !numbersLocked && (
                         <IconButton
                             size="small"
                             color="error"
@@ -149,7 +157,8 @@ export const TicketNumberSectionBlock = ({
                             size="small"
                             fullWidth
                             placeholder={getTicketNumberLengthHint(numberLengthRules)}
-                            disabled={!canEdit}
+                            disabled={!numbersEditable}
+                            InputProps={numbersLocked ? { readOnly: true } : undefined}
                             error={shouldShowFieldError(fieldState, isSubmitted)}
                             helperText={getVisibleFieldErrorMessage(fieldState, isSubmitted)}
                             inputProps={{
@@ -197,62 +206,81 @@ export const TicketNumberSectionBlock = ({
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {fields.map((item, serialIndex) => (
-                                <TableRow key={item.id} hover>
-                                    <TableCell sx={{ py: 0.75 }}>{serialIndex + 1}</TableCell>
-                                    <TableCell sx={{ py: 0.75 }}>
-                                        <Box id={`ticket-serial-field-${sectionIndex}-${serialIndex}`}>
-                                            <Controller
-                                                name={`ticketSections.${sectionIndex}.serials.${serialIndex}.serialNumber`}
-                                                control={control}
-                                                render={({ field, fieldState }) => (
-                                                    <TextField
-                                                        {...field}
-                                                        size="small"
-                                                        fullWidth
-                                                        placeholder="Nhập số sê-ri"
-                                                        disabled={!canEdit}
-                                                        error={shouldShowFieldError(fieldState, isSubmitted)}
-                                                        helperText={getVisibleFieldErrorMessage(
-                                                            fieldState,
-                                                            isSubmitted
-                                                        )}
-                                                        onChange={(event) => {
-                                                            field.onChange(event);
-                                                            onSerialFieldChange?.(sectionIndex, serialIndex);
-                                                        }}
-                                                    />
-                                                )}
-                                            />
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell sx={{ py: 0.75 }}>
-                                        <TicketSerialImageField
-                                            control={control}
-                                            sectionIndex={sectionIndex}
-                                            serialIndex={serialIndex}
-                                            compact
-                                            disabled={!canEdit}
-                                        />
-                                    </TableCell>
-                                    <TableCell sx={{ py: 0.75 }}>
-                                        {fields.length > 1 && (
-                                            <IconButton
-                                                size="small"
-                                                color="error"
-                                                aria-label="Xóa dòng"
-                                                disabled={!canEdit}
-                                                onClick={() => {
-                                                    remove(serialIndex);
-                                                    onRemoveSerial?.(sectionIndex, serialIndex);
-                                                }}
+                            {fields.map((item, serialIndex) => {
+                                const serialPersisted = isPersistedSerial(
+                                    watchedSerials?.[serialIndex]
+                                );
+                                const serialEditable = canEdit && !serialPersisted;
+                                return (
+                                    <TableRow key={item.id} hover>
+                                        <TableCell sx={{ py: 0.75 }}>{serialIndex + 1}</TableCell>
+                                        <TableCell sx={{ py: 0.75 }}>
+                                            <Box
+                                                id={`ticket-serial-field-${sectionIndex}-${serialIndex}`}
                                             >
-                                                <DeleteOutlineIcon fontSize="small" />
-                                            </IconButton>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                                <Controller
+                                                    name={`ticketSections.${sectionIndex}.serials.${serialIndex}.serialNumber`}
+                                                    control={control}
+                                                    render={({ field, fieldState }) => (
+                                                        <TextField
+                                                            {...field}
+                                                            size="small"
+                                                            fullWidth
+                                                            placeholder="Nhập số sê-ri"
+                                                            disabled={!serialEditable}
+                                                            InputProps={
+                                                                serialPersisted
+                                                                    ? { readOnly: true }
+                                                                    : undefined
+                                                            }
+                                                            error={shouldShowFieldError(
+                                                                fieldState,
+                                                                isSubmitted
+                                                            )}
+                                                            helperText={getVisibleFieldErrorMessage(
+                                                                fieldState,
+                                                                isSubmitted
+                                                            )}
+                                                            onChange={(event) => {
+                                                                field.onChange(event);
+                                                                onSerialFieldChange?.(
+                                                                    sectionIndex,
+                                                                    serialIndex
+                                                                );
+                                                            }}
+                                                        />
+                                                    )}
+                                                />
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell sx={{ py: 0.75 }}>
+                                            <TicketSerialImageField
+                                                control={control}
+                                                sectionIndex={sectionIndex}
+                                                serialIndex={serialIndex}
+                                                compact
+                                                disabled={!serialEditable}
+                                            />
+                                        </TableCell>
+                                        <TableCell sx={{ py: 0.75 }}>
+                                            {fields.length > 1 && !serialPersisted && (
+                                                <IconButton
+                                                    size="small"
+                                                    color="error"
+                                                    aria-label="Xóa dòng"
+                                                    disabled={!canEdit}
+                                                    onClick={() => {
+                                                        remove(serialIndex);
+                                                        onRemoveSerial?.(sectionIndex, serialIndex);
+                                                    }}
+                                                >
+                                                    <DeleteOutlineIcon fontSize="small" />
+                                                </IconButton>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                     </Table>
                 </TableContainer>
