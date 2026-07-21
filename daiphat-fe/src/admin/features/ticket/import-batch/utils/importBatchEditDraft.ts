@@ -4,6 +4,7 @@ import type {
     UpdateImportBatchLineFormValues,
 } from '../schemas/importBatch.schema';
 import type { ImportBatch, ImportBatchLine } from '../types/importBatch.type';
+import { canEditImportBatchLineCost } from './importBatchHeaderEdit';
 
 export type ImportBatchEditDraft = {
     batchId: number;
@@ -111,7 +112,7 @@ const mapServerLineToFormLine = (
         status: line.status,
         totalQuantity: line.totalQuantity ?? 0,
         stationName: lotteryStationId ? resolveStationName?.(lotteryStationId) : undefined,
-        readOnly: line.status === 'IMPORTED' || line.status === 'CANCELLED',
+        readOnly: !canEditImportBatchLineCost(line.status),
         removed: false,
     };
 };
