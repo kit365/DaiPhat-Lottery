@@ -8,6 +8,9 @@ import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicket
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.BulkCreateLotteryTicketsResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntrySerialResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntryTicketResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntryTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketSerialResponse;
@@ -394,7 +397,8 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             }
 
             if (line.getStatus() != ImportBatchLineStatus.OPEN
-                    && line.getStatus() != ImportBatchLineStatus.IMPORTING) {
+                    && line.getStatus() != ImportBatchLineStatus.IMPORTING
+                    && line.getStatus() != ImportBatchLineStatus.PAUSED) {
                 throw new DomainException(ErrorCode.IMPORT_BATCH_TICKET_DELETE_LINE_IMPORTED);
             }
 
@@ -480,6 +484,59 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         }
 
         return tickets;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ImportBatchLineEntryTicketsResponse listEntryTicketsByImportBatchLine(Long importBatchLineId) {
+        ImportBatchLineModel line = importBatchLineRepositoryPort.findById(importBatchLineId)
+                .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
+
+        List<LotteryTicketSerialModel> serials =
+                lotteryTicketSerialService.findAllByImportBatchLineId(importBatchLineId);
+
+        Map<Long, List<LotteryTicketSerialModel>> serialsByTicketId = serials.stream()
+                .filter(serial -> serial.getTicketId() != null)
+                .collect(Collectors.groupingBy(
+                        LotteryTicketSerialModel::getTicketId,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        List<ImportBatchLineEntryTicketResponse> tickets = new ArrayList<>();
+        for (Map.Entry<Long, List<LotteryTicketSerialModel>> entry : serialsByTicketId.entrySet()) {
+            LotteryTicketModel ticket = getTicketOrThrow(entry.getKey());
+            List<ImportBatchLineEntrySerialResponse> serialResponses = entry.getValue().stream()
+                    .sorted(Comparator.comparing(
+                            LotteryTicketSerialModel::getId,
+                            Comparator.nullsLast(Long::compareTo)
+                    ))
+                    .map(serial -> ImportBatchLineEntrySerialResponse.builder()
+                            .id(serial.getId())
+                            .serialNumber(serial.getSerialNumber())
+                            .ticketImg(serial.getTicketImg())
+                            .status(serial.getStatus() != null ? serial.getStatus().name() : null)
+                            .build())
+                    .toList();
+
+            tickets.add(ImportBatchLineEntryTicketResponse.builder()
+                    .id(ticket.getId())
+                    .numbers(ticket.getNumbers())
+                    .status(ticket.getStatus() != null ? ticket.getStatus().name() : null)
+                    .serials(serialResponses)
+                    .build());
+        }
+
+        tickets.sort(Comparator.comparing(
+                ImportBatchLineEntryTicketResponse::id,
+                Comparator.nullsLast(Long::compareTo)
+        ));
+
+        return ImportBatchLineEntryTicketsResponse.builder()
+                .importBatchId(line.getImportBatchId())
+                .importBatchLineId(line.getId())
+                .tickets(tickets)
+                .build();
     }
 
     @Override
