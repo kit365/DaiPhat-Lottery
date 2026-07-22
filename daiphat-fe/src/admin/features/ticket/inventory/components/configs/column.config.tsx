@@ -8,6 +8,7 @@ import {
     RenderCreatedAtCell,
     RenderDrawDateCell,
 } from '../utils/render-cells';
+import { getStationColor } from '../../../../station/utils/stationColor';
 
 export const columnsConfig: GridColDef<ITicket>[] = [
     {
@@ -19,11 +20,24 @@ export const columnsConfig: GridColDef<ITicket>[] = [
         renderCell: RenderTicketCell,
     },
     {
-        field: 'drawDate',
-        headerName: 'Ngày quay',
-        width: 140,
+        field: 'stationName',
+        headerName: 'Nhà đài',
+        width: 150,
         filterable: true,
-        renderCell: (params) => <RenderDrawDateCell {...params} />,
+        valueGetter: (value, row) => row.stationName || row.providerName || 'Không xác định',
+        renderCell: (params) => {
+            const stationId = params.row.stationId || params.row.providerId;
+            const color = getStationColor(stationId);
+            return (
+                <span 
+                    className="admin-cell-text" 
+                    title={String(params.value ?? '')}
+                    style={{ color, fontWeight: 600 }}
+                >
+                    {params.value as string}
+                </span>
+            );
+        },
     },
     {
         field: 'batchCode',
@@ -35,6 +49,13 @@ export const columnsConfig: GridColDef<ITicket>[] = [
                 {formatImportBatchCode(params.value as string)}
             </span>
         ),
+    },
+    {
+        field: 'drawDate',
+        headerName: 'Ngày quay',
+        width: 140,
+        filterable: true,
+        renderCell: (params) => <RenderDrawDateCell {...params} />,
     },
     {
         field: 'createdAt',

@@ -58,15 +58,6 @@ export const TicketToolbar = ({
                 label: 'Nhà đài',
                 options: stationOptions,
             },
-            {
-                id: 'drawDate',
-                label: 'Ngày quay',
-                type: 'date' as const,
-                options: [
-                    { value: today, label: `Hôm nay (${dayjs(today).format('DD/MM/YYYY')})` },
-                    { value: tomorrow, label: `Ngày mai (${dayjs(tomorrow).format('DD/MM/YYYY')})` },
-                ],
-            },
         ];
     }, [stationsData]);
 
@@ -86,7 +77,6 @@ export const TicketToolbar = ({
                     selectedFilters={{
                         status: filters.status || [],
                         provider: filters.provider || [],
-                        drawDate: filters.drawDate || [],
                     }}
                     onFilterChange={onFilterChange}
                     onClearAll={onClearFilters}

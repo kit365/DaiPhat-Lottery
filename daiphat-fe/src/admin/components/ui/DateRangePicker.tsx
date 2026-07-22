@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Popover, Box, FormControl, FormHelperText, Typography } from '@mui/material';
+import { Popover, Box, FormControl, FormHelperText, Typography, Button } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { CalendarMonth } from '@mui/icons-material';
 import { DayPicker, DateRange } from 'react-day-picker';
 import dayjs from 'dayjs';
@@ -25,6 +26,11 @@ export const DateRangePicker = ({
 }: DateRangePickerProps) => {
     const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
     const [focused, setFocused] = useState(false);
+    const [tempRange, setTempRange] = useState<DateRange | undefined>(undefined);
+    const theme = useTheme();
+    const primaryMain = theme.palette.primary.main;
+    const primaryLighter = theme.palette.primary.light;
+    const primaryDark = theme.palette.primary.dark;
 
     const selectedRange: DateRange | undefined = useMemo(() => {
         if (!startDate && !endDate) return undefined;
@@ -38,6 +44,7 @@ export const DateRangePicker = ({
     }, [startDate, endDate]);
 
     const handleOpen = (event: React.MouseEvent<HTMLDivElement>) => {
+        setTempRange(selectedRange);
         setAnchorEl(event.currentTarget);
         setFocused(true);
     };
@@ -45,25 +52,32 @@ export const DateRangePicker = ({
     const handleClose = () => {
         setAnchorEl(null);
         setFocused(false);
+        if (!tempRange || !tempRange.from) {
+            const today = dayjs().format("DD/MM/YYYY");
+            setTempRange({ from: new Date(), to: new Date() });
+            onChange({ startDate: today, endDate: today });
+        }
     };
 
     const handleSelect = (range: DateRange | undefined) => {
-        if (!range) {
+        setTempRange(range);
+        if (!range || !range.from) {
             onChange({ startDate: "", endDate: "" });
-            return;
+        } else {
+            const start = dayjs(range.from).format("DD/MM/YYYY");
+            const end = range.to ? dayjs(range.to).format("DD/MM/YYYY") : start;
+            onChange({ startDate: start, endDate: end });
         }
-        const start = range.from ? dayjs(range.from).format("DD/MM/YYYY") : "";
-        const end = range.to ? dayjs(range.to).format("DD/MM/YYYY") : "";
-        onChange({ startDate: start, endDate: end });
-        // Close after selecting both
-        if (range.from && range.to) {
-            setTimeout(() => handleClose(), 200);
-        }
+    };
+
+    const handleConfirm = () => {
+        handleClose();
     };
 
     const displayValue = useMemo(() => {
         if (!startDate && !endDate) return "";
-        if (startDate && !endDate) return `${startDate} → ...`;
+        if (startDate === endDate) return startDate;
+        if (startDate && !endDate) return startDate;
         return `${startDate} → ${endDate}`;
     }, [startDate, endDate]);
 
@@ -153,56 +167,57 @@ export const DateRangePicker = ({
                 }}
             >
                 <Box
+                    className="custom-date-range"
                     sx={{
                         backgroundColor: 'var(--palette-background-paper)',
                         p: 1,
                     }}
                 >
                     <style>{`
-                        .rdp-root {
-                            --rdp-accent-color: var(--palette-primary-main) !important;
-                            --rdp-accent-background-color: var(--palette-primary-lighter) !important;
-                            --rdp-today-color: var(--palette-primary-main) !important;
-                            --rdp-range-start-color: #fff !important;
-                            --rdp-range-end-color: #fff !important;
-                            --rdp-range-start-background: var(--palette-primary-main) !important;
-                            --rdp-range-end-background: var(--palette-primary-main) !important;
-                            --rdp-range-middle-background-color: var(--palette-primary-lighter) !important;
-                            --rdp-range-middle-color: var(--palette-primary-dark) !important;
+                        .custom-date-range .rdp-root {
+                            --rdp-accent-color: ${primaryMain};
+                            --rdp-accent-background-color: ${primaryLighter};
                             margin: 0 !important;
                         }
-                        .rdp-day_button:focus {
+                        .custom-date-range .rdp-day_button:focus, 
+                        .custom-date-range .rdp-day:focus {
                             outline: none !important;
                         }
-                        .rdp-weekday {
+                        .custom-date-range .rdp-weekday {
                             color: var(--palette-text-secondary) !important;
                             font-size: 0.75rem !important;
                             font-weight: 600 !important;
                         }
-                        .rdp-month_caption {
+                        .custom-date-range .rdp-month_caption, 
+                        .custom-date-range .rdp-caption_label {
                             font-size: 0.9375rem !important;
                             font-weight: 700 !important;
                             color: var(--palette-text-primary) !important;
                         }
-                        .rdp-nav button {
-                            color: var(--palette-primary-main) !important;
+                        .custom-date-range .rdp-nav button {
+                            color: ${primaryMain} !important;
                         }
-                        .rdp-day_button {
-                            font-size: 0.8125rem !important;
-                            font-weight: 400 !important;
-                            border-radius: 50% !important;
-                        }
-                        .rdp-today .rdp-day_button {
+                        .custom-date-range .rdp-today {
                             font-weight: 700 !important;
+                            color: ${primaryMain} !important;
                         }
                     `}</style>
                     <DayPicker
                         mode="range"
-                        selected={selectedRange}
+                        selected={tempRange}
                         onSelect={handleSelect}
                         numberOfMonths={2}
                         locale={vi}
+                        min={1}
                     />
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, pt: 1, borderTop: '1px solid var(--palette-divider)' }}>
+                        <Button variant="text" color="inherit" onClick={handleClose} sx={{ mr: 1 }}>
+                            Hủy
+                        </Button>
+                        <Button variant="contained" color="primary" onClick={handleConfirm}>
+                            Xác nhận
+                        </Button>
+                    </Box>
                 </Box>
             </Popover>
         </Box>
