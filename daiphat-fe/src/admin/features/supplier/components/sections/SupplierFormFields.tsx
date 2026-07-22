@@ -166,7 +166,15 @@ export const SupplierFormFields = ({
                 <Controller
                     name="taxCode"
                     control={control}
-                    render={({ field }) => <TextField {...field} label="Mã số thuế" fullWidth />}
+                    render={({ field, fieldState }) => (
+                        <TextField
+                            {...field}
+                            label="Mã số thuế"
+                            fullWidth
+                            error={!!fieldState.error}
+                            helperText={fieldState.error?.message}
+                        />
+                    )}
                 />
                 <Box sx={{ width: '100%' }} data-activation-field="paymentTermDays">
                     <Controller
