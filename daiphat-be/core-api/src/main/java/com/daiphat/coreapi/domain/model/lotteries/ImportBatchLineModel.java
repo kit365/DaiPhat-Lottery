@@ -133,12 +133,13 @@ public class ImportBatchLineModel {
         this.totalCostValue = cost.multiply(BigDecimal.valueOf(quantity));
     }
 
-    public void updateImportProgress(int importedCount, LocalDateTime now) {
+    public void updateImportProgress(int importedCount, LocalDateTime now, Boolean isAutoSave) {
         this.totalQuantity = importedCount;
         recalculateTotalCostValue();
 
+        boolean isAutoSaveTriggered = isAutoSave != null && isAutoSave;
         int declared = declareQuantity != null ? declareQuantity : 0;
-        if (declared > 0 && importedCount >= declared) {
+        if (declared > 0 && importedCount >= declared && !isAutoSaveTriggered) {
             this.status = ImportBatchLineStatus.IMPORTED;
             if (this.importedAt == null) {
                 this.importedAt = now;
