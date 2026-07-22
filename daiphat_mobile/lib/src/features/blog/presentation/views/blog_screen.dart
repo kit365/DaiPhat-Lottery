@@ -39,9 +39,9 @@ class _BlogScreenState extends ConsumerState<BlogScreen> {
     final slug = post.slug;
     if (slug == null || slug.isEmpty) return;
 
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BlogDetailScreen(slug: slug)),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => BlogDetailScreen(slug: slug)));
   }
 
   @override
@@ -59,7 +59,8 @@ class _BlogScreenState extends ConsumerState<BlogScreen> {
               data: data,
               onBack: widget.onBack,
               searchController: _searchController,
-              onSearch: (q) => ref.read(blogViewModelProvider.notifier).search(q),
+              onSearch: (q) =>
+                  ref.read(blogViewModelProvider.notifier).search(q),
               onCategorySelected: (i) =>
                   ref.read(blogViewModelProvider.notifier).selectCategory(i),
               onOpenDetail: _openDetail,
@@ -72,15 +73,6 @@ class _BlogScreenState extends ConsumerState<BlogScreen> {
           ),
         ),
       ),
-      floatingActionButton: blogState.hasValue
-          ? FloatingActionButton(
-              onPressed: () {},
-              backgroundColor: _primary,
-              foregroundColor: Colors.white,
-              elevation: 6,
-              child: const Icon(Icons.edit_rounded),
-            )
-          : null,
     );
   }
 }
@@ -207,7 +199,7 @@ Widget _buildAppBar(VoidCallback? onBack) {
                   fontSize: 9,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 0.9,
-                  color: const Color(0xFF5B403D),
+                  color: const Color.fromARGB(255, 87, 91, 61),
                 ),
               ),
             ],
@@ -216,14 +208,12 @@ Widget _buildAppBar(VoidCallback? onBack) {
         SizedBox(
           width: 40,
           height: 40,
-          child: IconButton(
-            onPressed: () {},
-            splashRadius: 20,
-            padding: EdgeInsets.zero,
-            icon: const Icon(
-              Icons.search_rounded,
-              size: 30,
-              color: AppColors.primaryDark,
+          child: Center(
+            child: Image.asset(
+              'assets/images/logo_launcher.png',
+              width: 34,
+              height: 34,
+              fit: BoxFit.contain,
             ),
           ),
         ),
@@ -263,7 +253,11 @@ Widget _buildSearchBar({
             fontSize: 14,
             color: _secondary.withValues(alpha: 0.75),
           ),
-          prefixIcon: const Icon(Icons.search_rounded, color: _secondary, size: 30),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: _secondary,
+            size: 30,
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 15),
         ),
@@ -490,7 +484,8 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        (post.author.isEmpty ? 'Dai Phat' : post.author).toUpperCase(),
+                        (post.author.isEmpty ? 'Dai Phat' : post.author)
+                            .toUpperCase(),
                         style: GoogleFonts.inter(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -560,7 +555,10 @@ Widget _buildRecentCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -724,7 +722,10 @@ class _BlogError extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'Khong the tai danh sach blog',
-              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700),
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
