@@ -36,11 +36,18 @@ String _compactPrice(int? price) {
   return currencyFormatter.format(price);
 }
 
-class BuyTicketView extends ConsumerWidget {
+class BuyTicketView extends ConsumerStatefulWidget {
   const BuyTicketView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BuyTicketView> createState() => _BuyTicketViewState();
+}
+
+class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
+  bool _showHardcodedTicket = true;
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(buyTicketViewModelProvider);
     final viewModel = ref.read(buyTicketViewModelProvider.notifier);
 
@@ -69,6 +76,20 @@ class BuyTicketView extends ConsumerWidget {
         ),
         actions: [
           IconButton(
+            tooltip: _showHardcodedTicket ? 'An ve demo' : 'Hien ve demo',
+            onPressed: () {
+              setState(() {
+                _showHardcodedTicket = !_showHardcodedTicket;
+              });
+            },
+            icon: Icon(
+              _showHardcodedTicket
+                  ? Icons.visibility_off_rounded
+                  : Icons.visibility_rounded,
+              color: Colors.white,
+            ),
+          ),
+          IconButton(
             onPressed: () {
               viewModel.refresh();
             },
@@ -86,7 +107,11 @@ class BuyTicketView extends ConsumerWidget {
           child: SafeArea(
             top: false,
             child: state.when(
-              data: (data) => _LoadedView(state: data, viewModel: viewModel),
+              data: (data) => _LoadedView(
+                state: data,
+                viewModel: viewModel,
+                showHardcodedTicket: _showHardcodedTicket,
+              ),
               loading: () => const _LoadingState(),
               error: (error, _) => _ErrorState(
                 message: error.toString(),
@@ -103,14 +128,21 @@ class BuyTicketView extends ConsumerWidget {
 }
 
 class _LoadedView extends StatelessWidget {
-  const _LoadedView({required this.state, required this.viewModel});
+  const _LoadedView({
+    required this.state,
+    required this.viewModel,
+    required this.showHardcodedTicket,
+  });
 
   final BuyTicketState state;
   final BuyTicketViewModel viewModel;
+  final bool showHardcodedTicket;
 
   @override
   Widget build(BuildContext context) {
     final tickets = state.filteredTickets;
+    final demoTicket = _buildHardcodedTicket(state.selectedDay);
+    final visibleCount = tickets.length + (showHardcodedTicket ? 1 : 0);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
@@ -145,10 +177,27 @@ class _LoadedView extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         _ResultSummary(
-          visibleCount: tickets.length,
-          matchedCount: tickets.length,
+          visibleCount: visibleCount,
+          matchedCount: visibleCount,
         ),
         const SizedBox(height: 12),
+        if (showHardcodedTicket) ...[
+          const _DemoTicketBanner(),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: _TicketCard(
+              ticket: demoTicket,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Ve demo hardcode de canh chinh UI.'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
         ...tickets.map(
           (ticket) => Padding(
             padding: const EdgeInsets.only(bottom: 14),
@@ -164,6 +213,70 @@ class _LoadedView extends StatelessWidget {
         ),
         if (tickets.isEmpty) const _EmptyState(),
       ],
+    );
+  }
+}
+
+LotteryTicketListItem _buildHardcodedTicket(TicketDayFilter selectedDay) {
+  final now = DateTime.now();
+  final baseDate = DateTime(now.year, now.month, now.day);
+  final drawDate = selectedDay == TicketDayFilter.today
+      ? baseDate
+      : baseDate.add(const Duration(days: 1));
+  final dayLabel = selectedDay == TicketDayFilter.today
+      ? 'Hom nay'
+      : 'Ngay mai';
+
+  return LotteryTicketListItem(
+    id: -999,
+    displayName: 'Ve UI mau',
+    code: '123456',
+    shortName: 'UI',
+    dateLabel: '$dayLabel - ${DateFormat('dd/MM/yyyy').format(drawDate)}',
+    dayFilter: selectedDay,
+    drawDate: drawDate,
+    status: 'IN_STOCK',
+    statusDisplayName: 'Demo',
+    stationName: 'Ve hardcode de canh chinh UI',
+    serialNumber: 'UI-000001',
+    batchCode: 'DEMO',
+    imageUrl: null,
+    price: 10000,
+  );
+}
+
+class _DemoTicketBanner extends StatelessWidget {
+  const _DemoTicketBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFED7AA)),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.design_services_rounded,
+            size: 18,
+            color: Color(0xFFEA580C),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Dang hien 1 ve demo hardcode de chinh UI nhanh.',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF9A3412),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
