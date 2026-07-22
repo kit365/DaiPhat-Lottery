@@ -59,13 +59,19 @@ export const RenderTicketCell = (params: GridRenderCellParams) => {
                             navigate(`/${prefixAdmin}/ticket/edit/${id}`);
                         }}
                         underline="hover"
+                        sx={{ 
+                            fontSize: '1.15rem', 
+                            letterSpacing: '0.05em', 
+                            color: 'primary.main',
+                            fontWeight: 700 
+                        }}
                     >
-                        {displayName}
+                        {numbers || 'N/A'}
                     </Link>
                 }
                 secondary={
-                    <span className="admin-cell-subtitle">
-                        {`Mã lô: ${formatImportBatchCode(batchCode)} - Dãy số: ${numbers || 'N/A'} - SL: ${quantity ?? 0}`}
+                    <span className="admin-cell-subtitle" style={{ fontSize: '0.85rem' }}>
+                        Số lượng: <strong style={{ color: 'var(--palette-error-main)', fontSize: '0.95rem' }}>{quantity ?? 0}</strong>
                     </span>
                 }
                 slotProps={{
