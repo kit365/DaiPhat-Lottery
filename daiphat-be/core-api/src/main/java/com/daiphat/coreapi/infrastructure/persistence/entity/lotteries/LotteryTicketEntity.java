@@ -54,9 +54,9 @@ public class LotteryTicketEntity extends BaseEntity {
     @Column(name = "batch_code", nullable = false, length = 100)
     private String batchCode;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private Integer quantity = 1;
+
+    @org.hibernate.annotations.Formula("(select count(s.id) from lottery_ticket_serials s where s.ticket_id = id and s.status = 'IN_STOCK' and s.deleted_at is null)")
+    private Integer quantity;
 
     @Column(name = "price_snapshot", nullable = false, precision = 15)
     private BigDecimal priceSnapshot;
@@ -70,8 +70,7 @@ public class LotteryTicketEntity extends BaseEntity {
     @Builder.Default
     private Boolean active = true;
 
-    @OneToMany(mappedBy = "ticket", fetch = FetchType.LAZY)
-    @Builder.Default
+    @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LotteryTicketSerialEntity> serials = new ArrayList<>();
 
     @Transient

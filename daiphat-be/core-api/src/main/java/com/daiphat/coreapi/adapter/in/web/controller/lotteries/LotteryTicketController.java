@@ -17,6 +17,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
@@ -28,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
 import com.daiphat.coreapi.shared.util.StorageUtils;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -91,13 +93,16 @@ public class LotteryTicketController {
             @RequestParam(required = false) List<Long> stationIds,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String drawDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDateTo,
+            @RequestParam(required = false) Long importBatchLineId,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction,
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         log.info("REST request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getAll(
-                page, size, stationId, stationIds, status, drawDate, search, sortBy, direction);
+                page, size, stationId, stationIds, status, drawDate, drawDateFrom, drawDateTo, importBatchLineId, search, sortBy, direction);
         ApiResponse<PageResponse<LotteryTicketResponse>> apiResponse = ApiResponse.success(null, response);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(apiResponse);
         mappingJacksonValue.setSerializationView(resolveLotteryTicketView(principal));
