@@ -52,6 +52,7 @@ class SystemConfigSeederTest {
                         "VENDOR_RETURN_CUTOFF",
                         "LATE_IMPORT_TIME",
                         "IMPORT_BATCH_CUTOFF_TIME",
+                        "TICKET_AUTO_IMPORT_THRESHOLD",
                         "STAFF_INCIDENT_CUTOFF",
                         "INVALID_INFO_EXPIRED_DAYS",
                         "MAX_REFUND_REQUESTS_PER_DAY",
@@ -149,6 +150,31 @@ class SystemConfigSeederTest {
                 .isEqualTo(SystemConfigEnum.ORDER_CANCEL_GRACE_MIN.getValidationRules());
         assertThat(existing.getIsEditable()).isTrue();
         assertThat(existing.getDescription()).isEqualTo(SystemConfigEnum.ORDER_CANCEL_GRACE_MIN.getDescription());
+    }
+
+    @Test
+    void syncConfigsWithEnum_reactivatesMigrationInsertedThresholdNotPreviouslyInEnum() {
+        SystemConfigEntity threshold = SystemConfigEntity.builder()
+                .id(50L)
+                .configKey("TICKET_AUTO_IMPORT_THRESHOLD")
+                .configValue("50")
+                .configType(ConfigType.TICKET_IMPORT)
+                .dataType(DataType.INT)
+                .description("Seeded by migration")
+                .configName("Ngưỡng số lượng vé tự động nhập")
+                .unit("vé")
+                .isEditable(true)
+                .isActive(false)
+                .build();
+
+        when(configRepository.findAll()).thenReturn(new ArrayList<>(List.of(threshold)));
+        when(configRepository.save(any(SystemConfigEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        systemConfigSeeder.syncConfigsWithEnum();
+
+        assertThat(threshold.getIsActive()).isTrue();
+        assertThat(threshold.getConfigValue()).isEqualTo("50");
+        assertThat(threshold.getConfigType()).isEqualTo(ConfigType.TICKET_IMPORT);
     }
 
     @Test
