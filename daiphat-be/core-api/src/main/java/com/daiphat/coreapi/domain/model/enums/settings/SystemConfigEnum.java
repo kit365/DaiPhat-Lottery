@@ -76,6 +76,16 @@ public enum SystemConfigEnum {
             "{\"min\":\"00:00\",\"max\":\"23:59\"}",
             true
     ),
+    TICKET_AUTO_IMPORT_THRESHOLD(
+            ConfigType.TICKET_IMPORT,
+            DataType.INT,
+            "50",
+            "Số lượng vé lưu nháp tối đa trước khi hệ thống tự động lưu vào cơ sở dữ liệu.",
+            "Ngưỡng số lượng vé tự động nhập",
+            "vé",
+            "{\"min\":1,\"max\":10000}",
+            true
+    ),
     STAFF_INCIDENT_CUTOFF(
             ConfigType.REFUND_SETTING,
             DataType.TIME,
