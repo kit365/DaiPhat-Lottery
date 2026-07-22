@@ -102,7 +102,7 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
     final viewModel = ref.read(buyTicketViewModelProvider.notifier);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F9),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
@@ -408,11 +408,17 @@ class _TicketHeroBanner extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFE8D9D4), width: 1.3),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x14101828),
-            blurRadius: 22,
-            offset: Offset(0, 10),
+            color: Color(0x16101828),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -434,38 +440,38 @@ class _TicketHeroBanner extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(
-                  width: 210,
+                  width: 195,
                   child: Text(
                     'Mua ve ngay hom nay - Nhan may man lien tay',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      height: 1.35,
+                      height: 1.28,
                     ),
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 14,
+                    horizontal: 20,
+                    vertical: 10,
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFD30016),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: const Text(
                     'KHAM PHA NGAY',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -495,8 +501,16 @@ class _DaySegmentedControl extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFFE7E8EC),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE3E5EA), width: 1.3),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -620,12 +634,17 @@ class _TicketCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFEDEEF2)),
+            border: Border.all(color: const Color(0xFFE1E4EA), width: 1.3),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x0F101828),
-                blurRadius: 14,
-                offset: Offset(0, 6),
+                color: Color(0x14101828),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 6,
+                offset: Offset(0, 2),
               ),
             ],
           ),
@@ -664,52 +683,40 @@ class _TicketCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _buildTicketMetaLine(ticket),
+                        _compactPrice(ticket.price),
                         style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF5D3F3C),
-                          fontWeight: FontWeight.w500,
+                          fontSize: 18,
+                          color: AppColors.ink,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _compactPrice(ticket.price),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      height: 42,
-                      child: ElevatedButton(
-                        onPressed: onBuyNow,
-                        style: ElevatedButton.styleFrom(
-                          elevation: 0,
-                          backgroundColor: const Color(0xFFD30016),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(999),
-                          ),
+                Center(
+                  child: SizedBox(
+                    height: 42,
+                    child: ElevatedButton(
+                      onPressed: onBuyNow,
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        backgroundColor: const Color(0xFFD30016),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999),
                         ),
-                        child: const Text(
-                          'Mua ngay',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      ),
+                      child: const Text(
+                        'Mua ngay',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -718,24 +725,6 @@ class _TicketCard extends StatelessWidget {
       ),
     );
   }
-}
-
-String _buildTicketMetaLine(LotteryTicketListItem ticket) {
-  if (ticket.id < 0) {
-    return 'Ngay quay: ${DateFormat('dd-MM-yyyy').format(ticket.drawDate)}';
-  }
-
-  final serial = ticket.serialNumber?.trim();
-  if (serial != null && serial.isNotEmpty) {
-    return 'Serial: $serial';
-  }
-
-  final batch = ticket.batchCode?.trim();
-  if (batch != null && batch.isNotEmpty) {
-    return 'Ky quay #$batch';
-  }
-
-  return 'Ngay quay: ${DateFormat('dd-MM-yyyy').format(ticket.drawDate)}';
 }
 
 class _TicketThumb extends StatelessWidget {
