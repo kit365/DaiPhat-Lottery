@@ -84,6 +84,7 @@ export const bulkCreateTickets = async (
             numbers: string;
             serials: Array<{ serialNumber: string; ticketImg?: string }>;
         }>;
+        isAutoSave?: boolean;
     },
     options?: { skipGlobalErrorToast?: boolean }
 ): Promise<ApiResponse<any>> => {
