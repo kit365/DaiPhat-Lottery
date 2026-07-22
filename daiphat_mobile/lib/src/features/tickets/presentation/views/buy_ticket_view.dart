@@ -46,80 +46,122 @@ class BuyTicketView extends ConsumerStatefulWidget {
 class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
   bool _showHardcodedTicket = true;
 
+  void _toggleHardcodedTicket() {
+    setState(() {
+      _showHardcodedTicket = !_showHardcodedTicket;
+    });
+  }
+
+  void _openTicketDetail(BuildContext context, LotteryTicketListItem ticket) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => TicketDetailView(ticket: ticket)),
+    );
+  }
+
+  void _addToCart(
+    BuildContext context,
+    LotteryTicketListItem ticket, {
+    bool openCheckout = false,
+  }) {
+    final cartItem = CartItemData(
+      lotteryTicketId: ticket.id,
+      province: ticket.stationDisplayText,
+      dateLabel: _detailDateLabel(ticket),
+      drawTime: '',
+      kyHieu: ticket.batchCode ?? '',
+      number: ticket.code,
+      quantity: 1,
+      unitPrice: ticket.price ?? 0,
+      logoText: ticket.shortName,
+    );
+
+    ref.read(cartProvider.notifier).addItem(cartItem);
+
+    if (openCheckout) {
+      context.pushNamed(AppRoute.checkout.name);
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text('Da them ${ticket.code} vao gio hang'),
+          action: SnackBarAction(
+            label: 'Xem gio hang',
+            onPressed: () => context.push('/cart'),
+          ),
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(buyTicketViewModelProvider);
     final viewModel = ref.read(buyTicketViewModelProvider.notifier);
 
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: const Color(0xFFF5F7F9),
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
+        backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         title: const Text(
-          'Ve so dang mo ban',
+          'Tickets for Sale',
           style: TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 21,
-            color: Colors.white,
+            color: AppColors.primary,
           ),
         ),
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
             size: 20,
-            color: Colors.white,
+            color: Color(0xFF5D3F3C),
           ),
           onPressed: () => context.go(AppRoute.home.path),
         ),
         actions: [
           IconButton(
+            onPressed: () => context.push('/cart'),
+            icon: const Icon(
+              Icons.shopping_cart_outlined,
+              color: AppColors.primary,
+            ),
+          ),
+          IconButton(
             tooltip: _showHardcodedTicket ? 'An ve demo' : 'Hien ve demo',
             onPressed: () {
-              setState(() {
-                _showHardcodedTicket = !_showHardcodedTicket;
-              });
+              _toggleHardcodedTicket();
             },
             icon: Icon(
               _showHardcodedTicket
                   ? Icons.visibility_off_rounded
                   : Icons.visibility_rounded,
-              color: Colors.white,
+              color: const Color(0xFF5D3F3C),
             ),
-          ),
-          IconButton(
-            onPressed: () {
-              viewModel.refresh();
-            },
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
           ),
         ],
       ),
-      body: DecoratedBox(
-        decoration: const BoxDecoration(color: AppColors.primary),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      body: SafeArea(
+        top: false,
+        child: state.when(
+          data: (data) => _LoadedView(
+            state: data,
+            viewModel: viewModel,
+            showHardcodedTicket: _showHardcodedTicket,
+            onOpenDetail: (ticket) => _openTicketDetail(context, ticket),
+            onBuyNow: (ticket) => _addToCart(context, ticket, openCheckout: true),
           ),
-          child: SafeArea(
-            top: false,
-            child: state.when(
-              data: (data) => _LoadedView(
-                state: data,
-                viewModel: viewModel,
-                showHardcodedTicket: _showHardcodedTicket,
-              ),
-              loading: () => const _LoadingState(),
-              error: (error, _) => _ErrorState(
-                message: error.toString(),
-                onRetry: () {
-                  viewModel.refresh();
-                },
-              ),
-            ),
+          loading: () => const _LoadingState(),
+          error: (error, _) => _ErrorState(
+            message: error.toString(),
+            onRetry: () {
+              viewModel.refresh();
+            },
           ),
         ),
       ),
@@ -127,25 +169,35 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
   }
 }
 
+String _detailDateLabel(LotteryTicketListItem ticket) {
+  final label = ticket.dayFilter == TicketDayFilter.today
+      ? 'Hom nay'
+      : 'Ngay mai';
+  return '${DateFormat('dd/MM/yyyy').format(ticket.drawDate)} ($label)';
+}
+
 class _LoadedView extends StatelessWidget {
   const _LoadedView({
     required this.state,
     required this.viewModel,
     required this.showHardcodedTicket,
+    required this.onOpenDetail,
+    required this.onBuyNow,
   });
 
   final BuyTicketState state;
   final BuyTicketViewModel viewModel;
   final bool showHardcodedTicket;
+  final ValueChanged<LotteryTicketListItem> onOpenDetail;
+  final ValueChanged<LotteryTicketListItem> onBuyNow;
 
   @override
   Widget build(BuildContext context) {
     final tickets = state.filteredTickets;
     final demoTicket = _buildHardcodedTicket(state.selectedDay);
-    final visibleCount = tickets.length + (showHardcodedTicket ? 1 : 0);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
         _SearchField(
           initialValue: state.searchQuery,
@@ -153,61 +205,38 @@ class _LoadedView extends StatelessWidget {
             viewModel.updateSearchQuery(value);
           },
         ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _DateChip(
-                title: 'Hom nay',
-                date: state.todayLabel,
-                isSelected: state.selectedDay == TicketDayFilter.today,
-                onTap: () => viewModel.selectDay(TicketDayFilter.today),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _DateChip(
-                title: 'Ngay mai',
-                date: state.tomorrowLabel,
-                isSelected: state.selectedDay == TicketDayFilter.tomorrow,
-                onTap: () => viewModel.selectDay(TicketDayFilter.tomorrow),
-              ),
-            ),
-          ],
+        const SizedBox(height: 20),
+        const _TicketHeroBanner(),
+        const SizedBox(height: 20),
+        _DaySegmentedControl(
+          selectedDay: state.selectedDay,
+          onSelectToday: () => viewModel.selectDay(TicketDayFilter.today),
+          onSelectTomorrow: () => viewModel.selectDay(TicketDayFilter.tomorrow),
         ),
-        const SizedBox(height: 18),
-        _ResultSummary(
-          visibleCount: visibleCount,
-          matchedCount: visibleCount,
-        ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 20),
         if (showHardcodedTicket) ...[
           const _DemoTicketBanner(),
-          const SizedBox(height: 10),
+          const SizedBox(height: 22),
+        ],
+        const _TicketSectionHeader(title: 'Danh sach ve mo ban'),
+        const SizedBox(height: 16),
+        if (showHardcodedTicket)
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: _TicketCard(
               ticket: demoTicket,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Ve demo hardcode de canh chinh UI.'),
-                  ),
-                );
-              },
+              isDemo: true,
+              onTap: () => onOpenDetail(demoTicket),
+              onBuyNow: () => onBuyNow(demoTicket),
             ),
           ),
-        ],
         ...tickets.map(
           (ticket) => Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: _TicketCard(
               ticket: ticket,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => TicketDetailView(ticket: ticket),
-                ),
-              ),
+              onTap: () => onOpenDetail(ticket),
+              onBuyNow: () => onBuyNow(ticket),
             ),
           ),
         ),
@@ -245,33 +274,54 @@ LotteryTicketListItem _buildHardcodedTicket(TicketDayFilter selectedDay) {
   );
 }
 
+LotteryTicketListItem _buildHardcodedTicketDetail(
+  LotteryTicketListItem baseTicket,
+) {
+  return LotteryTicketListItem(
+    id: baseTicket.id,
+    displayName: 'Ve so kien thiet Dai Phat',
+    code: baseTicket.code,
+    shortName: baseTicket.shortName,
+    dateLabel: baseTicket.dateLabel,
+    dayFilter: baseTicket.dayFilter,
+    drawDate: baseTicket.drawDate,
+    status: 'IN_STOCK',
+    statusDisplayName: 'San sang mo phong UI',
+    stationName: 'Dai Phat Demo Station',
+    serialNumber: 'DP-UI-2026-0001',
+    batchCode: 'UI-DEMO-44',
+    imageUrl: baseTicket.imageUrl,
+    price: 10000,
+  );
+}
+
 class _DemoTicketBanner extends StatelessWidget {
   const _DemoTicketBanner();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFED7AA)),
+        color: const Color(0xFFFFE27A),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE4BF44)),
       ),
       child: const Row(
         children: [
           Icon(
-            Icons.design_services_rounded,
-            size: 18,
-            color: Color(0xFFEA580C),
+            Icons.info_outline_rounded,
+            size: 24,
+            color: Color(0xFF161616),
           ),
-          SizedBox(width: 8),
+          SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Dang hien 1 ve demo hardcode de chinh UI nhanh.',
+              'Luu y: Day la ve demo trai nghiem he thong.',
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF9A3412),
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF161616),
               ),
             ),
           ),
@@ -326,122 +376,219 @@ class _SearchFieldState extends State<_SearchField> {
         color: AppColors.ink,
       ),
       decoration: InputDecoration(
-        hintText: 'Nhap day so, serial hoac ten ve',
-        hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-        prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF6B7280)),
+        hintText: 'Tim kiem ve...',
+        hintStyle: const TextStyle(
+          color: Color(0xFFA78E8A),
+          fontSize: 16,
+        ),
+        prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF6B4E49)),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 18),
+        contentPadding: const EdgeInsets.symmetric(vertical: 16),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          borderRadius: BorderRadius.circular(999),
+          borderSide: const BorderSide(color: Color(0xFFE6E8EC)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
+          borderRadius: BorderRadius.circular(999),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
         ),
       ),
     );
   }
 }
 
-class _DateChip extends StatelessWidget {
-  const _DateChip({
-    required this.title,
-    required this.date,
-    required this.isSelected,
+class _TicketHeroBanner extends StatelessWidget {
+  const _TicketHeroBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 188,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14101828),
+            blurRadius: 22,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset('assets/images/hero_mobile.jpg', fit: BoxFit.cover),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  const Color(0xFF78000B).withValues(alpha: 0.98),
+                  const Color(0xFFAE0817).withValues(alpha: 0.88),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(
+                  width: 210,
+                  child: Text(
+                    'Mua ve ngay hom nay - Nhan may man lien tay',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD30016),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'KHAM PHA NGAY',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DaySegmentedControl extends StatelessWidget {
+  const _DaySegmentedControl({
+    required this.selectedDay,
+    required this.onSelectToday,
+    required this.onSelectTomorrow,
+  });
+
+  final TicketDayFilter selectedDay;
+  final VoidCallback onSelectToday;
+  final VoidCallback onSelectTomorrow;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE7E8EC),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _SegmentButton(
+              label: 'Hom nay',
+              selected: selectedDay == TicketDayFilter.today,
+              onTap: onSelectToday,
+            ),
+          ),
+          Expanded(
+            child: _SegmentButton(
+              label: 'Ngay mai',
+              selected: selectedDay == TicketDayFilter.tomorrow,
+              onTap: onSelectTomorrow,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SegmentButton extends StatelessWidget {
+  const _SegmentButton({
+    required this.label,
+    required this.selected,
     required this.onTap,
   });
 
-  final String title;
-  final String date;
-  final bool isSelected;
+  final String label;
+  final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
+    return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFEEEE) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : const Color(0xFFE9E9EF),
-            width: isSelected ? 1.4 : 1,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0D101828),
-              blurRadius: 16,
-              offset: Offset(0, 6),
-            ),
-          ],
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: selected
+              ? const [
+                  BoxShadow(
+                    color: Color(0x14000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: isSelected ? AppColors.primary : AppColors.ink,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              date,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textMuted,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: selected ? AppColors.primary : const Color(0xFF5D3F3C),
+          ),
         ),
       ),
     );
   }
 }
 
-class _ResultSummary extends StatelessWidget {
-  const _ResultSummary({
-    required this.visibleCount,
-    required this.matchedCount,
-  });
+class _TicketSectionHeader extends StatelessWidget {
+  const _TicketSectionHeader({required this.title});
 
-  final int visibleCount;
-  final int matchedCount;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(
-          Icons.info_outline_rounded,
-          size: 18,
-          color: Color(0xFF94A3B8),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          'Hien thi $visibleCount ve',
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+        Container(
+          width: 5,
+          height: 34,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(999),
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 12),
         Text(
-          '$matchedCount ve phu hop',
+          title,
           style: const TextStyle(
-            color: AppColors.primary,
-            fontSize: 13,
+            fontSize: 18,
             fontWeight: FontWeight.w700,
+            color: AppColors.ink,
           ),
         ),
       ],
@@ -450,125 +597,217 @@ class _ResultSummary extends StatelessWidget {
 }
 
 class _TicketCard extends StatelessWidget {
-  const _TicketCard({required this.ticket, required this.onTap});
+  const _TicketCard({
+    required this.ticket,
+    required this.onTap,
+    required this.onBuyNow,
+    this.isDemo = false,
+  });
 
   final LotteryTicketListItem ticket;
   final VoidCallback onTap;
+  final VoidCallback onBuyNow;
+  final bool isDemo;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFF1F1F5)),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFEDEEF2)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x14101828),
-                blurRadius: 24,
-                offset: Offset(0, 10),
-              ),
-              BoxShadow(
-                color: Color(0x0A101828),
-                blurRadius: 8,
-                offset: Offset(0, 2),
+                color: Color(0x0F101828),
+                blurRadius: 14,
+                offset: Offset(0, 6),
               ),
             ],
           ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-            child: Column(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _TicketBadge(
-                      shortName: ticket.shortName,
-                      imageUrl: ticket.imageUrl,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            ticket.stationDisplayText,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.ink,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            ticket.dateLabel,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textMuted,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.confirmation_number_outlined,
-                          size: 16,
-                          color: Color(0xFF9CA3AF),
-                        ),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'x 1',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        ticket.code,
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    ),
-                    if (ticket.price != null) ...[
-                      const SizedBox(width: 12),
+                _TicketThumb(ticket: ticket, isDemo: isDemo),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        _compactPrice(ticket.price),
+                        ticket.stationDisplayText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF5D3F3C),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        ticket.code,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 22,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.ink,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _buildTicketMetaLine(ticket),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF5D3F3C),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _compactPrice(ticket.price),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      height: 42,
+                      child: ElevatedButton(
+                        onPressed: onBuyNow,
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0,
+                          backgroundColor: const Color(0xFFD30016),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        child: const Text(
+                          'Mua ngay',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _buildTicketMetaLine(LotteryTicketListItem ticket) {
+  if (ticket.id < 0) {
+    return 'Ngay quay: ${DateFormat('dd-MM-yyyy').format(ticket.drawDate)}';
+  }
+
+  final serial = ticket.serialNumber?.trim();
+  if (serial != null && serial.isNotEmpty) {
+    return 'Serial: $serial';
+  }
+
+  final batch = ticket.batchCode?.trim();
+  if (batch != null && batch.isNotEmpty) {
+    return 'Ky quay #$batch';
+  }
+
+  return 'Ngay quay: ${DateFormat('dd-MM-yyyy').format(ticket.drawDate)}';
+}
+
+class _TicketThumb extends StatelessWidget {
+  const _TicketThumb({required this.ticket, required this.isDemo});
+
+  final LotteryTicketListItem ticket;
+  final bool isDemo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 84,
+      height: 84,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F7FA),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFE7BDB8).withValues(alpha: 0.35),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ticket.imageUrl != null && ticket.imageUrl!.trim().isNotEmpty
+          ? CachedNetworkImage(
+              imageUrl: ticket.imageUrl!,
+              fit: BoxFit.cover,
+              errorWidget: (_, _, _) => _TicketThumbFallback(
+                shortName: ticket.shortName,
+                isDemo: isDemo,
+              ),
+            )
+          : _TicketThumbFallback(shortName: ticket.shortName, isDemo: isDemo),
+    );
+  }
+}
+
+class _TicketThumbFallback extends StatelessWidget {
+  const _TicketThumbFallback({required this.shortName, required this.isDemo});
+
+  final String shortName;
+  final bool isDemo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDemo
+              ? const [Color(0xFFFFE4B8), Color(0xFFF8B94C)]
+              : const [Color(0xFFFFF1EF), Color(0xFFFFD5C8)],
+        ),
+      ),
+      child: Center(
+        child: Container(
+          width: 54,
+          height: 54,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFFF5C4D), Color(0xFFD31010)],
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            shortName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
             ),
           ),
         ),
@@ -584,7 +823,10 @@ class TicketDetailView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ticketDetailAsync = ref.watch(lotteryTicketDetailProvider(ticket.id));
+    final isHardcodedTicket = ticket.id < 0;
+    final ticketDetailAsync = isHardcodedTicket
+        ? AsyncValue.data(_buildHardcodedTicketDetail(ticket))
+        : ref.watch(lotteryTicketDetailProvider(ticket.id));
     final resolvedTicket = ticketDetailAsync.asData?.value ?? ticket;
 
     return Scaffold(
