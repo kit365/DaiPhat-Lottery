@@ -23,6 +23,7 @@ import { useStations } from '../../../../station/hooks/useStation';
 import { useRegions } from '../../../../region/hooks/useRegion';
 import { useDraftImportBatches, useImportBatchDetail, useImportBatchLineEntryTickets } from '../../../import-batch/hooks/useImportBatch';
 import { useSystemConfigs } from '../../../../system-config/hooks/useSystemConfig';
+import { ConfigType } from '../../../../system-config/types/system-config';
 import { QUERY_KEYS as IMPORT_BATCH_QUERY_KEYS } from '../../../import-batch/constants/queryKeys';
 import { useQueryClient } from '@tanstack/react-query';
 import { getImportBatchCancelledAlertMessage, getImportBatchLineCancelledAlertMessage, IMPORT_BATCH_LINE_PAUSED_ENTRY_MESSAGE } from '../../../import-batch/utils/batchTypeLabels';
@@ -131,11 +132,11 @@ export const TicketCreatePage = () => {
     const { data: regionsRes } = useRegions();
     const regions = regionsRes?.data || [];
 
-    const { data: systemConfigs } = useSystemConfigs('TICKET_IMPORT');
+    const { data: systemConfigsRes } = useSystemConfigs(ConfigType.TICKET_IMPORT);
     const autoImportThreshold = useMemo(() => {
-        const config = systemConfigs?.find((c) => c.configKey === 'TICKET_AUTO_IMPORT_THRESHOLD');
+        const config = systemConfigsRes?.data?.find((c) => c.configKey === 'TICKET_AUTO_IMPORT_THRESHOLD');
         return config ? Number(config.configValue) : 50;
-    }, [systemConfigs]);
+    }, [systemConfigsRes]);
 
     const resolveRulesForStation = useCallback(
         (stationId?: string | number) => {
