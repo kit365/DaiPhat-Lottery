@@ -22,6 +22,7 @@ import { buildCreateTicketSchema, CreateTicketFormValues } from '../../schemas/t
 import { useStations } from '../../../../station/hooks/useStation';
 import { useRegions } from '../../../../region/hooks/useRegion';
 import { useDraftImportBatches, useImportBatchDetail, useImportBatchLineEntryTickets } from '../../../import-batch/hooks/useImportBatch';
+import { useSystemConfigs } from '../../../../system-config/hooks/useSystemConfig';
 import { QUERY_KEYS as IMPORT_BATCH_QUERY_KEYS } from '../../../import-batch/constants/queryKeys';
 import { useQueryClient } from '@tanstack/react-query';
 import { getImportBatchCancelledAlertMessage, getImportBatchLineCancelledAlertMessage, IMPORT_BATCH_LINE_PAUSED_ENTRY_MESSAGE } from '../../../import-batch/utils/batchTypeLabels';
@@ -129,6 +130,12 @@ export const TicketCreatePage = () => {
     const providers = (providersRes as any)?.data?.recordList || [];
     const { data: regionsRes } = useRegions();
     const regions = regionsRes?.data || [];
+
+    const { data: systemConfigs } = useSystemConfigs('TICKET_IMPORT');
+    const autoImportThreshold = useMemo(() => {
+        const config = systemConfigs?.find((c) => c.configKey === 'TICKET_AUTO_IMPORT_THRESHOLD');
+        return config ? Number(config.configValue) : 50;
+    }, [systemConfigs]);
 
     const resolveRulesForStation = useCallback(
         (stationId?: string | number) => {
@@ -478,6 +485,29 @@ export const TicketCreatePage = () => {
         persistPendingDraftForLine,
     ]);
 
+    // Auto-save logic when threshold is reached
+    useEffect(() => {
+        if (!selectedBatchId || !watchedLineId || autoImportThreshold <= 0 || isPending) {
+            return;
+        }
+
+        const filledSerials = countPendingFilledSerials(watchedTicketSections);
+        if (filledSerials >= autoImportThreshold) {
+            const timeoutId = setTimeout(() => {
+                // If the user stops typing for 1.5 seconds and threshold is reached, attempt autosave
+                const currentFilled = countPendingFilledSerials(getValues('ticketSections'));
+                if (currentFilled >= autoImportThreshold) {
+                    toast.info(`Đang tự động lưu ${currentFilled} vé nháp...`, { autoClose: 2000 });
+                    handleSubmit(onSubmit, () => {
+                        // Suppress invalid submit actions during autosave to avoid interrupting user focus
+                        toast.warning(`Tự động lưu tạm hoãn: Vui lòng hoàn thiện dữ liệu hợp lệ cho ${currentFilled} vé.`);
+                    })();
+                }
+            }, 1500);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [watchedTicketSections, autoImportThreshold, isPending, selectedBatchId, watchedLineId, getValues, handleSubmit]);
+
     const handleBatchChange = (batch: ImportBatch | null) => {
         initialLineAppliedRef.current = false;
         lastInitializedBatchIdRef.current = null;
@@ -595,7 +625,8 @@ export const TicketCreatePage = () => {
         }
     }, []);
 
-    const onSubmit = async (data: CreateTicketFormValues) => {
+    const onSubmit = async (data: CreateTicketFormValues, e?: React.BaseSyntheticEvent) => {
+        const isAutoSave = !e;
         if (!selectedLine || !resolvedBatch) {
             toast.error('Vui lòng chọn nhà đài trong phiếu nhập lô');
             return;
@@ -665,6 +696,7 @@ export const TicketCreatePage = () => {
             importBatchLineId: Number(data.importBatchLineId),
             stationId: Number(data.stationId),
             drawDate: data.drawDate || resolvedBatch.drawDate,
+            isAutoSave: isAutoSave,
             tickets: data.ticketSections
                 .map((section) => ({
                     numbers: section.numbers.trim(),
