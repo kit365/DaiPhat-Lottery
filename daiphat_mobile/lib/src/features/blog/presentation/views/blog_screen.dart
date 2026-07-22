@@ -13,8 +13,12 @@ const _gold = Color(0xFFFFD700);
 const _goldLight = Color(0xFFFFF9E6);
 const _ink = Color(0xFF17191F);
 const _secondary = Color(0xFF6B5A57);
+// const _surface = Colors.white;// ban dau
 const _surface = Colors.white;
-const _pageBg = Color(0xFFF7F7FB);
+
+// const _pageBg = Color(0xFFF7F7FB); // ban dau
+const _pageBg = Colors.white;
+
 const _cardBorder = Color(0xFFE6E6EC);
 
 class BlogScreen extends ConsumerStatefulWidget {
@@ -164,17 +168,28 @@ Widget _buildAppBar(VoidCallback? onBack) {
     padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
     child: Row(
       children: [
-        SizedBox(
-          width: 40,
-          height: 40,
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
           child: IconButton(
             onPressed: onBack,
-            splashRadius: 20,
+            splashRadius: 22,
             padding: EdgeInsets.zero,
             icon: const Icon(
-              Icons.arrow_back_rounded,
-              size: 28,
-              color: AppColors.primaryDark,
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: _primary,
             ),
           ),
         ),
@@ -205,16 +220,25 @@ Widget _buildAppBar(VoidCallback? onBack) {
             ],
           ),
         ),
-        SizedBox(
-          width: 40,
-          height: 40,
-          child: Center(
-            child: Image.asset(
-              'assets/images/logo_launcher.png',
-              width: 34,
-              height: 34,
-              fit: BoxFit.contain,
-            ),
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE8E8EE)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Image.asset(
+            'assets/images/login_logo.jpg',
+            fit: BoxFit.cover,
           ),
         ),
       ],
@@ -248,7 +272,7 @@ Widget _buildSearchBar({
         onSubmitted: onSubmitted,
         style: GoogleFonts.inter(fontSize: 14, color: _ink),
         decoration: InputDecoration(
-          hintText: 'Tim kiem noi dung...',
+          hintText: 'Tim kiem ...',
           hintStyle: GoogleFonts.inter(
             fontSize: 14,
             color: _secondary.withValues(alpha: 0.75),
