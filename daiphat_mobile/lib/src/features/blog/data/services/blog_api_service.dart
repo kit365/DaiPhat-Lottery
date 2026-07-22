@@ -14,7 +14,10 @@ class BlogApiService {
 
   /// GET /blogs/categories/public
   Future<List<BlogCategory>> getPublicCategories() async {
-    final response = await _apiClient.get('/blogs/categories/public');
+    final response = await _apiClient.get(
+      '/blogs/categories/public',
+      includeAuth: false,
+    );
     final apiResponse = ApiResponse<List<BlogCategory>>.fromJson(
       response,
       (json) => (json as List<dynamic>)
@@ -59,6 +62,7 @@ class BlogApiService {
     final response = await _apiClient.get(
       '/blogs/public',
       queryParameters: queryParameters,
+      includeAuth: false,
     );
 
     final apiResponse = ApiResponse<PageResponse<PublicBlogPost>>.fromJson(
@@ -82,7 +86,10 @@ class BlogApiService {
 
   /// GET /blogs/public/{slug}
   Future<PublicBlogPostDetail> getPublicPostBySlug(String slug) async {
-    final response = await _apiClient.get('/blogs/public/$slug');
+    final response = await _apiClient.get(
+      '/blogs/public/$slug',
+      includeAuth: false,
+    );
     final apiResponse = ApiResponse<PublicBlogPostDetail>.fromJson(
       response,
       (json) => PublicBlogPostDetail.fromJson(json as Map<String, dynamic>),
@@ -107,6 +114,7 @@ class BlogApiService {
     final response = await _apiClient.get(
       '/blogs/public/$slug/related',
       queryParameters: {'limit': limit},
+      includeAuth: false,
     );
 
     final apiResponse = ApiResponse<List<PublicBlogPost>>.fromJson(
