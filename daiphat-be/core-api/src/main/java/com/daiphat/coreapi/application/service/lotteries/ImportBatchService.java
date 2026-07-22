@@ -814,7 +814,7 @@ public class ImportBatchService implements ImportBatchServicePort {
         line.setImportCost(lineRequest.importCost());
         line.recalculateDeclaredCostValue();
         int importedCount = line.getTotalQuantity() != null ? line.getTotalQuantity() : 0;
-        line.updateImportProgress(importedCount, now);
+        line.updateImportProgress(importedCount, now, false);
         importBatchLineRepositoryPort.save(line);
     }
 
@@ -861,7 +861,7 @@ public class ImportBatchService implements ImportBatchServicePort {
         }
         line.setImportCost(lineRequest.importCost());
         line.recalculateDeclaredCostValue();
-        line.updateImportProgress(importedCount, now);
+        line.updateImportProgress(importedCount, now, false);
         importBatchLineRepositoryPort.save(line);
     }
 
