@@ -26,6 +26,9 @@ export const getTickets = async (params?: any): Promise<ApiResponse<any>> => {
             stationIds: params?.stationIds,
             status: params?.status,
             drawDate: Array.isArray(params?.drawDate) ? params.drawDate.join(',') : params?.drawDate,
+            drawDateFrom: params?.drawDateFrom,
+            drawDateTo: params?.drawDateTo,
+            importBatchLineId: params?.importBatchLineId,
             search: params?.search,
             sortBy: params?.sortBy,
             direction: params?.direction
