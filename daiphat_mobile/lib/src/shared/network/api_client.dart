@@ -33,8 +33,11 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          if (_accessToken != null && _accessToken!.isNotEmpty) {
+          final includeAuth = options.extra['includeAuth'] != false;
+          if (includeAuth && _accessToken != null && _accessToken!.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $_accessToken';
+          } else if (!includeAuth) {
+            options.headers.remove('Authorization');
           }
           handler.next(options);
         },
@@ -60,11 +63,13 @@ class ApiClient {
   Future<Map<String, dynamic>> get(
     String path, {
     Map<String, dynamic>? queryParameters,
+    bool includeAuth = true,
   }) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         path,
         queryParameters: queryParameters,
+        options: Options(extra: {'includeAuth': includeAuth}),
       );
       return _normalizeResponse(response.data);
     } on DioException catch (error) {
@@ -78,12 +83,14 @@ class ApiClient {
     String path, {
     Object? data,
     Map<String, dynamic>? queryParameters,
+    bool includeAuth = true,
   }) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
         path,
         data: data,
         queryParameters: queryParameters,
+        options: Options(extra: {'includeAuth': includeAuth}),
       );
       return _normalizeResponse(response.data);
     } on DioException catch (error) {
@@ -97,12 +104,14 @@ class ApiClient {
     String path, {
     Object? data,
     Map<String, dynamic>? queryParameters,
+    bool includeAuth = true,
   }) async {
     try {
       final response = await _dio.put<Map<String, dynamic>>(
         path,
         data: data,
         queryParameters: queryParameters,
+        options: Options(extra: {'includeAuth': includeAuth}),
       );
       return _normalizeResponse(response.data);
     } on DioException catch (error) {
@@ -116,12 +125,14 @@ class ApiClient {
     String path, {
     Object? data,
     Map<String, dynamic>? queryParameters,
+    bool includeAuth = true,
   }) async {
     try {
       final response = await _dio.patch<Map<String, dynamic>>(
         path,
         data: data,
         queryParameters: queryParameters,
+        options: Options(extra: {'includeAuth': includeAuth}),
       );
       return _normalizeResponse(response.data);
     } on DioException catch (error) {
@@ -135,12 +146,14 @@ class ApiClient {
     String path, {
     Object? data,
     Map<String, dynamic>? queryParameters,
+    bool includeAuth = true,
   }) async {
     try {
       final response = await _dio.delete<Map<String, dynamic>>(
         path,
         data: data,
         queryParameters: queryParameters,
+        options: Options(extra: {'includeAuth': includeAuth}),
       );
       return _normalizeResponse(response.data);
     } on DioException catch (error) {
