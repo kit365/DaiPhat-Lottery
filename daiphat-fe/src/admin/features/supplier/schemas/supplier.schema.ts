@@ -20,20 +20,18 @@ export const supplierFormSchema = z.object({
         }),
     address: z.string().trim().min(1, 'Vui lòng nhập địa chỉ'),
     taxCode: z.string().trim().min(1, 'Vui lòng nhập mã số thuế'),
-    paymentTermDays: z.preprocess(
-        (value) => (value === '' || value === undefined || value === null ? undefined : value),
-        z.coerce.number({
-            required_error: 'Vui lòng nhập số ngày thanh toán',
-            invalid_type_error: 'Vui lòng nhập số hợp lệ',
-        }).min(0, 'Số ngày thanh toán không được âm')
-    ),
-    defaultImportCost: z.preprocess(
-        (value) => (value === '' || value === undefined || value === null ? undefined : value),
-        z.coerce.number({
-            required_error: 'Vui lòng nhập giá vốn mặc định',
-            invalid_type_error: 'Vui lòng nhập số hợp lệ',
-        }).min(0, 'Giá vốn mặc định không được âm')
-    ),
+    paymentTermDays: z
+        .any()
+        .refine((v) => v !== '' && v !== undefined && v !== null, { message: 'Vui lòng nhập số ngày thanh toán' })
+        .transform((v) => Number(v))
+        .refine((v) => !isNaN(v), { message: 'Vui lòng nhập số hợp lệ' })
+        .refine((v) => v >= 0, { message: 'Số ngày thanh toán không được âm' }),
+    defaultImportCost: z
+        .any()
+        .refine((v) => v !== '' && v !== undefined && v !== null, { message: 'Vui lòng nhập giá vốn mặc định' })
+        .transform((v) => Number(v))
+        .refine((v) => !isNaN(v), { message: 'Vui lòng nhập số hợp lệ' })
+        .refine((v) => v >= 0, { message: 'Giá vốn mặc định không được âm' }),
     isActive: z.boolean(),
 });
 
