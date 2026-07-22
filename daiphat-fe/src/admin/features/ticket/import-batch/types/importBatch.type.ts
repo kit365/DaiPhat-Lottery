@@ -126,6 +126,8 @@ export interface ImportBatchListParams {
     size?: number;
     lotteryStationId?: number;
     drawDate?: string;
+    drawDateFrom?: string;
+    drawDateTo?: string;
     status?: ImportBatchStatus;
     batchType?: ImportBatchType;
     sortBy?: string;
