@@ -116,7 +116,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .orElseGet(() -> {
                     requestedTicket.setNumbers(ticketNumber.value());
                     requestedTicket.setPriceSnapshot(station.getPrice());
-                    requestedTicket.setQuantity(0);
+
                     requestedTicket.setStatus(LotteryTicketStatus.IN_STOCK);
                     return lotteryTicketRepositoryPort.save(requestedTicket);
                 });
@@ -198,6 +198,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     @Transactional(readOnly = true)
     public PageResponse<LotteryTicketResponse> getAll(
             int page, int size, Long stationId, List<Long> stationIds, String status, String drawDate,
+            LocalDate drawDateFrom, LocalDate drawDateTo, Long importBatchLineId,
             String search, String sortBy, String direction) {
 
         PageRequest pageable = PageRequest.of(
@@ -211,14 +212,21 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
 
         Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
-                .findAll(pageable, stationId, normalizedStationIds, statusEnum, parsedDrawDates, search);
+                .findAll(pageable, stationId, normalizedStationIds, statusEnum, parsedDrawDates, drawDateFrom, drawDateTo, importBatchLineId, search);
 
         Map<Long, String> stationNameCache = new HashMap<>();
-        Map<Long, LotteryTicketSerialModel> serialsByTicketId = lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(
-                ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList()
-        );
+        List<Long> ticketIds = ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList();
+        Map<Long, LotteryTicketSerialModel> serialsByTicketId =
+                lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(ticketIds);
+        Map<Long, Long> serialQuantityByTicketId =
+                lotteryTicketSerialService.countSerialsByTicketIds(ticketIds);
         List<LotteryTicketResponse> responses = ticketPage.getContent().stream()
-                .map(ticket -> mapToResponse(ticket, serialsByTicketId.get(ticket.getId()), stationNameCache))
+                .map(ticket -> mapToResponse(
+                        ticket,
+                        serialsByTicketId.get(ticket.getId()),
+                        stationNameCache,
+                        serialQuantityByTicketId.getOrDefault(ticket.getId(), 0L).intValue()
+                ))
                 .toList();
 
         return PageResponse.from(responses, ticketPage.getTotalElements(), page, size);
@@ -243,11 +251,18 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .findAllPublic(pageable, stationId, normalizedStationIds, parsedDrawDates, search);
 
         Map<Long, String> stationNameCache = new HashMap<>();
-        Map<Long, LotteryTicketSerialModel> serialsByTicketId = lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(
-                ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList()
-        );
+        List<Long> ticketIds = ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList();
+        Map<Long, LotteryTicketSerialModel> serialsByTicketId =
+                lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(ticketIds);
+        Map<Long, Long> serialQuantityByTicketId =
+                lotteryTicketSerialService.countSerialsByTicketIds(ticketIds);
         List<LotteryTicketResponse> responses = ticketPage.getContent().stream()
-                .map(ticket -> mapToResponse(ticket, serialsByTicketId.get(ticket.getId()), stationNameCache))
+                .map(ticket -> mapToResponse(
+                        ticket,
+                        serialsByTicketId.get(ticket.getId()),
+                        stationNameCache,
+                        serialQuantityByTicketId.getOrDefault(ticket.getId(), 0L).intValue()
+                ))
                 .toList();
 
         return PageResponse.from(responses, ticketPage.getTotalElements(), page, size);
@@ -694,25 +709,29 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                         resolveBatchCode(serial)
                 ))
                 .toList();
+        int serialQuantity = serials.size();
         return lotteryTicketApplicationMapper.toResponseDetail(
                 model,
                 serialResponses,
                 stationName,
-                serials.isEmpty() ? null : resolveBatchCode(serials.getFirst())
+                serials.isEmpty() ? null : resolveBatchCode(serials.getFirst()),
+                serialQuantity
         );
     }
 
     private LotteryTicketResponse mapToResponse(
             LotteryTicketModel model,
             LotteryTicketSerialModel serial,
-            Map<Long, String> stationNameCache
+            Map<Long, String> stationNameCache,
+            int serialQuantity
     ) {
         String stationName = resolveStationName(model.getStationId(), stationNameCache);
         return lotteryTicketApplicationMapper.toResponse(
                 model,
                 serial,
                 stationName,
-                resolveBatchCode(serial)
+                resolveBatchCode(serial),
+                serialQuantity
         );
     }
 
