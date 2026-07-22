@@ -14,6 +14,7 @@ import {
     TextField,
     Paper,
     Typography,
+    Box,
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
@@ -97,8 +98,11 @@ const parseCommissionInput = (value: string): number | null => {
     return parsed;
 };
 
-const isValidCommissionRate = (rate: number | null) =>
-    rate != null && rate >= 0 && rate <= 1;
+const isValidCommissionRate = (rate: number | null | string) => {
+    if (rate == null || rate === '') return false;
+    const num = Number(rate);
+    return !isNaN(num) && num >= 0 && num <= 1;
+};
 
 export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = ({
     open,
@@ -109,13 +113,13 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
     const { mutate: confirmSync, isPending } = useConfirmSyncStations();
     const previewItems: PreviewItem[] = previewData?.data?.items || previewData?.items || [];
 
-    const [commissionRates, setCommissionRates] = useState<Record<string, number | null>>({});
+    const [commissionRates, setCommissionRates] = useState<Record<string, number | null | string>>({});
 
     useEffect(() => {
         if (!open || previewItems.length === 0) {
             return;
         }
-        const initial: Record<string, number | null> = {};
+        const initial: Record<string, number | null | string> = {};
         previewItems.forEach((item) => {
             initial[item.canonicalName] = item.commissionRate ?? null;
         });
@@ -133,7 +137,7 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
     );
 
     const missingCommissionStations = rows.filter(
-        (row) => !isValidCommissionRate(row.editedCommissionRate)
+        (row) => row.existingStationId == null && !isValidCommissionRate(row.editedCommissionRate)
     );
 
     const submitConfirm = () => {
@@ -143,7 +147,7 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
 
         const invalidRate = rows.find((row) => {
             const rate = row.editedCommissionRate;
-            return rate != null && !isValidCommissionRate(rate);
+            return row.existingStationId == null && rate != null && !isValidCommissionRate(rate);
         });
 
         if (invalidRate) {
@@ -155,17 +159,19 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
             source: syncParams.source,
             region: syncParams.region,
             defaultPrice: syncParams.defaultPrice,
-            items: rows.map((row) => ({
-                name: row.name,
-                canonicalName: row.canonicalName,
-                drawDays: row.drawDays,
-                drawTime: row.drawTime,
-                commissionRate: isValidCommissionRate(row.editedCommissionRate)
-                    ? row.editedCommissionRate
-                    : null,
-                action: row.action,
-                existingStationId: row.existingStationId,
-            })),
+            items: rows
+                .filter((row) => row.existingStationId == null)
+                .map((row) => ({
+                    name: row.name,
+                    canonicalName: row.canonicalName,
+                    drawDays: row.drawDays,
+                    drawTime: row.drawTime,
+                    commissionRate: isValidCommissionRate(row.editedCommissionRate)
+                        ? Number(row.editedCommissionRate)
+                        : null,
+                    action: row.action,
+                    existingStationId: row.existingStationId,
+                })),
         };
 
         confirmSync(payload, {
@@ -217,8 +223,10 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {rows.map((row) => (
-                                    <TableRow key={row.canonicalName}>
+                            {rows.map((row) => {
+                                const isExisting = row.existingStationId != null;
+                                return (
+                                    <TableRow key={row.canonicalName} sx={{ opacity: isExisting ? 0.5 : 1 }}>
                                         <TableCell>{row.name}</TableCell>
                                         <TableCell>{REGION_LABELS[row.region] || row.region}</TableCell>
                                         <TableCell>{row.province}</TableCell>
@@ -226,38 +234,54 @@ export const SyncStationPreviewModal: React.FC<SyncStationPreviewModalProps> = (
                                         <TableCell>
                                             <TextField
                                                 size="small"
-                                                type="number"
-                                                inputProps={{ min: 0, max: 1, step: 0.01 }}
                                                 placeholder="VD: 0.05"
                                                 value={row.editedCommissionRate ?? ''}
                                                 onChange={(e) => {
-                                                    const value = parseCommissionInput(e.target.value);
-                                                    setCommissionRates((prev) => ({
-                                                        ...prev,
-                                                        [row.canonicalName]: value,
-                                                    }));
+                                                    const rawValue = e.target.value;
+                                                    if (rawValue === '') {
+                                                        setCommissionRates((prev) => ({
+                                                            ...prev,
+                                                            [row.canonicalName]: '',
+                                                        }));
+                                                        return;
+                                                    }
+                                                    const numValue = Number(rawValue);
+                                                    if (!isNaN(numValue) && numValue >= 0 && numValue <= 1) {
+                                                        setCommissionRates((prev) => ({
+                                                            ...prev,
+                                                            [row.canonicalName]: rawValue,
+                                                        }));
+                                                    }
                                                 }}
-                                                disabled={isPending}
+                                                disabled={isPending || isExisting}
                                                 fullWidth
                                             />
                                         </TableCell>
                                     </TableRow>
-                            ))}
+                                );
+                            })}
                         </TableBody>
                     </Table>
                 </TableContainer>
             </DialogContent>
-            <DialogActions sx={{ p: 2, pt: 0 }}>
-                <Button onClick={onClose} disabled={isPending} color="inherit">
-                    Hủy
-                </Button>
-                <LoadingButton
-                    loading={isPending}
-                    onClick={handleConfirmSave}
-                    label="Xác nhận & Lưu"
-                    variant="contained"
-                    disabled={rows.length === 0}
-                />
+            <DialogActions sx={{ p: 2, pt: 0, flexDirection: 'column', alignItems: 'flex-end' }}>
+                <Box sx={{ display: 'flex', gap: 1, mb: rows.length > 0 && rows.every(r => r.existingStationId != null) ? 1 : 0 }}>
+                    <Button onClick={onClose} disabled={isPending} color="inherit">
+                        Hủy
+                    </Button>
+                    <LoadingButton
+                        loading={isPending}
+                        onClick={handleConfirmSave}
+                        label="Xác nhận & Lưu"
+                        variant="contained"
+                        disabled={rows.length === 0 || rows.every((r) => r.existingStationId != null)}
+                    />
+                </Box>
+                {rows.length > 0 && rows.every((r) => r.existingStationId != null) && (
+                    <Typography variant="caption" color="text.secondary">
+                        Tất cả nhà đài đều đã tồn tại trên hệ thống.
+                    </Typography>
+                )}
             </DialogActions>
         </Dialog>
     );
