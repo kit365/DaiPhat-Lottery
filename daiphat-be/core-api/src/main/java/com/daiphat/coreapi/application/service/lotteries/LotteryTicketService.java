@@ -135,7 +135,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         );
 
         LotteryTicketModel saved = recomputeTicketAggregate(resolvedTicket.getId());
-        saved = applyImportBatchProgress(saved, importBatchLine, importBatch);
+        saved = applyImportBatchProgress(saved, importBatchLine, importBatch, request.isAutoSave());
 
         log.info("Lottery ticket imported with id: {}", saved.getId());
         return mapToDetailResponse(saved);
@@ -175,6 +175,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                             .drawDate(resolvedDrawDate)
                             .numbers(section.numbers())
                             .serials(section.serials())
+                            .isAutoSave(request.isAutoSave())
                             .build(),
                     importedById
             ));
@@ -441,7 +442,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             ImportBatchLineModel line = importBatchLineRepositoryPort.findById(lineId)
                     .orElseThrow(() -> new DomainException(ErrorCode.IMPORT_BATCH_NOT_FOUND));
             int importedCount = (int) lotteryTicketSerialService.countByImportBatchLineId(lineId);
-            line.updateImportProgress(importedCount, now);
+            line.updateImportProgress(importedCount, now, false);
             importBatchLineRepositoryPort.save(line);
         }
 
@@ -869,11 +870,12 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     private LotteryTicketModel applyImportBatchProgress(
             LotteryTicketModel ticket,
             ImportBatchLineModel importBatchLine,
-            ImportBatchModel importBatch
+            ImportBatchModel importBatch,
+            Boolean isAutoSave
     ) {
         LocalDateTime now = LocalDateTime.now();
         int importedCount = (int) lotteryTicketSerialService.countByImportBatchLineId(importBatchLine.getId());
-        importBatchLine.updateImportProgress(importedCount, now);
+        importBatchLine.updateImportProgress(importedCount, now, isAutoSave);
 
         int declareQuantity = importBatchLine.getDeclareQuantity() != null ? importBatchLine.getDeclareQuantity() : 0;
 
@@ -885,10 +887,11 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         refreshedBatch.recalculateAggregates();
         refreshedBatch.refreshImportStatus(now);
 
+        boolean isAutoSaveTriggered = isAutoSave != null && isAutoSave;
         boolean batchJustCompleted = refreshedBatch.getStatus() == ImportBatchStatus.IMPORTED;
         importBatchRepositoryPort.save(refreshedBatch);
 
-        if (batchJustCompleted) {
+        if (batchJustCompleted && !isAutoSaveTriggered) {
             refreshedBatch.getActiveLines().forEach(line ->
                     activateImportBatchLineTickets(line.getId())
             );
