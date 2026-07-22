@@ -22,6 +22,8 @@ public record CreateLotteryTicketRequest(
         LocalDate drawDate,
 
         @NotNull(message = "Phiếu nhập lô không được để trống")
-        Long importBatchLineId
+        Long importBatchLineId,
+
+        Boolean isAutoSave
 ) {
 }
