@@ -19,7 +19,8 @@ public interface LotteryTicketRepositoryPort {
     Optional<LotteryTicketModel> findByUniqueFields(Long stationId, String numbers, LocalDate drawDate);
 
     Page<LotteryTicketModel> findAll(Pageable pageable, Long stationId, Collection<Long> stationIds,
-                                     LotteryTicketStatus status, Collection<LocalDate> drawDates, String search);
+                                     LotteryTicketStatus status, Collection<LocalDate> drawDates,
+                                     LocalDate drawDateFrom, LocalDate drawDateTo, Long importBatchLineId, String search);
 
     Page<LotteryTicketModel> findAllPublic(Pageable pageable, Long stationId, Collection<Long> stationIds,
                                            Collection<LocalDate> drawDates, String search);

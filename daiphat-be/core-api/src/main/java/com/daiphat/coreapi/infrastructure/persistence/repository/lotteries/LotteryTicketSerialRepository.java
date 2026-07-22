@@ -31,6 +31,28 @@ public interface LotteryTicketSerialRepository extends JpaRepository<LotteryTick
 
     long countByTicket_IdAndStatusInAndDeletedAtIsNull(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
+    @Query("""
+            SELECT s.ticket.id, COUNT(s)
+            FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL
+              AND s.ticket.id IN :ticketIds
+              AND s.status IN :statuses
+            GROUP BY s.ticket.id
+            """)
+    List<Object[]> countGroupedByTicketIdAndStatuses(
+            @Param("ticketIds") Collection<Long> ticketIds,
+            @Param("statuses") Collection<LotteryTicketSerialStatus> statuses
+    );
+
+    @Query("""
+            SELECT s.ticket.id, COUNT(s)
+            FROM LotteryTicketSerialEntity s
+            WHERE s.deletedAt IS NULL
+              AND s.ticket.id IN :ticketIds
+            GROUP BY s.ticket.id
+            """)
+    List<Object[]> countGroupedByTicketId(@Param("ticketIds") Collection<Long> ticketIds);
+
     List<LotteryTicketSerialEntity> findByTicket_IdAndStatusInAndDeletedAtIsNull(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
     @Query("""

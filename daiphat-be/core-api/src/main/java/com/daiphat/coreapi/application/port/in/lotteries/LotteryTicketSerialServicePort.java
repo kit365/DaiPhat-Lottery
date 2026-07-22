@@ -50,6 +50,10 @@ public interface LotteryTicketSerialServicePort {
 
     long countAvailableSerials(Long ticketId);
 
+    Map<Long, Long> countAvailableSerialsByTicketIds(Collection<Long> ticketIds);
+
+    Map<Long, Long> countSerialsByTicketIds(Collection<Long> ticketIds);
+
     long countByStatuses(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
     void expireActiveSerials(Long ticketId);

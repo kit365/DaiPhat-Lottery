@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +74,39 @@ public class LotteryTicketSerialRepositoryAdapter implements LotteryTicketSerial
     @Override
     public long countByTicketIdAndStatuses(Long ticketId, Collection<LotteryTicketSerialStatus> statuses) {
         return lotteryTicketSerialRepository.countByTicket_IdAndStatusInAndDeletedAtIsNull(ticketId, statuses);
+    }
+
+    @Override
+    public Map<Long, Long> countByTicketIdsAndStatuses(
+            Collection<Long> ticketIds,
+            Collection<LotteryTicketSerialStatus> statuses
+    ) {
+        if (ticketIds == null || ticketIds.isEmpty() || statuses == null || statuses.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> counts = new HashMap<>();
+        for (Object[] row : lotteryTicketSerialRepository.countGroupedByTicketIdAndStatuses(ticketIds, statuses)) {
+            if (row == null || row.length < 2 || row[0] == null || row[1] == null) {
+                continue;
+            }
+            counts.put((Long) row[0], (Long) row[1]);
+        }
+        return counts;
+    }
+
+    @Override
+    public Map<Long, Long> countByTicketIds(Collection<Long> ticketIds) {
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> counts = new HashMap<>();
+        for (Object[] row : lotteryTicketSerialRepository.countGroupedByTicketId(ticketIds)) {
+            if (row == null || row.length < 2 || row[0] == null || row[1] == null) {
+                continue;
+            }
+            counts.put((Long) row[0], (Long) row[1]);
+        }
+        return counts;
     }
 
     @Override
