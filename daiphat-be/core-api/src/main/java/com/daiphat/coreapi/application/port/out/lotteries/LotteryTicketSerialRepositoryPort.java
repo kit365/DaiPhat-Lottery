@@ -24,6 +24,10 @@ public interface LotteryTicketSerialRepositoryPort {
 
     long countByTicketIdAndStatuses(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
+    Map<Long, Long> countByTicketIdsAndStatuses(Collection<Long> ticketIds, Collection<LotteryTicketSerialStatus> statuses);
+
+    Map<Long, Long> countByTicketIds(Collection<Long> ticketIds);
+
     List<LotteryTicketSerialModel> findByTicketIdAndStatuses(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
     List<LotteryTicketSerialModel> findAllByTicketId(Long ticketId);

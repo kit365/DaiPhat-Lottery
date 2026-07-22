@@ -20,7 +20,8 @@ public final class ImportBatchSpecification {
 
     public static Specification<ImportBatchEntity> filter(
             Long lotteryStationId,
-            LocalDate drawDate,
+            LocalDate drawDateFrom,
+            LocalDate drawDateTo,
             ImportBatchStatus status,
             ImportBatchType batchType
     ) {
@@ -40,8 +41,12 @@ public final class ImportBatchSpecification {
                 predicates.add(cb.equal(linesJoin.get("lotteryStation").get("id"), lotteryStationId));
             }
 
-            if (drawDate != null) {
-                predicates.add(cb.equal(root.get("drawDate"), drawDate));
+            if (drawDateFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("drawDate"), drawDateFrom));
+            }
+
+            if (drawDateTo != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("drawDate"), drawDateTo));
             }
 
             if (status != null) {

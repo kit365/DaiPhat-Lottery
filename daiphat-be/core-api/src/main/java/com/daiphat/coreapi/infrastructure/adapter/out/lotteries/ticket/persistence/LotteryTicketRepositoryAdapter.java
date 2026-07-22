@@ -72,13 +72,16 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
     @Override
     public Page<LotteryTicketModel> findAll(
             Pageable pageable, Long stationId, Collection<Long> stationIds, LotteryTicketStatus status,
-            Collection<LocalDate> drawDates, String search) {
+            Collection<LocalDate> drawDates, LocalDate drawDateFrom, LocalDate drawDateTo, Long importBatchLineId, String search) {
         return lotteryTicketRepository.findAll(
                         LotteryTicketSpecification.filter(
                                 stationId,
                                 stationIds != null ? List.copyOf(stationIds) : List.of(),
                                 status,
                                 drawDates != null ? List.copyOf(drawDates) : List.of(),
+                                drawDateFrom,
+                                drawDateTo,
+                                importBatchLineId,
                                 search
                         ),
                         pageable
