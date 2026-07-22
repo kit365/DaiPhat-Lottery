@@ -4,19 +4,18 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
 import 'package:daiphat_mobile/src/shared/theme/app_colors.dart';
+import '../models/blog_post.dart';
 import '../viewmodels/blog_viewmodel.dart';
 import 'blog_detail_screen.dart';
-import '../models/blog_post.dart';
 
-// ── Design tokens (from DESIGN.md) ─────────────────────────
 const _primary = Color(0xFFEE1314);
 const _gold = Color(0xFFFFD700);
 const _goldLight = Color(0xFFFFF9E6);
 const _ink = Color(0xFF17191F);
-const _secondary = Color(0xFF505050);
+const _secondary = Color(0xFF6B5A57);
 const _surface = Colors.white;
-const _pageBg = Color(0xFFFDFAF9);
-const _cardBorder = Color(0xFFE9BCB6);
+const _pageBg = Color(0xFFF7F7FB);
+const _cardBorder = Color(0xFFE6E6EC);
 
 class BlogScreen extends ConsumerStatefulWidget {
   const BlogScreen({super.key, this.onBack});
@@ -40,9 +39,9 @@ class _BlogScreenState extends ConsumerState<BlogScreen> {
     final slug = post.slug;
     if (slug == null || slug.isEmpty) return;
 
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BlogDetailScreen(slug: slug)),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => BlogDetailScreen(slug: slug)));
   }
 
   @override
@@ -60,7 +59,8 @@ class _BlogScreenState extends ConsumerState<BlogScreen> {
               data: data,
               onBack: widget.onBack,
               searchController: _searchController,
-              onSearch: (q) => ref.read(blogViewModelProvider.notifier).search(q),
+              onSearch: (q) =>
+                  ref.read(blogViewModelProvider.notifier).search(q),
               onCategorySelected: (i) =>
                   ref.read(blogViewModelProvider.notifier).selectCategory(i),
               onOpenDetail: _openDetail,
@@ -73,15 +73,6 @@ class _BlogScreenState extends ConsumerState<BlogScreen> {
           ),
         ),
       ),
-      floatingActionButton: blogState.hasValue
-          ? FloatingActionButton(
-              onPressed: () {},
-              backgroundColor: _primary,
-              foregroundColor: Colors.white,
-              elevation: 4,
-              child: const Icon(Icons.edit_rounded),
-            )
-          : null,
     );
   }
 }
@@ -120,7 +111,7 @@ class _BlogContent extends StatelessWidget {
             onSubmitted: onSearch,
           ),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        const SliverToBoxAdapter(child: SizedBox(height: 18)),
         SliverToBoxAdapter(
           child: _buildCategoryChips(
             categories: categories,
@@ -128,10 +119,10 @@ class _BlogContent extends StatelessWidget {
             onSelected: onCategorySelected,
           ),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        const SliverToBoxAdapter(child: SizedBox(height: 26)),
         if (featured != null || popular.isNotEmpty) ...[
-          SliverToBoxAdapter(child: _buildSectionHeader('Nổi bật')),
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          const SliverToBoxAdapter(child: _SectionHeader(title: 'Noi bat')),
+          const SliverToBoxAdapter(child: SizedBox(height: 14)),
           SliverToBoxAdapter(
             child: _buildPopularSection(
               featured: featured,
@@ -139,18 +130,18 @@ class _BlogContent extends StatelessWidget {
               onOpenDetail: onOpenDetail,
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(child: SizedBox(height: 28)),
         ],
-        SliverToBoxAdapter(child: _buildSectionHeader('Bài viết mới')),
-        const SliverToBoxAdapter(child: SizedBox(height: 12)),
+        const SliverToBoxAdapter(child: _SectionHeader(title: 'Bai viet moi')),
+        const SliverToBoxAdapter(child: SizedBox(height: 14)),
         if (recent.isEmpty)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(32),
               child: Center(
                 child: Text(
-                  'Không tìm thấy bài viết nào.',
-                  style: GoogleFonts.publicSans(color: _secondary),
+                  'Khong tim thay bai viet nao.',
+                  style: GoogleFonts.inter(color: _secondary),
                 ),
               ),
             ),
@@ -158,7 +149,7 @@ class _BlogContent extends StatelessWidget {
         else
           SliverList.separated(
             itemCount: recent.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, _) => const SizedBox(height: 16),
             itemBuilder: (_, i) => _buildRecentCard(recent[i], onOpenDetail),
           ),
         const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -168,74 +159,63 @@ class _BlogContent extends StatelessWidget {
 }
 
 Widget _buildAppBar(VoidCallback? onBack) {
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+  return Container(
+    color: _surface,
+    padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
     child: Row(
       children: [
-        GestureDetector(
-          onTap: onBack,
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: _surface,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+        SizedBox(
+          width: 40,
+          height: 40,
+          child: IconButton(
+            onPressed: onBack,
+            splashRadius: 20,
+            padding: EdgeInsets.zero,
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              size: 28,
+              color: AppColors.primaryDark,
             ),
-            child: const Icon(Icons.arrow_back_ios_new, size: 18, color: _ink),
           ),
         ),
-        const SizedBox(width: 8),
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Dai Phat Lottery',
+                style: GoogleFonts.inter(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'XO SO - MAY MAN - THINH VUONG',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.9,
+                  color: const Color.fromARGB(255, 87, 91, 61),
+                ),
               ),
             ],
           ),
-          child: ClipOval(
+        ),
+        SizedBox(
+          width: 40,
+          height: 40,
+          child: Center(
             child: Image.asset(
-              'assets/images/login_logo.jpg',
-              fit: BoxFit.cover,
+              'assets/images/logo_launcher.png',
+              width: 34,
+              height: 34,
+              fit: BoxFit.contain,
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'ĐẠI PHÁT',
-              style: GoogleFonts.barlow(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-                color: AppColors.primaryDark,
-                height: 1.1,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'XỔ SỐ - MAY MẮN - THỊNH VƯỢNG',
-              style: GoogleFonts.publicSans(
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                color: AppColors.goldDark,
-              ),
-            ),
-          ],
         ),
       ],
     ),
@@ -249,16 +229,16 @@ Widget _buildSearchBar({
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16),
     child: Container(
-      height: 48,
+      height: 56,
       decoration: BoxDecoration(
         color: _surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFD9DAE2)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -266,16 +246,20 @@ Widget _buildSearchBar({
         controller: controller,
         textInputAction: TextInputAction.search,
         onSubmitted: onSubmitted,
-        style: GoogleFonts.publicSans(fontSize: 14, color: _ink),
+        style: GoogleFonts.inter(fontSize: 14, color: _ink),
         decoration: InputDecoration(
-          hintText: 'Tìm kiếm nội dung...',
-          hintStyle: GoogleFonts.publicSans(
+          hintText: 'Tim kiem noi dung...',
+          hintStyle: GoogleFonts.inter(
             fontSize: 14,
-            color: _secondary.withValues(alpha: 0.6),
+            color: _secondary.withValues(alpha: 0.75),
           ),
-          prefixIcon: const Icon(Icons.search, color: _secondary, size: 20),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: _secondary,
+            size: 30,
+          ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(vertical: 15),
         ),
       ),
     ),
@@ -297,30 +281,30 @@ Widget _buildCategoryChips({
           onTap: () => onSelected(i),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            margin: EdgeInsets.only(right: i < categories.length - 1 ? 10 : 0),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+            margin: EdgeInsets.only(right: i < categories.length - 1 ? 12 : 0),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
             decoration: BoxDecoration(
               color: selected ? _primary : _surface,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: selected ? _primary : const Color(0xFFE5E7EB),
+                color: selected ? _primary : const Color(0xFFD8DAE2),
               ),
               boxShadow: selected
                   ? [
                       BoxShadow(
-                        color: _primary.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      )
+                        color: _primary.withValues(alpha: 0.25),
+                        blurRadius: 14,
+                        offset: const Offset(0, 5),
+                      ),
                     ]
                   : [],
             ),
             child: Text(
               categories[i],
-              style: GoogleFonts.publicSans(
+              style: GoogleFonts.inter(
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : _secondary,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? Colors.white : _ink,
               ),
             ),
           ),
@@ -330,31 +314,51 @@ Widget _buildCategoryChips({
   );
 }
 
-Widget _buildSectionHeader(String title) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.barlow(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: _ink,
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: _primary,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: _ink,
+                ),
+              ),
+            ],
           ),
-        ),
-        Text(
-          'Xem tất cả',
-          style: GoogleFonts.publicSans(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: _primary,
+          Text(
+            'Xem tat ca',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: _primary,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 Widget _buildPopularSection({
@@ -362,15 +366,15 @@ Widget _buildPopularSection({
   required List<BlogPost> popular,
   required void Function(BlogPost) onOpenDetail,
 }) {
-  final items = <BlogPost>[
-    if (featured != null) featured,
+  final items = <BlogPost?>[
+    featured,
     ...popular,
-  ];
+  ].whereType<BlogPost>().toList();
 
   if (items.isEmpty) return const SizedBox.shrink();
 
   return SizedBox(
-    height: 320,
+    height: 382,
     child: PageView.builder(
       padEnds: false,
       controller: PageController(viewportFraction: 0.88),
@@ -387,100 +391,119 @@ Widget _buildFeaturedCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
       margin: const EdgeInsets.only(left: 16, right: 8),
       decoration: BoxDecoration(
         color: _surface,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
-            color: _primary.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Expanded(
+          Positioned.fill(
             child: Image.network(
               post.imageUrl,
               fit: BoxFit.cover,
-              width: double.infinity,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, _, _) => Container(
                 color: _goldLight,
                 child: const Icon(Icons.image_outlined, size: 48, color: _gold),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.05),
+                    Colors.black.withValues(alpha: 0.18),
+                    Colors.black.withValues(alpha: 0.74),
+                  ],
+                  stops: const [0.25, 0.55, 1],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 18,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   post.title,
-                  style: GoogleFonts.barlow(
-                    fontSize: 17,
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: _ink,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  post.excerpt,
-                  style: GoogleFonts.publicSans(
-                    fontSize: 13,
-                    color: _secondary,
-                    height: 1.4,
+                    color: Colors.white,
+                    height: 1.35,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 12),
+                if (post.excerpt.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    post.excerpt,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.white.withValues(alpha: 0.84),
+                      height: 1.45,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: _goldLight,
+                      width: 34,
+                      height: 34,
+                      decoration: const BoxDecoration(
+                        color: _primary,
                         shape: BoxShape.circle,
-                        border: Border.all(color: _primary.withValues(alpha: 0.2)),
                       ),
-                      child: const Icon(Icons.person, size: 18, color: _primary),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'DP',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            post.author,
-                            style: GoogleFonts.publicSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: _ink,
-                            ),
-                          ),
-                          Text(
-                            post.authorDate,
-                            style: GoogleFonts.publicSans(
-                              fontSize: 11,
-                              color: _secondary,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        (post.author.isEmpty ? 'Dai Phat' : post.author)
+                            .toUpperCase(),
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: 0.3,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (post.viewCount > 0) ...[
-                      const Icon(Icons.visibility_outlined, size: 14, color: _secondary),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${post.viewCount}',
-                        style: GoogleFonts.publicSans(fontSize: 11, color: _secondary),
+                    Text(
+                      post.authorDate.isNotEmpty ? post.authorDate : post.date,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.78),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ],
@@ -500,13 +523,13 @@ Widget _buildRecentCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
       child: Container(
         decoration: BoxDecoration(
           color: _surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _cardBorder.withValues(alpha: 0.4)),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: _cardBorder),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
@@ -514,17 +537,17 @@ Widget _buildRecentCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                bottomLeft: Radius.circular(16),
+                topLeft: Radius.circular(22),
+                bottomLeft: Radius.circular(22),
               ),
               child: Image.network(
                 post.imageUrl,
-                width: 96,
-                height: 96,
+                width: 120,
+                height: 120,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 96,
-                  height: 96,
+                errorBuilder: (_, _, _) => Container(
+                  width: 120,
+                  height: 120,
                   color: _goldLight,
                   child: const Icon(Icons.image_outlined, color: _gold),
                 ),
@@ -532,43 +555,48 @@ Widget _buildRecentCard(BlogPost post, void Function(BlogPost) onOpenDetail) {
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       post.title,
-                      style: GoogleFonts.barlow(
-                        fontSize: 15,
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: _ink,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      post.excerpt,
-                      style: GoogleFonts.publicSans(
-                        fontSize: 12,
-                        color: _secondary,
-                        height: 1.35,
+                        height: 1.3,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
+                    Text(
+                      post.excerpt,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: _secondary,
+                        height: 1.45,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
                         const Icon(
                           Icons.calendar_today_outlined,
-                          size: 12,
+                          size: 14,
                           color: _secondary,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 6),
                         Text(
                           post.date,
-                          style: GoogleFonts.publicSans(
+                          style: GoogleFonts.inter(
                             fontSize: 12,
                             color: _secondary,
                             fontWeight: FontWeight.w500,
@@ -604,10 +632,10 @@ class _BlogSkeleton extends StatelessWidget {
               baseColor: Colors.grey[300]!,
               highlightColor: Colors.grey[100]!,
               child: Container(
-                height: 48,
+                height: 56,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(22),
                 ),
               ),
             ),
@@ -616,20 +644,20 @@ class _BlogSkeleton extends StatelessWidget {
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
         SliverToBoxAdapter(
           child: SizedBox(
-            height: 40,
+            height: 48,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: 4,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
-              itemBuilder: (_, __) => Shimmer.fromColors(
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (_, _) => Shimmer.fromColors(
                 baseColor: Colors.grey[300]!,
                 highlightColor: Colors.grey[100]!,
                 child: Container(
-                  width: 100,
+                  width: 118,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
               ),
@@ -637,18 +665,34 @@ class _BlogSkeleton extends StatelessWidget {
           ),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        ...List.generate(4, (i) {
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Shimmer.fromColors(
+              baseColor: Colors.grey[300]!,
+              highlightColor: Colors.grey[100]!,
+              child: Container(
+                height: 360,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(26),
+                ),
+              ),
+            ),
+          ),
+        ),
+        ...List.generate(3, (_) {
           return SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Shimmer.fromColors(
                 baseColor: Colors.grey[300]!,
                 highlightColor: Colors.grey[100]!,
                 child: Container(
-                  height: i == 0 ? 200 : 96,
+                  height: 120,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(22),
                   ),
                 ),
               ),
@@ -677,20 +721,23 @@ class _BlogError extends StatelessWidget {
             const Icon(Icons.error_outline, size: 48, color: _primary),
             const SizedBox(height: 16),
             Text(
-              'Không thể tải danh sách blog',
-              style: GoogleFonts.barlow(fontSize: 18, fontWeight: FontWeight.w700),
+              'Khong the tai danh sach blog',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: GoogleFonts.publicSans(color: _secondary),
+              style: GoogleFonts.inter(color: _secondary),
             ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: onRetry,
               style: FilledButton.styleFrom(backgroundColor: _primary),
-              child: const Text('Thử lại'),
+              child: const Text('Thu lai'),
             ),
           ],
         ),
@@ -698,4 +745,3 @@ class _BlogError extends StatelessWidget {
     );
   }
 }
-
