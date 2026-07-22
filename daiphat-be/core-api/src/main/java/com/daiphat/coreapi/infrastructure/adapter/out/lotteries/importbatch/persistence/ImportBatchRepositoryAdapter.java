@@ -188,12 +188,13 @@ public class ImportBatchRepositoryAdapter implements ImportBatchRepositoryPort {
     public Page<ImportBatchModel> findAll(
             Pageable pageable,
             Long lotteryStationId,
-            LocalDate drawDate,
+            LocalDate drawDateFrom,
+            LocalDate drawDateTo,
             ImportBatchStatus status,
             ImportBatchType batchType
     ) {
         return importBatchRepository.findAll(
-                        ImportBatchSpecification.filter(lotteryStationId, drawDate, status, batchType),
+                        ImportBatchSpecification.filter(lotteryStationId, drawDateFrom, drawDateTo, status, batchType),
                         pageable
                 )
                 .map(this::toDomainWithActiveLines);

@@ -36,6 +36,9 @@ public final class LotteryTicketSpecification {
             List<Long> stationIds,
             LotteryTicketStatus status,
             List<LocalDate> drawDates,
+            LocalDate drawDateFrom,
+            LocalDate drawDateTo,
+            Long importBatchLineId,
             String search
     ) {
         return (root, query, cb) -> {
@@ -53,6 +56,22 @@ public final class LotteryTicketSpecification {
             }
             if (drawDates != null && !drawDates.isEmpty()) {
                 predicates.add(root.get(LotteryTicketEntity_.drawDate).in(drawDates));
+            }
+            if (drawDateFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get(LotteryTicketEntity_.drawDate), drawDateFrom));
+            }
+            if (drawDateTo != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get(LotteryTicketEntity_.drawDate), drawDateTo));
+            }
+            if (importBatchLineId != null) {
+                Subquery<Long> subquery = query.subquery(Long.class);
+                var serialRoot = subquery.from(LotteryTicketSerialEntity.class);
+                subquery.select(cb.literal(1L)).where(
+                        cb.equal(serialRoot.get(LotteryTicketSerialEntity_.ticket), root),
+                        cb.isNull(serialRoot.get(BaseEntity_.deletedAt)),
+                        cb.equal(serialRoot.get(LotteryTicketSerialEntity_.importBatchLine).get(ImportBatchLineEntity_.id), importBatchLineId)
+                );
+                predicates.add(cb.exists(subquery));
             }
             if (search != null && !search.isBlank()) {
                 String searchPattern = "%" + search.toLowerCase() + "%";
@@ -77,7 +96,10 @@ public final class LotteryTicketSpecification {
             predicates.add(cb.isNull(root.get(BaseEntity_.deletedAt)));
             predicates.add(cb.equal(root.get(LotteryTicketEntity_.status), LotteryTicketStatus.IN_STOCK));
             predicates.add(cb.isTrue(root.get(LotteryTicketEntity_.active)));
-            predicates.add(cb.greaterThan(root.get(LotteryTicketEntity_.quantity), 0));
+            var serialJoin = root.join("serials", jakarta.persistence.criteria.JoinType.INNER);
+            predicates.add(cb.equal(serialJoin.get("status"), com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus.IN_STOCK));
+            predicates.add(cb.isNull(serialJoin.get("deletedAt")));
+            query.distinct(true);
             predicates.add(cb.isTrue(root.get(LotteryTicketEntity_.station).get(LotteryStationEntity_.isActive)));
             predicates.add(cb.isNull(root.get(LotteryTicketEntity_.station).get(BaseEntity_.deletedAt)));
 

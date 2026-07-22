@@ -42,10 +42,12 @@ public interface LotteryTicketRepository
     );
 
     @Query("""
-            select coalesce(sum(t.quantity), 0)
+            select count(s.id)
             from LotteryTicketEntity t
+            join t.serials s
             where t.station.id = :productId
               and t.status in :statuses
+              and s.status = 'IN_STOCK'
               and t.deletedAt is null
             """)
     long sumQuantityByStationIdAndStatusInAndDeletedAtIsNull(

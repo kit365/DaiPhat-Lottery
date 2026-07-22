@@ -139,14 +139,15 @@ public class ImportBatchController {
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
             @RequestParam(required = false) Long lotteryStationId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDateTo,
             @RequestParam(required = false) ImportBatchStatus status,
             @RequestParam(required = false) ImportBatchType batchType,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction) {
         return ApiResponse.success(
                 null,
-                importBatchServicePort.getAll(page, size, lotteryStationId, drawDate, status, batchType, sortBy, direction)
+                importBatchServicePort.getAll(page, size, lotteryStationId, drawDateFrom, drawDateTo, status, batchType, sortBy, direction)
         );
     }
 

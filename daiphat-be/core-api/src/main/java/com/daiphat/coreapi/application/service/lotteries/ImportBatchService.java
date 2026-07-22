@@ -370,7 +370,8 @@ public class ImportBatchService implements ImportBatchServicePort {
             int page,
             int size,
             Long lotteryStationId,
-            LocalDate drawDate,
+            LocalDate drawDateFrom,
+            LocalDate drawDateTo,
             ImportBatchStatus status,
             ImportBatchType batchType,
             String sortBy,
@@ -386,7 +387,8 @@ public class ImportBatchService implements ImportBatchServicePort {
         Page<ImportBatchModel> resultPage = importBatchRepositoryPort.findAll(
                 pageable,
                 lotteryStationId,
-                drawDate,
+                drawDateFrom,
+                drawDateTo,
                 status,
                 batchType
         );
