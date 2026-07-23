@@ -8,6 +8,7 @@ export const NOTIFICATION_TYPE = {
     AUTH: "AUTH",
     BLOG: "BLOG",
     ORDER: "ORDER",
+    RESULT: "RESULT",
 } as const;
 
 export const NOTIFICATION_STATUS = {
@@ -57,12 +58,12 @@ export interface NotificationResponse {
 }
 
 export interface NotificationSettingResponse {
-    notificationSettingId: number;
+    notificationSettingId?: number | null;
     userId: string;
     channel: NotificationChannel;
     type: NotificationType;
     isEnabled: boolean;
-    updatedAt: string;
+    updatedAt?: string | null;
 }
 
 export interface CreateNotificationRequest {
@@ -88,7 +89,6 @@ export interface UpdateNotificationRequest {
 }
 
 export interface UpsertNotificationSettingRequest {
-    userId: string;
     channel: NotificationChannel;
     type: NotificationType;
     isEnabled: boolean;
