@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Newspaper, ShieldCheck, Check, Trash2 } from "lucide-react";
+import { Bell, Newspaper, ShieldCheck, Check, Trash2, Trophy } from "lucide-react";
 import {
     useDeleteAllMyReadNotifications,
     useMarkAllMyNotificationsAsRead,
@@ -60,6 +60,12 @@ const getTypeMeta = (type: NotificationResponse["type"]) => {
                 icon: Newspaper,
                 iconWrapperClass: "bg-[#ECFDF5] text-[#1CD162]",
                 actionLabel: "Bài viết",
+            };
+        case NOTIFICATION_TYPE.RESULT:
+            return {
+                icon: Trophy,
+                iconWrapperClass: "bg-[#FFF8E7] text-[#D97706]",
+                actionLabel: "Kết quả",
             };
         default:
             return {

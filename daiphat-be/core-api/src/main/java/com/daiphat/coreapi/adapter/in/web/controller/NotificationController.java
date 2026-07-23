@@ -3,24 +3,34 @@ package com.daiphat.coreapi.adapter.in.web.controller;
 import com.daiphat.coreapi.adapter.in.web.constants.ApiConstants;
 import com.daiphat.coreapi.adapter.in.web.response.ApiResponse;
 import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
+import com.daiphat.coreapi.application.dto.request.notification.UpdateMyNotificationSettingRequest;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.notification.NotificationReferenceAvailabilityResponse;
 import com.daiphat.coreapi.application.dto.response.notification.NotificationResponse;
+import com.daiphat.coreapi.application.dto.response.notification.NotificationSettingResponse;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
+import com.daiphat.coreapi.application.port.in.notification.NotificationSettingServicePort;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PathVariable;
 
+import java.util.List;
+
 @RestController
 @RequestMapping(ApiConstants.API_V1 + "/notifications")
 @RequiredArgsConstructor
+@Validated
 public class NotificationController {
 
     private static final String DEFAULT_PAGE = "1";
@@ -28,6 +38,30 @@ public class NotificationController {
     private static final String DEFAULT_ADMIN_LIMIT = "5";
 
     private final NotificationServicePort notificationServicePort;
+    private final NotificationSettingServicePort notificationSettingServicePort;
+
+    @GetMapping("/settings/me")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<List<NotificationSettingResponse>> getMyNotificationSettings(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return ApiResponse.success(
+                "Lấy cài đặt thông báo thành công.",
+                notificationSettingServicePort.getMySettings(principal.getId())
+        );
+    }
+
+    @PutMapping("/settings/me")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<NotificationSettingResponse> upsertMyNotificationSetting(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @Valid @RequestBody UpdateMyNotificationSettingRequest request
+    ) {
+        return ApiResponse.success(
+                "Cập nhật cài đặt thông báo thành công.",
+                notificationSettingServicePort.upsertMySetting(principal.getId(), request)
+        );
+    }
 
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
