@@ -5,6 +5,7 @@ import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.notification.NotificationResponse;
 import com.daiphat.coreapi.application.port.in.notification.NotificationServicePort;
+import com.daiphat.coreapi.application.port.in.notification.NotificationSettingServicePort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,9 +32,15 @@ class NotificationControllerTest {
     @Mock
     private NotificationServicePort notificationServicePort;
 
+    @Mock
+    private NotificationSettingServicePort notificationSettingServicePort;
+
     @BeforeEach
     void setUp() {
-        notificationController = new NotificationController(notificationServicePort);
+        notificationController = new NotificationController(
+                notificationServicePort,
+                notificationSettingServicePort
+        );
     }
 
     @Test
