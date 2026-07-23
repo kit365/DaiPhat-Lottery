@@ -2,6 +2,7 @@ package com.daiphat.coreapi.application.dto.response.notification;
 
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationChannel;
 import com.daiphat.coreapi.domain.model.enums.notification.NotificationType;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
@@ -13,7 +14,7 @@ public record NotificationSettingResponse(
         UUID userId,
         NotificationChannel channel,
         NotificationType type,
-        boolean isEnabled,
+        @JsonProperty("isEnabled") boolean isEnabled,
         LocalDateTime updatedAt
 ) {
 }

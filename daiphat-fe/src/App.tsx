@@ -15,6 +15,7 @@ import { OrdersTab } from './client/features/profile/pages/tabs/OrdersTab';
 import { OrderDetailTab } from './client/features/profile/pages/tabs/OrderDetailTab';
 import { FavoritesTab } from './client/features/profile/pages/tabs/FavoritesTab';
 import { NotificationsTab } from './client/features/profile/pages/tabs/NotificationsTab';
+import { ResultNotificationSettingsTab } from './client/features/profile/pages/tabs/ResultNotificationSettingsTab';
 import { SecurityTab } from './client/features/profile/pages/tabs/SecurityTab';
 import { RefundsTab } from './client/features/profile/pages/tabs/RefundsTab';
 import { RefundDetailTab } from './client/features/profile/pages/tabs/RefundDetailTab';
@@ -139,6 +140,7 @@ function App() {
               <Route path="tickets" element={<TicketsTab />} />
               <Route path="favorites" element={<FavoritesTab />} />
               <Route path="notifications" element={<NotificationsTab />} />
+              <Route path="result-notifications" element={<ResultNotificationSettingsTab />} />
               <Route path="settings" element={<SecurityTab />} />
             </Route>
           </Route>
