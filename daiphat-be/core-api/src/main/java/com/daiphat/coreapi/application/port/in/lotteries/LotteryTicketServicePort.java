@@ -13,6 +13,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReducti
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,8 +26,9 @@ public interface LotteryTicketServicePort {
     LotteryTicketResponse getById(Long id);
 
     PageResponse<LotteryTicketResponse> getAll(
-            int page, int size, Long stationId, List<Long> stationIds, String status,
-            String drawDate, String search, String sortBy, String direction);
+            int page, int size, Long stationId, List<Long> stationIds, String status, String drawDate,
+            LocalDate drawDateFrom, LocalDate drawDateTo, Long importBatchLineId,
+            String search, String sortBy, String direction);
 
     PageResponse<LotteryTicketResponse> getPublicTickets(
             int page, int size, Long stationId, List<Long> stationIds, String drawDate, String search, String sortBy, String direction);
