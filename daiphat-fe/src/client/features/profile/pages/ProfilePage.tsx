@@ -8,7 +8,7 @@ import { useNotifications } from "../../../hooks/useNotifications";
 import { useMyRefundPendingCount } from "../../../hooks/useMyRefundPendingCount";
 import { useMySupportTicketActiveCount } from "../../../hooks/useMySupportTicketActiveCount";
 
-type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'complaints' | 'bankAccounts' | 'notifications' | 'settings' | 'favorites';
+type TabId = 'overview' | 'info' | 'tickets' | 'orders' | 'refunds' | 'complaints' | 'bankAccounts' | 'notifications' | 'resultNotifications' | 'settings' | 'favorites';
 
 interface TabConfig {
     id: TabId;
@@ -28,6 +28,7 @@ const TABS: TabConfig[] = [
     { id: 'bankAccounts', path: '/profile/bank-accounts', label: 'Tài khoản ngân hàng', icon: 'fa-solid fa-building-columns' },
     { id: 'favorites', path: '/profile/favorites', label: 'Số yêu thích', icon: 'fa-regular fa-star' },
     { id: 'notifications', path: '/profile/notifications', label: 'Thông báo', icon: 'fa-regular fa-bell' },
+    { id: 'resultNotifications', path: '/profile/result-notifications', label: 'Kết quả xổ số', icon: 'fa-solid fa-trophy' },
     { id: 'settings', path: '/profile/settings', label: 'Bảo mật', icon: 'fa-solid fa-shield-halved' },
 ];
 
