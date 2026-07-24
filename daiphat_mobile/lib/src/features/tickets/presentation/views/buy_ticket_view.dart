@@ -154,7 +154,8 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
             viewModel: viewModel,
             showHardcodedTicket: _showHardcodedTicket,
             onOpenDetail: (ticket) => _openTicketDetail(context, ticket),
-            onBuyNow: (ticket) => _addToCart(context, ticket, openCheckout: true),
+            onBuyNow: (ticket) =>
+                _addToCart(context, ticket, openCheckout: true),
           ),
           loading: () => const _LoadingState(),
           error: (error, _) => _ErrorState(
@@ -309,11 +310,7 @@ class _DemoTicketBanner extends StatelessWidget {
       ),
       child: const Row(
         children: [
-          Icon(
-            Icons.info_outline_rounded,
-            size: 24,
-            color: Color(0xFF161616),
-          ),
+          Icon(Icons.info_outline_rounded, size: 24, color: Color(0xFF161616)),
           SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -377,10 +374,7 @@ class _SearchFieldState extends State<_SearchField> {
       ),
       decoration: InputDecoration(
         hintText: 'Tim kiem ve...',
-        hintStyle: const TextStyle(
-          color: Color(0xFFA78E8A),
-          fontSize: 16,
-        ),
+        hintStyle: const TextStyle(color: Color(0xFFA78E8A), fontSize: 16),
         prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF6B4E49)),
         filled: true,
         fillColor: Colors.white,
@@ -426,7 +420,7 @@ class _TicketHeroBanner extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/images/hero_mobile.jpg', fit: BoxFit.cover),
+          Image.asset('assets/images/home_bg.png', fit: BoxFit.cover),
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -499,89 +493,135 @@ class _DaySegmentedControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE3E5EA), width: 1.3),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SegmentButton(
-              label: 'Hom nay',
-              selected: selectedDay == TicketDayFilter.today,
-              onTap: onSelectToday,
-            ),
-          ),
-          Expanded(
-            child: _SegmentButton(
-              label: 'Ngay mai',
-              selected: selectedDay == TicketDayFilter.tomorrow,
-              onTap: onSelectTomorrow,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+    const selectedTextColor = AppColors.primary;
+    const unselectedTextColor = Color(0xFF5C4A45);
+    const trackColor = Color(0xFFF7F4F1);
 
-class _SegmentButton extends StatelessWidget {
-  const _SegmentButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const outerPadding = 4.0;
+        final thumbWidth = (constraints.maxWidth - (outerPadding * 2)) / 2;
+        final thumbLeft = selectedDay == TicketDayFilter.today
+            ? outerPadding
+            : constraints.maxWidth - thumbWidth - outerPadding;
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-          boxShadow: selected
-              ? const [
-                  BoxShadow(
-                    color: Color(0x22000000),
-                    blurRadius: 18,
-                    spreadRadius: -2,
-                    offset: Offset(0, 7),
+        return Container(
+          height: 58,
+          padding: const EdgeInsets.all(outerPadding),
+          decoration: BoxDecoration(
+            color: trackColor,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: const Color(0xFFE4DCD6), width: 1.1),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 14,
+                offset: Offset(0, 5),
+              ),
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 4,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                left: thumbLeft,
+                top: 2,
+                bottom: 2,
+                width: thumbWidth,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.white, Color(0xFFFFF9F8)],
+                    ),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: const Color(0xFFF3CEC7),
+                      width: 1.0,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x26000000),
+                        blurRadius: 12,
+                        spreadRadius: -2,
+                        offset: Offset(0, 6),
+                      ),
+                      BoxShadow(
+                        color: Color(0x10000000),
+                        blurRadius: 3,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
                   ),
-                  BoxShadow(
-                    color: Color(0x0F000000),
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: selected ? AppColors.primary : const Color(0xFF5D3F3C),
+                ),
+              ),
+              Positioned.fill(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: onSelectToday,
+                          hoverColor: trackColor,
+                          focusColor: trackColor,
+                          highlightColor: trackColor,
+                          splashColor: Colors.transparent,
+                          borderRadius: BorderRadius.circular(999),
+                          child: Center(
+                            child: Text(
+                              'Hom nay',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: selectedDay == TicketDayFilter.today
+                                    ? selectedTextColor
+                                    : unselectedTextColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: onSelectTomorrow,
+                          hoverColor: trackColor,
+                          focusColor: trackColor,
+                          highlightColor: trackColor,
+                          splashColor: Colors.transparent,
+                          borderRadius: BorderRadius.circular(999),
+                          child: Center(
+                            child: Text(
+                              'Ngay mai',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: selectedDay == TicketDayFilter.tomorrow
+                                    ? selectedTextColor
+                                    : unselectedTextColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
