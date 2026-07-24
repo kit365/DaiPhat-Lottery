@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN --mount=type=cache,target=/root/.m2 mvn clean package -pl core-api -am -DskipTests -Dcheckstyle.skip
+RUN --mount=type=cache,target=/root/.m2 mvn clean package -pl core-api -am -Dmaven.test.skip=true -Dcheckstyle.skip
 
 RUN jlink \
     --add-modules java.base,java.sql,java.naming,java.desktop,java.management,java.security.jgss,java.instrument,jdk.unsupported,jdk.crypto.ec \
