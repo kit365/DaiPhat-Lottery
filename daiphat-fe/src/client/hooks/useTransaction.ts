@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { transactionService } from '../services/transactionService';
 import { AppToast as toast } from '../../utils/toast.util';
 import { CancelPaymentRequest, ProcessPaymentRequest } from '../../types/transaction.type';
@@ -24,6 +24,19 @@ export const useCancelPayment = () => {
             }
             toast.error(message);
         }
+    });
+};
+
+export const useSyncPaymentFromGateway = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (orderId: string) => transactionService.syncPaymentFromGateway(orderId),
+        onSuccess: (_data, orderId) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDER_DETAIL, orderId] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_MY_ORDERS] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.CLIENT_PENDING_PAYMENT_COUNTDOWN, orderId] });
+        },
     });
 };
 
