@@ -92,6 +92,9 @@ public class LotteryTicketEntity extends BaseEntity {
     @Transient
     private LocalDateTime returnedAt;
 
+    @Column(name = "replace_ticket_id")
+    private Long replaceTicketId;
+
     @PrePersist
     @PreUpdate
     void ensureBatchCode() {

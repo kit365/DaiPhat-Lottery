@@ -6,6 +6,7 @@ import com.daiphat.coreapi.adapter.in.web.security.AuthenticatedUserPrincipal;
 import com.daiphat.coreapi.application.dto.request.lotteries.BulkCreateLotteryTicketsRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.CreateLotteryTicketRequest;
 import com.daiphat.coreapi.application.dto.request.lotteries.UpdateLotteryTicketRequest;
+import com.daiphat.coreapi.application.dto.request.lotteries.ReplaceTicketDigitsRequest;
 import com.daiphat.coreapi.application.dto.storage.StorageResult;
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.base.Views;
@@ -178,6 +179,17 @@ public class LotteryTicketController {
         log.info("REST request to verify lottery ticket: {} by user: {}", id, principal.getUsername());
         LotteryTicketResponse response = lotteryTicketServicePort.verify(id, principal.getId());
         return ApiResponse.success("Xác minh vé số thành công.", response);
+    }
+
+    @PostMapping(ID_PATH + "/replace-digits")
+    @PreAuthorize("hasAnyAuthority('ticket:edit', 'ticket:create')")
+    public ApiResponse<LotteryTicketResponse> replaceDigits(
+            @PathVariable Long id,
+            @Valid @RequestBody ReplaceTicketDigitsRequest request,
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        log.info("REST request to replace ticket digits for ticketId: {} by user: {}", id, principal.getUsername());
+        LotteryTicketResponse response = lotteryTicketServicePort.replaceDigits(id, request, principal.getId());
+        return ApiResponse.success("Thay đổi dãy số cho vé số thành công.", response);
     }
 
     @PatchMapping(ID_PATH + "/status")

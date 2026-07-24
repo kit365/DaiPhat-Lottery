@@ -22,6 +22,7 @@ import com.daiphat.coreapi.application.port.in.lotteries.LotteryTicketServicePor
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchLineRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.ImportBatchRepositoryPort;
 import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketRepositoryPort;
+import com.daiphat.coreapi.application.port.out.lotteries.LotteryTicketSerialRepositoryPort;
 import com.daiphat.coreapi.application.port.out.order.OrderRepositoryPort;
 import com.daiphat.coreapi.domain.exception.DomainException;
 import com.daiphat.coreapi.domain.exception.ErrorCode;
@@ -78,6 +79,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
             List.of(LotteryTicketSerialStatus.SOLD);
 
     private final LotteryTicketRepositoryPort lotteryTicketRepositoryPort;
+    private final LotteryTicketSerialRepositoryPort lotteryTicketSerialRepositoryPort;
     private final ImportBatchRepositoryPort importBatchRepositoryPort;
     private final ImportBatchLineRepositoryPort importBatchLineRepositoryPort;
     private final ImportBatchDraftExpiryService importBatchDraftExpiryService;
@@ -1235,5 +1237,58 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                 .stream()
                 .map(lotteryTicketApplicationMapper::toSerialResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public LotteryTicketResponse replaceDigits(
+            Long id,
+            com.daiphat.coreapi.application.dto.request.lotteries.ReplaceTicketDigitsRequest request,
+            UUID editorId
+    ) {
+        LotteryTicketModel oldTicket = getTicketOrThrow(id);
+
+        Optional<LotteryTicketModel> existingNewTicket = lotteryTicketRepositoryPort
+                .findByUniqueFields(oldTicket.getStationId(), request.newNumbers().trim(), oldTicket.getDrawDate());
+
+        LotteryTicketModel newTicket;
+        if (existingNewTicket.isPresent()) {
+            newTicket = existingNewTicket.get();
+            if (request.newTicketImg() != null && !request.newTicketImg().isBlank()) {
+                newTicket.setTicketImg(request.newTicketImg());
+            }
+        } else {
+            newTicket = LotteryTicketModel.builder()
+                    .stationId(oldTicket.getStationId())
+                    .numbers(request.newNumbers().trim())
+                    .drawDate(oldTicket.getDrawDate())
+                    .ticketImg(request.newTicketImg() != null && !request.newTicketImg().isBlank() ? request.newTicketImg() : oldTicket.getTicketImg())
+                    .priceSnapshot(oldTicket.getPriceSnapshot())
+                    .status(LotteryTicketStatus.IN_STOCK)
+                    .active(true)
+                    .replaceTicketId(oldTicket.getId())
+                    .build();
+        }
+
+        LotteryTicketModel savedNewTicket = lotteryTicketRepositoryPort.save(newTicket);
+
+        List<LotteryTicketSerialModel> serials = lotteryTicketSerialService.findAllByTicketId(oldTicket.getId());
+        for (LotteryTicketSerialModel serial : serials) {
+            serial.setTicketId(savedNewTicket.getId());
+            if (request.newTicketImg() != null && !request.newTicketImg().isBlank()) {
+                serial.setTicketImg(request.newTicketImg());
+            }
+            lotteryTicketSerialRepositoryPort.save(serial);
+        }
+
+        oldTicket.setStatus(LotteryTicketStatus.VOIDED);
+        lotteryTicketRepositoryPort.save(oldTicket);
+
+        recomputeTicketAggregate(savedNewTicket.getId());
+        recomputeTicketAggregate(oldTicket.getId());
+
+        syncStationInventory(oldTicket.getStationId());
+
+        return lotteryTicketApplicationMapper.toResponse(savedNewTicket);
     }
 }

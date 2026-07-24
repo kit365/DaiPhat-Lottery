@@ -45,6 +45,7 @@ public class LotteryTicketSerialModel {
     private LotteryTicketSerialFaultedBy faultedBy;
     private String damagedEvidenceUrl;
     private String damagedReason;
+    private Long replacedForTicketId;
     private LocalDateTime deletedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -132,6 +133,11 @@ public class LotteryTicketSerialModel {
     public void markLost(LotteryTicketSerialFaultedBy faultedBy, String reason) {
         markFaulted(LotteryTicketSerialStatus.LOST, faultedBy, reason);
         // LOST incidents do not keep damage evidence.
+        this.damagedEvidenceUrl = null;
+    }
+
+    public void markVoided(LotteryTicketSerialFaultedBy faultedBy, String reason) {
+        markFaulted(LotteryTicketSerialStatus.VOIDED, faultedBy, reason);
         this.damagedEvidenceUrl = null;
     }
 

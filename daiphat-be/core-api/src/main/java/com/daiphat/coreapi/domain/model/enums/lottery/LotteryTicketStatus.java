@@ -10,6 +10,7 @@ public enum LotteryTicketStatus {
     IMPORTING("Đang nhập lô"),
     SOLD_OUT("Hết hàng"),
     EXPIRED("Hết hạn"),
+    VOIDED("Hủy do lỗi nhập liệu"),
 
     // Legacy statuses kept temporarily so the project can migrate incrementally
     RESERVED("Đang giữ chỗ"),

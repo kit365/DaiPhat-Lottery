@@ -12,7 +12,7 @@ import org.mapstruct.Named;
 import java.util.List;
 import java.util.UUID;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = {LotteryTicketSerialPersistenceMapper.class})
 public interface LotteryTicketPersistenceMapper {
 
     @Mapping(target = "station", source = "stationId", qualifiedByName = "stationIdToStationEntity")
@@ -47,7 +47,6 @@ public interface LotteryTicketPersistenceMapper {
     List<LotteryTicketEntity> toEntityList(List<LotteryTicketModel> models);
 
     @Mapping(target = "stationId", source = "station.id")
-    @Mapping(target = "serials", ignore = true)
     @Mapping(target = "importedById", ignore = true)
     @Mapping(target = "verifiedById", ignore = true)
     @Mapping(target = "importedAt", ignore = true)

@@ -50,6 +50,8 @@ public class LotteryTicketModel {
 
     private LocalDateTime deletedAt;
 
+    private Long replaceTicketId;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
