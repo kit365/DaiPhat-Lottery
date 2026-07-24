@@ -116,22 +116,22 @@ class _BuyTicketViewState extends ConsumerState<BuyTicketView> {
             color: Colors.black,
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 20,
-            color: Color(0xFF5D3F3C),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: _HeaderActionButton(
+            icon: Icons.arrow_back_ios_new_rounded,
+            iconColor: Colors.black,
+            onTap: () => context.go(AppRoute.home.path),
           ),
-          onPressed: () => context.go(AppRoute.home.path),
         ),
+        leadingWidth: 56,
         actions: [
-          IconButton(
-            onPressed: () => context.push('/cart'),
-            icon: const Icon(
-              Icons.shopping_cart_outlined,
-              color: AppColors.primary,
-            ),
+          _HeaderActionButton(
+            icon: Icons.shopping_cart_outlined,
+            iconColor: Colors.black,
+            onTap: () => context.push('/cart'),
           ),
+          const SizedBox(width: 8),
           IconButton(
             tooltip: _showHardcodedTicket ? 'An ve demo' : 'Hien ve demo',
             onPressed: () {
@@ -440,33 +440,6 @@ class _TicketHeroBanner extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            right: -18,
-            top: -10,
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  width: 8,
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: -28,
-            bottom: -30,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.06),
-              ),
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
             child: Column(
@@ -543,11 +516,13 @@ class _DaySegmentedControl extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const outerPadding = 4.0;
-        final thumbWidth = (constraints.maxWidth - (outerPadding * 2)) / 2;
+        const outerPadding = 6.0;
+        const thumbInset = 6.0;
+        final thumbWidth =
+            (constraints.maxWidth - (outerPadding * 2) - (thumbInset * 2)) / 2;
         final thumbLeft = selectedDay == TicketDayFilter.today
-            ? outerPadding
-            : constraints.maxWidth - thumbWidth - outerPadding;
+            ? outerPadding + thumbInset
+            : constraints.maxWidth - thumbWidth - outerPadding - thumbInset;
 
         return Container(
           height: 58,
@@ -575,8 +550,8 @@ class _DaySegmentedControl extends StatelessWidget {
                 duration: const Duration(milliseconds: 260),
                 curve: Curves.easeOutCubic,
                 left: thumbLeft,
-                top: 2,
-                bottom: 2,
+                top: 3,
+                bottom: 3,
                 width: thumbWidth,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -592,13 +567,13 @@ class _DaySegmentedControl extends StatelessWidget {
                     ),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x26000000),
+                        color: Color(0x22000000),
                         blurRadius: 12,
                         spreadRadius: -2,
-                        offset: Offset(0, 6),
+                        offset: Offset(0, 5),
                       ),
                       BoxShadow(
-                        color: Color(0x10000000),
+                        color: Color(0x0D000000),
                         blurRadius: 3,
                         offset: Offset(0, 1),
                       ),
@@ -720,13 +695,13 @@ class _TicketCard extends StatelessWidget {
       decoration: const BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: Color(0x16000000),
-            blurRadius: 24,
-            spreadRadius: -6,
-            offset: Offset(0, 10),
+            color: Color(0x18000000),
+            blurRadius: 20,
+            spreadRadius: -8,
+            offset: Offset(0, 8),
           ),
           BoxShadow(
-            color: Color(0x08000000),
+            color: Color(0x09000000),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -738,12 +713,8 @@ class _TicketCard extends StatelessWidget {
           color: Colors.transparent,
           child: Ink(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.white, Color(0xFFFAFAFA)],
-              ),
-              border: Border.all(color: const Color(0xFFE4E7EC), width: 1.2),
+              color: const Color(0xFFF9F8F4),
+              border: Border.all(color: const Color(0xFFE8E4DD), width: 1.1),
             ),
             child: InkWell(
               onTap: onTap,
@@ -764,21 +735,21 @@ class _TicketCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 15,
                               fontWeight: FontWeight.w500,
-                              color: Color(0xFF6B6767),
+                              color: Color(0xFF2A2A2A),
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Text(
                             ticket.code,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Colors.black,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 2,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.4,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -786,7 +757,7 @@ class _TicketCard extends StatelessWidget {
                             _compactPrice(ticket.price),
                             style: const TextStyle(
                               fontSize: 17,
-                              color: Color(0xFF222222),
+                              color: Color(0xFF111111),
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -795,7 +766,7 @@ class _TicketCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     SizedBox(
-                      height: 44,
+                      height: 46,
                       child: ElevatedButton(
                         onPressed: onBuyNow,
                         style: ElevatedButton.styleFrom(
@@ -1324,6 +1295,46 @@ class _HeaderIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(icon, color: AppColors.primary, size: 20),
+    );
+  }
+}
+
+class _HeaderActionButton extends StatelessWidget {
+  const _HeaderActionButton({
+    required this.icon,
+    required this.iconColor,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFEDEDED), width: 1.4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(icon, color: iconColor, size: 20),
+        ),
+      ),
     );
   }
 }
