@@ -22,7 +22,8 @@ import java.util.UUID;
 public class NotificationSettingService implements NotificationSettingServicePort {
 
     private static final List<ManagedSettingKey> DEFAULT_MANAGED_SETTINGS = List.of(
-            new ManagedSettingKey(NotificationChannel.IN_APP, NotificationType.RESULT)
+            new ManagedSettingKey(NotificationChannel.IN_APP, NotificationType.RESULT),
+            new ManagedSettingKey(NotificationChannel.IN_APP, NotificationType.DRAW_RESULT)
     );
 
     private final NotificationSettingRepositoryPort notificationSettingRepositoryPort;
