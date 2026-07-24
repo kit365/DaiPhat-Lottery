@@ -14,6 +14,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultLiveI
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryResultSyncBatchResponse;
 import com.daiphat.coreapi.application.dto.lotteries.LotteryResultSourcePreviewResult;
+import com.daiphat.coreapi.application.event.LotteryResultCompletedEvent;
 import com.daiphat.coreapi.application.event.LotteryResultSyncRequestedEvent;
 import com.daiphat.coreapi.application.mapper.lotteries.LotteryResultApplicationMapper;
 import com.daiphat.coreapi.application.port.in.lotteries.LotteryResultDetailServicePort;
@@ -593,14 +594,25 @@ public class LotteryResultService implements LotteryResultServicePort {
             nextStatus = LotteryResultStatus.PARTIAL;
         }
 
+        boolean firstCompleted = nextStatus == LotteryResultStatus.COMPLETED && result.getPublishedAt() == null;
+
         result.setStatus(nextStatus);
         result.setSource(sourceType.value());
         result.setLastSyncedAt(LocalDateTime.now());
         result.setRequestedAt(null);
-        if (nextStatus == LotteryResultStatus.COMPLETED && result.getPublishedAt() == null) {
+        if (firstCompleted) {
             result.setPublishedAt(LocalDateTime.now());
         }
         lotteryResultRepositoryPort.save(lotteryResultApplicationMapper.withStation(result, station));
+
+        if (firstCompleted) {
+            eventPublisher.publishEvent(LotteryResultCompletedEvent.builder()
+                    .resultId(result.getId())
+                    .stationId(station != null ? station.getId() : result.getStationId())
+                    .stationName(station != null ? station.getName() : result.getStationName())
+                    .drawDate(result.getDrawDate())
+                    .build());
+        }
     }
 
     private boolean isCoreResultCompleted(
