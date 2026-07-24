@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.application.port.out.lotteries;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryTicketModel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +24,9 @@ public interface LotteryTicketRepositoryPort {
 
     Page<LotteryTicketModel> findAllPublic(Pageable pageable, Long stationId, Collection<Long> stationIds,
                                            Collection<LocalDate> drawDates, String search);
+
+    Page<LotteryTicketModel> findAllPublic(Pageable pageable, Long stationId, Collection<Long> stationIds,
+                                           Collection<LocalDate> drawDates, String search, TicketSearchMode searchMode);
 
     java.util.List<LotteryTicketModel> findExpirableTickets(LocalDate beforeDate, Collection<LotteryTicketStatus> statuses);
 

@@ -11,6 +11,7 @@ import com.daiphat.coreapi.application.dto.response.lotteries.BulkCreateLotteryT
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionTicketResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.LotteryTicketResponse;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode;
 
 import java.util.List;
 import java.util.UUID;
@@ -29,6 +30,10 @@ public interface LotteryTicketServicePort {
 
     PageResponse<LotteryTicketResponse> getPublicTickets(
             int page, int size, Long stationId, List<Long> stationIds, String drawDate, String search, String sortBy, String direction);
+
+    PageResponse<LotteryTicketResponse> getPublicTickets(
+            int page, int size, Long stationId, List<Long> stationIds, String drawDate,
+            String search, TicketSearchMode searchMode, String sortBy, String direction);
 
     LotteryTicketResponse update(Long id, UpdateLotteryTicketRequest request, UUID editorId);
 

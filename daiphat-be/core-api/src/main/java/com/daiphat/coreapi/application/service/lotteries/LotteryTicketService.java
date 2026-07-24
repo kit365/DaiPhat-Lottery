@@ -26,6 +26,7 @@ import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchLineStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.ImportBatchStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketSerialStatus;
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchLineModel;
 import com.daiphat.coreapi.domain.model.lotteries.ImportBatchModel;
 import com.daiphat.coreapi.domain.model.lotteries.LotteryStationModel;
@@ -225,6 +226,14 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     public PageResponse<LotteryTicketResponse> getPublicTickets(
             int page, int size, Long stationId, List<Long> stationIds, String drawDate,
             String search, String sortBy, String direction) {
+        return getPublicTickets(page, size, stationId, stationIds, drawDate, search, null, sortBy, direction);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<LotteryTicketResponse> getPublicTickets(
+            int page, int size, Long stationId, List<Long> stationIds, String drawDate,
+            String search, TicketSearchMode searchMode, String sortBy, String direction) {
 
         PageRequest pageable = PageRequest.of(
                 Math.max(0, page - 1),
@@ -236,7 +245,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
 
         Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
-                .findAllPublic(pageable, stationId, normalizedStationIds, parsedDrawDates, search);
+                .findAllPublic(pageable, stationId, normalizedStationIds, parsedDrawDates, search, searchMode);
 
         Map<Long, String> stationNameCache = new HashMap<>();
         Map<Long, LotteryTicketSerialModel> serialsByTicketId = lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(
