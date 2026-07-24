@@ -6,6 +6,7 @@ import {
     minSellableDrawDate,
     resolveSellableDrawDateParam,
 } from '../../utils/sellableDrawDate.util';
+import { normalizeTicketSearchDigits } from '../../utils/ticketSearchQuery.util';
 
 export interface AvailableSearchFilters {
     search: string;
@@ -82,7 +83,7 @@ export const AvailableTicketSearchForm: React.FC<AvailableTicketSearchFormProps>
                 type="text"
                 inputMode="numeric"
                 value={filters.search}
-                onChange={(e) => onChange({ search: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                onChange={(e) => onChange({ search: normalizeTicketSearchDigits(e.target.value) })}
                 placeholder="VD: 68, 868, 686868..."
                 className="w-full px-4 py-3 border border-[#E5E8EB] rounded-xl text-[15px] outline-none bg-white tracking-wider"
             />
