@@ -19,6 +19,12 @@ public interface TransactionServicePort {
 
     OrderModel cancelOnlinePayment(UUID orderId, Long transactionId, PaymentGateway gateway, String reason);
 
+    /**
+     * Đồng bộ trạng thái đơn với cổng thanh toán khi webhook chưa cập nhật.
+     * Nếu PayOS đã PAID mà đơn vẫn PENDING_PAYMENT thì đánh dấu thanh toán thành công.
+     */
+    OrderModel syncOnlinePaymentFromGateway(UUID orderId);
+
     void processGatewayCallback(PaymentGateway gateway, String rawPayload);
 
     OrderModel collectDirectOrderCash(UUID orderId, UUID operatorId, String note);
