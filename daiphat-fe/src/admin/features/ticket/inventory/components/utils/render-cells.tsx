@@ -107,7 +107,7 @@ const DrawDateCell = (params: GridRenderCellParams) => {
     const date = params.value;
     if (!date) return null;
 
-    const { data: stationsData } = useStations({ size: 1000 });
+    const { data: stationsData } = useStations({ limit: 1000 });
     const stations = stationsData?.data?.recordList || [];
     const stationId = params.row.stationId || params.row.providerId;
     const station = stations.find((p: any) => (p.id || p._id)?.toString() === stationId?.toString());

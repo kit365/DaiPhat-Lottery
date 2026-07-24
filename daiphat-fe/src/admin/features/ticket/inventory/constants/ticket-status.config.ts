@@ -15,6 +15,9 @@ export const TICKET_STATUS_OPTIONS: TicketStatusOption[] = [
     { value: "RETURNED", label: "Đã trả nhà đài" },
     { value: "INTERNAL_FAULT", label: "Nhân viên làm hỏng" },
     { value: "ISSUER_FAULT", label: "Lỗi in ấn từ nhà cung cấp" },
+    { value: "DAMAGED", label: "Vé hỏng / rách" },
+    { value: "LOST", label: "Vé thất lạc" },
+    { value: "VOIDED", label: "Hủy do lỗi nhập liệu" },
 ];
 
 /**

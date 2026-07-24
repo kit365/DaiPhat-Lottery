@@ -68,6 +68,7 @@ const ImportBatchListPage = lazy(() => import("../features/ticket/import-batch")
 const ImportBatchCreatePage = lazy(() => import("../features/ticket/import-batch").then(m => ({ default: m.ImportBatchCreatePage })));
 const ImportBatchEditPage = lazy(() => import("../features/ticket/import-batch").then(m => ({ default: m.ImportBatchEditPage })));
 const ImportBatchDetailPage = lazy(() => import("../features/ticket/import-batch").then(m => ({ default: m.ImportBatchDetailPage })));
+const ImportBatchLineDetailPage = lazy(() => import("../features/ticket/import-batch").then(m => ({ default: m.ImportBatchLineDetailPage })));
 const SupplierListPage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierListPage })));
 const SupplierCreatePage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierCreatePage })));
 const SupplierEditPage = lazy(() => import("../features/supplier").then(m => ({ default: m.SupplierEditPage })));
@@ -95,6 +96,7 @@ export const AdminRoutes = [
     { path: "import-batch/create", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.CREATE}><ImportBatchCreatePage /></PermissionGuard> },
     { path: "import-batch/edit/:id", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.CREATE}><ImportBatchEditPage /></PermissionGuard> },
     { path: "import-batch/detail/:id", element: <PermissionGuard permissions={[PERMISSIONS.IMPORT_BATCH.VIEW, PERMISSIONS.IMPORT_BATCH.CREATE, PERMISSIONS.TICKET.CREATE]}><ImportBatchDetailPage /></PermissionGuard> },
+    { path: "import-batch/detail/:id/line/:lineId", element: <PermissionGuard permission={PERMISSIONS.IMPORT_BATCH.VIEW}><ImportBatchLineDetailPage /></PermissionGuard> },
     { path: "supplier/list", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.VIEW}><SupplierListPage /></PermissionGuard> },
     { path: "supplier/create", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.CREATE}><SupplierCreatePage /></PermissionGuard> },
     { path: "supplier/edit/:id", element: <PermissionGuard permission={PERMISSIONS.SUPPLIER.EDIT}><SupplierEditPage /></PermissionGuard> },

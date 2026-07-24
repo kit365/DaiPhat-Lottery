@@ -2,6 +2,7 @@ export { ImportBatchListPage } from './components/pages/ImportBatchListPage';
 export { ImportBatchCreatePage } from './components/pages/ImportBatchCreatePage';
 export { ImportBatchEditPage } from './components/pages/ImportBatchEditPage';
 export { ImportBatchDetailPage } from './components/pages/ImportBatchDetailPage';
+export { ImportBatchLineDetailPage } from './components/pages/ImportBatchLineDetailPage';
 
 export {
     useActiveImportBatchDraft,

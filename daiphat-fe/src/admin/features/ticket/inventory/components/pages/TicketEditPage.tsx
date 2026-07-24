@@ -65,7 +65,7 @@ export const TicketEditPage = () => {
 
     const { data: ticketDetail, isLoading: isLoadingTicket } = useTicketDetail(id);
 
-    const { data: providersRes } = useStations({ size: 1000 });
+    const { data: providersRes } = useStations({ limit: 1000 });
     const providers = (providersRes as any)?.data?.recordList || [];
     const { data: regionsRes } = useRegions();
     const regions = regionsRes?.data || [];
