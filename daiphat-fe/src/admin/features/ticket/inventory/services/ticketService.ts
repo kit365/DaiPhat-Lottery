@@ -185,3 +185,28 @@ export const uploadTicketSerialImage = async (id: string | number, file: File): 
     });
     return response.data;
 };
+
+export const reportTicketSerialFault = async (
+    id: string | number,
+    data: {
+        status: 'DAMAGED' | 'LOST' | 'VOIDED';
+        faultedBy: 'INTERNAL_FAULT' | 'ISSUER_FAULT' | 'DATA_ENTRY_FAULT';
+        damagedReason?: string;
+        damagedEvidenceUrl?: string;
+    }
+): Promise<ApiResponse<any>> => {
+    const response = await apiApp.post(`/lottery-ticket-serials/${id}/report-fault`, data, withAuth());
+    return response.data;
+};
+
+/** Thay đổi dãy số cho vé số */
+export const replaceTicketDigits = async (
+    id: string | number,
+    data: {
+        newNumbers: string;
+        newTicketImg?: string;
+    }
+): Promise<ApiResponse<any>> => {
+    const response = await apiApp.post(`/lottery-tickets/${id}/replace-digits`, data, withAuth());
+    return response.data;
+};
