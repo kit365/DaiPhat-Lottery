@@ -47,6 +47,7 @@ const AUTH_REQUIRED_PATHS = [
     "/users/me",
     "/notifications/me",
     "/orders/my-orders",
+    "/orders/my-tickets",
     "/transactions/",
 ];
 

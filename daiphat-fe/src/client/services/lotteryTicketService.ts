@@ -6,6 +6,7 @@ import {
     SearchAvailableTicketsParams,
 } from '../../types/lottery-ticket.type';
 import { ApiResponse } from '../../types/api.type';
+import { defaultSellableDrawDate } from '../utils/sellableDrawDate.util';
 
 const TICKET_BASE = '/lottery-tickets';
 const ORDER_BASE = '/orders';
@@ -26,11 +27,9 @@ export const lotteryTicketService = {
                 page: params.page ?? 1,
                 size: params.size ?? 20,
                 stationId: params.stationId,
-                drawDate: params.drawDate ?? 'today',
+                drawDate: params.drawDate ?? defaultSellableDrawDate(),
                 search: params.search,
                 searchMode: params.searchMode,
-                minPrice: params.minPrice,
-                maxPrice: params.maxPrice,
                 sortBy: params.sortBy ?? 'numbers',
                 direction: params.direction ?? 'asc',
             }),
