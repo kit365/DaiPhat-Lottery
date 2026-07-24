@@ -11,5 +11,10 @@ public interface PayOsGatewayPort {
 
     boolean cancelPaymentLink(Long gatewayOrderCode);
 
+    /**
+     * Kiểm tra trạng thái thanh toán thực tế trên PayOS (PAID).
+     */
+    boolean isPaymentPaid(Long gatewayOrderCode);
+
     GatewayCallbackResult parseCallback(String rawPayload);
 }
