@@ -10,6 +10,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTi
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity_;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity_;
 import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
+import com.daiphat.coreapi.shared.util.TicketNumberSearchUtils;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
@@ -160,13 +161,14 @@ public final class LotteryTicketSpecification {
             String search,
             TicketSearchMode mode
     ) {
-        String normalized = search.toLowerCase();
-        return switch (mode) {
-            case SUFFIX -> cb.like(cb.lower(numbersPath), "%" + normalized);
-            case PREFIX -> cb.like(cb.lower(numbersPath), normalized + "%");
-            case EXACT -> cb.equal(cb.lower(numbersPath), normalized);
-            case CONTAINS -> cb.like(cb.lower(numbersPath), "%" + normalized + "%");
-        };
+        String pattern = TicketNumberSearchUtils.toPattern(search, mode);
+        if (pattern == null) {
+            return cb.conjunction();
+        }
+        if (TicketNumberSearchUtils.isExact(mode)) {
+            return cb.equal(cb.lower(numbersPath), pattern);
+        }
+        return cb.like(cb.lower(numbersPath), pattern);
     }
 
     private static Predicate batchCodeExistsPredicate(
