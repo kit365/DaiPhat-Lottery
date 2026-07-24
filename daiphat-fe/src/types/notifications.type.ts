@@ -9,6 +9,7 @@ export const NOTIFICATION_TYPE = {
     BLOG: "BLOG",
     ORDER: "ORDER",
     RESULT: "RESULT",
+    DRAW_RESULT: "DRAW_RESULT",
 } as const;
 
 export const NOTIFICATION_STATUS = {
