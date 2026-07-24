@@ -15,6 +15,13 @@ import { apiApp } from '../../../api';
 import { LotteryTicketStatus } from '../../../constants/lottery.constants';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
+import {
+    DEFAULT_SOUTHERN_DRAW_TIME,
+    isTodayDrawPassed,
+    resolveSellableDrawDateParam,
+    todayIsoVn,
+    tomorrowIsoVn,
+} from '../../utils/sellableDrawDate.util';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -22,12 +29,26 @@ const isIsoDrawDate = (value: string) => ISO_DATE_RE.test(value);
 
 const resolveDrawDateToken = (token: string): string => {
     if (token === 'today') {
-        return dayjs().format('YYYY-MM-DD');
+        return todayIsoVn();
     }
     if (token === 'tomorrow') {
-        return dayjs().add(1, 'day').format('YYYY-MM-DD');
+        return tomorrowIsoVn();
     }
     return token;
+};
+
+/** Token ngày mặc định: sau giờ xổ → ngày mai. */
+const defaultSellableDateToken = (drawTime: string = DEFAULT_SOUTHERN_DRAW_TIME): 'today' | 'tomorrow' =>
+    isTodayDrawPassed(drawTime) ? 'tomorrow' : 'today';
+
+const toSellableDateTokens = (
+    raw: string | null | undefined,
+    drawTime: string = DEFAULT_SOUTHERN_DRAW_TIME
+): string[] => {
+    const resolved = resolveSellableDrawDateParam(raw, new Date(), drawTime);
+    if (resolved === todayIsoVn()) return ['today'];
+    if (resolved === tomorrowIsoVn()) return ['tomorrow'];
+    return [resolved];
 };
 
 const formatViWeekdayLabel = (isoDate: string) =>
@@ -110,7 +131,7 @@ export const BuyTicketPage = () => {
     const { token, openLoginModal } = useAuthStore();
 
     // State
-    const [selectedDates, setSelectedDates] = useState<string[]>(['today']);
+    const [selectedDates, setSelectedDates] = useState<string[]>(() => [defaultSellableDateToken()]);
     const [selectedProvinces, setSelectedProvinces] = useState<string[]>([]);
     const [selectedTab, setSelectedTab] = useState<'quick' | 'manual' | 'birthday'>('quick');
     const [selectedNumbers, setSelectedNumbers] = useState<string[]>([]);
@@ -120,11 +141,14 @@ export const BuyTicketPage = () => {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [filterActiveTab, setFilterActiveTab] = useState<'all' | 'favorites' | 'range'>('favorites');
     const [rangeCheckedBoxes, setRangeCheckedBoxes] = useState<string[]>(['00 - 09', '20 - 29', '80 - 89']);
+    /** Tick để re-check giờ xổ khi user giữ trang mở qua giờ quay. */
+    const [clockTick, setClockTick] = useState(0);
     const selectorsRef = useRef<HTMLDivElement>(null);
     const filterRef = useRef<HTMLDivElement>(null);
     const ticketListRef = useRef<HTMLDivElement>(null);
     const appliedDeepLinkRef = useRef(false);
     const appliedTicketIdRef = useRef<string | null>(null);
+    const autoSwitchedToTomorrowRef = useRef(false);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -140,6 +164,11 @@ export const BuyTicketPage = () => {
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
+    }, []);
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setClockTick((t) => t + 1), 30_000);
+        return () => window.clearInterval(timer);
     }, []);
 
     // API Hooks
@@ -181,6 +210,52 @@ export const BuyTicketPage = () => {
         return unique.map(mapStationToProvince);
     }, [selectedDates, stationsTodayData, stationsTomorrowData, customDrawDates, stationsCustomData]);
 
+    /** Giờ xổ dùng để quyết định còn bán vé hôm nay hay không. */
+    const effectiveDrawTime = useMemo(() => {
+        if (selectedProvinces.length === 1) {
+            const station = dynamicProvinces.find((p) => sameProvinceId(p.id, selectedProvinces[0]));
+            if (station?.time) return station.time;
+        }
+        return DEFAULT_SOUTHERN_DRAW_TIME;
+    }, [selectedProvinces, dynamicProvinces]);
+
+    // clockTick buộc re-evaluate khi giữ trang mở qua giờ xổ
+    const todaySellClosed = useMemo(
+        () => isTodayDrawPassed(effectiveDrawTime),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [effectiveDrawTime, clockTick]
+    );
+
+    /** Sau giờ xổ: tự bỏ "hôm nay", chuyển sang ngày mai để còn vé bán. */
+    useEffect(() => {
+        if (!todaySellClosed) {
+            autoSwitchedToTomorrowRef.current = false;
+            return;
+        }
+
+        const todayIso = todayIsoVn();
+        const hasTodayToken =
+            selectedDates.includes('today') || selectedDates.includes(todayIso);
+        if (!hasTodayToken) {
+            return;
+        }
+
+        const next = selectedDates.filter((d) => d !== 'today' && d !== todayIso);
+        setSelectedDates(
+            next.length === 0
+                ? ['tomorrow']
+                : next.includes('tomorrow')
+                  ? next
+                  : [...next, 'tomorrow']
+        );
+        setSelectedNumbers([]);
+
+        if (!autoSwitchedToTomorrowRef.current) {
+            autoSwitchedToTomorrowRef.current = true;
+            toast.info('Đã qua giờ xổ hôm nay. Hệ thống chuyển sang bán vé ngày mai.');
+        }
+    }, [todaySellClosed, selectedDates]);
+
     // Re-apply deep link when chatbot query params change
     useEffect(() => {
         appliedDeepLinkRef.current = false;
@@ -192,20 +267,11 @@ export const BuyTicketPage = () => {
     }, [urlStationId, urlStationIds, urlRegion, urlDrawDate, urlTicketId]);
 
     useEffect(() => {
-        if (!urlDrawDate || !isIsoDrawDate(urlDrawDate)) {
+        if (!urlDrawDate) {
             return;
         }
-        const today = dayjs().format('YYYY-MM-DD');
-        const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
-        if (urlDrawDate === today) {
-            setSelectedDates(['today']);
-        } else if (urlDrawDate === tomorrow) {
-            setSelectedDates(['tomorrow']);
-        } else {
-            // Chatbot tickets often target a later draw day beyond today/tomorrow.
-            setSelectedDates([urlDrawDate]);
-        }
-    }, [urlDrawDate]);
+        setSelectedDates(toSellableDateTokens(urlDrawDate, effectiveDrawTime));
+    }, [urlDrawDate, effectiveDrawTime]);
 
     // Pre-select đài từ deep link (chatbot CTA)
     useEffect(() => {
@@ -504,9 +570,19 @@ export const BuyTicketPage = () => {
                                 {isDateOpen && (
                                     <div className="absolute top-[105%] left-0 right-0 bg-white border border-[#E5E8EB] shadow-lg rounded-xl z-20 overflow-hidden p-2">
                                         <div
-                                            className={`p-3 rounded-lg cursor-pointer flex justify-between items-center ${selectedDates.includes('today') ? 'bg-[#FFF4F4]' : 'hover:bg-gray-50'}`}
+                                            className={`p-3 rounded-lg flex justify-between items-center ${
+                                                todaySellClosed
+                                                    ? 'opacity-50 cursor-not-allowed'
+                                                    : selectedDates.includes('today')
+                                                      ? 'bg-[#FFF4F4] cursor-pointer'
+                                                      : 'hover:bg-gray-50 cursor-pointer'
+                                            }`}
                                             onClick={(e) => { 
-                                                e.stopPropagation(); 
+                                                e.stopPropagation();
+                                                if (todaySellClosed) {
+                                                    toast.info(`Đã qua giờ xổ (${effectiveDrawTime}). Chỉ còn bán vé ngày mai.`);
+                                                    return;
+                                                }
                                                 if (selectedDates.includes('today') && selectedDates.length === 1) {
                                                     return;
                                                 }
@@ -524,6 +600,9 @@ export const BuyTicketPage = () => {
                                             <div>
                                                 <div className={`font-bold ${selectedDates.includes('today') ? 'text-[#ee1314]' : 'text-[#212B36]'}`}>Hôm nay</div>
                                                 <div className="text-[14px] text-[#637381]">{dayjs().locale('vi').format('DD/MM/YYYY (dddd)').replace(/t/g, 'T').replace('Thứ', 'Thứ').replace('chủ', 'Chủ')}</div>
+                                                {todaySellClosed && (
+                                                    <div className="text-[12px] text-[#ee1314] mt-0.5">Đã hết giờ bán (sau {effectiveDrawTime})</div>
+                                                )}
                                             </div>
                                             <div className="mt-0.5">
                                                 {selectedDates.includes('today') ? (
@@ -548,7 +627,9 @@ export const BuyTicketPage = () => {
                                                     setSelectedDates(selectedDates.filter(d => d !== 'tomorrow'));
                                                 } else {
                                                     setSelectedDates([
-                                                        ...selectedDates.filter((d) => d === 'today'),
+                                                        ...(todaySellClosed
+                                                            ? []
+                                                            : selectedDates.filter((d) => d === 'today')),
                                                         'tomorrow',
                                                     ]);
                                                 }
