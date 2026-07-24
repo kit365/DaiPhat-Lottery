@@ -407,18 +407,19 @@ class _TicketHeroBanner extends StatelessWidget {
       height: 188,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFE8D9D4), width: 1.3),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x16101828),
-            blurRadius: 20,
-            offset: Offset(0, 8),
+            color: Color(0x40D30016),
+            blurRadius: 30,
+            spreadRadius: -4,
+            offset: Offset(0, 16),
           ),
           BoxShadow(
-            color: Color(0x0D000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            color: Color(0x24D30016),
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -558,9 +559,15 @@ class _SegmentButton extends StatelessWidget {
           boxShadow: selected
               ? const [
                   BoxShadow(
-                    color: Color(0x14000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 3),
+                    color: Color(0x22000000),
+                    blurRadius: 18,
+                    spreadRadius: -2,
+                    offset: Offset(0, 7),
+                  ),
+                  BoxShadow(
+                    color: Color(0x0F000000),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
                   ),
                 ]
               : null,
@@ -588,21 +595,21 @@ class _TicketSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          width: 5,
-          height: 34,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(999),
-          ),
-        ),
-        const SizedBox(width: 12),
         Text(
           title,
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.ink,
+          ),
+        ),
+        const Spacer(),
+        const Text(
+          'Xem tat ca',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
           ),
         ),
       ],
@@ -625,29 +632,35 @@ class _TicketCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFE1E4EA), width: 1.3),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x14101828),
-                blurRadius: 18,
-                offset: Offset(0, 8),
-              ),
-              BoxShadow(
-                color: Color(0x0A000000),
-                blurRadius: 6,
-                offset: Offset(0, 2),
-              ),
-            ],
+    final cardRadius = BorderRadius.circular(28);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: cardRadius,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x24101828),
+            blurRadius: 28,
+            spreadRadius: -4,
+            offset: Offset(0, 14),
           ),
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: cardRadius,
+          side: const BorderSide(color: Color(0xFFE1E4EA), width: 1.3),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: cardRadius,
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
             child: Row(
