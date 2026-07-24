@@ -9,5 +9,6 @@ public enum NotificationType {
     OFFER,
     PAYMENT,
     RESULT,
+    DRAW_RESULT,
     SECURITY
 }
