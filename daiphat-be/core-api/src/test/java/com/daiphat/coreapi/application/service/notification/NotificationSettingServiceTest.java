@@ -46,17 +46,19 @@ class NotificationSettingServiceTest {
     }
 
     @Test
-    @DisplayName("getMySettings returns default RESULT enabled when no row exists")
+    @DisplayName("getMySettings returns default RESULT and DRAW_RESULT enabled when no row exists")
     void getMySettings_defaultsEnabled() {
         when(notificationSettingRepositoryPort.findByUserId(userId)).thenReturn(List.of());
 
         List<NotificationSettingResponse> responses = service.getMySettings(userId);
 
-        assertThat(responses).hasSize(1);
-        assertThat(responses.getFirst().type()).isEqualTo(NotificationType.RESULT);
-        assertThat(responses.getFirst().channel()).isEqualTo(NotificationChannel.IN_APP);
-        assertThat(responses.getFirst().isEnabled()).isTrue();
-        assertThat(responses.getFirst().notificationSettingId()).isNull();
+        assertThat(responses).hasSize(2);
+        assertThat(responses.get(0).type()).isEqualTo(NotificationType.RESULT);
+        assertThat(responses.get(0).channel()).isEqualTo(NotificationChannel.IN_APP);
+        assertThat(responses.get(0).isEnabled()).isTrue();
+        assertThat(responses.get(1).type()).isEqualTo(NotificationType.DRAW_RESULT);
+        assertThat(responses.get(1).channel()).isEqualTo(NotificationChannel.IN_APP);
+        assertThat(responses.get(1).isEnabled()).isTrue();
     }
 
     @Test
