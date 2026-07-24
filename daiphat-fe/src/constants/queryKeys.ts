@@ -48,6 +48,8 @@ export const QUERY_KEYS = {
     CLIENT_MY_ORDERS: 'client-my-orders',
     CLIENT_MY_ORDER_DETAIL: 'client-my-order-detail',
     CLIENT_PENDING_PAYMENT_COUNTDOWN: 'client-pending-payment-countdown',
+    CLIENT_LOTTERY_TICKET_SEARCH: 'client-lottery-ticket-search',
+    CLIENT_MY_TICKETS: 'client-my-tickets',
 
     // Transaction (Client)
     CLIENT_TRANSACTION_TYPES: 'client-transaction-types',

@@ -1,6 +1,7 @@
 package com.daiphat.coreapi.infrastructure.persistence.specification;
 
 import com.daiphat.coreapi.domain.model.enums.lottery.LotteryTicketStatus;
+import com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.ImportBatchLineEntity_;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity;
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTicketEntity_;
@@ -9,7 +10,9 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryTi
 import com.daiphat.coreapi.infrastructure.persistence.entity.lotteries.LotteryStationEntity_;
 import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity_;
 import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
@@ -91,6 +94,16 @@ public final class LotteryTicketSpecification {
             List<LocalDate> drawDates,
             String search
     ) {
+        return filterPublic(stationId, stationIds, drawDates, search, null);
+    }
+
+    public static Specification<LotteryTicketEntity> filterPublic(
+            Long stationId,
+            List<Long> stationIds,
+            List<LocalDate> drawDates,
+            String search,
+            TicketSearchMode searchMode
+    ) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.isNull(root.get(BaseEntity_.deletedAt)));
@@ -124,14 +137,35 @@ public final class LotteryTicketSpecification {
                 predicates.add(root.get(LotteryTicketEntity_.drawDate).in(drawDates));
             }
             if (search != null && !search.isBlank()) {
-                String searchPattern = "%" + search.toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get(LotteryTicketEntity_.numbers)), searchPattern),
-                        batchCodeExistsPredicate(root, query, cb, searchPattern)
-                ));
+                TicketSearchMode mode = searchMode != null ? searchMode : TicketSearchMode.CONTAINS;
+                Path<String> numbersPath = root.get(LotteryTicketEntity_.numbers);
+                if (mode == TicketSearchMode.CONTAINS) {
+                    String searchPattern = "%" + search.toLowerCase() + "%";
+                    predicates.add(cb.or(
+                            cb.like(cb.lower(numbersPath), searchPattern),
+                            batchCodeExistsPredicate(root, query, cb, searchPattern)
+                    ));
+                } else {
+                    predicates.add(numbersMatchPredicate(cb, numbersPath, search, mode));
+                }
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    private static Predicate numbersMatchPredicate(
+            CriteriaBuilder cb,
+            Path<String> numbersPath,
+            String search,
+            TicketSearchMode mode
+    ) {
+        String normalized = search.toLowerCase();
+        return switch (mode) {
+            case SUFFIX -> cb.like(cb.lower(numbersPath), "%" + normalized);
+            case PREFIX -> cb.like(cb.lower(numbersPath), normalized + "%");
+            case EXACT -> cb.equal(cb.lower(numbersPath), normalized);
+            case CONTAINS -> cb.like(cb.lower(numbersPath), "%" + normalized + "%");
         };
     }
 

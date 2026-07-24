@@ -25,8 +25,6 @@ export interface SearchAvailableTicketsParams {
     drawDate?: string;
     search?: string;
     searchMode?: TicketSearchMode;
-    minPrice?: number;
-    maxPrice?: number;
     sortBy?: string;
     direction?: string;
 }
