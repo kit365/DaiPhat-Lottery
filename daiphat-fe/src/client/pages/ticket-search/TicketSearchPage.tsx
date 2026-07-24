@@ -17,6 +17,10 @@ import {
 import { PurchasedTicketList } from '../../components/ticket-search/PurchasedTicketList';
 import { PublicLotteryTicket, PurchasedTicket, TicketSearchMode } from '../../../types/lottery-ticket.type';
 import { resolveSellableDrawDateParam } from '../../utils/sellableDrawDate.util';
+import {
+    normalizeTicketSearchDigits,
+    normalizeTicketSearchMode,
+} from '../../utils/ticketSearchQuery.util';
 
 type TabKey = 'available' | 'purchased';
 
@@ -29,8 +33,8 @@ export const TicketSearchPage: React.FC = () => {
     const [purchasedPage, setPurchasedPage] = useState(1);
 
     const [availableFilters, setAvailableFilters] = useState<AvailableSearchFilters>({
-        search: searchParams.get('search') || '',
-        searchMode: (searchParams.get('searchMode') as TicketSearchMode) || 'SUFFIX',
+        search: normalizeTicketSearchDigits(searchParams.get('search')),
+        searchMode: normalizeTicketSearchMode(searchParams.get('searchMode')) as TicketSearchMode,
         drawDate: resolveSellableDrawDateParam(searchParams.get('drawDate')),
         stationId: searchParams.get('stationId') || '',
     });
