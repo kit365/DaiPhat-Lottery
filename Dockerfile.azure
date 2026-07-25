@@ -22,7 +22,7 @@ COPY daiphat-be/core-api/src ./src
 COPY --from=frontend-build /workspace/daiphat-fe/dist ./src/main/resources/static
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -B clean package -DskipTests -Dcheckstyle.skip
+    mvn -B clean package -Dmaven.test.skip=true -Dcheckstyle.skip
 
 FROM eclipse-temurin:21-jre-alpine
 
