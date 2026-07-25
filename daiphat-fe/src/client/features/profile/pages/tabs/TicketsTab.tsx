@@ -10,13 +10,13 @@ import {
 } from '../../../../../types/lottery-ticket.type';
 import { AppToast as toast } from '../../../../../utils/toast.util';
 
-type StatusTab = 'Tất cả' | 'Chờ quay số' | 'Trúng thưởng' | 'Chưa trúng';
+type StatusTab = 'Tất cả' | 'Chờ quay số' | 'Trúng thưởng' | 'Không trúng';
 
 const STATUS_TAB_TO_API: Record<StatusTab, TicketDrawResultStatus | undefined> = {
     'Tất cả': undefined,
     'Chờ quay số': 'PENDING_DRAW',
     'Trúng thưởng': 'WON',
-    'Chưa trúng': 'LOST',
+    'Không trúng': 'LOST',
 };
 
 const STATUS_UI: Record<
@@ -36,7 +36,7 @@ const STATUS_UI: Record<
         badgeClass: 'bg-[#E4F8ED] text-[#1CD162]',
     },
     LOST: {
-        label: 'Chưa trúng',
+        label: 'Không trúng',
         color: '#ee1314',
         bgColor: '#FFF4F4',
         badgeClass: 'bg-[#FFF4F4] text-[#ee1314]',
@@ -95,7 +95,7 @@ export const TicketsTab = () => {
     const totalPages = pagination?.totalPages ?? 1;
     const totalRecords = pagination?.totalElements ?? tickets.length;
 
-    const ticketTabs: StatusTab[] = ['Tất cả', 'Chờ quay số', 'Trúng thưởng', 'Chưa trúng'];
+    const ticketTabs: StatusTab[] = ['Tất cả', 'Chờ quay số', 'Trúng thưởng', 'Không trúng'];
 
     const openDetail = (ticket: PurchasedTicket) => setSelectedTicket(ticket);
     const closeDetail = () => setSelectedTicket(null);
