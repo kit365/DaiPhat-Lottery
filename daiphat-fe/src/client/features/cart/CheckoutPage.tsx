@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
 import { Trash2, ChevronRight, ShieldCheck, ArrowLeft, Store, CreditCard, CheckCircle2 } from 'lucide-react';
@@ -9,12 +9,13 @@ import { AppToast as toast } from '../../../utils/toast.util';
 import dayjs from 'dayjs';
 import { CheckoutDateTimePicker } from './components/CheckoutDateTimePicker';
 import { CreateOnlineOrderRequest, OrderReceiveType } from '../../../types/order.type';
-import { PaymentGateway, TransactionType } from '../../../types/transaction.type';
+import { PaymentGateway, PaymentResult, TransactionType } from '../../../types/transaction.type';
 import { useCreateOnlineOrder, useGetOrderReceiveTypes } from '../../hooks/useOrder';
 import { useProcessPayment, useGetTransactionTypes } from '../../hooks/useTransaction';
 import OrderSummary from './components/OrderSummary';
 import { CartQuantityControl } from './components/CartQuantityControl';
 import { validateAndSyncCartStock } from '../../utils/cartStock.util';
+import { PaymentQrDialog } from '../../components/payment/PaymentQrDialog';
 
 export const CheckoutPage = () => {
     const navigate = useNavigate();
@@ -34,6 +35,14 @@ export const CheckoutPage = () => {
     const [email, setEmail] = useState('');
     const [receiveType, setReceiveType] = useState<string>('');
     const [transactionType, setTransactionType] = useState<string>('');
+    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+    const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null);
+    const [pendingPaymentOrder, setPendingPaymentOrder] = useState<{
+        orderId: string;
+        orderCode?: string;
+        amount: number;
+    } | null>(null);
+    const [isPreparingPayment, setIsPreparingPayment] = useState(false);
 
     const createOrderMutation = useCreateOnlineOrder();
     const processPaymentMutation = useProcessPayment();
@@ -136,11 +145,20 @@ export const CheckoutPage = () => {
         createOrderMutation.mutate(payload, {
             onSuccess: (res) => {
                 if (res.success && res.data) {
-                    const orderId = res.data.id;
-                    const transactionId = res.data.transactions?.[0]?.id;
+                    const order = res.data;
+                    const orderId = order.id;
+                    const transactionId = order.transactions?.[0]?.id;
 
                     if (transactionType === TransactionType.ONLINE && transactionId) {
-                        // Redirect to PayOS
+                        setPendingPaymentOrder({
+                            orderId,
+                            orderCode: order.orderCode,
+                            amount: totalAmount,
+                        });
+                        setPaymentResult(null);
+                        setPaymentDialogOpen(true);
+                        setIsPreparingPayment(true);
+
                         processPaymentMutation.mutate({
                             orderId,
                             data: {
@@ -149,12 +167,21 @@ export const CheckoutPage = () => {
                             }
                         }, {
                             onSuccess: (paymentRes) => {
-                                if (paymentRes.success && paymentRes.data?.checkoutUrl) {
+                                if (paymentRes.success && paymentRes.data) {
+                                    setPaymentResult(paymentRes.data);
                                     clearCart();
-                                    window.location.href = paymentRes.data.checkoutUrl;
+                                    if (!paymentRes.data.qrCode && !paymentRes.data.checkoutUrl) {
+                                        toast.error("Không tạo được mã thanh toán");
+                                    }
                                 } else {
-                                    toast.error("Không lấy được đường dẫn thanh toán");
+                                    toast.error("Không lấy được thông tin thanh toán");
                                 }
+                            },
+                            onError: () => {
+                                toast.error("Không thể tạo phiên thanh toán");
+                            },
+                            onSettled: () => {
+                                setIsPreparingPayment(false);
                             }
                         });
                     } else {
@@ -167,6 +194,36 @@ export const CheckoutPage = () => {
             }
         });
     };
+
+    const closePaymentDialog = useCallback(() => {
+        setPaymentDialogOpen(false);
+        setPendingPaymentOrder(null);
+        setPaymentResult(null);
+        setIsPreparingPayment(false);
+    }, []);
+
+    const handlePaymentPaid = useCallback(() => {
+        toast.success('Thanh toán thành công!');
+        const orderId = pendingPaymentOrder?.orderId;
+        closePaymentDialog();
+        if (orderId) {
+            navigate(`/profile/orders/${orderId}`);
+        } else {
+            navigate('/profile/orders');
+        }
+    }, [closePaymentDialog, navigate, pendingPaymentOrder?.orderId]);
+
+    const handlePaymentDialogClose = useCallback(() => {
+        toast.info('Đơn đang chờ thanh toán. Bạn có thể thanh toán lại từ Đơn hàng của tôi.');
+        const orderId = pendingPaymentOrder?.orderId;
+        clearCart();
+        closePaymentDialog();
+        if (orderId) {
+            navigate(`/profile/orders/${orderId}`);
+        } else {
+            navigate('/profile/orders');
+        }
+    }, [clearCart, closePaymentDialog, navigate, pendingPaymentOrder?.orderId]);
 
     const isSubmitting = createOrderMutation.isPending || processPaymentMutation.isPending;
 
@@ -422,6 +479,17 @@ export const CheckoutPage = () => {
                     </div>
                 </div>
             </main>
+
+            <PaymentQrDialog
+                open={paymentDialogOpen}
+                orderId={pendingPaymentOrder?.orderId || ''}
+                orderCode={pendingPaymentOrder?.orderCode}
+                amount={pendingPaymentOrder?.amount || totalAmount}
+                payment={paymentResult}
+                loading={isPreparingPayment}
+                onPaid={handlePaymentPaid}
+                onClose={handlePaymentDialogClose}
+            />
         </div>
     );
 };
