@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/header';
-import { Trash2, ChevronRight, Minus, Plus, ShieldCheck, ArrowLeft, Store, CreditCard, CheckCircle2 } from 'lucide-react';
-import { useCartStore } from '../../../stores/useCartStore';
+import { Trash2, ChevronRight, ShieldCheck, ArrowLeft, Store, CreditCard, CheckCircle2 } from 'lucide-react';
+import { useCartStore, CartItem } from '../../../stores/useCartStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useAuth } from '../../hooks/useAuth';
 import { AppToast as toast } from '../../../utils/toast.util';
@@ -13,7 +13,8 @@ import { PaymentGateway, TransactionType } from '../../../types/transaction.type
 import { useCreateOnlineOrder, useGetOrderReceiveTypes } from '../../hooks/useOrder';
 import { useProcessPayment, useGetTransactionTypes } from '../../hooks/useTransaction';
 import OrderSummary from './components/OrderSummary';
-import { apiApp } from '../../../api';
+import { CartQuantityControl } from './components/CartQuantityControl';
+import { validateAndSyncCartStock } from '../../utils/cartStock.util';
 
 export const CheckoutPage = () => {
     const navigate = useNavigate();
@@ -73,34 +74,9 @@ export const CheckoutPage = () => {
 
     React.useEffect(() => {
         const validateCartStock = async () => {
-            if (items.length === 0) return;
-            
-            try {
-                let hasError = false;
-                for (const item of items) {
-                    const response = await apiApp.get(`/lottery-tickets/${item.id}`);
-                    const ticketData = response.data?.data;
-                    
-                    if (ticketData) {
-                        const maxStock = ticketData.quantity || 0;
-                        if (item.quantity > maxStock) {
-                            if (maxStock === 0) {
-                                toast.error(`Vé số ${item.numbers} đã hết hàng. Vui lòng chọn vé khác.`);
-                                removeItem(item.id);
-                            } else {
-                                toast.error(`Vé số ${item.numbers} chỉ còn ${maxStock} vé. Hệ thống đã tự cập nhật lại giỏ hàng.`);
-                                updateQuantity(item.id, maxStock - item.quantity); // updateQuantity takes delta
-                            }
-                            hasError = true;
-                        }
-                    }
-                }
-                
-                if (hasError) {
-                    navigate('/cart', { replace: true });
-                }
-            } catch (error) {
-                console.error("Lỗi kiểm tra tồn kho:", error);
+            const hasAdjustment = await validateAndSyncCartStock();
+            if (hasAdjustment) {
+                navigate('/cart', { replace: true });
             }
         };
 
@@ -108,12 +84,30 @@ export const CheckoutPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const totalTickets = items.reduce((sum, item) => sum + item.quantity, 0);
-    const subTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const getMaxStock = (item: CartItem) =>
+        typeof item.maxStock === 'number' ? item.maxStock : 999;
+
+    const handleIncreaseQty = (item: CartItem) => {
+        const max = getMaxStock(item);
+        if (item.quantity >= max) {
+            toast.error(`Vé số ${item.numbers} chỉ còn ${max} vé`);
+            return;
+        }
+        updateQuantity(item.id, 1);
+    };
+
+    const activeItems = items.filter((item) => item.quantity > 0);
+    const totalTickets = activeItems.reduce((sum, item) => sum + item.quantity, 0);
+    const subTotal = activeItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const deliveryFee = 0; // No delivery fee since it's pickup only
     const totalAmount = subTotal + deliveryFee;
 
     const handleCheckout = () => {
+        if (activeItems.length === 0) {
+            toast.error("Giỏ hàng không có vé hợp lệ để thanh toán!");
+            return;
+        }
+
         if (!name || !phone || !expectedPickupAt) {
             toast.error("Vui lòng điền đầy đủ thông tin bắt buộc (Tên, SĐT, Giờ đến lấy)!");
             return;
@@ -130,7 +124,7 @@ export const CheckoutPage = () => {
         const payload: CreateOnlineOrderRequest = {
             name,
             phone,
-            items: items.map(item => ({
+            items: activeItems.map(item => ({
                 lotteryTicketId: Number(item.id),
                 quantity: item.quantity
             })),
@@ -252,11 +246,12 @@ export const CheckoutPage = () => {
 
                                         {/* Số lượng */}
                                         <div className="flex flex-col items-center">
-                                            <div className="flex items-center border border-[#E5E8EB] rounded bg-white h-7 w-[80px] overflow-hidden">
-                                                <button onClick={() => updateQuantity(item.id, -1)} className="flex-1 h-full flex items-center justify-center text-[#637381] hover:bg-gray-50"><Minus size={12} /></button>
-                                                <span className="w-7 h-full flex items-center justify-center text-[13px] font-bold text-[#212B36] border-x border-[#E5E8EB]">{item.quantity}</span>
-                                                <button onClick={() => updateQuantity(item.id, 1)} className="flex-1 h-full flex items-center justify-center text-[#637381] hover:bg-gray-50"><Plus size={12} /></button>
-                                            </div>
+                                            <CartQuantityControl
+                                                item={item}
+                                                onDecrease={() => updateQuantity(item.id, -1)}
+                                                onIncrease={() => handleIncreaseQty(item)}
+                                                onRemove={() => removeItem(item.id)}
+                                            />
                                         </div>
 
                                         {/* Đơn giá */}

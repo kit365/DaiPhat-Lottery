@@ -88,9 +88,19 @@ public interface LotteryTicketApplicationMapper {
             LotteryTicketModel model,
             LotteryTicketSerialModel serial,
             String stationName,
-            String batchCode
+            String batchCode,
+            Integer serialQuantity
     ) {
+        List<LotteryTicketSerialResponse> serialResponses = null;
+        if (model.getSerials() != null) {
+            serialResponses = model.getSerials().stream()
+                .map(this::toSerialResponse)
+                .toList();
+        }
         LotteryTicketResponse base = toResponse(model);
+        int quantity = serialQuantity != null
+                ? serialQuantity
+                : (base.quantity() != null ? base.quantity() : 0);
         return new LotteryTicketResponse(
                 base.id(),
                 base.stationId(),
@@ -99,7 +109,7 @@ public interface LotteryTicketApplicationMapper {
                 serial != null ? serial.getSerialNumber() : null,
                 base.numbers(),
                 base.drawDate(),
-                base.quantity(),
+                quantity,
                 base.priceSnapshot(),
                 batchCode,
                 base.status(),
@@ -114,7 +124,7 @@ public interface LotteryTicketApplicationMapper {
                 base.updatedAt(),
                 base.createdBy(),
                 base.lastModifiedBy(),
-                null // serials are null in summary view
+                serialResponses
         );
     }
 
@@ -122,7 +132,8 @@ public interface LotteryTicketApplicationMapper {
             LotteryTicketModel model,
             List<LotteryTicketSerialResponse> serialResponses,
             String stationName,
-            String batchCode
+            String batchCode,
+            Integer serialQuantity
     ) {
         LotteryTicketSerialResponse firstSerial = serialResponses != null && !serialResponses.isEmpty()
                 ? serialResponses.getFirst()
@@ -131,7 +142,8 @@ public interface LotteryTicketApplicationMapper {
                 model,
                 firstSerial != null ? toSerialModel(firstSerial) : null,
                 stationName,
-                batchCode
+                batchCode,
+                serialQuantity
         );
 
         return new LotteryTicketResponse(

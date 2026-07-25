@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -27,7 +28,21 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
 
     @Override
     public LotteryTicketModel save(LotteryTicketModel model) {
-        LotteryTicketEntity entity = lotteryTicketPersistenceMapper.toEntity(model);
+        LotteryTicketEntity entity;
+        if (model.getId() != null) {
+            // Load managed entity and patch it so persistence-only fields (e.g. batchCode)
+            // are not wiped when mapping from domain (domain has no batchCode).
+            entity = lotteryTicketRepository.findById(model.getId())
+                    .orElseGet(() -> lotteryTicketPersistenceMapper.toEntity(model));
+            if (entity.getId() != null) {
+                lotteryTicketPersistenceMapper.updateEntityFromModel(model, entity);
+            }
+        } else {
+            entity = lotteryTicketPersistenceMapper.toEntity(model);
+        }
+        if (entity.getBatchCode() == null || entity.getBatchCode().isBlank()) {
+            entity.setBatchCode("LEGACY-" + (entity.getId() != null ? entity.getId() : UUID.randomUUID()));
+        }
         LotteryTicketEntity saved = lotteryTicketRepository.save(entity);
         return lotteryTicketPersistenceMapper.toDomain(saved);
     }
@@ -57,13 +72,16 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
     @Override
     public Page<LotteryTicketModel> findAll(
             Pageable pageable, Long stationId, Collection<Long> stationIds, LotteryTicketStatus status,
-            Collection<LocalDate> drawDates, String search) {
+            Collection<LocalDate> drawDates, LocalDate drawDateFrom, LocalDate drawDateTo, Long importBatchLineId, String search) {
         return lotteryTicketRepository.findAll(
                         LotteryTicketSpecification.filter(
                                 stationId,
                                 stationIds != null ? List.copyOf(stationIds) : List.of(),
                                 status,
                                 drawDates != null ? List.copyOf(drawDates) : List.of(),
+                                drawDateFrom,
+                                drawDateTo,
+                                importBatchLineId,
                                 search
                         ),
                         pageable
@@ -74,12 +92,41 @@ public class LotteryTicketRepositoryAdapter implements LotteryTicketRepositoryPo
     @Override
     public Page<LotteryTicketModel> findAllPublic(
             Pageable pageable, Long stationId, Collection<Long> stationIds, Collection<LocalDate> drawDates, String search) {
+        return findAllPublic(pageable, stationId, stationIds, drawDates, search, null, null, null, null);
+    }
+
+    @Override
+    public Page<LotteryTicketModel> findAllPublic(
+            Pageable pageable,
+            Long stationId,
+            Collection<Long> stationIds,
+            Collection<LocalDate> drawDates,
+            String search,
+            com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode searchMode) {
+        return findAllPublic(pageable, stationId, stationIds, drawDates, search, searchMode, null, null, null);
+    }
+
+    @Override
+    public Page<LotteryTicketModel> findAllPublic(
+            Pageable pageable,
+            Long stationId,
+            Collection<Long> stationIds,
+            Collection<LocalDate> drawDates,
+            String search,
+            com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode searchMode,
+            List<String> searches,
+            List<String> tailRanges,
+            List<String> numberTypes) {
         return lotteryTicketRepository.findAll(
                         LotteryTicketSpecification.filterPublic(
                                 stationId,
                                 stationIds != null ? List.copyOf(stationIds) : List.of(),
                                 drawDates != null ? List.copyOf(drawDates) : List.of(),
-                                search
+                                search,
+                                searchMode,
+                                searches,
+                                tailRanges,
+                                numberTypes
                         ),
                         pageable
                 )

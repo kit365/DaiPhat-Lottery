@@ -226,6 +226,33 @@ export const StationEditPage = () => {
                                     </Box>
                                     <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
                                         <Controller
+                                            name="commissionRate"
+                                            control={control}
+                                            render={({ field, fieldState }) => (
+                                                <TextField
+                                                    {...field}
+                                                    label="Tỉ lệ hoa hồng (VD: 0.05 = 5%)"
+                                                    value={field.value !== undefined && field.value !== null ? field.value : ''}
+                                                    error={!!fieldState.error}
+                                                    helperText={fieldState.error?.message}
+                                                    onChange={(e) => {
+                                                        const rawValue = e.target.value;
+                                                        if (rawValue === '') {
+                                                            field.onChange('');
+                                                            return;
+                                                        }
+                                                        const numValue = Number(rawValue);
+                                                        if (!isNaN(numValue) && numValue >= 0 && numValue <= 1) {
+                                                            field.onChange(rawValue);
+                                                        }
+                                                    }}
+                                                    fullWidth
+                                                />
+                                            )}
+                                        />
+                                    </Box>
+                                    <Box sx={{ gridColumn: { xs: "span 12", md: "span 6" } }}>
+                                        <Controller
                                             name="region"
                                             control={control}
                                             render={({ field, fieldState }) => (

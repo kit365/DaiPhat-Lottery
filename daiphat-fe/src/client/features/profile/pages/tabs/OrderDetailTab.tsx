@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../../hooks/useOrder';
-import { useGetPendingPaymentCountdown, useProcessPayment } from '../../../../hooks/useTransaction';
+import { useGetPendingPaymentCountdown, useProcessPayment, useSyncPaymentFromGateway } from '../../../../hooks/useTransaction';
 import { useGetMyRefunds } from '../../../../hooks/useRefund';
 import { OrderStatus, OrderType, resolveOrderDetailStatusBadge } from '../../../../../types/order.type';
 import { RefundRequestStatus, RefundType, formatRefundCountdown, isRefundCandidateStatus } from '../../../../../types/refund.type';
@@ -116,6 +116,8 @@ export const OrderDetailTab = () => {
     const { data: orderData, isLoading, isError } = useGetMyOrderDetail(id || '');
     const { data: refundsData } = useGetMyRefunds({ orderId: id, limit: 100, page: 1 }, !!id);
     const processPaymentMutation = useProcessPayment();
+    const syncPaymentMutation = useSyncPaymentFromGateway();
+    const syncTriggeredRef = useRef(false);
 
     const [showRefundModal, setShowRefundModal] = useState(false);
 
@@ -124,6 +126,22 @@ export const OrderDetailTab = () => {
         order?.status === OrderStatus.PENDING_PAYMENT ? order.id : undefined
     );
     const orderRefunds = useMemo(() => refundsData?.data?.recordList || [], [refundsData?.data?.recordList]);
+
+    // Nếu đã thanh toán trên PayOS nhưng webhook chưa cập nhật → đồng bộ khi mở chi tiết đơn
+    useEffect(() => {
+        if (
+            !order?.id
+            || order.status !== OrderStatus.PENDING_PAYMENT
+            || syncTriggeredRef.current
+        ) {
+            return;
+        }
+
+        syncTriggeredRef.current = true;
+        syncPaymentMutation.mutate(order.id);
+    // Chỉ chạy 1 lần khi đơn đang chờ thanh toán
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [order?.id, order?.status]);
 
     const pendingFullOrderRefund = useMemo(
         () =>

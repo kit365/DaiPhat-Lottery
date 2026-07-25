@@ -4,7 +4,7 @@ import { CheckCircle2, XCircle, Calendar, Hash } from 'lucide-react';
 import dayjs from 'dayjs';
 import { Header } from '../../components/layout/header';
 import { useGetMyOrderDetail } from '../../hooks/useOrder';
-import { useCancelPayment, useProcessPayment } from '../../hooks/useTransaction';
+import { useCancelPayment, useProcessPayment, useSyncPaymentFromGateway } from '../../hooks/useTransaction';
 import { PaymentGateway } from '../../../types/transaction.type';
 import { AppToast } from '../../../utils/toast.util';
 
@@ -15,7 +15,9 @@ export const CheckoutResultPage = () => {
     const navigate = useNavigate();
     const processPaymentMutation = useProcessPayment();
     const cancelPaymentMutation = useCancelPayment();
+    const syncPaymentMutation = useSyncPaymentFromGateway();
     const cancelTriggeredRef = useRef(false);
+    const syncTriggeredRef = useRef(false);
 
     const [resultData] = useState(() => ({
         code: searchParams.get('code'),
@@ -29,7 +31,7 @@ export const CheckoutResultPage = () => {
         flow: (window.location.pathname.includes('/payment/payos/cancel') ? 'cancel' : 'return') as CheckoutFlow
     }));
 
-    const { data: orderDetailData } = useGetMyOrderDetail(resultData.orderId || '');
+    const { data: orderDetailData, refetch: refetchOrder } = useGetMyOrderDetail(resultData.orderId || '');
     const order = orderDetailData?.data;
 
     useEffect(() => {
@@ -61,6 +63,27 @@ export const CheckoutResultPage = () => {
             }
         });
     }, [cancelPaymentMutation, resultData]);
+
+    // Khi PayOS trả về thành công: đồng bộ trạng thái đơn (webhook thường không tới localhost)
+    useEffect(() => {
+        const isSuccessReturn =
+            resultData.flow !== 'cancel'
+            && resultData.code === '00'
+            && resultData.cancel !== 'true'
+            && !!resultData.orderId;
+
+        if (!isSuccessReturn || syncTriggeredRef.current) {
+            return;
+        }
+
+        syncTriggeredRef.current = true;
+        syncPaymentMutation.mutate(resultData.orderId!, {
+            onSuccess: () => {
+                refetchOrder();
+            }
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [resultData.orderId, resultData.code, resultData.cancel, resultData.flow]);
 
     const isCancelFlow = resultData.flow === 'cancel';
     const isSuccess = resultData.code === '00' && resultData.cancel !== 'true' && !isCancelFlow;

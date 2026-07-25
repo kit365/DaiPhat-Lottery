@@ -461,24 +461,6 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                                                             })
                                                         )}
                                                     </div>
-
-                                                    {/* Footer option */}
-                                                    <div className="border-t border-slate-100 p-1.5 bg-slate-50">
-                                                        <button 
-                                                            onClick={() => {
-                                                                setStationSearchQuery('');
-                                                                if (stations.length > 0) {
-                                                                    setSelectedStationId(stations[0].id);
-                                                                    setSelectedStationName(stations[0].province);
-                                                                }
-                                                                setIsStationDropdownOpen(false);
-                                                            }}
-                                                            className="w-full flex items-center justify-center gap-1 py-1 text-[11px] font-bold text-[#ee1314] hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
-                                                        >
-                                                            <Ticket size={11} />
-                                                            Xem tất cả đài
-                                                        </button>
-                                                    </div>
                                                 </motion.div>
                                             )}
                                             </AnimatePresence>
@@ -687,7 +669,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                     <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-[#ee1314] shadow-sm">
                         <span className="material-symbols-outlined text-[18px]">search</span>
                     </div>
-                    <span className="text-[15px] font-bold text-[#212B36]">Tra cứu vé số</span>
+                    <span className="text-[15px] font-bold text-[#212B36]">Dò vé số</span>
                 </div>
                 <p className="text-[13px] text-slate-500 mb-4 w-full">
                     Dò nhanh kết quả vé số của bạn chuẩn xác nhất
@@ -701,7 +683,7 @@ export const QuickCheckTicketBanner: React.FC<QuickCheckTicketBannerProps> = ({ 
                     className="w-full bg-gradient-to-r from-[#ee1314] to-[#f43f5e] text-white font-bold py-2.5 rounded-xl hover:shadow-lg hover:shadow-[#ee1314]/25 transition-all duration-300 relative cursor-pointer text-[13px] border-none flex items-center justify-center gap-1.5"
                 >
                     <span className="material-symbols-outlined text-[16px]">qr_code_scanner</span>
-                    Tra cứu ngay
+                    Dò ngay
                 </motion.button>
             </motion.div>
 

@@ -25,6 +25,7 @@ import { AppToast as toast } from "../../../utils/toast.util";
 const navItems = [
   { label: "Trang chủ", to: ROUTES.PUBLIC.HOME, icon: Home },
   { label: "Mua vé số", to: "/buy-ticket", icon: Ticket },
+  { label: "Tra cứu vé", to: "/ticket-search", icon: Search },
   { label: "Vé của tôi", to: "/profile/tickets", icon: Ticket },
   { label: "Lịch mở thưởng", to: "/lich-mo-thuong", icon: CalendarDays },
   { label: "Bài viết", to: "/blogs", icon: BookOpen },
@@ -186,7 +187,7 @@ export const Header = () => {
                     </button>
                     
                     {/* Cart Dropdown */}
-                    <div className="absolute top-[calc(100%-8px)] right-0 mt-3 w-[370px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out z-[1100] overflow-hidden">
+                    <div className="absolute top-full right-0 mt-2 w-[370px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 opacity-0 invisible pointer-events-none translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-300 ease-out z-[1100] overflow-hidden">
                       <div className="p-4 flex items-center justify-between border-b border-[#E5E8EB]">
                         <h4 className={HEADER_DROPDOWN_TITLE_CLASS}>Giỏ hàng <span className="text-[#ee1314]">({cartItems.length})</span></h4>
                         <span className={`${HEADER_DROPDOWN_ACTION_CLASS} cursor-pointer hover:text-[#ee1314]`} onClick={() => navigate('/cart')}>Xem giỏ hàng</span>
@@ -290,9 +291,9 @@ export const Header = () => {
                   </div>
 
                   {/* Profile Dropdown */}
-                  <div className="absolute top-[calc(100%-8px)] right-0 mt-3 w-[210px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-300 ease-out z-[1100] py-2 overflow-hidden">
+                  <div className="absolute top-full right-0 mt-2 w-[210px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 opacity-0 invisible pointer-events-none translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 transition-all duration-300 ease-out z-[1100] py-2 overflow-hidden">
                     {/* Triangle pointer */}
-                    <div className="absolute -top-[6px] right-8 w-3 h-3 bg-white border-l border-t border-slate-100 rotate-45"></div>
+                    <div className="absolute -top-[6px] right-8 w-3 h-3 bg-white border-l border-t border-slate-100 rotate-45 pointer-events-none"></div>
                     
                     <div className="relative z-10">
                         <Link to="/profile/overview" className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-[#212B36] hover:bg-slate-50 hover:text-[#ee1314] transition-colors">

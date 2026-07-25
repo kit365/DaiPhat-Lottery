@@ -50,6 +50,10 @@ public interface LotteryTicketSerialServicePort {
 
     long countAvailableSerials(Long ticketId);
 
+    Map<Long, Long> countAvailableSerialsByTicketIds(Collection<Long> ticketIds);
+
+    Map<Long, Long> countSerialsByTicketIds(Collection<Long> ticketIds);
+
     long countByStatuses(Long ticketId, Collection<LotteryTicketSerialStatus> statuses);
 
     void expireActiveSerials(Long ticketId);
@@ -61,6 +65,8 @@ public interface LotteryTicketSerialServicePort {
     long countByImportBatchLineId(Long importBatchLineId);
 
     List<Long> findDistinctTicketIdsByImportBatchLineId(Long importBatchLineId);
+
+    List<LotteryTicketSerialModel> findAllByImportBatchLineId(Long importBatchLineId);
 
     long countByTicketIdAndImportBatchLineId(Long ticketId, Long importBatchLineId);
 

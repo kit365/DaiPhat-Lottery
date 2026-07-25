@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 public enum ImportBatchLineStatus {
     OPEN("Chưa nhập"),
     IMPORTING("Đang nhập"),
+    PAUSED("Tạm dừng nhập"),
     IMPORTED("Đã nhập đủ"),
     CANCELLED("Đã hủy");
 

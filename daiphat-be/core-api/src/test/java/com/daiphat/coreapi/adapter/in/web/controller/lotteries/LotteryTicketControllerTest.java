@@ -32,6 +32,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -245,7 +246,7 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         setAuthentication(principal, RoleConstants.ADMIN, "ticket:view");
 
-        when(lotteryTicketServicePort.getAll(1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", "123456", "createdAt", "desc"))
+        when(lotteryTicketServicePort.getAll(1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", null, null, null, "123456", "createdAt", "desc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
@@ -255,11 +256,13 @@ class LotteryTicketControllerTest {
                 null,
                 "IN_STOCK",
                 "2026-06-10",
+                null,
+                null,
+                null,
                 "123456",
                 "createdAt",
                 "desc",
-                principal
-        );
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
@@ -279,7 +282,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getRecordList().getFirst().createdBy()).isEqualTo("admin01");
         assertThat(body.getData().getRecordList().getFirst().lastModifiedBy()).isEqualTo("operator01");
 
-        verify(lotteryTicketServicePort).getAll(1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", "123456", "createdAt", "desc");
+        verify(lotteryTicketServicePort).getAll(1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", null, null, null, "123456", "createdAt", "desc");
     }
 
     @Test
@@ -289,7 +292,7 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(2, 5);
         setAuthentication(principal, RoleConstants.ROLE_STAFF_OPERATOR, "ticket:view");
 
-        when(lotteryTicketServicePort.getAll(2, 5, null, null, null, null, null, null, null))
+        when(lotteryTicketServicePort.getAll(2, 5, null, null, null, null, null, null, null, null, null, null))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
@@ -302,8 +305,10 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                principal
-        );
+                null,
+                null,
+                null,
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
@@ -317,7 +322,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getPagination().getCurrentPage()).isEqualTo(2);
         assertThat(body.getData().getPagination().getLimit()).isEqualTo(5);
 
-        verify(lotteryTicketServicePort).getAll(2, 5, null, null, null, null, null, null, null);
+        verify(lotteryTicketServicePort).getAll(2, 5, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -328,7 +333,7 @@ class LotteryTicketControllerTest {
         Long anotherProductId = 666L;
         setAuthentication(principal, RoleConstants.ADMIN, "ticket:view");
 
-        when(lotteryTicketServicePort.getAll(3, 20, anotherProductId, null, "RESERVED", "2026-06-12", "654321", "drawDate", "asc"))
+        when(lotteryTicketServicePort.getAll(3, 20, anotherProductId, null, "RESERVED", "2026-06-12", null, null, null, "654321", "drawDate", "asc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
@@ -338,11 +343,13 @@ class LotteryTicketControllerTest {
                 null,
                 "RESERVED",
                 "2026-06-12",
+                null,
+                null,
+                null,
                 "654321",
                 "drawDate",
                 "asc",
-                principal
-        );
+                principal);
 
         assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
 
@@ -352,7 +359,7 @@ class LotteryTicketControllerTest {
         assertThat(body).isNotNull();
         assertThat(body.getData()).isEqualTo(serviceResponse);
 
-        verify(lotteryTicketServicePort).getAll(3, 20, anotherProductId, null, "RESERVED", "2026-06-12", "654321", "drawDate", "asc");
+        verify(lotteryTicketServicePort).getAll(3, 20, anotherProductId, null, "RESERVED", "2026-06-12", null, null, null, "654321", "drawDate", "asc");
     }
 
     @Test
@@ -362,7 +369,7 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         setAuthentication(principal, RoleConstants.ROLE_STREET_AGENT, "ticket:view");
 
-        when(lotteryTicketServicePort.getAll(1, 10, null, null, "SOLD", null, "0001", "updatedAt", "desc"))
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, "SOLD", null, null, null, null, "0001", "updatedAt", "desc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
@@ -372,11 +379,13 @@ class LotteryTicketControllerTest {
                 null,
                 "SOLD",
                 null,
+                null,
+                null,
+                null,
                 "0001",
                 "updatedAt",
                 "desc",
-                principal
-        );
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
@@ -388,7 +397,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getRecordList().getFirst().verified()).isTrue();
         assertThat(body.getData().getRecordList().getFirst().returnedAt()).isEqualTo(LocalDateTime.of(2026, 6, 15, 8, 30));
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, null, "SOLD", null, "0001", "updatedAt", "desc");
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, "SOLD", null, null, null, null, "0001", "updatedAt", "desc");
     }
 
     @Test
@@ -398,7 +407,7 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
 
-        when(lotteryTicketServicePort.getAll(1, 10, null, null, "IN_STOCK", "2026-06-10", "123456", "createdAt", "desc"))
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, "IN_STOCK", "2026-06-10", null, null, null, "123456", "createdAt", "desc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
@@ -408,11 +417,13 @@ class LotteryTicketControllerTest {
                 null,
                 "IN_STOCK",
                 "2026-06-10",
+                null,
+                null,
+                null,
                 "123456",
                 "createdAt",
                 "desc",
-                principal
-        );
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
@@ -427,7 +438,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getPagination().getCurrentPage()).isEqualTo(1);
         assertThat(body.getData().getPagination().getLimit()).isEqualTo(10);
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, null, "IN_STOCK", "2026-06-10", "123456", "createdAt", "desc");
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, "IN_STOCK", "2026-06-10", null, null, null, "123456", "createdAt", "desc");
     }
 
     @Test
@@ -437,7 +448,7 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
 
-        when(lotteryTicketServicePort.getAll(1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", "123456", "createdAt", "desc"))
+        when(lotteryTicketServicePort.getAll(1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", null, null, null, "123456", "createdAt", "desc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
@@ -447,11 +458,13 @@ class LotteryTicketControllerTest {
                 null,
                 "IN_STOCK",
                 "2026-06-10",
+                null,
+                null,
+                null,
                 "123456",
                 "createdAt",
                 "desc",
-                principal
-        );
+                principal);
 
         String json = OBJECT_MAPPER
                 .writerWithView(response.getSerializationView())
@@ -493,7 +506,7 @@ class LotteryTicketControllerTest {
                 "lastModifiedBy"
         );
 
-        verify(lotteryTicketServicePort).getAll(1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", "123456", "createdAt", "desc");
+        verify(lotteryTicketServicePort).getAll(1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", null, null, null, "123456", "createdAt", "desc");
     }
 
     @Test
@@ -504,7 +517,7 @@ class LotteryTicketControllerTest {
         Long anotherProductId = 777L;
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
 
-        when(lotteryTicketServicePort.getAll(4, 15, anotherProductId, null, "SOLD", "2026-06-18", "888999", "drawDate", "asc"))
+        when(lotteryTicketServicePort.getAll(4, 15, anotherProductId, null, "SOLD", "2026-06-18", null, null, null, "888999", "drawDate", "asc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
@@ -514,11 +527,13 @@ class LotteryTicketControllerTest {
                 null,
                 "SOLD",
                 "2026-06-18",
+                null,
+                null,
+                null,
                 "888999",
                 "drawDate",
                 "asc",
-                principal
-        );
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
@@ -531,7 +546,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getPagination().getCurrentPage()).isEqualTo(4);
         assertThat(body.getData().getPagination().getLimit()).isEqualTo(15);
 
-        verify(lotteryTicketServicePort).getAll(4, 15, anotherProductId, null, "SOLD", "2026-06-18", "888999", "drawDate", "asc");
+        verify(lotteryTicketServicePort).getAll(4, 15, anotherProductId, null, "SOLD", "2026-06-18", null, null, null, "888999", "drawDate", "asc");
     }
 
     @Test
@@ -541,7 +556,7 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         setAuthentication(principal, RoleConstants.ROLE_MEMBER, "ticket:view");
 
-        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, "123456", "createdAt", "desc"))
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null, null, "123456", "createdAt", "desc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
@@ -551,11 +566,13 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 "123456",
                 "createdAt",
                 "desc",
-                principal
-        );
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
@@ -567,7 +584,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getRecordList().getFirst().batchCode()).isEqualTo("BATCH-01");
         assertThat(body.getData().getRecordList().getFirst().verified()).isTrue();
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, "123456", "createdAt", "desc");
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null, "123456", "createdAt", "desc");
     }
 
     @Test
@@ -577,7 +594,7 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         SecurityContextHolder.clearContext();
 
-        when(lotteryTicketServicePort.getAll(1, 10, null, null, "IN_STOCK", null, null, null, null))
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, "IN_STOCK", null, null, null, null, null, null, null))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
@@ -590,8 +607,10 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                principal
-        );
+                null,
+                null,
+                null,
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
@@ -603,7 +622,7 @@ class LotteryTicketControllerTest {
         assertThat(body.isSuccess()).isTrue();
         assertThat(body.getData()).isEqualTo(serviceResponse);
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, null, "IN_STOCK", null, null, null, null);
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, "IN_STOCK", null, null, null, null, null, null, null);
     }
 
     private PageResponse<LotteryTicketResponse> buildPageResponse(int currentPage, int limit) {
@@ -692,12 +711,23 @@ class LotteryTicketControllerTest {
                 .build();
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
 
-        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null, null))
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null, null, null, null, null))
                 .thenReturn(emptyResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
-                1, 10, null, null, null, null, null, null, null, principal
-        );
+                1,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
@@ -710,7 +740,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getRecordList()).isEmpty();
         assertThat(body.getData().getPagination().getTotalRecords()).isEqualTo(0);
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null);
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null, null, null, null);
     }
 
     // ============================================================
@@ -800,12 +830,23 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
 
-        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null, null))
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null, null, null, null, null))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
-                1, 10, null, null, null, null, null, null, null, principal
-        );
+                1,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                principal);
 
         String json = OBJECT_MAPPER
                 .writerWithView(Views.Public.class)
@@ -840,7 +881,7 @@ class LotteryTicketControllerTest {
         assertThat(firstRecord).doesNotContainKey("verified");
         assertThat(firstRecord).doesNotContainKey("importedById");
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null);
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -860,12 +901,23 @@ class LotteryTicketControllerTest {
                 .build();
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
 
-        when(lotteryTicketServicePort.getAll(3, 10, null, null, null, null, null, null, null))
+        when(lotteryTicketServicePort.getAll(3, 10, null, null, null, null, null, null, null, null, null, null))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
-                3, 10, null, null, null, null, null, null, null, principal
-        );
+                3,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                principal);
 
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
 
@@ -879,7 +931,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getPagination().isFirst()).isFalse();
         assertThat(body.getData().getPagination().isLast()).isFalse();
 
-        verify(lotteryTicketServicePort).getAll(3, 10, null, null, null, null, null, null, null);
+        verify(lotteryTicketServicePort).getAll(3, 10, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -949,12 +1001,23 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         setAuthentication(principal, RoleConstants.ROLE_STREET_AGENT);
 
-        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null, null))
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null, null, null, null, null))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
-                1, 10, null, null, null, null, null, null, null, principal
-        );
+                1,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
@@ -966,7 +1029,7 @@ class LotteryTicketControllerTest {
         assertThat(body.isSuccess()).isTrue();
         assertThat(body.getData()).isEqualTo(serviceResponse);
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null);
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -1016,17 +1079,28 @@ class LotteryTicketControllerTest {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
 
-        when(lotteryTicketServicePort.getAll(1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", "123", "drawDate", "asc"))
+        when(lotteryTicketServicePort.getAll(1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", null, null, null, "123", "drawDate", "asc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
-                1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", "123", "drawDate", "asc", principal
-        );
+                1,
+                10,
+                PRODUCT_ID,
+                null,
+                "IN_STOCK",
+                "2026-06-10",
+                null,
+                null,
+                null,
+                "123",
+                "drawDate",
+                "asc",
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
 
-        verify(lotteryTicketServicePort).getAll(1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", "123", "drawDate", "asc");
+        verify(lotteryTicketServicePort).getAll(1, 10, PRODUCT_ID, null, "IN_STOCK", "2026-06-10", null, null, null, "123", "drawDate", "asc");
     }
 
     @Test
@@ -1059,12 +1133,23 @@ class LotteryTicketControllerTest {
                 .build();
         setAuthentication(principal, RoleConstants.ROLE_MEMBER);
 
-        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null, null))
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null, null, null, null, null))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
-                1, 10, null, null, null, null, null, null, null, principal
-        );
+                1,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                principal);
 
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
 
@@ -1075,7 +1160,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getRecordList().get(0).numbers()).isEqualTo("123456");
         assertThat(body.getData().getRecordList().get(1).numbers()).isEqualTo("654321");
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null);
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null, null, null, null);
     }
 
     // ============================================================
@@ -1558,12 +1643,23 @@ class LotteryTicketControllerTest {
                 .build();
         setAuthentication(principal, RoleConstants.ADMIN, "ticket:view");
 
-        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null, null))
+        when(lotteryTicketServicePort.getAll(1, 10, null, null, null, null, null, null, null, null, null, null))
                 .thenReturn(emptyResponse);
 
         MappingJacksonValue response = lotteryTicketController.getAll(
-                1, 10, null, null, null, null, null, null, null, principal
-        );
+                1,
+                10,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
@@ -1576,7 +1672,7 @@ class LotteryTicketControllerTest {
         assertThat(body.getData().getRecordList()).isEmpty();
         assertThat(body.getData().getPagination().getTotalRecords()).isEqualTo(0);
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null);
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null, null, null, null);
     }
 
     // ============================================================
@@ -1855,11 +1951,14 @@ class LotteryTicketControllerTest {
     @DisplayName("[DP-281][DP-234] GET /lottery-tickets/public: Khách xem vé IN_STOCK không cần đăng nhập")
     void getPublicTickets_returnsPublicViewWithoutAuth() throws Exception {
         PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
-        when(lotteryTicketServicePort.getPublicTickets(1, 10, PRODUCT_ID, null, "2026-06-15", "123456", "createdAt", "desc"))
+        when(lotteryTicketServicePort.getPublicTickets(1, 10, PRODUCT_ID, null, "2026-06-15", "123456",
+                com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.CONTAINS,
+                null, null, null, "createdAt", "desc"))
                 .thenReturn(serviceResponse);
 
         MappingJacksonValue response = lotteryTicketController.getPublicTickets(
-                1, 10, PRODUCT_ID, null, "2026-06-15", "123456", "createdAt", "desc");
+                1, 10, PRODUCT_ID, null, "2026-06-15", "123456", "CONTAINS",
+                null, null, null, "createdAt", "desc");
 
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
 
@@ -1878,6 +1977,75 @@ class LotteryTicketControllerTest {
         assertThat(firstRecord).containsKeys("id", "stationId", "numbers", "drawDate", "status", "statusDisplayName");
         assertThat(firstRecord).doesNotContainKeys("batchCode", "importedById", "verified");
 
-        verify(lotteryTicketServicePort).getPublicTickets(1, 10, PRODUCT_ID, null, "2026-06-15", "123456", "createdAt", "desc");
+        verify(lotteryTicketServicePort).getPublicTickets(1, 10, PRODUCT_ID, null, "2026-06-15", "123456",
+                com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.CONTAINS,
+                null, null, null, "createdAt", "desc");
+    }
+
+    @Test
+    @DisplayName("[DP-37][DP-255] GET /lottery-tickets/public: searchMode SUFFIX được parse và truyền xuống service")
+    void getPublicTickets_passesSuffixSearchMode() {
+        PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
+        when(lotteryTicketServicePort.getPublicTickets(1, 10, PRODUCT_ID, null, "2026-07-24", "68",
+                com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.SUFFIX,
+                null, null, null, "createdAt", "desc"))
+                .thenReturn(serviceResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getPublicTickets(
+                1, 10, PRODUCT_ID, null, "2026-07-24", "68", "SUFFIX",
+                null, null, null, "createdAt", "desc");
+
+        assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
+        verify(lotteryTicketServicePort).getPublicTickets(1, 10, PRODUCT_ID, null, "2026-07-24", "68",
+                com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.SUFFIX,
+                null, null, null, "createdAt", "desc");
+    }
+
+    @Test
+    @DisplayName("[DP-37][DP-255] GET /lottery-tickets/home: tomorrow → ngày mai VN; searchMode đuôi số")
+    void getHomeTickets_tomorrowAndSuffix() {
+        String tomorrow = com.daiphat.coreapi.shared.util.DrawScheduleUtils.today().plusDays(1).toString();
+        PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
+        when(lotteryTicketServicePort.getPublicTickets(
+                eq(1), eq(20), eq(PRODUCT_ID), eq(null), eq(tomorrow), eq("68"),
+                eq(com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.SUFFIX),
+                eq(null), eq(null), eq(null),
+                eq("createdAt"), eq("desc")))
+                .thenReturn(serviceResponse);
+
+        MappingJacksonValue response = lotteryTicketController.getHomeTickets(
+                1, 20, PRODUCT_ID, null, "tomorrow", "68", "suffix",
+                null, null, null, "createdAt", "desc");
+
+        assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
+        verify(lotteryTicketServicePort).getPublicTickets(
+                1, 20, PRODUCT_ID, null, tomorrow, "68",
+                com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.SUFFIX,
+                null, null, null,
+                "createdAt", "desc");
+    }
+
+    @Test
+    @DisplayName("[DP-37][DP-255] GET /lottery-tickets/home: today/blank → ngày bán mặc định (sau cutoff = ngày mai)")
+    void getHomeTickets_todayResolvesToDefaultSellableDate() {
+        String defaultSellable = com.daiphat.coreapi.shared.util.DrawScheduleUtils
+                .resolveDefaultSellableDrawDate()
+                .toString();
+        PageResponse<LotteryTicketResponse> serviceResponse = buildPageResponse(1, 10);
+        when(lotteryTicketServicePort.getPublicTickets(
+                eq(1), eq(20), eq(null), eq(null), eq(defaultSellable), eq(null),
+                eq(com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.CONTAINS),
+                eq(null), eq(null), eq(null),
+                eq("createdAt"), eq("desc")))
+                .thenReturn(serviceResponse);
+
+        lotteryTicketController.getHomeTickets(1, 20, null, null, "today", null, null,
+                null, null, null, "createdAt", "desc");
+
+        verify(lotteryTicketServicePort).getPublicTickets(
+                1, 20, null, null, defaultSellable, null,
+                com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.CONTAINS,
+                null, null, null,
+                "createdAt", "desc");
     }
 }

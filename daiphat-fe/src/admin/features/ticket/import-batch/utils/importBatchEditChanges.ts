@@ -1,5 +1,6 @@
 import type { ImportBatch } from '../types/importBatch.type';
 import type { UpdateImportBatchFormValues } from '../schemas/importBatch.schema';
+import { canEditImportBatchLineCost } from './importBatchHeaderEdit';
 
 export interface ImportBatchEditFieldChange {
     label: string;
@@ -77,7 +78,7 @@ export const buildImportBatchEditBaseline = (
         stationName: line.lotteryStationId
             ? resolveStationName(line.lotteryStationId)
             : undefined,
-        readOnly: line.status === 'IMPORTED' || line.status === 'CANCELLED',
+        readOnly: !canEditImportBatchLineCost(line.status),
         removed: false,
     })),
 });

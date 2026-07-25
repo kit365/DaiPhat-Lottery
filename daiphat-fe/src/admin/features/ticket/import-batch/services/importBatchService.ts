@@ -10,6 +10,7 @@ import type {
     ImportBatchEligibleStationsResult,
     ImportBatchListParams,
     ImportBatchReductionTicketsResult,
+    ImportBatchLineEntryTicketsResult,
     ImportBatchTimePolicy,
     UpdateImportBatchPayload,
 } from '../types/importBatch.type';
@@ -155,10 +156,51 @@ export const deleteImportBatchLine = async (
     return response.data;
 };
 
+export const pauseImportBatchLine = async (
+    batchId: number | string,
+    lineId: number | string
+): Promise<ApiResponse<ImportBatch>> => {
+    const response = await apiApp.post(
+        `${BASE_URL}/${batchId}/lines/${lineId}/pause`,
+        {},
+        {
+            ...withAuth(),
+            skipGlobalErrorToast: true,
+        }
+    );
+    return response.data;
+};
+
+export const resumeImportBatchLine = async (
+    batchId: number | string,
+    lineId: number | string
+): Promise<ApiResponse<ImportBatch>> => {
+    const response = await apiApp.post(
+        `${BASE_URL}/${batchId}/lines/${lineId}/resume`,
+        {},
+        {
+            ...withAuth(),
+            skipGlobalErrorToast: true,
+        }
+    );
+    return response.data;
+};
+
 export const getImportBatchReductionTickets = async (
     batchId: number | string
 ): Promise<ApiResponse<ImportBatchReductionTicketsResult>> => {
     const response = await apiApp.get(`${BASE_URL}/${batchId}/reduction-tickets`, withAuth());
+    return response.data;
+};
+
+export const getImportBatchLineEntryTickets = async (
+    batchId: number | string,
+    lineId: number | string
+): Promise<ApiResponse<ImportBatchLineEntryTicketsResult>> => {
+    const response = await apiApp.get(`${BASE_URL}/${batchId}/lines/${lineId}/entry-tickets`, {
+        ...withAuth(),
+        skipGlobalErrorToast: true,
+    });
     return response.data;
 };
 

@@ -23,6 +23,14 @@ export const transactionService = {
         return response.data;
     },
 
+    /**
+     * Đồng bộ trạng thái thanh toán với PayOS khi webhook chưa cập nhật đơn.
+     */
+    syncPaymentFromGateway: async (orderId: string): Promise<ApiResponse<any>> => {
+        const response = await apiApp.post(`${BASE_URL}/${orderId}/payment/sync`);
+        return response.data;
+    },
+
     getPendingPaymentCountdown: async (orderId: string): Promise<ApiResponse<PendingPaymentCountdownResult>> => {
         const response = await apiApp.get(`${BASE_URL}/${orderId}/payment/countdown`);
         return response.data;

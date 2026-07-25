@@ -148,6 +148,45 @@ public class TransactionService implements TransactionServicePort {
 
     @Override
     @Transactional
+    public OrderModel syncOnlinePaymentFromGateway(UUID orderId) {
+        OrderModel order = getOrderWithLockOrThrow(orderId);
+        if (order.getStatus() != OrderStatus.PENDING_PAYMENT) {
+            return order;
+        }
+
+        TransactionModel transaction = order.getTransactions().stream()
+                .filter(candidate -> candidate.getType() == TransactionType.ONLINE
+                        && candidate.getStatus() == TransactionStatus.PENDING
+                        && candidate.getGatewayOrderCode() != null)
+                .findFirst()
+                .orElse(null);
+
+        if (transaction == null) {
+            log.info("No pending online transaction to sync for order {}", orderId);
+            return order;
+        }
+
+        PaymentGateway gateway = transaction.getGateway() != null
+                ? transaction.getGateway()
+                : PaymentGateway.PAYOS;
+        PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(gateway);
+
+        if (!strategy.isPaymentCompletedOnGateway(transaction)) {
+            log.info("Gateway payment still unpaid for order {}, gatewayOrderCode={}",
+                    orderId, transaction.getGatewayOrderCode());
+            return order;
+        }
+
+        return handleOnlinePaymentSuccess(
+                orderId,
+                transaction.getId(),
+                gateway,
+                transaction.getPaymentRef()
+        );
+    }
+
+    @Override
+    @Transactional
     public void processGatewayCallback(PaymentGateway gateway, String rawPayload) {
         PaymentGatewayStrategy strategy = paymentGatewayStrategyFactory.getStrategy(gateway);
         GatewayCallbackResult callbackResult = strategy.parseCallback(rawPayload);

@@ -9,6 +9,7 @@ import com.daiphat.coreapi.application.dto.request.lotteries.UpdateImportBatchRe
 import com.daiphat.coreapi.application.dto.response.base.PageResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchClassificationPreviewResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchEligibleStationsResponse;
+import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchLineEntryTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchReductionTicketsResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchResponse;
 import com.daiphat.coreapi.application.dto.response.lotteries.ImportBatchTimePolicyResponse;
@@ -93,6 +94,28 @@ public class ImportBatchController {
         return ApiResponse.success(null, importBatchServicePort.getBatchesWithoutLines());
     }
 
+    @PostMapping("/{batchId:\\d+}/lines/{lineId:\\d+}/pause")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ImportBatchResponse> pauseLine(
+            @PathVariable Long batchId,
+            @PathVariable Long lineId) {
+        return ApiResponse.success(
+                "Đã tạm dừng nhập dòng phiếu.",
+                importBatchServicePort.pauseLine(batchId, lineId)
+        );
+    }
+
+    @PostMapping("/{batchId:\\d+}/lines/{lineId:\\d+}/resume")
+    @PreAuthorize("hasAnyAuthority('importBatch:create')")
+    public ApiResponse<ImportBatchResponse> resumeLine(
+            @PathVariable Long batchId,
+            @PathVariable Long lineId) {
+        return ApiResponse.success(
+                "Đã tiếp tục nhập dòng phiếu.",
+                importBatchServicePort.resumeLine(batchId, lineId)
+        );
+    }
+
     @DeleteMapping("/{batchId:\\d+}/lines/{lineId:\\d+}")
     @PreAuthorize("hasAnyAuthority('importBatch:create')")
     public ApiResponse<ImportBatchResponse> deleteLine(
@@ -116,14 +139,15 @@ public class ImportBatchController {
             @RequestParam(defaultValue = DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = DEFAULT_LIMIT) int size,
             @RequestParam(required = false) Long lotteryStationId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate drawDateTo,
             @RequestParam(required = false) ImportBatchStatus status,
             @RequestParam(required = false) ImportBatchType batchType,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction) {
         return ApiResponse.success(
                 null,
-                importBatchServicePort.getAll(page, size, lotteryStationId, drawDate, status, batchType, sortBy, direction)
+                importBatchServicePort.getAll(page, size, lotteryStationId, drawDateFrom, drawDateTo, status, batchType, sortBy, direction)
         );
     }
 
@@ -131,6 +155,14 @@ public class ImportBatchController {
     @PreAuthorize("hasAnyAuthority('importBatch:create')")
     public ApiResponse<ImportBatchReductionTicketsResponse> getReductionTickets(@PathVariable Long id) {
         return ApiResponse.success(null, importBatchServicePort.getReductionTickets(id));
+    }
+
+    @GetMapping("/{batchId:\\d+}/lines/{lineId:\\d+}/entry-tickets")
+    @PreAuthorize("hasAnyAuthority('importBatch:view', 'importBatch:create', 'ticket:create')")
+    public ApiResponse<ImportBatchLineEntryTicketsResponse> getLineEntryTickets(
+            @PathVariable Long batchId,
+            @PathVariable Long lineId) {
+        return ApiResponse.success(null, importBatchServicePort.getLineEntryTickets(batchId, lineId));
     }
 
     @GetMapping("/batch-types")
