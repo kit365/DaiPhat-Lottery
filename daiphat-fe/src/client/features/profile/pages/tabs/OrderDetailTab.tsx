@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { useGetMyOrderDetail } from '../../../../hooks/useOrder';
@@ -6,13 +6,14 @@ import { useGetPendingPaymentCountdown, useProcessPayment, useSyncPaymentFromGat
 import { useGetMyRefunds } from '../../../../hooks/useRefund';
 import { OrderStatus, OrderType, resolveOrderDetailStatusBadge } from '../../../../../types/order.type';
 import { RefundRequestStatus, RefundType, formatRefundCountdown, isRefundCandidateStatus } from '../../../../../types/refund.type';
-import { PaymentGateway } from '../../../../../types/transaction.type';
+import { PaymentGateway, PaymentResult } from '../../../../../types/transaction.type';
 import { AppToast } from '../../../../../utils/toast.util';
 import {
     UnavailableReferenceState,
     UNAVAILABLE_REFERENCE_MESSAGE,
 } from '../../../../components/notification/UnavailableReferenceState';
 import { RefundRequestModal } from '../../../../components/refund/RefundRequestModal';
+import { PaymentQrDialog } from '../../../../components/payment/PaymentQrDialog';
 import { OrderComplaintButton } from '../../../../components/support/OrderComplaintButton';
 import { useGetOrderRefundEligibility } from '../../../../hooks/useRefund';
 import { useRefundCountdown } from '../../../../hooks/useRefundCountdown';
@@ -113,19 +114,36 @@ export const OrderDetailTab = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const location = useLocation();
-    const { data: orderData, isLoading, isError } = useGetMyOrderDetail(id || '');
+    const { data: orderData, isLoading, isError, refetch: refetchOrder } = useGetMyOrderDetail(id || '');
     const { data: refundsData } = useGetMyRefunds({ orderId: id, limit: 100, page: 1 }, !!id);
     const processPaymentMutation = useProcessPayment();
     const syncPaymentMutation = useSyncPaymentFromGateway();
     const syncTriggeredRef = useRef(false);
 
     const [showRefundModal, setShowRefundModal] = useState(false);
+    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+    const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null);
+    const [isPreparingPayment, setIsPreparingPayment] = useState(false);
 
     const order = orderData?.data;
     const { data: countdownData } = useGetPendingPaymentCountdown(
         order?.status === OrderStatus.PENDING_PAYMENT ? order.id : undefined
     );
     const orderRefunds = useMemo(() => refundsData?.data?.recordList || [], [refundsData?.data?.recordList]);
+
+    const handlePaymentPaid = useCallback(() => {
+        AppToast.success('Thanh toán thành công!');
+        setPaymentDialogOpen(false);
+        setPaymentResult(null);
+        setIsPreparingPayment(false);
+        void refetchOrder();
+    }, [refetchOrder]);
+
+    const handlePaymentDialogClose = useCallback(() => {
+        setPaymentDialogOpen(false);
+        setPaymentResult(null);
+        setIsPreparingPayment(false);
+    }, []);
 
     // Nếu đã thanh toán trên PayOS nhưng webhook chưa cập nhật → đồng bộ khi mở chi tiết đơn
     useEffect(() => {
@@ -261,26 +279,44 @@ export const OrderDetailTab = () => {
     };
 
     const handlePaymentRedirect = () => {
-        const transactionId = order.transactions?.[0]?.id;
-        if (transactionId) {
-            processPaymentMutation.mutate({
-                orderId: order.id,
-                data: {
-                    transactionId,
-                    gateway: PaymentGateway.PAYOS
-                }
-            }, {
-                onSuccess: (paymentRes) => {
-                    if (paymentRes.success && paymentRes.data?.checkoutUrl) {
-                        window.location.href = paymentRes.data.checkoutUrl;
-                    } else {
-                        AppToast.error("Không lấy được đường dẫn thanh toán");
-                    }
-                }
-            });
-        } else {
+        const pendingTransaction = order.transactions?.find(
+            (tx: any) => tx.type === 'ONLINE' && tx.status === 'PENDING'
+        ) || order.transactions?.find((tx: any) => tx.type === 'ONLINE') || order.transactions?.[0];
+
+        const transactionId = pendingTransaction?.id;
+        if (!transactionId) {
             AppToast.error("Không tìm thấy thông tin giao dịch");
+            return;
         }
+
+        setPaymentResult(null);
+        setPaymentDialogOpen(true);
+        setIsPreparingPayment(true);
+
+        processPaymentMutation.mutate({
+            orderId: order.id,
+            data: {
+                transactionId,
+                gateway: PaymentGateway.PAYOS
+            }
+        }, {
+            onSuccess: (paymentRes) => {
+                if (paymentRes.success && paymentRes.data) {
+                    setPaymentResult(paymentRes.data);
+                    if (!paymentRes.data.qrCode && !paymentRes.data.checkoutUrl) {
+                        AppToast.error("Không tạo được mã thanh toán");
+                    }
+                } else {
+                    AppToast.error("Không lấy được thông tin thanh toán");
+                }
+            },
+            onError: () => {
+                AppToast.error("Không thể tạo phiên thanh toán");
+            },
+            onSettled: () => {
+                setIsPreparingPayment(false);
+            }
+        });
     };
 
     return (
@@ -854,6 +890,19 @@ export const OrderDetailTab = () => {
                     isOpen={showRefundModal}
                     onClose={() => setShowRefundModal(false)}
                     order={order}
+                />
+            )}
+
+            {order && (
+                <PaymentQrDialog
+                    open={paymentDialogOpen}
+                    orderId={order.id}
+                    orderCode={order.orderCode}
+                    amount={Number(order.totalAmount) || 0}
+                    payment={paymentResult}
+                    loading={isPreparingPayment}
+                    onPaid={handlePaymentPaid}
+                    onClose={handlePaymentDialogClose}
                 />
             )}
         </div>
