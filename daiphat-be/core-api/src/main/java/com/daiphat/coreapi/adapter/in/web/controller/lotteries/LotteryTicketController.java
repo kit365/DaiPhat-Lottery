@@ -113,12 +113,16 @@ public class LotteryTicketController {
             @RequestParam(required = false) String drawDate,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String searchMode,
+            @RequestParam(required = false) List<String> searches,
+            @RequestParam(required = false) List<String> tailRanges,
+            @RequestParam(required = false) List<String> numberTypes,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction) {
         log.info("REST public request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
                 page, size, stationId, stationIds, drawDate, search,
                 com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.from(searchMode),
+                searches, tailRanges, numberTypes,
                 sortBy, direction);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(ApiResponse.success(null, response));
         mappingJacksonValue.setSerializationView(Views.Public.class);
@@ -134,12 +138,16 @@ public class LotteryTicketController {
             @RequestParam(defaultValue = HOME_DEFAULT_DRAW_DATE) String drawDate,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String searchMode,
+            @RequestParam(required = false) List<String> searches,
+            @RequestParam(required = false) List<String> tailRanges,
+            @RequestParam(required = false) List<String> numberTypes,
             @RequestParam(defaultValue = DEFAULT_HOME_SORT_BY) String sortBy,
             @RequestParam(defaultValue = DEFAULT_HOME_SORT_DIRECTION) String direction) {
         log.info("REST home request to query lottery tickets page: {}, size: {}", page, size);
         PageResponse<LotteryTicketResponse> response = lotteryTicketServicePort.getPublicTickets(
                 page, size, stationId, stationIds, resolveHomeDrawDate(drawDate), search,
                 com.daiphat.coreapi.domain.model.enums.lottery.TicketSearchMode.from(searchMode),
+                searches, tailRanges, numberTypes,
                 sortBy, direction);
         MappingJacksonValue mappingJacksonValue = new MappingJacksonValue(ApiResponse.success(null, response));
         mappingJacksonValue.setSerializationView(Views.Public.class);

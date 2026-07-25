@@ -12,6 +12,7 @@ import com.daiphat.coreapi.infrastructure.persistence.entity.BaseEntity_;
 import com.daiphat.coreapi.shared.util.DrawScheduleUtils;
 import com.daiphat.coreapi.shared.util.TicketNumberSearchUtils;
 import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
@@ -22,6 +23,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public final class LotteryTicketSpecification {
 
@@ -59,7 +61,7 @@ public final class LotteryTicketSpecification {
                 predicates.add(root.get(LotteryTicketEntity_.drawDate).in(drawDates));
             }
             if (search != null && !search.isBlank()) {
-                String searchPattern = "%" + search.toLowerCase() + "%";
+                String searchPattern = "%" + search.toLowerCase(Locale.ROOT) + "%";
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get(LotteryTicketEntity_.numbers)), searchPattern),
                         batchCodeExistsPredicate(root, query, cb, searchPattern)
@@ -76,7 +78,7 @@ public final class LotteryTicketSpecification {
             List<LocalDate> drawDates,
             String search
     ) {
-        return filterPublic(stationId, stationIds, drawDates, search, null);
+        return filterPublic(stationId, stationIds, drawDates, search, null, null, null, null);
     }
 
     public static Specification<LotteryTicketEntity> filterPublic(
@@ -85,6 +87,19 @@ public final class LotteryTicketSpecification {
             List<LocalDate> drawDates,
             String search,
             TicketSearchMode searchMode
+    ) {
+        return filterPublic(stationId, stationIds, drawDates, search, searchMode, null, null, null);
+    }
+
+    public static Specification<LotteryTicketEntity> filterPublic(
+            Long stationId,
+            List<Long> stationIds,
+            List<LocalDate> drawDates,
+            String search,
+            TicketSearchMode searchMode,
+            List<String> searches,
+            List<String> tailRanges,
+            List<String> numberTypes
     ) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -115,11 +130,13 @@ public final class LotteryTicketSpecification {
             if (drawDates != null && !drawDates.isEmpty()) {
                 predicates.add(root.get(LotteryTicketEntity_.drawDate).in(drawDates));
             }
+
+            Path<String> numbersPath = root.get(LotteryTicketEntity_.numbers);
+
             if (search != null && !search.isBlank()) {
                 TicketSearchMode mode = searchMode != null ? searchMode : TicketSearchMode.CONTAINS;
-                Path<String> numbersPath = root.get(LotteryTicketEntity_.numbers);
                 if (mode == TicketSearchMode.CONTAINS) {
-                    String searchPattern = "%" + search.toLowerCase() + "%";
+                    String searchPattern = "%" + search.toLowerCase(Locale.ROOT) + "%";
                     predicates.add(cb.or(
                             cb.like(cb.lower(numbersPath), searchPattern),
                             batchCodeExistsPredicate(root, query, cb, searchPattern)
@@ -129,8 +146,95 @@ public final class LotteryTicketSpecification {
                 }
             }
 
+            List<String> fragments = TicketNumberSearchUtils.normalizeSearchFragments(searches);
+            if (!fragments.isEmpty()) {
+                List<Predicate> orFragments = new ArrayList<>();
+                for (String fragment : fragments) {
+                    orFragments.add(numbersMatchPredicate(cb, numbersPath, fragment, TicketSearchMode.CONTAINS));
+                }
+                predicates.add(cb.or(orFragments.toArray(new Predicate[0])));
+            }
+
+            List<int[]> ranges = TicketNumberSearchUtils.parseTailRanges(tailRanges);
+            if (!ranges.isEmpty()) {
+                Expression<Integer> length = cb.length(numbersPath);
+                Expression<String> tail = cb.substring(numbersPath, cb.diff(length, 1));
+                List<Predicate> rangePredicates = new ArrayList<>();
+                for (int[] range : ranges) {
+                    String from = String.format(Locale.ROOT, "%02d", range[0]);
+                    String to = String.format(Locale.ROOT, "%02d", range[1]);
+                    rangePredicates.add(cb.and(
+                            cb.greaterThanOrEqualTo(length, 2),
+                            cb.greaterThanOrEqualTo(tail, from),
+                            cb.lessThanOrEqualTo(tail, to)
+                    ));
+                }
+                predicates.add(cb.or(rangePredicates.toArray(new Predicate[0])));
+            }
+
+            Predicate numberTypePredicate = numberTypesPredicate(cb, numbersPath, numberTypes);
+            if (numberTypePredicate != null) {
+                predicates.add(numberTypePredicate);
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    private static Predicate numberTypesPredicate(
+            CriteriaBuilder cb,
+            Path<String> numbersPath,
+            List<String> numberTypes
+    ) {
+        if (numberTypes == null || numberTypes.isEmpty()) {
+            return null;
+        }
+        Expression<Integer> length = cb.length(numbersPath);
+        Expression<String> digit1 = cb.substring(numbersPath, cb.diff(length, 1), cb.literal(1));
+        Expression<String> digit2 = cb.substring(numbersPath, length, cb.literal(1));
+        Expression<String> tail = cb.substring(numbersPath, cb.diff(length, 1));
+
+        List<Predicate> typePredicates = new ArrayList<>();
+        for (String raw : numberTypes) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            String type = raw.trim().toUpperCase(Locale.ROOT);
+            switch (type) {
+                case "DOUBLE" -> typePredicates.add(cb.and(
+                        cb.greaterThanOrEqualTo(length, 2),
+                        cb.equal(digit1, digit2)
+                ));
+                case "SEQUENTIAL" -> {
+                    List<Predicate> sequentialTails = new ArrayList<>();
+                    for (int i = 0; i <= 8; i++) {
+                        String value = String.format(Locale.ROOT, "%d%d", i, i + 1);
+                        sequentialTails.add(cb.equal(tail, value));
+                    }
+                    typePredicates.add(cb.and(
+                            cb.greaterThanOrEqualTo(length, 2),
+                            cb.or(sequentialTails.toArray(new Predicate[0]))
+                    ));
+                }
+                case "REPEATING" -> {
+                    // Entire number is the same digit, length 3–6 (111, 000000, ...)
+                    List<Predicate> sameDigitNumbers = new ArrayList<>();
+                    for (char digit = '0'; digit <= '9'; digit++) {
+                        for (int len = 3; len <= 6; len++) {
+                            sameDigitNumbers.add(cb.equal(numbersPath, String.valueOf(digit).repeat(len)));
+                        }
+                    }
+                    typePredicates.add(cb.or(sameDigitNumbers.toArray(new Predicate[0])));
+                }
+                default -> {
+                    // ignore unknown
+                }
+            }
+        }
+        if (typePredicates.isEmpty()) {
+            return null;
+        }
+        return cb.or(typePredicates.toArray(new Predicate[0]));
     }
 
     private static Predicate numbersMatchPredicate(

@@ -226,7 +226,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     public PageResponse<LotteryTicketResponse> getPublicTickets(
             int page, int size, Long stationId, List<Long> stationIds, String drawDate,
             String search, String sortBy, String direction) {
-        return getPublicTickets(page, size, stationId, stationIds, drawDate, search, null, sortBy, direction);
+        return getPublicTickets(page, size, stationId, stationIds, drawDate, search, null, null, null, null, sortBy, direction);
     }
 
     @Override
@@ -234,6 +234,16 @@ public class LotteryTicketService implements LotteryTicketServicePort {
     public PageResponse<LotteryTicketResponse> getPublicTickets(
             int page, int size, Long stationId, List<Long> stationIds, String drawDate,
             String search, TicketSearchMode searchMode, String sortBy, String direction) {
+        return getPublicTickets(page, size, stationId, stationIds, drawDate, search, searchMode, null, null, null, sortBy, direction);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<LotteryTicketResponse> getPublicTickets(
+            int page, int size, Long stationId, List<Long> stationIds, String drawDate,
+            String search, TicketSearchMode searchMode,
+            List<String> searches, List<String> tailRanges, List<String> numberTypes,
+            String sortBy, String direction) {
 
         PageRequest pageable = PageRequest.of(
                 Math.max(0, page - 1),
@@ -245,7 +255,17 @@ public class LotteryTicketService implements LotteryTicketServicePort {
         List<Long> normalizedStationIds = normalizeStationIds(stationId, stationIds);
 
         Page<LotteryTicketModel> ticketPage = lotteryTicketRepositoryPort
-                .findAllPublic(pageable, stationId, normalizedStationIds, parsedDrawDates, search, searchMode);
+                .findAllPublic(
+                        pageable,
+                        stationId,
+                        normalizedStationIds,
+                        parsedDrawDates,
+                        search,
+                        searchMode,
+                        searches,
+                        tailRanges,
+                        numberTypes
+                );
 
         Map<Long, String> stationNameCache = new HashMap<>();
         Map<Long, LotteryTicketSerialModel> serialsByTicketId = lotteryTicketSerialService.findRepresentativeSerialsByTicketIds(
