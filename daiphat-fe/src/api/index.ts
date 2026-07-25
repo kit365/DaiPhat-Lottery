@@ -26,8 +26,7 @@ type ApiRequestConfig = InternalAxiosRequestConfig & {
     skipGlobalErrorToast?: boolean;
 };
 
-// Request Interceptor: Attach Token (skip public auth endpoints);
-// for FormData uploads clear Content-Type so the browser sets multipart boundary.
+// Request Interceptor: Attach Token (skip public auth endpoints)
 apiApp.interceptors.request.use((config) => {
     const url = config.url || "";
     const isPublicAuth =

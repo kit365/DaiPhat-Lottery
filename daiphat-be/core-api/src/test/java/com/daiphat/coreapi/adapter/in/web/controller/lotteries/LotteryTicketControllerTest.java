@@ -308,8 +308,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                principal
-        );
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
@@ -611,8 +610,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                principal
-        );
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
@@ -729,8 +727,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                principal
-        );
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
@@ -849,8 +846,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                principal
-        );
+                principal);
 
         String json = OBJECT_MAPPER
                 .writerWithView(Views.Public.class)
@@ -885,7 +881,7 @@ class LotteryTicketControllerTest {
         assertThat(firstRecord).doesNotContainKey("verified");
         assertThat(firstRecord).doesNotContainKey("importedById");
 
-        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null, null, null, null);
+        verify(lotteryTicketServicePort).getAll(1, 10, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -921,8 +917,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                principal
-        );
+                principal);
 
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
 
@@ -1022,8 +1017,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                principal
-        );
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);
@@ -1101,8 +1095,7 @@ class LotteryTicketControllerTest {
                 "123",
                 "drawDate",
                 "asc",
-                principal
-        );
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
@@ -1156,8 +1149,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                principal
-        );
+                principal);
 
         assertThat(response.getSerializationView()).isEqualTo(Views.Public.class);
 
@@ -1667,8 +1659,7 @@ class LotteryTicketControllerTest {
                 null,
                 null,
                 null,
-                principal
-        );
+                principal);
 
         assertThat(response).isNotNull();
         assertThat(response.getSerializationView()).isEqualTo(Views.Admin.class);

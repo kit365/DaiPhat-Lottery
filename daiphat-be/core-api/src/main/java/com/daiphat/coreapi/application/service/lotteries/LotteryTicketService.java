@@ -280,6 +280,7 @@ public class LotteryTicketService implements LotteryTicketServicePort {
                         tailRanges,
                         numberTypes
                 );
+
         Map<Long, String> stationNameCache = new HashMap<>();
         List<Long> ticketIds = ticketPage.getContent().stream().map(LotteryTicketModel::getId).toList();
         Map<Long, LotteryTicketSerialModel> serialsByTicketId =
