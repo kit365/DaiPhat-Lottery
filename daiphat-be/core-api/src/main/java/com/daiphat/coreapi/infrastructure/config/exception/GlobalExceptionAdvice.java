@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +40,21 @@ public class GlobalExceptionAdvice {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<?>> handleValidationException(MethodArgumentNotValidException exception) {
         String message = resolveValidationMessage(exception);
+        return ResponseEntity.badRequest().body(ApiResponse.error(message));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<?>> handleConstraintViolationException(ConstraintViolationException exception) {
+        boolean refreshTokenMissing = exception.getConstraintViolations().stream()
+                .anyMatch(v -> String.valueOf(v.getPropertyPath()).contains("refreshToken"));
+        if (refreshTokenMissing) {
+            ErrorCode errorCode = ErrorCode.REFRESH_TOKEN_EXPIRED;
+            return ResponseEntity.status(errorCode.getStatus()).body(ApiResponse.error(errorCode.getMessage()));
+        }
+        String message = exception.getConstraintViolations().stream()
+                .findFirst()
+                .map(v -> v.getMessage())
+                .orElse(ErrorCode.INVALID_INPUT.getMessage());
         return ResponseEntity.badRequest().body(ApiResponse.error(message));
     }
 
