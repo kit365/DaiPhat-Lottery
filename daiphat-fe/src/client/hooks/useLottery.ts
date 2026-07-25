@@ -29,6 +29,7 @@ export const useLottery = () => {
   const [isWaitingForResults, setIsWaitingForResults] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initializedSelectionRef = useRef(false);
+  const loadedDateRef = useRef<string | null>(null);
   const summaryRetryDelayMs = 5000;
   const maxSummaryRetries = 24;
 
@@ -150,13 +151,19 @@ export const useLottery = () => {
           setAvailableProvinces(provinces);
         }
 
-        if (provinces.length > 0) {
-          const hasAnySelectionMatch = selectedProvinces.some((province) => provinces.includes(province));
-          if (!hasAnySelectionMatch && !isCancelled) {
+        if (provinces.length > 0 && !isCancelled) {
+          const dateChanged = loadedDateRef.current !== selectedDate;
+          // Default: always show full board. Reset to all stations on first load / date change.
+          // Keep a manual filter only while staying on the same date.
+          if (!initializedSelectionRef.current || dateChanged) {
             setSelectedProvinces(provinces);
-          }
-          if (!initializedSelectionRef.current) {
             initializedSelectionRef.current = true;
+            loadedDateRef.current = selectedDate;
+          } else {
+            const hasAnySelectionMatch = selectedProvinces.some((province) => provinces.includes(province));
+            if (!hasAnySelectionMatch) {
+              setSelectedProvinces(provinces);
+            }
           }
         }
 
@@ -247,16 +254,27 @@ export const useLottery = () => {
   }, [selectedDate]);
 
   useEffect(() => {
-    const filteredResults = boardData.filter((item) => selectedProvinces.includes(item.province));
-    setLotteryData(filteredResults);
-
     if (boardData.length === 0) {
+      setLotteryData([]);
       return;
     }
 
-    if (selectedProvinces.length > 0 && filteredResults.length === 0) {
-      // Province names might have changed after detail merge - re-sync
-      const boardProvinces = boardData.map((item) => item.province);
+    const boardProvinces = boardData.map((item) => item.province);
+
+    // Empty selection = show full board
+    if (selectedProvinces.length === 0) {
+      setSelectedProvinces(boardProvinces);
+      setAvailableProvinces(boardProvinces);
+      setLotteryData(boardData);
+      setError(null);
+      return;
+    }
+
+    const filteredResults = boardData.filter((item) => selectedProvinces.includes(item.province));
+    setLotteryData(filteredResults);
+
+    if (filteredResults.length === 0) {
+      // Province names might have changed after detail merge - re-sync to full board
       setSelectedProvinces(boardProvinces);
       setAvailableProvinces(boardProvinces);
       setError(null);
