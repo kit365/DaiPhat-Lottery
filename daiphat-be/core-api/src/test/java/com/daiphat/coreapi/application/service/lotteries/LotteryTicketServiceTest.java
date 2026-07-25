@@ -1124,7 +1124,8 @@ class LotteryTicketServiceTest {
     @DisplayName("[DP-281] GET_PUBLIC_TICKETS: Lấy danh sách vé số public thành công")
     void getPublicTickets_success() {
         Page<LotteryTicketModel> ticketPage = new PageImpl<>(List.of(existingModel), PageRequest.of(0, 10), 1);
-        when(lotteryTicketRepositoryPort.findAllPublic(any(), any(), any(), any(), any(), any())).thenReturn(ticketPage);
+        when(lotteryTicketRepositoryPort.findAllPublic(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(ticketPage);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getPublicTickets(
                 1, 10, PRODUCT_ID, null, null, null, null, null
@@ -1132,14 +1133,16 @@ class LotteryTicketServiceTest {
 
         assertThat(response).isNotNull();
         assertThat(response.getRecordList()).hasSize(1);
-        verify(lotteryTicketRepositoryPort).findAllPublic(any(), eq(PRODUCT_ID), any(), any(), eq(null), eq(null));
+        verify(lotteryTicketRepositoryPort).findAllPublic(
+                any(), eq(PRODUCT_ID), any(), any(), eq(null), eq(null), eq(null), eq(null), eq(null));
     }
 
     @Test
     @DisplayName("[DP-37][DP-255] GET_PUBLIC_TICKETS: truyền searchMode SUFFIX xuống repository")
     void getPublicTickets_passesSearchModeSuffix() {
         Page<LotteryTicketModel> ticketPage = new PageImpl<>(List.of(existingModel), PageRequest.of(0, 10), 1);
-        when(lotteryTicketRepositoryPort.findAllPublic(any(), any(), any(), any(), any(), any())).thenReturn(ticketPage);
+        when(lotteryTicketRepositoryPort.findAllPublic(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(ticketPage);
 
         PageResponse<LotteryTicketResponse> response = lotteryTicketService.getPublicTickets(
                 1, 10, PRODUCT_ID, null, "2026-07-24", "68", TicketSearchMode.SUFFIX, "createdAt", "desc"
@@ -1152,7 +1155,10 @@ class LotteryTicketServiceTest {
                 any(),
                 eq(List.of(LocalDate.of(2026, 7, 24))),
                 eq("68"),
-                eq(TicketSearchMode.SUFFIX)
+                eq(TicketSearchMode.SUFFIX),
+                eq(null),
+                eq(null),
+                eq(null)
         );
     }
 
@@ -1160,11 +1166,13 @@ class LotteryTicketServiceTest {
     @DisplayName("[DP-37][DP-255] GET_PUBLIC_TICKETS: overload 8-arg mặc định searchMode = null")
     void getPublicTickets_legacyOverload_passesNullSearchMode() {
         Page<LotteryTicketModel> ticketPage = new PageImpl<>(List.of(existingModel), PageRequest.of(0, 10), 1);
-        when(lotteryTicketRepositoryPort.findAllPublic(any(), any(), any(), any(), any(), any())).thenReturn(ticketPage);
+        when(lotteryTicketRepositoryPort.findAllPublic(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(ticketPage);
 
         lotteryTicketService.getPublicTickets(1, 10, null, null, null, "68", null, null);
 
-        verify(lotteryTicketRepositoryPort).findAllPublic(any(), any(), any(), any(), eq("68"), eq(null));
+        verify(lotteryTicketRepositoryPort).findAllPublic(
+                any(), any(), any(), any(), eq("68"), eq(null), eq(null), eq(null), eq(null));
     }
 
     // ============================================================

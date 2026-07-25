@@ -38,6 +38,12 @@ public interface LotteryTicketServicePort {
             int page, int size, Long stationId, List<Long> stationIds, String drawDate,
             String search, TicketSearchMode searchMode, String sortBy, String direction);
 
+    PageResponse<LotteryTicketResponse> getPublicTickets(
+            int page, int size, Long stationId, List<Long> stationIds, String drawDate,
+            String search, TicketSearchMode searchMode,
+            List<String> searches, List<String> tailRanges, List<String> numberTypes,
+            String sortBy, String direction);
+
     LotteryTicketResponse update(Long id, UpdateLotteryTicketRequest request, UUID editorId);
 
     void delete(Long id);
